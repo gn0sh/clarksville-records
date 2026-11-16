@@ -45,6 +45,13 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
   {% if vote_legend_nc %}{{ legend(vote_legend_nc, true, n_prefix="vote-nc-") }}
   <p class="muted">* Shown as printed in the minutes; they did not pass the automatic checks. Each row in the history links to its page. Confirmed and not confirmed votes are never added together.</p>
   {% else %}<p class="muted">* They did not pass the automatic checks, so no vote from them is shown here. Each row in the history links to its page of the minutes. Confirmed and not confirmed votes are never added together.</p>{% endif %}
+  <h3 id="vote-list-h">Vote list</h3>
+  {% if site.vote_lists_omitted %}<p>Each confirmed vote with its item, meeting date and page of the minutes, on one page you can filter and download as CSV, is on the full site; this preview leaves those pages out.</p>
+  {% else %}<p>Each confirmed vote with its item, meeting date and page of the minutes, on one page you can filter and download as CSV. Choose a vote:</p>
+  <ul class="vote-list-links" aria-labelledby="vote-list-h">
+    {% for c in vote_list.counts %}<li><a href="{{ root }}{{ vote_list.href }}?vote={{ c.key }}">{{ c.label }} ({{ c.n }})</a></li>
+    {% endfor %}<li><a href="{{ root }}{{ vote_list.href }}">All ({{ vote_list.counts | sum(attribute="n") }})</a></li>
+  </ul>{% endif %}
 </section>
 
 <section aria-labelledby="totals-h">

@@ -1394,3 +1394,23 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .bodies-k { font-weight: 600; color: var(--fg); }
 .body-note { margin: 0 0 12px; border-left-color: var(--sun); }
 @media (pointer: coarse) { .bodies-card h3 a { min-height: 44px; } .hub-go a[data-ext] { padding: 12px 0; } }
+
+/* ---- Vote list (onceover/votes/member-yes-no-list): official page links, the list page's filter and table ------ */
+.vote-list-links { list-style: none; margin: 0.4em 0 1em; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.vote-list-links a { display: inline-flex; align-items: center; min-height: 44px; }
+.vote-filter fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 18px; align-items: center; }
+.vote-filter legend { float: left; margin-right: 6px; font-weight: 700; }
+.vote-filter label { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; }
+.vote-filter input { width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--blue); }
+.vote-filter button { min-height: 44px; margin-top: 6px; padding: 4px 14px; border: 1px solid var(--blue); border-radius: 999px; background: var(--blue); color: var(--on-blue); font-weight: 600; cursor: pointer; }
+.vote-filter button:disabled { opacity: .5; cursor: not-allowed; }
+.vote-filter button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.vote-status:empty { display: none; }
+table.vote-table tr[hidden] { display: none; }
+table.vote-table td:first-child { white-space: nowrap; }
+table.vote-table td:last-child { white-space: nowrap; }
+table.vote-table small { display: block; color: var(--muted); }
+@media (max-width: 640px) {
+  table.vote-table th, table.vote-table td { padding: 8px 6px; }
+  table.vote-table td:first-child { white-space: normal; min-width: 4.6rem; }
+}

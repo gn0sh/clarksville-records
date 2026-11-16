@@ -183,6 +183,10 @@ class Index:
     def official_year_href(self, official_id: str, year: str) -> str:
         return f"officials/{official_id}/{year}.html"
 
+    def official_votes_href(self, official_id: str) -> str:
+        """The official's vote list page (onceover/votes/member-yes-no-list), next to their page."""
+        return self.official_href(official_id)[:-len(".html")] + "/votes.html"
+
     def item_title(self, item: dict) -> str:
         """The title as printed; an empty one gets a fixed fallback (with the item number when there is one)."""
         if item.get("title"):
@@ -818,7 +822,65 @@ def official(official_id: str, facts) -> dict:
                        if ix.history_by_year else None),
         "years": years,
         "types": [(t, config.TYPE_LABELS[t]) for t in config.HISTORY_TYPES],
+        # the vote list page (onceover/votes/member-yes-no-list): its filter options and counts, linked from here
+        "vote_list": {"href": ix.official_votes_href(official_id),
+                      "counts": vote_list_counts(vote_list_rows(ix, official_id))},
     }
+
+
+# The vote list's filter (onceover/votes/member-yes-no-list): the same options, in the same order, for every official.
+VOTE_LIST_KEYS = (("yes", "Yes"), ("no", "No"), ("abstain", "Abstain"), ("other", "Other"), ("absent", "Absent"))
+
+
+def vote_list_rows(ix: Index, official_id: str) -> list[dict]:
+    """One row per confirmed vote of this official, newest first, in minutes order within a meeting: each vote the
+    minutes record for them by name (Yes, No, Abstain, Other), and each vote taken at a meeting whose shown attendance
+    lists them absent ("Absent", sourced to the attendance page). Only confirmed roll calls, the same set and rule as
+    official_counts' confirmed side, so the list's counts are the vote bar's. A vote that names no one (a voice vote,
+    an outcome only) is not a roll call in the facts and never becomes a row: nobody's Yes is inferred."""
+    absent_at: dict[str, int] = {}   # meeting id -> the page of the attendance entry listing them absent
+    present_at: set[str] = set()
+    for m in ix.facts["meetings"]:
+        if not attendance_shown(m):
+            continue
+        entries = [a for a in m["attendance"] if a["official_id"] == official_id]
+        if any(a["status"] == "absent" for a in entries):
+            absent_at[m["id"]] = next(a["page"] for a in entries if a["status"] == "absent")
+        elif entries:
+            present_at.add(m["id"])
+    rows = []
+    for rc in ix.facts["roll_calls"]:
+        if not is_verified(rc):
+            continue
+        m = ix.meetings[rc["meeting_id"]]
+        base = {"date": m["date"], "meeting_href": ix.meeting_href(m["id"], rc["id"]), "item": ix.item_ref(rc["item_id"]),
+                "vote_on": outcome_kind_label(rc.get("outcome_text")), "pos": ix.position(rc)}
+        mine = [v for v in rc["votes"] if v["official_id"] == official_id]
+        for v in mine:
+            rows.append({**base, "key": v["value"], "label": vote_label(v["value"], v["raw_value"]),
+                         "src": ix.src(rc["source_id"], rc["page"]), "fact_id": f"{rc['id']}/{official_id}"})
+        if not mine and m["id"] in absent_at:
+            rows.append({**base, "key": "absent", "label": "Absent",
+                         "src": ix.src(m["source_id"], absent_at[m["id"]]), "fact_id": None})
+    rows.sort(key=lambda r: r["pos"])
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    return rows
+
+
+def vote_list_counts(rows: list[dict]) -> list[dict]:
+    """Each filter option with its row count, every option always (zero included), in the fixed order."""
+    return [{"key": k, "label": label, "n": sum(1 for r in rows if r["key"] == k)} for k, label in VOTE_LIST_KEYS]
+
+
+def official_votes(official_id: str, facts) -> dict:
+    """The official's vote list page: the rows, the filter's counts, and what is left out (not confirmed votes)."""
+    ix = _ix(facts)
+    o = ix.officials[official_id]
+    rows = vote_list_rows(ix, official_id)
+    c = official_counts(ix, official_id)
+    return {"official": o, "official_href": ix.official_href(official_id), "rows": rows,
+            "counts": vote_list_counts(rows), "left_out": c["rc_voted_nc"] + c["rc_absent_nc"],
+            "coverage": ix.coverage}
 
 
 def roster_official(official_id: str, facts) -> dict:

@@ -1,0 +1,43 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import item_link %}
+{# An official's vote list (onceover/votes/member-yes-no-list, views.official_votes): every confirmed vote the minutes
+   record for them by name, plus each vote taken while recorded absent, filterable by vote and downloadable as CSV
+   of exactly the rows shown (votes.js). The same page, options and wording for every official. Without JavaScript the
+   filter and download stay hidden and every row is shown. #}
+{% block main %}
+<h1><a href="{{ root }}{{ official_href }}">{{ official.name }}</a>: vote list</h1>
+<p class="lede">Each confirmed vote the minutes record for this person by name, newest first, with the item, the meeting date and the page of the minutes. &ldquo;Absent&rdquo; is a vote taken at a meeting whose attendance lists this person absent; its source is that attendance page. A vote whose minutes name no one, such as a voice vote, is not listed for anyone.</p>
+<p class="muted vote-list-left">{{ left_out }} not confirmed* {{ "vote is" if left_out == 1 else "votes are" }} left out of this list; each is in the history on <a href="{{ root }}{{ official_href }}">this person's page</a>, linked to its page of the minutes.</p>
+{% if parts %}<nav class="vote-parts" aria-label="Vote list by years">
+  <p>This list is long, so it is on {{ parts | length }} pages by year. This page: {% for x in parts if x.current %}{{ x.label }}{% endfor %}.</p>
+  <ul class="vote-list-links">{% for x in parts %}<li><a href="{{ x.href }}"{% if x.current %} aria-current="page"{% endif %}>{{ x.label }} ({{ x.n }})</a></li>{% endfor %}</ul>
+</nav>
+{% endif %}<form id="vote-filter" class="toolbar vote-filter" hidden>
+  <fieldset>
+    <legend>Show</legend>
+    <label><input type="radio" name="vote" value="" checked> All ({{ rows | length }})</label>
+    {% for c in counts %}<label><input type="radio" name="vote" value="{{ c.key }}"> {{ c.label }} ({{ c.n }})</label>
+    {% endfor %}
+  </fieldset>
+  <button type="button" id="vote-csv" data-name="{{ official.id }}-votes">Download these rows (CSV)</button>
+</form>
+<p id="vote-status" class="vote-status" role="status"></p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="Vote list">
+{# Lean rows on purpose (city-pages/page-weight: a long-serving member has about 2,000 under 1 MB): end tags left out,
+   as HTML allows; no classes (votes.js reads cells by position); the date links the meeting only when the item has no
+   page of its own (the item page links its meetings); a real table at every width, so no ARIA roles are needed. #}
+<table class="vote-table" id="vote-table">
+<thead><tr><th scope="col">Date</th><th scope="col">Item</th><th scope="col">Vote</th><th scope="col">Source</th></tr></thead>
+<tbody>
+{% for r in rows -%}
+<tr data-vote="{{ r.key }}" data-date="{{ r.date }}"><td>{% if r.item.href %}{{ r.date | day_words }}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.date | day_words }}</a>{% endif %}<td>{{ item_link(r.item, root) }}{% if r.vote_on %} <small><a href="{{ root }}about.html#vote-on">Vote on</a>: {{ r.vote_on }}.</small>{% endif %}<td>{{ r.label }}<td><a href="{{ r.src.url }}" target="_blank" rel="noopener noreferrer">p.&nbsp;{{ r.src.page }}<span class="sr-only"> (PDF, new tab)</span></a>
+{% else -%}
+<tr class="empty"><td colspan="4">No confirmed votes are recorded for this person.
+{% endfor -%}
+</tbody>
+</table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ root }}static/votes.js" defer></script>
+{% endblock %}
