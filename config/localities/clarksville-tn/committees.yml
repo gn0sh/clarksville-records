@@ -29,3 +29,9 @@ committees:
   - category_name: Audit Committee        # category id 44, 49 events, newest 2025-02-03
     slug: audit
     label: Audit Committee
+
+# Hold every motion as "Not confirmed" on the site (as rpc.yml hold_motions): on from the start (C1), so no motion read
+# by the new minutes reader (collector/committee_minutes.py) is shown confirmed until a person has spot-checked
+# committees.json against the minutes. The reader's own `confirmed` and `reasons` stay in committees.json. To lift: a
+# spot check of a sample of confirmed motions against their minutes pages, then set this to false in its own reviewed PR.
+hold_motions: true

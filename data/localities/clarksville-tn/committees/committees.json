@@ -1,0 +1,4587 @@
+{
+  "bodies": [
+    {
+      "category_name": "Finance Committee",
+      "label": "Finance Committee",
+      "slug": "finance"
+    },
+    {
+      "category_name": "Audit Committee",
+      "label": "Audit Committee",
+      "slug": "audit"
+    }
+  ],
+  "hold_motions": true,
+  "locality": "clarksville-tn",
+  "meetings": [
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2019-01-17",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "166a-01172019",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=118,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "166m-011719 Audit Mtg Minutes appd",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=120,plainText=false)"
+        }
+      ],
+      "event_id": 144,
+      "id": "2019-01-17-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee",
+      "video_url": null
+    },
+    {
+      "attendance": {
+        "absent": null,
+        "confirmed": true,
+        "page": 1,
+        "present": [
+          {
+            "name": "Jeff Burkhart"
+          },
+          {
+            "name": "Tim Chandler"
+          },
+          {
+            "name": "Valerie Guzman"
+          },
+          {
+            "name": "Jeff Henley"
+          },
+          {
+            "name": "Stacey Streetman"
+          }
+        ],
+        "source_id": "src-a6ea3f9d994e"
+      },
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-04-04",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "136a-Finance Agenda 4-4-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=996,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-16",
+          "kind": "minutes",
+          "name": "136m-Finance Minutes 4-4-19",
+          "sha256": "a6ea3f9d994e4f7c62b40f69854fcda1581a13602b8e85603c5248082b185c9d",
+          "source_id": "src-a6ea3f9d994e",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=997,plainText=false)"
+        }
+      ],
+      "event_id": 734,
+      "id": "2019-04-04-finance",
+      "minutes_printed_date": "2019-04-04",
+      "minutes_read": true,
+      "title": "Finance Committee Agenda 4-4-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-04-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "159a-Finance Agenda 4-23-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=989,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "159m-Finance Minutes 4-23-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=990,plainText=false)"
+        }
+      ],
+      "event_id": 730,
+      "id": "2019-04-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 4-23-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2019-04-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "158a-Audit Agenda 4-24-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=148,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "158m-Audit Minutes 4-24-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=149,plainText=false)"
+        }
+      ],
+      "event_id": 160,
+      "id": "2019-04-24-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 4-24-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-04-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "164a-Finance Agenda 4-25-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=991,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "164m-Finance Minutes 4-25-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=992,plainText=false)"
+        }
+      ],
+      "event_id": 731,
+      "id": "2019-04-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 4-25-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-04-30",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "165a-Finance Agenda 4-30-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=994,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "165m-Finance Minutes 4-30-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=995,plainText=false)"
+        }
+      ],
+      "event_id": 733,
+      "id": "2019-04-30-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 4-30-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-05-02",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "137a-Finance Agenda 5-2-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=999,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "137m-Finance Minutes 5-2-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1000,plainText=false)"
+        }
+      ],
+      "event_id": 736,
+      "id": "2019-05-02-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 5-2-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-05-15",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "171a-Finance Agenda 5-15-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=998,plainText=false)"
+        }
+      ],
+      "event_id": 735,
+      "id": "2019-05-15-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 5-15-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-05-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "176a-Finance Agenda 5-23-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1001,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "176m-Finance Minutes 5-23-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1002,plainText=false)"
+        }
+      ],
+      "event_id": 737,
+      "id": "2019-05-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 5-23-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-05-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "179a-Finance Agenda 5-28-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1004,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "179m-Finance Minutes 5-28-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1005,plainText=false)"
+        }
+      ],
+      "event_id": 739,
+      "id": "2019-05-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 5-28-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-06-06",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "189a-Finance Agenda 6-6-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1009,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "189m-Finance Minutes 6-6-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1010,plainText=false)"
+        }
+      ],
+      "event_id": 742,
+      "id": "2019-06-06-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 6-6-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-06-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "212a-Finance Committee 6-25-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1007,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "212m-Finance Minutes 6-25-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1008,plainText=false)"
+        }
+      ],
+      "event_id": 741,
+      "id": "2019-06-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 6-25-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-07-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "230a-Finance Agenda 7-23-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1011,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "230m-Finance Minutes 7-23-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1012,plainText=false)"
+        }
+      ],
+      "event_id": 743,
+      "id": "2019-07-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 7-23-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2019-07-31",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "236a-Audit Agenda 7-31-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=156,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "236m-Audit Minutes 7-31-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=157,plainText=false)"
+        }
+      ],
+      "event_id": 164,
+      "id": "2019-07-31-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 7-31-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-08-06",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "239a-Finance Agenda 8-6-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1018,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "239m-Finance Minutes 8-6-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1019,plainText=false)"
+        }
+      ],
+      "event_id": 748,
+      "id": "2019-08-06-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 8-6-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-08-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "251a-Finance Agenda 8-27-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1016,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "251m-Finance Minutes 8-27-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1017,plainText=false)"
+        }
+      ],
+      "event_id": 747,
+      "id": "2019-08-27-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 8-27-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-09-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "270a-Finance Agenda 9-24-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1020,plainText=false)"
+        }
+      ],
+      "event_id": 749,
+      "id": "2019-09-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 9-24-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-10-03",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "277a-Finance Agenda 10-3-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=980,plainText=false)"
+        }
+      ],
+      "event_id": 723,
+      "id": "2019-10-03-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 10-3-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-10-17",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "290a-October 17, 2019 Finance Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=977,plainText=false)"
+        }
+      ],
+      "event_id": 720,
+      "id": "2019-10-17-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 10-17-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-10-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "299a-Finance Agenda 10-25-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=978,plainText=false)"
+        }
+      ],
+      "event_id": 721,
+      "id": "2019-10-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 10-25-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-10-29",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "300a-Finance Agenda 10-29-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=979,plainText=false)"
+        }
+      ],
+      "event_id": 722,
+      "id": "2019-10-29-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 10-29-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2019-10-30",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "302a-Audit Agenda 10-30-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=141,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "302m-Audit Minutes 10-30-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=142,plainText=false)"
+        }
+      ],
+      "event_id": 156,
+      "id": "2019-10-30-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 10-30-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-11-07",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "305a-Finance Agenda 11-7-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=982,plainText=false)"
+        }
+      ],
+      "event_id": 725,
+      "id": "2019-11-07-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 11-7-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-11-21",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "317a-Finance Agenda 11-21-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=981,plainText=false)"
+        }
+      ],
+      "event_id": 724,
+      "id": "2019-11-21-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 11-21-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2019-12-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "337a-Finance Agenda 12-23-19",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=983,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "337m-Finance Committee Schedule 2020",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=984,plainText=false)"
+        }
+      ],
+      "event_id": 726,
+      "id": "2019-12-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 12-23-19",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-01-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "357a-Finance Agenda 1-28-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=985,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "357m-Finance Minutes 1-28-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=986,plainText=false)"
+        }
+      ],
+      "event_id": 727,
+      "id": "2020-01-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 1-28-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2020-01-29",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "361a-Audit Agenda 1-29-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=143,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "361m-Audit Minutes 1-29-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=144,plainText=false)"
+        }
+      ],
+      "event_id": 157,
+      "id": "2020-01-29-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 1-29-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-02-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "380a-Finance Agenda 2-25-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=987,plainText=false)"
+        }
+      ],
+      "event_id": 728,
+      "id": "2020-02-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 2-25-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": true,
+      "committee": "audit",
+      "date": "2020-03-12",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "389a-Audit Agenda 3-12-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=145,plainText=false)"
+        }
+      ],
+      "event_id": 158,
+      "id": "2020-03-12-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 3-12-20 MEETING CANCELLED",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-03-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "400a-Finance Agenda 3-24-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=988,plainText=false)"
+        }
+      ],
+      "event_id": 729,
+      "id": "2020-03-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 3-24-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2020-03-31",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "405a-Audit Agenda 3-31-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=146,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "405m-Audit Minutes 3-31-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=147,plainText=false)"
+        }
+      ],
+      "event_id": 159,
+      "id": "2020-03-31-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 3-31-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2020-04-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "422a-April 27 2020 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=150,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "422m-Audit Minutes 4-27-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=151,plainText=false)"
+        }
+      ],
+      "event_id": 161,
+      "id": "2020-04-27-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 4-24-20",
+      "title_date": "2020-04-24",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-04-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "426a-Finance Agenda 4-28-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=993,plainText=false)"
+        }
+      ],
+      "event_id": 732,
+      "id": "2020-04-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 4-28-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2020-04-29",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "427a-Audit Agenda 4-29-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=152,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "427m-Audit Minutes 4-29-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=153,plainText=false)"
+        }
+      ],
+      "event_id": 162,
+      "id": "2020-04-29-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 4-29-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-05-18",
+      "documents": [],
+      "event_id": 1468,
+      "id": "2020-05-18-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-05-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "451a-Finance Agenda 5-26-20 Revised",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1003,plainText=false)"
+        }
+      ],
+      "event_id": 738,
+      "id": "2020-05-26-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 5-26-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-06-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "482a-Finance Agenda 6-23-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1006,plainText=false)"
+        }
+      ],
+      "event_id": 740,
+      "id": "2020-06-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 6-23-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-07-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "517a-Finance Agenda 7-28-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1013,plainText=false)"
+        }
+      ],
+      "event_id": 744,
+      "id": "2020-07-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 7-28-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2020-07-29",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "515a-072920 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=154,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "515m-Audit Minutes 7-29-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=155,plainText=false)"
+        }
+      ],
+      "event_id": 163,
+      "id": "2020-07-29-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda 7-29-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-07-30",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "519a-Finance Agenda 7-30-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1014,plainText=false)"
+        }
+      ],
+      "event_id": 745,
+      "id": "2020-07-30-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 7-30-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-08-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "551a-Finance Agenda 8-25-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1015,plainText=false)"
+        }
+      ],
+      "event_id": 746,
+      "id": "2020-08-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda 8-25-20",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-09-14",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "574a-Finance Agenda 9-14-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1021,plainText=false)"
+        }
+      ],
+      "event_id": 750,
+      "id": "2020-09-14-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda September 14, 2020",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-09-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "596a-Finance Agenda 9-22-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=974,plainText=false)"
+        }
+      ],
+      "event_id": 718,
+      "id": "2020-09-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - September 22, 2020",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-10-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "628a-Finance Agenda 10-27-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=973,plainText=false)"
+        }
+      ],
+      "event_id": 717,
+      "id": "2020-10-27-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - October 27, 2020",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2020-10-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "629a-Audit Agenda 10-28-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=139,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "629m-Audit Minutes 10-28-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=140,plainText=false)"
+        }
+      ],
+      "event_id": 155,
+      "id": "2020-10-28-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - October 28, 2020",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-11-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "658a-Finance Agenda 11-24-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=968,plainText=false)"
+        }
+      ],
+      "event_id": 714,
+      "id": "2020-11-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - November 24, 2020",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2020-12-03",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "663a-Audit Agenda 12-3-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=125,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "663m-Audit Minutes 12-3-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=126,plainText=false)"
+        }
+      ],
+      "event_id": 147,
+      "id": "2020-12-03-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - December 3, 2020",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2020-12-10",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "671a-00 December 10 2020 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=123,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "671m-Audit Minutes 12-10-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=124,plainText=false)"
+        }
+      ],
+      "event_id": 146,
+      "id": "2020-12-10-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - December 10, 2020",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2020-12-29",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "681a-Finance Agenda 12-29-20",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=938,plainText=false)"
+        }
+      ],
+      "event_id": 698,
+      "id": "2020-12-29-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - December 29, 2020",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-01-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "711a-Finance Agenda 1-26-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=948,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "711m-Finance Minutes 1-26-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=949,plainText=false)"
+        }
+      ],
+      "event_id": 704,
+      "id": "2021-01-26-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - January 26, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2021-01-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "709a-Audit Committee Agenda 1-27-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=130,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "709m-Audit Minutes 1-27-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=131,plainText=false)"
+        }
+      ],
+      "event_id": 150,
+      "id": "2021-01-27-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - January 27, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-02-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "743a-Finance Agenda 2-23-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=942,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "743m-Finance Minutes 2-23-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=943,plainText=false)"
+        }
+      ],
+      "event_id": 701,
+      "id": "2021-02-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - February 23, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-03-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "771a-Finance Agenda 3-23-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=958,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "771m-Finance Minutes 3-23-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=959,plainText=false)"
+        }
+      ],
+      "event_id": 709,
+      "id": "2021-03-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - March 23, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-04-19",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "790a-Finance-Parks Agenda 4-19-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=921,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "790m-Finance-Parks Minutes 4-19-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=922,plainText=false)"
+        }
+      ],
+      "event_id": 689,
+      "id": "2021-04-19-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance & Parks Joint Committee Agenda - April 19, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-04-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "804a-Finance Agenda 4-27-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=925,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "804m-Finance Minutes 4-27-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=926,plainText=false)"
+        }
+      ],
+      "event_id": 691,
+      "id": "2021-04-27-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - April 27, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2021-04-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "805a-April 2021 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=121,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "805m-Audit Minutes 4-28-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=122,plainText=false)"
+        }
+      ],
+      "event_id": 145,
+      "id": "2021-04-28-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - April 28, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-04-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "809a-Finance Agenda 4-28-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=927,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "809m-Finance Minutes 4-28-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=928,plainText=false)"
+        }
+      ],
+      "event_id": 692,
+      "id": "2021-04-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - April 28, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-05-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "840a-Finance Agenda 5-25-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=962,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "840m-Finance Minutes 5-25-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=963,plainText=false)"
+        }
+      ],
+      "event_id": 711,
+      "id": "2021-05-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - May 24, 2021",
+      "title_date": "2021-05-24",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-06-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "863a-Finance Agenda 6-22-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1022,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "863m-Finance Minutes 6-22-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1023,plainText=false)"
+        }
+      ],
+      "event_id": 751,
+      "id": "2021-06-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda, 6/22/21",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-07-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "889a-Finance Agenda 7-22-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=950,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "889m-Finance Minutes 7-22-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=951,plainText=false)"
+        }
+      ],
+      "event_id": 705,
+      "id": "2021-07-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - July 22, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-07-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "900a-Finance Agenda 7-27-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=954,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "900m-Finance Minutes 7-27-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=955,plainText=false)"
+        }
+      ],
+      "event_id": 707,
+      "id": "2021-07-27-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - July 27, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2021-07-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "901a-00 July 2021 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=134,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "901m-072821 Audit Mtg Minutes approved (2)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=135,plainText=false)"
+        }
+      ],
+      "event_id": 152,
+      "id": "2021-07-28-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - July 28, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": true,
+      "committee": "finance",
+      "date": "2021-08-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "937a-Finance Agenda 8-24-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=931,plainText=false)"
+        }
+      ],
+      "event_id": 694,
+      "id": "2021-08-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - August 24, 2021 CANCELLED",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-08-31",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "939a-Finance Agenda 8-31-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=932,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "939m-Finance Minutes 8-31-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=933,plainText=false)"
+        }
+      ],
+      "event_id": 695,
+      "id": "2021-08-31-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - August 31, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-09-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "967a-9-28-21 Finance Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=975,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "967m-Finance Minutes 9-28-21",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=976,plainText=false)"
+        }
+      ],
+      "event_id": 719,
+      "id": "2021-09-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - September 28, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-10-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "998a-10-26-21 Finance Agenda Final",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=971,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "998m-Finance Minutes 10-26-21 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=972,plainText=false)"
+        }
+      ],
+      "event_id": 716,
+      "id": "2021-10-26-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - October 26, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2021-10-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "999a-00 October 2021 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=137,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "999m-102721 Audit Committee Minutes - Approved",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=138,plainText=false)"
+        }
+      ],
+      "event_id": 154,
+      "id": "2021-10-27-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - October 27, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-11-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1022a-Finance Committee Agenda - 11-23-21 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=966,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1022m-Finance Minutes 11-23-21 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=967,plainText=false)"
+        }
+      ],
+      "event_id": 713,
+      "id": "2021-11-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - November 23, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2021-12-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1040a-Finance Agenda 12-28-21 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=934,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1040m-Finance Minutes 12-28-21 (3)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=935,plainText=false)"
+        }
+      ],
+      "event_id": 696,
+      "id": "2021-12-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - December 28, 2021",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-01-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1068a-Finance Agenda 1-25-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=946,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1068m-Finance Minutes 1-25-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=947,plainText=false)"
+        }
+      ],
+      "event_id": 703,
+      "id": "2022-01-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - January 25, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2022-01-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1069a-00 January 2022 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=128,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1069m-012622 Audit Mtg Minutes Approved",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=129,plainText=false)"
+        }
+      ],
+      "event_id": 149,
+      "id": "2022-01-26-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - January 26, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-02-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1085a-Finance Agenda 2-22-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=940,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1085m-Finance Minutes 2-22-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=941,plainText=false)"
+        }
+      ],
+      "event_id": 700,
+      "id": "2022-02-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - February 22, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-03-29",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1121a-Finance Agenda 3-29-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=960,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1121m-Finance Minutes 3-29-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=961,plainText=false)"
+        }
+      ],
+      "event_id": 710,
+      "id": "2022-03-29-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - March 29, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-04-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1142a-Finance Agenda 4-26-22 (2)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1026,plainText=false)"
+        }
+      ],
+      "event_id": 754,
+      "id": "2022-04-26-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Mtg. Agenda - April 26, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2022-04-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1144a-00 April 2022 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=161,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1144m-042722 Audit Mtg Minutes Approved",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=162,plainText=false)"
+        }
+      ],
+      "event_id": 166,
+      "id": "2022-04-27-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Meeting Agenda - April 27, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-05-09",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1148a-FY 2023 Budget",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1024,plainText=false)"
+        }
+      ],
+      "event_id": 752,
+      "id": "2022-05-09-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Budget Overview Meeting Agenda - May 9, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-05-10",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1149a-FY23 Budget Committee Review May 2022 (6)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1033,plainText=false)"
+        }
+      ],
+      "event_id": 761,
+      "id": "2022-05-10-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "other_name": true,
+      "title": "FY23 Dept Budget Review Notice",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-05-11",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1152a-FY23 Budget Committee Review May 2022 (6)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1028,plainText=false)"
+        }
+      ],
+      "event_id": 756,
+      "id": "2022-05-11-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "other_name": true,
+      "title": "FY23 Budget Review Notice",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-05-12",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1154a-FY23 Budget Committee Review May 2022 (6)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1030,plainText=false)"
+        }
+      ],
+      "event_id": 758,
+      "id": "2022-05-12-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "other_name": true,
+      "title": "FY23 Budget Review Notice",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-05-13",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1156a-FY23 Budget Committee Review May 2022 (6)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1032,plainText=false)"
+        }
+      ],
+      "event_id": 760,
+      "id": "2022-05-13-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "other_name": true,
+      "title": "FY23 Budget Review Notice",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-05-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1174a-Finance Agenda 5-24-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=964,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1174m-Finance Minutes 5-24-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=965,plainText=false)"
+        }
+      ],
+      "event_id": 712,
+      "id": "2022-05-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - May 24, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-06-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1201a-Finance Agenda 6-28-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=956,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1201m-Finance Minutes 6-28-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=957,plainText=false)"
+        }
+      ],
+      "event_id": 708,
+      "id": "2022-06-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - June 28, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-07-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1222a-Finance Agenda 7-26-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=952,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1222m-Finance Minutes 7-26-22 (2)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=953,plainText=false)"
+        }
+      ],
+      "event_id": 706,
+      "id": "2022-07-26-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - July 26, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2022-07-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1223a-00 July 2022 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=132,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1223m-072722 Audit Mtg Minutes Approved",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=133,plainText=false)"
+        }
+      ],
+      "event_id": 151,
+      "id": "2022-07-27-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - July 27, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-08-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1248a-Finance Agenda 8-23-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=929,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1248m-Finance Minutes 8-23-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=930,plainText=false)"
+        }
+      ],
+      "event_id": 693,
+      "id": "2022-08-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - August 23, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-09-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1273a-Finance Agenda 9-27-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1025,plainText=false)"
+        }
+      ],
+      "event_id": 753,
+      "id": "2022-09-27-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting Agenda - September 27, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-10-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1293a-Finance Agenda 10-25-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=969,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1293m-Finance Minutes 10-25-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=970,plainText=false)"
+        }
+      ],
+      "event_id": 715,
+      "id": "2022-10-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - October 25, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2022-10-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1294a-00 October 2022 Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=136,plainText=false)"
+        }
+      ],
+      "event_id": 153,
+      "id": "2022-10-26-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - October 26, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-11-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1307a-Finance Agenda 11-22-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=923,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1307m-Finance Minutes 11-22-22 (2)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=924,plainText=false)"
+        }
+      ],
+      "event_id": 690,
+      "id": "2022-11-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Agenda -",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2022-12-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1324a-Finance Agenda 12-28-22",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=936,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1324m-Finance Minutes 12-28-22 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=937,plainText=false)"
+        }
+      ],
+      "event_id": 697,
+      "id": "2022-12-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - December 28, 2022",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-01-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1348a-Finance Agenda 1-24-23",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=944,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "1348m-Finance Minutes 1-24-23 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=945,plainText=false)"
+        }
+      ],
+      "event_id": 702,
+      "id": "2023-01-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - January 24, 2023",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2023-02-01",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1351a-00 February 2023 Audit Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=127,plainText=false)"
+        }
+      ],
+      "event_id": 148,
+      "id": "2023-02-01-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Agenda - February 1, 2023",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-02-21",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1364a-Finance Agenda 2-21-23 (1)",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=939,plainText=false)"
+        }
+      ],
+      "event_id": 699,
+      "id": "2023-02-21-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Agenda - February 21, 2023",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-03-28",
+      "documents": [],
+      "event_id": 1464,
+      "id": "2023-03-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-07-24",
+      "documents": [],
+      "event_id": 1495,
+      "id": "2023-07-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-08-28",
+      "documents": [],
+      "event_id": 1582,
+      "id": "2023-08-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-09-25",
+      "documents": [],
+      "event_id": 1583,
+      "id": "2023-09-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-10-05",
+      "documents": [],
+      "event_id": 1653,
+      "id": "2023-10-05-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Special Called Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-10-16",
+      "documents": [],
+      "event_id": 1658,
+      "id": "2023-10-16-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Special Called Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-10-23",
+      "documents": [],
+      "event_id": 1584,
+      "id": "2023-10-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-11-27",
+      "documents": [],
+      "event_id": 1585,
+      "id": "2023-11-27-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2023-12-18",
+      "documents": [],
+      "event_id": 1586,
+      "id": "2023-12-18-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-01-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1-22-24 Finance Committee Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1882,plainText=false)"
+        }
+      ],
+      "event_id": 1587,
+      "id": "2024-01-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2024-01-31",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "1-31-24 Audit Committee Meeting Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1889,plainText=false)"
+        }
+      ],
+      "event_id": 1726,
+      "id": "2024-01-31-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2024-02-21",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1920,plainText=false)"
+        }
+      ],
+      "event_id": 1757,
+      "id": "2024-02-21-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee Special Called Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-02-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1938,plainText=false)"
+        }
+      ],
+      "event_id": 1588,
+      "id": "2024-02-26-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2024-02-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1939,plainText=false)"
+        }
+      ],
+      "event_id": 1774,
+      "id": "2024-02-27-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Special Called Audit Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-03-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1973,plainText=false)"
+        }
+      ],
+      "event_id": 1589,
+      "id": "2024-03-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-04-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2044,plainText=false)"
+        }
+      ],
+      "event_id": 1590,
+      "id": "2024-04-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2024-04-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2041,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2187,plainText=false)"
+        }
+      ],
+      "event_id": 1893,
+      "id": "2024-04-24-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-05-07",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Notice",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2057,plainText=false)"
+        }
+      ],
+      "event_id": 1915,
+      "id": "2024-05-07-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "other_name": true,
+      "title": "Public Safety Committee FY25 Budget Review",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-05-07",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Notice",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2058,plainText=false)"
+        }
+      ],
+      "event_id": 1916,
+      "id": "2024-05-07-finance-2",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "other_name": true,
+      "title": "Gas & Water Committee FY25 Budget Review Mtg",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-05-08",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Notice",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2059,plainText=false)"
+        }
+      ],
+      "event_id": 1917,
+      "id": "2024-05-08-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee FY25 Budget Review Mtg",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-05-08",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Notice",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2060,plainText=false)"
+        }
+      ],
+      "event_id": 1918,
+      "id": "2024-05-08-finance-2",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee FY25 Budget Review Mtg",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-05-10",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Notice",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2062,plainText=false)"
+        }
+      ],
+      "event_id": 1920,
+      "id": "2024-05-10-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "other_name": true,
+      "title": "Parks & Recreation Committee FY25 Budget Review Mtg",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-05-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2078,plainText=false)"
+        }
+      ],
+      "event_id": 1591,
+      "id": "2024-05-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-06-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2121,plainText=false)"
+        }
+      ],
+      "event_id": 1592,
+      "id": "2024-06-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-07-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2153,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2322,plainText=false)"
+        }
+      ],
+      "event_id": 1593,
+      "id": "2024-07-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2024-07-31",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2170,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2280,plainText=false)"
+        }
+      ],
+      "event_id": 1997,
+      "id": "2024-07-31-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-08-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2191,plainText=false)"
+        }
+      ],
+      "event_id": 1533,
+      "id": "2024-08-26-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-09-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2227,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2324,plainText=false)"
+        }
+      ],
+      "event_id": 2383,
+      "id": "2024-09-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-10-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2262,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2325,plainText=false)"
+        }
+      ],
+      "event_id": 1714,
+      "id": "2024-10-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": {
+        "absent": [
+          {
+            "name": "Karen Reynolds"
+          },
+          {
+            "name": "Elizabeth Rankin"
+          }
+        ],
+        "confirmed": true,
+        "page": 1,
+        "present": [
+          {
+            "name": "Jennifer Thayer"
+          },
+          {
+            "name": "Patrick Wilkinson"
+          },
+          {
+            "name": "Trey Judd"
+          }
+        ],
+        "source_id": "src-f65389a8627f"
+      },
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2024-10-30",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2264,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-16",
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": "f65389a8627f24fb937c17080b4426c8380fe465e93352a9b87430cbec3082a8",
+          "source_id": "src-f65389a8627f",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2390,plainText=false)"
+        }
+      ],
+      "event_id": 2440,
+      "id": "2024-10-30-audit",
+      "minutes_printed_date": "2024-10-30",
+      "minutes_read": true,
+      "title": "Audit Committee",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-11-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2296,plainText=false)"
+        }
+      ],
+      "event_id": 2385,
+      "id": "2024-11-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2024-12-18",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2334,plainText=false)"
+        }
+      ],
+      "event_id": 2386,
+      "id": "2024-12-18-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-01-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2363,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2628,plainText=false)"
+        }
+      ],
+      "event_id": 1717,
+      "id": "2025-01-27-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Audit Committee",
+      "cancelled": false,
+      "committee": "audit",
+      "date": "2025-02-03",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2370,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2470,plainText=false)"
+        }
+      ],
+      "event_id": 2441,
+      "id": "2025-02-03-audit",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Audit Committee",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-02-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2396,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2493,plainText=false)"
+        }
+      ],
+      "event_id": 1718,
+      "id": "2025-02-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-03-24",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2424,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2492,plainText=false)"
+        }
+      ],
+      "event_id": 1719,
+      "id": "2025-03-24-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": {
+        "absent": null,
+        "confirmed": true,
+        "page": 1,
+        "present": [
+          {
+            "name": "STREETMAN"
+          },
+          {
+            "name": "LOVATO"
+          },
+          {
+            "name": "McLAUGHLIN"
+          },
+          {
+            "name": "SMITH",
+            "note": "arrived at 4:36 pm"
+          },
+          {
+            "name": "ZACHARIAS"
+          }
+        ],
+        "source_id": "src-94ac2daa1a8c"
+      },
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-04-21",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2451,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-16",
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": "94ac2daa1a8c33bb645734be6a18a610940890634d74dd7ad92ebe7c2171288d",
+          "source_id": "src-94ac2daa1a8c",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2591,plainText=false)"
+        }
+      ],
+      "event_id": 1720,
+      "id": "2025-04-21-finance",
+      "minutes_printed_date": "2025-04-21",
+      "minutes_read": true,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": {
+        "absent": [],
+        "confirmed": true,
+        "page": 1,
+        "present": [
+          {
+            "name": "Streetman"
+          },
+          {
+            "name": "Lovato"
+          },
+          {
+            "name": "McLaughlin"
+          },
+          {
+            "name": "Shakeenab"
+          },
+          {
+            "name": "Zacharias",
+            "note": "arrived at 5:10 pm"
+          }
+        ],
+        "source_id": "src-d5277eb0c752"
+      },
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-05-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2500,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-16",
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": "d5277eb0c752aad1bb80156b41497a44ac78be1688892690a7f9925518a44191",
+          "source_id": "src-d5277eb0c752",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2590,plainText=false)"
+        }
+      ],
+      "event_id": 1722,
+      "id": "2025-05-27-finance",
+      "minutes_printed_date": "2025-05-27",
+      "minutes_read": true,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-06-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2525,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2575,plainText=false)"
+        }
+      ],
+      "event_id": 2392,
+      "id": "2025-06-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-07-28",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2572,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2756,plainText=false)"
+        }
+      ],
+      "event_id": 1723,
+      "id": "2025-07-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-08-25",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2682,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2757,plainText=false)"
+        }
+      ],
+      "event_id": 1724,
+      "id": "2025-08-25-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2025-09-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2708,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2819,plainText=false)"
+        }
+      ],
+      "event_id": 1725,
+      "id": "2025-09-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-01-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2865,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3080,plainText=false)"
+        }
+      ],
+      "event_id": 3054,
+      "id": "2026-01-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-02-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2918,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3081,plainText=false)"
+        }
+      ],
+      "event_id": 3055,
+      "id": "2026-02-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-03-23",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2962,plainText=false)"
+        },
+        {
+          "fetched_at": null,
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3082,plainText=false)"
+        }
+      ],
+      "event_id": 3056,
+      "id": "2026-03-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": {
+        "absent": [
+          {
+            "name": "Peters"
+          }
+        ],
+        "confirmed": true,
+        "page": 1,
+        "present": [
+          {
+            "name": "Streetman",
+            "note": "arrived at 4:43 pm"
+          },
+          {
+            "name": "Lovato"
+          },
+          {
+            "name": "Shakeenab"
+          },
+          {
+            "name": "Zacharias"
+          }
+        ],
+        "source_id": "src-1505031d49f5"
+      },
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-04-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3012,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-16",
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": "1505031d49f504aa9b7c5d559a78196aedcf3f3394f54e920b1636d162ffcae5",
+          "source_id": "src-1505031d49f5",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3196,plainText=false)"
+        }
+      ],
+      "event_id": 3057,
+      "id": "2026-04-27-finance",
+      "minutes_printed_date": "2026-04-27",
+      "minutes_read": true,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-05-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3113,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-16",
+          "kind": "minutes",
+          "name": "Minutes",
+          "sha256": "d5277eb0c752aad1bb80156b41497a44ac78be1688892690a7f9925518a44191",
+          "source_id": "src-d5277eb0c752",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3197,plainText=false)"
+        }
+      ],
+      "event_id": 3058,
+      "id": "2026-05-26-finance",
+      "minutes_printed_date": "2025-05-27",
+      "minutes_read": true,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-06-22",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3149,plainText=false)"
+        }
+      ],
+      "event_id": 3059,
+      "id": "2026-06-22-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-07-27",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3205,plainText=false)"
+        }
+      ],
+      "event_id": 3060,
+      "id": "2026-07-27-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-09-21",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3296,plainText=false)"
+        }
+      ],
+      "event_id": 3062,
+      "id": "2026-09-21-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-10-26",
+      "documents": [
+        {
+          "fetched_at": null,
+          "kind": "agenda",
+          "name": "Agenda",
+          "sha256": null,
+          "source_id": null,
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3325,plainText=false)"
+        }
+      ],
+      "event_id": 3063,
+      "id": "2026-10-26-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-11-23",
+      "documents": [],
+      "event_id": 3064,
+      "id": "2026-11-23-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    },
+    {
+      "attendance": null,
+      "body": "Finance Committee",
+      "cancelled": false,
+      "committee": "finance",
+      "date": "2026-12-28",
+      "documents": [],
+      "event_id": 3065,
+      "id": "2026-12-28-finance",
+      "minutes_printed_date": null,
+      "minutes_read": false,
+      "title": "Finance Committee Meeting",
+      "video_url": null
+    }
+  ],
+  "motions": [
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2019-04-04-finance-motion-1",
+      "item": null,
+      "meeting_id": "2019-04-04-finance",
+      "motion_printed": "to reject the claim made by Edward Keesee as recommended by the City Attorney",
+      "mover": "Valerie Guzman",
+      "mover_printed": "Councilwoman Guzman",
+      "page": 1,
+      "reasons": [],
+      "seconder": "Jeff Henley",
+      "seconder_printed": "Councilman Henley",
+      "section": "CONSIDERATION OF CLAIM",
+      "source_id": "src-a6ea3f9d994e",
+      "subject_printed": "CONSIDERATION OF CLAIM",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken; the motion passed without objection."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2019-04-04-finance-motion-2",
+      "item": null,
+      "meeting_id": "2019-04-04-finance",
+      "motion_printed": "to reject the settlement demand of $650,000 made by Jeff Robinson, et al",
+      "mover": "Tim Chandler",
+      "mover_printed": "Councilman Chandler",
+      "page": 1,
+      "reasons": [],
+      "seconder": "Jeff Henley",
+      "seconder_printed": "Councilman Henley",
+      "section": "CONSIDERATION OF SETTLEMENT DEMAND",
+      "source_id": "src-a6ea3f9d994e",
+      "subject_printed": "CONSIDERATION OF SETTLEMENT DEMAND",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken; the motion passed without objection."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2019-04-04-finance-motion-3",
+      "item": null,
+      "meeting_id": "2019-04-04-finance",
+      "motion_printed": "to authorize the City Attorney to make a counter offer as discussed during the non-public meeting",
+      "mover": "Jeff Burkhart",
+      "mover_printed": "Councilman Burkhart",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Stacey Streetman",
+      "seconder_printed": "Councillady Streetman",
+      "section": "CONSIDERATION OF SETTLEMENT DEMAND",
+      "source_id": "src-a6ea3f9d994e",
+      "subject_printed": "CONSIDERATION OF SETTLEMENT DEMAND",
+      "vote": {
+        "method": "voice vote",
+        "nays_printed": [
+          "Councilman Henley"
+        ],
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken; Councilman Henley voted “nay.” The motion passed."
+      }
+    },
+    {
+      "committee": "audit",
+      "confirmed": true,
+      "id": "2024-10-30-audit-motion-1",
+      "item": "A",
+      "meeting_id": "2024-10-30-audit",
+      "motion_printed": "to adopt the minutes as presented",
+      "mover": "Patrick Wilkinson",
+      "mover_printed": "Patrick Wilkinson",
+      "page": 1,
+      "reasons": [],
+      "seconder": "Trey Judd",
+      "seconder_printed": "Trey Judd",
+      "section": "III. ADOPTION OF MINUTES: July 31, 2024 Audit Committee Meeting",
+      "source_id": "src-f65389a8627f",
+      "subject_printed": "III. ADOPTION OF MINUTES: July 31, 2024 Audit Committee Meeting",
+      "vote": {
+        "method": "unanimous",
+        "outcome": "passed",
+        "outcome_printed": "The motion was approved unanimously."
+      }
+    },
+    {
+      "committee": "audit",
+      "confirmed": true,
+      "id": "2024-10-30-audit-motion-2",
+      "item": "B",
+      "meeting_id": "2024-10-30-audit",
+      "motion_printed": "to amend the communication policy extending the time frame surrounding elections during which internal audit reports may not be issued from 30 days prior to election day to 30 days prior to the start of early voting for that election day",
+      "mover": "Trey Judd",
+      "mover_printed": "Trey Judd",
+      "page": 1,
+      "reasons": [],
+      "seconder": "Jennifer Thayer",
+      "seconder_printed": "Jennifer Thayer",
+      "section": "VI. COMMITTEE ACTION REQUIRED",
+      "source_id": "src-f65389a8627f",
+      "subject_printed": "FY 2025 Strategic Plan, Charter, and Internal Audit Policies Approval",
+      "vote": {
+        "method": "unanimous",
+        "outcome": "passed",
+        "outcome_printed": "The motion was approved unanimously."
+      }
+    },
+    {
+      "committee": "audit",
+      "confirmed": true,
+      "id": "2024-10-30-audit-motion-3",
+      "item": "B",
+      "meeting_id": "2024-10-30-audit",
+      "motion_printed": "to approve the FY 2025 Strategic Plan, Charter, and Internal Audit Policies as amended",
+      "mover": "Patrick Wilkinson",
+      "mover_printed": "Patrick Wilkinson",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Trey Judd",
+      "seconder_printed": "Trey Judd",
+      "section": "VI. COMMITTEE ACTION REQUIRED",
+      "source_id": "src-f65389a8627f",
+      "subject_printed": "FY 2025 Strategic Plan, Charter, and Internal Audit Policies Approval",
+      "vote": {
+        "method": "unanimous",
+        "outcome": "passed",
+        "outcome_printed": "The motion was approved unanimously."
+      }
+    },
+    {
+      "committee": "audit",
+      "confirmed": true,
+      "id": "2024-10-30-audit-motion-4",
+      "item": "A",
+      "meeting_id": "2024-10-30-audit",
+      "motion_printed": "to nominate Lynn Stokes and reappoint Elizabeth Rankin to serve on the Audit Committee from January 2025 through December 2026",
+      "mover": "Trey Judd",
+      "mover_printed": "Trey Judd",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Jennifer Thayer",
+      "seconder_printed": "Jennifer Thayer",
+      "section": "VII. CITY COUNCIL ACTION REQUIRED",
+      "source_id": "src-f65389a8627f",
+      "subject_printed": "Nomination of Audit Committee Members for January 2025 - December 2026",
+      "vote": {
+        "method": "unanimous",
+        "outcome": "passed",
+        "outcome_printed": "The motion was approved unanimously."
+      }
+    },
+    {
+      "committee": "audit",
+      "confirmed": false,
+      "id": "2024-10-30-audit-motion-5",
+      "item": null,
+      "meeting_id": "2024-10-30-audit",
+      "motion_printed": "to adjourn the public meeting and go into executive session",
+      "mover": "Trey Judd",
+      "mover_printed": "Trey Judd",
+      "page": 2,
+      "reasons": [
+        "outcome not read",
+        "words not read: 'The public meeting was adjourned at 4:14 pm.'"
+      ],
+      "seconder": "Patrick Wilkinson",
+      "seconder_printed": "Patrick Wilkinson",
+      "section": "VIII. ADJOURNMENT",
+      "source_id": "src-f65389a8627f",
+      "subject_printed": "VIII. ADJOURNMENT",
+      "vote": null
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2025-04-21-finance-motion-1",
+      "item": "A",
+      "meeting_id": "2025-04-21-finance",
+      "motion_printed": "to approve the March 24, 2025 minutes",
+      "mover": null,
+      "mover_printed": "Councilman McLaughline",
+      "page": 1,
+      "reasons": [
+        "mover 'Councilman McLaughline' is not exactly one member present"
+      ],
+      "seconder": "ZACHARIAS",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "3. Approval of Minutes",
+      "source_id": "src-94ac2daa1a8c",
+      "subject_printed": "March 24, 2025",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2025-04-21-finance-motion-2",
+      "item": "C",
+      "meeting_id": "2025-04-21-finance",
+      "motion_printed": "to move this item to the beginning of the agenda",
+      "mover": "McLAUGHLIN",
+      "mover_printed": "Councilman McLaughlin",
+      "page": 3,
+      "reasons": [
+        "outcome not read",
+        "words not read: 'With no objections, this item was moved to the top of the agenda.'"
+      ],
+      "seconder": "LOVATO",
+      "seconder_printed": "Councilman Lovato",
+      "section": "7. City Council Action Required",
+      "source_id": "src-94ac2daa1a8c",
+      "subject_printed": "ORDINANCE 76-2024-25 (First Reading) An Ordinance of the City of Clarksville, Tennessee, imposing a temporary moratorium on the issuance of building permits, grading permits and construction permits and the filing of rezoning applications for a period of one hundred eighty (180) days to allow for the evaluation of infrastructure capacity, and flooding concerns. Councilman Jerry Haywood",
+      "vote": null
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2025-04-21-finance-motion-3",
+      "item": "C",
+      "meeting_id": "2025-04-21-finance",
+      "motion_printed": "to approve Ordinance 76-2024-25 (First Reading)",
+      "mover": "McLAUGHLIN",
+      "mover_printed": "Councilman McLaughlin",
+      "page": 3,
+      "reasons": [
+        "outcome not read",
+        "words not read: 'Councilman Haywood then asked to withdraw the motion. A voice vote was taken on '"
+      ],
+      "seconder": "ZACHARIAS",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "7. City Council Action Required",
+      "source_id": "src-94ac2daa1a8c",
+      "subject_printed": "ORDINANCE 76-2024-25 (First Reading) An Ordinance of the City of Clarksville, Tennessee, imposing a temporary moratorium on the issuance of building permits, grading permits and construction permits and the filing of rezoning applications for a period of one hundred eighty (180) days to allow for the evaluation of infrastructure capacity, and flooding concerns. Councilman Jerry Haywood",
+      "vote": null
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2025-05-27-finance-motion-1",
+      "item": "A",
+      "meeting_id": "2025-05-27-finance",
+      "motion_printed": "to adopt the April 21, 2025 minutes",
+      "mover": "McLaughlin",
+      "mover_printed": "Councilman McLaughlin",
+      "page": 1,
+      "reasons": [],
+      "seconder": "Shakeenab",
+      "seconder_printed": "Councilman Shakeenab",
+      "section": "3. Approval of Minutes",
+      "source_id": "src-d5277eb0c752",
+      "subject_printed": "April 21, 2025",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2025-05-27-finance-motion-2",
+      "item": "A",
+      "meeting_id": "2025-05-27-finance",
+      "motion_printed": "to approve ORDINANCE 84-2024-25 (First Reading)",
+      "mover": "McLaughlin",
+      "mover_printed": "Councilman McLaughlin",
+      "page": 2,
+      "reasons": [
+        "seconder 'Coiuncilman Zacharias' is not exactly one member present",
+        "outcome not read"
+      ],
+      "seconder": null,
+      "seconder_printed": "Coiuncilman Zacharias",
+      "section": "5. City Council Action Required",
+      "source_id": "src-d5277eb0c752",
+      "subject_printed": "ORDINANCE 84-2024-25 (First Reading) An Ordinance of the City of Clarksville, Tennessee amending City Code Title 10 (Offenses - Miscellaneous), Chapter 1 (Generally), Section 10-101 (Certain Misdemeaners Under State Law), to adopt by reference state traffic offenses, rules of the road, and certain other misdemeanors Councilman Deanna McLaughlin, Public Safety Committee: Approval",
+      "vote": null
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2025-05-27-finance-motion-3",
+      "item": "A",
+      "meeting_id": "2025-05-27-finance",
+      "motion_printed": "to postpone this item until the July Finance Committee meeting",
+      "mover": "Streetman",
+      "mover_printed": "Councilman Streetman",
+      "page": 2,
+      "reasons": [
+        "outcome not read",
+        "words not read: 'A voice vote was taken and the motion to postpone passed.'"
+      ],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "5. City Council Action Required",
+      "source_id": "src-d5277eb0c752",
+      "subject_printed": "ORDINANCE 84-2024-25 (First Reading) An Ordinance of the City of Clarksville, Tennessee amending City Code Title 10 (Offenses - Miscellaneous), Chapter 1 (Generally), Section 10-101 (Certain Misdemeaners Under State Law), to adopt by reference state traffic offenses, rules of the road, and certain other misdemeanors Councilman Deanna McLaughlin, Public Safety Committee: Approval",
+      "vote": null
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2025-05-27-finance-motion-4",
+      "item": "B",
+      "meeting_id": "2025-05-27-finance",
+      "motion_printed": "to adopt Resolution 59-23024-25",
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Shakeenab",
+      "seconder_printed": "Councilman Shakeenab",
+      "section": "5. City Council Action Required",
+      "source_id": "src-d5277eb0c752",
+      "subject_printed": "RESOLUTION 59-2024-25 A Resolution of the City Council of the City of Clarksville, Tennessee to approve issuance of tax-exempt revenue bonds or other tax-exempt debt by the Health and Educational Facilities Board of the Metropolitan Government of Nashville and Davidson County, Tennessee for the benefit of Vanderbilt University Medical Center",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2025-05-27-finance-motion-5",
+      "item": "C",
+      "meeting_id": "2025-05-27-finance",
+      "motion_printed": "to adopt RESOLUTION 60-2024-25",
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "5. City Council Action Required",
+      "source_id": "src-d5277eb0c752",
+      "subject_printed": "RESOLUTION 60-2024-25 A Resolution appointing an Interim Director of Finance for the City of Clarksville",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-04-27-finance-motion-1",
+      "item": "A",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to adopt the March 23, 2026 minutes",
+      "mover": "Zacharias",
+      "mover_printed": "Councilman Zacharias",
+      "page": 1,
+      "reasons": [],
+      "seconder": "Shakeenab",
+      "seconder_printed": "Councilman Shakeenab",
+      "section": "3. Approval of Minutes",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "March 23, 2026",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-04-27-finance-motion-2",
+      "item": "A",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to approve",
+      "mover": "Zacharias",
+      "mover_printed": "Councilman Zacharias",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Shakeenab",
+      "seconder_printed": "Councilman Shakeenab",
+      "section": "5. Committee Action Required",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "New Positions - Cities for Financial Empowerment Grant - Clarksville Financial Empowerment Center: Michelle Austin",
+      "vote": {
+        "method": "voice vote",
+        "nays_printed": [
+          "Councilman Lovato"
+        ],
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed (Councilman Lovato was a no vote)."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-04-27-finance-motion-3",
+      "item": "A",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to approve Ordinance 67-2025-25 (First Reading)",
+      "mover": "Shakeenab",
+      "mover_printed": "Councilman Shakeenab",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "ORDINANCE 67-2025-26 (First Reading) An Ordinance authorizing the exercise of the right of eminent domain to acquire easements and rights of way for utility improvements required to facilitate design and construction of various projects. Gas & Water Board: Approval",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-04-27-finance-motion-4",
+      "item": "B",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to approve Ordinance 68-2025-25 (First Reading)",
+      "mover": "Shakeenab",
+      "mover_printed": "Councilman Shakeenab",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "ORDINANCE 68-2025-26 (First Reading) An Ordinance approving the conveyance of certain real property from the City of Clarksville, Tennessee to the Clarksville Montgomery County Museum. Mayor Joe Pitts",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-04-27-finance-motion-5",
+      "item": "C",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to approve Resolution 55-2025-26",
+      "mover": "Shakeenab",
+      "mover_printed": "Councilman Shakeenab",
+      "page": 3,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "RESOLUTION 55-2025-26 A Resolution authorizing an interlocal agreement between the City of Clarksville, TN and Montgomery County TN pertaining to utility relocation at the intersection of Rossview Rd and Rollow Ln. Gas & Water Board: Approval",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-04-27-finance-motion-6",
+      "item": "D",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to approve Resolution 56-2025-26",
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 3,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "RESOLUTION 56-2025-26 A Resolution authorizing a memorandum of understanding between the City of Clarksville, Tennessee and the Clarksville Arts & Heritage Development Council.",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-04-27-finance-motion-7",
+      "item": "E",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to approve Resolution 60-2025-26",
+      "mover": "Shakeenab",
+      "mover_printed": "Councilman Shakeenab",
+      "page": 3,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "RESOLUTION 60-2025-26 Initial Resolution authorizing the issuance of not to exceed $42,500,000 in aggregate principal amount of one or more series of general obligation bonds of the City of Clarksville, Tennessee",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-04-27-finance-motion-8",
+      "item": "F",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to approve Resolution 61-2025-26",
+      "mover": "Shakeenab",
+      "mover_printed": "Councilman Shakeenab",
+      "page": 3,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "RESOLUTION 61-2025-26 A Resolution authorizing the issuance of not to exceed $42,500,000 in aggregate principal amount of one or more series of general obligation bonds of the City of Clarksville, Tennessee, authorizing the issuance of bond anticipation notes prior to the issuance of the bonds in an amount not to exceed the maximum aggregate principal amount of said bonds; making provision for the",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-04-27-finance-motion-9",
+      "item": "A",
+      "meeting_id": "2026-04-27-finance",
+      "motion_printed": "to defend and indemnify Chief Freddie Montgomery",
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 4,
+      "reasons": [
+        "seconder not read",
+        "outcome not read",
+        "words not read: 'Councilman Streetman seconded the meeting. A voice vote was taken and the motion'"
+      ],
+      "seconder": null,
+      "seconder_printed": null,
+      "section": "9. Public Discussion and Vote",
+      "source_id": "src-1505031d49f5",
+      "subject_printed": "Motion to defend and indemnify Chief Freddie Montgomery",
+      "vote": null
+    }
+  ]
+}

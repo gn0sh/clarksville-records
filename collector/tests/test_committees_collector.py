@@ -377,3 +377,107 @@ def test_resolve_surname_only_attendance_and_shared_surnames():
     assert resolve("Councilwoman Kaye Lovato", ["Streetman", "Lovato"]) == "Lovato"
     assert resolve("Councilman Smith", ["Ann Smith", "Bo Smith"]) is None
 
+
+# ------------------------------------------------------------------ build
+def built_store(cfg, tmp_path, monkeypatch, texts: dict):
+    """A store holding one small PDF per minutes URL in `texts` ({url: fixture name}); read_pages answers each
+    file's fixture text, so the build runs without poppler."""
+    from collector.store import Store
+    p = C.paths(cfg, tmp_path)
+    store = Store(manifest_path=p["manifest"], root=tmp_path / "store")
+    by_sha = {}
+    for url, name in texts.items():
+        body = b"%PDF-1.4 " + name.encode()
+        e, _ = store.put(url, body, {"content-type": "application/pdf"}, {"kind": "minutes"})
+        by_sha[e["sha256"]] = (FIX / f"{name}.txt").read_text(encoding="utf-8").split("\f")
+    store.save()
+    monkeypatch.setattr(C, "read_pages", lambda path: (by_sha[path.stem], None))
+    return p, store
+
+
+def rows_for(cfg):
+    """Three listed meetings: 2025-05-27 and 2026-05-26 list the same minutes file (as on CivicClerk), 2019-04-04 has
+    its own, and one has nothing fetched."""
+    fin = cfg.by_slug("finance")
+    base = {"committee": "finance", "body": "Finance Committee", "cancelled": False, "source": "civicclerk",
+            "video_url": None, "agenda_url": None, "agenda_name": None, "minutes_name": "Minutes"}
+    rows = [{**base, "date": "2019-04-04", "title": "Finance Committee Agenda 4-4-19", "event_id": 734,
+             "minutes_url": fin.cc.file(997)},
+            {**base, "date": "2025-05-27", "title": "Finance Committee Meeting", "event_id": 2900,
+             "minutes_url": fin.cc.file(2590)},
+            {**base, "date": "2026-05-26", "title": "Finance Committee Meeting", "event_id": 3058,
+             "minutes_url": fin.cc.file(3197), "agenda_url": fin.cc.file(3113)},
+            {**base, "date": "2026-06-22", "title": "Finance Committee Meeting", "event_id": 3100,
+             "minutes_url": None, "agenda_url": fin.cc.file(3200)}]
+    return C.assign_ids(rows)
+
+
+def test_build_records_meetings_documents_attendance_and_motions(cfg, tmp_path, monkeypatch):
+    fin = cfg.by_slug("finance").cc
+    _, store = built_store(cfg, tmp_path, monkeypatch, {
+        fin.file(997): "finance-minutes-2019-04-04", fin.file(2590): "finance-minutes-2025-05-27",
+        fin.file(3197): "finance-minutes-2025-05-27"})
+    facts, s = C.build(cfg, rows_for(cfg), store)
+    assert facts["hold_motions"] is True and [b["slug"] for b in facts["bodies"]] == ["finance", "audit"]
+    by = {m["id"]: m for m in facts["meetings"]}
+    assert list(by) == ["2019-04-04-finance", "2025-05-27-finance", "2026-05-26-finance", "2026-06-22-finance"]
+    m = by["2025-05-27-finance"]
+    assert m["minutes_read"] and m["minutes_printed_date"] == "2025-05-27" and m["attendance"]["confirmed"]
+    assert m["attendance"]["present"][-1] == {"name": "Zacharias", "note": "arrived at 5:10 pm"}
+    # the same file on the 2026 meeting: kept as listed, flagged, and none of its readings attached there
+    m26 = by["2026-05-26-finance"]
+    assert m26["minutes_printed_date"] == "2025-05-27" and m26["attendance"] is None
+    assert [d["kind"] for d in m26["documents"]] == ["agenda", "minutes"]
+    assert m26["documents"][0]["source_id"] is None and m26["documents"][1]["source_id"].startswith("src-")
+    assert not [x for x in facts["motions"] if x["meeting_id"] == "2026-05-26-finance"]
+    assert s["date_mismatches"] == [{"meeting_id": "2026-05-26-finance", "printed": "2025-05-27",
+                                     "motions_not_attached": 5}]
+    assert s["shared_minutes"][0]["meetings"] == ["2025-05-27-finance", "2026-05-26-finance"]
+    assert not by["2026-06-22-finance"]["minutes_read"]
+    ids = [x["id"] for x in facts["motions"]]
+    assert ids[:4] == ["2019-04-04-finance-motion-1", "2019-04-04-finance-motion-2", "2019-04-04-finance-motion-3",
+                       "2025-05-27-finance-motion-1"]
+    x = facts["motions"][3]
+    assert x["source_id"] == m["documents"][0]["source_id"] and x["confirmed"] and x["page"] == 1
+    assert s["motions"] == 8 and s["confirmed"] == 6
+    assert s["held_by_reason"]["outcome not read"] == 2
+
+
+def test_cmd_build_writes_nothing_with_store_gaps_or_a_shrink(cfg, tmp_path, monkeypatch):
+    fin = cfg.by_slug("finance").cc
+    p, store = built_store(cfg, tmp_path, monkeypatch, {fin.file(997): "finance-minutes-2019-04-04",
+                                                        fin.file(2590): "finance-minutes-2025-05-27"})
+    C.write_json(p["listing"], rows_for(cfg))
+    out = C.cmd_build(cfg, p, store)
+    assert out["written"] and p["facts"].exists()
+    before = p["facts"].read_bytes()
+    # a fresh checkout: the manifest lists a file whose bytes are not in the store
+    store.path_for(store.latest(fin.file(997))["sha256"]).unlink()
+    store._verified.clear()
+    out = C.cmd_build(cfg, p, store)
+    assert not out["written"] and "not in the store" in out["status"] and p["facts"].read_bytes() == before
+    # a meeting gone from the listing: refused unless allowed
+    _, store = built_store(cfg, tmp_path, monkeypatch, {fin.file(997): "finance-minutes-2019-04-04",
+                                                        fin.file(2590): "finance-minutes-2025-05-27"})
+    C.write_json(p["listing"], rows_for(cfg)[1:])
+    out = C.cmd_build(cfg, p, store)
+    assert not out["written"] and "would be dropped" in out["status"] and p["facts"].read_bytes() == before
+    assert C.cmd_build(cfg, p, store, allow_shrink=True)["written"]
+
+
+def test_shrink_reason_counts_confirmed_motions_per_minutes_file():
+    def meeting(src):
+        return [{"id": "a", "minutes_read": True, "documents": [{"kind": "minutes", "source_id": src}]}]
+    old = {"meetings": meeting("s1"), "motions": [{"meeting_id": "a", "source_id": "s1", "confirmed": True}]}
+    same = {"meetings": meeting("s1"), "motions": [{"meeting_id": "a", "source_id": "s1", "confirmed": False}]}
+    fixed = {"meetings": meeting("s2"), "motions": [{"meeting_id": "a", "source_id": "s2", "confirmed": False}]}
+    assert "confirmed motions would be lost" in C.shrink_reason(old, same)
+    assert C.shrink_reason(old, fixed) is None             # a new minutes file is a correction, not a loss
+    assert "would not be" in C.shrink_reason(old, {"meetings": [{"id": "a"}], "motions": []})
+
+
+def test_hold_motions_is_on_unless_set_false():
+    raw = raw_config()
+    assert C.parse_config(raw).hold_motions is True
+    assert C.parse_config({**raw, "hold_motions": False}).hold_motions is False
+    assert C.parse_config({k: v for k, v in raw.items() if k != "hold_motions"}).hold_motions is True

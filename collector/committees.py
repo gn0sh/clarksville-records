@@ -328,8 +328,152 @@ def main(argv: list[str]) -> int:
     return 1 if log["failures"] else 0
 
 
+# ------------------------------------------------------------------ build
+def source_of(row: dict, kind: str, store: Store) -> dict | None:
+    """The listed document of this kind with its stored copy: {kind, url, name, source_id, sha256, fetched_at}.
+    source_id is None while the file is not fetched (the listing still names it)."""
+    url = row.get(f"{kind}_url")
+    if not url:
+        return None
+    e = store.latest(url)
+    stored = bool(e and store.has_bytes(e["sha256"]))
+    return {"kind": kind, "url": url, "name": row.get(f"{kind}_name"),
+            "source_id": f"src-{e['sha256'][:12]}" if stored else None, "sha256": e["sha256"] if stored else None,
+            "fetched_at": (e.get("first_fetched_at") or "")[:10] if stored else None}
+
+
+def store_gaps(rows: list[dict], store: Store) -> list[str]:
+    """Listed files the manifest holds whose bytes are not in the store (a fresh checkout): a build then would read
+    less than the committed record, so it writes nothing."""
+    by_url = {e["url"]: e for e in store.current()}
+    return sorted({r[f"{k}_url"] for r in rows for k in DOC_KINDS
+                   if r.get(f"{k}_url") in by_url and not store.has_bytes(by_url[r[f"{k}_url"]]["sha256"])})
+
+
+def read_pages(path: Path) -> tuple[list[str] | None, str | None]:
+    """The PDF's text pages, or (None, why not). No OCR in C1: a scan is reported, never guessed."""
+    from .extract import extract_pages, image_only_pages
+    try:
+        pages = extract_pages(path)
+    except Exception as e:                    # a broken or hung file is reported, the build goes on
+        return None, f"text not extracted ({type(e).__name__})"
+    blank = image_only_pages(pages)
+    if not pages or len(blank) == len(pages):
+        return None, "no text layer (a scan): not read"
+    return pages, None
+
+
+def build(cfg: CommitteesConfig, rows: list[dict], store: Store, hold: bool = True) -> tuple[dict, dict]:
+    """listing rows + stored files -> (committees.json, summary). Each meeting as listed, its documents, and when its
+    minutes are stored and have text: the minutes' printed date, the members present and absent as printed, and
+    each motion as read (collector/committee_minutes.py), with `confirmed` and its `reasons`. `hold` (committees.yml
+    hold_motions) is written into the record so the site shows no motion confirmed while it is on."""
+    from .committee_minutes import read_minutes
+    by_sha: dict[str, list[str]] = {}
+    meetings, motions, problems = [], [], []
+    count = {"meetings": 0, "minutes_listed": 0, "minutes_stored": 0, "minutes_read": 0, "motions": 0,
+             "confirmed": 0, "date_mismatches": [], "shared_minutes": [], "not_read": []}
+    for r in rows:
+        docs = [d for d in (source_of(r, "agenda", store), source_of(r, "minutes", store)) if d]
+        m = {"id": r["id"], "committee": r["committee"], "body": r["body"], "date": r["date"], "title": r["title"],
+             "event_id": r["event_id"], "cancelled": r["cancelled"], "video_url": r.get("video_url"),
+             "documents": docs, "minutes_read": False, "minutes_printed_date": None, "attendance": None}
+        for k in ("title_date", "other_name"):
+            if r.get(k):
+                m[k] = r[k]
+        count["meetings"] += 1
+        mins = next((d for d in docs if d["kind"] == "minutes"), None)
+        count["minutes_listed"] += bool(mins)
+        if mins and mins["source_id"]:
+            count["minutes_stored"] += 1
+            by_sha.setdefault(mins["sha256"], []).append(r["id"])
+            pages, why = read_pages(store.path_for(mins["sha256"]))
+            if pages is None:
+                count["not_read"].append({"meeting_id": r["id"], "why": why})
+            else:
+                rd = read_minutes(pages, r["date"])
+                count["minutes_read"] += 1
+                m.update(minutes_read=True, minutes_printed_date=rd["printed_date"])
+                if rd["date_mismatch"]:
+                    # the file is kept on this meeting as listed, but what it records is another meeting's: no
+                    # attendance and no motion is attached here (they would be shown under the wrong date)
+                    count["date_mismatches"].append({"meeting_id": r["id"], "printed": rd["printed_date"],
+                                                     "motions_not_attached": len(rd["motions"])})
+                    problems.append({"meeting_id": r["id"], "problem": f"minutes print {rd['printed_date']}: kept "
+                                     "as listed; their attendance and motions are not attached to this meeting"})
+                    meetings.append(m)
+                    continue
+                m["attendance"] = {**rd["attendance"], "source_id": mins["source_id"], "confirmed": not rd["problems"]}
+                for x in rd["motions"]:
+                    motions.append({"id": f"{r['id']}-motion-{x['n']}", "meeting_id": r["id"],
+                                    "committee": r["committee"], "source_id": mins["source_id"],
+                                    **{k: v for k, v in x.items() if k != "n"}})
+        meetings.append(m)
+    for sha, ids in sorted(by_sha.items()):
+        if len(ids) > 1:            # one file listed on two meetings: kept on both, reported
+            count["shared_minutes"].append({"source_id": f"src-{sha[:12]}", "meetings": ids})
+            problems.append({"meetings": ids, "problem": "the same minutes file is listed on these meetings"})
+    count["motions"] = len(motions)
+    count["confirmed"] = sum(x["confirmed"] for x in motions)
+    held: dict[str, int] = {}
+    for x in motions:
+        for why in x["reasons"]:
+            key = re.sub(r"'[^']*'", "'…'", re.sub(r"\d{4}-\d{2}-\d{2}", "<date>", why))
+            held[key] = held.get(key, 0) + 1
+    count["held_by_reason"] = dict(sorted(held.items(), key=lambda kv: (-kv[1], kv[0])))
+    facts = {"locality": cfg.locality, "hold_motions": hold,
+             "bodies": [{"slug": c.slug, "label": c.label, "category_name": c.category_name} for c in cfg.committees],
+             "meetings": meetings, "motions": motions}
+    return facts, {**count, "problems": problems}
+
+
+def shrink_reason(old: dict | None, new: dict) -> str | None:
+    """Why `new` must not replace the committed committees.json: a meeting gone, minutes that were read and are not,
+    or fewer confirmed motions for a meeting whose minutes file did not change."""
+    if not old:
+        return None
+    now = {m["id"]: m for m in new["meetings"]}
+    gone = [m["id"] for m in old["meetings"] if m["id"] not in now]
+    if gone:
+        return f"{len(gone)} meetings in the committed record would be dropped, e.g. {', '.join(gone[:3])}"
+    unread = [m["id"] for m in old["meetings"] if m.get("minutes_read") and not now[m["id"]].get("minutes_read")]
+    if unread:
+        return f"{len(unread)} meetings' minutes were read in the committed record and would not be: {unread[:3]}"
+
+    def confirmed(f: dict) -> dict:
+        out: dict = {}
+        for x in f["motions"]:
+            if x["confirmed"]:
+                out[(x["meeting_id"], x["source_id"])] = out.get((x["meeting_id"], x["source_id"]), 0) + 1
+        return out
+    was, is_ = confirmed(old), confirmed(new)
+    still = {(m["id"], d.get("source_id")) for m in new["meetings"] for d in m.get("documents", [])
+             if d.get("kind") == "minutes"}        # a meeting whose minutes file changed is a correction, not a loss
+    lost = sorted(k[0] for k, n in was.items() if k in still and is_.get(k, 0) < n)
+    if lost:
+        return f"confirmed motions would be lost for {', '.join(lost[:3])} (a reader change?)"
+    return None
+
+
 def cmd_build(cfg: CommitteesConfig, p: dict, store: Store, allow_shrink: bool = False, hold: bool = True) -> dict:
-    raise SystemExit("collector committees build: not written yet (milestone C1 step 4)")
+    """Build committees.json from the committed listing and the store. Writes nothing when the store lacks a file the
+    manifest lists, or (unless allow_shrink) when the result would shrink the committed record."""
+    rows = json.loads(p["listing"].read_text(encoding="utf-8")) if p["listing"].exists() else []
+    if not rows:
+        return {"status": "nothing written: no listing (run fetch first)", "written": False}
+    gaps = store_gaps(rows, store)
+    if gaps:
+        return {"status": f"nothing written: {len(gaps)} files the manifest lists are not in the store, e.g. "
+                          f"{gaps[0]}", "written": False}
+    facts, summary = build(cfg, rows, store, hold=hold)
+    old = json.loads(p["facts"].read_text(encoding="utf-8")) if p["facts"].exists() else None
+    why = None if allow_shrink else shrink_reason(old, facts)
+    if why:
+        return {**summary, "status": f"nothing written: {why}", "written": False}
+    changed = write_json(p["facts"], facts)
+    return {**summary, "written": True, "status": f"{summary['meetings']} meetings, {summary['minutes_read']} minutes "
+            f"read, {summary['motions']} motions ({summary['confirmed']} read as confirmed); {p['facts'].name} "
+            f"{'rewritten' if changed else 'unchanged'}"}
 
 
 if __name__ == "__main__":
