@@ -218,9 +218,15 @@ keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
   org section ("TOTAL AUTO LIABILITY CLAIMS"); fund total ("TOTAL <fund name>", statement net, scope the fund's rows
   of that report run); report-run totals `TOTAL REVENUE` / `TOTAL EXPENSE` / `GRAND TOTAL` (scope every revenue,
   expense, or any row of the run; fund null). A run ends at "** END OF REPORT" (not stored: it names the staff member).
-- `fin_checks.check_total`: an empty scope whose printed cells are all 0 is `exact` (a run's TOTAL REVENUE of .00 when
-  the run holds no revenue). The committed county data has no such total (its 8 empty-scope totals print values and
-  stay does_not_add_up).
+- `fin_checks.check_total`: a report-run total (a configured `rows.run_totals` label, no account code) over an empty
+  scope whose printed cells are all 0 is `exact` (a run's TOTAL REVENUE of .00 when the run holds no revenue); any
+  other empty scope is does_not_add_up. The committed county data has no such total (its 8 empty-scope totals print
+  values and stay does_not_add_up). In a cents book the rounding bound is 0: a total that differs from its lines by
+  one cent does not add up as printed (budget-reconcile/rounding-bound-in-cents).
+- Schema: a file whose books all have `amount_unit: "cents"` requires `cents` on every cell (top-level if/then).
+- Daily run (`fin_books.run_step`): the committed finance.json is kept (build exit 3, a run-log warning) when the new
+  build reads a book from a file whose sha256 differs from the committed source, drops a book or lines, or has more
+  held or does-not-add-up lines; exit 2 is a run-log warning too. `fin-books build` by hand always writes.
 - `book.report_dates` (added 2026-11-16, frontend-engineer, round 2 budget): optional, set only when the locality's
   config has `budget.rows.report_date` (the city: `Report generated: MM/DD/YYYY` in the page foot of the pages read;
   time, page number and login are never stored). One entry per distinct date, `{as_printed, page}` (first page that
