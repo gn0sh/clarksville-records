@@ -1173,6 +1173,17 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
    plate, so the plate, tag and kicker stop short of the sun's column (its disc and inner ring): no text over the sun */
 .has-sky { --sun-room: calc(clamp(76px, 15vw, 190px) + clamp(8px, 2vw, 22px)); }
 .has-sky:not(:has(#sky-hero)) .brand { padding-right: var(--sun-room); }
+/* Every other page (sky-small, onceover/header/sun-on-every-page): the same sun, smaller and lower, so the header is
+   one family on every page and the page's own h1 stays the loudest thing. On a phone it is the body pages' sliver
+   (the rules below already cover every header without the date line). */
+@media (min-width: 700px) {
+  .sky-small .sky-sun {
+    --sun-size: clamp(64px, 8vw, 104px); --sun-max: .42;
+    box-shadow: 0 0 0 clamp(6px, 1vw, 12px) color-mix(in srgb, var(--halo) 55%, transparent),
+                0 0 0 clamp(14px, 2.2vw, 26px) color-mix(in srgb, var(--halo) 26%, transparent);
+  }
+  .has-sky.sky-small { --sun-room: calc(clamp(64px, 8vw, 104px) + clamp(6px, 1vw, 12px)); }
+}
 .sky-hero { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) 10px; }
 .sky-hero[hidden] { display: none; }
 /* with the script the date line keeps its space before it is filled (js-flag.js), so nothing jumps */

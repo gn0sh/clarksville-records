@@ -22,18 +22,19 @@
 {% if site.fixture %}
 <div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>
 {% endif %}
-{# The sky sun is on every "Show records from" target, the home page and each body's landing page, so switching keeps
-   the header the same; other pages have none. body_current is this page's switch key ("all" on the home page). #}
-{% set has_sky = page_name == "Home" or (body_current | default("")) != "" %}
-<header class="site-header{% if has_sky %} has-sky{% endif %}">
-  {# Daylight name plate (docs/design/daylight): the sun dot, the name and the place, on every page. Switch targets add
+{# The sky sun is on every page (owner, 2026-11-14, onceover/header/sun-on-every-page). The home page and each
+   "Show records from" target (a body's landing page) carry the full sun; every other page a small one (sky-small), so
+   the header is the same family everywhere. body_current is this page's switch key ("all" on the home page). #}
+{% set sky_full = page_name == "Home" or (body_current | default("")) != "" %}
+<header class="site-header has-sky{% if not sky_full %} sky-small{% endif %}">
+  {# Daylight name plate (docs/design/daylight): the sun dot, the name and the place, on every page, and
      the sky: a sun that static/sky.js sets by the viewer's clock (CSS places it at midday without the script). The
      landing also shows today's date, which stays hidden without the script (a static page can't know today's date). #}
-  {% if has_sky %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>
+  <div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>
   {# The moon, where it really is over the site's place right now (config sky_place; static/sky.js works out its
      height, direction, phase and tilt, and draws it into this span). Decoration only, and hidden until the script
      draws it: a static page cannot know where the moon is. #}
-  {% set sp = site.cfg.sky_place | default(none) %}{% if sp %}<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="{{ sp.lat }}" data-lon="{{ sp.lon }}" hidden></span></div>{% endif %}{% endif %}
+  {% set sp = site.cfg.sky_place | default(none) %}{% if sp %}<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="{{ sp.lat }}" data-lon="{{ sp.lon }}" hidden></span></div>{% endif %}
   <div class="masthead">
     {# Design 2.1: without JS this is a link to the full list in the footer; static/nav.js swaps it for a button that
        opens the drawer (a native <dialog> built from that same list, so the footer list is the single source). #}
@@ -104,7 +105,7 @@
 <script src="{{ root }}static/filter.js" defer></script>
 <script src="{{ root }}static/clamp.js" defer></script>
 <script src="{{ root }}static/switch.js" defer></script>
-{% if has_sky %}<script src="{{ root }}static/sky.js" defer></script>{% endif %}
+<script src="{{ root }}static/sky.js" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

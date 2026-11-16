@@ -118,3 +118,12 @@ Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
   visit; links to outside sources keep the visited colour.
 - A "coming" page says Coming once (the h1's tag) and does not repeat a link its cards already carry.
 - The RPC's home: the full name in the kicker, "Regional Planning Commission" as the h1.
+
+## Round 2 polish (Brian approved, 2026-11-14; built 2026-11-16)
+Problem keys `onceover/...`; tests in `tests/test_round2_polish.py` unless named.
+
+- The sun is on every page (`onceover/header/sun-on-every-page`; this reverses "other pages have none"). The home
+  page and each body's landing page keep the full sun; every other page has the same sun, small (the header's class
+  `sky-small`: about 64 to 104px wide and lower in the band on a wide screen; on a phone the body pages' sliver, in
+  the same strip under the name plate). `static/sky.js` and the moon are on every page too, under the same rules.
+  Tests: `tests/test_body_switch.py`, `tests/test_daylight.py`, `tests/test_moon.py`.
