@@ -74,9 +74,20 @@ def build(store: Store, cfg: fin_config.BooksConfig, meta_cache: Path | None = N
     return fin, problems
 
 
+def book_summary(fin: dict) -> dict:
+    """fin_facts.budget_summary, with the funds by printed name (the city books print no fund number) and the count
+    of subtotal and total lines checked."""
+    from . import fin_facts
+    out = fin_facts.budget_summary(fin)
+    for book_id, b in out.items():
+        lines = [x for x in fin["budget_lines"] if x["book_id"] == book_id]
+        b["funds"] = sorted({x["fund_name"] for x in lines if x["fund_name"]})
+        b["totals"] = sum(1 for x in lines if x["check"])
+    return out
+
+
 def cmd_build(store: Store, cfg: fin_config.BooksConfig, finance_path: Path, report_path: Path, **kw) -> int:
     """Exit 0 ok, 2 on schema or guard problems (nothing written)."""
-    from . import fin_facts
     from .facts import dumps, write_if_changed
     from .fin_run import GUARD_KEYS, validate
     since = limits.mark()
@@ -90,16 +101,18 @@ def cmd_build(store: Store, cfg: fin_config.BooksConfig, finance_path: Path, rep
         print(limits.summary("collector fin-books", since))
         return 2
     changed = write_if_changed(Path(finance_path), dumps(fin))
-    summary = fin_facts.budget_summary(fin)
+    summary = book_summary(fin)
     report = {"reconcile": fin_checks.reconcile_counts(fin["budget_lines"]), "budget": summary,
               "held": [{"id": x["id"], "check": x["held"]} for x in fin["budget_lines"] if x["held"]],
-              "problems": problems}
+              "books_not_read": list(cfg.budget.books_not_read), "problems": problems}
     write_if_changed(Path(report_path), dumps(report))
     print(f"collector fin-books: {len(fin['books'])} books, {len(fin['budget_lines'])} lines; "
           f"{Path(finance_path).name} {'changed' if changed else 'unchanged'}")
     for book_id, b in summary.items():
-        print(f"  budget {book_id}: {b['lines']} lines, {len(b['funds'])} funds, reconcile "
+        print(f"  budget {book_id}: {b['lines']} lines, {len(b['funds'])} funds, {b['totals']} totals, reconcile "
               f"{json.dumps(b['reconcile'], sort_keys=True)}, held {b['held']}, edition differs {b['edition_differs']}")
+    for b in cfg.budget.books_not_read:
+        print(f"  not read: {b['id']} ({b['reason']}) {b['url']}")
     for p in problems:
         print("  note:", p)
     print(limits.summary("collector fin-books", since))

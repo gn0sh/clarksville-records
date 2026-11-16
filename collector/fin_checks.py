@@ -100,6 +100,11 @@ RECONCILE_STATES = ("exact", "within_rounding", "does_not_add_up", "not_checked"
 NOT_CHECKED = "not_checked"      # a held total or a total over a held line: we could not read it, not a book error
 
 
+def amount(cell: dict) -> int | None:
+    """A cell's value in its book's unit: `cents` in a book that prints cents (the city's), else `dollars`."""
+    return cell["cents"] if "cents" in cell else cell["dollars"]
+
+
 def rounding_bound(n: int) -> int:
     """Largest |printed - sum| that rounding alone explains for n detail lines each printed to the dollar
     (ADR 0002 point 4): floor((n + 1) / 2)."""
@@ -109,7 +114,7 @@ def rounding_bound(n: int) -> int:
 def rounded_cells(scope: list[dict], i: int) -> int:
     """n for column i's rounding bound: the scope lines with a printed amount there. A "-" is an exact 0 and a blank
     cell is not printed: neither can carry a rounding slip (budget-reconcile/rounding-n-counts-dashes)."""
-    return sum(1 for x in scope if x["cells"][i]["dollars"] is not None and x["cells"][i]["as_printed"] != "-")
+    return sum(1 for x in scope if amount(x["cells"][i]) is not None and x["cells"][i]["as_printed"] != "-")
 
 
 def check_total(line: dict, scope: list[dict]) -> dict:
@@ -119,15 +124,18 @@ def check_total(line: dict, scope: list[dict]) -> dict:
     line is then held too and shown as Not confirmed*, see reconcile; counted apart, never as a book error,
     budget-reconcile/held-counted-as-book-error); does_not_add_up when the scope is empty, a blank total has lines
     with dollars, or some |diff| exceeds its column's rounding bound (n = rounded_cells); within_rounding when every
-    |diff| is within it and one is not 0; else exact."""
+    |diff| is within it and one is not 0; else exact. An empty scope whose printed cells are all 0 is exact (nothing
+    adds up to 0: a city report run's TOTAL REVENUE of .00 when the run holds no revenue)."""
     per_cell, bounds = [], []
     for i, c in enumerate(line["cells"]):
-        s = sum(x["cells"][i]["dollars"] or 0 for x in scope)
-        p = c["dollars"]
+        s = sum(amount(x["cells"][i]) or 0 for x in scope)
+        p = amount(c)
         per_cell.append({"printed": p, "sum": s, "diff": None if p is None else p - s})
         bounds.append(rounding_bound(rounded_cells(scope, i)))
     if line["held"] or any(x["held"] for x in scope):
         state = NOT_CHECKED
+    elif not scope and all(pc["printed"] == 0 for pc in per_cell):
+        state = "exact"            # a total of nothing printed as all zeros (a city run's TOTAL REVENUE of .00)
     elif not scope or any(pc["printed"] is None and pc["sum"] != 0 for pc in per_cell):
         state = "does_not_add_up"
     elif all(pc["diff"] in (0, None) for pc in per_cell):
@@ -195,7 +203,7 @@ def edition_compare(lines: list[dict]) -> list[tuple[str, str]]:
         items = [v[0] for v in per_book.values()]
         for a, ca in items:
             for b, cb in items:
-                if a["book_id"] < b["book_id"] and ca["dollars"] != cb["dollars"]:
+                if a["book_id"] < b["book_id"] and amount(ca) != amount(cb):
                     pairs.add((a["id"], b["id"]))
     by = {x["id"]: x for x in lines}
     for a, b in pairs:
