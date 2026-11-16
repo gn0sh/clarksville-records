@@ -18,7 +18,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   index       officials.html lists every official in the facts exactly once; "surname" sections alphabetical by
               surname, "seat" (Current) sections by district number, then other seats (AC1.1, design 6A.3)
   layout      every official page has the same headings and the same distinct column-header sets (AC1.5, N1)
-  provenance  derived seat dates are worded as seen in roll calls; no term wording, no inferred cutover date;
+  provenance  derived seat dates are worded as seen in vote records; no term wording, no inferred cutover date;
               the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
   official-numbers  each official page's numbers agree with themselves: one value per data-n key, parts add up to
@@ -1204,7 +1204,7 @@ def check_layout(site: Path, facts: dict, folder: str = "officials") -> tuple[li
 # ---------------------------------------------------------------- provenance (derived vs stated)
 # Restated from the architecture's invariant `provenance`, not imported from sitegen.
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls", "seen in attendance lists",
+DATE_PHRASES = ("seen in vote records", "shown as vacant in vote records", "vote records", "seen in attendance lists",
                 "shown as vacant in attendance lists", "attendance lists",
                 # a record that starts at a configured seating (council.yml evidence.configured, sitegen/council.py
                 # CONFIGURED_EVIDENCE): the cited minutes that record it (site-checks/provenance-claunch-seat-text)
@@ -1325,7 +1325,7 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
         for t in p.out:
             texts += 1
             for d in dates_worded(t):
-                problems.append(f"{rel}: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
+                problems.append(f"{rel}: seat text dates {d} without 'seen in vote records' wording: {t[:90]!r}")
     idx_file = site / "static" / "search-index.js"
     if idx_file.is_file():
         raw = idx_file.read_text(encoding="utf-8")
@@ -1338,7 +1338,7 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
         for t in seat_strings:
             texts += 1
             for d in dates_worded(t):
-                problems.append(f"static/search-index.js: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
+                problems.append(f"static/search-index.js: seat text dates {d} without 'seen in vote records' wording: {t[:90]!r}")
     problems += cutover_problems(facts, roster, eff)
     return problems, f"{texts} seat texts checked; lines split key {eff} immaterial"
 
@@ -1411,11 +1411,11 @@ def official_number_problems(text: str) -> list[str]:
     else:
         eq("Totals: absent", int(m.group(1)), n["absent"])
         eq("Totals: meetings", int(m.group(2)), n["meetings_listed"])
-    m = re.search(r"Roll call votes, \S+ to \S+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
-                  r"(?:(\d+) votes? in not confirmed\* roll calls|(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\*)",
+    m = re.search(r"Votes, \S+ to \S+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
+                  r"(?:(\d+) votes? not confirmed\*, see each page|(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\*)",
                   plain)
     if not m:
-        out.append("no 'Roll call votes' totals sentence")
+        out.append("no 'Votes, D to D:' totals sentence")
     else:
         g = [int(x) if x is not None else None for x in m.groups()]
         for k, v in zip(VOTE_KEYS, g[:4]):
@@ -2634,7 +2634,7 @@ def _rate_problems(text: str | None, body: str, rcs: list[dict], href: str) -> t
     plain = html.unescape(re.sub(r"<[^>]+>", "", text or ""))
     if text is None:
         return [f"about.html: no confirmed rate for {body}"], f"{body} {want} {pct}"
-    if not plain.startswith(f"{want} {body} roll calls {pct} are confirmed"):
+    if not plain.startswith(f"{want} {body} votes {pct} are confirmed"):
         return [f"about.html: {body} rate reads {plain[:80]!r}, the facts give {want} {pct}"], f"{body} {want} {pct}"
     if f'href="{href}"' not in text:
         return [f"about.html: {body} rate does not link the body's pages"], f"{body} {want} {pct}"
@@ -2646,7 +2646,7 @@ OPERATOR_PAGES = ("about.html", "who-runs-this.html")
 
 def check_about(site: Path, cs: list[dict], cfg: dict, county: dict | None = None) -> tuple[list[str], str]:
     """about.html and who-runs-this.html against the facts (Brian 2026-11-11): (a) every body's confirmed rate, the
-    county's (`county`: its facts) and each built council's, reads "<n> of <total> <body> roll calls (<pct>%) are
+    county's (`county`: its facts) and each built council's, reads "<n> of <total> <body> votes (<pct>%) are
     confirmed" and links the body's pages, restated here from the facts (verification status "verified"), so the page
     can never drift from the record and every body's line is labelled the same way; (b) with config operator_person set
     and that official in a built council, one operator line on each of About and Who runs this, the same on both, that

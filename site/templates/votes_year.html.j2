@@ -2,7 +2,7 @@
 {% from "_macros.html.j2" import source, fact_meta, item_link, not_confirmed, nc_mark %}
 {% block main %}
 <h1>Votes, {{ year }}</h1>
-<p class="lede">Every roll call in {{ year }}, newest first. Each links to its meeting page, where every member's vote is shown.</p>
+<p class="lede">Every vote in {{ year }}, newest first. Each links to its meeting page, where every member's vote is shown.</p>
 <nav class="year-nav" aria-label="Votes by year"><ul>
 {% for y in years %}<li><a href="{{ y }}.html"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a></li>{% endfor %}
 </ul></nav>
@@ -14,7 +14,7 @@
     <p class="meta"><span class="cite-label">Source:</span> {{ source(r.src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, r.id) }}</p>
   </li>
 {% else %}
-  <li>No roll calls are recorded for {{ year }}.</li>
+  <li>No votes are recorded for {{ year }}.</li>
 {% endfor %}
 </ol>
 {% endblock %}

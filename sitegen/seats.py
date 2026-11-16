@@ -150,7 +150,7 @@ def source_label(url: str) -> str:
 # The fixed wording of observed holder records (architecture, invariant `provenance`). `evidence` names what printed
 # the holder in the seat ("roll calls" for the county; a council's attendance lists print each member's ward);
 # `latest` names what the latest date L is. The county's wording is the default; a council passes its own.
-COUNTY_WORDING = {"evidence": "roll calls", "latest": "the latest meeting collected",
+COUNTY_WORDING = {"evidence": "vote records", "latest": "the latest meeting collected",
                   "read_latest": "the latest meeting read for seats"}
 # A record carried on by name only (council.extend_by_listings): the clause after its printed dates.
 LISTED_WORDS = "listed by name in"

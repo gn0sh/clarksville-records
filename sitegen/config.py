@@ -93,7 +93,7 @@ TYPE_LABELS = {"vote": "Vote", "attendance": "Attendance", "moved": "Moved", "se
 KIND_LABELS = {"formal": "Formal meeting", "informal": "Informal meeting", "special": "Special meeting"}
 EVENT_TYPE_LABELS = {
     "listed": "Listed", "referral": "Referral", "reading": "Reading", "amendment": "Amendment",
-    "motion": "Motion", "roll_call": "Roll call", "postponed": "Postponed", "withdrawn": "Withdrawn",
+    "motion": "Motion", "roll_call": "Vote", "postponed": "Postponed", "withdrawn": "Withdrawn",
     "other": "Other",
 }
 OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}

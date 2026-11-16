@@ -12,8 +12,8 @@
     {{ stat("n/a", "attendance not extracted, not shown") }}
     {% endif %}
     {{ stat(m.stats.motions, "motions") }}
-    {{ stat(m.stats.rc_confirmed, "roll calls confirmed") }}
-    {{ stat(m.stats.rc_unconfirmed, "roll calls not confirmed*") }}
+    {{ stat(m.stats.rc_confirmed, "votes confirmed") }}
+    {{ stat(m.stats.rc_unconfirmed, "votes not confirmed*") }}
     {{ stat(m.stats.unmatched, "names not matched to an official") }}
   </ul>
 {% endmacro %}
@@ -46,12 +46,12 @@
 </section>
 
 <section aria-labelledby="{{ pre }}motions">
-  <{{ h }} id="{{ pre }}motions">Motions and roll calls</{{ h }}>
+  <{{ h }} id="{{ pre }}motions">Motions and votes</{{ h }}>
   <p>In the order they appear in the minutes.</p>
   {% if m.unconfirmed_text %}<p class="nc-summary">{{ m.unconfirmed_text }}</p>{% endif %}
   {% for b in m.blocks %}
   <article class="fact block {{ 'block-roll' if b.kind == 'roll_call' else 'block-motion' }}{% if b.kind == 'roll_call' and not b.confirmed %} nc{% endif %}" id="{{ b.id }}" data-fact-id="{{ b.id }}">
-    <{{ hb }}>{{ "Roll call" if b.kind == "roll_call" else "Motion" }}: {{ item_link(b.item, root) }}{% if b.kind == "roll_call" and not b.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</{{ hb }}>
+    <{{ hb }}>{{ "Vote" if b.kind == "roll_call" else "Motion" }}: {{ item_link(b.item, root) }}{% if b.kind == "roll_call" and not b.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</{{ hb }}>
     {% if b.kind == "roll_call" %}
     {{ roll_call_block(b, root) }}
     {% else %}
@@ -60,7 +60,7 @@
     {{ cite(b.src, root, b.id) }}
   </article>
   {% else %}
-  <p>No motions or roll calls are shown for this meeting.</p>
+  <p>No motions or votes are shown for this meeting.</p>
   {% endfor %}
 </section>
 {% endmacro %}

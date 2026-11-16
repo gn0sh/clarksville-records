@@ -11,11 +11,11 @@ from test_site_review_fixes import build_pages
 from test_site_neutrality import skeleton
 
 BAR_ORDER = ["yes", "no", "abstain", "other", "absent", "novote"]
-VOTES = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
+VOTES = re.compile(r"Votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
                    r"(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\* not confirmed\.")
 # SHOW_UNCONFIRMED_VALUES = False (the default): a count of unconfirmed roll calls, no breakdown
-VOTES_HIDDEN = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other "
-                          r"confirmed; (\d+) votes? in not confirmed\* roll calls, see each page\.")
+VOTES_HIDDEN = re.compile(r"Votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other "
+                          r"confirmed; (\d+) votes? not confirmed\*, see each page\.")
 
 
 def test_official_counts_sum_and_agree_with_the_totals_sentences(facts):
@@ -50,7 +50,7 @@ def test_official_bars_sum_to_their_stated_denominators(pages, facts):
         text = tree.all_text()
         att = re.search(r"Recorded present at (\d+) and absent at (\d+) of (\d+) meetings", text)
         assert sums[0] == int(att.group(3)) and int(att.group(1)) + int(att.group(2)) == sums[0], o["id"]
-        total = int(re.search(r"(\d+) confirmed roll calls? at meetings", text).group(1))
+        total = int(re.search(r"(\d+) confirmed votes? at meetings", text).group(1))
         assert sums[1] == total, o["id"]
         assert [len(b.children) for b in bars] == [2, 6]
 
@@ -110,10 +110,10 @@ def test_officials_cards_follow_the_seat_rule_and_share_one_skeleton(pages, fact
     for c in cards:
         text = " ".join(c.all_text().split())
         assert re.search(r"Present at \d+ of \d+ meetings? with attendance shown", text), text
-        assert re.search(r"Recorded vote on \d+ confirmed and \d+ not confirmed\* roll calls?", text), text
+        assert re.search(r"Votes recorded: \d+ confirmed, \d+ not confirmed\*", text), text
     assert not [n for n in tree.walk() if "bar" in n.attrs.get("class", "").split()]
     text = " ".join(tree.all_text().split())
-    assert "A. Example, District 1" in text and "B. Sample, District 2 (seen in roll calls on 2024-11-04)" in text
+    assert "A. Example, District 1" in text and "B. Sample, District 2 (seen in vote records on 2024-11-04)" in text
     assert "C. Placeholder, County Mayor" in text
 
 
@@ -135,7 +135,7 @@ def test_meetings_timeline_lines_have_one_shape(pages):
     assert items
     for li in items:
         text = " ".join(li.all_text().split())
-        assert re.search(r"\d+ roll calls? \(\d+ not confirmed\*\) · \d+ motions? · (\d+ of \d+ members present|attendance not shown)",
+        assert re.search(r"\d+ votes? \(\d+ not confirmed\*\) · \d+ motions? · (\d+ of \d+ members present|attendance not shown)",
                          text), text
 
 

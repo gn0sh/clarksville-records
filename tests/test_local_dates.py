@@ -232,8 +232,8 @@ RPC = {"sources": [{"url": URL3, "sha256": SHA, "fetched_at": "2026-11-08"}]}   
     # other words before a fetch day
     (f'<a href="{URL}">PDF</a>, collected 2026-11-10.', False),
     (f'<a href="{URL}">PDF</a>, added on 2026-11-09.', True),
-    ("<p>Current: in the roll calls of the latest meeting collected, 2026-05-11.</p>", True),   # a meeting date
-    ("<p>Current: in the roll calls of the latest meeting collected, 2026-05-10.</p>", False),
+    ("<p>Current: in the vote records of the latest meeting collected, 2026-05-11.</p>", True),   # a meeting date
+    ("<p>Current: in the vote records of the latest meeting collected, 2026-05-10.</p>", False),
 ])
 def test_site_check_rule(tmp_path, body, ok):
     problems, _ = site_checks.check_local_dates(tmp_path, _one_page(tmp_path, body), _cfg(tmp_path), False,

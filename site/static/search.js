@@ -15,7 +15,7 @@
   var IX = window.SEARCH_INDEX;
   var PAGE = 50;
   var shown = PAGE;
-  var KIND = { item: "Item", vote: "Roll call", meeting: "Meeting", person: "Person or district", sol: "Bids and awards" };
+  var KIND = { item: "Item", vote: "Vote", meeting: "Meeting", person: "Person or district", sol: "Bids and awards" };
   var OUTCOME = { passed: "Passed", failed: "Failed", other: "Other" };
   var VOTE = { yes: "Yes", no: "No", abstain: "Abstain", other: "Other" };
   var MULTI = ["kind", "type", "outcome", "body"];
@@ -240,9 +240,9 @@
     });
     if (strict) {
       noteEl.hidden = false;
-      noteEl.innerHTML = "Filtering by official, vote or outcome uses confirmed roll calls only. " + left +
-        (left === 1 ? " roll call that matches the other filters is not confirmed and is left out. "
-          : " roll calls that match the other filters are not confirmed and are left out. ") +
+      noteEl.innerHTML = "Filtering by official, vote or outcome uses confirmed votes only. " + left +
+        (left === 1 ? " vote that matches the other filters is not confirmed and is left out. "
+          : " votes that match the other filters are not confirmed and are left out. ") +
         '<a href="#" id="drop-strict">Show them without the official, vote and outcome filters</a>';
       document.getElementById("drop-strict").addEventListener("click", function (e) {
         e.preventDefault();

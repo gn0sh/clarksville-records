@@ -665,9 +665,9 @@ def vote_sentence(c: dict, start: str, end: str) -> str:
         unconfirmed = ", ".join(f"{c[k + '_nc']} {VOTE_WORDS[k]}*" for k in VOTE_VALUES) + " not confirmed"
     else:  # a count of roll calls only, never a Yes/No breakdown of unconfirmed votes
         n = c["rc_voted_nc"]
-        # votes, the same unit as the confirmed side and the official page's "votes in not confirmed* roll calls"
-        unconfirmed = f"{n} {plural(n, 'vote', 'votes')} in not confirmed* roll calls, see each page"
-    return f"Roll call votes, {start} to {end}: {confirmed} confirmed; {unconfirmed}."
+        # votes, the same unit as the confirmed side and the official page's "votes cast, not confirmed*"
+        unconfirmed = f"{n} {plural(n, 'vote', 'votes')} not confirmed*, see each page"
+    return f"Votes, {start} to {end}: {confirmed} confirmed; {unconfirmed}."
 
 
 def totals_sentences(ix: Index, official_id: str) -> list[str]:
@@ -680,7 +680,7 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
     under_review = states.count("under_review")
     return [
         f"Recorded absent at {c['absent']} of {c['meetings_listed']} meetings with an extracted attendance section, "
-        # ISO days here: qa/site_checks.py official-numbers reads these two sentences ("Roll call votes, D to D:")
+        # ISO days here: qa/site_checks.py official-numbers reads these two sentences ("Votes, D to D:")
         f"{cov['from']} to {cov['to']}.",
         vote_sentence(c, cov["from"], cov["to"]),
         # A site-wide number: the same sentence, with the same number, on every official's page.
@@ -699,7 +699,7 @@ BAR_SEGMENTS = (("yes", "Yes"), ("no", "No"), ("abstain", "Abstain"), ("other", 
                 ("novote", "No vote recorded"))
 # The official page's bars name their unit (site-polish/official-totals-consistent): its attendance counts meetings and
 # its vote bar roll calls, so "Absent" never reads as one number in one place and another in the next.
-OFFICIAL_BAR_SEGMENTS = BAR_SEGMENTS[:4] + (("absent", "Roll calls while recorded absent"), ("novote", "No vote recorded"))
+OFFICIAL_BAR_SEGMENTS = BAR_SEGMENTS[:4] + (("absent", "Votes while recorded absent"), ("novote", "No vote recorded"))
 ATTENDANCE_SEGMENTS = (("present", "Meetings present"), ("absent", "Meetings absent"))
 
 
@@ -923,7 +923,7 @@ def meeting(meeting_id: str, facts) -> dict:
         "attendance_state": att_state, "attendance": attendance,
         "blocks": [b for _, b in shown],
         "unconfirmed_roll_calls": unconfirmed,
-        "unconfirmed_text": (f"{unconfirmed} {plural(unconfirmed, 'roll call', 'roll calls')} at this meeting "
+        "unconfirmed_text": (f"{unconfirmed} {plural(unconfirmed, 'vote', 'votes')} at this meeting "
                              f"{plural(unconfirmed, 'is', 'are')} not confirmed and marked *."
                              if unconfirmed else ""),
     }
@@ -1329,7 +1329,7 @@ def swap_context() -> dict | None:
     word = cfg["district_label"]
     return {"numbers": sw, "url": cfg["swap_source"],
             "before": f"The map PDF prints {word}s {sw[0]} and {sw[1]} the other way round; this site uses the "
-                      f"numbers printed in the roll-call tables and the county's ",
+                      f"numbers printed in the vote tables and the county's ",
             "link": "Elected Officials List", "after": f" ({source_label(cfg['swap_source'])})."}
 
 
@@ -1548,11 +1548,11 @@ def cutover_sentence(old_last: str | None, cur_first: str | None) -> str:
     """The observed boundary in words, for whichever sides the minutes collected have."""
     sides = []
     if old_last:
-        sides.append(f"roll calls under the old lines run to {old_last}")
+        sides.append(f"votes under the old lines run to {old_last}")
     if cur_first:
-        sides.append(f"roll calls under the current lines start {cur_first}")
+        sides.append(f"votes under the current lines start {cur_first}")
     if not sides:
-        return "No roll calls are in the minutes collected yet."
+        return "No votes are in the minutes collected yet."
     return ("In the minutes collected, " + " and ".join(sides) + "."
             + (" Votes under the old district lines are listed separately." if old_last else ""))
 
@@ -1583,7 +1583,7 @@ def _holder_block(ix: Index, cache: dict, rec: dict, start: str, end: str | None
     label = rec["label"]
     return {
         "name": o["name"], "href": f"officials/{o['id']}.html", "seat": label, "period": period,
-        "heading_rest": f"{label}: roll calls {first} to {last}",
+        "heading_rest": f"{label}: vote records {first} to {last}",
         "sentence": vote_sentence(c, first, last),
         "row_groups": [{"year": y, "rows": [r for r in rows if r["year"] == y]} for y in years],
         "has_rows": bool(rows),
@@ -1829,13 +1829,13 @@ EXPORT_FILES = (
     ("officials.csv", "One row per official."),
     ("meetings.csv", "One row per meeting."),
     ("attendance.csv", "Verified attendance, one row per member per meeting."),
-    ("roll_calls.csv", "One row per roll call, with whether it is confirmed."),
-    ("votes.csv", "One row per vote in a roll call."),
+    ("roll_calls.csv", "One row per vote taken, with whether it is confirmed."),
+    ("votes.csv", "One row per member's vote in a vote taken."),
     ("motions.csv", "One row per motion, with its kind."),
     ("items.csv", "One row per agenda item."),
     ("item_events.csv", "Each appearance of an item at a meeting."),
     ("sources.csv", "Every source document, with its address and fetch date."),
-    ("seats.csv", "Seat holder records: first and last meetings seen in roll calls, or a term as its source prints it."),
+    ("seats.csv", "Seat holder records: first and last meetings seen in vote records, or a term as its source prints it."),
 )
 
 

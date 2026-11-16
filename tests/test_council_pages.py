@@ -106,7 +106,7 @@ def test_mayor_seat_comes_from_the_confirmed_roll_calls(cix, city_facts):
     mayors = [o["id"] for o in city_facts["officials"] if o["title"] == "Mayor"]
     recs = [r for r in cix.seats.records if r["seat"] == "city-mayor"]
     assert recs and {r["official_id"] for r in recs} <= set(mayors)
-    assert all(r["evidence"] == "roll calls" for r in recs)
+    assert all(r["evidence"] == "vote records" for r in recs)
 
 
 def test_seat_wording_names_attendance_lists_and_the_latest_minutes_read(cix):
