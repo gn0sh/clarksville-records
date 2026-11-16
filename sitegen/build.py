@@ -16,6 +16,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from . import bodies as bodies_mod
 from . import analytics as analytics_mod
+from . import stats as stats_mod
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import freshness as fresh_mod
@@ -811,6 +812,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("method.html.j2", "method.html", "Method", **trust)
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
+    # The site in numbers (sitegen/stats.py): counted from the data loaded above, linked from every footer
+    render("stats.html.j2", stats_mod.PAGE, stats_mod.TITLE,
+           **stats_mod.page(ix, cixs, rpx, ax, fx, nav=site["nav"],
+                            budget_href=budget_views.INDEX if bg is not None else None))
     if morning_manifests is DEFAULT:
         mn = morning_mod.settings()
         morning_manifests = None if fixture or mn is None else morning_mod.manifest_paths()

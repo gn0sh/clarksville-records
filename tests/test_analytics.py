@@ -221,3 +221,28 @@ def test_browser_sends_paths_and_events_only(on_site, tmp_path):
     assert [e for e in events if e[1] == "search"] == [("search.html?q=secret+words", "search")]   # once per view
     assert ("index.html#frag", "support-click") in events
     assert not [1 for f, _, _ in rows if f == "about.html"]   # Do Not Track: nothing sent
+
+
+# --- the site in numbers (stats.html, sitegen/stats.py) ------------------------------------------------------------
+
+def test_stats_page_counts_the_data_and_names_no_official(pages, facts):
+    html = pages["stats.html"]
+    main = html[html.index("<main"):html.index("</main>")]
+    assert f"<dt>Meetings with minutes</dt><dd>{len(facts['meetings'])}</dd>" in main
+    assert f"<dt>Agenda items</dt><dd>{len(facts['items'])}</dd>" in main
+    assert f"<dt>Votes taken</dt><dd>{len(facts['roll_calls'])}</dd>" in main
+    assert f"<dt>Source documents</dt><dd>{len(facts['sources'])}</dd>" in main
+    assert "Last fetched from the official site" in main and 'class="data-as-of"' in main
+    for o in facts["officials"]:          # records only: never a person, never a ranking
+        assert o["name"] not in main and o["id"] not in main
+    lists = " ".join(re.findall(r"<dl.*?</dl>", main, re.S)).lower()
+    for word in ("rank", "top ", "most ", "best", "worst", "%"):
+        assert word not in lists, word
+    assert 'href="committees.html">Committees</a> <span class="chip chip-coming">Coming</span>' in main
+
+
+def test_every_footer_links_the_stats_page(pages):
+    for rel, html in pages.items():
+        foot = html[html.index('<footer class="site-footer">'):]
+        depth = "../" * rel.count("/")
+        assert f'<a href="{depth}stats.html">The site in numbers.</a>' in foot, rel

@@ -1394,3 +1394,10 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .bodies-k { font-weight: 600; color: var(--fg); }
 .body-note { margin: 0 0 12px; border-left-color: var(--sun); }
 @media (pointer: coarse) { .bodies-card h3 a { min-height: 44px; } .hub-go a[data-ext] { padding: 12px 0; } }
+
+/* The site in numbers (stats.html, sitegen/stats.py): label and count on one line, the counts lined up. */
+.stats-list { margin: 0 0 1.5rem; padding: 0; max-width: 36rem; }
+.stats-list > div { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem 0; border-bottom: 1px solid var(--border); }
+.stats-list dt { color: var(--muted); }
+.stats-list dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; color: var(--fg); }
+.coming-list { padding-left: 1.25rem; }
