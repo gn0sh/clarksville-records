@@ -18,13 +18,13 @@ With the code empty (`code: ""`) no page loads the counter and nothing leaves a 
 
 ## Brian: create the account (about 3 minutes, free)
 1. Open https://www.goatcounter.com/signup on any device.
-2. **Code**: type `daylight-gnoshcodes` (this becomes `https://daylight-gnoshcodes.goatcounter.com`, your dashboard;
+2. **Code**: type `daylight-gnosh` (this becomes `https://daylight-gnosh.goatcounter.com`, your dashboard;
    any lower-case letters, digits and dashes work, but tell us the exact one you typed).
 3. **Site domain**: `daylight.gnoshcodes.com`.
 4. **Email** and **Password**: your own. Leave everything else as it is. Tap **Sign up**.
 5. Open the confirmation email from GoatCounter and tap its link. Done: you should see an empty dashboard.
 6. Leave the dashboard private (the default). The later private dashboard will use an API key you create then.
-7. Reply in the Daylight thread with one line: `GoatCounter code: daylight-gnoshcodes` (or the code you chose).
+7. Reply in the Daylight thread with one line: `GoatCounter code: daylight-gnosh` (or the code you chose).
 
 ## The team: switch it on (one-line PR)
 1. On a branch, edit `config/site.yml`: `analytics: {provider: goatcounter, code: "daylight-gnosh"}`.
