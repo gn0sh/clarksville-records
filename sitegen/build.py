@@ -765,7 +765,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("official_roster.html.j2", f"officials/{oid}.html", ctx["official"]["name"], **ctx)
     for m in facts["meetings"]:
         ctx = views.meeting(m["id"], ix)
-        render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", m=ctx, **ctx,
+        # the page title and share card name the body (onceover/meeting/title-names-body), as the h1 does
+        title = f"{config.SITE['meeting_title_body']} {ctx['kind_label'].lower()}, {localdates.words(m['date'])}"
+        render("meeting.html.j2", f"meetings/{m['id']}.html", title, m=ctx, **ctx,
                watch=watch_mod.meeting(config.SITE["county_key"], m.get("video_url")))
     render_year_pages()   # county items; each council's meetings and items (in parts when too big)
     render_transcript_pages()

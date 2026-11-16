@@ -157,7 +157,7 @@ def test_the_built_meeting_page_shows_the_local_fetch_day_and_the_meeting_date_a
     local = localdates.local_day(f"{src['fetched_at']}T04:38:00+00:00")
     assert local != src["fetched_at"]
     assert f", fetched {local}." in page and not re.search(rf"fetched {src['fetched_at']}(?! \(UTC day\))", page)
-    assert m["date"] in page
+    assert localdates.words(m["date"]) in page     # the meeting day as printed (h1 and title name it in words)
     # a fixture source with no manifest row still shows its stored day, labelled
     m2 = next(x for x in facts["meetings"] if x["source_id"] != src["id"])
     other = next(s for s in facts["sources"] if s["id"] == m2["source_id"])
