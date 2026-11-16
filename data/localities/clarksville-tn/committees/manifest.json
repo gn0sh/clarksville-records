@@ -1,0 +1,74 @@
+[
+  {
+    "bytes": 64714,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T15:45:38+00:00",
+    "kind": "minutes",
+    "label": "Finance Committee: Finance Committee Agenda 4-4-19 (minutes)",
+    "last_modified": null,
+    "meeting_date": "2019-04-04",
+    "sha256": "a6ea3f9d994e4f7c62b40f69854fcda1581a13602b8e85603c5248082b185c9d",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=997,plainText=false)"
+  },
+  {
+    "bytes": 153278,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T15:45:48+00:00",
+    "kind": "minutes",
+    "label": "Audit Committee: Audit Committee (minutes)",
+    "last_modified": null,
+    "meeting_date": "2024-10-30",
+    "sha256": "f65389a8627f24fb937c17080b4426c8380fe465e93352a9b87430cbec3082a8",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2390,plainText=false)"
+  },
+  {
+    "bytes": 323325,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T15:45:58+00:00",
+    "kind": "minutes",
+    "label": "Finance Committee: Finance Committee Meeting (minutes)",
+    "last_modified": null,
+    "meeting_date": "2025-04-21",
+    "sha256": "94ac2daa1a8c33bb645734be6a18a610940890634d74dd7ad92ebe7c2171288d",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2591,plainText=false)"
+  },
+  {
+    "bytes": 257343,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T15:46:08+00:00",
+    "kind": "minutes",
+    "label": "Finance Committee: Finance Committee Meeting (minutes)",
+    "last_modified": null,
+    "meeting_date": "2025-05-27",
+    "sha256": "d5277eb0c752aad1bb80156b41497a44ac78be1688892690a7f9925518a44191",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2590,plainText=false)"
+  },
+  {
+    "bytes": 269763,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T15:46:18+00:00",
+    "kind": "minutes",
+    "label": "Finance Committee: Finance Committee Meeting (minutes)",
+    "last_modified": null,
+    "meeting_date": "2026-04-27",
+    "sha256": "1505031d49f504aa9b7c5d559a78196aedcf3f3394f54e920b1636d162ffcae5",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3196,plainText=false)"
+  },
+  {
+    "bytes": 257343,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T15:46:28+00:00",
+    "kind": "minutes",
+    "label": "Finance Committee: Finance Committee Meeting (minutes)",
+    "last_modified": null,
+    "meeting_date": "2026-05-26",
+    "sha256": "d5277eb0c752aad1bb80156b41497a44ac78be1688892690a7f9925518a44191",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3197,plainText=false)"
+  }
+]

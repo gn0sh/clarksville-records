@@ -1,0 +1,31 @@
+# City of Clarksville, TN: City Council committees from the city's CivicClerk portal (milestone C1), each its own
+# body, apart from the City Council (city_run.py and civicclerk.yml are not touched). collector/committees.py loads
+# and checks this file; the code holds no locality literal. Survey: docs/research/committee-sources-2026-11-11.md
+# ("City: CivicClerk API"); API facts: docs/platform-facts.md, "CivicClerk"; decision and robots: docs/adr/0003.
+#
+# robots.txt (api host, checked 2026-11-11): `User-agent: *` Allow /, Content-Signal search=yes, ai-train=no,
+# use=reference; named AI crawlers are disallowed. Our collector matches only `*` (its own honest User-Agent), uses
+# the records for reference only and never for training. GET only, 10 s between requests, a 403/429 stops the host
+# for the run (collector/fetch.py).
+
+locality: clarksville-tn
+api_host: clarksvilletn.api.civicclerk.com
+from_date: "2019-01-01"               # the Finance Committee's first CivicClerk event is 2019-04-04
+# The events listing of one category (OData), the same template as civicclerk.yml. Pages follow @odata.nextLink,
+# which must stay on api_host.
+events_url: "https://{host}/v1/Events?$filter=categoryName%20eq%20%27{category}%27%20and%20startDateTime%20ge%20{from_date}T00:00:00Z&$orderby=startDateTime%20asc"
+file_url: "https://{host}/v1/Meetings/GetMeetingFileStream(fileId={file_id},plainText=false)"
+agenda_types: [Agenda]
+minutes_types: [Minutes]
+# Video: as civicclerk.yml. The committees' events carry only bare "stream/CLARKSVILLETN/<uuid>.mp4" paths (no public
+# URL), so no committee video link is kept until one is published as a full https URL on one of these hosts.
+video_hosts: [cpmedia.azureedge.net]
+# One entry per committee: the CivicClerk categoryName exactly as the API prints it, a slug (meeting ids and, later,
+# page paths) and the body's name as shown. Counts as surveyed 2026-11-11 (future events included).
+committees:
+  - category_name: Finance Committee      # category id 27, 117 events from 2019-04-04
+    slug: finance
+    label: Finance Committee
+  - category_name: Audit Committee        # category id 44, 49 events, newest 2025-02-03
+    slug: audit
+    label: Audit Committee

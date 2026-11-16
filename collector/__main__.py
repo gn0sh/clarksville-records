@@ -3,6 +3,7 @@ python -m collector fin {fetch,build,census}   (finance and contracts: collector
 python -m collector city {fetch,build,run}     (City Council, Agenda Center and CivicClerk: collector/city_run.py; exit 0 ok,
                                                2 a listing not read, 3 the G4 skew gate, 5 a host or robots.txt refused)
 python -m collector rpc {fetch,build,run}      (Regional Planning Commission: collector/rpc.py)
+python -m collector committees {fetch,build,run}   (city Finance and Audit committees: collector/committees.py)
 python -m collector transcripts import <dir>   (meeting video transcripts: collector/transcripts.py)
 run: discover -> fetch new (polite), and refetch any manifest minutes whose bytes the store lacks -> parse ->
 resolve names -> verify -> shrink guard -> data/facts.json -> finance fetch and
@@ -510,6 +511,9 @@ def main(argv=None) -> int:
     if argv[:1] == ["rpc"]:
         from .rpc import main as rpc_main
         return rpc_main(argv[1:])
+    if argv[:1] == ["committees"]:
+        from .committees import main as committees_main
+        return committees_main(argv[1:])
     if argv[:1] == ["transcripts"]:
         from .transcripts import main as tx_main
         return tx_main(argv[1:])
