@@ -493,6 +493,67 @@ def test_county_committees_exit_other_than_0_or_unreadable_is_failed(tmp_path, r
     assert out.read_text().strip() == f"county_committees={want}"
 
 
+def _cb_exit_lines() -> str:
+    """The collect step's city-books-exit lines, run on their own (budget/kept-warning-unseen)."""
+    run = {s.get("id"): s for s in WF["jobs"]["update"]["steps"]}["collect"]["run"]
+    return run.split("# city-books-exit")[1].split("# end city-books-exit")[0]
+
+
+@pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
+@pytest.mark.parametrize("run_log,want", [
+    ('{"city_books": {"clarksville-tn": {"build": 3, "warning": "city books clarksville-tn: kept"}}}', "kept"),
+    ('{"city_books": {"clarksville-tn": {"build": 2, "warning": "city books clarksville-tn: stopped"}}}', "kept"),
+    ('{"city_books": {"clarksville-tn": {"error": "OSError: x", "warning": "w"}, "b": {"build": 0}}}', "kept"),
+    ('{"city_books": {"clarksville-tn": {"build": 0}}}', "ok"),
+    ('{"city_books": {}}', "ok"),
+    ("{}", "ok"),
+    ("{not json", "ok"),
+    (None, "ok"),                                   # no run log at all: the county run's own failure reports it
+])
+def test_city_books_warning_is_output_as_kept(tmp_path, run_log, want):
+    (tmp_path / "build").mkdir()
+    if run_log is not None:
+        (tmp_path / "build" / "run-log.json").write_text(run_log, encoding="utf-8")
+    out = tmp_path / "out"
+    subprocess.run(["bash", "-c", "set -u\n" + _cb_exit_lines()], cwd=tmp_path, check=True,
+                   env={**os.environ, "GITHUB_OUTPUT": str(out)})
+    assert out.read_text().strip() == f"city_books={want}"
+
+
+def _cb_issue_step():
+    return {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}["Open or update the city budget books issue"]
+
+
+def test_city_books_issue_runs_only_on_kept_and_never_blocks_publishing():
+    step = _cb_issue_step()
+    assert step["if"] == "always() && steps.collect.outputs.city_books == 'kept'"
+    assert step["continue-on-error"] is True and "${{" not in step["run"]
+
+
+@pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
+def test_city_books_issue_warning_is_fenced_text_not_shell(tmp_path):
+    """ci/issue-markdown-fence: a warning holding ``` or $(...) stays text inside the step's own fence."""
+    warning = "city books clarksville-tn: OSError ```\n# injected heading\n``` $(touch pwned) `id`"
+    calls, body = _run_issue_step(tmp_path, _cb_issue_step(),
+                                  run_log=json.dumps({"city_books": {"clarksville-tn": {"warning": warning}}}))
+    assert body.count("```") == 2 and "injected heading" in body and "$(touch pwned)" in body
+    assert not (tmp_path / "work" / "pwned").exists()
+    assert calls[-1].startswith("issue create") and "--title Daily update: city budget books kept" in calls[-1]
+
+
+@pytest.mark.parametrize("run_log", [None, "{not json", '{"city_books": {"clarksville-tn": {"build": 0}}}'])
+def test_city_books_issue_reason_is_unknown_without_a_readable_run_log(tmp_path, run_log):
+    calls, body = _run_issue_step(tmp_path, _cb_issue_step(), run_log=run_log)
+    assert body.split("```")[1].strip() == "unknown" and calls[-1].startswith("issue create")
+
+
+@pytest.mark.parametrize("open_issue", ["", "42"])
+def test_city_books_repeat_kept_comments_on_the_open_issue(tmp_path, open_issue):
+    calls, _ = _run_issue_step(tmp_path, _cb_issue_step(), open_issue=open_issue,
+                               run_log=json.dumps({"city_books": {"clarksville-tn": {"warning": "kept"}}}))
+    assert calls[-1].startswith("issue comment 42" if open_issue else "issue create")
+
+
 @pytest.mark.parametrize("job", ["update", "push"])
 @pytest.mark.parametrize("open_issue", ["", "42"])
 def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):

@@ -193,16 +193,16 @@ def test_a_present_card_is_shown_only_when_its_page_is_built(site, html):
 
 def test_city_and_rpc_homes_are_their_hubs(site, html):
     city = hub_cards(html[f"{cfg_slug(site)}/index.html"])
-    assert {"meetings", "votes", "finance", "finance-committee", "audit-committee"} <= set(city)
+    assert {"meetings", "votes", "finance-committee", "audit-committee"} <= set(city)
     assert "is-coming" not in city["meetings"] and "#meetings-h" in city["meetings"]
-    for key in ("finance", "finance-committee", "audit-committee"):
+    for key in ("finance-committee", "audit-committee"):
         assert '<span class="chip chip-coming">Coming</span>' in city[key]
-    assert f'href="{config.SITE["unofficial"]["bodies"][0]["url"]}"' in city["finance"]
+    # the city budget card is a present card, shown only when city/finance/ is built (as the county's Finance card);
+    # this fixture build has no city budget books (test_city_budget_pages builds them)
+    assert ("finance" in city) == (site / cfg_slug(site) / "finance" / "index.html").is_file()
     for key in ("finance-committee", "audit-committee"):          # one card per committee, as the county's has
         # coming while this build makes no committee pages (tests/test_committee_pages.py: present once it does)
         assert f'href="{config.SITE["city_committees"]["url"]}"' in city[key]
-    # the landing's "City budget" link opens this card
-    assert '<li class="hub-card is-coming" data-card="finance" id="card-finance">' in html[f"{cfg_slug(site)}/index.html"]
     assert '<p class="hub-kicker">City government</p>' in html[f"{cfg_slug(site)}/index.html"]
     rpc_page = html["rpc/index.html"]
     rpc = hub_cards(rpc_page)
@@ -274,7 +274,7 @@ def test_home_overview_lists_each_body_with_the_same_coming_items(site, html):
     county, city = (plain(re.search(rf'<li class="bodies-card" data-hub="{k}">(.*?)</li>', sec, re.S).group(1))
                     for k in ("county", "city"))
     assert county.endswith("Coming: Budget Committee.")
-    assert city.endswith("Coming: City budget, Finance Committee, Audit Committee.")
+    assert city.endswith("Coming: Finance Committee, Audit Committee.")   # the city budget card is a present card
 
 
 def test_home_has_the_line_slot_first_in_the_page(html):
@@ -321,10 +321,18 @@ def test_rows_carry_their_body_for_the_filter(site, html):
 
 def test_finance_note_text_and_links():
     note = bodies.finance_note()
-    assert note["text"] == "County budget only so far. City and school board budgets are coming."
-    assert [x["url"] for x in note["links"]] == [config.SITE["unofficial"]["bodies"][0]["url"],
-                                                  config.SITE["school_board"]["url"]]
-    assert note["links"][0]["url"] == "https://www.clarksvilletn.gov/" and "cmcss.net" in note["links"][1]["url"]
+    assert note["text"] == "These are the Montgomery County budget books. The school board budget is coming."
+    assert [x["url"] for x in note["links"]] == [config.SITE["school_board"]["url"]]
+    assert "cmcss.net" in note["links"][0]["url"] and note["sibling"] is None
+    # each body's budget index links the other's when it is built (finance-contracts 10), in the same words
+    county = bodies.finance_note(sibling="city/finance/index.html")
+    city = bodies.finance_note(key="city_finance_note", sibling="finance/index.html")
+    assert county["sibling"] == {"lede": "The City of Clarksville budget books have their own pages:",
+                                 "label": "City budget", "href": "city/finance/index.html"}
+    assert city["sibling"] == {"lede": "The Montgomery County budget books have their own pages:",
+                               "label": "County budget", "href": "finance/index.html"}
+    assert city["text"] == "These are the City of Clarksville budget books. The school board budget is coming."
+    assert city["links"] == county["links"]
     tpl = (ROOT / "site" / "templates" / "fin_index.html.j2").read_text(encoding="utf-8")
     assert tpl.index("body_note.text") < tpl.index("coverage_sentence")     # the first line under the h1
 
@@ -337,8 +345,9 @@ def test_finance_page_shows_the_note_first_and_the_county_hub_links_finance(tmp_
     main = main_of(pages["finance/index.html"])
     first = re.search(r"</h1>\s*<p[^>]*>(.*?)</p>", main, re.S)
     assert 'class="note body-note"' in first.group(0)
-    assert plain(first.group(1)).startswith("County budget only so far. City and school board budgets are coming. ")
-    assert f'<a data-ext="body" href="{config.SITE["unofficial"]["bodies"][0]["url"]}"' in first.group(1)
+    assert plain(first.group(1)).startswith("These are the Montgomery County budget books. The school board budget "
+                                            "is coming. ")
+    assert "City budget" not in first.group(1)          # this fixture build has no city budget pages to link
     assert f'<a data-ext="school" href="{config.SITE["school_board"]["url"]}"' in first.group(1)
     assert main.count(f'<div data-body="{config.SITE["county_key"]}">') == 1
     assert main.index("body-note") < main.index("data-body=")           # the note itself is never hidden

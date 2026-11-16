@@ -136,9 +136,11 @@ def build_budget(store, cfg: FinanceConfig, sources: dict, problems: list, meta_
                 "source_id": src["id"], "pages_read": read.pages_read, "columns": read.columns}
         if cfg.budget.amount_unit != "dollars":
             book["amount_unit"] = cfg.budget.amount_unit
+        if read.report_dates:
+            book["report_dates"] = read.report_dates
         books.append(book)
         lines += fin_budget.to_records(read, cfg.budget)
-    fin_checks.reconcile(lines)
+    fin_checks.reconcile(lines, cfg.budget.run_totals)
     fin_checks.edition_compare(lines)
     return sorted(books, key=lambda b: b["id"]), sorted(lines, key=lambda x: x["id"])
 

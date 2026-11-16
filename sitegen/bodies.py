@@ -13,6 +13,8 @@ resolved to an https URL is left without a link, never with a guessed one. A com
 """
 from __future__ import annotations
 
+import posixpath
+
 from . import config
 from .views import https_url
 
@@ -69,6 +71,7 @@ def _hrefs(site: dict, councils, rpc, cmx=None, committees=()) -> dict[str, dict
         years = c.meeting_years()
         tx = getattr(c, "tx", None)
         out["city"] = {"meetings": c.home_href() + "#meetings-h", "votes": c.home_href() + "#members-h",
+                       "finance": site.get("city_budget"),
                        "transcripts": f"{c.slug}/meetings/{years[-1]}.html"
                        if years and tx is not None and tx.pages and tx.by_meeting else None}
     for cm in committees:   # each city committee's own card (config city_committees.pages[].card)
@@ -121,7 +124,12 @@ def build(site: dict, councils=(), rpc=None, cmx=None, committees=()) -> dict | 
                               "link": official_link(c.get("link"), rpc),
                               "door": c.get("door")})   # the landing door that names it as coming (views.door_coming)
             elif hrefs.get(key, {}).get(c["key"]):
-                cards.append({"key": c["key"], "title": c["title"], "text": c["text"], "coming": False,
+                text = c["text"]
+                if "{books}" in text:          # the city budget card: the books read, from the data (no year list here)
+                    if not site.get("city_budget_books"):
+                        continue
+                    text = text.format(books=site["city_budget_books"])
+                cards.append({"key": c["key"], "title": c["title"], "text": text, "coming": False,
                               "href": hrefs[key][c["key"]], "go": c.get("go") or c["title"], "link": None})
         hubs[key] = {"key": key, "label": b["label"], "href": home[key], "kicker": b.get("kicker"),
                      "title": b.get("title"), "lede": b.get("lede"), "note": b.get("note"), "cards": cards,
@@ -135,13 +143,17 @@ def build(site: dict, councils=(), rpc=None, cmx=None, committees=()) -> dict | 
             "current": {o["href"]: o["key"] for o in options}}
 
 
-def finance_note(rpc=None) -> dict | None:
-    """The Finance page's top line (config `switch.finance_note`): the text and its official links."""
-    fn = _cfg().get("finance_note") or {}
+def finance_note(rpc=None, key: str = "finance_note", sibling: str | None = None) -> dict | None:
+    """A budget index's top line (config `switch.finance_note` for the county's, `switch.city_finance_note` for the
+    city's): the text, the other body's budget pages when they are built (`sibling`: their index path) and the
+    official links."""
+    fn = _cfg().get(key) or {}
     if not fn.get("text"):
         return None
     links = [x for x in (official_link(s, rpc) for s in fn.get("links") or []) if x]
-    return {"text": fn["text"], "link_lede": fn.get("link_lede") or "", "links": links}
+    sib = ({"lede": fn["sibling"]["lede"], "label": fn["sibling"]["label"], "href": sibling}
+           if sibling and isinstance(fn.get("sibling"), dict) else None)
+    return {"text": fn["text"], "link_lede": fn.get("link_lede") or "", "links": links, "sibling": sib}
 
 
 # The one "where am I" line (onceover/wayfinding/three-crumb-patterns): every page that is not the home page or a
@@ -169,7 +181,12 @@ def crumbs(site: dict, rel: str, councils=(), rpc=None, cmx=None) -> list[dict]:
 
     for c in councils:
         if rel.startswith(f"{c.slug}/"):
-            return hub("city") if councils and c is councils[0] else [{"label": c.nav_label, "href": c.home_href()}]
+            out = hub("city") if councils and c is councils[0] else [{"label": c.nav_label, "href": c.home_href()}]
+            city_budget = site.get("city_budget")      # a city fund page: up to the city budget index (city/finance/)
+            if city_budget and c is councils[0] and rel.startswith(posixpath.dirname(city_budget) + "/") \
+                    and rel != city_budget:
+                out.append({"label": config.FIN_TEXT["budget_city"]["title"], "href": city_budget})
+            return out
     if rpc is not None and rel.startswith(f"{rpc.slug}/"):
         return hub("rpc")
     if cmx is not None:       # school board agendas: the school board's page; county finance committees: the county's

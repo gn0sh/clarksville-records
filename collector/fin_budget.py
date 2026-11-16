@@ -114,6 +114,7 @@ class BookRead:
     columns: list                # [{header_as_printed, fiscal_year, kind}] in first-seen order
     pages_read: list
     lines: list                  # ParsedLine in book order
+    report_dates: list = field(default_factory=list)   # [{as_printed, page}]: rules.report_date on the pages read
 
 
 def amount_dollars(tok: str) -> int | None:
@@ -144,14 +145,17 @@ def is_amount(tok: str, unit: str = "dollars") -> bool:
     return amount_value(tok, unit) is not None
 
 
-def split_glued(w: Word, unit: str) -> list[Word]:
+def split_glued(w: Word, unit: str, value_x0: float | None = None) -> list[Word]:
     """A word of touching amounts, maybe after a label ("REVENUE-1.00-2.00"), as one word per piece; positions by
-    character width (the city books print in a monospace font). Any other word is returned as it is."""
+    character width (the city books print in a monospace font). Any other word is returned as it is. The split starts
+    where the value bands start: a piece whose right edge falls left of `value_x0` (the first value band's left edge;
+    split_row places a word by its right edge) stays in the label, so a label ending in digits is never cut."""
     if unit != "cents" or is_amount(w.text, unit):
         return [w]
+    cw = (w.x1 - w.x0) / len(w.text)
     pieces, end = [], len(w.text)
     for m in reversed(list(GLUED.finditer(w.text))):
-        if m.end() != end:
+        if m.end() != end or (value_x0 is not None and w.x0 + m.end() * cw < value_x0):
             break
         pieces.insert(0, (m.start(), m.end()))
         end = m.start()
@@ -159,7 +163,6 @@ def split_glued(w: Word, unit: str) -> list[Word]:
         return [w]
     if end:
         pieces.insert(0, (0, end))
-    cw = (w.x1 - w.x0) / len(w.text)
     return [Word(w.page, w.x0 + a * cw, w.x0 + b * cw, w.y0, w.y1, w.text[a:b]) for a, b in pieces]
 
 
@@ -391,6 +394,8 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
     pending_fb: list[ParsedLine] = []          # fund_balance lines waiting for the next statement page's fund
     overrides = dict(spec.kind_overrides)
     unit = rules.amount_unit
+    report_dates: list[dict] = []
+    seen_dates: set[str] = set()
     for page in range(spec.first_page, spec.last_page + 1):
         plines = by_page.get(page, [])
         role, title_at = page_role(plines, rules)
@@ -412,13 +417,19 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
             col = {"header_as_printed": b.header, "fiscal_year": b.fiscal_year, "kind": b.kind}
             if b.kind and col not in columns:
                 columns.append(col)
+        if rules.report_date is not None:
+            for ln in plines:
+                m = rules.report_date.search(ln.text)
+                if m and m.group("date") not in seen_dates:
+                    seen_dates.add(m.group("date"))
+                    report_dates.append({"as_printed": m.group("date"), "page": page})
         rows = []
         for i, ln in enumerate(plines):
             if i == title_at or i in header_idx or rules.footer.fullmatch(ln.text):
                 continue
             if rules.split_glued_amounts:           # only words that reach into the value bands
                 ln = Line(ln.page, [p for w in ln.words
-                                    for p in (split_glued(w, unit) if w.x1 >= bands[0].x0 else [w])])
+                                    for p in (split_glued(w, unit, bands[0].x0) if w.x1 >= bands[0].x0 else [w])])
             r = split_row(ln, i + 1, bands)
             if i < min(header_idx) and not has_amount(r, unit):
                 continue                        # the page's title block (a row printed above it is still read)
@@ -467,7 +478,7 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
     unused = set(overrides) - {c["header_as_printed"] for c in columns}
     if unused:
         raise BookLayoutError(f"{spec.id}: kind_overrides name no header of the book: {sorted(unused)}")
-    return BookRead(spec, columns, pages_read, out)
+    return BookRead(spec, columns, pages_read, out, report_dates)
 
 
 def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules: BudgetRules, bands, edges,

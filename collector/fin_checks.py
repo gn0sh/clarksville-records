@@ -105,10 +105,11 @@ def amount(cell: dict) -> int | None:
     return cell["cents"] if "cents" in cell else cell["dollars"]
 
 
-def rounding_bound(n: int) -> int:
+def rounding_bound(n: int, cents: bool = False) -> int:
     """Largest |printed - sum| that rounding alone explains for n detail lines each printed to the dollar
-    (ADR 0002 point 4): floor((n + 1) / 2)."""
-    return (n + 1) // 2
+    (ADR 0002 point 4): floor((n + 1) / 2). A book printed to the cent rounds nothing: 0
+    (budget-reconcile/rounding-bound-in-cents; a cents total 3.01 over lines summing to 3.00 does not add up)."""
+    return 0 if cents else (n + 1) // 2
 
 
 def rounded_cells(scope: list[dict], i: int) -> int:
@@ -117,24 +118,25 @@ def rounded_cells(scope: list[dict], i: int) -> int:
     return sum(1 for x in scope if amount(x["cells"][i]) is not None and x["cells"][i]["as_printed"] != "-")
 
 
-def check_total(line: dict, scope: list[dict]) -> dict:
+def check_total(line: dict, scope: list[dict], run_total: bool = False) -> dict:
     """The check of one subtotal or total over exactly its scope lines. Printed values are never altered. Per cell:
     printed = the total's dollars, sum = the scope lines' dollars in that column (blank or held = not added),
     diff = printed - sum (null when printed is null). State: not_checked when the total or a scope line is held (the
     line is then held too and shown as Not confirmed*, see reconcile; counted apart, never as a book error,
     budget-reconcile/held-counted-as-book-error); does_not_add_up when the scope is empty, a blank total has lines
     with dollars, or some |diff| exceeds its column's rounding bound (n = rounded_cells); within_rounding when every
-    |diff| is within it and one is not 0; else exact. An empty scope whose printed cells are all 0 is exact (nothing
-    adds up to 0: a city report run's TOTAL REVENUE of .00 when the run holds no revenue)."""
+    |diff| is within it and one is not 0; else exact. The bound is 0 in a column whose total carries cents. Only a
+    report-run total (`run_total`: a city run's TOTAL REVENUE of .00 when the run holds no revenue) over an empty scope
+    whose printed cells are all 0 is exact (nothing adds up to 0); any other empty scope does not add up."""
     per_cell, bounds = [], []
     for i, c in enumerate(line["cells"]):
         s = sum(amount(x["cells"][i]) or 0 for x in scope)
         p = amount(c)
         per_cell.append({"printed": p, "sum": s, "diff": None if p is None else p - s})
-        bounds.append(rounding_bound(rounded_cells(scope, i)))
+        bounds.append(rounding_bound(rounded_cells(scope, i), "cents" in c))
     if line["held"] or any(x["held"] for x in scope):
         state = NOT_CHECKED
-    elif not scope and all(pc["printed"] == 0 for pc in per_cell):
+    elif run_total and not scope and all(pc["printed"] == 0 for pc in per_cell):
         state = "exact"            # a total of nothing printed as all zeros (a city run's TOTAL REVENUE of .00)
     elif not scope or any(pc["printed"] is None and pc["sum"] != 0 for pc in per_cell):
         state = "does_not_add_up"
@@ -150,10 +152,17 @@ def check_total(line: dict, scope: list[dict]) -> dict:
 SCOPE_HELD = "scope-held"
 
 
-def reconcile(lines: list[dict]) -> dict:
+def is_run_total(line: dict, run_totals) -> bool:
+    """A report-run total (finance.yml `rows.run_totals`, as fin_budget reads it): a total with no account code whose
+    label is one of the configured run-total labels."""
+    return line["row_role"] == "total" and line["account_code"] is None and line["label_as_printed"] in run_totals
+
+
+def reconcile(lines: list[dict], run_totals=()) -> dict:
     """Set `check` on every subtotal and total line (in place); returns the counts per state for the run report.
     A total whose scope holds a held line cannot be checked: it is held as well (check `scope-held`), so the page
-    shows Not confirmed* instead of a state that would blame the book for a line we could not read."""
+    shows Not confirmed* instead of a state that would blame the book for a line we could not read. `run_totals`:
+    the book's report-run total labels (finance.yml budget.rows.run_totals; the county has none)."""
     by_id = {x["id"]: x for x in lines}
     counts = dict.fromkeys(RECONCILE_STATES, 0)
     for x in lines:
@@ -163,7 +172,7 @@ def reconcile(lines: list[dict]) -> dict:
         scope = [by_id[i] for i in x["scope_line_ids"]]
         if not x["held"] and any(s["held"] for s in scope):
             x["held"] = SCOPE_HELD
-        x["check"] = check_total(x, scope)
+        x["check"] = check_total(x, scope, is_run_total(x, run_totals))
         counts[x["check"]["state"]] += 1
     return counts
 

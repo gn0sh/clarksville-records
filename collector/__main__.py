@@ -15,7 +15,8 @@ the agenda page, new agenda PDFs, data/county-agendas/agendas.json) -> Regional 
 the listing page, new documents, data/localities/cmc-rpc/rpc.json; all or nothing) -> school board and county
 committee agendas (county_committees.run_step: the county's Committee Agendas page, new agenda PDFs,
 data/localities/montgomery-tn/committee-agendas/agendas.json; all or nothing, never changes the exit code; its outcome
-is in build/run-log.json `county_committees`) -> sitegen -> export ->
+is in build/run-log.json `county_committees`) -> city budget books (fin_books.run_step: new books only, built offline
+into data/localities/<id>/finance.json; a warning at most) -> sitegen -> export ->
 build/report.json, build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure
 (votes gates, or finance parity 'review needed'), 7 (KEPT, a warning) when the shrink guard kept a source document's
 meetings as committed, or a correction lowered a document's verified count; everything else is published. The RPC
@@ -136,6 +137,13 @@ def finance_fetcher() -> PoliteFetcher:
 def run_finance(store: Store, log: dict, offline: bool, **kw) -> int:
     from .fin_run import run_step
     return run_step(store, log, offline, **kw)
+
+
+def run_city_books(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> None:
+    """The city's budget books (collector/fin_books.py run_step): fetch only new books, build offline daily into
+    data/localities/<id>/finance.json. A warning at most: it never changes the run's exit code."""
+    from .fin_books import run_step
+    run_step(log, offline, fetcher=fetcher)
 
 
 def run_agendas(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> None:
@@ -472,6 +480,7 @@ def cmd_run(args) -> int:
     rpc_code = run_rpc(log, args.offline, fetcher=fetcher,      # before the site build, which reads rpc.json
                        allow_shrink=allow)
     run_county_committees(log, args.offline, fetcher=fetcher)   # before the site build, which reads its agendas.json
+    run_city_books(log, args.offline, fetcher=fetcher)          # before the site build, which reads them
     site = BUILD / "site"
     try:
         from sitegen.build import build as site_build, write_publish_manifest
@@ -479,10 +488,11 @@ def cmd_run(args) -> int:
         print("collector: sitegen is not installed in this checkout; skipping the site step", flush=True)
         site_build = None
     from .export import export_site
-    log["warnings"] = []
+    from .fin_books import warnings as city_books_warnings
+    log["warnings"] = city_books_warnings(log)                       # a city books build kept or stopped (exit 2)
     if site_build:
         res = site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
-        log["warnings"] = list((res or {}).get("warnings") or [])   # e.g. seats.yml older than the facts (M1)
+        log["warnings"] += list((res or {}).get("warnings") or [])  # e.g. seats.yml older than the facts (M1)
     export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)
     if site_build:
         write_publish_manifest(site)
