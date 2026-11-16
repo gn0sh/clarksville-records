@@ -131,7 +131,8 @@ def worse_than_committed(new: dict, old: dict) -> list[str]:
 
 def cmd_build(store: Store, cfg: fin_config.BooksConfig, finance_path: Path, report_path: Path,
               keep_committed: bool = False, **kw) -> int:
-    """Exit 0 ok, 2 on schema or guard problems (nothing written). With keep_committed (the daily run), KEPT when the
+    """Exit 0 ok, 2 on schema or guard problems (finance.json not written; the report says why under `stopped`).
+    With keep_committed (the daily run), KEPT when the
     new build reads worse than the committed finance.json (worse_than_committed): the committed file is kept and the
     reasons go to the report (`kept`) and the output."""
     from .facts import dumps, write_if_changed
@@ -141,6 +142,9 @@ def cmd_build(store: Store, cfg: fin_config.BooksConfig, finance_path: Path, rep
     errors = validate(fin)
     guard = [p for p in problems if any(k in p for k in GUARD_KEYS)]
     if errors or guard:
+        # the report says why, so it never shows an earlier build's outcome (budget/exit2-stale-report)
+        write_if_changed(Path(report_path), dumps({"stopped": {"schema_errors": errors[:50], "guard": guard},
+                                                   "problems": problems}))
         for p in (errors + guard)[:20]:
             print("  problem:", p)
         print(f"collector fin-books: {len(errors)} schema errors, {len(guard)} guard problems; nothing written")

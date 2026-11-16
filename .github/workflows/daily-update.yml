@@ -227,6 +227,18 @@ jobs:
           fi
           echo "county_committees=$cc" >> "$GITHUB_OUTPUT"
           # end county-committees-exit
+          # A city budget books build that kept the committed finance.json (build 3) or stopped (build 2, or an error)
+          # leaves a warning in build/run-log.json city_books.<locality>.warning and never changes the exit code. Any
+          # warning: output city_books=kept, and the step below opens or comments on one issue for it.
+          # city-books-exit (tests/test_workflow_lock.py runs these lines on their own)
+          cb=ok
+          n=$(jq -r '[(.city_books // {})[] | select(.warning)] | length' build/run-log.json 2>/dev/null) || n=0
+          if [ "${n:-0}" != 0 ]; then
+            echo "::warning::The city budget books build kept the committed finance.json; everything else is published. See the city budget books issue."
+            cb=kept
+          fi
+          echo "city_books=$cb" >> "$GITHUB_OUTPUT"
+          # end city-books-exit
           [ "$city" = 0 ] && [ "$county" = 0 ]
 
       # Only for a manual rebuild-only run (collect=false): build from the committed data, no network.
@@ -394,6 +406,41 @@ jobs:
                    --json number,title --jq 'map(select(.title == $ENV.CC_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$CC_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
+
+      # The city budget books build kept the committed finance.json or stopped (run-log city_books.*.warning): one
+      # open issue, with a comment each later day. The warnings are read from build/run-log.json into a file and
+      # passed with --body-file, never through the shell or an expression.
+      - name: Open or update the city budget books issue
+        if: always() && steps.collect.outputs.city_books == 'kept'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CB_TITLE: "Daily update: city budget books kept"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/cb-issue.md"
+          {
+            echo "The city budget books build did not replace the committed finance.json: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "The committed city budget pages stay as they were; everything else was published as usual."
+            echo "A person reviews the new reading (python -m collector fin-books build --locality <id>) before it is committed."
+            echo
+            echo "Reason (build/run-log.json city_books.*.warning):"
+            echo
+            echo '```'
+            reason=$(set -o pipefail; jq -r '(.city_books // {})[] | .warning // empty' build/run-log.json 2>/dev/null | tr -d '`' | head -c 1500) \
+              || reason=unknown
+            [ -n "$reason" ] || reason=unknown
+            echo "$reason"
+            echo
+            echo '```'
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$CB_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.CB_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$CB_TITLE" --body-file "$body"
           else
             gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
           fi

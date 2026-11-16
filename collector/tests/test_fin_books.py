@@ -433,9 +433,13 @@ def test_fin_books_build_writes_nothing_when_a_book_is_missing(tmp_path, monkeyp
     monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
                                                                               "creator": None})
     out = tmp_path / "finance.json"
-    code = fin_books.cmd_build(store, fin_config.load_books(CITY), out, tmp_path / "r.json",
+    rep = tmp_path / "r.json"
+    rep.write_text('{"reconcile": "an earlier build"}')
+    code = fin_books.cmd_build(store, fin_config.load_books(CITY), out, rep,
                                book_words=lambda pdf, first, last: by_sha[pdf.stem])
     assert code == 2 and not out.exists()
+    report = json.loads(rep.read_text())                       # budget/exit2-stale-report: this build's reason
+    assert "reconcile" not in report and any("fy2026-final" in g for g in report["stopped"]["guard"])
 
 
 def test_fetch_asks_the_polite_fetcher_for_every_book(tmp_path):
