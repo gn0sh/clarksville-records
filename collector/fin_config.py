@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 import urllib.parse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -42,8 +42,10 @@ class BidTabRules:
     blocks: BlockRules | None = None
 
 
-KINDS = ("actual", "amended", "adopted", "projected")      # schema column.kind
+KINDS = ("actual", "amended", "adopted", "projected", "proposed")  # schema column.kind (proposed: the city FY2027 book)
 STATEMENTS = ("revenue", "expenditure", "fund_balance")    # schema budget_line.statement
+RUN_STATEMENTS = STATEMENTS[:2] + ("net",)               # run_totals; net = revenue and expense together
+AMOUNT_UNITS = ("dollars", "cents")
 TAGS = ("transfer", "non_revenue")                         # tags set by rule; available_funds = fund_balance rows
 
 
@@ -77,6 +79,20 @@ class BudgetRules:
     tag_codes: dict              # tag -> frozenset of account codes
     tag_headings: dict           # tag -> frozenset of casefolded headings
     fund_balance_labels: tuple   # compiled
+    # Optional, for layouts like the city's Munis report (config/localities/clarksville-tn/finance.yml); the defaults
+    # keep a book that does not set them read exactly as before.
+    amount_unit: str = "dollars"         # "cents": amounts print cents ("-1,404.28", ".00"); cells carry `cents`
+    header_year_lines: bool = False      # a header line holding years only belongs to the header
+    fund_from_header: bool = False       # the fund line is the header's left phrase, not a row
+    header_split_before: tuple = ()      # header words that always start a new phrase (band)
+    ignore_tokens: tuple = ()            # compiled: tokens a derived band may hold besides derived numbers
+    split_glued_amounts: bool = False    # split monospace words of touching amounts back by character width
+    org_code: re.Pattern | None = None   # leading org code of rows and headings
+    statement_by_code: tuple = ()        # ((statement, compiled code regex), ...): a row's statement by its code
+    fund_total_by_name: bool = False     # "TOTAL <fund name, cut>" right after a section total is the fund total
+    run_totals: dict = field(default_factory=dict)   # exact label -> revenue | expenditure | net (report-run totals)
+    run_end: re.Pattern | None = None    # the line that ends a report run (its totals' scope)
+    books_not_read: tuple = ()           # ({id, title, fiscal_year, url, reason}, ...): fetched and linked only
 
 
 def _cs_regex(pattern, key: str) -> re.Pattern:
@@ -115,8 +131,11 @@ def parse_budget(budget: dict) -> BudgetRules:
     if len({b.id for b in books}) != len(books):
         raise FinanceConfigError("finance.yml: budget.books ids repeat")
     titles = _need(budget, "page_titles", dict, w)
-    if set(titles) != set(STATEMENTS) or not all(isinstance(v, str) and v.strip() for v in titles.values()):
-        raise FinanceConfigError(f"finance.yml: budget.page_titles must name {', '.join(STATEMENTS)}")
+    if not titles or not set(titles) <= set(STATEMENTS) or not all(isinstance(v, str) and v.strip()
+                                                                   for v in titles.values()):
+        raise FinanceConfigError(f"finance.yml: budget.page_titles must name some of {', '.join(STATEMENTS)}")
+    if len(set(titles.values())) != len(titles):
+        raise FinanceConfigError("finance.yml: budget.page_titles repeat a title")
     kinds = []
     for i, kw in enumerate(_need(budget, "kind_words", list, w)):
         if not (isinstance(kw, list) and len(kw) == 2 and all(isinstance(x, str) for x in kw)) or kw[1] not in KINDS:
@@ -127,11 +146,13 @@ def parse_budget(budget: dict) -> BudgetRules:
     rows = _need(budget, "rows", dict, w)
     for k in ("fund_line", "account_code", "subtotal_labels", "total", "fund_totals", "scope_break_after", "footer"):
         _need(rows, k, None, "budget.rows.")
+    fund_from_header = _flag(budget, "fund_from_header")
     fund_line = _cs_regex(rows["fund_line"], "budget.rows.fund_line")
-    if not {"name", "no"} <= set(fund_line.groupindex):
-        raise FinanceConfigError("finance.yml: budget.rows.fund_line needs groups (?P<name>) and (?P<no>)")
+    if not ({"name"} if fund_from_header else {"name", "no"}) <= set(fund_line.groupindex):
+        raise FinanceConfigError("finance.yml: budget.rows.fund_line needs groups (?P<name>) and (?P<no>) (no is "
+                                 "optional with fund_from_header: the fund number is then null)")
     subs = _need(rows, "subtotal_labels", dict, "budget.rows.")
-    if not subs or not all(isinstance(k, str) and k.strip() for k in subs):
+    if not all(isinstance(k, str) and k.strip() for k in subs):
         raise FinanceConfigError("finance.yml: budget.rows.subtotal_labels must map labels to account-code regexes")
     subtotal_labels = {k: _cs_regex(v, f"budget.rows.subtotal_labels.{k}") for k, v in subs.items()}
     tags = _need(budget, "tags", dict, w)
@@ -144,6 +165,28 @@ def parse_budget(budget: dict) -> BudgetRules:
         tag_codes[t] = frozenset(_strings(tags[t]["codes"], f"budget.tags.{t}.codes", True))
         tag_headings[t] = frozenset(h.casefold() for h in _strings(tags[t]["headings"], f"budget.tags.{t}.headings",
                                                                      True))
+    unit = budget.get("amount_unit", "dollars")
+    if unit not in AMOUNT_UNITS:
+        raise FinanceConfigError(f"finance.yml: budget.amount_unit must be one of {AMOUNT_UNITS}")
+    by_code = rows.get("statement_by_code", {})
+    if not isinstance(by_code, dict) or not set(by_code) <= set(STATEMENTS[:2]):
+        raise FinanceConfigError("finance.yml: budget.rows.statement_by_code maps revenue/expenditure to code regexes")
+    run_totals = rows.get("run_totals", {})
+    if not isinstance(run_totals, dict) or not all(isinstance(k, str) and k.strip() and v in RUN_STATEMENTS
+                                                   for k, v in run_totals.items()):
+        raise FinanceConfigError(f"finance.yml: budget.rows.run_totals maps labels to one of {RUN_STATEMENTS}")
+    if run_totals and "run_end" not in rows:
+        raise FinanceConfigError("finance.yml: budget.rows.run_totals needs budget.rows.run_end")
+    not_read = []
+    for i, b in enumerate(budget.get("books_not_read", [])):
+        where = f"budget.books_not_read[{i}]."
+        for k, t in (("id", str), ("title", str), ("fiscal_year", int), ("url", str), ("reason", str)):
+            _need(b, k, t, where)
+        if urllib.parse.urlsplit(b["url"]).scheme != "https":
+            raise FinanceConfigError(f"finance.yml: {where}url must be https")
+        not_read.append({k: b[k] for k in ("id", "title", "fiscal_year", "url", "reason")})
+    if {b["id"] for b in not_read} & {b.id for b in books}:
+        raise FinanceConfigError("finance.yml: a book is both read and not read")
     return BudgetRules(
         books=tuple(books), page_titles={v: k for k, v in titles.items()}, kind_words=tuple(kinds),
         ignore_words=_strings(_need(budget, "ignore_words", list, w), "budget.ignore_words"),
@@ -153,13 +196,31 @@ def parse_budget(budget: dict) -> BudgetRules:
         subtotal_labels=subtotal_labels,
         total=_cs_regex(rows["total"], "budget.rows.total"),
         fund_totals=tuple(_cs_regex(p, "budget.rows.fund_totals") for p in
-                          _strings(rows["fund_totals"], "budget.rows.fund_totals")),
+                          _strings(rows["fund_totals"], "budget.rows.fund_totals", True)),
         scope_break_after=tuple(_cs_regex(p, "budget.rows.scope_break_after") for p in
                                 _strings(rows["scope_break_after"], "budget.rows.scope_break_after", True)),
         footer=_cs_regex(rows["footer"], "budget.rows.footer"),
         tag_codes=tag_codes, tag_headings=tag_headings,
         fund_balance_labels=tuple(_cs_regex(p, "budget.fund_balance_labels") for p in
-                                  _strings(_need(budget, "fund_balance_labels", list, w), "budget.fund_balance_labels")))
+                                  _strings(_need(budget, "fund_balance_labels", list, w), "budget.fund_balance_labels",
+                                           True)),
+        amount_unit=unit, header_year_lines=_flag(budget, "header_year_lines"), fund_from_header=fund_from_header,
+        header_split_before=_strings(budget.get("header_split_before", []), "budget.header_split_before", True),
+        ignore_tokens=tuple(_cs_regex(p, "budget.ignore_tokens") for p in
+                            _strings(budget.get("ignore_tokens", []), "budget.ignore_tokens", True)),
+        split_glued_amounts=_flag(budget, "split_glued_amounts"),
+        org_code=_cs_regex(rows["org_code"], "budget.rows.org_code") if "org_code" in rows else None,
+        statement_by_code=tuple((k, _cs_regex(v, f"budget.rows.statement_by_code.{k}")) for k, v in by_code.items()),
+        fund_total_by_name=_flag(rows, "fund_total_by_name"), run_totals=dict(run_totals),
+        run_end=_cs_regex(rows["run_end"], "budget.rows.run_end") if "run_end" in rows else None,
+        books_not_read=tuple(not_read))
+
+
+def _flag(cfg: dict, key: str) -> bool:
+    v = cfg.get(key, False)
+    if not isinstance(v, bool):
+        raise FinanceConfigError(f"finance.yml: {key} must be true or false")
+    return v
 
 
 @dataclass(frozen=True)
@@ -272,6 +333,36 @@ def parse(cfg: dict) -> FinanceConfig:
                            optional_columns=_strings(bt.get("optional_columns", []), "bidtab.optional_columns", True),
                            table_end=_strings(bt.get("table_end", []), "bidtab.table_end", True), blocks=blocks),
         budget=budget, capital_fund=capital)
+
+
+@dataclass(frozen=True)
+class BooksConfig:
+    """A locality whose finance.yml holds budget books only (no purchasing archive, no bid tabs): the city's
+    config/localities/clarksville-tn/finance.yml. fin_books reads it; fin_facts.build_budget needs only these keys."""
+    budget: BudgetRules
+    scan_producers: tuple        # compiled regexes
+    bonfire_hosts: tuple = ()
+
+
+def parse_books(cfg: dict) -> BooksConfig:
+    """A books-only finance.yml: `scan_producers` and `budget`, checked by the same rules as the county's. Any other
+    top-level key fails the load (a books-only file that grew an archive belongs in `parse`)."""
+    if not isinstance(cfg, dict):
+        raise FinanceConfigError("finance.yml: not a mapping")
+    extra = set(cfg) - {"scan_producers", "budget"}
+    if extra:
+        raise FinanceConfigError(f"finance.yml (books only): unknown keys {sorted(extra)}")
+    return BooksConfig(
+        budget=parse_budget(_need(cfg, "budget", dict)),
+        scan_producers=tuple(_regex(p, "scan_producers") for p in
+                             _strings(_need(cfg, "scan_producers", list), "scan_producers")))
+
+
+def load_books(path: Path) -> BooksConfig:
+    path = Path(path)
+    if not path.is_file():
+        raise FinanceConfigError(f"{path}: no finance config for this locality")
+    return parse_books(yaml.safe_load(path.read_text(encoding="utf-8")))
 
 
 def load(path: Path | None = None) -> FinanceConfig:
