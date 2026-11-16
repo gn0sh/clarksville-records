@@ -61,8 +61,9 @@ Most of the work. On a portal we already read, it takes about one session.
 
 1. **robots.txt and terms, for every host.** Read each host's robots.txt and terms of use by hand. Write what you
    found and the date in `platform-facts.md`. Then change that host's `robots:` and `terms:` lines in `city.yml`
-   from `UNVERIFIED` to a short note, for example `"/AgendaCenter allowed, crawl-delay 10; 2026-11-20
-   (platform-facts.md)"`. If a host blocks automated tools, or its terms forbid collection, put it under
+   from `UNVERIFIED` to a short note that includes the date of the check, for example `"/AgendaCenter allowed,
+   crawl-delay 10; 2026-11-20 (platform-facts.md)"`. A note without a date (YYYY-MM-DD), or one marked unverified
+   in any case, still counts as not checked. If a host blocks automated tools, or its terms forbid collection, put it under
    `denied_hosts` and never collect from it. List every host that collection will touch under `allowed_hosts`. A
    denied host can never be added there: the check refuses it.
 2. **Fill in the city folder.** For Murfreesboro:
@@ -81,7 +82,14 @@ Most of the work. On a portal we already read, it takes about one session.
    as Clarksville. The site says plainly where its records start ("Records here start ..., older years are being
    added").
 5. **Build, run the site checks, and get a code review.**
-6. **Ask the owner for the go-ahead to go live.** Deploying is a hard stop. Only then set `status: live`.
+6. **Ask the owner for the go-ahead to go live.** Deploying is a hard stop. Then record it in `city.yml` and set the
+   status, in the same change:
+   ```
+   status: live
+   go_ahead: {date: "2026-12-01", by: Brian}   # the owner's go-ahead to go live: when, and who gave it
+   ```
+   A city can't load as `live` without `go_ahead`. Clarksville is the one exception: it went live before this
+   template and has no launch block.
 7. **Add the city to both uptime monitors:** `monitor.config.json` in gn0sh/gnosh-uptime, and Better Stack.
 8. **Draft the Buy Me a Coffee post** for the new city in `docs/bmac-posts/`. The owner posts it himself. Skip this
    while Daylight is in its no-marketing soft opening (until its formal launch in January 2027).

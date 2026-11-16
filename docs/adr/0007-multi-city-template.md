@@ -47,6 +47,16 @@ daily workflow, so this milestone had to be additive and leave Clarksville's bui
    host's robots and terms, every reader (built or not, config loads or not), then READY or NOT READY (exit 0/1;
    2 for an invalid file).
 9. **No network in any `cities` command or test.** The tests refuse socket connections.
+10. **Review fixes (code review on aa63844).**
+    - A host's robots or terms check counts only when it names the date of the check (YYYY-MM-DD) and has no
+      unverified mark, in any case.
+    - A Clarksville-only reader is refused at load time for any other city.
+    - The agenda_center and civicclerk readers name their hosts from their files: `host` and `search_url`;
+      `api_host`, `events_url` and `file_url`. Each host must be on the city's allowlist and never denied.
+      CivicClerk's `video_hosts` are links only, never fetched. They are not added to the allowlist (Clarksville's
+      `cpmedia.azureedge.net` isn't on it), but they can never be a denied host.
+    - `launch.earliest` can't be in the future, and `launch_windows` refuses an empty window.
+    - A `live` city with a launch block needs `go_ahead: {date, by}`, the owner's go-ahead record.
 
 ## Edits to existing files
 Only `collector/legistar.py` (proof-of-concept file, not used by the daily run): `Window`/`launch_windows` replaced
@@ -69,3 +79,7 @@ every run and stops a host on a block). The checklist shows the gap; recording t
 - The city's name in the footer line ("Daylight Murfreesboro is free..."): needs a `sitegen` change, so it waits.
 - A `gnoshcodes.com/daylight/` city list built from `python -m cities list --json`.
 - Record the Clarksville terms and robots checks listed above.
+- Import direction: `collector/legistar.py` now imports `cities.plan` (collector -> cities), while `cities` imports
+  `collector.fetch` and the readers. Before the collectors read city files, move the planner's `Window` and
+  `launch_windows` to a module with no `collector` imports, or into `collector/`, so the two packages don't grow a
+  cycle.
