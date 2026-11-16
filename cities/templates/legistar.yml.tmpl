@@ -1,0 +1,20 @@
+# $name, $state: Legistar source (collector/legistar.py), DRAFT from `python -m cities new` on $today. Not collected.
+city: $slug
+client: UNVERIFIED               # the Legistar client name in webapi.legistar.com/v1/<client>/ (check its /bodies)
+body_name: UNVERIFIED            # the council exactly as Legistar names it (EventBodyName)
+official_title: UNVERIFIED       # as the minutes print it
+launch_days: 365
+earliest: UNVERIFIED
+# Vote labels as the clerk enters them -> schema vote values. UNVERIFIED until a real /votes answer is read; an
+# unknown label becomes "other" with its raw text kept.
+vote_values:
+  "Aye": "yes"
+  "Nay": "no"
+  "Abstain": "abstain"
+  "Absent": "other"
+kind_rules:
+  - [work-session, '\bwork\s*session\b']
+  - [special, '\bspecial\b']
+  - [public-hearing, '\bpublic\s+hearing\b']
+  - [regular, '^']
+extra_hosts: []                  # the PDF host EventAgendaFile links to, once seen (also add it to city.yml)

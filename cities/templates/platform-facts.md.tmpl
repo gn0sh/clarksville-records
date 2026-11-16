@@ -1,0 +1,19 @@
+# Platform facts: $name, $state
+
+Started $today by `python -m cities new`. Record here every fact the collection depends on, with how it was
+verified (fetch date, page, who checked). Nothing below is checked yet. Copy each check into the host's `robots`
+and `terms` lines in `city.yml`, so `python -m cities check $slug` can see it.
+
+## Hosts
+
+| Host | robots.txt | Terms of use | Notes |
+|---|---|---|---|
+$host_rows
+
+## Portal
+
+- Portal type: $portal (reader: $reader_label). Body names, vote labels and the earliest year: not checked.
+
+## Never collect
+
+- (hosts that block automated tools or whose terms forbid it; also listed in `denied_hosts` in `city.yml`)
