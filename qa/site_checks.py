@@ -62,6 +62,12 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               that is not confirmed in rpc.json, or of any motion while hold_motions is on or motion_rules is not
               current, carries confirmed false, no outcome or tally and none of the motion's names; no vote entry
               of the RPC's body_key has any other id; a pages build with config morning_note set has morning/*.json
+  county-committees  (a build with the school board's or county finance committees' agendas) every meeting in the
+              agendas file has its section (#<id>) on its body's year page, each section carries the dashed COMING
+              minutes note and no vote words (moved, seconded, voted, outcome, passed, failed, unanimous); every
+              agenda line shown is a line the file holds; no school board meeting holds a title or an entry in the
+              agendas file, and no school board page shows an agenda line (privacy-withhold: count only); the
+              school board's hub is built exactly when its agendas are
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -603,6 +609,83 @@ def county_agendas(facts: dict) -> dict | None:
     if facts.get("fixture") or not p.is_file():
         return None
     return json.loads(p.read_text(encoding="utf-8"))
+
+
+def county_committees(facts: dict) -> dict | None:
+    """The school board's and county finance committees' agendas a real build shows (config/site.yml
+    `county_committees.agendas` names the collector config, which names the file), or None (a fixture build, no
+    block, no file yet). Their PDFs are sources like the minutes; the county's listing page is a record link."""
+    cc = _site_cfg().get("county_committees") or {}
+    if facts.get("fixture") or not cc.get("agendas"):
+        return None
+    c = yaml.safe_load((ROOT / cc["agendas"]).read_text(encoding="utf-8")) or {}
+    p = ROOT / c["facts"]
+    if not p.is_file():
+        return None
+    return {**json.loads(p.read_text(encoding="utf-8")), "_site": cc}
+
+
+# words that would put a vote on a committee or school board agenda page (these bodies have no minutes on the site)
+CMX_VOTE_WORDS = re.compile(r"\b(moved by|seconded|voted|outcome|passed|failed|unanimous(?:ly)?|roll call)\b", re.I)
+# the only keys a school board meeting may have in agendas.json (no title, no item text: the count of lines only)
+CMX_SCHOOL_KEYS = {"id", "body", "date", "time", "kind", "printed", "notes", "cancelled", "url", "on_page", "source_id",
+                   "title", "date_printed", "lines", "entries"}
+CMX_SECTION = re.compile(r'<section class="council-meeting committee-meeting" id="(?P<id>[^"]+)"[^>]*>(?P<body>.*?)</section>',
+                         re.S)
+
+
+def check_county_committees(site: Path, pages: dict[str, "Page"], cmx: dict | None) -> tuple[list[str], str]:
+    if not cmx:
+        return [], "no county committee agendas in this build"
+    cc = cmx["_site"]
+    fin = cc["finance"]["slug"]
+    sb = ((_site_cfg().get("school_board") or {}).get("page") or {}).get("slug")
+    groups = {b["key"]: b["group"] for b in cmx["bodies"]}
+    problems, seen = [], 0
+    for m in cmx["meetings"]:
+        y = m["date"][:4]
+        rel = f"{sb}/meetings/{y}.html" if groups[m["body"]] == "school" else f"{fin}/{m['body']}/{y}.html"
+        f = site / rel
+        if not f.is_file():
+            problems.append(f"{m['body']}/{m['id']}: no page {rel}")
+            continue
+        raw = f.read_text(encoding="utf-8")
+        sec = next((x for x in CMX_SECTION.finditer(raw) if x.group("id") == m["id"]), None)
+        if sec is None:
+            problems.append(f"{rel}#{m['id']}: no section for the meeting")
+            continue
+        seen += 1
+        body = sec.group("body")
+        if 'class="coming-note"' not in body:
+            problems.append(f"{rel}#{m['id']}: no COMING minutes note")
+        text = re.sub(r"<[^>]+>", " ", body)
+        allowed = " ".join(e["text"] for e in m.get("entries", [])) + " " + (m.get("title") or "") + " " + m["printed"]
+        for w in {x.group(0).lower() for x in CMX_VOTE_WORDS.finditer(html.unescape(text))}:
+            if w not in allowed.lower():
+                problems.append(f"{rel}#{m['id']}: says {w!r}, which the agenda does not print")
+        shown = [html.unescape(x) for x in re.findall(r"<span data-item-title>(.*?)</span>", body, re.S)]
+        mine = {e["text"] for e in m.get("entries", [])} | {m.get("title") or ""}
+        for t in shown:
+            if t not in mine:
+                problems.append(f"{rel}#{m['id']}: shows {t[:60]!r}, not a line of the agenda file")
+        if groups[m["body"]] == "school":
+            # privacy-withhold (docs/architecture/agenda-withhold-invariant.md): no school board item text at all,
+            # in the file or on the page; only the listing label, date, PDF link and the count of lines
+            extra = set(m) - CMX_SCHOOL_KEYS
+            if m.get("entries") or m.get("title") or extra:
+                problems.append(f"{rel}#{m['id']}: agendas.json holds school board agenda text "
+                                f"({'entries' if m.get('entries') else 'title' if m.get('title') else sorted(extra)})")
+            if shown or "agenda-lines" in body or 'class="day-item' in body:
+                problems.append(f"{rel}#{m['id']}: the page shows school board agenda text")
+    school = [m for m in cmx["meetings"] if groups[m["body"]] == "school"]
+    if school and sb:
+        hub = site / f"{sb}.html"
+        if not hub.is_file() or 'chip-coming">Coming</span></h1>' in hub.read_text(encoding="utf-8"):
+            problems.append(f"{sb}.html: the school board's agendas are built, but its page is not their hub")
+        for f in [hub, *sorted((site / sb).rglob("*.html"))]:
+            if f.is_file() and "data-item-title" in f.read_text(encoding="utf-8"):
+                problems.append(f"{f.relative_to(site)}: shows school board agenda text")
+    return problems, f"{seen} of {len(cmx['meetings'])} meetings shown with the minutes note and no vote words"
 
 
 def default_inputs(facts: dict) -> tuple[Path | None, Path | None]:
@@ -2969,18 +3052,23 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     missing = [c["slug"] for c in councils(facts) if c not in cs]
     rpc = rpc_facts(facts)
     agendas = county_agendas(facts)
+    cmx = county_committees(facts)
     all_sources = {"sources": [*facts["sources"], *(s for c in cs for s in c["facts"]["sources"]),
                                *(rpc or {}).get("sources", []),   # an RPC DOCX has no page count: linked whole only
-                               *(agendas or {}).get("sources", [])]}
+                               *(agendas or {}).get("sources", []), *(cmx or {}).get("sources", [])]}
     videos = {m["video_url"] for c in cs for m in c["facts"]["meetings"] if m.get("video_url")}
     cal_urls, cal_problems = calendar_agenda_urls(facts)
     problems, note = check_sources(site, pages, all_sources, store_extra,
                                    allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc) | cal_urls
-                                   | ({agendas["index_url"]} if agendas else set()), finance, videos)
+                                   | ({agendas["index_url"]} if agendas else set())
+                                   | ({cmx["listing_url"]} | {m["url"] for m in cmx["meetings"] if not m.get("source_id")}
+                                      if cmx else set()), finance, videos)
     if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
         problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")
     problems += cal_problems
     rep.add("sources", problems + [f"no pages under {m}/ for the configured council" for m in missing], note)
+    problems, note = check_county_committees(site, pages, cmx)
+    rep.add("county-committees", problems, note)
     if rpc is not None:
         problems, note = check_rpc_cases(rpc)
         rep.add("rpc-cases", problems, note)
@@ -3038,7 +3126,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc,
                                        # the agendas a build shows: those with a page count (sitegen/county_agendas.py)
                                        other_sources=[[s for s in (agendas or {}).get("sources") or [] if s.get("pages")],
-                                                      (finance or {}).get("sources") or []])
+                                                      (finance or {}).get("sources") or [],
+                                                      (cmx or {}).get("sources") or []])
     rep.add("dates/no-raw-utc-day", problems, note)
     problems, note = check_freshness_dates(site, pages)
     rep.add("dates/freshness-linked", problems, note)

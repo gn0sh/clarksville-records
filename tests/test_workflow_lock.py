@@ -425,6 +425,74 @@ def test_rpc_issue_reason_is_unknown_without_a_readable_run_log(tmp_path, run_lo
     assert fenced == "unknown" and calls[-1].startswith("issue create")
 
 
+def _cc_issue_step():
+    return {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}["Open or update the county committee agendas issue"]
+
+
+@pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
+def test_county_committees_issue_strips_backticks_so_site_text_stays_in_the_fence(tmp_path):
+    """ci/issue-markdown-fence: a status holding ``` (text from the county's page) cannot close the code fence."""
+    status = "stopped, nothing changed: HostRefused ```\n# injected heading\n``` https://montgomerytn.gov/x.pdf"
+    calls, body = _run_issue_step(tmp_path, _cc_issue_step(),
+                                  run_log=json.dumps({"county_committees": {"exit": 2, "status": status}}))
+    assert body.count("```") == 2                                      # only the step's own fence
+    assert "injected heading" in body and "https://montgomerytn.gov/x.pdf" in body
+    assert calls[-1].startswith("issue create")
+    assert "--title Daily update: county committee agendas step failed" in calls[-1]
+
+
+@pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
+def test_county_committees_issue_status_is_text_not_shell(tmp_path):
+    """A status holding $(...) or backtick command text is printed as text, never run."""
+    status = "error, nothing changed: $(id) `id` ${HOME} $(touch pwned)"
+    _, body = _run_issue_step(tmp_path, _cc_issue_step(),
+                              run_log=json.dumps({"county_committees": {"exit": 1, "status": status}}))
+    assert "$(id)" in body and "${HOME}" in body and "$(touch pwned)" in body
+    assert "uid=" not in body and not (tmp_path / "work" / "pwned").exists()
+
+
+@pytest.mark.parametrize("run_log", [None, "{not json", '{"county_committees": {"exit": 2}}'])
+def test_county_committees_issue_reason_is_unknown_without_a_readable_run_log(tmp_path, run_log):
+    """ci/issue-reason-missing: no run-log.json, a broken one, or no status: the reason reads 'unknown'."""
+    calls, body = _run_issue_step(tmp_path, _cc_issue_step(), run_log=run_log)
+    assert body.split("```")[1].strip() == "unknown" and calls[-1].startswith("issue create")
+
+
+@pytest.mark.parametrize("open_issue", ["", "42"])
+def test_county_committees_repeat_failure_comments_on_the_open_issue(tmp_path, open_issue):
+    calls, _ = _run_issue_step(tmp_path, _cc_issue_step(), open_issue=open_issue,
+                               run_log=json.dumps({"county_committees": {"exit": 4, "status": "nothing changed"}}))
+    assert calls[-1].startswith("issue comment 42" if open_issue else "issue create")
+
+
+def _cc_exit_lines() -> str:
+    """The collect step's county-committees-exit lines, run on their own."""
+    run = {s.get("id"): s for s in WF["jobs"]["update"]["steps"]}["collect"]["run"]
+    return run.split("# county-committees-exit")[1].split("# end county-committees-exit")[0]
+
+
+@pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
+@pytest.mark.parametrize("run_log,want", [
+    ('{"county_committees": {"exit": 2}}', "failed"),
+    ('{"county_committees": {"exit": 4}}', "failed"),
+    ('{"county_committees": {"exit": 1}}', "failed"),
+    ('{"county_committees": {"exit": 3}}', "failed"),
+    ('{"county_committees": {"exit": 0}}', "ok"),
+    ('{"county_committees": {}}', "ok"),            # unreadable: no exit (the county run itself failed)
+    ("{}", "ok"),
+    ("{not json", "ok"),
+    (None, "ok"),                                   # no run log at all
+])
+def test_county_committees_exit_other_than_0_or_unreadable_is_failed(tmp_path, run_log, want):
+    (tmp_path / "build").mkdir()
+    if run_log is not None:
+        (tmp_path / "build" / "run-log.json").write_text(run_log, encoding="utf-8")
+    out = tmp_path / "out"
+    subprocess.run(["bash", "-c", "set -u\n" + _cc_exit_lines()], cwd=tmp_path, check=True,
+                   env={**os.environ, "GITHUB_OUTPUT": str(out)})
+    assert out.read_text().strip() == f"county_committees={want}"
+
+
 @pytest.mark.parametrize("job", ["update", "push"])
 @pytest.mark.parametrize("open_issue", ["", "42"])
 def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):

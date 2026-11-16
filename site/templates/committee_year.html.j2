@@ -1,0 +1,24 @@
+{% extends "base.html.j2" %}
+{% from "_committee.html.j2" import committee_meeting %}
+{# One body's agendas in one year (sitegen/county_committees.py year_page), oldest first, one section per meeting. #}
+{% block main %}
+<h1>{{ short }}: agendas in {{ year }}</h1>
+<p class="lede">{{ body }}. Each agenda as the county posts it on its <a data-ext="committee" href="{{ record.url }}" target="_blank" rel="noopener noreferrer">{{ record.label }}<span class="sr-only"> (opens in a new tab)</span></a>, with its lines as printed and a link to the agenda page. {{ agenda_note }}</p>
+{% if years | length > 1 %}
+<nav aria-label="Agendas by year" class="year-nav">
+  <ul class="inline-list">
+    {% for y in years %}<li><a href="{{ y }}.html"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a></li>{% endfor %}
+  </ul>
+</nav>
+{% endif %}
+<details class="toc-group" open>
+  <summary>{{ meetings | length }} {{ "agenda" if meetings | length == 1 else "agendas" }} in {{ year }}</summary>
+  <ul class="toc">
+    {% for m in meetings %}
+    <li><a href="#{{ m.id }}">{{ m.date | day_words }}{% if m.time %} ({{ m.time }}){% endif %}, {{ m.kind_label }}</a></li>
+    {% endfor %}
+  </ul>
+</details>
+{% for m in meetings %}{{ committee_meeting(m, root) }}
+{% endfor %}
+{% endblock %}

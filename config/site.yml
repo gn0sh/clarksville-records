@@ -11,6 +11,7 @@ fetch_manifests:
   - data/county-agendas/manifest.json
   - data/localities/clarksville-tn/manifest.json
   - data/localities/cmc-rpc/manifest.json
+  - data/localities/montgomery-tn/committee-agendas/manifest.json
   - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
 # The moon on the sky band (static/sky.js reads it from the page): the place whose sky is drawn, in degrees
@@ -302,6 +303,31 @@ school_board:
     planned: ["Board meeting agendas", "Board meeting minutes and recorded votes"]
     link_lede: "Until then, the official source is the school system website:"
 
+# The school board's and the county finance committees' agendas, from the county's Committee Agendas page
+# (collector/county_committees.py, sitegen/county_committees.py). `agendas` names the collector's config, which names
+# the data file. Every word of these pages is here or in that config. The school board's hub replaces its "coming"
+# page (school_board.page.slug) once its agendas are built; the finance committees' pages live under finance.slug.
+# These bodies post no minutes online (the county) or post them where this site cannot read them (cmcss.net, a bot
+# challenge): every meeting says so in a dashed COMING note, and no vote is shown. Leave the block out for no pages.
+county_committees:
+  agendas: config/localities/montgomery-tn/committee-agendas.yml
+  school_lede: "Agendas of the Clarksville-Montgomery County School System (CMCSS) board, as the county posts them, each linked to its PDF."
+  finance:
+    slug: county-committees
+    title: County finance committees
+    lede: "Agendas of the Montgomery County Budget Committee, the budget hearings and the Audit, Investment, Purchasing and Delinquent Tax Sales and Release committees, as the county posts them, each linked to its PDF."
+  agenda_note: "An agenda lists what may be taken up, not what was decided. No votes are shown for these meetings."
+  minutes:
+    school: "Minutes: the board's minutes and votes are on the school system's website, which this site does not collect yet, so none are shown."
+    county-finance: "Minutes: the county does not post this committee's minutes online, so none are shown."
+  minutes_links:
+    school: {from: school_board, kind: school}
+  # A body stored with text: false (the school board): its agenda items can list students by name, so no item text
+  # is shown, only the count (docs/architecture/agenda-withhold-invariant.md).
+  no_text: "The items on this agenda are not shown on this site for now, because school board agendas can list students by name. Read them in the agenda PDF."
+  older:
+    text: "Agendas from before {year} are not collected yet: the county keeps them on another server that this site cannot reach yet."
+
 # Official meeting video, per body key (county_key above; a council's and the RPC's body_key), Brian 2026-11-11
 # (sitegen/watch.py): one plain "Watch" link to the page where the body itself posts its meeting video. A link only:
 # nothing is ever fetched from it. A body with no official stream has no entry, and no link is ever guessed. `host`
@@ -319,7 +345,7 @@ video_recording: "Official video (opens the meeting's MP4 recording)"
 # official source pages (docs/research/committee-sources-2026-11-11.md), no collection yet. Every word of the page is
 # here: no dates, no numbers, no names of officials. Leave the block out to show no placeholder.
 committees:
-  label: City Finance and Audit committees and county Budget Committee
+  label: City Finance and Audit committees     # the county's finance committees: county_committees below (collected)
   links:
     - {url: "https://clarksvilletn.portal.civicclerk.com/", label: "City of Clarksville meetings portal (CivicClerk)"}
     - {url: "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php", label: "Montgomery County committee agendas"}
@@ -327,8 +353,8 @@ committees:
     slug: committees
     nav_label: Committees
     title: Committees
-    lede: "Records of the City of Clarksville Finance Committee and Audit Committee and of the Montgomery County Budget Committee are being added. Their meetings are not collected yet, so none are shown here."
-    planned: ["City Finance Committee agendas and minutes", "City Audit Committee agendas and minutes", "County Budget Committee agendas"]
+    lede: "Records of the City of Clarksville Finance Committee and Audit Committee are being added. Their meetings are not collected yet, so none are shown here."
+    planned: ["City Finance Committee agendas and minutes", "City Audit Committee agendas and minutes"]
     link_lede: "Until then, the official sources are:"
 
 # The "Show records from" switch (sitegen/bodies.py, static/switch.js; owner's mock 2026-11-12): on every page under
@@ -374,6 +400,8 @@ switch:
           door: money
           text: "Budget Committee agendas are not collected yet, so none are shown."
           link: {from: committees.links.1, kind: committee}
+          built: {text: "Budget Committee agendas as the county posts them, each line linked to its PDF page. No minutes are posted online.", go: Budget Committee agendas}
+        - {key: finance-committees, title: Finance committees, go: All finance committees, text: "Agendas of the budget hearings and the Audit, Investment, Purchasing and Delinquent Tax committees."}
     city:
       label: Clarksville
       kicker: City government
@@ -405,7 +433,12 @@ switch:
       kicker: Clarksville-Montgomery County School System (CMCSS)
       about: The Clarksville-Montgomery County School System (CMCSS) board.
       cards:
-        - {key: meetings, title: Meetings, coming: true, text: "Board meeting agendas and minutes are not collected yet, so none are shown.", link: {from: school_board, kind: school}}
+        - key: meetings
+          title: Meetings
+          coming: true
+          text: "Board meeting agendas and minutes are not collected yet, so none are shown."
+          link: {from: school_board, kind: school}
+          built: {title: Agendas, go: Agendas by year, text: "Study session and formal board meeting agendas, as the county posts them, each line linked to its PDF page."}
         - {key: votes, title: Votes, coming: true, text: "Recorded votes of the board are not collected yet, so none are shown.", link: {from: school_board, kind: school}}
         - {key: budget, title: Budget, coming: true, door: money, text: "The school system budget is not collected yet, so none is shown.", link: {from: school_board, kind: school}}
     rpc:

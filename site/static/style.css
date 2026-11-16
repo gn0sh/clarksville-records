@@ -1451,6 +1451,12 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .bodies-k { font-weight: 600; color: var(--fg); }
 .body-note { margin: 0 0 12px; border-left-color: var(--sun); }
 @media (pointer: coarse) { .bodies-card h3 a { min-height: 44px; } .hub-go a[data-ext] { padding: 12px 0; } }
+/* school board and county committee agendas (site/templates/_committee.html.j2): what is not on this site yet is a
+   dashed note with the official link; an agenda's own headings are bold, its lines as printed */
+.coming-note { padding: 8px 12px; border: 1px dashed var(--mark); border-radius: var(--radius); background: var(--surface); font-size: var(--t-sm); }
+.agenda-title { font-size: var(--t-sm); color: var(--muted); }
+.agenda-lines .agenda-heading p:first-child { margin-top: 8px; }
+.dot-school { background: var(--mark); }
 
 /* The site in numbers (stats.html, sitegen/stats.py): label and count on one line, the counts lined up. */
 .stats-list { margin: 0 0 1.5rem; padding: 0; max-width: 36rem; }

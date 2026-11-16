@@ -42,7 +42,7 @@ MINUTES_WORDS = {
     "unreadable": "The minutes file was fetched but could not be read, so nothing was taken from it.",
 }
 # The dot each kind of card draws in the strip (decorative; the button's label says the count in words).
-DOTS = {"county": "county", "council": "city", "rpc": "rpc", "bids": "bids"}
+DOTS = {"county": "county", "council": "city", "rpc": "rpc", "bids": "bids", "school": "school"}
 
 
 class DaysError(Exception):
@@ -200,6 +200,24 @@ def rpc_card(rpx, m: dict) -> dict:
             "cancelled": ctx["cancelled"], "record": rec}
 
 
+def committee_card(cmx, m: dict) -> dict:
+    """A school board or county finance committee meeting (sitegen/county_committees.py): its agenda PDF and a link to
+    its section, where the agenda's lines are; the minutes are not on this site, so no votes."""
+    ctx = cmx.meeting(m)
+    school = cmx.bodies[m["body"]]["group"] == "school"
+    doc = ctx["doc"]
+    return {"kind": "committee", "dot": DOTS["school"] if school else DOTS["county"],
+            "id": f"{m['body']}-{m['id']}", "body": ctx["body"], "title": ctx["kind_label"],
+            "bkey": views.SCHOOL_KEY if school else config.SITE["county_key"], "href": ctx["href"],
+            "docs": [{"word": "Agenda", "url": doc["url"], "fetched": doc["fetched"],
+                      "what": f"PDF, {doc['pages']} {'page' if doc['pages'] == 1 else 'pages'}"}] if doc else [],
+            "minutes_note": None, "watch": None, "votes": [], "state": "committee", "cases": [], "sols": [],
+            "agenda_only": True, "cancelled": ctx["cancelled"], "n_lines": ctx["lines"], "text_shown": ctx["text"],
+            "minutes": ctx["minutes"],
+            "record": {"url": doc["url"], "label": "the county's copy of the agenda PDF", "ext": False} if doc else
+            {"url": cmx.data["listing_url"], "label": cmx.data["record_label"], "ext": True}}
+
+
 def bids_card(fx, sols: list[dict]) -> dict:
     rows = []
     for s in sorted(sols, key=lambda s: s["row"]):
@@ -217,7 +235,7 @@ def bids_card(fx, sols: list[dict]) -> dict:
 # the page
 
 
-def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict, ax=None) -> list[dict]:
+def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict, ax=None, cmx=None) -> list[dict]:
     """What the page holds, body by body: the newest dated record, and how many cards fall in these weeks."""
     out = [{"body": ix.facts["coverage"]["body"], "n": counts["county"],
             "what": f"Minutes from {localdates.words(ix.coverage['from'])} to {localdates.words(ix.coverage['to'])}"
@@ -233,6 +251,14 @@ def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict, ax=None) 
         out.append({"body": rpx.body, "n": counts["rpc"],
                     "what": f"Meetings listed from {localdates.words(cov.get('from'))} to "
                             f"{localdates.words(cov.get('to'))}."})
+    if cmx is not None:
+        for group, keys in (("school", cmx.school if cmx.school_home() else []), ("county-finance", cmx.finance)):
+            cov = cmx.coverage(keys)
+            if cov:
+                name = (cmx.cfg["school_label"] if group == "school" else cmx.cfg["finance"]["title"])
+                out.append({"body": name, "n": counts[group],
+                            "what": f"Agendas the county posted, {localdates.words(cov['from'])} to "
+                                    f"{localdates.words(cov['to'])}. Their minutes are not on this site."})
     if fx is not None:
         dated = sorted(s["archive_date"] for s in fx.fin["solicitations"] if s.get("archive_date"))
         if dated:
@@ -243,7 +269,7 @@ def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict, ax=None) 
     return out
 
 
-def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None, ax=None) -> dict:
+def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None, ax=None, cmx=None) -> dict:
     today = today or today_in_zone()
     start, end = window(today)
     by_day: dict[str, list[dict]] = defaultdict(list)
@@ -269,6 +295,12 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
             if _in(m["date"], start, end):
                 by_day[m["date"]].append(rpc_card(rpx, m))
                 counts["rpc"] += 1
+    if cmx is not None:   # the school board's and county finance committees' agendas
+        for key in (cmx.school if cmx.school_home() else []) + cmx.finance:
+            for m in cmx.by_body[key]:
+                if _in(m["date"], start, end):
+                    by_day[m["date"]].append(committee_card(cmx, m))
+                    counts[cmx.bodies[key]["group"]] += 1
     if fx is not None:
         sols: dict[str, list[dict]] = defaultdict(list)
         for s in fx.fin["solicitations"]:
@@ -300,12 +332,13 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
             d += timedelta(days=1)
         weeks.append({"first": days[0], "days": days})
     sb = config.SITE.get("school_board") or {}
-    school = sb if sb.get("label") and views.https_url(sb.get("url")) else None
+    # the "coming" line only while the board's agendas are not built (then its coverage line says what is here)
+    school = sb if sb.get("label") and views.https_url(sb.get("url")) and not (cmx and cmx.school_home()) else None
     return {"weeks": weeks, "start": start.isoformat(), "end": end.isoformat(), "built": today.isoformat(),
             "start_text": date_text(start), "end_text": date_text(end), "built_text": date_text(today),
             "tz": config.SITE["site_timezone"], "school": school, "committees": views.committees(),
             "n_cards": sum(len(v) for v in by_day.values()),
-            "coverage": _coverage(ix, cixs, rpx, fx, start, end, counts, ax)}
+            "coverage": _coverage(ix, cixs, rpx, fx, start, end, counts, ax, cmx)}
 
 
 PAGE = "today.html"
@@ -332,6 +365,8 @@ def chip(card: dict) -> str | None:
     Agenda, or none. An RPC card never has state "votes" (rpc_card), so no RPC row says Votes."""
     if card.get("cancelled"):
         return "Cancelled"
+    if card.get("state") == "committee":    # a school board or committee agenda (committee_card): an agenda
+        return "Agenda"
     return dict(CHIPS[1:]).get(card.get("state"))
 
 

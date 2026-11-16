@@ -353,7 +353,7 @@ def alerts_on() -> bool:
     return bool((config.SITE.get("alerts") or {}).get("feed_id"))
 
 
-def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), rpc=None) -> list[dict]:
+def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), rpc=None, cmx=None) -> list[dict]:
     """`budget`: the BUDGET_NAV labels whose pages are built (Finance, and Capital projects when its fund is in
     the file); each replaces its "coming" page and drops the Coming chip. `councils`: each council's home page is
     listed after Officials, under its configured label (council.yml nav_label)."""
@@ -388,8 +388,10 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
             sb = config.SITE.get("school_board") or {}
             pg = sb.get("page") or {}
             if sb.get("label") and https_url(sb.get("url")) and pg.get("slug") and pg.get("title"):
+                # its agendas (sitegen/county_committees.py, `cmx`) make the page the board's hub: no Coming chip
+                built = cmx is not None and cmx.school_home() == f"{pg['slug']}.html"
                 out.append({"label": pg.get("nav_label") or pg["title"], "href": f"{pg['slug']}.html",
-                            "page": pg["title"], "coming": True, "school": sb})
+                            "page": pg["title"], "coming": not built, "school": sb})
             # The committees' "coming" page (config/site.yml committees.page), modelled on the school board's.
             cm = committees()
             if cm is not None:
@@ -399,26 +401,26 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
     return out
 
 
-def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None,
+def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None, cmx=None,
                  counter: str | None = None) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
     `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built."""
     from . import bodies   # here, not at the top: bodies reads https_url from this module
     ix = _ix(facts)
     cfg = config.SITE
-    ctx = _site_context(ix, cfg, contracts, budget, councils, rpc)
+    ctx = _site_context(ix, cfg, contracts, budget, councils, rpc, cmx)
     ctx["csp"] = csp(counter=counter)   # `counter`: the visitor counter's origin, or None (ADR 0008)
     # "Show records from" (sitegen/bodies.py): the switch on every page and each body's hub cards
-    ctx["switch"] = bodies.build(ctx, councils, rpc)
+    ctx["switch"] = bodies.build(ctx, councils, rpc, cmx)
     return ctx
 
 
-def _site_context(ix: "Index", cfg: dict, contracts: bool, budget: tuple, councils, rpc) -> dict:
+def _site_context(ix: "Index", cfg: dict, contracts: bool, budget: tuple, councils, rpc, cmx=None) -> dict:
     return {
         "cfg": cfg,
         "csp": csp(),
         "analytics": None,   # the visitor counter (ADR 0008): the build sets sitegen/analytics.py settings() when on
-        "nav": _nav(ix, contracts, budget, councils, rpc),
+        "nav": _nav(ix, contracts, budget, councils, rpc, cmx),
         "alerts": alerts_on(),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
         "support_url": (cfg.get("support_url") or "") if cfg.get("support_enabled") is True else "",
@@ -1766,7 +1768,10 @@ def _seat_on(ix: Index, seat_labels: list[str], seat_on: dict[str, dict[str, int
             seat_on.setdefault(d, {})[oid] = seat_labels.index(label)
 
 
-def search_index(facts, fin=None, councils=(), rpc=None) -> dict:
+SCHOOL_KEY = "school"   # the school board's search body key, the switch's key for it (sitegen/bodies.py ORDER)
+
+
+def search_index(facts, fin=None, councils=(), rpc=None, cmx=None) -> dict:
     """The one first-party search index (manager decision Q3), loaded by static/search.js. Unconfirmed roll calls
     carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5).
     `fin` (a fin_views.Finance) adds the solicitations, type `sol` (finance-contracts F7). `councils` (each a
@@ -1791,6 +1796,10 @@ def search_index(facts, fin=None, councils=(), rpc=None) -> dict:
     if rpc is not None:   # the RPC's meetings and agenda cases (sitegen/rpc.py); it has no officials in the facts
         records += rpc.search_records()
         bodies.append({"key": rpc.body_key, "label": rpc.body})
+    if cmx is not None:   # the school board's and the county finance committees' agendas (sitegen/county_committees.py)
+        records += cmx.search_records(SCHOOL_KEY, body)
+        if cmx.school_home():
+            bodies.append({"key": SCHOOL_KEY, "label": (cfg.get("school_board") or {}).get("label") or "School board"})
     years = sorted({y for r in records for y in r["y"]})
     # Compact: seat_on[date][official] is an index into seat_labels, for the officials with a vote on that date.
     seat_labels: list[str] = []
@@ -1817,9 +1826,9 @@ def search_index(facts, fin=None, councils=(), rpc=None) -> dict:
     }
 
 
-def search_page(facts, fin=None, councils=(), rpc=None) -> dict:
+def search_page(facts, fin=None, councils=(), rpc=None, cmx=None) -> dict:
     ix = _ix(facts)
-    idx = search_index(ix, fin, councils, rpc)
+    idx = search_index(ix, fin, councils, rpc, cmx)
     return {"years": idx["years"], "types": idx["types"], "officials": idx["officials"], "bodies": idx["bodies"],
             "contracts_kind": config.FIN_TEXT["contracts"]["search_kind"] if fin is not None else None}
 
