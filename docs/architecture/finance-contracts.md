@@ -192,3 +192,32 @@ determinism (two runs, byte-identical `finance.json`).
    OPERATING TRANSFERS. Suggest UX wording that the book counts them in its totals and the site tags them.
 10. FY2024-25 book layout: checked in F9 (2026-11-08, `docs/platform-facts.md`). Same titles, row forms and bands; two-digit
     years, "FY 25 Projection" as its budget column and other derived-column words, all handled in `finance.yml`.
+
+## 10. City budget books (added 2026-11-16, backend-engineer; handover `city-budget-2026-11-16`)
+The City of Clarksville books reuse adapter 3 and the checks above, with a books-only config
+(`config/localities/clarksville-tn/finance.yml`, loaded by `fin_config.load_books`) and their own run:
+`python -m collector fin-books {fetch,build} --locality clarksville-tn` (`collector/fin_books.py`). Manifest
+`data/localities/clarksville-tn/fin-manifest.json`; output `data/localities/clarksville-tn/finance.json` (same schema,
+`solicitations` and `documents` empty); run report `build/fin-books-clarksville-tn.json`. County files are untouched.
+Layout notes: `docs/research/city-budget-layout-2026-11-16.md`. Only the Munis line-item report ("NEXT YEAR / CURRENT
+YEAR BUDGET ANALYSIS") is read; the FY2025 book is fetched but not read (`books_not_read`: its line-item pages have no
+usable text layer).
+
+Contract changes (all additive; county output keeps its exact bytes because the county config sets none of the new
+keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
+- `book.amount_unit` `"cents"` (absent = dollars). In such a book every `cell.dollars` is null and `cell.cents` holds
+  the amount as printed in cents ("-1,404.28" is -140428; revenue prints negative, as the book does); the checks'
+  `per_cell` printed/sum/diff are cents. No whole-dollar value is made up.
+- `column.kind`/`cell.kind` gain `proposed` ("2027 Mayor": the FY2027 file is the Mayor's proposal). "2nd Readin" is
+  `adopted`, "ORIG BUD" `adopted`, "REVISED BUD" `amended`, "PROJECTION" `projected`.
+- `budget_line.fund_no` may be null (the city prints no fund number on these pages; the fund is its printed name from
+  the page header). `fund_name` is null only on a report-run total.
+- `budget_line.statement` gains `net`: a total over revenue and expense together (a city fund total; GRAND TOTAL).
+  Each city row's statement comes from its account code (3xxxx revenue, 4xxx expense).
+- Row roles: section `total` ("TOTAL <section name, cut to 22 characters>"); `subtotal` for a project total inside an
+  org section ("TOTAL AUTO LIABILITY CLAIMS"); fund total ("TOTAL <fund name>", statement net, scope the fund's rows
+  of that report run); report-run totals `TOTAL REVENUE` / `TOTAL EXPENSE` / `GRAND TOTAL` (scope every revenue,
+  expense, or any row of the run; fund null). A run ends at "** END OF REPORT" (not stored: it names the staff member).
+- `fin_checks.check_total`: an empty scope whose printed cells are all 0 is `exact` (a run's TOTAL REVENUE of .00 when
+  the run holds no revenue). The committed county data has no such total (its 8 empty-scope totals print values and
+  stay does_not_add_up).

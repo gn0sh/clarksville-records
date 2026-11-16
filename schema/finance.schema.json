@@ -198,7 +198,7 @@
       "properties": {
         "header_as_printed": { "type": "string", "minLength": 1, "description": "header lines of one band joined with one space" },
         "fiscal_year": { "$ref": "#/$defs/year" },
-        "kind": { "enum": ["actual", "amended", "adopted", "projected"] }
+        "kind": { "enum": ["actual", "amended", "adopted", "projected", "proposed"] }
       }
     },
     "book": {
@@ -212,7 +212,8 @@
         "fiscal_year": { "$ref": "#/$defs/year" },
         "source_id": { "$ref": "#/$defs/source_id" },
         "pages_read": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/page" } },
-        "columns": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/column" } }
+        "columns": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/column" } },
+        "amount_unit": { "enum": ["cents"], "description": "only when the book prints cents (the city books): its cells carry cents and its checks' per_cell values are cents; absent = whole dollars" }
       }
     },
     "cell": {
@@ -222,9 +223,10 @@
       "properties": {
         "header_as_printed": { "type": "string", "minLength": 1 },
         "fiscal_year": { "$ref": "#/$defs/year" },
-        "kind": { "enum": ["actual", "amended", "adopted", "projected"] },
+        "kind": { "enum": ["actual", "amended", "adopted", "projected", "proposed"] },
         "as_printed": { "type": ["string", "null"], "description": "token as printed, parentheses kept; null = blank cell (not printed)" },
-        "dollars": { "type": ["integer", "null"], "description": "whole dollars; \"-\" is 0; null when blank or held" }
+        "dollars": { "type": ["integer", "null"], "description": "whole dollars; \"-\" is 0; null when blank or held; always null in a book whose amount_unit is cents (see cents)" },
+        "cents": { "type": ["integer", "null"], "description": "only in a book whose amount_unit is cents (the city books): the amount as printed in cents, \"-1,404.28\" is -140428; null when blank or held" }
       }
     },
     "budget_line": {
@@ -235,9 +237,9 @@
         "id": { "$ref": "#/$defs/line_id", "description": "<book_id>/p<page>/r<line index>" },
         "book_id": { "$ref": "#/$defs/book_id" },
         "edition": { "type": "string", "minLength": 1 },
-        "fund_no": { "type": "string", "pattern": "^\\d{3}$" },
-        "fund_name": { "type": "string", "minLength": 1 },
-        "statement": { "enum": ["revenue", "expenditure", "fund_balance"], "description": "UX section = statement + tags" },
+        "fund_no": { "type": ["string", "null"], "pattern": "^\\d{3}$", "description": "null when the book prints no fund number (the city books: the fund is its printed name) and on a report-run total" },
+        "fund_name": { "type": ["string", "null"], "minLength": 1, "description": "null only on a report-run total (city books: TOTAL REVENUE, TOTAL EXPENSE, GRAND TOTAL over every fund of one report run)" },
+        "statement": { "enum": ["revenue", "expenditure", "fund_balance", "net"], "description": "UX section = statement + tags. net: a total over revenue and expense together (city books: a fund total, GRAND TOTAL)" },
         "heading_as_printed": { "type": ["string", "null"] },
         "heading_from_total": { "type": "boolean", "description": "heading taken from the scope's total label minus \"Total \" (capital projects with no heading); never a key" },
         "department": { "type": ["string", "null"], "description": "expenditure heading or null" },
@@ -264,8 +266,8 @@
                     "additionalProperties": false,
                     "required": ["printed", "sum", "diff"],
                     "properties": {
-                      "printed": { "type": ["integer", "null"], "description": "the cell's dollars" },
-                      "sum": { "type": "integer", "description": "sum of the scope lines' dollars in this column (blank = not added)" },
+                      "printed": { "type": ["integer", "null"], "description": "the cell's amount in the book's unit (dollars; cents when the book's amount_unit is cents)" },
+                      "sum": { "type": "integer", "description": "sum of the scope lines' amounts in this column, in the book's unit (blank = not added)" },
                       "diff": { "type": ["integer", "null"], "description": "printed - sum; null when printed is null" }
                     }
                   }

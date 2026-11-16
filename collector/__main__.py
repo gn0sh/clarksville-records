@@ -1,5 +1,6 @@
 """python -m collector {fetch,build,run,export} [--offline] [--internal] [--allow-shrink] [--out build/site]
 python -m collector fin {fetch,build,census}   (finance and contracts: collector/fin_run.py)
+python -m collector fin-books {fetch,build} --locality <id>   (budget books only, e.g. the city: collector/fin_books.py)
 python -m collector city {fetch,build,run}     (City Council, Agenda Center and CivicClerk: collector/city_run.py; exit 0 ok,
                                                2 a listing not read, 3 the G4 skew gate, 5 a host or robots.txt refused)
 python -m collector rpc {fetch,build,run}      (Regional Planning Commission: collector/rpc.py)
@@ -520,6 +521,9 @@ def main(argv=None) -> int:
     if argv[:1] == ["fin"]:
         from .fin_run import main as fin_main
         return fin_main(argv[1:])
+    if argv[:1] == ["fin-books"]:
+        from .fin_books import main as fin_books_main
+        return fin_books_main(argv[1:])
     ap = argparse.ArgumentParser(prog="python -m collector")
     ap.add_argument("command", choices=["run", "fetch", "build", "export"])
     ap.add_argument("--offline", action="store_true", help="skip discovery and fetching; use the store")
