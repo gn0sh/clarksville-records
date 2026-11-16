@@ -87,8 +87,8 @@ def test_year_in_progress_actual_shows_the_report_date(pages):
     p = main_of(pages["city/finance/parking-commission.html"])
     for header, date in (("2026 ACTUAL", "05/29/2026"), ("2025 ACTUAL", "07/08/2025"), ("2023 ACTUAL", "06/28/2023")):
         assert re.search(rf'{header}<br><span class="kind">(<a[^>]*>)?Actual(</a>)?</span><br><span class="kind">'
-                         rf'as of the report date, {re.escape(date)}</span>', p), header
-        assert f'data-label="{header} Actual, as of the report date, {date}"' in p
+                         rf'as of {re.escape(date)} \(report date\)</span>', p), header
+        assert f'data-label="{header} Actual, as of {date} (report date)"' in p
     # a finished year's Actual column carries no date: "2025 ACTUAL" in the FY2027 book, "2024 ACTUAL" in FY2026
     assert '<th scope="col" class="num">2024 ACTUAL<br><span class="kind">Actual</span></th>' in p
 
@@ -148,7 +148,7 @@ def test_county_and_city_budget_link_each_other_the_same_way(pages):
     city = main_of(pages["city/finance/index.html"])
     assert re.search(r'budget books have their own pages: <a href="../city/finance/index.html">City budget</a>', county)
     assert re.search(r'budget books have their own pages: <a href="../../finance/index.html">County budget</a>', city)
-    assert "as of the report date" not in "".join(v for k, v in pages.items() if k.startswith(("finance/", "capital/")))
+    assert "(report date)" not in "".join(v for k, v in pages.items() if k.startswith(("finance/", "capital/")))
     hub = pages["city/index.html"]
     card = re.search(r'<li class="hub-card" data-card="finance" id="card-finance">.*?</li>', hub, re.S).group(0)
     assert 'href="../city/finance/index.html"' in card and "chip-coming" not in card

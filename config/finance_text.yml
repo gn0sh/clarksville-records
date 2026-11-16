@@ -109,7 +109,7 @@ budget:
           proposed: Proposed budget}
   kind_glossary: {actual: actual, amended: amended-budget, adopted: adopted-budget, proposed: proposed-budget}
   # under the Actual column of the year in progress, when the book prints its report date (book.report_dates)
-  actual_as_of: "as of the report date, {date}"
+  actual_as_of: "as of {date} (report date)"
   sections:
     revenue: Revenue by source
     spending: Spending by department

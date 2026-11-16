@@ -225,4 +225,4 @@ keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
   config has `budget.rows.report_date` (the city: `Report generated: MM/DD/YYYY` in the page foot of the pages read;
   time, page number and login are never stored). One entry per distinct date, `{as_printed, page}` (first page that
   prints it). Each city book prints one date. The pages show it next to the year-in-progress ACTUAL column (the ACTUAL
-  column for the year before the book's budget year): "amounts to the report date <date>". County books: absent.
+  column for the year before the book's budget year): "as of <date> (report date)". County books: absent.
