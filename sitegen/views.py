@@ -399,13 +399,15 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
     return out
 
 
-def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None) -> dict:
+def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None,
+                 counter: str | None = None) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
     `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built."""
     from . import bodies   # here, not at the top: bodies reads https_url from this module
     ix = _ix(facts)
     cfg = config.SITE
     ctx = _site_context(ix, cfg, contracts, budget, councils, rpc)
+    ctx["csp"] = csp(counter=counter)   # `counter`: the visitor counter's origin, or None (ADR 0008)
     # "Show records from" (sitegen/bodies.py): the switch on every page and each body's hub cards
     ctx["switch"] = bodies.build(ctx, councils, rpc)
     return ctx
@@ -415,6 +417,7 @@ def _site_context(ix: "Index", cfg: dict, contracts: bool, budget: tuple, counci
     return {
         "cfg": cfg,
         "csp": csp(),
+        "analytics": None,   # the visitor counter (ADR 0008): the build sets sitegen/analytics.py settings() when on
         "nav": _nav(ix, contracts, budget, councils, rpc),
         "alerts": alerts_on(),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
@@ -1408,13 +1411,15 @@ CSP_BASE = ("default-src 'self'", "style-src 'self' 'unsafe-inline'", "style-src
             "img-src 'self' data:", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-src 'self'")
 
 
-def csp(address: dict | None = None, form_origin: str | None = None) -> str:
+def csp(address: dict | None = None, form_origin: str | None = None, counter: str | None = None) -> str:
     """`form_origin`: the one https origin form-action gains on the Alerts page when the morning note is enabled
-    (sitegen/morning_page.py); never set while it is off, so the policy is unchanged."""
+    (sitegen/morning_page.py); never set while it is off, so the policy is unchanged. `counter`: the visitor counter's
+    origin (ADR 0008, sitegen/analytics.py settings()["origin"]), which connect-src then names instead of 'none'."""
     scripts = ["'self'"]
     if address:
         scripts += [f"'{script_hash(address['frame'])}'", address["geocoder"]]
-    rest = [f"form-action 'self' {form_origin}" if form_origin and d == "form-action 'self'" else d
+    rest = [f"form-action 'self' {form_origin}" if form_origin and d == "form-action 'self'" else
+            f"connect-src {counter}" if counter and d == "connect-src 'none'" else d
             for d in CSP_BASE[1:]]
     return "; ".join([CSP_BASE[0], "script-src " + " ".join(scripts), *rest])
 
@@ -1435,7 +1440,7 @@ def purpose_line(councils=(), rpc: bool = False, finance: bool = False, rpc_vote
 
 
 def landing(facts, districts: dict | None, georef: dict | None = None, geocoder: bool = True,
-            councils=()) -> dict:
+            councils=(), counter: str | None = None) -> dict:
     """`councils`: the landing entries of the councils built (council.landing_entry); their ward seats' pages are
     what a ward found by the address lookup links to."""
     ix = _ix(facts)
@@ -1446,7 +1451,7 @@ def landing(facts, districts: dict | None, georef: dict | None = None, geocoder:
             if m:
                 ward_hrefs.setdefault(int(m.group(1)), s["href"])
     address = address_context(districts, georef, geocoder, ward_hrefs=ward_hrefs)
-    return {"csp": csp(address), "rows": district_rows(ix),
+    return {"csp": csp(address, counter=counter), "rows": district_rows(ix),
             "lookup_sources": lookup_sources(districts) if address else None,
             "coverage": ix.coverage,
             "district_count": config.SITE["district_count"],

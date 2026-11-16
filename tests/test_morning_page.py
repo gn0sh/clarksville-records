@@ -54,7 +54,7 @@ def _build(out, monkeypatch, cfg=None, seat_feeds=False, note=None, **kw):
     if seat_feeds:
         orig = morning_page.alerts_context
         monkeypatch.setattr(morning_page, "alerts_context",
-                            lambda feeds, cfg=None, preview=False: orig(feeds + SEAT_FEEDS, cfg, preview))
+                            lambda feeds, cfg=None, preview=False, **k: orig(feeds + SEAT_FEEDS, cfg, preview, **k))
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
           **{"morning_manifests": [], "target": "pages", **kw})
     return {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8") for p in out.rglob("*.html")}

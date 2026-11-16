@@ -65,6 +65,11 @@ support_label: Buy Me a Coffee
 support_line: "This service is free and always will be, but web hosting and sending email cost money. If it is useful to you, please consider supporting the project."
 support_enabled: true
 
+# Cookie-free visitor counting (ADR 0008, docs/ops/analytics.md). OFF while `code` is empty: no page loads
+# static/count.js, the CSP stays connect-src 'none' and nothing leaves the visitor's browser. `code` is the GoatCounter
+# site code Brian picks at signup (https://<code>.goatcounter.com); turning it on is a one-line PR. Pages target only.
+analytics: {provider: goatcounter, code: "daylight-gnosh"}   # Brian created the account, 2026-11-16
+
 # Report an error (M1.5, docs/design/correction-intake.md). Every fact page links report.html, which offers these
 # channels to the reader. Both empty (the default): report.html says corrections open when the site launches. Brian
 # chooses the values; the build refuses anything else than the shapes below.

@@ -132,7 +132,8 @@
     <li>Counts appear only as plain totals, with the number of meetings they come from and the date range stated, worded the same way for everyone. Nothing is sorted by a count or highlighted for one.</li>
     <li>Every fact shows a link to its source document and page, and the date it was fetched.</li>
     <li>Every fact has a way to report a mistake (see below).</li>
-    <li>There are no advertisements, campaign links, outside scripts, outside fonts or visitor tracking. {% if site.cfg.geocoder_url %}The site's own small scripts make no network requests, except one: when you look up an address in the box on the home page, the address you type is sent to {{ site.cfg.geocoder_label }}, and its answer is loaded from there.{% else %}The site's own small scripts make no network requests.{% endif %}</li>
+    {% set an = site.analytics | default(none) %}
+    <li>There are no advertisements, campaign links, outside scripts, outside fonts{% if an %}, cookies or advertising trackers. {{ an.counted }} <a data-ext="provider" href="{{ an.privacy_url }}" rel="noopener noreferrer">{{ an.label }}'s privacy policy</a>.{% else %} or visitor tracking.{% endif %} {% if site.cfg.geocoder_url %}The site's own small scripts make no {% if an %}other {% endif %}network requests, except one: when you look up an address in the box on the home page, the address you type is sent to {{ site.cfg.geocoder_label }}, and its answer is loaded from there.{% else %}The site's own small scripts make no {% if an %}other {% endif %}network requests.{% endif %}</li>
   </ol>
 </section>
 
