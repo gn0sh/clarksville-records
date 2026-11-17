@@ -179,7 +179,11 @@ def test_bid_listings_are_not_meetings_on_the_landing(tmp_path):
     # says so (no city in this build, so no city entries)
     assert ('<p class="door-coming"><span class="chip chip-coming">Coming</span> '
             '<span class="door-coming-body">Montgomery County:</span> '
-            '<a href="montgomery-county.html#card-budget-committee">Budget Committee</a>. '
+            '<a href="montgomery-county.html#card-budget-committee">Budget Committee</a>.</p>') in main
+    # the school board's budget is not collected (cmcss.net blocks automated visitors; Brian 2026-11-16): named under
+    # its own tag, never as coming
+    tag = config.SITE["switch"]["not_collected_tag"]
+    assert ('<p class="door-coming door-uncollected"><span class="chip chip-uncollected">' + tag + '</span> '
             '<span class="door-coming-body">School board:</span> '
             '<a href="school-board.html#card-budget">Budget</a>.</p>') in main
     assert 'data-card="budget-committee" id="card-budget-committee"' in (out / "montgomery-county.html").read_text(encoding="utf-8")
@@ -218,6 +222,11 @@ def test_public_money_names_what_is_coming_from_the_hub_cards():
         c["coming"] = False
     assert [g["body"] for g in views.door_coming(site, "money")] == ["Montgomery County"]
     assert views.door_coming({"nav": nav}, "money") == [] and views.door_coming(site, "votes") == []
+    # a card marked not_collected is named only in the door's "Not collected" list, never as coming
+    hubs["school"]["cards"][0].update(coming=False, not_collected=True, door="money")
+    assert views.door_coming(site, "money", "not_collected") == [
+        {"body": "School board", "links": [{"label": "Budget", "href": "school-board.html#card-budget"}]}]
+    assert "School board" not in [g["body"] for g in views.door_coming(site, "money")]
 
 
 def test_the_config_tags_the_same_cards_for_the_city_and_the_county():
@@ -226,9 +235,13 @@ def test_the_config_tags_the_same_cards_for_the_city_and_the_county():
              for k, b in config.SITE["switch"]["bodies"].items()}
     assert cards["city"] == ["Finance Committee", "Audit Committee"]   # the city budget card is present (city/finance/)
     assert cards["county"] == ["Budget Committee"]
-    assert cards["school"] == ["Budget"]                        # every body shown the same way (owner, 2026-11-13)
-    for b in config.SITE["switch"]["bodies"].values():          # only a coming card may carry the tag
-        assert all(c.get("coming") for c in b.get("cards") or [] if c.get("door"))
+    assert cards["school"] == []                                # not collected, not coming (Brian 2026-11-16)
+    nc = {k: [c["title"] for c in b.get("cards") or [] if c.get("not_collected") and c.get("door") == "money"]
+          for k, b in config.SITE["switch"]["bodies"].items()}
+    assert nc == {"county": [], "city": [], "school": ["Budget"], "rpc": []}
+    for b in config.SITE["switch"]["bodies"].values():          # only a coming or not-collected card may carry it
+        assert all(c.get("coming") or c.get("not_collected") for c in b.get("cards") or [] if c.get("door"))
+        assert not any(c.get("coming") and c.get("not_collected") for c in b.get("cards") or [])
 
 
 def test_no_official_is_named_outside_the_seat_list(html):

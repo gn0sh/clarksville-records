@@ -4,7 +4,7 @@
    the dashed COMING note that the minutes are not on this site. No vote, motion or outcome is ever shown. A body
    stored with text: false (the school board) shows no heading and no item text, only the count of lines. #}
 {% macro minutes_note(n) -%}
-<p class="coming-note"><span class="chip chip-coming">Coming</span> {{ n.text }} <a data-ext="{{ n.link.kind }}" href="{{ n.link.url }}" target="_blank" rel="noopener noreferrer">{{ n.link.label }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+<p class="coming-note">{% if n.tag %}<span class="chip chip-uncollected">{{ n.tag }}</span>{% else %}<span class="chip chip-coming">Coming</span>{% endif %} {{ n.text }} <a data-ext="{{ n.link.kind }}" href="{{ n.link.url }}" target="_blank" rel="noopener noreferrer">{{ n.link.label }}<span class="sr-only"> (opens in a new tab)</span></a></p>
 {%- endmacro %}
 
 {% macro committee_meeting(m, root, level=2) -%}

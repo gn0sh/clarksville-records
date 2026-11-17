@@ -185,8 +185,10 @@ def test_phone_and_wide_in_a_browser(site):
         # browser's rendered text follows the CSS (onceover/labels/small-caps-vs-mono)
         # the city budget card is not `coming` (config/site.yml): it is a door link when built, never named here
         assert m["comingText"] == ("COMING Clarksville: Finance Committee, Audit Committee. "
-                                   "Montgomery County: Budget Committee. School board: Budget."), (name, m)
-        assert len(m["comingLinks"]) == 4, (name, m)
+                                   "Montgomery County: Budget Committee."), (name, m)
+        # the school board's budget is not collected (Brian 2026-11-16): its own line and tag, never "Coming"
+        assert m["uncollectedText"] == "NOT COLLECTED School board: Budget.", (name, m)
+        assert len(m["comingLinks"]) == 4, (name, m)              # three coming names and one not collected
         assert min(m["doorLinks"]) >= 44 and m["moreLink"] >= 44, (name, m)     # tap targets
         assert m["searchName"] == "Search by street, name, topic or item number.", (name, m)
 

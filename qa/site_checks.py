@@ -2174,7 +2174,10 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
             continue
         for card in re.findall(r'<li class="hub-card is-coming"[^>]*>(.*?)</li>', hub.group(1), re.S):
             n_coming += 1
-            if '<span class="chip chip-coming">Coming</span>' not in card:
+            # a not-collected card (config not_collected_tag, Brian 2026-11-16) carries its own tag instead
+            nc_tag = f'<span class="chip chip-uncollected">{html.escape(sw.get("not_collected_tag") or "")}</span>'
+            if '<span class="chip chip-coming">Coming</span>' not in card and not (
+                    sw.get("not_collected_tag") and nc_tag in card):
                 problems.append(f"{rel}: a coming card has no Coming tag")
             if not re.search(r'<a data-ext="[a-z]+" href="https://[^"]+"', card):
                 problems.append(f"{rel}: a coming card links no official page")
@@ -2182,6 +2185,29 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
                 problems.append(f"{rel}: a coming card links a page of this site as if it were collected")
     return problems, (f"the switch on {len(pages)} pages, options {', '.join(seen)}; "
                       f"{n_coming} coming cards, each tagged and linked to an official page")
+
+
+NOT_COLLECTED_BLOCKS = re.compile(
+    r'<p class="coming-note">.*?</p>|<li class="hub-card[^"]*"[^>]*>.*?</li>|<p class="door-coming[^"]*">.*?</p>', re.S)
+
+
+def check_not_collected(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) -> tuple[list[str], str]:
+    """notcollected/never-coming (Brian 2026-11-16): a record this site does not collect carries the
+    `switch.not_collected_tag` word, never "Coming". No coming note, hub card or door line may hold both the tag and
+    the Coming chip."""
+    cfg = _site_cfg() if cfg is None else cfg
+    tag = (cfg.get("switch") or {}).get("not_collected_tag")
+    if not tag:
+        return [], "no switch.not_collected_tag in config/site.yml"
+    chip = f'<span class="chip chip-uncollected">{html.escape(tag)}</span>'
+    problems, n = [], 0
+    for rel in sorted(pages):
+        for block in NOT_COLLECTED_BLOCKS.findall((site / rel).read_text(encoding="utf-8")):
+            if chip in block or tag in block:
+                n += 1
+                if "chip-coming" in block:
+                    problems.append(f"{rel}: a line tagged {tag!r} also carries the Coming tag")
+    return problems, f"{n} lines tagged {tag!r}, none also tagged Coming"
 
 
 ADDRESS_JS = re.compile(r"(^|/)static/address\.js$")
@@ -3627,6 +3653,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("unofficial/notice-on-every-page", problems, note)
     problems, note = check_switch(site, pages, cfg)
     rep.add("switch/on-every-page", problems, note)
+    problems, note = check_not_collected(site, pages, cfg)
+    rep.add("notcollected/never-coming", problems, note)
     problems, note = check_about(site, cs, cfg, county=facts)
     rep.add("about", problems, note)
     problems, note = check_current_holders(site, facts, read_roster(seats_path), cs)

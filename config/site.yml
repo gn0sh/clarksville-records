@@ -314,15 +314,15 @@ county_agendas:
 school_board:
   label: Clarksville-Montgomery County School System board
   url: https://www.cmcss.net/
-  link_label: CMCSS website
+  link_label: Clarksville-Montgomery County School System website
   # The menu entry and its "coming" page (school-board.html, site/templates/coming.html.j2), built only while the label
   # and url above are set. Every word of the page is here: no dates, no numbers, no names of officials.
   page:
     slug: school-board
     nav_label: School board
     title: School board
-    lede: "Records of the Clarksville-Montgomery County School System board are planned. Its meetings are not collected yet, so none are shown here."
-    planned: ["Board meeting agendas", "Board meeting minutes and recorded votes"]
+    lede: "Board meeting agendas are not collected yet; minutes are on the school system website."
+    planned: ["Board meeting agendas, from the county website"]
     link_lede: "Until then, the official source is the school system website:"
 
 # The school board's and the county finance committees' agendas, from the county's Committee Agendas page
@@ -340,10 +340,12 @@ county_committees:
     lede: "Agendas of the Montgomery County Budget Committee, the budget hearings and the Audit, Investment, Purchasing and Delinquent Tax Sales and Release committees, as the county posts them, each linked to its PDF."
   agenda_note: "An agenda lists what may be taken up, not what was decided. No votes are shown for these meetings."
   minutes:
-    school: "Minutes: the board's minutes and votes are on the school system's website, which this site does not collect yet, so none are shown."
+    school: "Minutes: the board's minutes and votes are on the school system's website, which this site does not collect from, so none are shown."
     county-finance: "Minutes: the county does not post this committee's minutes online, so none are shown."
   minutes_links:
     school: {from: school_board, kind: school}
+  # the groups whose minutes line carries the `switch.not_collected_tag` word instead of "Coming" (Brian 2026-11-16)
+  minutes_not_collected: [school]
   # A body stored with text: false (the school board): its agenda items can list students by name, so no item text
   # is shown, only the count (docs/architecture/agenda-withhold-invariant.md).
   no_text: "The items on this agenda are not shown on this site for now, because school board agendas can list students by name. Read them in the agenda PDF."
@@ -359,6 +361,8 @@ video:
   county: {url: "https://www.youtube.com/channel/UColCy-INQM4uZSqrJCeHTGg", host: YouTube}
   city: {url: "https://clarksvilletn.portal.civicclerk.com/", host: "the city's CivicClerk portal"}
   rpc: {url: "https://www.youtube.com/@CMCRPC", host: YouTube}
+  # school: the school board's slot (it voted to livestream and record its meetings, Brian 2026-11-16). Left empty
+  # until a person confirms the page where the board posts them; no page reads it yet (sitegen/watch.py).
 video_link: Watch
 video_label: "Official video channel (opens {host})"
 video_recording: "Official video (opens the meeting's MP4 recording)"
@@ -424,18 +428,24 @@ switch:
     fold: "What is here and what is coming"   # phone only: the one line that opens the list of bodies
     present: "On this site:"
     coming: "Coming:"
+    not_collected: "Not collected:"
+  # The tag of a card marked `not_collected: true` (Brian 2026-11-16): a record this site does not collect and has no
+  # plan to, because its source does not allow it (the school board's votes and budget, on cmcss.net). Dashed and
+  # linked to the official source like a coming card, but never named as coming: the hub card, the home page's
+  # overview, the Public money door and the school board's minutes line all read this one word.
+  not_collected_tag: Not collected
   finance_note:
-    text: "These are the Montgomery County budget books. The school board budget is coming."
+    text: "These are the Montgomery County budget books. The school board budget is not shown on this site."
     # the city's budget pages, when built (sitegen/bodies.finance_note `sibling`)
     sibling: {lede: "The City of Clarksville budget books have their own pages:", label: City budget}
-    link_lede: "Until then, the school board's official site is:"
+    link_lede: "It is on the school system's own website:"
     links:
       - {from: school_board, kind: school}
   # the top line of the city's budget pages (city/finance/index.html; finance-contracts 10)
   city_finance_note:
-    text: "These are the City of Clarksville budget books. The school board budget is coming."
+    text: "These are the City of Clarksville budget books. The school board budget is not shown on this site."
     sibling: {lede: "The Montgomery County budget books have their own pages:", label: County budget}
-    link_lede: "Until then, the school board's official site is:"
+    link_lede: "It is on the school system's own website:"
     links:
       - {from: school_board, kind: school}
   bodies:
@@ -493,15 +503,28 @@ switch:
       label: School board
       kicker: Clarksville-Montgomery County School System (CMCSS)
       about: The Clarksville-Montgomery County School System (CMCSS) board.
+      # The hub's "What we can show" note (Brian 2026-11-16), shown on the hub only while its agendas are built
+      # (committee_home.html.j2): what is here, what is not and why, and one plain link (official_link). cmcss.net
+      # answers automated visitors with a bot challenge and this site never works around a block, so nothing is
+      # collected from it (docs/research/rpc-cmcss-sources.md). The link is school_board.url, the district's home page,
+      # until a person confirms the board page's own URL. Its video link has a slot in `video:` above (`school`), left
+      # empty until the board's recordings page is confirmed; none is guessed.
+      limits:
+        heading: What we can show
+        shown: "Shown here: the board's meeting agendas, taken from the county's website."
+        not_shown: "Not shown: the board's minutes, recorded votes and budget."
+        why: "The school system's website blocks automated collection, and this site respects that."
+        link_lede: "Find them on the school system's own website:"
+        link: {from: school_board, kind: school}
       cards:
         - key: meetings
           title: Meetings
           coming: true
-          text: "Board meeting agendas and minutes are not collected yet, so none are shown."
+          text: "Board meeting agendas are not collected yet; minutes are on the school system website."
           link: {from: school_board, kind: school}
           built: {title: Agendas, go: Agendas by year, text: "Study session and formal board meeting agendas, as the county posts them, each line linked to its PDF page."}
-        - {key: votes, title: Votes, coming: true, text: "Recorded votes of the board are not collected yet, so none are shown.", link: {from: school_board, kind: school}}
-        - {key: budget, title: Budget, coming: true, door: money, text: "The school system budget is not collected yet, so none is shown.", link: {from: school_board, kind: school}}
+        - {key: votes, title: Votes, not_collected: true, text: "Recorded votes of the board are on the school system website, which this site does not collect from, so none are shown.", link: {from: school_board, kind: school}}
+        - {key: budget, title: Budget, not_collected: true, door: money, text: "The school system budget is on the school system website, which this site does not collect from, so none is shown.", link: {from: school_board, kind: school}}
     rpc:
       label: Planning (RPC)
       short: RPC
