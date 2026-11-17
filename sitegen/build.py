@@ -51,7 +51,10 @@ _SCHEMA_MEMO: dict = {}   # (schema, document) content digest -> the error lines
 
 
 def _schema_errors(validator: Draft202012Validator, doc) -> list[str]:
-    key = hashlib.sha256(json.dumps([validator.schema, doc], separators=(",", ":"), default=str).encode()).hexdigest()
+    try:
+        key = hashlib.sha256(json.dumps([validator.schema, doc], separators=(",", ":")).encode()).hexdigest()
+    except (TypeError, ValueError):      # not plain JSON: no digest to trust, so validate it every time
+        return _schema_errors_uncached(validator, doc)
     if key not in _SCHEMA_MEMO:
         _SCHEMA_MEMO[key] = _schema_errors_uncached(validator, doc)
     return list(_SCHEMA_MEMO[key])

@@ -181,12 +181,19 @@ def test_opted_in_offline_run_never_rebuilds_the_repo_site(sandbox, monkeypatch,
 _SITE_BUILDS: dict = {}     # input digest -> (cached output folder, build() result), for the whole test session
 
 
-def _digest_of_inputs(facts_path, kw) -> str:
-    """Everything the site build is handed: the facts file's bytes, and each keyword (a path to a file that exists
+def _digest_of_inputs(facts_path, args, kw) -> str:
+    """Everything the site build is given or reads from beside the facts file: the facts file's bytes, finance.json
+    and changes.jsonl next to it (or "absent"), the default target, and each argument (a path to a file that exists
     by that file's bytes, anything else by its repr). The same digest is the same build, to the byte."""
-    h = hashlib.sha256(Path(facts_path).read_bytes())
-    for k in sorted(kw):
-        v = kw[k]
+    from sitegen import config
+    facts_path = Path(facts_path)
+    h = hashlib.sha256(facts_path.read_bytes())
+    for name in ("finance.json", "changes.jsonl"):
+        f = facts_path.parent / name
+        h.update(name.encode())
+        h.update(f.read_bytes() if f.is_file() else b"absent")
+    h.update(repr(config.DEFAULT_TARGET).encode())
+    for k, v in [(f"#{i}", v) for i, v in enumerate(args)] + [(k, kw[k]) for k in sorted(kw)]:
         h.update(k.encode())
         h.update(Path(v).read_bytes() if isinstance(v, Path) and v.is_file() else repr(v).encode())
     return h.hexdigest()
@@ -197,20 +204,34 @@ def _memoised_site_build(real, cache_dir: Path):
     The run tests here check the collector's flow and exit codes around the build, not the site, which
     the sitegen tests build and check themselves; the same real build over the same
     inputs gives the same files, so a second and third identical build only costs a minute each."""
+    import copy
     import shutil
 
-    def build(facts_path, out_dir, **kw):
-        key = _digest_of_inputs(facts_path, kw)
+    def build(facts_path, out_dir, *args, **kw):          # the preview fallback calls build() with positional arguments
+        key = _digest_of_inputs(facts_path, args, kw)
         if key not in _SITE_BUILDS:
             cached = cache_dir / key[:16]
-            res = real(facts_path, cached, **kw)
+            res = real(facts_path, cached, *args, **kw)
             _SITE_BUILDS[key] = (cached, res)
         cached, res = _SITE_BUILDS[key]
         if Path(out_dir).exists():
             shutil.rmtree(out_dir)
         shutil.copytree(cached, out_dir)
-        return res
+        return copy.deepcopy(res)
     return build
+
+
+def _shut_network(monkeypatch) -> list:
+    """Name lookups and connections fail loudly and are listed: a run test must never reach a real site."""
+    import socket
+    tried = []
+
+    def refuse(host, *a, **k):
+        tried.append(host)
+        raise AssertionError(f"a test tried to reach {host!r}: tests must never use the network")
+    monkeypatch.setattr(socket, "getaddrinfo", refuse)
+    monkeypatch.setattr(socket.socket, "connect", lambda self, addr: refuse(addr))
+    return tried
 
 
 @pytest.fixture
@@ -255,6 +276,14 @@ def sandbox(tmp_path, tmp_path_factory, monkeypatch):
                         lambda log, offline, fetcher=None: state["agenda_calls"].append((offline, fetcher)))
     # the RPC step: tests/test_rpc_daily.py
     monkeypatch.setattr(M, "run_rpc", lambda log, offline, fetcher=None, allow_shrink=False: 0)
+    # the county committees and city books steps fetch from the county's and city's sites online; they are tested in
+    # test_county_committees.py and test_fin_books*: here they are fakes, and the network is shut (test_hermetic)
+    state["committee_calls"], state["books_calls"] = [], []
+    monkeypatch.setattr(M, "run_county_committees",
+                        lambda log, offline, fetcher=None: state["committee_calls"].append((offline, fetcher)) or 0)
+    monkeypatch.setattr(M, "run_city_books",
+                        lambda log, offline, fetcher=None: state["books_calls"].append((offline, fetcher)))
+    state["dns"] = _shut_network(monkeypatch)
     return state
 
 
@@ -417,3 +446,16 @@ def test_minutes_missing_from_the_store_are_refetched_at_their_manifest_url_only
     F.calls.clear()
     M.refetch_missing(store, log, F(), listed=set())
     assert F.calls == []                                                   # nothing missing: nothing requested
+
+
+def test_a_preview_built_without_its_export_gets_no_export_and_still_a_manifest(sandbox, monkeypatch):
+    """collector/__main__.py cmd_run: when the site build says `export: False` (a preview over its cap), no open-data
+    export is added to the site, and the publish manifest is still written."""
+    import collector.export
+    import sitegen.build
+    calls = []
+    monkeypatch.setattr(sitegen.build, "build", lambda facts_path, out_dir, **kw: {"export": False})
+    monkeypatch.setattr(sitegen.build, "write_publish_manifest", lambda site: calls.append(("manifest", site)))
+    monkeypatch.setattr(collector.export, "export_site", lambda *a, **k: calls.append(("export", a)))
+    assert M.main(["run", "--offline"]) == 0
+    assert [c[0] for c in calls] == ["manifest"]
