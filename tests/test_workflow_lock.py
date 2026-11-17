@@ -2403,15 +2403,19 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     assert "bypass none, required approvals 0" in r.stdout and "GitHub Actions may create pull requests: true" in r.stdout
     assert "Auto-merge allowed: false" in r.stdout
     lines = calls.read_text().splitlines()
-    # L-b: R1 (the ruleset) first; then R2's state and main's sha are read; then R2 goes on, and the line naming
-    # main's sha (the start of the runbook 4.7.1 window) is printed
+    # main-protect/window-start-gap: main's sha is read (and printed) BEFORE R1 (the ruleset) is written; L-b: R1
+    # before R2's state is read; then R2 goes on, and the line naming that pre-R1 sha (the start of the runbook
+    # 4.7.1 window) is printed
     setting = [i for i, c in enumerate(lines) if "-X PUT" in c and "actions/permissions/workflow" in c]
     writes = [i for i, c in enumerate(lines) if ("-X PUT" in c or "-X POST" in c) and "/rulesets" in c]
     read_r2 = next(i for i, c in enumerate(lines) if "actions/permissions/workflow" in c and "-X" not in c)
-    read_main = next(i for i, c in enumerate(lines) if "/git/ref/heads/main" in c)
-    assert len(setting) == 1 and writes and max(writes) < read_r2 < read_main < setting[0]
+    read_main = [i for i, c in enumerate(lines) if "/git/ref/heads/main" in c]
+    assert len(read_main) == 1 and len(setting) == 1 and writes
+    assert read_main[0] < min(writes) and max(writes) < read_r2 < setting[0]
     assert "-F can_approve_pull_request_reviews=true" in lines[setting[0]]
+    assert f"Main before the ruleset: {'1' * 40}" in r.stdout
     assert f"R2 was off; main was {'1' * 40}" in r.stdout
+    assert r.stdout.index("Main before the ruleset") < r.stdout.index("R2 was off")
     lines = [c for c in lines if "actions/permissions/workflow" not in c and "/git/ref/" not in c]
     posts = [c for c in lines if "-X POST" in c]
     puts = [c.split()[3] for c in lines if "-X PUT" in c]
@@ -2458,27 +2462,41 @@ def test_protect_main_needs_approvals_0_and_auto_merge_off(tmp_path, auto, appro
         assert "needs ADR 0009 changed" in r.stdout
 
 
-@pytest.mark.parametrize("r2,main_sha,code,says", [
-    ("true", None, 0, "R2 already on"),
-    ("false", "FAIL", 1, "was NOT turned on"),
-    ("false", "not-a-sha", 1, "was NOT turned on"),
-    ("FAIL", None, 1, "it was not changed"),
+@pytest.mark.parametrize("r2,code,says", [
+    ("true", 0, "R2 already on"),
+    ("FAIL", 1, "it was not changed"),
 ])
-def test_protect_main_reads_r2_and_main_before_turning_r2_on(tmp_path, r2, main_sha, code, says):
-    """L-b: R2 already on is said (the window start is then unknown); a failed read of R2 or of main's sha leaves R2
-    as it was, after the ruleset is written."""
+def test_protect_main_reads_r2_before_turning_r2_on(tmp_path, r2, code, says):
+    """L-b: R2 already on is said (the window start is then unknown); a failed read of R2 leaves R2 as it was,
+    after the ruleset is written."""
     bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
     bindir.mkdir()
     (bindir / "gh").write_text(_GH_STUB)
     (bindir / "gh").chmod(0o755)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
-           "MAIN_WF": TEXT, "R2": r2, **({"MAIN_SHA": main_sha} if main_sha else {})}
+           "MAIN_WF": TEXT, "R2": r2}
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
     assert r.returncode == code and says in r.stdout, r.stdout + r.stderr
     lines = calls.read_text().splitlines()
     assert not any("-X PUT" in c and "actions/permissions/workflow" in c for c in lines)
     assert any("-X PUT" in c and "/rulesets/42" in c for c in lines)
-    assert "R2 was off" not in r.stdout
+    assert "R2 was off" not in r.stdout and f"Main before the ruleset: {'1' * 40}" in r.stdout
+
+
+@pytest.mark.parametrize("main_sha", ["FAIL", "not-a-sha", ""])
+def test_protect_main_changes_nothing_when_main_cannot_be_read(tmp_path, main_sha):
+    """main-protect/window-start-gap: main's sha is read before R1 is written; if that read fails, nothing is
+    written (no ruleset, no R2) and no window line is printed."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT, "MAIN_SHA": main_sha}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 1 and "Could not read main's commit. Nothing was changed." in r.stdout, r.stdout
+    assert not any(" -X " in f" {c}" for c in calls.read_text().splitlines())
+    assert "Main before the ruleset" not in r.stdout and "R2 was off" not in r.stdout
 
 
 def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
@@ -2487,11 +2505,14 @@ def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
     assert 'echo "R2 already on"' in sh and 'echo "R2 was off; main was $main_sha"' in sh
     ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
     assert "Write-Host 'R2 already on'" in ps1 and 'Write-Host "R2 was off; main was $mainSha"' in ps1
-    assert "$mainSha = (gh api \"repos/$repo/git/ref/heads/main\" --jq '.object.sha') -join ''" in ps1
-    create = ps1.index('gh api -X POST "repos/$repo/rulesets" --input $body --silent')
+    assert ps1.count("$mainSha = (gh api \"repos/$repo/git/ref/heads/main\" --jq '.object.sha') -join ''") == 1
+    assert 'Write-Host "Main before the ruleset: $mainSha"' in ps1 and 'echo "Main before the ruleset: $main_sha"' in sh
+    # main-protect/window-start-gap: main is read before the ruleset is written (POST or PUT), R2 after
     read_main = ps1.index('$mainSha = (gh api "repos/$repo/git/ref/heads/main"')
+    create = ps1.index('gh api -X POST "repos/$repo/rulesets" --input $body --silent')
+    update = ps1.index('gh api -X PUT "repos/$repo/rulesets/$id" --input $body --silent')
     turn_on = ps1.index('gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true')
-    assert create < read_main < turn_on
+    assert read_main < create < update < turn_on
 
 
 def test_protect_main_scripts_share_one_ruleset_body():

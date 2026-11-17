@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Protect main: the bash twin of scripts/protect-main.ps1 (docs/ops/morning-note.md, step 2.0.1). Creates the
 # "main: pull request required" ruleset (no bypass), or updates it if it already exists; never makes a second one.
-# Then it reads "Allow GitHub Actions to create and approve pull requests" (R2) and main's sha, and turns R2 on (the
-# push job's data PR), printing "R2 was off; main was <sha>" or "R2 already on": record that line in
+# It reads main's sha BEFORE writing the ruleset (R1) and prints "Main before the ruleset: <sha>". Then it reads
+# "Allow GitHub Actions to create and approve pull requests" (R2) and turns it on (the push job's data PR), printing
+# "R2 was off; main was <sha>" (that same pre-R1 sha) or "R2 already on": record those lines in
 # docs/platform-facts.md "Main protection" (the start of the runbook 4.7.1 window; architecture "Baseline window
-# check", L-b). It stops before changing anything if main's workflow does not open data pull requests yet.
+# check", L-b). If this needed more than one run, the window starts at the sha the FIRST run printed. It stops
+# before changing anything if main's workflow does not open data pull requests yet or main cannot be read.
 # Needs: gh, signed in as the repository owner (gh auth login). Run: bash scripts/protect-main.sh
 set -euo pipefail
 repo=gn0sh/clarksville-records
@@ -19,6 +21,13 @@ case "$wf" in
   *"Open and merge the data pull request"*) ;;
   *) echo "Main does not have the data pull request change yet. Nothing was changed. Merge that pull request first, then run this again."; exit 1 ;;
 esac
+# main-protect/window-start-gap: main's sha is read BEFORE R1 is written, so no commit can land on main between the
+# window start and R1 (a direct push in that gap would be inside the window and caught by the 4.7.1 check).
+main_sha=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true)
+if ! [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Could not read main's commit. Nothing was changed. Run this again; send this output to the team if it repeats."; exit 1
+fi
+echo "Main before the ruleset: $main_sha"
 ids=$(gh api "repos/$repo/rulesets" --jq "$find")
 if [ -z "$ids" ]; then
   echo "No ruleset yet: creating it."
@@ -32,16 +41,12 @@ else
   done
 fi
 # R1 first, then R2 (L-b): with R1 on nobody pushes main directly, so from now on main changes only by a merged
-# pull request, and main's sha read seconds after R1 is written is where the window of runbook 4.7.1 starts. R2
+# pull request, and main's sha read just before R1 was written is where the window of runbook 4.7.1 starts. R2
 # governs creating and approving pull requests, not merging them, so the start does not rely on R2 being off.
 r2=$(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews' || true)
 if [ "$r2" = true ]; then
   echo "R2 already on"
 elif [ "$r2" = false ]; then
-  main_sha=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true)
-  if ! [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]]; then
-    echo "Could not read main's commit, so 'Allow GitHub Actions to create and approve pull requests' was NOT turned on (the ruleset is written). Run this again; send this output to the team if it repeats."; exit 1
-  fi
   gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true --silent \
     || { echo "Turning on 'Allow GitHub Actions to create and approve pull requests' failed (see above); the ruleset is written. Send this output to the team."; exit 1; }
   echo "R2 was off; main was $main_sha"

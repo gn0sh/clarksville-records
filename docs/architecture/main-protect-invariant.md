@@ -112,12 +112,15 @@ lookup). Recovery: a person reads the refused commit; if it was meant, a PR (mer
 Before the baseline is set, a person lists `merged_by.type` for every non-data first-parent commit in the window
 `<R2-on sha>..origin/main`, because the gate checks nothing in phase 0.
 - **Start.** `<R2-on sha>` is `main`'s sha read (`gh api repos/gn0sh/clarksville-records/git/ref/heads/main`)
-  seconds after S1 writes R1 and just before it turns R2 on. The start is sound because `main` is read seconds after
-  R1 is written: from then on nothing reaches `main` but a merged PR, and every such merge, by a person or by a
-  workflow, is after the start and so in the window. It does not rely on R2: R2 governs creating PRs, not merging
-  them, and a workflow could merge a PR a person opened even with R2 off. S1 prints `R2 was off; main was <sha>` when it turns R2 on, and `R2 already on` if it finds
-  it on. The person records that line, the date and the S1 output in `docs/platform-facts.md` "Main protection" as
-  `R2 first on: <sha>`. If S1 found R2 already on, the start is unknown: do not set the baseline; the architect
+  just before S1 writes R1 (main-protect/window-start-gap, 2026-11-17; S1 prints it as `Main before the ruleset:
+  <sha>`). The start is sound because `main` is read before R1 is written: anything that reached `main` between
+  the read and R1 (even a direct push) is after the start and so in the window, and from R1 on nothing reaches
+  `main` but a merged PR, which, by a person or by a workflow, is after the start too. If S1 needed more than one
+  run, the start is the sha read before the **first** run wrote R1 (a later run's read would leave the commits
+  between the runs out of the window). It does not rely on R2: R2 governs creating PRs, not merging
+  them, and a workflow could merge a PR a person opened even with R2 off. S1 prints `R2 was off; main was <sha>` (the pre-R1 sha) when it turns R2 on, and `R2 already
+  on` if it finds it on. The person records that line, the date and the S1 output in `docs/platform-facts.md` "Main protection" as
+  `R2 first on: <sha>`. If S1's first run found R2 already on, the start is unknown: do not set the baseline; the architect
   picks the window.
 - **Loop.** `set -euo pipefail`; the recorded sha must be 40 hex and an ancestor of `origin/main`
   (`git merge-base --is-ancestor`); the commit list is assigned to a variable first (a failing `git log` inside
@@ -150,8 +153,10 @@ refusal below means the workflow rule, not a general refusal). Run by devops wit
 If any merge goes through (V1 false): turn R2 off at once (`gh api -X PUT
 repos/gn0sh/clarksville-records/actions/permissions/workflow -F can_approve_pull_request_reviews=false`; J2 then
 can no longer open its data PR, so the site's data stops updating); R2 off stops workflows opening PRs, not
-merging them, so also close every open PR into `main` (a workflow can still merge one a person opened); remove the
-inert canary by a person's PR; leave
+merging them, so also close every open PR into `main` (a workflow can still merge one a person opened) and delete
+each closed PR's head branch (a closed PR whose branch still exists can be reopened and merged; v1-probe/
+v1-fail-containment-incomplete), or turn off GitHub Actions for the repository (Settings > Actions > General >
+Disable actions) until the architect re-plans; remove the inert canary by a person's PR; leave
 `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset; the architect re-plans the data path (the leading candidate: data
 leaves `main` for a branch the build reads, so no workflow needs to merge to main). **The probe gates
 `MORNING_NOTE_SEND`:** runbook section 4 gets an item "V1 probe passed (link)" before item 7, and T4.10.8 depends on
