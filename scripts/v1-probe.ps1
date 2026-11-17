@@ -38,8 +38,9 @@ function B64([string]$text) { [Convert]::ToBase64String([Text.Encoding]::UTF8.Ge
 function TurnR2Off {
     Log 'FAIL (V1 false): GITHUB_TOKEN merged a workflow change into main. Turning off Allow GitHub Actions to create and approve pull requests now.'
     gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
-    if ($LASTEXITCODE -eq 0) { Log 'Turned off. The daily update now stops saving data (the safe state).' }
+    if ($LASTEXITCODE -eq 0) { Log 'Turned off: workflows can no longer open pull requests, so the daily update stops saving data.' }
     else { Log 'Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now.' }
+    Log 'This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain'
     Log 'Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team.'
 }
 $verdict = ''

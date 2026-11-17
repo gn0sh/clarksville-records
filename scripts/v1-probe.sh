@@ -81,8 +81,9 @@ done
 turn_r2_off() {
   log "FAIL (V1 false): GITHUB_TOKEN merged a workflow change into main. Turning off 'Allow GitHub Actions to create and approve pull requests' now."
   gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
-    && log "Turned off. The daily update now stops saving data (the safe state)." \
+    && log "Turned off: workflows can no longer open pull requests, so the daily update stops saving data." \
     || log "Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now."
+  log "This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain"
   log "Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team."
 }
 # v1-probe/verdict-race (L-c): a PASS or INCONCLUSIVE is final only after cleanup closed the probe pull request and

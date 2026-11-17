@@ -203,7 +203,7 @@ morning_note:
     # ones stay, this line is wrong (lists would add up, two seats would cancel out) and must change before launch.
     method_change: "To change your lists or seats, use the unsubscribe link in any morning note, then sign up again on the Alerts page with your new picks."
     # note/credit-logo-privacy: the email's footer logo (sender/common.py CREDIT_IMAGE) is loaded from this site.
-    method_logo: "Each morning note ends with the gnoshcodes logo, as this site's footer does. The logo is loaded from this site when your email app shows images, so GitHub Pages, which hosts this site, can see your IP address and when the image was loaded."
+    method_logo: "Each morning note ends with the gnoshcodes logo, as this site's footer does. The logo is loaded from this site when your email app shows images, so GitHub Pages, which hosts this site, may see your IP address and when the image was loaded."
     method_signup_link: Sign up on the Alerts page
     preview_title: Today's morning note
     preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."

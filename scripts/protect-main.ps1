@@ -51,8 +51,9 @@ if ($ids.Count -eq 0) {
     }
 }
 
-# R1 first, then R2 (L-b): with R1 on nobody pushes main directly, and before R2 is on no workflow can open or merge
-# a pull request, so main's sha read now is where the window of runbook 4.7.1 starts. Then the push job's
+# R1 first, then R2 (L-b): with R1 on nobody pushes main directly, so from now on main changes only by a merged
+# pull request, and main's sha read seconds after R1 is written is where the window of runbook 4.7.1 starts. R2
+# governs creating and approving pull requests, not merging them, so the start does not rely on R2 being off. Then the push job's
 # GITHUB_TOKEN may open and merge its data pull request.
 $r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
 if ($r2 -eq 'true') {

@@ -514,7 +514,7 @@ def test_enabled_build_says_what_is_sent_on_the_landing_and_method_pages(enabled
     # note/credit-logo-privacy: the email's footer logo is a remote image from this site, so Pages sees the open
     assert f'{t["method_change"]} {t["method_logo"]}' in text
     for words in ("loaded from this site when your email app shows images", "GitHub Pages, which hosts this site",
-                  "can see your IP address and when the image was loaded"):
+                  "may see your IP address and when the image was loaded"):
         assert words in t["method_logo"], words
     assert f'"{box}"' in text and "{box}" not in text
     for word in ("email address", "lists", "district and ward", "Example Mail", "unsubscribe"):

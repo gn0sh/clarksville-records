@@ -195,7 +195,9 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         permission"), `main` unchanged, and the review's `commit_id` kept. Send the output to the team; they record it in `docs/platform-facts.md` "Main protection"
         and set the baseline (section 4 item 7) the same day.
       - **FAIL (V1 false)**: the probe pull request merged, or `v1-canary.yml` is on `main`. The script has already turned **Allow GitHub Actions to create
-        and approve pull requests** off (the daily data then stops saving: the safe state). Leave
+        and approve pull requests** off (workflows can no longer open pull requests, so the daily data stops
+        saving). That setting does not stop merging: a workflow can still merge a pull request that is already
+        open, so **close every open pull request into `main`** (https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain). Leave
         `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the output to the team; the inert canary is removed
         by a person's PR and the architect re-plans the data path.
       - **INCONCLUSIVE**: refused for another reason, the run did not start or had not finished, the probe pull
@@ -304,7 +306,8 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       `git log --first-parent --format='%h %an %s' origin/main -- . ':(exclude)data/'` and read it: each
       change outside `data/` was meant (the earlier ones were merged without pull requests). `%an` is the commit's
       author and cannot show a bot merge (main-protect L-3), so also list who merged each such commit in the window
-      that starts where R2 was first turned on (architecture "Baseline window check", L-b): `<R2-on sha>` is the
+      that starts at `main`'s commit read seconds after 2.0.1 wrote the ruleset (architecture "Baseline window
+      check", L-b; from then on only merged pull requests reach `main`): `<R2-on sha>` is the
       `R2 first on: <sha>` line in `docs/platform-facts.md` "Main protection" (from 2.0.1's
       `R2 was off; main was <sha>`). If 2.0.1 said `R2 already on`, the start is unknown: stop, the architect picks
       the window. Paste the whole output into the baseline PR:
@@ -449,9 +452,19 @@ the live site keeps its last deploy and the data waits for the next run. Open th
   diff, then a PR merged with `scripts/merge-reviewed.ps1` sets `MAIN_PR_BASELINE` to `main`'s commit at that time
   (as in section 4 item 7). If it was **not** meant (a workflow or someone merged code nobody reviewed): treat it
   as an incident; delete the variable `MORNING_NOTE_SEND`, and do not move the baseline until it is understood.
-- "data/ holds something other than regular *.json, *.yml or changes.jsonl files" (M-2; it checks on every run on
-  `main`, phase 0 included): the log names each entry. A symlink, submodule, executable file or any other name under
-  `data/` is never something the collector writes. Read the commit that added it (`git log -- data/<name>`) and treat
-  it as an incident if nobody meant it; otherwise remove it by a PR merged with `scripts/merge-reviewed.ps1`.
-- "could not read main's full history", "could not read data/ in this commit's tree" or a GitHub API error: re-run
-  the failed jobs once; if it repeats, tell the team.
+- "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): <m>
+  of <n> entries fit." (it checks on every run on `main`, phase 0 included), after up to 20 lines
+  "not allowed in data/: <entry>" (mode, object and name; any byte outside plain ASCII shown as `?`). A symlink,
+  submodule, executable file, a name with a space, a leading dot or a non-ASCII byte, or any other name under
+  `data/` is never something the collector writes. Read the commit that added it (`git log --first-parent -- data/`
+  on `main`, then `git show <sha> --stat`) and treat it as an incident if nobody meant it; otherwise remove it by a
+  PR merged with `scripts/merge-reviewed.ps1`.
+- "data/ is not a folder in this commit (missing, a file or a link), or could not be read (I-data)." `data/` was
+  deleted, emptied or replaced by a file or link (a data PR merged from an empty refresh, or a hand edit). Restore it
+  from the last commit whose `data/` was good, by a PR merged with `scripts/merge-reviewed.ps1`:
+  `git fetch origin main`, `git log --first-parent --format='%h %s' origin/main -- data` and pick the newest commit
+  before the bad one (`<good>`); then on a new branch from `origin/main`: `git rm -r -q --cached data; rm -rf data;
+  git checkout <good> -- data`, commit "Restore data/ from <good>", open the PR, review it, merge it with 2.0.3. The
+  next run collects again on top of it. If the same thing repeats, treat it as an incident.
+- "could not read data/ in this commit's tree.", "could not check data/'s names.", "could not read main's full
+  history." or a GitHub API error: re-run the failed jobs once; if it repeats, tell the team.

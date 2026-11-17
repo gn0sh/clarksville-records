@@ -70,13 +70,13 @@ test in one PR.
 | J4 | `note` job | `needs: [gate, update, deploy]`, `if:` adds `needs.gate.outputs.verified == 'true'`; checks out `needs.gate.outputs.sha`. Its own PR-check step is removed (one copy, in the gate); the stale-rerun step stays. Internals: table "Inside the note job" below. |
 | J5 | `note-failed`, `gate-failed` (new), push's failure step | `issues: write` only, fixed text, no checkout, run no repo code. |
 | W1 | The workflow file at `S` | Ruleset (R1) + V1. The gate also refuses a bot-merged `.github/` commit already in the history, so a later good workflow stops until a person moves the baseline past it. |
-| W2 | Workflows on any other branch | Can open and merge a PR to main (R2): any code commit that makes is refused by G on every later run (fail closed, `gate-failed` issue); a data-only one is not detected, only its shape is checked (residual M-2). Cannot change a workflow on main (V1). Cannot enter `github-pages` or `morning-note` (main-only deployment branches, E1, E2). |
+| W2 | Workflows on any other branch | Can open a PR to main (with R2 on) and, with `contents: write`, merge an open PR to main, including one a person opened (R2 does not govern merging): any code commit that makes is refused by G on every later run (fail closed, `gate-failed` issue); a data-only one is not detected, only its shape is checked (residual M-2). Cannot change a workflow on main (V1). Cannot enter `github-pages` or `morning-note` (main-only deployment branches, E1, E2). |
 | E1 | Environment `github-pages` | Deployment branches **main only**. `gh-pages` is still allowed today (status: "optional hygiene"); under I-run it is not optional: a workflow a person pushes to `gh-pages` (the ruleset covers main only) would get `pages: write` outside the gate. Removed in T4.10.5. |
 | E2 | Environment `morning-note` | Main only (runbook 2.0). Required reviewer optional (runbook 5.0 A): the only control against L3. |
 | R1 | Main ruleset, `scripts/main-ruleset.json` | `deletion`, `non_fast_forward`, `pull_request` with 0 approvals, no bypass. Approvals stay 0 (L-E): with R2 on, a workflow's approval would count toward any number above 0. The gate counts no approvals, only a person's merge and a person's review at head, so a bot approval never satisfies it. |
-| R2 | Setting "Allow GitHub Actions to create and approve pull requests" | On, for J2. It is what lets a workflow on any branch merge to main (W2), which is why G exists. |
+| R2 | Setting "Allow GitHub Actions to create and approve pull requests" | On, for J2. It governs creating and approving PRs with `GITHUB_TOKEN`, not merging (security main-protect/r2-does-not-gate-merge, needs verification): a workflow with `contents: write` can merge any open PR into main, R2 on or off. With R2 on it can also open its own, so W2 can put a commit on main by itself, which is why G exists. Turning R2 off stops J2 opening its data PR; it does not stop merges of PRs already open. |
 | R3 | Repo merge settings | `allow_auto_merge: false` (L-D: auto-merge merges whatever head the branch has later). Squash and merge commits allowed; a rebase merge of more than one commit leaves commits whose sha is no PR's `merge_commit_sha`, so G refuses it: merge with squash or a merge commit (S2 uses squash). |
-| S1 | `scripts/protect-main.sh`, `.ps1` | Create or update R1, then read R2 and `main`'s sha, then turn on R2 (today R2 comes first: reorder, L-b), printing `R2 was off; main was <sha>` or `R2 already on`; their OK check also asserts approvals 0 and `allow_auto_merge` false, and says NOT OK otherwise. |
+| S1 | `scripts/protect-main.sh`, `.ps1` | Create or update R1, then read R2 and `main`'s sha, then turn on R2 (in that order since L-b), printing `R2 was off; main was <sha>` or `R2 already on`; their OK check also asserts approvals 0 and `allow_auto_merge` false, and says NOT OK otherwise. |
 | S2 | `scripts/merge-reviewed.sh`, `.ps1` (new) | The only way a person merges a non-data PR: `merge-reviewed <pr> <reviewed-sha>` posts a COMMENT review with `commit_id=<reviewed-sha>` (body: the review report links), merges with `sha=<reviewed-sha>` (refused if the head moved: L-D), then deletes the head branch. |
 | B | `MAIN_PR_BASELINE` | Lives in the gate step's `env` only (moved from J4). Empty = phase 0: gate outputs `verified=false` and passes, so J1-J3 run as they do today and J4 never runs. Set by a person's PR (T4.10.8) after the V1 probe passes; from then the test accepts only a sha. Before it is set, runbook 4.7.1 checks the window from the R2 switch-on (section "Baseline window check"). Moved later only by a reviewed PR after a person read every commit it skips. |
 | D | `data/` | Meets I-data: checked by G on every run on main (phase 0 included; on a `blob:none` clone it reads no blob) and by J2 on the commit it pushes; consumers in section "I-data". Who merged a data-only commit is not checked (residual M-2). Read with `json` and `yaml.safe_load` only (grep, 2026-11-17: `sitegen/`, `collector/`); not read by J4. |
@@ -111,9 +111,11 @@ lookup). Recovery: a person reads the refused commit; if it was meant, a PR (mer
 ## Baseline window check (runbook 4.7.1, L-3 and L-b)
 Before the baseline is set, a person lists `merged_by.type` for every non-data first-parent commit in the window
 `<R2-on sha>..origin/main`, because the gate checks nothing in phase 0.
-- **Start.** `<R2-on sha>` is `main`'s sha read (`git ls-remote origin refs/heads/main`) immediately before S1 first
-  turns R2 on: before that no workflow could open or merge a PR, and R1 (switched on by the same S1 run) already
-  refused direct pushes. S1 prints `R2 was off; main was <sha>` when it turns R2 on, and `R2 already on` if it finds
+- **Start.** `<R2-on sha>` is `main`'s sha read (`gh api repos/gn0sh/clarksville-records/git/ref/heads/main`)
+  seconds after S1 writes R1 and just before it turns R2 on. The start is sound because `main` is read seconds after
+  R1 is written: from then on nothing reaches `main` but a merged PR, and every such merge, by a person or by a
+  workflow, is after the start and so in the window. It does not rely on R2: R2 governs creating PRs, not merging
+  them, and a workflow could merge a PR a person opened even with R2 off. S1 prints `R2 was off; main was <sha>` when it turns R2 on, and `R2 already on` if it finds
   it on. The person records that line, the date and the S1 output in `docs/platform-facts.md` "Main protection" as
   `R2 first on: <sha>`. If S1 found R2 already on, the start is unknown: do not set the baseline; the architect
   picks the window.
@@ -136,7 +138,7 @@ refusal below means the workflow rule, not a general refusal). Run by devops wit
    stops at the first merge that goes through.
 3. Expected: all four refused, with a message naming the `workflows` permission (for example "refusing to allow a
    GitHub App to create or update workflow ... without `workflows` permission"); `main`'s sha unchanged
-   (`git ls-remote origin main` before and after). A refusal for any other reason (not mergeable, ruleset) is
+   (`gh api repos/gn0sh/clarksville-records/git/ref/heads/main` before and after, as the probe scripts read it). A refusal for any other reason (not mergeable, ruleset) is
    inconclusive: fix and re-run. The verdict FAIL comes only from the probe PR reading `merged` (or the run's own
    merge answer) or `v1-canary.yml` being on `main`; `main` moving while the PR stays unmerged, or a failed read, is
    inconclusive and leaves R2 on (v1-probe/verdict-from-main-sha).
@@ -147,7 +149,9 @@ refusal below means the workflow rule, not a general refusal). Run by devops wit
 
 If any merge goes through (V1 false): turn R2 off at once (`gh api -X PUT
 repos/gn0sh/clarksville-records/actions/permissions/workflow -F can_approve_pull_request_reviews=false`; J2 then
-fails and the site stops updating, which is the safe state); remove the inert canary by a person's PR; leave
+can no longer open its data PR, so the site's data stops updating); R2 off stops workflows opening PRs, not
+merging them, so also close every open PR into `main` (a workflow can still merge one a person opened); remove the
+inert canary by a person's PR; leave
 `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset; the architect re-plans the data path (the leading candidate: data
 leaves `main` for a branch the build reads, so no workflow needs to merge to main). **The probe gates
 `MORNING_NOTE_SEND`:** runbook section 4 gets an item "V1 probe passed (link)" before item 7, and T4.10.8 depends on

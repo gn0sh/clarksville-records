@@ -66,7 +66,8 @@ jobs:
   # Every other job builds, deploys or sends only S: update checks out the gate's sha, deploy
   # needs the gate's success and note needs verified == 'true'. Outputs: sha (= S) and verified.
   # Why: the setting "Allow GitHub Actions to create and approve pull requests" (on for the push job's data PR) lets
-  # a workflow on any branch open and merge a PR to main with GITHUB_TOKEN. A code commit merged that way, or by a
+  # a workflow on any branch open a PR to main with GITHUB_TOKEN, and a workflow with contents: write can merge an open
+  # PR (that setting does not govern merging). A code commit merged that way, or by a
   # person without the reviewed-merge procedure (scripts/merge-reviewed.ps1, runbook 2.0.3), is refused here on every
   # later run until a person moves the baseline past it (fail closed; the gate-failed job opens one issue).
   # The check is inline, never a script in the repository: only .github/workflows/ is out of a bot merge's reach, if

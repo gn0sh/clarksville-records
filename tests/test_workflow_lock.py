@@ -438,10 +438,14 @@ def test_no_data_change_pushes_nothing_and_skips_the_pr(tmp_path):
     assert _branches(origin) == ["refs/heads/main"]
 
 
-@pytest.mark.parametrize("new", [{"x.json": ("exec", "2\n")}, {os.fsdecode(b"\xff.json"): "2\n"},
-                                 {"a b.json": "2\n"}, {"x.json": None, "y.json": None}],
-                         ids=["executable", "non-utf8-name", "space-in-name", "emptied"])
-@pytest.mark.parametrize("loc", ["C.UTF-8", "C"])
+_PUSH_BAD = [("executable", {"x.json": ("exec", "2\n")}, "C.UTF-8"),
+             ("non-utf8-name", {os.fsdecode(b"\xff.json"): "2\n"}, "C.UTF-8"),
+             ("non-utf8-name", {os.fsdecode(b"\xff.json"): "2\n"}, "C"),
+             ("space-in-name", {"a b.json": "2\n"}, "C.UTF-8"),
+             ("emptied", {"x.json": None, "y.json": None}, "C.UTF-8")]
+
+
+@pytest.mark.parametrize("new,loc", [(n, loc) for _, n, loc in _PUSH_BAD], ids=[f"{i}-{loc}" for i, _, loc in _PUSH_BAD])
 def test_the_push_job_checks_i_data_on_the_commit_it_pushes(tmp_path, new, loc, monkeypatch):
     """J2 runs the gate's checks on the rebased commit before anything leaves the runner: an executable bit cp -a
     carried over, a name the gate would refuse, or an emptied data/ is refused; nothing is pushed."""
@@ -1665,6 +1669,10 @@ SHAPE_BAD = {
 }
 # the gate's step under a UTF-8 locale (where S-1 failed open), under C, and with LC_ALL unset (LANG UTF-8)
 LOCALES = {"C.UTF-8": {"LC_ALL": "C.UTF-8"}, "C": {"LC_ALL": "C"}, "unset": {"LC_ALL": None, "LANG": "C.UTF-8"}}
+# tests/suite-time: only names whose bytes a locale can treat differently (S-1) run in every locale; the rest in
+# C.UTF-8, the locale where S-1 failed open
+BYTE_SENSITIVE = ("non-utf8-byte", "non-utf8-symlink", "newline-in-name", "escape-in-name", "newline-forged-name")
+BAD_LOCALE_CASES = [(c, loc) for c in SHAPE_BAD for loc in (LOCALES if c in BYTE_SENSITIVE else ["C.UTF-8"])]
 
 
 def _mktree(repo, entries) -> str:
@@ -1746,7 +1754,7 @@ def _error_lines_are_printable(stdout: bytes):
             assert all(0x20 <= c <= 0x7E for c in ln), ln
 
 
-@pytest.mark.parametrize("loc", list(LOCALES))
+@pytest.mark.parametrize("loc", ["C.UTF-8"])
 @pytest.mark.parametrize("case", list(SHAPE_OK))
 def test_the_gate_accepts_data_that_meets_i_data(tmp_path, case, loc):
     tip, r, out, called = _shape_check(tmp_path, SHAPE_OK[case], env_over=LOCALES[loc])
@@ -1754,7 +1762,7 @@ def test_the_gate_accepts_data_that_meets_i_data(tmp_path, case, loc):
     assert out == {"sha": tip, "verified": "false"} and not called          # phase 0 on main: passes, unverified
 
 
-@pytest.mark.parametrize("loc", list(LOCALES))
+@pytest.mark.parametrize("loc", ["C.UTF-8", "C"])
 def test_the_gate_accepts_todays_data_tree(tmp_path, loc):
     """The repository's own committed data/ (HEAD), as the daily run sees it."""
     tip = _git(ROOT, "rev-parse", "HEAD")
@@ -1762,8 +1770,7 @@ def test_the_gate_accepts_todays_data_tree(tmp_path, loc):
     assert r.returncode == 0 and out == {"sha": tip, "verified": "false"}, r.stdout + r.stderr
 
 
-@pytest.mark.parametrize("loc", list(LOCALES))
-@pytest.mark.parametrize("case", list(SHAPE_BAD))
+@pytest.mark.parametrize("case,loc", BAD_LOCALE_CASES, ids=[f"{c}-{loc}" for c, loc in BAD_LOCALE_CASES])
 def test_the_gate_refuses_anything_else_under_data(tmp_path, case, loc):
     """Phase 0 on main: refused before the baseline check, so no build, deploy or note, and no PR read; whatever the
     locale (S-1); the log's ::error:: lines carry only printable ASCII, never a raw name."""
@@ -1932,6 +1939,21 @@ def test_the_window_check_runs_and_stops_where_it_must(tmp_path, case):
     else:
         assert r.returncode == 1 and "STOP:" in r.stdout, r.stdout + r.stderr
         assert "checked 2 commits" not in r.stdout
+
+
+def test_the_runbook_quotes_the_gates_data_refusals_exactly():
+    """runbook/gate-message-drift: every data/ refusal and the history-read refusal the gate prints, word for word
+    (up to the first variable), is in "When the gate fails"."""
+    run = _gate_steps()[GATE_STEP]["run"]
+    msgs = re.findall(r'refuse "([^"]*)"', run)
+    msgs += re.findall(r'echo "::error::(not allowed in data/: )', run)
+    wanted = [m.split("$", 1)[0] for m in msgs if m.startswith(("data/", "could not", "not allowed in data/"))]
+    assert len(wanted) >= 6, wanted
+    runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
+    section = " ".join(runbook[runbook.index("## When the gate fails"):].split("\n## ", 1)[0].split())
+    for m in wanted:
+        assert " ".join(m.split()) in section, m
+    assert "Restore it from the last commit whose `data/` was good" in section
 
 
 def test_the_gate_fails_closed_when_github_cannot_be_read(tmp_path):
@@ -2460,11 +2482,16 @@ def test_protect_main_reads_r2_and_main_before_turning_r2_on(tmp_path, r2, main_
 
 
 def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
-    for name in ("protect-main.sh", "protect-main.ps1"):
-        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
-        assert "R2 was off; main was $" in text and "'R2 already on'" in text.replace('"R2 already on"', "'R2 already on'")
-        assert text.index("/rulesets") < text.index("can_approve_pull_request_reviews=true"), name
-        assert text.index("git/ref/heads/main") < text.index("can_approve_pull_request_reviews=true"), name
+    """The .sh order is run by the tests above; the .ps1 (no PowerShell here) is checked line by line."""
+    sh = (ROOT / "scripts" / "protect-main.sh").read_text(encoding="utf-8")
+    assert 'echo "R2 already on"' in sh and 'echo "R2 was off; main was $main_sha"' in sh
+    ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
+    assert "Write-Host 'R2 already on'" in ps1 and 'Write-Host "R2 was off; main was $mainSha"' in ps1
+    assert "$mainSha = (gh api \"repos/$repo/git/ref/heads/main\" --jq '.object.sha') -join ''" in ps1
+    create = ps1.index('gh api -X POST "repos/$repo/rulesets" --input $body --silent')
+    read_main = ps1.index('$mainSha = (gh api "repos/$repo/git/ref/heads/main"')
+    turn_on = ps1.index('gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true')
+    assert create < read_main < turn_on
 
 
 def test_protect_main_scripts_share_one_ruleset_body():
@@ -2778,6 +2805,61 @@ def test_v1_probe_pass_needs_the_read_after_cleanup(tmp_path):
     r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER="EMPTY")
     assert r.returncode == 1 and "could not be read again after cleanup" in r.stdout and "PASS" not in r.stdout
     assert not _turned_off(made)
+
+
+_STEP_GH = """#!/usr/bin/env python3
+import os, sys
+a = sys.argv[1:]
+with open(os.environ["GH_CALLS"], "a") as f:
+    f.write(" ".join(a) + "\\n")
+if a[1].startswith("repos/o/r/pulls?state=open"):
+    print("77"); sys.exit(0)
+if a[1] == "repos/o/r/pulls/77" and a[-1] == ".head.sha":
+    print("h" * 40); sys.exit(0)
+if a[1] == "repos/o/r/pulls/77" and a[-1] == ".node_id":
+    print("PR_node"); sys.exit(0)
+method = "graphql" if a[1] == "graphql" else next(x.split("=", 1)[1] for x in a if x.startswith("merge_method="))
+if os.environ.get("MERGE_OK") == method:
+    print('{"merged": true}'); sys.exit(0)
+sys.stderr.write("gh: refusing to allow a GitHub App to create or update workflow without `workflows` permission\\n")
+sys.exit(1)
+"""
+
+
+@pytest.mark.parametrize("ok", ["", "squash", "rebase", "graphql"])
+def test_the_v1_probe_step_tries_every_merge_under_bash_e(tmp_path, ok):
+    """v1-probe/step-exits-on-first-refusal: GitHub runs the step as `bash -e {0}`; a refused merge is printed and the
+    next one tried, so a refusing gh gives four V1-RESULT lines; the first merge that goes through stops it."""
+    step = yaml.safe_load((ROOT / "scripts" / "v1-probe" / "v1-probe.yml").read_text(encoding="utf-8"))
+    run = next(iter(step["jobs"].values()))["steps"][0]["run"]
+    bindir, calls = tmp_path / "bin", tmp_path / "calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_STEP_GH)
+    (bindir / "gh").chmod(0o755)
+    (tmp_path / "step.sh").write_text(run)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "GH_TOKEN": "t",
+           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": ok}
+    r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    results = [ln for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")]
+    tried = ["squash", "merge", "rebase", "graphql"]
+    tried = tried[:tried.index(ok) + 1] if ok else tried
+    assert [ln.split()[1] for ln in results] == tried, r.stdout
+    for ln in results:
+        want = "exit=0" if ln.split()[1] == ok else "exit=1"
+        assert ln.split()[2] == want and (want == "exit=0" or "without `workflows` permission" in ln), ln
+    merged = [ln for ln in r.stdout.splitlines() if ln.startswith("V1-MERGED ")]
+    assert merged == ([f"V1-MERGED {ok}"] if ok else [])
+
+
+def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
+    """R2 governs creating PRs, not merging (security main-protect/r2-does-not-gate-merge): FAIL also says to close
+    every open pull request into main; sh and ps1 say it the same way."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, CANARY="on-main")
+    assert r.returncode == 2 and "Close every open pull request into main now: https://github.com/gn0sh/" in r.stdout
+    for name in ("v1-probe.sh", "v1-probe.ps1"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert "This setting does not stop merging" in text and "safe state" not in text, name
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):
