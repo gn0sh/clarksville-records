@@ -187,14 +187,14 @@ function Find-Subscriber([string]$address) {
 }
 
 function Ensure-Subscriber([string]$address, [string]$which) {
-    $r = Bd 'POST' '/subscribers' @{ email_address = $address; type = 'regular' } '' 'POST /subscribers'
-    $R["create_subscriber_$which"] = "HTTP $($r.Status)"
-    if (($r.Status -eq 400 -or $r.Status -eq 422) -and ($r.Text -match '(?i)email_address') -and ($r.Text -notmatch '(?i)already|exist')) {
-        $r = Bd 'POST' '/subscribers' @{ email = $address; type = 'regular' } '' 'POST /subscribers (email field)'
-        $R["create_subscriber_$which"] += " then HTTP $($r.Status) with field 'email'"
+    $resp = Bd 'POST' '/subscribers' @{ email_address = $address; type = 'regular' } '' 'POST /subscribers'
+    $R["create_subscriber_$which"] = "HTTP $($resp.Status)"
+    if (($resp.Status -eq 400 -or $resp.Status -eq 422) -and ($resp.Text -match '(?i)email_address') -and ($resp.Text -notmatch '(?i)already|exist')) {
+        $resp = Bd 'POST' '/subscribers' @{ email = $address; type = 'regular' } '' 'POST /subscribers (email field)'
+        $R["create_subscriber_$which"] += " then HTTP $($resp.Status) with field 'email'"
     }
     $row = $null
-    if (($r.Status -eq 200 -or $r.Status -eq 201) -and (Has $r.Data 'id')) { $row = $r.Data } else { $row = Find-Subscriber $address }
+    if (($resp.Status -eq 200 -or $resp.Status -eq 201) -and (Has $resp.Data 'id')) { $row = $resp.Data } else { $row = Find-Subscriber $address }
     if ($null -eq $row) { return $null }
     Note-Id $row.id
     if ((Has $row 'type') -and $row.type -ne 'regular') {
