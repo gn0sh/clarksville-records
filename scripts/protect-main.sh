@@ -36,6 +36,7 @@ if [ -z "$ids" ]; then
 else
   for id in $ids; do
     echo "Ruleset $id already exists: updating it."
+    echo "Not the first run: the window starts at the first run's 'Main before the ruleset' sha."
     gh api -X PUT "repos/$repo/rulesets/$id" --input "$body" --silent \
       || { echo "Updating ruleset $id failed (see the message above). The ruleset may be unchanged. Send this output to the team."; exit 1; }
   done

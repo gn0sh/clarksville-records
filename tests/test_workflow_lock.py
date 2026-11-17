@@ -2416,6 +2416,11 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     assert f"Main before the ruleset: {'1' * 40}" in r.stdout
     assert f"R2 was off; main was {'1' * 40}" in r.stdout
     assert r.stdout.index("Main before the ruleset") < r.stdout.index("R2 was off")
+    # main-protect/window-start-first-run: a ruleset already there means an earlier run; say whose sha starts it
+    not_first = "Not the first run: the window starts at the first run's 'Main before the ruleset' sha."
+    assert (not_first in r.stdout) == bool(existing)
+    if existing:
+        assert r.stdout.count(not_first) == len(existing.split())
     lines = [c for c in lines if "actions/permissions/workflow" not in c and "/git/ref/" not in c]
     posts = [c for c in lines if "-X POST" in c]
     puts = [c.split()[3] for c in lines if "-X PUT" in c]
@@ -2507,6 +2512,8 @@ def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
     assert "Write-Host 'R2 already on'" in ps1 and 'Write-Host "R2 was off; main was $mainSha"' in ps1
     assert ps1.count("$mainSha = (gh api \"repos/$repo/git/ref/heads/main\" --jq '.object.sha') -join ''") == 1
     assert 'Write-Host "Main before the ruleset: $mainSha"' in ps1 and 'echo "Main before the ruleset: $main_sha"' in sh
+    assert ("Write-Host \"Not the first run: the window starts at the first run's 'Main before the ruleset' sha.\""
+            in ps1)
     # main-protect/window-start-gap: main is read before the ruleset is written (POST or PUT), R2 after
     read_main = ps1.index('$mainSha = (gh api "repos/$repo/git/ref/heads/main"')
     create = ps1.index('gh api -X POST "repos/$repo/rulesets" --input $body --silent')
@@ -2900,9 +2907,9 @@ def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
     r, made = _v1(tmp_path, _ALL_REFUSED, CANARY="on-main")
     assert r.returncode == 2 and "Close every open pull request into main now: https://github.com/gn0sh/" in r.stdout
     # v1-probe/v1-fail-containment-incomplete: a closed PR whose branch exists can be reopened and merged
-    contain = ("Then delete each closed pull request's head branch (a closed pull request whose branch still exists "
-               "can be reopened and merged), or turn off GitHub Actions for the repository (Settings > Actions > "
-               "General > Disable actions) until the architect re-plans.")
+    # Disable actions is required (public repo: anyone can open a PR); deleting closed PRs' branches is extra
+    contain = ("Then turn off GitHub Actions (Settings > Actions > General > Disable actions) and also delete each "
+               "closed pull request's head branch; this stops the daily data update until the architect re-plans.")
     assert contain in r.stdout
     for name in ("v1-probe.sh", "v1-probe.ps1"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
@@ -2911,6 +2918,20 @@ def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
     for doc in ("docs/ops/morning-note.md", "docs/architecture/main-protect-invariant.md"):
         flat = " ".join((ROOT / doc).read_text(encoding="utf-8").split())
         assert "head branch" in flat and "Disable actions" in flat and "v1-fail-containment-incomplete" in flat, doc
+        assert "stops the daily data update until the architect re-plans" in flat and ", or turn off" not in flat, doc
+
+
+def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):
+    """v1-probe/node-read-under-e: a V1-ERROR line from the run reaches Brian's output; the step's own echo text,
+    which the log also shows, is not mistaken for one."""
+    log = (_SOURCE + 'probe\tTry\t2026-11-18T09:00:00Z if [ -z "$node" ]; then echo "V1-ERROR: could not read '
+           'node_id"; exit 1; fi\n' + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
+           + "probe\tTry\t2026-11-18T09:00:02Z V1-ERROR: could not read node_id\n")
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
+    assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not read node_id"]
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert "if ($_ -match 'V1-ERROR: .*')" in ps1 and "foreach ($l in $errors) { Log $l }" in ps1
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):

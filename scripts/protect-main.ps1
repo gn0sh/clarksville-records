@@ -56,6 +56,7 @@ if ($ids.Count -eq 0) {
 } else {
     foreach ($id in $ids) {
         Write-Host "Ruleset $id already exists: updating it."
+        Write-Host "Not the first run: the window starts at the first run's 'Main before the ruleset' sha."
         gh api -X PUT "repos/$repo/rulesets/$id" --input $body --silent
         if ($LASTEXITCODE -ne 0) { Write-Host "Updating ruleset $id failed (see the message above). The ruleset may be unchanged. Send this output to the team."; exit 1 }
     }

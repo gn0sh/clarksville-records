@@ -153,10 +153,11 @@ refusal below means the workflow rule, not a general refusal). Run by devops wit
 If any merge goes through (V1 false): turn R2 off at once (`gh api -X PUT
 repos/gn0sh/clarksville-records/actions/permissions/workflow -F can_approve_pull_request_reviews=false`; J2 then
 can no longer open its data PR, so the site's data stops updating); R2 off stops workflows opening PRs, not
-merging them, so also close every open PR into `main` (a workflow can still merge one a person opened) and delete
-each closed PR's head branch (a closed PR whose branch still exists can be reopened and merged; v1-probe/
-v1-fail-containment-incomplete), or turn off GitHub Actions for the repository (Settings > Actions > General >
-Disable actions) until the architect re-plans; remove the inert canary by a person's PR; leave
+merging them, so also close every open PR into `main` (a workflow can still merge one a person opened), then
+turn off GitHub Actions (Settings > Actions > General > Disable actions; required, since the repository is public
+and anyone can open a PR at any time) and also delete each closed PR's head branch (a closed PR whose branch still
+exists can be reopened and merged; v1-probe/v1-fail-containment-incomplete); this stops the daily data update
+until the architect re-plans; remove the inert canary by a person's PR; leave
 `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset; the architect re-plans the data path (the leading candidate: data
 leaves `main` for a branch the build reads, so no workflow needs to merge to main). **The probe gates
 `MORNING_NOTE_SEND`:** runbook section 4 gets an item "V1 probe passed (link)" before item 7, and T4.10.8 depends on

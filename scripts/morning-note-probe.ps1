@@ -2,7 +2,7 @@
 #
 # Brian runs this once, on his Windows PC, against the Daylight newsletter before anyone signs up (Brian 2026-11-16: a second newsletter is paid), with team addresses only.
 # Double-click scripts\morning-note-probe.cmd (or: powershell -NoProfile -File morning-note-probe.ps1).
-# Local scripts run under RemoteSigned; a downloaded copy may need Unblock: right-click > Properties > tick Unblock > OK.
+# Local scripts run under RemoteSigned. Only for files downloaded from this repository's GitHub page: they may need Unblock (right-click > Properties > tick Unblock > OK).
 #
 # What it does: asks for the test newsletter's API key without showing it, makes the calls the sender makes
 # (subscribers, metadata, draft / scheduled / filtered emails, send-draft, the public sign-up form), asks a few

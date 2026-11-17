@@ -60,4 +60,4 @@ def test_cmd_wrapper():
     # in the scripts, only a note that a downloaded copy may need Unblock in the file's Properties
     for text in (CMD.decode("utf-8"), PS1):
         assert "Bypass" not in text and "Unblock-File" not in text
-        assert "Unblock" in text
+        assert "Unblock" in text and "Only for files downloaded from this repository's GitHub page" in text
