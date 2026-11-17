@@ -831,7 +831,7 @@ def test_note_failure_opens_its_own_issue_from_a_separate_job(tmp_path, open_iss
 def test_the_note_runbook_exists_with_the_switches():
     text = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
     for phrase in ("MORNING_NOTE_SEND", "BUTTONDOWN_API_KEY", "MORNING_NOTE_CANARY_IDS", "morning-note",
-                   "T4.0", "Canary", "Go-live", "Rollback", "link_hosts", "canary_only", "Deployment branches"):
+                   "T4.0", "No canary week", "Go-live", "Rollback", "link_hosts", "canary_only", "Deployment branches"):
         assert phrase in text, phrase
     # main-protect/actions-bypass-reopens-M1: the runbook says who can reach the key and offers the one human lock
     for phrase in ("anyone with write or admin access to this repository can reach the Buttondown key",
