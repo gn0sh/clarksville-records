@@ -1,4 +1,4 @@
-# Morning note: Brian's steps to the first canary send
+# Morning note: Brian's steps to the first send
 
 The runbook with every reason is `docs/ops/morning-note.md`. This page is only your clicks, in order. It costs
 nothing: Buttondown's free plan, no custom sending domain (the note goes out from Buttondown's own address for now).
@@ -25,6 +25,7 @@ Rules for every step:
 7. Settings > **Metadata** (or **Subscriber fields** / **Custom fields**): add three fields, `lists`
    (multi-select, choices `zoning`, `seats`, `budget`, `contracts`), `district`, `ward`. **Save**.
    If there is no such page, skip this step. The probe checks whether the form saves these fields anyway.
+   (No longer needed, 2026-11-17: the free plan refused these fields on a new sign-up, so the form posts tags.)
 
 ### B. A test newsletter for the probe
 8. Open the newsletter menu (your newsletter's name, top left) > **Create a new newsletter**. Name **Daylight test**,
@@ -64,12 +65,17 @@ Three addresses, for example `brian+probe1@gnoshcodes.com`, `brian+probe2@gnoshc
     Permissions: **Emails: Write**, **Sending: Write**, **Subscribers:** the word from step 13 (Write or Read), every
     other area **None**. **Create**. Keep this page open for step 22. Do not copy it anywhere else.
 
-### E. GitHub: protect `main` (web clicks)
-16. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
-17. **Ruleset name**: `main: pull request required`. **Enforcement status**: **Active**.
-18. **Bypass list** > **Add bypass**. If **GitHub Actions** is in the list: tick it, pick **Always**, **Add selected**.
-    If it is **not** in the list: click **Cancel** at the top, do not create the ruleset, tell the team
-    "no Actions bypass", and go to step 20. (Without that bypass the daily update could not save its data.)
+### E. GitHub: protect `main` (web clicks; only after the team says the "data pull request" change is on `main`)
+The daily update now saves its data through its own pull request, so the ruleset gets **no bypass** (changed
+2026-11-17). Doing this before that change is on `main` would stop the daily data from saving.
+16. Open https://github.com/gn0sh/clarksville-records/settings/actions > **Workflow permissions** > tick **Allow
+    GitHub Actions to create and approve pull requests** > **Save**.
+    You should see: the box ticked after the page reloads.
+17. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
+    **Ruleset name**: `main: pull request required`. **Enforcement status**: **Active**.
+    (If `main: pull request required` is already listed: open it, remove **GitHub Actions** from the **Bypass list**
+    so it is empty, **Save changes**, and go to step 20.)
+18. **Bypass list**: leave it empty (add nobody, not GitHub Actions, not yourself).
 19. **Target branches** > **Add target** > **Include default branch**. Under **Rules** tick **Restrict deletions**,
     **Block force pushes** and **Require a pull request before merging** (Required approvals: **0**). Leave the rest.
     Click **Create**.
@@ -84,15 +90,15 @@ Three addresses, for example `brian+probe1@gnoshcodes.com`, `brian+probe2@gnoshc
     the Buttondown page (step 15) and paste it here. **Add secret**.
     You should see: `BUTTONDOWN_API_KEY` listed, updated "now". Close the Buttondown key page.
 23. Press **Win+V** > **Clear all** (empties the clipboard history, which may still hold both keys).
-    You should see: "Nothing here" (or the clipboard panel empty). Do **not** add `MORNING_NOTE_SEND` or the canary
-    secret yet (Session 2).
-24. Tell the team in one line: "probe done" (plus any of: "no scoped keys", "no Actions bypass", or the step where
+    You should see: "Nothing here" (or the clipboard panel empty). Do **not** add `MORNING_NOTE_SEND` yet (Session 2).
+24. Tell the team in one line: "probe done" (plus any of: "no scoped keys", or the step where
     Buttondown asked to pay). The results file is already in OneDrive > Documents > App Development.
 
 ## Waits for the team (no action from you)
 - The team reads the probe results and merges its pull requests: the sending mode, the site's own address in the
-  email link list, the sign-up form switched on with **canary only** (the note goes only to the ids in step 27, nobody
-  else), and last the `MAIN_PR_BASELINE` pull request.
+  email link list, the sign-up form switched on (posting Buttondown tags; no canary week, Brian 2026-11-16: the note
+  goes to every confirmed subscriber), and last the `MAIN_PR_BASELINE` pull request.
+- The team sends you one sample note to approve (`morning-note-sample/` in the project files).
 - Tomorrow's 3:07 AM daily update proves the ruleset still lets it save data (step 18).
 
 ## Session 2 (about 10 minutes, after the team says "ready for Session 2"; Tuesday Nov 17)
@@ -101,16 +107,16 @@ Three addresses, for example `brian+probe1@gnoshcodes.com`, `brian+probe2@gnoshc
     You should see: a Buttondown page (address bar starts `https://buttondown.com/`). Tell the team if it is anything else.
 26. Open the confirm email from Buttondown and click its link.
     You should see: Buttondown's "you're subscribed" page.
-27. In Buttondown (**Daylight**) > **Subscribers** > click **brian@gnoshcodes.com**. Copy the long code at the end of
-    the address bar (letters, numbers and dashes; that is your subscriber id). If there is no such code, tell the team
-    "no id in the address bar" and stop here.
-28. Open https://github.com/gn0sh/clarksville-records/settings/environments > **morning-note** > **Add environment
-    secret**. Name `MORNING_NOTE_CANARY_IDS`. Value: the code from step 27. **Add secret**.
-29. **This is the go-ahead to send** (hard stop 1; the team asks you for it at that time). Open
+27. In Buttondown (**Daylight**) > **Subscribers** > click **brian@gnoshcodes.com**.
+    You should see: tags `note-zoning`, `note-seats`, `note-budget` and `note-contracts` (and `note-district-<n>`,
+    `note-ward-<n>` if your seats were saved on the site). Tell the team which tags you see, or "no tags".
+28. (Removed 2026-11-16: no canary week, so no `MORNING_NOTE_CANARY_IDS` secret is needed.)
+29. **This is the go-ahead to send to every confirmed subscriber** (hard stop 1; the team asks you for it at that
+    time, after you approved the sample note and step 27 showed the tags). Open
     https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository variable** > name
     `MORNING_NOTE_SEND`, value `true` > **Add variable**.
-    You should see: `MORNING_NOTE_SEND` listed. The first canary note arrives by 7:00 AM the next morning on a day
-    when something on your lists is new (nothing on a quiet day).
+    You should see: `MORNING_NOTE_SEND` listed. The first note arrives by 7:00 AM the next morning on a day when
+    something on your lists is new (nothing on a quiet day).
 
 **To stop all sending at any time:** https://github.com/gn0sh/clarksville-records/settings/variables/actions >
 `MORNING_NOTE_SEND` > **Delete**.

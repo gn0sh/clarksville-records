@@ -3,11 +3,14 @@ ADR 0004; T4.4). Standard library only (urllib.request over http.client), so the
 nothing.
 
 What it may do, and nothing else:
-- GET    /v1/emails                       every page, reduced to {"id", "status", "metadata"} per row (the day claim)
-- GET    /v1/subscribers                  every page, reduced to {"id", "type", "metadata"} per row: the address and
+- GET    /v1/emails?creation_date__start=<yesterday>
+                                          every page, reduced to {"id", "status", "metadata", "archival_mode"} per
+                                          row (the day claim; sender/claim-listing-unbounded)
+- GET    /v1/subscribers                  every page, reduced to {"id", "type", "tags", "metadata"} per row: the address and
                                           every other field are dropped here, at the boundary
 - GET    /v1/subscribers/{id}             one subscriber, reduced the same way (None when there is none)
-- PATCH  /v1/subscribers/{id}             body exactly {"metadata": {...}}: never type, address, tags or anything else
+- PATCH  /v1/subscribers/{id}             body exactly {"metadata": {"note_edition": <stamp>}} (it replaces the whole
+                                          object, T4.0 probe): never type, address, tags or anything else
 - POST   /v1/emails                       one email from the deliver stage's payload (known fields only)
 - PATCH  /v1/emails/{id}                  body exactly {"status": "draft"} (take a wrong email back)
 - POST   /v1/emails/{id}/send-draft       body exactly {"subscribers": [ids]}
@@ -41,7 +44,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote, urlsplit
 
-from .deliver import Provider, ProviderError, RateLimited
+from .deliver import STAMP_RE, Provider, ProviderError, RateLimited
 from .settings import API_PATH, PROVIDER_HOSTS
 
 KEY_ENV = "BUTTONDOWN_API_KEY"
@@ -57,6 +60,7 @@ USER_AGENT = "daylight-morning-note"
 _KEY = re.compile(r"[!-~]{16,256}")
 # ids go into a path: refuse anything that could leave its segment ("/", "..", "?", "%")
 _ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+_DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 # sender/transport/parse-differential: urlsplit drops tab and newline and other parsers read a backslash as "/", so
 # a URL holding any character outside printable ASCII, or a backslash, is refused before it is parsed at all
 _UNSAFE_URL = re.compile(r"[^\x21-\x7e]|\\")
@@ -104,10 +108,14 @@ def retry_after(value, now: datetime | None = None) -> float:
 
 
 def _reduce_subscriber(row, method: str, template: str) -> dict:
-    """{"id", "type", "metadata"}: all deliver may know. The address, IP, notes and the rest stop here."""
+    """{"id", "type", "tags", "metadata"}: all deliver may know. The address, IP, notes and the rest stop here.
+    `tags` (the names the form posted; deliver reads only its own "note-" names) must be a list of text when
+    present: any other shape is not the documented one, so the run fails closed."""
     if not isinstance(row, dict):
         raise _fail(method, template, "a subscriber that is not an object")
-    out = {k: row[k] for k in ("id", "type", "metadata") if k in row}
+    out = {k: row[k] for k in ("id", "type", "tags", "metadata") if k in row}
+    if "tags" in out and not (isinstance(out["tags"], list) and all(isinstance(t, str) for t in out["tags"])):
+        raise _fail(method, template, "a subscriber whose tags are not a list of names")
     if not (isinstance(out.get("id"), str) and _ID.fullmatch(out["id"])):
         raise _fail(method, template, "a subscriber without a usable id")
     if not isinstance(out.get("type"), str):
@@ -118,11 +126,12 @@ def _reduce_subscriber(row, method: str, template: str) -> dict:
 
 
 def _reduce_email(row, method: str, template: str) -> dict:
-    """{"id", "status", "metadata"} (and "filters" when asked): what the day claim and the echo check read. A row
-    without a `metadata` key stays without it, so deliver fails closed on it."""
+    """{"id", "status", "metadata", "archival_mode"} (and "filters" when asked): what the day claim and the echo
+    check read (render/archival-not-echoed: an email stored on the public archive is taken back). A row without a
+    `metadata` key stays without it, so deliver fails closed on it."""
     if not isinstance(row, dict):
         raise _fail(method, template, "an email that is not an object")
-    return {k: row[k] for k in ("id", "status", "metadata") if k in row}
+    return {k: row[k] for k in ("id", "status", "metadata", "archival_mode") if k in row}
 
 
 class Buttondown(Provider):
@@ -212,11 +221,12 @@ class Buttondown(Provider):
                 raise _fail(method, template, "an id that cannot go in a path")
         return API_BASE + template.format(**{k: quote(v, safe="") for k, v in ids.items()})
 
-    def _listing(self, template: str) -> list:
+    def _listing(self, path: str, template: str | None = None) -> list:
         """Every row of a paged listing ({"results": [...], "next": url|null, "count": n}). Raises unless every
         page was read, every page gives the same `count`, and the rows add up to it: a listing is never cut short
         (or grown under us) silently."""
-        url, seen, rows, count = API_BASE + template, set(), [], None
+        template = template or path
+        url, seen, rows, count = API_BASE + path, set(), [], None
         for _ in range(MAX_PAGES):
             if url in seen:
                 raise _fail("GET", template, "a page that links back")
@@ -248,8 +258,17 @@ class Buttondown(Provider):
         raise _fail("GET", template, "more pages than MAX_PAGES")
 
     # ------------------------------------------------------------------------------------------ the interface
-    def emails(self) -> list[dict]:
-        return [_reduce_email(r, "GET", "/emails") for r in self._listing("/emails")]
+    def emails(self, since: str) -> list[dict]:
+        # sender/claim-listing-unbounded: the listing is oldest first (T4.0 probe), so paging cannot stop at old
+        # rows; it is asked for emails created since yesterday instead. Relied on: the
+        # `creation_date__start` filter the T4.0 probe sent (GET /emails?creation_date__start=<that day>: HTTP 200,
+        # all 4 of that day's emails, so it keeps the day's rows). Whether it drops older rows is unproven (there
+        # were none); if it is ignored the listing is the whole history, still bounded by MAX_PAGES and still right,
+        # since the claim reads only rows of the plan's day.
+        if not (isinstance(since, str) and _DAY.fullmatch(since)):
+            raise _fail("GET", "/emails", "a day that is not YYYY-MM-DD")
+        t = "/emails"                 # what an error may say: the path, never the query
+        return [_reduce_email(r, "GET", t) for r in self._listing(f"/emails?creation_date__start={since}", t)]
 
     def subscribers(self) -> list[dict]:
         return [_reduce_subscriber(r, "GET", "/subscribers") for r in self._listing("/subscribers")]
@@ -266,8 +285,11 @@ class Buttondown(Provider):
 
     def set_metadata(self, subscriber_id: str, metadata: dict, idempotency_key: str) -> None:
         t = "/subscribers/{id}"
-        if not isinstance(metadata, dict):
-            raise _fail("PATCH", t, "metadata that is not an object")
+        # sender/stamp-write-replaces: the PATCH replaces the whole object (T4.0 probe), so the only object this
+        # adapter writes is the stamp alone; anything else could carry or keep a key the form wrote
+        if not (isinstance(metadata, dict) and set(metadata) == {"note_edition"}
+                and isinstance(metadata["note_edition"], str) and STAMP_RE.fullmatch(metadata["note_edition"])):
+            raise _fail("PATCH", t, "metadata that is not exactly one stamp")
         got = self._send("PATCH", self._path("PATCH", t, id=subscriber_id), t, body={"metadata": metadata},
                          idempotency_key=idempotency_key)
         row = _reduce_subscriber(got.data if got else None, "PATCH", t)

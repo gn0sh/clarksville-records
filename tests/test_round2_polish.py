@@ -13,7 +13,7 @@ import subprocess
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, note_off
 from sitegen import bodies, config, localdates
 from sitegen.build import build
 from test_rpc_pages import rpc_cfg  # noqa: F401  (fixture: the RPC's fixture facts)
@@ -89,10 +89,20 @@ def test_an_officials_not_confirmed_count_is_one_small_sentence_the_same_for_eve
 
 # ---- C onceover/alerts/card-before-launch ---------------------------------------------------------------------------
 
-def test_before_launch_the_alerts_card_is_small_with_its_feeds_in_one_closed_toggle(pages):
-    if "alerts.html" not in pages or 'id="note"' not in pages["alerts.html"]:
-        pytest.skip("the fixture build has no morning-note card")
-    page = pages["alerts.html"]
+@pytest.fixture(scope="module")
+def off_alerts(tmp_path_factory):
+    """The fixture site's Alerts page with the morning note off (conftest.note_off), whatever the repository ships:
+    the card as it is before launch, or whenever the form is switched off again."""
+    out = tmp_path_factory.mktemp("r2-off") / "build" / "site"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(config, "SITE", note_off(config.SITE))
+        build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
+    return (out / "alerts.html").read_text(encoding="utf-8")
+
+
+def test_before_launch_the_alerts_card_is_small_with_its_feeds_in_one_closed_toggle(off_alerts):
+    assert 'id="note"' in off_alerts                                     # the fixture build has the card
+    page = off_alerts
     card = page[page.index('<section class="mn-card mn-off" id="note"'):page.index("</section>", page.index('id="note"'))]
     text = config.SITE["morning_note"]["page"]
     assert card.index(text["heading"]) < card.index(text["state_off"]) < card.index("<details")

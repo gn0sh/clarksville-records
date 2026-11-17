@@ -1606,8 +1606,9 @@ def welcome_lede(finance: bool = False) -> str:
     return cfg["welcome_lede"].format(parts=joined)
 
 
-def door_coming(site: dict, door: str) -> list[dict]:
-    """[{body, links: [{label, href}]}]: the hub cards that are `coming` and tagged `door: <door>` in config/site.yml
+def door_coming(site: dict, door: str, state: str = "coming") -> list[dict]:
+    """[{body, links: [{label, href}]}]: the hub cards that are `coming` (or, with state="not_collected", marked
+    `not_collected`) and tagged `door: <door>` in config/site.yml
     (`switch.bodies.*.cards`), grouped by body, the city's group first (as in every door), then the switch's order.
     Each link opens its card on the body's hub page (`#card-<key>`, site/templates/_hub.html.j2)."""
     hubs = (site.get("switch") or {}).get("hubs") or {}
@@ -1615,7 +1616,7 @@ def door_coming(site: dict, door: str) -> list[dict]:
     for key in sorted(hubs, key=lambda k: k != "city"):          # stable: the city, then the others as they are
         h = hubs[key]
         links = [{"label": c["title"], "href": f"{h['href']}#card-{c['key']}"}
-                 for c in h["cards"] if c["coming"] and c.get("door") == door]
+                 for c in h["cards"] if c.get(state) and c.get("door") == door]
         if links:
             out.append({"body": h["label"], "links": links})
     return out
@@ -1667,7 +1668,9 @@ def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
                   "links": [{"label": "City budget", "href": site.get("city_budget")},
                             {"label": "County budget", "href": built("Finance")},
                             {"label": "Bids and awards", "href": built("Bids and awards")}],
-                  "coming": door_coming(site, "money")})
+                  "coming": door_coming(site, "money"),
+                  "not_collected": door_coming(site, "money", "not_collected"),
+                  "not_collected_tag": (site.get("switch") or {}).get("not_collected_tag")})
     out = []
     for d in doors:
         d["links"] = [lk for lk in d["links"] if lk.get("href")]

@@ -16,7 +16,7 @@ import pytest
 
 from conftest import ROOT, build
 from qa import site_checks
-from sitegen import views
+from sitegen import morning_page, views
 
 META = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
 
@@ -28,7 +28,9 @@ def test_every_page_has_one_csp_meta_first(pages):
         pol = site_checks.parse_csp(found[0].replace("&#39;", "'"))
         assert pol["script-src"] == ["'self'"] and pol["default-src"] == ["'self'"], rel
         assert pol["connect-src"] == ["'none'"] and pol["object-src"] == ["'none'"] and pol["base-uri"] == ["'none'"], rel
-        assert pol["style-src-elem"] == ["'self'"] and pol["form-action"] == ["'self'"], rel
+        # the one exception: the Alerts page gains the morning note form's origin while the note is enabled
+        origin = morning_page.form_origin() if rel == "alerts.html" else None
+        assert pol["style-src-elem"] == ["'self'"] and pol["form-action"] == ["'self'"] + ([origin] if origin else []), rel
         head = html[:html.index("</head>")]
         assert head.index("Content-Security-Policy") < min(i for i in (head.find("<link"), head.find("<script"),
                                                                          len(head)) if i >= 0), rel

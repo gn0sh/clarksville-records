@@ -9,6 +9,41 @@ PLAN_SCHEMA = "morning-send/1"
 NOTE_SCHEMA = "morning-note/1"                             # sitegen.morning.SCHEMA (a test keeps them equal)
 LIST_KEYS = ("zoning", "seats", "budget", "contracts")     # sitegen.morning.LIST_KEYS (a test keeps them equal)
 MODES = ("stamp", "ids")
+# The sign-up form's Buttondown tags (platform-facts "Morning note provider", 2026-11-16: on the free plan a new
+# sign-up carrying metadata__ fields was refused, so the form posts tags; metadata holds only the sender's stamp).
+# One fixed name per list and per seat, all under "note-", so the sender can tell its own tags from any other:
+# "note-zoning", "note-district-5", "note-ward-3". The form writes them (sitegen/morning_page.py), the deliver stage
+# reads them (deliver.recipient); every other tag is ignored.
+TAG_PREFIX = "note-"
+TAG_FIELD = "tag"                                          # the embed form's field name for a tag
+_SEAT_TAG = re.compile(r"note-(district|ward)-([1-9][0-9]{0,3})")
+
+
+def list_tag(key: str) -> str:
+    """"zoning" -> "note-zoning". ValueError for a key that is not one of LIST_KEYS."""
+    if key not in LIST_KEYS:
+        raise ValueError(f"not a list key: {key!r}")
+    return TAG_PREFIX + key
+
+
+def seat_tag_prefix(seat: str) -> str:
+    """"district" -> "note-district-" (the form's script appends the stored number)."""
+    if seat not in ("district", "ward"):
+        raise ValueError(f"not a seat: {seat!r}")
+    return f"{TAG_PREFIX}{seat}-"
+
+
+def read_tags(tags) -> tuple[tuple, list, list]:
+    """A subscriber's tag names -> (list keys in LIST_KEYS order, district numbers, ward numbers). Only the names
+    list_tag and seat_tag_prefix write count; every other tag, and every value that is not text, is ignored."""
+    got = {t for t in tags if isinstance(t, str)} if isinstance(tags, (list, tuple)) else set()
+    lists = tuple(k for k in LIST_KEYS if TAG_PREFIX + k in got)
+    seats = {"district": [], "ward": []}
+    for t in sorted(got):
+        m = _SEAT_TAG.fullmatch(t)
+        if m:
+            seats[m.group(1)].append(int(m.group(2)))
+    return lists, seats["district"], seats["ward"]
 KEY_RE = re.compile(r"[0-9a-f]{12}")
 # [0-9], never \d: in Python \d matches the digits of every script (Arabic-Indic, Devanagari, ...)
 DATE_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
@@ -32,6 +67,17 @@ ADDRESS = re.compile(rf"(?i)www\.|://|[\w-][{DOTS}]\w")
 ZWSP = "\u200b"
 # the only numeric references render writes: a markup character, a leading "-", "+" or space, the zero-width space
 REFS = frozenset({ord(c) for c in MARKUP} | {ord("-"), ord("+"), ord(" "), ord(ZWSP)})
+
+# note/credit-logo (Brian, 2026-11-17): the email's footer credit, as the site footer has it (base.html.j2
+# `gc-credit`): the gnoshcodes hook wordmark, the same alt text and wording. A PNG, because Gmail does not show SVG;
+# the 320x64 render of static/brand/gnoshcodes-hook-light.svg, shown at 160x32. The only image an email may carry:
+# render writes CREDIT_LINE exactly, and deliver.body_ok accepts it as a whole line and refuses any other <img>.
+# The URL is the site's own (alerts.site_url + CREDIT_PATH; a test keeps them equal).
+CREDIT_PATH = "static/brand/gnoshcodes-hook-light.png"
+CREDIT_IMAGE = "https://daylight.gnoshcodes.com/" + CREDIT_PATH
+CREDIT_ALT = "gnoshcodes"
+CREDIT_TEXT = "A gnoshcodes project."
+CREDIT_LINE = f'<p><img src="{CREDIT_IMAGE}" alt="{CREDIT_ALT}" width="160" height="32"> {CREDIT_TEXT}</p>'
 
 # plan-untrusted/body-unchecked: the hosts an email may link to (`morning_note.sender.link_hosts`: the site's host
 # and the collectors' source hosts), one rule for the plan stage, the deliver check and the build. The support link

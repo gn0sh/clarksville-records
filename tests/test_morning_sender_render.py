@@ -49,6 +49,13 @@ def links(html: str) -> list[str]:
     return [n.attrs.get("href") for n in parse(html).walk() if n.tag == "a"]
 
 
+def paras(html: str) -> list[str]:
+    """The paragraphs of a body before the footer credit, which always closes it (note/credit-logo)."""
+    out = [n.all_text() for n in parse(html).walk() if n.tag == "p"]
+    assert out[-1].strip() == common.CREDIT_TEXT and html.endswith(common.CREDIT_LINE + "\n")
+    return out[:-1]
+
+
 def tags(html: str) -> set:
     return {n.tag for n in parse(html).walk()} - {"root"}
 
@@ -56,7 +63,7 @@ def tags(html: str) -> set:
 # ------------------------------------------------------------------ untrusted titles come out inert
 def test_a_hostile_title_comes_out_inert():
     html = html_of(entry(title=HOSTILE))
-    assert tags(html) == {"h1", "p", "h2", "ul", "li", "br", "strong", "a"}        # only the tags we write
+    assert tags(html) == {"h1", "p", "h2", "ul", "li", "br", "strong", "a", "img"}        # only the tags we write
     assert links(html) == [SITE_URL + "items/2026.html#i-x", "https://example.com/fixture/agenda.pdf#page=2"]
     title = html.split("<strong>")[1].split("</strong>")[0]
     # nothing the provider's template step or a Markdown step could read as markup is left as a plain character
@@ -70,7 +77,7 @@ def test_a_hostile_title_comes_out_inert():
 
 def test_every_field_of_an_entry_is_escaped_not_only_the_title():
     html = html_of(entry(body_name="<b>{{ x }}</b>", recorded="{% y %} [z](https://evil.example.com)"))
-    assert tags(html) == {"h1", "p", "h2", "ul", "li", "br", "strong", "a"}
+    assert tags(html) == {"h1", "p", "h2", "ul", "li", "br", "strong", "a", "img"}
     assert "{{" not in html and "{%" not in html and "evil.example.com" not in "".join(links(html))
 
 
@@ -145,7 +152,9 @@ def test_every_word_outside_the_record_is_config_text():
     n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"), unplaced_text="UNPLACED",
                 support_line="SUPPORT", support_url="https://tips.example.com/x")
     n["lists"] = [{"key": k, "label": f"L-{k}"} for k in morning.LIST_KEYS]
-    text = " ".join(t for node in parse(render.body_html(ctx, n, n["entries"])).walk() for t in node.text)
+    html = render.body_html(ctx, n, n["entries"])
+    paras(html)                 # the credit is the site footer's fixed wording (note/credit-logo), not config text
+    text = " ".join(t for node in parse(html[:-len(common.CREDIT_LINE) - 1]).walk() for t in node.text)
     words = re.sub(r"November 11, 2026|\d", "", text)
     assert sorted(set(re.findall(r"[A-Za-z-]+", words))) == sorted(
         ["SITE", "L-budget", "BODY", "REC", "TITLE", "OPEN", "SRC", "PG", "UNPLACED", "WHY", "NOTICE", "LINE",
@@ -208,7 +217,16 @@ def test_an_editions_entries_and_order_equal_the_preview_pages(msite, lists, dis
         assert key is None
         return
     body = next(e["body"] for e in p["editions"] if e["key"] == key)
-    assert [n.all_text() for n in parse(body).walk() if n.tag == "strong"] == shown
+    got = [n.all_text() for n in parse(body).walk() if n.tag == "strong"]
+    # the same entries as the page; the email groups them under the list that selected each (plan.placed), keeping
+    # the page's order within a list
+    assert sorted(got) == sorted(shown)
+    by_id = {e["id"]: e for e in note["entries"]}
+    assert got == [by_id[i]["title"] for i, _ in plan_mod.placed(note, lists, seats)]
+    under = dict(plan_mod.placed(note, lists, seats))
+    for k in morning.LIST_KEYS:
+        assert [t for t in got if t in {by_id[i]["title"] for i, x in under.items() if x == k}] == \
+            [t for t in shown if t in {by_id[i]["title"] for i, x in under.items() if x == k}]
 
 
 def test_at_least_one_preview_comparison_has_entries(msite):  # noqa: F811
@@ -228,9 +246,8 @@ def test_sections_follow_the_notes_order_under_config_labels(msite):  # noqa: F8
 
 def test_unplaced_line_and_why_line_close_the_entries_then_the_notice():
     html = html_of(entry(), unplaced_text="2 zoning cases printed no district or ward")
-    paras = [n.all_text() for n in parse(html).walk() if n.tag == "p"]
-    assert paras[-3:] == ["2 zoning cases printed no district or ward", CTX["text"]["why"], CTX["notice"]]
-    assert [n.all_text() for n in parse(html_of(entry())).walk() if n.tag == "p"][-2:] == [CTX["text"]["why"], CTX["notice"]]
+    assert paras(html)[-3:] == ["2 zoning cases printed no district or ward", CTX["text"]["why"], CTX["notice"]]
+    assert paras(html_of(entry()))[-2:] == [CTX["text"]["why"], CTX["notice"]]
     assert "unsubscribe" not in html.lower()                           # the provider's link, not ours
 
 
@@ -240,6 +257,87 @@ def test_the_text_version_reads_the_same_edition():
     assert "A title over two lines" in text and SITE_URL + "items/2026.html#i-x" in text
     assert "https://example.com/fixture/agenda.pdf#page=2" in text and text.rstrip().endswith(CTX["notice"])
     assert CTX["text"]["why"] in text and CTX["email_line"] in text
+
+
+# ------------------------------------------------------------------ note/entry-meeting
+TWO = (entry(id="county/item/26-11-4/2026-11-02-informal", meeting_date="2026-11-02", meeting="informal meeting"),
+       entry(id="county/item/26-11-4/2026-11-09-formal", meeting_date="2026-11-09", meeting="formal meeting"))
+
+
+def test_each_entry_names_its_meeting_day_and_kind_in_both_bodies():
+    """Two agendas of one item (real data: 26-11-4, the Nov 2 informal and Nov 9 formal agendas) read as two
+    meetings, not a duplicate. The line is config morning_note.text.meeting_line filled with the record's own body,
+    day and the site's kind label."""
+    line = config.SITE["morning_note"]["text"]["meeting_line"]
+    want = [line.replace("{body}", "Fixture Commission").replace("{date}", d).replace("{meeting}", k)
+            for d, k in (("November 2, 2026", "informal meeting"), ("November 9, 2026", "formal meeting"))]
+    assert want == ["Fixture Commission, November 2, 2026 informal meeting",
+                    "Fixture Commission, November 9, 2026 formal meeting"]
+    n = note_of(*TWO)
+    text, html = render.body_text(CTX, n, n["entries"]), render.body_html(CTX, n, n["entries"])
+    assert [f"  {w}" in text.split("\n") for w in want] == [True, True]
+    shown = [x.all_text() for x in parse(html).walk() if x.tag == "li"]
+    assert [sum(w in s for s in shown) for w in want] == [1, 1]
+
+
+@pytest.mark.parametrize("kw", [{"meeting": None}, {"meeting": "  "}, {"meeting_date": None},
+                                {"meeting_date": "2026-13-40"}, {"meeting_date": "Nov 9"}, {"meeting": 3}])
+def test_an_entry_without_a_meeting_is_its_body_alone(kw):
+    e = entry(**{"meeting": "formal meeting", **kw})
+    assert render.who_when(CTX, e) == "Fixture Commission"
+    assert "None" not in render.body_text(CTX, note_of(e), [e])
+
+
+@pytest.mark.parametrize("body", [None, "", "  ", "\u200b"])
+def test_an_entry_with_no_body_name_reads_date_and_meeting_only(body):
+    """CR6: no "None, " and no leading ", ": the meeting line's own tail, "<date> <meeting>"."""
+    e = entry(body_name=body, meeting="formal meeting", meeting_date="2026-11-09")
+    assert render.who_when(CTX, e) == "November 9, 2026 formal meeting"
+    assert "  November 9, 2026 formal meeting" in render.body_text(CTX, note_of(e), [e]).split("\n")
+
+
+def test_the_meeting_words_are_escaped_like_every_other_field():
+    e = entry(meeting="<b>{{ x }}</b> [z](https://evil.example.com)")
+    html = html_of(e)
+    assert tags(html) == {"h1", "p", "h2", "ul", "li", "br", "strong", "a", "img"}
+    assert "{{" not in html and "evil.example.com" not in "".join(links(html))
+
+
+def test_the_meeting_line_is_config_text_in_the_neutrality_scan():
+    assert CTX["meeting_line"] in render.own_text(CTX, note_of())
+    assert BANNED.search(CTX["meeting_line"]) is None
+
+
+# ------------------------------------------------------------------ note/credit-logo
+def test_the_html_edition_closes_with_the_site_footers_gnoshcodes_credit():
+    """The site footer's credit (base.html.j2 `gc-credit`): the hook wordmark with the same alt text, the same
+    wording, an absolute https URL on the site with width and height. The plain-text edition carries no image."""
+    n = note_of(entry(), **{"support_line": config.SITE["support_line"], "support_url": config.SITE["support_url"]})
+    html, text = render.body_html(CTX, n, n["entries"]), render.body_text(CTX, n, n["entries"])
+    assert html.endswith(common.CREDIT_LINE + "\n") and html.count("<img ") == 1
+    img = next(x for x in parse(html).walk() if x.tag == "img")
+    assert img.attrs == {"src": config.SITE["alerts"]["site_url"] + common.CREDIT_PATH, "alt": "gnoshcodes",
+                         "width": "160", "height": "32"}
+    assert common.CREDIT_IMAGE.startswith("https://daylight.gnoshcodes.com/static/brand/")
+    footer = (ROOT / "site" / "templates" / "base.html.j2").read_text(encoding="utf-8")
+    credit = re.search(r'<p class="gc-credit">(.*?)</p>', footer).group(1)
+    assert 'alt="gnoshcodes" width="160" height="32"' in credit and f"<span>{common.CREDIT_TEXT}</span>" in credit
+    assert "img" not in text and common.CREDIT_PATH not in text and common.CREDIT_TEXT not in text
+
+
+def test_the_credit_png_ships_in_the_site_static_folder():
+    """A PNG (Gmail shows no SVG): the 320x64 render of the light hook SVG, transparent, shown at 160x32. The build
+    copies site/static/ whole, so it is served at CREDIT_IMAGE."""
+    from PIL import Image
+    path = ROOT / "site" / common.CREDIT_PATH
+    with Image.open(path) as im:
+        assert (im.format, im.size, im.mode) == ("PNG", (320, 64), "RGBA")
+        assert im.getpixel((0, 0))[3] == 0 and im.getbbox()                 # a transparent ground, a visible mark
+    assert path.stat().st_size < 20_000
+
+
+def test_the_built_site_serves_the_credit_png(msite):  # noqa: F811
+    assert (msite / common.CREDIT_PATH).read_bytes() == (ROOT / "site" / common.CREDIT_PATH).read_bytes()
 
 
 # ------------------------------------------------------------------ render/no-independence-line
@@ -254,8 +352,8 @@ def test_both_bodies_say_the_site_is_independent_and_unofficial():
     assert (CTX["email_line"], CTX["notice"]) == (u["email_line"], u["notice"]) and UNOFF["email_line"] == u["email_line"]
     n = note_of(entry())
     html = render.body_html(CTX, n, n["entries"])
-    paras = [p.all_text() for p in parse(html).walk() if p.tag == "p"]
-    assert paras[1] == u["email_line"] and paras[-1] == u["notice"]
+    ps = paras(html)
+    assert ps[1] == u["email_line"] and ps[-1] == u["notice"]
     text = render.body_text(CTX, n, n["entries"])
     assert text.count(u["email_line"]) == 1 and text.count(u["notice"]) == 1
 
@@ -263,8 +361,7 @@ def test_both_bodies_say_the_site_is_independent_and_unofficial():
 def test_the_support_line_closes_the_body_when_the_note_carries_it():
     n = note_of(entry(), **SUPPORT)
     html = render.body_html(CTX, n, n["entries"])
-    last = [p for p in parse(html).walk() if p.tag == "p"][-1]
-    assert last.all_text() == f"{SUPPORT['support_line']} {config.SITE['support_label']}"
+    assert paras(html)[-1] == f"{SUPPORT['support_line']} {config.SITE['support_label']}"
     assert links(html)[-1] == SUPPORT["support_url"]
     text = render.body_text(CTX, n, n["entries"])
     assert text.rstrip().endswith(f"{SUPPORT['support_line']} {config.SITE['support_label']}: {SUPPORT['support_url']}")
@@ -278,7 +375,7 @@ def test_no_support_line_without_both_a_line_and_an_https_link(extra):
     n = note_of(entry(), **extra)
     html = render.body_html(CTX, n, n["entries"])
     assert "Please help." not in html and "tips.example.com" not in html
-    assert [p.all_text() for p in parse(html).walk() if p.tag == "p"][-1] == CTX["notice"]
+    assert paras(html)[-1] == CTX["notice"]
 
 
 def test_the_shipped_note_carries_the_support_line_into_every_edition(msite):  # noqa: F811

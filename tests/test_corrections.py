@@ -93,7 +93,8 @@ def test_report_page_links_resolve(full):
     out, _ = full
     pages = {p.relative_to(out).as_posix(): site_checks.parse(p) for p in out.rglob("*.html")}
     assert site_checks.check_links(out, pages, no_export=True) == []
-    assert site_checks.check_external(pages) == []
+    # the shipped config: its one off-site form (the morning note sign-up, alerts.html, its exact action) is allowed
+    assert site_checks.check_external(pages, out, config.SITE) == []
 
 
 # -- config off / on (corrections/config)

@@ -1,0 +1,14 @@
+# V1 probe canary (docs/architecture/main-protect-invariant.md "V1 probe"; runbook docs/ops/morning-note.md 2.0.4).
+# Inert on purpose: it starts only by hand, grants nothing, and its one job never runs. The probe script puts this
+# file on the throwaway branch probe/v1-target as .github/workflows/v1-canary.yml; the probe checks that GitHub
+# refuses GITHUB_TOKEN merging it into main. It must never be on main; if it ever is, a person's PR removes it.
+name: V1 canary (inert)
+on: workflow_dispatch
+permissions: {}
+jobs:
+  never:
+    if: false
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - run: echo "never runs"

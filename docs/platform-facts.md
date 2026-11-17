@@ -223,3 +223,83 @@
 - Independent checks: the 32,002 sampled points of the poster's drawn roads lie a median 0.38 m (p90 2.2 m) from TIGER road lines; the 2025 TIGER Clarksville place outline lies a median 0.3 m from the poster's city outline, 93.5% within 10 m. The rest is annexation timing (0.36 km2 in the wards but not in TIGER 2025, 0.06 km2 the other way, of 261.5 km2).
 - Expected error and margin: 76 m = transform 3 + trace 5 + poster export 3 (judgment) + Census geocoder 65 (judgment call, as for the districts: no measurement of the geocoder's error against known addresses backs the 65 m, and rural and new-subdivision segments, where the Census address ranges are interpolated or missing, may be worse). An address within 76 m of a ward line or the city line is answered "near a ward line": check with the Election Commission or GoVoteTN.
 - Accuracy evidence: no public record we hold ties an address to a ward (city agendas and minutes print no ward for zoning cases or property items; council members' addresses are not used). So the tests use the poster: each ward's printed number plus 3 named-street crossings per ward, all at least 250 m inside the ward, 48 points, all answered with the poster's ward (`tests/test_ward_map.py`); 8 were also checked by eye on rendered crops. Confidence: high that the lookup reproduces the poster to within about 10 m; medium that the poster matches the legal ward lines everywhere (it is RPC's map, not the Election Commission's; annexations after 2026-02-25 are not on it).
+
+## Morning note provider (Buttondown; seen 2026-11-16 by Brian with the team)
+The T4.0 probe (`scripts/morning-note-probe.ps1`, run once on 2026-11-16 at 18:54 CT on the **live** newsletter,
+username `daylight`, free plan, team addresses only; results file `results-20261116-1854.json` in the project files,
+no address or id in it) plus Brian's inbox checks. Brian is on the free plan and will not pay (2026-11-16).
+- **API, free plan:** no paid-feature refusal from any call. Subscriber `metadata` can be written: `PATCH
+  /v1/subscribers/{id}` answers 200, **replaces** the whole object (does not merge) and echoes the stored metadata.
+  `X-Idempotency-Key` is honoured on PATCH and POST. A scoped key read `/tags` (200) and was refused
+  `/newsletters` (403).
+- **Settings UI:** "Subscriber metadata is only available for accounts on the Basic plan or higher" (Settings >
+  Metadata). The API accepted metadata anyway. There is no preferences page where a subscriber can edit fields.
+- **Stamp mode works.** A `scheduled` email filtered on `subscriber.metadata.note_edition equals <value>` reached
+  exactly one recipient (analytics: recipients 1, deliveries 1); Gmail showed it reached only the second address.
+  The probe file's manual answer "runbook-1 ... => no" is wrong; the right answer is yes.
+- **A scheduled email holds:** status `scheduled` with 337 s to go, `sent` after `publish_date`. `PATCH` with
+  `{"status": "draft"}` takes a scheduled email back to a draft.
+- **`ids` mode does not work.** `POST /v1/emails/{id}/send-draft` sends only a "[PREVIEW]" copy to the account
+  owner; the email stays a draft. (The probe's "probe 4 reached the first address" is most likely that preview:
+  inference, not checked.) Also, an `ids` draft comes back with `filters: {"filters":[],"groups":[],"predicate":"and"}`,
+  not without filters, so the probe's ids checks fail on that too.
+- **Templates are on.** `{{ subscriber.email }}` in a body showed the address (Brian answered "renders literally",
+  but the email showed the address). The sender neutralises `{{` and `{%` in every record title (already built).
+- **Listings:** `GET /v1/subscribers` and `/v1/emails` are `{results, next, count}`; count equals rows; the email
+  listing holds drafts and scheduled emails with their `metadata`, oldest first. The **default subscriber listing
+  does not include unconfirmed (form) sign-ups**: to see every type, ask for each type.
+- **Public form** (`https://buttondown.com/api/emails/embed-subscribe/daylight`):
+  - an **existing** subscriber: 302 to buttondown.com, and the post **does** set `metadata__note_edition` and
+    `metadata__canary`; re-submitting changes a confirmed subscriber's metadata;
+  - a **new** address with `metadata__lists`, `metadata__district`, `metadata__ward`, `metadata__note_edition` and
+    `metadata__canary`: HTTP 400, no subscriber created. Likely cause: the free plan refuses metadata on form
+    sign-ups. Unproven: the Buttondown firewall had IP filtering off at the time.
+- **Consequence (2026-11-17):** the sign-up form posts no `metadata__` field. Lists, district and ward go as
+  Buttondown tags (`tag` fields: `note-zoning`, `note-district-5`, `note-ward-3`); the sender reads only those tags,
+  and metadata holds only the sender's stamp. **Unverified until the first real sign-up:** that the free plan's form
+  accepts `tag` on a new address (and adds several when several `tag` fields are posted), that a new tag name is
+  created on the fly, that a form sign-up gets double opt-in, and that the API returns `tags` as a list of names.
+- **Probe scoring (not changed):** the script scored `stamp_checks_pass: false` for three reasons: the wrong manual
+  runbook-1 answer above; `runbook-8` (the form sets `note_edition` on an existing subscriber), which the design
+  now accepts because the stamp carries a MAC (architecture "Switch-on: tags, and the security notes"); and the
+  new-subscriber form check, which never ran (the 400). The probe has done its job and is not run again, so the
+  scoring is left as is; read it with this section.
+- **Privacy policy (seen 2026-11-17 by the security reviewer):** `https://buttondown.com/legal/privacy` is
+  Buttondown's privacy policy; for subscriber data it points to their data processing agreement (DPA). Config
+  `privacy_url` is that address.
+- **Unverified: `archival_mode` in the create answer** (render/archival-not-echoed). Nothing on record shows that
+  `POST /v1/emails` answers with `archival_mode`, so the echo check compares it only when present (it must then be
+  `disabled`). Check it on the first real send (the stored email in the dashboard is off the public archive).
+- **Email listing filter (sender/claim-listing-unbounded):** the probe's `GET /emails?creation_date__start=<that
+  day>` answered 200 with all 4 of that day's emails, so the filter keeps the day's rows. Whether it leaves older
+  rows out is unproven (there were none). The sender asks for emails created since yesterday; ignored, the listing
+  is the whole history (still correct, bounded by the adapter's page limit).
+
+## GitHub repository settings (checked 2026-11-17 by `gh api` from the team's session, signed in with admin rights)
+- `main` has **no ruleset and no branch protection** yet: `repos/gn0sh/clarksville-records/rulesets` is `[]`,
+  `rules/branches/main` is `[]`, `branches/main` says `protected: false` (runbook `docs/ops/morning-note.md` 2.0 not
+  done yet).
+- The repository is public and allows squash, merge-commit and rebase merges; `delete_branch_on_merge` and
+  `allow_auto_merge` are off (so the daily `push` job deletes its own `data/` branch after merging).
+- Not readable from the team's session: the Actions settings (`actions/permissions/workflow`, so whether **Allow
+  GitHub Actions to create and approve pull requests** is on) and the environments list (both refused by the
+  session's proxy).
+- From `github/docs` search snippets (the docs site itself was unreachable): the **Allow GitHub Actions to create
+  and approve pull requests** setting is used "to configure whether `GITHUB_TOKEN` can create and approve pull
+  requests"; events caused by `GITHUB_TOKEN` "will not create a new workflow run" (newer docs: a PR it opens creates
+  `pull_request` runs in an approval-required state; this repository has no `pull_request` workflow).
+- **Unverified:** that `GITHUB_TOKEN` can squash-merge its own PR under the 0-approval "pull request required"
+  ruleset with no bypass, and that the REST field `can_approve_pull_request_reviews` is that same box. The check
+  run in runbook 2.0 settles both.
+- **How the live site deploys (checked 2026-11-17 for T4.10.5):** the `deploy` job of `daily-update.yml`, on `main`
+  only, publishes with `actions/deploy-pages` into environment `github-pages`; Pages source is **GitHub Actions**
+  since go-live (2026-11-13, `docs/status.md`), custom domain `daylight.gnoshcodes.com`. Branch `gh-pages` still
+  exists (last commit 90ded2e, 2026-11-13, "Preview: build of main 0b01310") but is no longer served. The
+  `github-pages` environment's deployment branch list could not be read (the session's proxy refuses
+  `environments/` and `pages`), so whether `gh-pages` is still allowed is unverified. Removing `gh-pages` from that
+  list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
+
+## Main protection (V1 probe, T4.10.1)
+- Not run yet. When it runs (runbook 2.0.4): the run link, the three merge answers, the review `commit_id` result,
+  and `main`'s sha before and after go here.
+- `github-pages` deployment branches after runbook 2.0.5: not checked yet.

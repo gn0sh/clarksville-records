@@ -23,7 +23,8 @@ LOCK = "vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
 # pipeline/deploy-independent-of-push: the lock, then the results of the two jobs deploy needs. A status function
 # (!cancelled()) replaces GitHub's implicit success(), which would also skip deploy on the rebuild-only run, where
 # push is skipped by design (the runbook's rollback path).
-DEPLOY_IF = (LOCK + " && !cancelled() && needs.update.result == 'success' && (needs.push.result == 'success' || "
+DEPLOY_IF = (LOCK + " && !cancelled() && needs.gate.result == 'success' && needs.update.result == 'success' && "
+             "(needs.push.result == 'success' || "
              "(needs.push.result == 'skipped' && github.event_name == 'workflow_dispatch' && !inputs.collect))")
 
 
@@ -70,7 +71,7 @@ def test_deploy_job_is_locked():
     cond = _deploy_if()
     assert cond == DEPLOY_IF
     assert cond.startswith(LOCK + " && ")                                    # the lock stays the first condition
-    assert WF["jobs"]["deploy"]["needs"] == ["update", "push"]
+    assert WF["jobs"]["deploy"]["needs"] == ["gate", "update", "push"]
 
 
 def _holds(expr: str, ctx: dict) -> bool:
@@ -87,7 +88,7 @@ def _ctx(**over) -> dict:
     """A scheduled run on main, deploy enabled, both needed jobs green."""
     ctx = {"vars.RECORDS_DEPLOY_ENABLED": "true", "github.ref": "refs/heads/main", "github.event_name": "schedule",
            "inputs.collect": None, "inputs.allow_shrink": None, "needs.update.result": "success",
-           "needs.push.result": "success",
+           "needs.push.result": "success", "needs.gate.result": "success", "needs.gate.outputs.verified": "false",
            "cancelled": False}
     return {**ctx, **{k.replace("__", "."): v for k, v in over.items()}}
 
@@ -104,6 +105,18 @@ def test_deploy_needs_a_successful_push():
     for result in ("failure", "cancelled", "skipped"):
         assert not _holds(cond, _ctx(needs__update__result=result, needs__push__result="skipped")), result
     assert not _holds(cond, _ctx(cancelled=True))
+
+
+def test_deploy_needs_a_successful_gate():
+    """main-protect M-A: a refused (or cancelled) gate stops the deploy, also on the rebuild-only run; phase 0
+    (verified false, gate green) deploys as before."""
+    cond = _deploy_if()
+    rebuild = dict(github__event_name="workflow_dispatch", inputs__collect=False, needs__push__result="skipped")
+    for result in ("failure", "cancelled", "skipped"):
+        assert not _holds(cond, _ctx(needs__gate__result=result)), result
+        assert not _holds(cond, _ctx(needs__gate__result=result, **rebuild)), result
+    assert _holds(cond, _ctx(needs__gate__outputs__verified="false"))
+    assert _holds(cond, _ctx(needs__gate__outputs__verified="true"))
 
 
 def test_rebuild_only_run_still_deploys_without_a_push():
@@ -171,7 +184,7 @@ def test_launch_overrides_are_read_from_the_environment(monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(config)
-    assert config.max_files() == 500 and config.SITE["alerts"]["site_url"] == ""
+    assert config.max_files() == 500 and config.SITE["alerts"]["site_url"] == "https://daylight.gnoshcodes.com/"
 
 
 def test_untrusted_parse_job_has_no_write_token():
@@ -183,10 +196,14 @@ def test_untrusted_parse_job_has_no_write_token():
     assert checkout and all(s["with"]["persist-credentials"] is False for s in checkout)
     writers = [n for n, j in jobs.items() if (j.get("permissions") or {}).get("contents") == "write"]
     assert writers == ["push"]
-    assert jobs["push"]["needs"] == "update"
+    assert jobs["push"]["needs"] == ["gate", "update"]
     assert "git push" not in "\n".join(s.get("run", "") for s in jobs["update"]["steps"])
     assert not any("python" in s.get("run", "") for s in jobs["push"]["steps"])      # parses nothing
-    assert jobs["deploy"]["needs"] == ["update", "push"]
+    assert jobs["deploy"]["needs"] == ["gate", "update", "push"]
+
+
+COMMIT_STEP = "Commit refreshed data to a data branch"
+MERGE_STEP = "Open and merge the data pull request"
 
 
 def _push_run_text():
@@ -201,8 +218,11 @@ def test_push_commits_on_the_update_sha_then_rebases():
     checkout = [s for s in jobs["push"]["steps"] if "actions/checkout@" in s.get("uses", "")]
     assert len(checkout) == 1 and checkout[0]["with"]["ref"] == "${{ needs.update.outputs.sha }}"
     run = _push_run_text()
-    assert run.index("git commit") < run.index("git pull --rebase origin main") < run.index("git push origin HEAD:main")
-    assert "--force" not in run and "-f " not in run
+    assert (run.index("git commit") < run.index("git pull --rebase origin main")
+            < run.index('git push origin "HEAD:refs/heads/$branch"'))
+    pushes = [ln.strip() for ln in run.splitlines() if "git push" in ln]
+    assert pushes == ['git push origin "HEAD:refs/heads/$branch"']          # one push, to the data branch only
+    assert not any("--force" in ln or " -f" in ln or "+" in ln for ln in pushes)
 
 
 def test_push_validates_the_artifact_before_staging():
@@ -214,7 +234,7 @@ def test_push_validates_the_artifact_before_staging():
     assert "*.json|*.yml|*/changes.jsonl) ;;" in validate          # allowlist: what data/ tracks, and the change logs
     assert validate.count(";;") == 2                               # that list and the refusing default, nothing else
     assert "-size +50M" in validate
-    assert names.index("Validate refreshed data") < names.index("Commit refreshed data to main")
+    assert names.index("Validate refreshed data") < names.index(COMMIT_STEP)
     assert names.index("Download refreshed data") < names.index("Validate refreshed data")
     assert "git add" not in validate
 
@@ -289,7 +309,7 @@ def test_a_symlinked_change_log_is_still_refused(tmp_path):
 def test_push_failure_opens_an_issue():
     """pipeline/push-failure-silent."""
     push = WF["jobs"]["push"]
-    assert push["permissions"] == {"contents": "write", "issues": "write"}
+    assert push["permissions"] == {"contents": "write", "pull-requests": "write", "issues": "write"}
     last = push["steps"][-1]
     assert last["if"] == "failure()" and "Daily update failed" in last["run"] and "gh issue" in last["run"]
     runbook = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
@@ -302,6 +322,277 @@ def test_push_and_deploy_run_on_main_only():
     assert "github.ref == 'refs/heads/main'" in WF["jobs"]["push"]["if"]
     assert "github.ref == 'refs/heads/main'" in WF["jobs"]["deploy"]["if"]
     assert "github.event_name == 'schedule' || inputs.collect" in WF["jobs"]["push"]["if"]
+
+
+# ------------------------------------------------------------------ main-protect/actions-bypass-reopens-M1: the data PR
+# The main ruleset has no bypass, so the push job never pushes main: its data/ commit goes to a data/<date> branch,
+# and the job opens a pull request and merges it with GITHUB_TOKEN only after checking it touches data/ only.
+def _push_steps():
+    return {s.get("name"): s for s in WF["jobs"]["push"]["steps"]}
+
+
+def test_the_push_job_never_pushes_main():
+    run = _push_run_text()
+    assert "HEAD:main" not in run and "refs/heads/main" not in run
+    steps = WF["jobs"]["push"]["steps"]
+    names = [s.get("name") for s in steps]
+    assert names[-3:] == [COMMIT_STEP, MERGE_STEP, "Open an issue on failure"]
+    merge = _push_steps()[MERGE_STEP]
+    assert merge["if"] == "steps.commit.outputs.branch != ''"
+    assert merge["env"] == {"GH_TOKEN": "${{ github.token }}", "BRANCH": "${{ steps.commit.outputs.branch }}",
+                            "SHA": "${{ steps.commit.outputs.sha }}", "MAIN_SHA": "${{ steps.commit.outputs.main }}",
+                            "TITLE": "${{ steps.commit.outputs.title }}"}
+    assert "${{" not in merge["run"] and "${{" not in _push_steps()[COMMIT_STEP]["run"]
+    assert "pull_request_target" not in TEXT and "workflows: write" not in TEXT
+    script = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
+    assert MERGE_STEP in script            # the script refuses to drop the bypass until main has this step
+
+
+def _data_repo(tmp_path, main_after=None):
+    """origin with main = U (data/x.json, data/y.json, sender/a.py), plus `main_after` commits on top ({path: text}
+    each); a full clone `work` checked out at U, as the push job's checkout of the update job's sha."""
+    origin, src, work = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(tmp_path, "init", "-q", str(src))
+    for rel in ("data/x.json", "data/y.json", "sender/a.py"):
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_text("1\n")
+    _git(src, "add", "-A")
+    _git(src, "commit", "-q", "-m", "U")
+    u = _git(src, "rev-parse", "HEAD")
+    for files in main_after or []:
+        for rel, text in files.items():
+            (src / rel).parent.mkdir(parents=True, exist_ok=True)
+            (src / rel).write_text(text)
+        _git(src, "add", "-A")
+        _git(src, "commit", "-q", "-m", "later")
+    _git(src, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
+    _git(tmp_path, "clone", "-q", f"file://{origin}", str(work))
+    _git(work, "checkout", "-q", "--detach", u)
+    return origin, work, u
+
+
+def _run_commit_step(tmp_path, work, new_data: dict, allowed=""):
+    runner = tmp_path / "runner"
+    art = runner / "records-data"
+    shutil.copytree(work / "data", art)
+    for rel, text in new_data.items():
+        (art / rel).parent.mkdir(parents=True, exist_ok=True)
+        if text is None:
+            (art / rel).unlink()
+        else:
+            (art / rel).write_text(text)
+    out = tmp_path / "github-output"
+    out.write_text("")
+    env = {**os.environ, "RUNNER_TEMP": str(runner), "GITHUB_OUTPUT": str(out), "GITHUB_RUN_ID": "77",
+           "GITHUB_RUN_ATTEMPT": "2", "ALLOWED": allowed, "GIT_CONFIG_GLOBAL": "/dev/null"}
+    r = subprocess.run(["bash", "-c", _push_steps()[COMMIT_STEP]["run"]], cwd=work, env=env, capture_output=True,
+                       text=True)
+    outputs = dict(ln.split("=", 1) for ln in out.read_text().splitlines() if "=" in ln)
+    return r, outputs
+
+
+def _branches(origin):
+    return sorted(_git(origin, "for-each-ref", "--format=%(refname)", "refs/heads").split())
+
+
+def test_the_data_commit_goes_to_its_own_branch_on_top_of_main(tmp_path):
+    later = [{"sender/a.py": "2\n"}, {"docs/new.md": "x\n"}]     # main moved on (a merged PR) since the update job
+    origin, work, _ = _data_repo(tmp_path, later)
+    main_before = _git(origin, "rev-parse", "refs/heads/main")
+    r, out = _run_commit_step(tmp_path, work, {"x.json": "2\n", "y.json": None, "new/z.json": "3\n"})
+    assert r.returncode == 0, r.stdout + r.stderr
+    import datetime
+    day = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+    assert out["branch"] == f"data/{day}-run77-2" and out["title"] == f"Daily update: refreshed records data ({day})"
+    assert _git(origin, "rev-parse", "refs/heads/main") == main_before                      # main untouched
+    assert _branches(origin) == ["refs/heads/data/" + out["branch"][5:], "refs/heads/main"]
+    sha = _git(origin, "rev-parse", f"refs/heads/{out['branch']}")
+    assert sha == out["sha"] and _git(origin, "rev-parse", f"{sha}^") == main_before         # one commit on main
+    assert out["main"] == main_before                                                        # for the L-C check
+    changed = _git(origin, "diff", "--name-only", main_before, sha).split()
+    assert changed == ["data/new/z.json", "data/x.json", "data/y.json"]
+
+
+def test_no_data_change_pushes_nothing_and_skips_the_pr(tmp_path):
+    origin, work, _ = _data_repo(tmp_path)
+    r, out = _run_commit_step(tmp_path, work, {})
+    assert r.returncode == 0 and "No data changes." in r.stdout and out == {}
+    assert _branches(origin) == ["refs/heads/main"]
+
+
+def test_a_concurrent_data_edit_on_main_fails_loudly(tmp_path):
+    """pipeline/push-reverts-concurrent-data, still: a concurrent data/ edit conflicts, nothing is pushed."""
+    origin, work, _ = _data_repo(tmp_path, [{"data/x.json": "main\n"}])
+    r, out = _run_commit_step(tmp_path, work, {"x.json": "run\n"})
+    assert r.returncode != 0 and out == {}
+    assert _branches(origin) == ["refs/heads/main"]
+
+
+def test_the_allow_shrink_override_is_named_in_the_pr_title(tmp_path):
+    origin, work, _ = _data_repo(tmp_path)
+    r, out = _run_commit_step(tmp_path, work, {"x.json": "2\n"}, allowed="yes")
+    assert r.returncode == 0 and "allow_shrink" in out["title"]
+
+
+_MERGE_GH = '''#!/usr/bin/env python3
+import json, os, subprocess, sys
+a = sys.argv[1:]
+with open(os.environ["GH_CALLS"], "a") as f:
+    f.write(json.dumps(a) + "\\n")
+st = json.load(open(os.environ["GH_STATE"]))
+assert a[0] == "api" and os.environ["GH_TOKEN"] == "t", a
+def jq(data):
+    filt = a[a.index("--jq") + 1]
+    r = subprocess.run(["jq", "-r", filt], input=json.dumps(data), capture_output=True, text=True)
+    sys.stdout.write(r.stdout); sys.stderr.write(r.stderr); sys.exit(r.returncode)
+if a[1:3] == ["-X", "POST"]:
+    assert a[3] == "repos/o/r/pulls" and "base=main" in a and "head=" + os.environ["BRANCH"] in a, a
+    jq({"number": 12})
+if a[1:3] == ["-X", "PUT"]:
+    assert a[3] == "repos/o/r/pulls/12/merge", a
+    if st.get("merge_fails"):
+        sys.exit(1)
+    jq({"merged": True})
+if a[1:3] == ["-X", "DELETE"]:
+    sys.exit(0)
+reads = os.environ["GH_CALLS"] + ".reads"
+n = int(open(reads).read()) if os.path.exists(reads) else 0
+files_now = st["steps"][min(n, len(st["steps"]) - 1)]
+if a[1] == "--paginate":
+    assert a[2] == "repos/o/r/pulls/12/files?per_page=100", a
+    open(reads, "w").write(str(n + 1))
+    files = files_now
+    # the real API pages these 100 at a time; --paginate joins the pages before --jq runs on each
+    for i in range(0, max(len(files), 1), 100):
+        r = subprocess.run(["jq", "-r", a[a.index("--jq") + 1]], input=json.dumps(files[i:i + 100]),
+                           capture_output=True, text=True)
+        sys.stdout.write(r.stdout)
+    sys.exit(0)
+assert a[1] == "repos/o/r/pulls/12", a
+jq({"changed_files": len(files_now), **st["pr"]})
+'''
+
+
+def _merge_case(tmp_path, files, pr=None, merge_fails=False, local=None, server_steps=None):
+    """Run the merge step in a local repo whose data commit changes `local` (default: the names in `files`, both
+    names of a rename) on top of main, against a stub gh serving `files` (or, per read, `server_steps`)."""
+    _need_jq()
+    repo = tmp_path / "repo"
+    _git(tmp_path, "init", "-q", str(repo))
+    names = local if local is not None else sorted({n for f in files for n in (f["filename"], f.get("previous_filename"))
+                                                    if n})
+    for rel in names:                                     # main holds every name: the data commit changes each one
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text("old\n")
+    (repo / "README").write_text("x\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "main")
+    main_sha = _git(repo, "rev-parse", "HEAD")
+    for rel in names:
+        (repo / rel).write_text("new\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "data")
+    sha = _git(repo, "rev-parse", "HEAD")
+    branch = "data/2026-11-17-run77-1"
+    steps = server_steps or [files]
+    base_pr = {"state": "open", "base": {"ref": "main"}, "head": {"ref": branch, "sha": sha,
+               "repo": {"full_name": "o/r"}}}
+    state = {"steps": steps, "pr": {**base_pr, **(pr or {})}, "merge_fails": merge_fails}
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_MERGE_GH)
+    (bindir / "sleep").write_text("#!/bin/sh\nexit 0\n")
+    for f in ("gh", "sleep"):
+        (bindir / f).chmod(0o755)
+    (tmp_path / "state.json").write_text(json.dumps(state))
+    calls = tmp_path / "calls"
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GH_CALLS": str(calls),
+           "GH_STATE": str(tmp_path / "state.json"), "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "77",
+           "GITHUB_SERVER_URL": "https://github.com", "BRANCH": branch, "SHA": sha, "MAIN_SHA": main_sha,
+           "TITLE": "Daily update: refreshed records data (2026-11-17)"}
+    r = subprocess.run(["bash", "-c", _push_steps()[MERGE_STEP]["run"]], cwd=repo, env=env, capture_output=True,
+                       text=True)
+    made = [json.loads(ln) for ln in calls.read_text().splitlines()] if calls.exists() else []
+    merges = [c for c in made if c[1:3] == ["-X", "PUT"]]
+    return r, merges, made
+
+
+def _f(name, prev=None):
+    return {"filename": name, **({"previous_filename": prev} if prev else {})}
+
+
+def test_a_data_only_pr_is_merged_pinned_to_its_checked_commit(tmp_path):
+    files = [_f(f"data/d{i}.json") for i in range(150)] + [_f("data/new.json", prev="data/old.json")]
+    r, merges, made = _merge_case(tmp_path, files)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert len(merges) == 1
+    m = merges[0]
+    sha = next(c for c in made if c[1] == "repos/o/r/pulls/12")             # pinned to the local data commit
+    assert "merge_method=squash" in m and any(x.startswith("sha=") and len(x) == 44 for x in m), (m, sha)
+    assert "changes 151 file(s), all under data/" in r.stdout
+    assert any(c[1:3] == ["-X", "DELETE"] and c[3] == "repos/o/r/git/refs/heads/data/2026-11-17-run77-1"
+               for c in made)
+
+
+@pytest.mark.parametrize("files", [
+    [_f("data/x.json"), _f("sender/deliver.py")],
+    [_f(".github/workflows/daily-update.yml")],
+    [_f("datax/y.json")],
+    [_f("data")],
+    [_f("data/x.json"), _f("data/moved.py", prev="sender/deliver.py")],     # renamed in from outside data/
+    [_f("json.py")],
+], ids=["sender", "workflow", "datax", "bare-data", "rename-in", "root-py"])
+def test_a_pr_touching_anything_outside_data_is_never_merged(tmp_path, files):
+    r, merges, _ = _merge_case(tmp_path, files, local=["data/x.json"])
+    assert r.returncode == 1 and merges == [] and "outside data/" in r.stdout
+
+
+@pytest.mark.parametrize("pr", [{"state": "closed"}, {"base": {"ref": "dev"}},
+                                {"head": {"ref": "data/other", "sha": "c" * 40, "repo": {"full_name": "o/r"}}},
+                                {"head": {"ref": "data/2026-11-17-run77-1", "sha": "d" * 40,
+                                          "repo": {"full_name": "o/r"}}},
+                                {"head": {"ref": "data/2026-11-17-run77-1", "sha": "SHA",
+                                          "repo": {"full_name": "fork/r"}}},
+                                {"changed_files": 3001}, {"changed_files": 5}],
+                         ids=["closed", "base", "head-ref", "head-sha", "fork", "over-cap", "count-mismatch"])
+def test_a_pr_that_is_not_exactly_this_runs_data_pr_is_never_merged(tmp_path, pr):
+    if pr.get("head", {}).get("sha") == "SHA":       # the right commit, from a fork
+        pr = {"head": {**pr["head"], "sha": None}}
+    r, merges, _ = _merge_case(tmp_path, [_f("data/x.json")], pr=pr)
+    assert r.returncode == 1 and merges == [], r.stdout + r.stderr
+
+
+@pytest.mark.parametrize("server,local", [
+    ([], ["data/x.json"]),                                             # a 0-file PR (GitHub's list not ready, or empty)
+    ([_f("data/x.json")], ["data/x.json", "data/y.json"]),             # the PR's list misses a file
+    ([_f("data/x.json"), _f("data/y.json")], ["data/x.json"]),         # the PR lists an extra data/ file
+    ([_f("data/z.json", prev="data/x.json")], ["data/x.json"]),        # a rename whose new name the commit lacks
+], ids=["zero-files", "missing", "extra", "rename-extra"])
+def test_l_c_a_pr_list_that_is_not_the_local_list_is_never_merged(tmp_path, server, local):
+    """main-protect L-C: the PR's names must be non-empty and equal the local data commit's; re-read 5 times."""
+    r, merges, made = _merge_case(tmp_path, server, local=local)
+    assert r.returncode == 1 and merges == [], r.stdout + r.stderr
+    assert sum(c[1] == "--paginate" for c in made) == 5 and "not exactly the local data commit's" in r.stdout
+
+
+def test_l_c_a_list_that_catches_up_on_a_re_read_merges(tmp_path):
+    files = [_f("data/x.json"), _f("data/y.json")]
+    r, merges, made = _merge_case(tmp_path, files, server_steps=[[], [files[0]], files])
+    assert r.returncode == 0 and len(merges) == 1, r.stdout + r.stderr
+    assert sum(c[1] == "--paginate" for c in made) == 3
+
+
+def test_l_c_a_rename_inside_data_matches_the_local_list(tmp_path):
+    """GitHub may report a delete plus an add as a rename (or not): the set of names is the same either way."""
+    r, merges, _ = _merge_case(tmp_path, [_f("data/new.json", prev="data/old.json")],
+                               local=["data/new.json", "data/old.json"])
+    assert r.returncode == 0 and len(merges) == 1, r.stdout + r.stderr
+
+
+def test_a_merge_that_keeps_failing_fails_the_job(tmp_path):
+    r, merges, _ = _merge_case(tmp_path, [_f("data/x.json")], merge_fails=True)
+    assert r.returncode == 1 and len(merges) == 6 and "could not be merged" in r.stdout
 
 
 # ------------------------------------------------------------------ least privilege, every workflow in the repo
@@ -338,7 +629,7 @@ def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
     guard kept city rows or meetings: docs/adr/0006-daily-refresh-data-guards.md)."""
     steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
     assert steps["Upload refreshed data"]["if"].startswith("success() && ")
-    assert WF["jobs"]["push"]["needs"] == "update" and "always()" not in WF["jobs"]["push"]["if"]
+    assert "update" in WF["jobs"]["push"]["needs"] and "always()" not in WF["jobs"]["push"]["if"]
     script = steps["Collect (polite fetch, parse, verify)"]["run"]
     cases = [(0, 0, 0), (0, 6, 0), (0, 5, 0), (0, 7, 0), (2, 0, 1), (5, 0, 1), (0, 2, 1), (0, 3, 1), (0, 4, 1),
              (2, 5, 1), (5, 6, 1), (2, 7, 1), (7, 0, 0), (7, 7, 0), (7, 5, 0), (7, 2, 1), (7, 3, 1)]
@@ -570,7 +861,8 @@ def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):
 
 
 # ------------------------------------------------------------------ the morning note (T4.5)
-NOTE_IF = "github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' && github.ref == 'refs/heads/main'"
+NOTE_IF = ("github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' && github.ref == 'refs/heads/main'"
+           " && needs.gate.outputs.verified == 'true'")
 # main-protect/pr-check-path-scope, main-protect/test-launcher-coverage: the note job's three python runs, exactly
 # (-I -S, a fresh pycache_prefix, the staged sender folder alone on sys.path, the staged config), each after VERIFY,
 # the re-check of the staged folder's digest (main-protect/staged-lib-integrity).
@@ -637,7 +929,7 @@ def test_note_job_is_locked_scheduled_on_main_and_after_deploy():
     note = WF["jobs"]["note"]
     assert " ".join(note["if"].split()) == NOTE_IF
     assert "always()" not in note["if"] and "cancelled()" not in note["if"]   # implicit success(): update and deploy
-    assert note["needs"] == ["update", "deploy"]                                # deploy locked -> note skipped
+    assert note["needs"] == ["gate", "update", "deploy"]                        # deploy locked -> note skipped
     assert note["environment"] == "morning-note" and note["timeout-minutes"] <= 15
     # a manual run never sends: the if needs the schedule trigger, and only schedule and dispatch exist
     on = WF.get("on") or WF[True]
@@ -653,17 +945,20 @@ def test_note_job_has_a_timeout_and_shares_the_one_run_at_a_time_group():
     assert all(isinstance(job.get("timeout-minutes"), int) for job in WF["jobs"].values())
 
 
-def _note_if(event, var, ref):
-    return event == "schedule" and var == "true" and ref == "refs/heads/main"
+def _note_if(event, var, ref, verified):
+    return event == "schedule" and var == "true" and ref == "refs/heads/main" and verified == "true"
 
 
-@pytest.mark.parametrize("event,var,ref", list(itertools.product(
-    ["schedule", "workflow_dispatch"], [None, "", "false", "True", "true"], ["refs/heads/main", "refs/heads/x"])))
-def test_note_runs_only_in_the_one_locked_case(event, var, ref):
+@pytest.mark.parametrize("event,var,ref,verified", list(itertools.product(
+    ["schedule", "workflow_dispatch"], [None, "", "false", "True", "true"], ["refs/heads/main", "refs/heads/x"],
+    ["true", "false", "", None])))
+def test_note_runs_only_in_the_one_locked_case(event, var, ref, verified):
+    """...and only when the gate verified main's history (never in phase 0)."""
     expr = " ".join(WF["jobs"]["note"]["if"].split())
     py = (expr.replace("github.event_name", repr(event)).replace("vars.MORNING_NOTE_SEND", repr(var))
+          .replace("needs.gate.outputs.verified", repr(verified))
           .replace("github.ref", repr(ref)).replace("&&", "and"))
-    assert eval(py) == _note_if(event, var, ref)                                # noqa: S307  our own expression
+    assert eval(py) == _note_if(event, var, ref, verified)                      # noqa: S307  our own expression
 
 
 @pytest.mark.parametrize("value", [
@@ -701,14 +996,14 @@ def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
 
 def test_note_job_least_privilege():
     note = WF["jobs"]["note"]
-    assert note["permissions"] == {"contents": "read", "pull-requests": "read"}   # PR check: read only
+    assert note["permissions"] == {"contents": "read"}       # no token use: the history check is the gate's
     steps = note["steps"]
     assert steps[0]["name"] == "Mask the canary ids"                           # before anything else runs
     assert "::add-mask::" in steps[0]["run"]
     uses = [s["uses"] for s in steps if "uses" in s]
     assert [u.split("@")[0] for u in uses] == ["actions/checkout", "actions/setup-python", "actions/download-artifact"]
     co = _note_steps()["Check out this run's commit"]["with"]
-    assert co == {"ref": "${{ github.sha }}", "persist-credentials": False}     # not needs.update.outputs.sha (L6)
+    assert co == {"ref": "${{ needs.gate.outputs.sha }}", "persist-credentials": False}   # github.sha via the gate
     assert "cache" not in _note_steps()["Set up Python (standard library only, no pip step)"].get("with", {})
     assert _note_steps()["Download the morning note plan"]["with"]["path"] == "${{ runner.temp }}/morning-send"
     runs = "\n".join(s.get("run", "") for s in steps)
@@ -831,7 +1126,7 @@ def test_note_failure_opens_its_own_issue_from_a_separate_job(tmp_path, open_iss
 def test_the_note_runbook_exists_with_the_switches():
     text = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
     for phrase in ("MORNING_NOTE_SEND", "BUTTONDOWN_API_KEY", "MORNING_NOTE_CANARY_IDS", "morning-note",
-                   "T4.0", "Canary", "Go-live", "Rollback", "link_hosts", "canary_only", "Deployment branches"):
+                   "T4.0", "No canary week", "Go-live", "Rollback", "link_hosts", "canary_only", "Deployment branches"):
         assert phrase in text, phrase
     # main-protect/actions-bypass-reopens-M1: the runbook says who can reach the key and offers the one human lock
     for phrase in ("anyone with write or admin access to this repository can reach the Buttondown key",
@@ -898,12 +1193,19 @@ def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
     assert (_stale_check(tmp_path, change) == 0) == ok
 
 
-# ------------------------------------------------------------------ main-protect/actions-bypass-reopens-M1
-PR_STEP = "Check sender, config and workflow changes reached main by pull request"
+# ------------------------------------------------------------------ main-protect: the gate job (T4.10.2, ADR 0009)
+GATE_STEP = "Check every change outside data/ reached main by a reviewed pull request a person merged"
+PR_STEP = GATE_STEP          # the one copy of the history check (it moved out of the note job)
 STALE_STEP = "Check this commit's sender and config are main's"
-PR_JQ = '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length'
-# note-job/pr-check-test-gap: the stub evaluates the step's own --jq filter with jq (gh uses gojq), so the cases
-# test the filter the workflow runs, not a Python copy of it.
+PR_JQ = ('[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.COMMIT) | .number '
+         '| tostring] | join(" ")')
+# the PR found: who merged it, its head and merge time (only the single-PR endpoint has merged_by)
+PULL_JQ = '[(.merged_by.type // "none"), (.head.sha // "none"), (.merged_at // "none")] | join(" ")'
+REVIEW_JQ = ('.[] | select(.user.type == "User" and .commit_id == $ENV.HEAD_SHA and (.state == "COMMENTED" or '
+             '.state == "APPROVED") and .submitted_at != null and .submitted_at <= $ENV.MERGED_AT) | .id | tostring')
+MERGED_AT = "2026-11-11T00:00:00Z"
+# note-job/pr-check-test-gap: the stub evaluates the step's own --jq filters with jq (gh uses gojq), so the cases
+# test the filters the workflow runs, not a Python copy of them.
 _PULLS_STUB = '''#!/usr/bin/env python3
 import json, os, subprocess, sys
 a = sys.argv[1:]
@@ -911,11 +1213,30 @@ with open(os.environ["GH_CALLS"], "a") as f:
     f.write(" ".join(a) + "\\n")
 if os.environ.get("GH_FAIL"):
     sys.exit(1)
-assert len(a) == 4 and a[0] == "api" and a[2] == "--jq" and a[3] == os.environ["EXPECTED_JQ"], a
-sha = a[1].removeprefix("repos/o/r/commits/").removesuffix("/pulls")
-assert os.environ["SHA"] == sha and os.environ["GH_TOKEN"] == "t"
-prs = json.load(open(os.environ["PULLS"])).get(sha, [])
-r = subprocess.run(["jq", "-r", a[3]], input=json.dumps(prs), capture_output=True, text=True)
+pulls = json.load(open(os.environ["PULLS"]))
+assert a[0] == "api" and os.environ["GH_TOKEN"] == "t", a
+def by_number(num):
+    return next((p for v in pulls.values() for p in v if p["number"] == num), None)
+if a[1] == "--paginate":
+    assert len(a) == 5 and a[3] == "--jq" and a[4] == os.environ["REVIEW_JQ"], a
+    path = a[2].removeprefix("repos/o/r/pulls/").removesuffix("/reviews?per_page=100")
+    pr = by_number(int(path))
+    reviews = pr["reviews"] if pr else []
+    for i in range(0, max(len(reviews), 1), 2):              # pages of 2: the step must add the pages up
+        r = subprocess.run(["jq", "-r", a[4]], input=json.dumps(reviews[i:i + 2]), capture_output=True, text=True)
+        sys.stdout.write(r.stdout)
+    sys.exit(0)
+assert len(a) == 4 and a[2] == "--jq", a
+if a[1].startswith("repos/o/r/pulls/"):
+    assert a[3] == os.environ["PULL_JQ"], a
+    data = by_number(int(a[1].removeprefix("repos/o/r/pulls/"))) or {"message": "Not Found"}
+    data = {k: v for k, v in data.items() if k != "reviews"}
+else:
+    assert a[3] == os.environ["EXPECTED_JQ"], a
+    sha = a[1].removeprefix("repos/o/r/commits/").removesuffix("/pulls")
+    assert os.environ["COMMIT"] == sha
+    data = [{k: v for k, v in p.items() if k not in ("merged_by", "reviews")} for p in pulls.get(sha, [])]
+r = subprocess.run(["jq", "-r", a[3]], input=json.dumps(data), capture_output=True, text=True)
 sys.stdout.write(r.stdout)
 sys.stderr.write(r.stderr)
 sys.exit(r.returncode)
@@ -924,32 +1245,55 @@ _ALL = ("config/site.yml", "sender/deliver.py", "data/x.json", ".github/workflow
 
 
 def _need_jq():
-    """jq runs the PR check's filter in these tests: skip where it is missing locally, fail in CI (CI is set on
+    """jq runs the gate's filters in these tests: skip where it is missing locally, fail in CI (CI is set on
     GitHub's runners, which ship jq), so the check is never skipped quietly where it matters."""
     if not shutil.which("jq"):
         if os.environ.get("CI"):
-            pytest.fail("jq is not installed on this CI runner: the PR check tests need it")
+            pytest.fail("jq is not installed on this CI runner: the gate tests need it")
         pytest.skip("jq not installed")
 
 
-def _pr(sha, merged=True, base="main"):
-    return {"merged_at": "2026-11-11T00:00:00Z" if merged else None, "base": {"ref": base}, "merge_commit_sha": sha}
+_PR_NUMBERS = itertools.count(1)
+HEAD = "HEAD"          # in a review's commit_id or a PR's head: the PR's own head sha
 
 
-def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
-    """Build main from `ops`, check out its tip from a depth-1 clone (as actions/checkout does), run the stale-rerun
-    step (its depth-1 fetch of main comes first in the job) and then the PR step. main starts with a commit BASE
-    touching every checked path, with no PR (the history before go-live).
+_REVIEW_IDS = itertools.count(500)
+
+
+def _review(commit=HEAD, state="COMMENTED", user="User", at="2026-11-10T23:00:00Z"):
+    return {"id": next(_REVIEW_IDS), "user": {"type": user}, "commit_id": commit, "state": state, "submitted_at": at}
+
+
+def _pr(sha, merged=True, base="main", by="User", head=None, reviews=None):
+    """A pull request as GitHub returns it; `by` is merged_by.type (User, Bot, or None for no merged_by); `head` the
+    head sha label (default: the merged-in branch of a merge op, else a sha of its own); `reviews` default one
+    person's COMMENTED review at the head before the merge."""
+    return {"number": next(_PR_NUMBERS), "merged_at": MERGED_AT if merged else None, "base": {"ref": base},
+            "merge_commit_sha": sha, "merged_by": {"type": by} if by else None, "head": {"sha": head},
+            "reviews": [_review()] if reviews is None else reviews}
+
+
+def _commit_calls(calls):
+    return [c for c in calls if "/commits/" in c]
+
+
+def _gate_steps():
+    return {s.get("name"): s for s in WF["jobs"]["gate"]["steps"]}
+
+
+def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE", ref="refs/heads/main"):
+    """Build main from `ops`, check out its tip from a depth-1 clone (as actions/checkout does) and run the gate's
+    check step. main starts with a commit BASE touching every checked path, with no PR (the history before go-live).
     ops: ("commit", label, paths) on main, or ("merge", label, branch_label, paths): a branch commit touching paths,
     merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal sha), ...]}. baseline: the label (or a
-    literal value) given as MAIN_PR_BASELINE. Returns (exit, gh calls, {label: sha})."""
+    literal value) given as MAIN_PR_BASELINE. Returns (exit, gh calls, {label: sha}, step outputs)."""
     _need_jq()
-    step = _note_steps()[PR_STEP]
+    step = _gate_steps()[GATE_STEP]
     origin, src, work, bindir = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work", tmp_path / "bin"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
     _git(origin, "config", "uploadpack.allowFilter", "true")   # as GitHub: --filter=blob:none is honoured, not ignored
     _git(tmp_path, "init", "-q", str(src))
-    shas, n = {}, 0
+    shas, n, merged_in = {}, 0, {}
 
     def touch(paths):
         nonlocal n
@@ -973,54 +1317,69 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
             _git(src, "checkout", "-q", "main")
             _git(src, "merge", "-q", "--no-ff", "-m", label, branch_label)
             shas[label] = _git(src, "rev-parse", "HEAD")
+            merged_in[label] = branch_label
     _git(src, "push", "-q", f"file://{origin}", "main:refs/heads/main")
     _git(tmp_path, "clone", "-q", "--depth=1", f"file://{origin}", str(work))
-    _git(work, "checkout", "-q", "--detach", shas[ops[-1][1]])
+    tip = shas[ops[-1][1]]
+    _git(work, "checkout", "-q", "--detach", tip)
     assert _git(work, "rev-parse", "--is-shallow-repository") == "true"
-    resolved = {shas[k]: [{**p, "merge_commit_sha": shas.get(p["merge_commit_sha"], p["merge_commit_sha"])}
-                          for p in v] for k, v in pulls.items()}
+
+    def resolve(label, p):
+        head = p["head"]["sha"]
+        head = shas.get(head, head) if head else (shas[merged_in[label]] if label in merged_in else "e" * 40)
+        reviews = [{**r, "commit_id": head if r["commit_id"] == HEAD else shas.get(r["commit_id"], r["commit_id"])}
+                   for r in p["reviews"]]
+        return {**p, "merge_commit_sha": shas.get(p["merge_commit_sha"], p["merge_commit_sha"]), "head": {"sha": head},
+                "reviews": reviews}
+
+    resolved = {shas[k]: [resolve(k, p) for p in v] for k, v in pulls.items()}
     (tmp_path / "pulls.json").write_text(json.dumps(resolved))
     bindir.mkdir()
     (bindir / "gh").write_text(_PULLS_STUB)
     (bindir / "gh").chmod(0o755)
-    calls = tmp_path / "gh-calls"
+    calls, out = tmp_path / "gh-calls", tmp_path / "github-output"
+    out.write_text("")
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
-           "GH_CALLS": str(calls), "PULLS": str(tmp_path / "pulls.json"), "EXPECTED_JQ": PR_JQ,
+           "GH_CALLS": str(calls), "PULLS": str(tmp_path / "pulls.json"), "EXPECTED_JQ": PR_JQ, "PULL_JQ": PULL_JQ,
+           "REVIEW_JQ": REVIEW_JQ, "SHA": tip, "REF": ref, "GITHUB_OUTPUT": str(out),
            "MAIN_PR_BASELINE": shas.get(baseline, baseline), **({"GH_FAIL": "1"} if gh_fail else {})}
-    stale = subprocess.run(["bash", "-c", _note_steps()[STALE_STEP]["run"]], cwd=work, capture_output=True, text=True)
-    assert stale.returncode == 0, stale.stdout + stale.stderr                  # the step before it, on the same checkout
     r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
     assert "Traceback" not in r.stderr, r.stderr
     calls = calls.read_text().splitlines() if calls.exists() else []
-    if calls:   # it read a PR, so it fetched main's whole history after the depth-1 fetch, without file contents
+    if calls:   # it read a PR, so it fetched main's whole history after the depth-1 clone, without file contents
         assert _git(work, "rev-parse", "--is-shallow-repository") == "false"
         assert _git(work, "config", "--get", "remote.origin.partialclonefilter") == "blob:none"
         assert "filtering not recognized by server" not in r.stderr, r.stderr
-    return r.returncode, calls, shas
+    outputs = dict(ln.split("=", 1) for ln in out.read_text().splitlines() if "=" in ln)
+    if r.returncode == 0:
+        assert outputs["sha"] == tip and outputs["verified"] in ("true", "false"), outputs
+    else:
+        assert outputs == {}, outputs            # a refusal outputs nothing: no job reads a verdict from it
+    return r.returncode, calls, shas, outputs
 
 
 DATA = ("data/x.json",)
 SENDER = ("sender/deliver.py",)
-# case: (ops on main after BASE, pulls, sends?, the commits whose PRs are read, newest first)
+OLD = "2026-11-10T22:00:00Z"
+# case: (ops on main after BASE, pulls, passes?, the commits whose PRs are read, newest first)
 PR_CASES = {
-    # the PR-merged commit, then daily data/ commits pushed by the push job without a PR: sends
+    # the PR-merged commit, then daily data/ commits pushed without a PR (before the data PR): passes
     "pr-then-data-days": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("commit", "D2", DATA)],
                           {"A": [_pr("A")]}, True, ["A"]),
-    # two PRs: every one is read, sends
+    # two PRs: every one is read
     "pr-then-pr": ([("commit", "A", _ALL), ("commit", "D", DATA), ("commit", "P", SENDER)],
                    {"A": [_pr("A")], "P": [_pr("P")]}, True, ["P", "A"]),
-    # a merge-commit PR (the branch commit itself has no PR of its own), then a data day: sends
+    # a merge-commit PR (the branch commit itself has no PR of its own), then a data day
     "merge-commit-pr": ([("commit", "A", _ALL), ("merge", "M", "B", SENDER), ("commit", "D", DATA)],
                         {"A": [_pr("A")], "M": [_pr("M")]}, True, ["M", "A"]),
-    # pushed straight to main (the Actions bypass, or an unprotected push): refused
+    # pushed straight to main (ruleset off, or a bypass put back): refused
     "direct-sender": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "D", DATA)],
                       {"A": [_pr("A")]}, False, ["X"]),
     "direct-config": ([("commit", "A", _ALL), ("commit", "X", ("config/site.yml",))], {"A": [_pr("A")]}, False,
                       ["X"]),
     "direct-other-workflow": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/other.yml",))],
                               {"A": [_pr("A")]}, False, ["X"]),
-    # main-protect/pr-check-last-commit-only: A (PR) -> X (direct) -> P (PR) is still refused: the later PR does not
-    # launder the direct push, whatever the later PR touches
+    # main-protect/pr-check-last-commit-only: A (PR) -> X (direct) -> P (PR) is still refused
     "pr-direct-pr": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "P", ("config/site.yml",))],
                      {"A": [_pr("A")], "P": [_pr("P")]}, False, ["P", "X"]),
     "pr-direct-merge-pr": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/other.yml",)),
@@ -1036,9 +1395,7 @@ PR_CASES = {
     # a merge pushed straight to main whose merged-in side is a PR's commit: main's own commit (first parent) counts
     "pushed-merge-of-pr-commit": ([("commit", "A", _ALL), ("merge", "M", "E", SENDER)],
                                   {"A": [_pr("A")], "E": [_pr("E")]}, False, ["M"]),
-    # main-protect/pr-check-path-scope: a direct push of anything outside data/ is refused, not only sender/,
-    # config/site.yml and .github/: a root json.py (shadowed the standard library under `python -m`), a sitegen/
-    # module, a root config file; the same files through a PR send
+    # main-protect/pr-check-path-scope: anything outside data/ is checked, not only sender/, config and .github/
     "direct-root-py": ([("commit", "A", _ALL), ("commit", "X", ("json.py",)), ("commit", "D", DATA)],
                        {"A": [_pr("A")]}, False, ["X"]),
     "direct-sitegen": ([("commit", "A", _ALL), ("commit", "X", ("sitegen/build.py",))], {"A": [_pr("A")]}, False,
@@ -1047,82 +1404,230 @@ PR_CASES = {
                           {"A": [_pr("A")], "P": [_pr("P")]}, False, ["P", "X"]),
     "pr-root-py": ([("commit", "A", _ALL), ("commit", "P", ("json.py", "docs/x.md")), ("commit", "D", DATA)],
                    {"A": [_pr("A")], "P": [_pr("P")]}, True, ["P", "A"]),
-    # no PR at all after the baseline (the team's earlier merges without PRs): refused from go-live
+    # no PR at all after the baseline (the team's earlier merges without PRs): refused
     "no-pr-history": ([("commit", "A", _ALL), ("commit", "D", DATA)], {}, False, ["A"]),
+    # the push job's daily data/ PRs, merged by GitHub Actions (a bot): data/ only, so never read
+    "pr-then-data-prs": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("merge", "D2", "DB", DATA)],
+                         {"A": [_pr("A")], "D1": [_pr("D1", by="Bot")], "D2": [_pr("D2", by="Bot")]}, True, ["A"]),
+    # main-protect/bot-merged-code: a code PR merged by a bot (a workflow on any branch merging its own PR), or with
+    # no merged_by, is refused; a later person's PR does not launder it
+    "bot-merged-sender": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "D", DATA)],
+                          {"A": [_pr("A")], "X": [_pr("X", by="Bot")], "D": [_pr("D", by="Bot")]}, False, ["X"]),
+    "bot-merged-then-pr": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/daily-update.yml",)),
+                            ("commit", "P", SENDER)],
+                           {"A": [_pr("A")], "X": [_pr("X", by="Bot")], "P": [_pr("P")]}, False, ["P", "X"]),
+    "no-merged-by": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                     {"A": [_pr("A")], "X": [_pr("X", by=None)]}, False, ["X"]),
+    "ff-push-by-bot": ([("commit", "A", _ALL), ("commit", "X", ("json.py",))],
+                       {"A": [_pr("A")], "X": [_pr("X", by="Bot")]}, False, ["X"]),
+    # T4.10.2: the review at the PR's head (I-main)
+    "no-review": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                  {"A": [_pr("A")], "X": [_pr("X", reviews=[])]}, False, ["X"]),
+    "review-at-older-commit": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                               {"A": [_pr("A")], "X": [_pr("X", reviews=[_review(commit="d" * 40)])]}, False, ["X"]),
+    "review-by-bot": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                      {"A": [_pr("A")], "X": [_pr("X", reviews=[_review(user="Bot", state="APPROVED")])]}, False,
+                      ["X"]),
+    "review-after-merge": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                           {"A": [_pr("A")], "X": [_pr("X", reviews=[_review(at="2026-11-11T00:00:01Z")])]}, False,
+                           ["X"]),
+    "review-dismissed": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                         {"A": [_pr("A")], "X": [_pr("X", reviews=[_review(state="DISMISSED")])]}, False, ["X"]),
+    "review-changes-requested": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                                 {"A": [_pr("A")], "X": [_pr("X", reviews=[_review(state="CHANGES_REQUESTED")])]},
+                                 False, ["X"]),
+    "two-prs-one-commit": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                           {"A": [_pr("A")], "X": [_pr("X"), _pr("X")]}, False, ["X"]),
+    "merge-second-parent-not-head": ([("commit", "A", _ALL), ("merge", "M", "B", SENDER)],
+                                     {"A": [_pr("A")], "M": [_pr("M", head="c" * 40)]}, False, ["M"]),
+    "commented-review-at-head": ([("commit", "A", _ALL), ("commit", "P", SENDER)],
+                                 {"A": [_pr("A")], "P": [_pr("P", reviews=[_review(state="DISMISSED", at=OLD),
+                                                                           _review(commit="d" * 40), _review()])]},
+                                 True, ["P", "A"]),
+    "approved-review-at-head": ([("commit", "A", _ALL), ("commit", "P", SENDER)],
+                                {"A": [_pr("A")], "P": [_pr("P", reviews=[_review(user="Bot"),
+                                                                          _review(state="APPROVED", at=MERGED_AT)])]},
+                                True, ["P", "A"]),
 }
 
 
 @pytest.mark.parametrize("case", list(PR_CASES))
-def test_note_refuses_unless_sender_config_and_workflows_reached_main_by_pr(tmp_path, case):
+def test_the_gate_refuses_unless_every_code_change_is_a_reviewed_pr_a_person_merged(tmp_path, case):
     ops, pulls, ok, read = PR_CASES[case]
-    code, calls, shas = _pr_check(tmp_path, ops, pulls)
+    code, calls, shas, out = _pr_check(tmp_path, ops, pulls)
     assert (code == 0) == ok, (case, code)
-    assert calls == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}" for c in read]   # main's own commits only
+    assert code in (0, 2), code
+    if ok:
+        assert out["verified"] == "true"
+    # main's own commits only, newest first, stopping at the first refusal
+    assert _commit_calls(calls) == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}" for c in read]
+    for c in calls:
+        assert c.startswith(("api repos/o/r/commits/", "api repos/o/r/pulls/", "api --paginate repos/o/r/pulls/")), c
 
 
-def test_the_pr_check_ignores_history_up_to_the_baseline(tmp_path):
-    """The baseline (main at go-live, checked by hand) and everything before it are not read: a direct push X before
-    it does not refuse; the same history with the baseline before X does."""
+def test_the_gate_ignores_history_up_to_the_baseline(tmp_path):
+    """The baseline (main when it was set, read by a person) and everything before it are not read: a direct push X
+    before it does not refuse; the same history with the baseline before X does."""
     ops = [("commit", "X", SENDER), ("commit", "G", DATA), ("commit", "P", (".github/workflows/daily-update.yml",))]
     (tmp_path / "g").mkdir()
-    code, calls, shas = _pr_check(tmp_path / "g", ops, {"P": [_pr("P")]}, baseline="G")
-    assert code == 0 and calls == [f"api repos/o/r/commits/{shas['P']}/pulls --jq {PR_JQ}"]
+    code, calls, shas, out = _pr_check(tmp_path / "g", ops, {"P": [_pr("P")]}, baseline="G")
+    assert code == 0 and out["verified"] == "true"
+    assert _commit_calls(calls) == [f"api repos/o/r/commits/{shas['P']}/pulls --jq {PR_JQ}"]
     (tmp_path / "base").mkdir()
-    code, calls, shas = _pr_check(tmp_path / "base", ops, {"P": [_pr("P")]}, baseline="BASE")
-    assert code == 2 and calls == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}" for c in ("P", "X")]
+    code, calls, shas, _ = _pr_check(tmp_path / "base", ops, {"P": [_pr("P")]}, baseline="BASE")
+    assert code == 2 and _commit_calls(calls) == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}"
+                                                  for c in ("P", "X")]
 
 
-@pytest.mark.parametrize("baseline", ["", "not-a-sha", "A" * 40, "a" * 40, "B", "P"])
-def test_the_pr_check_fails_closed_without_a_valid_baseline(tmp_path, baseline):
-    """main-protect/pr-check-last-commit-only: unset (the committed value until go-live), not a sha, a sha that is not
-    in the history, a commit of a merged-in branch (not on main's first-parent line), or a baseline with no checked
-    change after it (the commit that set it always is one): refused without reading any PR."""
+@pytest.mark.parametrize("baseline", ["not-a-sha", "A" * 40, "a" * 40, "B", "P"])
+def test_the_gate_fails_closed_with_an_invalid_baseline(tmp_path, baseline):
+    """Not a sha, a sha that is not in the history, a commit of a merged-in branch (not on main's first-parent line),
+    or a baseline with no checked change after it (the commit that set it always is one): refused, no PR read."""
     ops = [("commit", "A", _ALL), ("merge", "M", "B", SENDER), ("commit", "P", SENDER)]
-    code, calls, _ = _pr_check(tmp_path, ops, {"A": [_pr("A")], "M": [_pr("M")], "P": [_pr("P")]},
-                               baseline=baseline)
-    assert code == 2 and calls == []
+    code, calls, _, out = _pr_check(tmp_path, ops, {"A": [_pr("A")], "M": [_pr("M")], "P": [_pr("P")]},
+                                    baseline=baseline)
+    assert code == 2 and calls == [] and out == {}
+
+
+@pytest.mark.parametrize("baseline,ref", [("", "refs/heads/main"), ("BASE", "refs/heads/feature"),
+                                          ("", "refs/heads/feature"), ("not-a-sha", "refs/tags/v1")])
+def test_phase_0_and_other_refs_pass_unverified(tmp_path, baseline, ref):
+    """An empty baseline (phase 0) on main, or any run not on main: verified=false with success, no PR read, so
+    update, push and deploy run as before and the note job never runs."""
+    ops = [("commit", "A", _ALL), ("commit", "X", SENDER)]                    # X would be refused if checked
+    code, calls, shas, out = _pr_check(tmp_path, ops, {}, baseline=baseline, ref=ref)
+    assert code == 0 and calls == [] and out == {"sha": shas["X"], "verified": "false"}
+
+
+def test_the_gate_refuses_a_checkout_that_is_not_the_runs_commit(tmp_path):
+    _need_jq()
+    step = _gate_steps()[GATE_STEP]
+    work = tmp_path / "w"
+    _git(tmp_path, "init", "-q", str(work))
+    (work / "f").write_text("1\n")
+    _git(work, "add", "-A")
+    _git(work, "commit", "-q", "-m", "c")
+    out = tmp_path / "o"
+    out.write_text("")
+    for sha in ("f" * 40, "", "HEAD"):
+        r = subprocess.run(["bash", "-c", step["run"]], cwd=work, capture_output=True, text=True,
+                           env={**os.environ, "SHA": sha, "REF": "refs/heads/feature", "MAIN_PR_BASELINE": "",
+                                "GITHUB_OUTPUT": str(out), "GH_TOKEN": "t"})
+        assert r.returncode == 2 and out.read_text() == "", sha
 
 
 def test_the_committed_baseline_is_unset_or_a_sha():
-    """Until go-live MAIN_PR_BASELINE is empty, so the note job refuses every send; go-live sets it (runbook 4.7)."""
-    env = _note_steps()[PR_STEP]["env"]
+    """Until T4.10.8 MAIN_PR_BASELINE is empty (phase 0: the note job never runs); then a sha (runbook 4.7)."""
+    env = _gate_steps()[GATE_STEP]["env"]
     assert env["MAIN_PR_BASELINE"] == "" or re.fullmatch(r"[0-9a-f]{40}", env["MAIN_PR_BASELINE"])
+    assert not any("MAIN_PR_BASELINE" in s.get("run", "") for j, job in WF["jobs"].items() if j != "gate"
+                   for s in job["steps"])
     runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
     assert "MAIN_PR_BASELINE" in runbook
 
 
-def test_the_pr_check_fails_closed_when_github_cannot_be_read(tmp_path):
-    code, calls, _ = _pr_check(tmp_path, [("commit", "A", _ALL)], {"A": [_pr("A")]}, gh_fail=True)
-    assert code != 0 and len(calls) == 1
+def test_the_gate_fails_closed_when_github_cannot_be_read(tmp_path):
+    code, calls, _, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {"A": [_pr("A")]}, gh_fail=True)
+    assert code != 0 and len(calls) == 1 and out == {}
 
 
-def test_the_pr_check_jq_filter_with_real_jq():
-    """The --jq expression gh evaluates (gojq), run through jq where it is installed: counts only a merged PR into
-    main whose merge commit is this commit."""
+def test_the_gate_jq_filters_with_real_jq():
+    """The --jq expressions gh evaluates (gojq), run through jq where it is installed."""
     _need_jq()
+    for pr, want in (({"merged_by": {"type": "User"}, "head": {"sha": "h"}, "merged_at": "t"}, "User h t"),
+                     ({"merged_by": {"type": "Bot"}, "head": {"sha": "h"}, "merged_at": "t"}, "Bot h t"),
+                     ({"merged_by": None, "head": None, "merged_at": None}, "none none none"), ({}, "none none none")):
+        r = subprocess.run(["jq", "-r", PULL_JQ], input=json.dumps(pr), capture_output=True, text=True, check=True)
+        assert r.stdout.strip() == want, pr
     sha = "a" * 40
-    for prs, want in (([_pr(sha)], "1"), ([_pr(sha, merged=False)], "0"), ([_pr(sha, base="dev")], "0"),
-                      ([_pr("b" * 40)], "0"), ([], "0"), ([_pr("b" * 40), _pr(sha)], "1")):
-        r = subprocess.run(["jq", PR_JQ], input=json.dumps(prs), capture_output=True, text=True, check=True,
-                           env={**os.environ, "SHA": sha})
+    one, two = _pr(sha), _pr(sha)
+    for prs, want in (([one], str(one["number"])), ([_pr(sha, merged=False)], ""), ([_pr(sha, base="dev")], ""),
+                      ([_pr("b" * 40)], ""), ([], ""), ([_pr("b" * 40), one], str(one["number"])),
+                      ([one, two], f"{one['number']} {two['number']}")):     # two: not one number, so refused
+        r = subprocess.run(["jq", "-r", PR_JQ], input=json.dumps(prs), capture_output=True, text=True, check=True,
+                           env={**os.environ, "COMMIT": sha})
         assert r.stdout.strip() == want, prs
+    h = "h" * 40
+    renv = {**os.environ, "HEAD_SHA": h, "MERGED_AT": MERGED_AT}
+    for reviews, want in (([_review(commit=h)], 1), ([_review(commit=h, state="APPROVED", at=MERGED_AT)], 1),
+                          ([_review(commit="g" * 40)], 0), ([_review(commit=h, user="Bot")], 0),
+                          ([_review(commit=h, state="DISMISSED")], 0), ([_review(commit=h, state="PENDING")], 0),
+                          ([_review(commit=h, at="2026-11-12T00:00:00Z")], 0), ([{**_review(commit=h),
+                                                                                  "submitted_at": None}], 0),
+                          ([], 0), ([_review(commit=h), _review(commit=h, state="APPROVED")], 2)):
+        r = subprocess.run(["jq", "-r", REVIEW_JQ], input=json.dumps(reviews), capture_output=True, text=True,
+                           check=True, env=renv)
+        assert len(r.stdout.split()) == want, reviews
 
 
-def test_the_pr_check_runs_before_any_secret_step_with_a_read_only_token():
-    steps = WF["jobs"]["note"]["steps"]
-    names = [s.get("name") for s in steps]
-    i = names.index(PR_STEP)
-    assert names.index("Check this commit's sender and config are main's") + 1 == i
-    assert i < names.index("Deliver the morning note")
-    step = steps[i]
-    assert set(step["env"]) == {"GH_TOKEN", "MAIN_PR_BASELINE"}   # the read-only token and the baseline only
-    assert step["env"]["GH_TOKEN"] == "${{ github.token }}"
-    assert [s["name"] for s in steps if "GH_TOKEN" in (s.get("env") or {})] == [PR_STEP]
-    assert """-- . ':(exclude)data/')""" in step["run"] and "--first-parent" in step["run"]
-    assert "sender/ config/site.yml .github/" not in step["run"]
+def test_the_gate_is_first_read_only_and_feeds_every_job():
+    jobs = WF["jobs"]
+    assert list(jobs)[0] == "gate"
+    gate = jobs["gate"]
+    assert gate["permissions"] == {"contents": "read", "pull-requests": "read"}    # exactly the two reads
+    assert "needs" not in gate and "if" not in gate and "environment" not in gate and gate["timeout-minutes"] <= 10
+    assert gate["outputs"] == {"sha": "${{ steps.check.outputs.sha }}",
+                               "verified": "${{ steps.check.outputs.verified }}"}
+    steps = gate["steps"]
+    assert [s.get("name") for s in steps] == ["Check out this run's commit", GATE_STEP]
+    assert steps[0]["uses"].startswith("actions/checkout@")
+    assert steps[0]["with"] == {"ref": "${{ github.sha }}", "persist-credentials": False}
+    check = steps[1]
+    assert check["id"] == "check" and "${{" not in check["run"]
+    assert set(check["env"]) == {"GH_TOKEN", "SHA", "REF", "MAIN_PR_BASELINE"}
+    assert check["env"]["GH_TOKEN"] == "${{ github.token }}" and check["env"]["SHA"] == "${{ github.sha }}"
+    assert check["env"]["REF"] == "${{ github.ref }}"
+    run = " ".join(check["run"].split())
+    for jq in (PR_JQ, PULL_JQ, REVIEW_JQ):
+        assert jq in run, jq
+    assert """-- . ':(exclude)data/')""" in run and "--first-parent" in run
+    # update builds exactly the gate's commit (L-A); push, deploy and note need the gate
+    assert jobs["update"]["needs"] == "gate"
+    co = [s for s in jobs["update"]["steps"] if "actions/checkout@" in s.get("uses", "")]
+    assert len(co) == 1 and co[0]["with"]["ref"] == "${{ needs.gate.outputs.sha }}" and co[0]["id"] == "checkout"
+    assert "          ref: main\n" not in TEXT
+    assert jobs["push"]["needs"] == ["gate", "update"]
+    assert jobs["deploy"]["needs"] == ["gate", "update", "push"]
+    assert "needs.gate.result == 'success'" in _deploy_if()
+    assert jobs["note"]["needs"] == ["gate", "update", "deploy"]
+    assert "needs.gate.outputs.verified == 'true'" in " ".join(jobs["note"]["if"].split())
+    assert _note_steps()["Check out this run's commit"]["with"]["ref"] == "${{ needs.gate.outputs.sha }}"
+    # one copy of the history check: the gate's; the note job has no token and no PR check
+    assert [n for n, j in jobs.items() for s in j["steps"] if "MAIN_PR_BASELINE" in (s.get("env") or {})] == ["gate"]
+    assert not any("GH_TOKEN" in (s.get("env") or {}) for s in jobs["note"]["steps"])
+    assert "/pulls" not in "\n".join(s.get("run", "") for s in jobs["note"]["steps"])
+    assert jobs["note"]["permissions"] == {"contents": "read"}
     assert "git diff --quiet HEAD FETCH_HEAD -- sender/ config/site.yml .github/;" in _note_steps()[STALE_STEP]["run"]
-    assert PR_JQ in " ".join(step["run"].split())
-    assert WF["jobs"]["note"]["permissions"] == {"contents": "read", "pull-requests": "read"}
+
+
+GATE_COMMANDS = {"git", "grep", "gh", "wc", "verdict", "refuse"}
+
+
+def test_the_gate_runs_no_file_from_the_checkout():
+    """A lint, as NOTE_STEP_COMMANDS: the gate's step runs only allowlisted programs and its own two functions, never
+    a file by path, a variable, source/bash/sh/eval/exec/env or an interpreter; no action but checkout."""
+    run = _gate_steps()[GATE_STEP]["run"]
+    words = _commands(run)
+    assert not set(words) - _SHELL - GATE_COMMANDS, set(words) - _SHELL - GATE_COMMANDS
+    for w in words:
+        assert "/" not in w and not w.startswith("$") and w not in (
+            ".", "source", "bash", "sh", "eval", "exec", "env", "node", "perl", "python", "python3"), w
+    assert "git -c" not in run and "--upload-pack" not in run
+    assert [s["uses"].split("@")[0] for s in WF["jobs"]["gate"]["steps"] if "uses" in s] == ["actions/checkout"]
+
+
+@pytest.mark.parametrize("open_issue", ["", "7"])
+def test_gate_failed_opens_or_comments_on_one_issue(tmp_path, open_issue):
+    gf = WF["jobs"]["gate-failed"]
+    assert gf["needs"] == "gate" and gf["permissions"] == {"issues": "write"}
+    assert gf["if"] == "always() && (needs.gate.result == 'failure' || needs.gate.result == 'cancelled')"
+    step = gf["steps"][0]
+    assert len(gf["steps"]) == 1 and "uses" not in step
+    assert step["env"]["GATE_TITLE"] == "Daily update: main history check failed"
+    assert "${{" not in step["run"] and "--app github-actions" in step["run"]
+    calls, body = _run_issue_step(tmp_path, step, open_issue=open_issue)
+    assert calls[1].startswith("issue comment 7" if open_issue else "issue create") and len(calls) == 2
+    assert "When the gate fails" in body and "last deploy" in body
 
 
 # ------------------------------------------------------------------ main-protect/pr-check-path-scope: no checkout import
@@ -1160,7 +1665,6 @@ _VERIFY_WORDS = {"find", "sort", "xargs", "sha256sum"}
 NOTE_STEP_COMMANDS = {
     "Mask the canary ids": set(),
     STALE_STEP: {"git"},
-    PR_STEP: {"git", "grep", "gh"},
     STAGE_STEP: {"mktemp", "mkdir", "git", "find", "sort", "xargs", "sha256sum"},
     "Validate the plan files": _VERIFY_WORDS | {"mktemp", "python", "wc", "head", "awk"},
     "Check the plan (dry run, no secret)": _VERIFY_WORDS | {"mktemp", "python"},
@@ -1175,7 +1679,7 @@ def test_every_python_in_the_note_job_is_isolated_from_the_checkout():
     perl -e, awk other than the plan-size sum, git -c); and no step uses an action other than the three pinned ones."""
     steps = WF["jobs"]["note"]["steps"]
     names = [s.get("name") for s in steps]
-    assert names.index(PR_STEP) < names.index(STAGE_STEP) < names.index("Download the morning note plan") \
+    assert names.index(STALE_STEP) < names.index(STAGE_STEP) < names.index("Download the morning note plan") \
         < names.index("Validate the plan files")
     assert {n for n in names if "run" in _note_steps()[n]} == set(NOTE_STEP_COMMANDS)
     total = 0
@@ -1399,17 +1903,36 @@ def test_the_stage_step_copies_only_senders_own_python_files(tmp_path):
         assert r.returncode == 2 and wrote == {}, (rel, r.stderr)
 
 
-# ------------------------------------------------------------------ the main ruleset scripts (runbook step 2.0.6)
+# ------------------------------------------------------------------ the main ruleset scripts (runbook step 2.0.1)
 _GH_STUB = '''#!/usr/bin/env python3
 import json, os, sys
 a = sys.argv[1:]
 with open(os.environ["GH_CALLS"], "a") as f:
     f.write(" ".join(a) + "\\n")
-if a[:2] == ["auth", "status"] or "-X" in a:
+if a[:2] == ["auth", "status"]:
     sys.exit(0)
+if "-X" in a:
+    if "POST" in a:                        # the new ruleset is listed from now on, as on GitHub
+        os.environ["EXISTING"] = "99"
+        open(os.environ["GH_CALLS"] + ".created", "w").close()
+    sys.exit(0)
+if os.path.exists(os.environ["GH_CALLS"] + ".created"):
+    os.environ["EXISTING"] = "99"
 path = [x for x in a if x.startswith("repos/")][0]
+if path == "repos/gn0sh/clarksville-records/contents/.github/workflows/daily-update.yml?ref=main":
+    assert a[-2:] == ["-H", "Accept: application/vnd.github.raw"], a
+    print(os.environ["MAIN_WF"])
+    sys.exit(0)
 jq = a[a.index("--jq") + 1]
-if path.endswith("/rulesets"):
+if path.endswith("/actions/permissions/workflow"):
+    assert jq == ".can_approve_pull_request_reviews", jq
+    print("true")
+elif path == "repos/gn0sh/clarksville-records":
+    assert jq == ".allow_auto_merge", jq
+    print(os.environ.get("AUTO", "false"))
+elif jq == ".rules[].parameters.required_approving_review_count // empty":
+    print(os.environ.get("APPROVALS", "0"))
+elif path.endswith("/rulesets"):
     assert jq == ".[] | select(.name == $ENV.RULESET_NAME) | .id", jq
     assert os.environ["RULESET_NAME"] == "main: pull request required"
     for i in os.environ["EXISTING"].split():
@@ -1419,7 +1942,7 @@ elif path.endswith("/rules/branches/main"):
 elif jq == ".enforcement":
     print("active")
 else:
-    print("Integration\\t15368")
+    print(os.environ.get("BYPASS", ""), end="")      # the ruleset's bypass list: empty
 '''
 
 
@@ -1430,10 +1953,19 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     bindir.mkdir()
     (bindir / "gh").write_text(_GH_STUB)
     (bindir / "gh").chmod(0o755)
-    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": existing}
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": existing,
+           "MAIN_WF": TEXT}
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
     assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
+    assert "bypass none, required approvals 0" in r.stdout and "GitHub Actions may create pull requests: true" in r.stdout
+    assert "Auto-merge allowed: false" in r.stdout
     lines = calls.read_text().splitlines()
+    # main-protect/actions-bypass-reopens-M1: the Actions PR setting goes on before the ruleset is written
+    setting = [i for i, c in enumerate(lines) if "-X PUT" in c and "actions/permissions/workflow" in c]
+    writes = [i for i, c in enumerate(lines) if ("-X PUT" in c or "-X POST" in c) and "/rulesets" in c]
+    assert len(setting) == 1 and writes and setting[0] < min(writes)
+    assert "-F can_approve_pull_request_reviews=true" in lines[setting[0]]
+    lines = [c for c in lines if "actions/permissions/workflow" not in c]
     posts = [c for c in lines if "-X POST" in c]
     puts = [c.split()[3] for c in lines if "-X PUT" in c]
     if existing:
@@ -1443,18 +1975,271 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     assert all("main-ruleset.json" in c for c in lines if " -X " in f" {c}")
 
 
+@pytest.mark.parametrize("bypass", ["", "Integration\t15368\n"])
+def test_protect_main_refuses_before_main_opens_data_prs_and_flags_a_bypass(tmp_path, bypass):
+    """Without the bypass, the old push job (git push to main) would fail every day: the script changes nothing until
+    main's workflow has the data PR step. A ruleset that still lists a bypass is NOT OK."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT.replace("Open and merge the data pull request", "old push job"), "BYPASS": bypass}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 1 and "Nothing was changed" in r.stdout
+    assert not any(" -X " in f" {c}" for c in calls.read_text().splitlines())
+    env["MAIN_WF"] = TEXT
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert (r.returncode == 0) == (bypass == ""), r.stdout
+
+
+@pytest.mark.parametrize("auto,approvals,ok", [("false", "0", True), ("true", "0", False), ("false", "1", False),
+                                               ("false", "", False)])
+def test_protect_main_needs_approvals_0_and_auto_merge_off(tmp_path, auto, approvals, ok):
+    """main-protect L-D, L-E: auto-merge off and required approvals exactly 0, or NOT OK naming what differs."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT, "AUTO": auto, "APPROVALS": approvals}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert (r.returncode == 0) == ok, r.stdout
+    if auto == "true":
+        assert "Auto-merge must be off" in r.stdout
+    if approvals != "0":
+        assert "needs ADR 0009 changed" in r.stdout
+
+
 def test_protect_main_scripts_share_one_ruleset_body():
     body = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
     assert body["name"] == "main: pull request required" and body["enforcement"] == "active"
-    assert body["bypass_actors"] == [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}]
+    assert body["bypass_actors"] == []          # main-protect/actions-bypass-reopens-M1: nobody pushes main directly
+    pr_rule = [r for r in body["rules"] if r["type"] == "pull_request"]
+    assert len(pr_rule) == 1 and pr_rule[0]["parameters"]["required_approving_review_count"] == 0     # L-E
     assert sorted(r["type"] for r in body["rules"]) == ["deletion", "non_fast_forward", "pull_request"]
     assert body["conditions"]["ref_name"]["include"] == ["~DEFAULT_BRANCH"]
     for name in ("protect-main.ps1", "protect-main.sh"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
         assert "main-ruleset.json" in text and "main: pull request required" in text and "-X PUT" in text, name
+        assert "15368" not in text and "can_approve_pull_request_reviews=true" in text, name
+        assert "Open and merge the data pull request" in text, name
     ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
     # no double quote inside a --jq argument: Windows PowerShell 5.1 strips them on the way to gh
     assert not re.search(r"--jq '[^']*\"", ps1) and "$ENV.RULESET_NAME" in ps1
+
+
+# ------------------------------------------------------------------ S2: scripts/merge-reviewed (T4.10.4, L-D)
+_MR_STUB = '''#!/usr/bin/env python3
+import json, os, sys
+a = sys.argv[1:]
+with open(os.environ["GH_CALLS"], "a") as f:
+    f.write(json.dumps(a) + "\\n")
+if a[:2] == ["auth", "status"]:
+    sys.exit(0)
+if a[:2] == ["api", "repos/gn0sh/clarksville-records/pulls/31"]:
+    print(os.environ["PR_LINE"]); sys.exit(0)
+if "/reviews" in a[3]:
+    print(os.environ.get("KEPT", os.environ["SHA"])); sys.exit(0)
+if a[3].endswith("/merge"):
+    print("a" * 40); sys.exit(0)
+sys.exit(0)
+'''
+
+
+def _merge_reviewed(tmp_path, args, pr_line, kept=None):
+    bindir, calls = tmp_path / "bin", tmp_path / "calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_MR_STUB)
+    (bindir / "gh").chmod(0o755)
+    sha = "b" * 40
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "PR_LINE": pr_line,
+           "SHA": sha, **({"KEPT": kept} if kept else {})}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "merge-reviewed.sh"), *args], env=env, capture_output=True,
+                       text=True)
+    made = [json.loads(ln) for ln in calls.read_text().splitlines()] if calls.exists() else []
+    return r, [c for c in made if c[0] == "api"]
+
+
+def test_merge_reviewed_reviews_then_merges_pinned_to_the_reviewed_sha(tmp_path):
+    sha = "b" * 40
+    r, made = _merge_reviewed(tmp_path, ["31", sha, "docs/reviews/code-review-x.md", "docs/reviews/qa-x.md"],
+                              f"open main {sha} claude/x gn0sh/clarksville-records")
+    assert r.returncode == 0, r.stdout + r.stderr
+    R = "repos/gn0sh/clarksville-records"
+    assert made[0][:2] == ["api", f"{R}/pulls/31"]
+    review, merge, delete = made[1], made[2], made[3]
+    assert review[:4] == ["api", "-X", "POST", f"{R}/pulls/31/reviews"]
+    assert f"commit_id={sha}" in review and "event=COMMENT" in review
+    body = next(x for x in review if x.startswith("body="))
+    assert sha in body and "docs/reviews/code-review-x.md" in body and "docs/reviews/qa-x.md" in body
+    assert merge[:4] == ["api", "-X", "PUT", f"{R}/pulls/31/merge"]
+    assert "merge_method=squash" in merge and f"sha={sha}" in merge
+    assert delete[:4] == ["api", "-X", "DELETE", f"{R}/git/refs/heads/claude/x"] and len(made) == 4
+    assert f"as {'a' * 40}" in r.stdout
+
+
+@pytest.mark.parametrize("args,pr_line", [
+    (["31", "b" * 40, "report"], "open main " + "c" * 40 + " claude/x gn0sh/clarksville-records"),   # head moved
+    (["31", "b" * 40, "report"], "closed main " + "b" * 40 + " claude/x gn0sh/clarksville-records"),
+    (["31", "b" * 40, "report"], "open dev " + "b" * 40 + " claude/x gn0sh/clarksville-records"),
+    (["31", "b" * 7, "report"], "open main " + "b" * 40 + " claude/x gn0sh/clarksville-records"),     # short sha
+    (["31", "B" * 40, "report"], "open main " + "B" * 40 + " claude/x gn0sh/clarksville-records"),
+    (["31", "b" * 40], "open main " + "b" * 40 + " claude/x gn0sh/clarksville-records"),              # no report
+    (["x", "b" * 40, "report"], "open main " + "b" * 40 + " claude/x gn0sh/clarksville-records"),
+], ids=["moved-head", "closed", "not-main", "short-sha", "upper-sha", "no-report", "bad-pr"])
+def test_merge_reviewed_refuses_without_reviewing_or_merging(tmp_path, args, pr_line):
+    r, made = _merge_reviewed(tmp_path, args, pr_line)
+    assert r.returncode == 1 and ("Nothing done" in r.stdout or "Usage" in r.stdout), r.stdout
+    assert not any("-X" in c for c in made)
+    if args[1] == "b" * 40 and pr_line.startswith("open main c"):
+        assert "changed after the review" in r.stdout
+
+
+def test_merge_reviewed_does_not_merge_when_the_review_lands_elsewhere(tmp_path):
+    sha = "b" * 40
+    r, made = _merge_reviewed(tmp_path, ["31", sha, "report"], f"open main {sha} claude/x gn0sh/clarksville-records",
+                              kept="d" * 40)
+    assert r.returncode == 1 and not any(c[3].endswith("/merge") for c in made if len(c) > 3)
+
+
+def test_merge_reviewed_ps1_matches_the_sh():
+    ps1 = (ROOT / "scripts" / "merge-reviewed.ps1").read_text(encoding="utf-8")
+    for s in ("event=COMMENT", "commit_id=$Sha", "merge_method=squash", "sha=$Sha", "-X DELETE", "@tsv",
+              "changed after the review"):
+        assert s in ps1, s
+    assert not re.search(r"--jq '[^']*\"", ps1)          # no double quote inside a --jq argument (PowerShell 5.1)
+
+
+# ------------------------------------------------------------------ V1 probe (T4.10.1): files and script
+def test_the_v1_probe_workflows_are_inert_and_least_privilege():
+    probe_dir = ROOT / "scripts" / "v1-probe"
+    canary = yaml.safe_load((probe_dir / "v1-canary.yml").read_text(encoding="utf-8"))
+    assert (canary.get("on") or canary[True]) == "workflow_dispatch" and canary["permissions"] == {}
+    assert [j["if"] for j in canary["jobs"].values()] == [False]
+    assert all(j["permissions"] == {} for j in canary["jobs"].values())
+    text = (probe_dir / "v1-probe.yml").read_text(encoding="utf-8")
+    probe = yaml.safe_load(text)
+    assert (probe.get("on") or probe[True]) == {"push": {"branches": ["probe/v1-runner"]}}
+    assert probe["permissions"] == {}
+    (job,) = probe["jobs"].values()
+    assert job["permissions"] == {"contents": "write", "pull-requests": "write"}   # exactly the push job's
+    assert "secrets." not in text and "uses:" not in text                        # no secret, no action, no checkout
+    run = job["steps"][0]["run"]
+    assert "for method in squash merge rebase" in run and '-f sha="$head"' in run
+    # the verdict markers in the script's own text never match the probe script's patterns (the log shows the source)
+    assert not re.search(r"V1-(RESULT|MERGED) (squash|merge|rebase)", text)
+    assert not (ROOT / ".github" / "workflows" / "v1-probe.yml").exists()
+    assert not (ROOT / ".github" / "workflows" / "v1-canary.yml").exists()
+    for name in ("v1-probe.sh", "v1-probe.ps1"):
+        s = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert "can_approve_pull_request_reviews=false" in s and "probe/v1-target" in s, name
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert not re.search(r"--jq '[^']*\"", ps1)
+
+
+_V1_STUB = '''#!/usr/bin/env python3
+import json, os, sys
+a = sys.argv[1:]
+with open(os.environ["GH_CALLS"], "a") as f:
+    f.write(json.dumps(a) + "\\n")
+def count(name):
+    p = os.environ["GH_CALLS"] + "." + name
+    n = int(open(p).read()) if os.path.exists(p) else 0
+    open(p, "w").write(str(n + 1))
+    return n
+if a[:2] == ["auth", "status"]:
+    print("Token scopes: 'gist', 'read:org', 'repo', 'workflow'"); sys.exit(0)
+if a[:2] == ["pr", "list"]:
+    print(os.environ.get("DATA_PRS", "1")); sys.exit(0)
+if a[:2] == ["run", "list"]:
+    print("123"); sys.exit(0)
+if a[:2] == ["run", "watch"]:
+    sys.exit(0)
+if a[:2] == ["run", "view"]:
+    sys.stdout.write(open(os.environ["RUN_LOG"]).read()); sys.exit(0)
+path = [x for x in a if x.startswith("repos/")][0]
+if path.endswith("/git/ref/heads/main"):
+    print("1" * 40 if count("main") == 0 else os.environ.get("MAIN_AFTER", "1" * 40)); sys.exit(0)
+if "-X" in a and a[a.index("-X") + 1] == "PUT" and "/contents/" in path:
+    if "branch=probe/v1-runner" in a:
+        print("9" * 40)
+    elif count("canary") == 0:
+        print("c" * 40 + "\\tblob")
+    else:
+        print("d" * 40)
+    sys.exit(0)
+if path.endswith("/pulls") and "POST" in a:
+    print("77"); sys.exit(0)
+if path.endswith("/reviews"):
+    print(os.environ.get("KEPT", "c" * 40)); sys.exit(0)
+sys.exit(0)
+'''
+_SOURCE = ('probe\\tTry\\t2026-11-18T09:00:00Z echo "V1-RESULT $method exit=$code $(printf ...)"\n'
+           'probe\\tTry\\t2026-11-18T09:00:00Z if [ "$code" = 0 ]; then echo "V1-MERGED $method"; break; fi\n')
+_REFUSED = ("probe\\tTry\\t2026-11-18T09:00:01Z V1-RESULT {m} exit=1 {{\"message\":\"refusing to allow a GitHub App to "
+            "create or update workflow `.github/workflows/v1-canary.yml` without `workflows` permission\"}}\n")
+
+
+def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1"):
+    bindir, calls = tmp_path / "bin", tmp_path / "calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_V1_STUB)
+    (bindir / "sleep").write_text("#!/bin/sh\nexit 0\n")
+    for f in ("gh", "sleep"):
+        (bindir / f).chmod(0o755)
+    (tmp_path / "log").write_text(log)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls),
+           "RUN_LOG": str(tmp_path / "log"), "RESULTS_DIR": str(tmp_path), "DATA_PRS": data_prs,
+           **({"MAIN_AFTER": main_after} if main_after else {}), **({"KEPT": kept} if kept else {})}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "v1-probe.sh")], env=env, capture_output=True, text=True)
+    made = [json.loads(ln) for ln in calls.read_text().splitlines()] if calls.exists() else []
+    return r, made
+
+
+def _turned_off(made):
+    return any("can_approve_pull_request_reviews=false" in c for c in made)
+
+
+def test_v1_probe_pass(tmp_path):
+    log = _SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == 0 and "PASS" in r.stdout, r.stdout + r.stderr
+    assert not _turned_off(made)
+    review = next(c for c in made if any(str(x).endswith("/reviews") for x in c))
+    assert f"commit_id={'c' * 40}" in review                         # pinned to the older commit
+    # cleanup: the PR is closed and both probe branches deleted
+    assert any("state=closed" in c and "repos/gn0sh/clarksville-records/pulls/77" in c for c in made)
+    for b in ("probe/v1-target", "probe/v1-runner"):
+        assert sum(c[:3] == ["api", "-X", "DELETE"] and c[3].endswith(b) for c in made) >= 2   # before and after
+    assert list(tmp_path.glob("v1-probe-results-*.txt"))
+
+
+@pytest.mark.parametrize("log,main_after", [
+    (_SOURCE + "probe\tx\tt V1-RESULT squash exit=0 {\"sha\":\"x\",\"merged\":true}\nprobe\tx\tt V1-MERGED squash\n",
+     None),
+    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")), "2" * 40),   # main moved
+], ids=["merged", "main-moved"])
+def test_v1_probe_fail_turns_the_actions_pr_setting_off(tmp_path, log, main_after):
+    r, made = _v1(tmp_path, log, main_after=main_after)
+    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
+
+
+@pytest.mark.parametrize("log,kept", [
+    (_SOURCE + "probe\tx\tt V1-RESULT squash exit=1 {\"message\":\"Pull Request is not mergeable\"}\n"
+     + "".join(_REFUSED.format(m=m) for m in ("merge", "rebase")), None),
+    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")), "d" * 40),   # commit_id moved
+    (_SOURCE, None),                                                                               # no answers
+], ids=["other-refusal", "review-moved", "no-results"])
+def test_v1_probe_inconclusive(tmp_path, log, kept):
+    r, made = _v1(tmp_path, log, kept=kept)
+    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and not _turned_off(made), r.stdout + r.stderr
+
+
+def test_v1_probe_needs_a_bot_merged_data_pr_first(tmp_path):
+    r, made = _v1(tmp_path, _SOURCE, data_prs="0")
+    assert r.returncode == 1 and "Nothing was changed" in r.stdout
+    assert not any("-X" in c for c in made)
 
 
 # ------------------------------------------------------------------ deps/transitive-unpinned: the hashed lock

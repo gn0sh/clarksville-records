@@ -12,7 +12,9 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   nothing. It validates the artifact first (only `*.json`/`*.yml` and the `changes.jsonl` change logs, no symlinks,
   50 MB cap), commits on the SHA the
   `update` job built on, then rebases onto `main`: a concurrent edit to `data/` fails the job instead of being
-  reverted. A failure in `update` or `push` opens (or comments on) one "Daily update failed" issue and leaves the live
+  reverted. It never pushes `main`: the commit goes to a `data/<date>-run<id>-<attempt>` branch, and the job opens a
+  pull request and squash-merges it with `GITHUB_TOKEN` only after checking the PR changes nothing outside `data/`
+  (`docs/ops/morning-note.md` step 2.0). A failure in `update` or `push` opens (or comments on) one "Daily update failed" issue and leaves the live
   site as it was. Both `push` and `deploy` run on `main` only.
 - `deploy` job: publishes the artifact. **Locked:** runs only when repo variable `RECORDS_DEPLOY_ENABLED` is `true`.
   `deploy` needs both other jobs: `update` green, and `push` green too (so the site never goes live from data that is

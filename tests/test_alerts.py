@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, parse
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, note_off, parse
 from qa import site_checks
 from qa.common import load_facts
 from sitegen import config, feeds, unofficial, views
@@ -16,6 +16,30 @@ from test_site_neutrality import BANNED
 
 A = "{http://www.w3.org/2005/Atom}"
 FACTS = load_facts(FIXTURE)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _note_off():
+    """These tests read the feeds with relative links and the Alerts page without the sign-up form: the shipped
+    config with the morning note off and no alerts.site_url (conftest.note_off), whatever the repository ships.
+    The absolute links under site_url are tested in test_absolute_links_with_site_url below, the enabled form in
+    test_morning_page."""
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(config, "SITE", note_off(config.SITE))
+        yield
+
+
+@pytest.fixture(scope="module")
+def built(tmp_path_factory, _note_off):
+    """conftest's `built`, from the off config."""
+    out = tmp_path_factory.mktemp("alerts-site") / "build" / "site"
+    build(FIXTURE, out, internal=True, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
+    return out
+
+
+@pytest.fixture(scope="module")
+def pages(built):
+    return {p.relative_to(built).as_posix(): p.read_text(encoding="utf-8") for p in built.rglob("*.html")}
 
 
 def feed_files(built):
@@ -340,7 +364,7 @@ def test_topic_words_match_at_the_start_of_a_word(title, topic, hit):
 # -- Daylight M3 T2: contracts feed, RPC zoning cases, per-seat zoning feeds
 
 FIN = FIXTURE.parent / "finance.sample.json"
-CFG = config.SITE
+CFG = note_off(config.SITE)      # relative links (the module fixture _note_off)
 
 
 def zcase(n, prefix="Z", district=None, ward=None, meeting="rpc-2026-11-24", date="2026-11-24"):

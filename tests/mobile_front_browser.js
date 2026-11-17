@@ -37,6 +37,7 @@ function measure() {
     doorTitles: [...document.querySelectorAll('.door h3')].filter(shown).length,
     doorTexts: [...document.querySelectorAll('.door > p:not(.door-coming)')].filter(shown).length,
     comingText: text('.door-coming'), comingLinks: heights('.door-coming a'),
+    uncollectedText: text('.door-uncollected'),
     doorLinks: heights('.door ul a'), doors: document.querySelectorAll('.door').length,
     foldOpen: fold ? fold.open : null, summary: fold ? shown(fold.querySelector('summary')) : null,
     summaryHeight: heights('#bodies-fold > summary')[0] || 0,

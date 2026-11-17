@@ -2,8 +2,9 @@
    page (morning/index.html). Everything happens on this device: the seats come from static/seats.js (CRSeats, the
    one "cr-your-seats" key it keeps), the picked lists from the checkboxes and the preview page's own #lists= fragment.
    This script makes no network call, stores nothing new, and never submits or claims to have sent anything.
-   The enabled sign-up form (a later decision) posts the stored seats only while its visible "include my saved
-   seats" box is ticked: seatPost() decides the two fields, seatWords() the numbers printed beside the box.
+   The enabled sign-up form posts the stored seats only while its visible "include my saved seats" box is ticked:
+   seatPost() decides the two fields, seatWords() the numbers printed beside the box. Each posts as a Buttondown tag
+   (its data-tag-prefix plus the number, "note-district-5"), as each list box posts its list's tag ("note-zoning").
    select() mirrors sitegen/morning.py select(): an entry is kept when one of its lists is picked and, for "zoning",
    its printed district or ward equals a stored seat, for "seats", the stored seat its seat_body names is set (the
    county's documents need a district, a council's a ward). tests/test_morning_page.py runs both over the same
@@ -72,7 +73,9 @@
   var seats = root.CRSeats ? root.CRSeats.read() : null;
 
   function boxes(scope) { return Array.prototype.slice.call(scope.querySelectorAll(".mn-picker input[type=checkbox]")); }
-  function picked(scope) { return boxes(scope).filter(function (b) { return b.checked; }).map(function (b) { return b.value; }); }
+  /* A box's list key: data-key (the enabled form's boxes post the list's tag, "note-zoning", as their value). */
+  function keyOf(b) { return b.getAttribute("data-key") || b.value; }
+  function picked(scope) { return boxes(scope).filter(function (b) { return b.checked; }).map(keyOf); }
   function each(scope, sel, fn) { Array.prototype.forEach.call(scope.querySelectorAll(sel), fn); }
   function showPicker(scope) { var f = scope.querySelector(".mn-picker"); if (f) { f.hidden = false; } }
 
@@ -108,7 +111,7 @@
       each(note, "input[data-seat-field]", function (inp) {
         var v = post[inp.getAttribute("data-seat-field")];
         v = typeof v === "string" ? v : null;
-        inp.value = v === null ? "" : v;
+        inp.value = v === null ? "" : (inp.getAttribute("data-tag-prefix") || "") + v;   // "note-district-5"
         inp.disabled = v === null;
       });
     };
@@ -125,7 +128,7 @@
   /* Preview page: today's entries for the picked lists and the stored seats. */
   var page = doc.getElementById("mn-day");
   if (page) {
-    var keys = boxes(page).map(function (b) { return b.value; });
+    var keys = boxes(page).map(keyOf);
     showPicker(page);
     each(page, ".mn-mine", function (p) { p.hidden = false; });
     var entryOf = function (li) {
@@ -135,7 +138,7 @@
                district: d === null ? null : Number(d), ward: w === null ? null : Number(w) };
     };
     var show = function (lists) {
-      boxes(page).forEach(function (b) { b.checked = lists.indexOf(b.value) >= 0; });
+      boxes(page).forEach(function (b) { b.checked = lists.indexOf(keyOf(b)) >= 0; });
       var shown = 0;
       each(page, ".mn-entry", function (li) {
         li.hidden = li.hasAttribute("data-unplaced") ? lists.indexOf("zoning") < 0

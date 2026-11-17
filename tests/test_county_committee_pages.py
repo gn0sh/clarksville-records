@@ -83,10 +83,49 @@ def test_school_board_hub_replaces_the_coming_page(built):
     assert f'<h1>{pg["title"]}</h1>' in main                      # no Coming tag on the h1
     assert 'data-card="meetings"' in main and 'href="school-board/meetings/2024.html"' in main
     assert "What is planned" not in main
-    assert 'class="coming-note"' in main and config.SITE["school_board"]["url"] in main
+    # the "What we can show" note says where the minutes are, so the hub carries no separate minutes note
+    assert config.SITE["county_committees"]["minutes"]["school"] not in text(main) and 'data-limits="school"' in main
+    assert config.SITE["school_board"]["url"] in main
     nav = (out / "index.html").read_text(encoding="utf-8")
     nav = nav[nav.index('<nav id="site-nav"'):]
     assert f'{pg["slug"]}.html">{pg["nav_label"]}</a>' in nav     # the menu entry drops its Coming chip
+
+
+def test_school_board_hub_says_what_it_can_show_and_why_in_config_words(built):
+    """Brian 2026-11-16: the hub says plainly what is here (agendas, from the county), what is not (minutes, votes,
+    budget) and why (cmcss.net blocks automated visitors; this site respects that), with one plain link."""
+    out, _ = built
+    sb = config.SITE["school_board"]
+    lim = config.SITE["switch"]["bodies"]["school"]["limits"]
+    main = main_of(out / f"{sb['page']['slug']}.html")
+    note = main.split('data-limits="school">', 1)[1].split("</section>", 1)[0]
+    assert f'<h2 class="sec-h" id="limits-h">{lim["heading"]}</h2>' in note
+    assert text(note).replace(" .", ".") == (f'{lim["heading"]} {lim["shown"]} {lim["not_shown"]} {lim["why"]} '
+                                             f'{lim["link_lede"]} {sb["link_label"]} (opens in a new tab).')
+    assert re.findall(r'href="([^"]+)"', note) == [sb["url"]] and 'data-ext="school"' in note
+    # above the cards; each coming card agrees with it: the card names the school system's website, never "yet"
+    assert main.index('data-limits="school"') < main.index('class="hub-cards"')
+    cards = {c["key"]: c for c in config.SITE["switch"]["bodies"]["school"]["cards"]}
+    for key in ("votes", "budget"):
+        assert "school system website" in cards[key]["text"] and "yet" not in cards[key]["text"], key
+        assert cards[key]["text"] in text(main), key
+    assert "yet" not in config.SITE["county_committees"]["minutes"]["school"]
+    for w in ("agendas", "county"):
+        assert w in lim["shown"]
+    for w in ("minutes", "votes", "budget"):
+        assert w in lim["not_shown"]
+    # neutral: the reason is the site's own rule, said without judging the school system
+    assert "CMCSS" not in " ".join(lim[k] for k in ("shown", "not_shown", "why", "link_lede"))
+    assert not re.search(r"\b(refuse|hide|hides|hidden|secret|unfortunately|sadly|only)\b",
+                         " ".join(lim[k] for k in ("shown", "not_shown", "why")).lower())
+
+
+def test_the_limits_note_is_left_out_without_its_heading_or_lines():
+    from sitegen import bodies
+    assert bodies.limits(None) is None and bodies.limits({"heading": "H"}) is None
+    assert bodies.limits({"shown": "x"}) is None
+    one = bodies.limits({"heading": "H", "why": "W", "link_lede": "L", "link": {"from": "nowhere", "kind": "school"}})
+    assert one == {"heading": "H", "lines": ["W"], "link_lede": "", "link": None}
 
 
 def test_year_page_sections_lines_minutes_note_and_no_votes(built):
@@ -95,6 +134,13 @@ def test_year_page_sections_lines_minutes_note_and_no_votes(built):
     secs = re.findall(r'<section class="council-meeting committee-meeting" id="([^"]+)"', main)
     assert secs == ["2024-11-12-study", "2024-11-26-formal"]
     assert main.count('class="coming-note"') == 2
+    # the school board's minutes are not collected: their own tag, never "Coming" (Brian 2026-11-16); the county
+    # finance committees' minutes line keeps "Coming"
+    tag = config.SITE["switch"]["not_collected_tag"]
+    assert main.count(f'<p class="coming-note"><span class="chip chip-uncollected">{tag}</span> Minutes:') == 2
+    assert "chip-coming" not in main
+    fin_main = main_of(out / "county-committees" / "budget-committee" / "2024.html")
+    assert '<p class="coming-note"><span class="chip chip-coming">Coming</span> Minutes:' in fin_main
     assert "This agenda has 3 lines." in main and "This agenda has 1 line." in main
     assert config.SITE["county_committees"]["no_text"] in main       # says why the items are not shown
     assert "data-item-title" not in main and "agenda p." not in main and "heading" not in main
@@ -125,6 +171,18 @@ def test_switch_cards_and_day_page_and_search(built):
     assert 'id="school-board-2024-11-26-formal"' in today and 'data-body="school"' in today
     assert 'id="budget-committee-2024-11-20-regular"' in today
     assert "Its meetings are not collected yet" not in today
+    # the school board's day card says its minutes are not collected, under that tag, never "Coming"
+    # (notcollected/today-minutes-coming); the county finance committee's card keeps "Coming"
+    tag = config.SITE["switch"]["not_collected_tag"]
+    school_card = today.split('id="school-board-2024-11-26-formal"', 1)[1].split("</article>", 1)[0]
+    assert f'<p class="coming-note"><span class="chip chip-uncollected">{tag}</span> Minutes:' in school_card
+    assert "chip-coming" not in school_card
+    fin_card = today.split('id="budget-committee-2024-11-20-regular"', 1)[1].split("</article>", 1)[0]
+    assert '<span class="chip chip-coming">Coming</span> Minutes:' in fin_card
+    from qa import site_checks
+    pages = {p.relative_to(out).as_posix(): None for p in out.rglob("*.html")}
+    problems, note = site_checks.check_not_collected(out, pages)
+    assert problems == [] and not note.startswith("0 "), (problems, note)
     idx = (out / "static" / "search-index.js").read_text(encoding="utf-8")
     rec = json.loads(idx.split("=", 1)[1].rstrip().rstrip(";"))
     mine = [r for r in rec["records"] if r["id"].startswith(("school-board-", "budget-committee-"))]
@@ -220,3 +278,17 @@ def test_year_pages_carry_the_one_crumb_line(built):
                                                                      "county-committees/index.html"]
     assert crumb("county-committees/index.html") == ["montgomery-county.html"]
     assert "kicker-line" not in main_of(out / "school-board" / "meetings" / "2024.html")
+
+
+def test_the_not_collected_check_fails_a_line_that_also_says_coming(tmp_path):
+    """notcollected/check-gap: the QA check fails a coming note, hub card or door line holding both tags."""
+    from qa import site_checks
+    tag = config.SITE["switch"]["not_collected_tag"]
+    both = (f'<p class="coming-note"><span class="chip chip-uncollected">{tag}</span> '
+            '<span class="chip chip-coming">Coming</span> Minutes.</p>')
+    (tmp_path / "bad.html").write_text(f"<main>{both}</main>", encoding="utf-8")
+    (tmp_path / "ok.html").write_text(f'<main><p class="door-coming door-uncollected"><span class="chip '
+                                      f'chip-uncollected">{tag}</span> School board: Budget.</p></main>',
+                                      encoding="utf-8")
+    problems, _ = site_checks.check_not_collected(tmp_path, {"bad.html": None, "ok.html": None})
+    assert problems == [f"bad.html: a line tagged {tag!r} also carries the Coming tag"]

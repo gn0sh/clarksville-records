@@ -11,7 +11,7 @@ creates an account or stores an email. T4 (the sender, below) is built off and s
 | T1 Digest generator | backend-engineer | none | yes |
 | T2 Missing feeds | backend-engineer | none | yes (separate files from T1) |
 | T3 Sign-up section, preview page, morning.js | frontend-engineer | contract only; integrates T1/T2 at the end | yes |
-| T4 Sender (T4.0 to T4.8 below) | backend, devops, frontend, writer | T1-T3 merged (done) | see T4 |
+| T4 Sender (T4.0 to T4.10 below) | backend, devops, frontend, writer | T1-T3 merged (done) | see T4 |
 
 ## T1: digest generator (`sitegen/morning.py`, config, build hook)
 - `config/site.yml` `morning_note:` block (lists with key/label, `cutoff`, `keep_days`, `zoning_prefixes`, seam keys,
@@ -226,6 +226,19 @@ subscribers and the other gets nothing; creating a draft sends nothing); which s
 reaches. Then set `sender.mode`.
 If neither mode passes, stop and return to the architect.
 
+### T4.9 Switch-on PR (2026-11-17, backend-engineer; branch `r2-note-on`)
+After the T4.0 probe (done 2026-11-16, `docs/platform-facts.md` "Morning note provider"): the form posts Buttondown
+tags (no `metadata__` field; the free plan refused them on a new sign-up), the sender reads tags and writes only
+`{"note_edition": <stamp>}`, each entry stands under a list the reader picked (render/section-not-picked), config
+switched on with `mode: stamp` and `canary_only: false` (Brian, 2026-11-16: no canary week), and the tests that
+assumed the shipped config was off build their own (`conftest.note_off`, `conftest.shipped_with`). Security notes:
+architecture "Switch-on: tags, and the security notes". Before `MORNING_NOTE_SEND`: runbook section 4 item 4a (one
+real sign-up shows the tags) and Brian's approval of the sample note.
+Before review (2026-11-17): each entry names its meeting day and kind (`meeting`, `text.meeting_line`;
+note/entry-meeting), and `max_editions` is 400, was 80 (sender/max-editions-busy-day; a 190-edition day is sent whole).
+Review fixes (branch `r2-note-fix`, from a23427e): L1, L7, CR2 to CR9 and `privacy_url` checked; architecture
+"Switch-on", "Review fixes (2026-11-17)".
+
 ### T4.8 Security review
 Fresh review at the T4.5 commit against the nine threat points in the architecture. The workflow job does not merge
 before it passes.
@@ -234,6 +247,65 @@ request, with only the GitHub Actions bot (the daily `push` job's `data/` commit
 fallback (the push job opens and merges its own PR) is merged. Without it the `morning-note` environment's main-only
 rule can be bypassed by a direct push. Steps: `docs/ops/morning-note.md` step 2.0 (create-or-update script
 `scripts/protect-main.ps1`, with its checks); checked in section 4 item 6 before `MORNING_NOTE_SEND` is set.
+
+### T4.10 Gate job and main history (2026-11-17; architecture `main-protect-invariant.md`, ADR 0009)
+Owner: devops-engineer unless named. One branch for T4.10.2 to T4.10.4 and T4.10.6 (same files and tests).
+| Task | Depends on | Parallel |
+|---|---|---|
+| T4.10.1 V1 probe | runbook 2.0.1 done (Brian), one data PR merged by `push` | yes, with .2-.6 |
+| T4.10.2 Gate job and wiring | none | branch A |
+| T4.10.3 Push job L-C | none | branch A |
+| T4.10.4 Scripts S1, S2 | none | branch A |
+| T4.10.5 `github-pages` main only | none | yes |
+| T4.10.6 Runbook | .2-.4 drafted | branch A |
+| T4.10.7 Security review (fresh, opus/high) | branch A committed | before branch A merges |
+| T4.10.8 Set `MAIN_PR_BASELINE` | .1 PASS, .5, branch A merged | last |
+
+- **T4.10.1 V1 probe.** Exactly the steps in the architecture "V1 probe" (canary, runner, three merge methods, the
+  `commit_id` check, cleanup). Done when: `docs/platform-facts.md` "Main protection" has the run link, the three
+  refusal messages, the `commit_id` result and `main`'s sha before and after. If a merge goes through: the "V1 false"
+  steps there, at once, then stop T4.10.8 and hand back to the architect.
+- **T4.10.2 Gate job.** New first job `gate` as in the architecture "The gate job" (steps 1-6, inline, outputs `sha`,
+  `verified`); `MAIN_PR_BASELINE` moves into its env; `update` `needs: gate` and checks out `needs.gate.outputs.sha`
+  (output `sha` unchanged); `push` `needs: [gate, update]`; `deploy` `needs: [gate, update, push]` with
+  `needs.gate.result == 'success'` in its `if:`; `note` `needs: [gate, update, deploy]`, `if:` adds
+  `needs.gate.outputs.verified == 'true'`, checks out `needs.gate.outputs.sha`, and its PR-check step and `GH_TOKEN`
+  are removed; new `gate-failed` job (`issues: write`, fixed title "Daily update: main history check failed",
+  `--app github-actions` lookup). Header comment updated. Done when: `actionlint` passes; tests: every `PR_CASES` case
+  runs against the gate step with its old verdict; new cases refuse a code PR with no review, a review only at an
+  older commit, a review by a Bot, a review after `merged_at`, a DISMISSED review, two PRs for one commit, a merge
+  commit whose second parent is not `head.sha`, and accept a COMMENTED review at head; a non-main ref and an empty
+  baseline give `verified=false` with success; the gate's permissions are exactly the two reads and it runs no file
+  from the checkout; `needs`, `ref` and `if:` of `update`, `deploy`, `note` asserted; full suite output pasted.
+- **T4.10.3 Push job (L-C).** The PR's file list (both names of a rename) must equal the local
+  `git diff --name-status` of `main_sha..SHA`, sorted, and be non-empty; if `changed_files` is 0 or the lists differ,
+  re-read up to 5 times 10 s apart, then fail without merging. Done when: tests refuse a 0-file PR, a list missing a
+  file, a list with an extra `data/` file, and still merge the normal case.
+- **T4.10.4 Scripts.** `protect-main.sh`/`.ps1`: the OK check adds "required approvals 0" and `allow_auto_merge`
+  false (NOT OK names what differs and says raising approvals needs ADR 0009 changed). New `merge-reviewed.sh`/`.ps1
+  <pr> <sha>`: refuses unless `<sha>` is 40 hex and the PR's head; posts a COMMENT review with `commit_id=<sha>` and a
+  body naming the review reports; merges `merge_method=squash`, `sha=<sha>`; deletes the head branch; prints the
+  merge sha. Done when: a test runs each `.sh` against a fake `gh` (refusal on a moved head; the exact API calls), and
+  `main-ruleset.json` is asserted to have approvals 0 and no bypass.
+- **T4.10.5 `github-pages` main only.** Remove `gh-pages` from the environment's deployment branches (owner session;
+  if the proxy blocks the API, a one-click card for Brian: Settings > Environments > github-pages > remove `gh-pages`).
+  Done when: `gh api repos/gn0sh/clarksville-records/environments/github-pages/deployment-branch-policies --jq
+  '.branch_policies[].name'` prints only `main`, pasted into `docs/platform-facts.md`.
+- **T4.10.6 Runbook.** `docs/ops/morning-note.md`: "How it runs" (gate first; note no longer has a PR check);
+  2.0.3 merge procedure (S2, every non-data PR, auto-merge off); 2.0.4 V1 probe (link to the architecture);
+  section 4 new item "V1 probe passed (link)" before item 7; item 7 becomes T4.10.8 (check only at note go-live);
+  "When the gate fails" (read the refused commit; if meant, move the baseline by S2-merged PR); the stale
+  `main-protect/` comments in the workflow that cite the Actions bypass updated. Done when: the doc test passes and
+  no line still says `GITHUB_TOKEN` cannot merge a workflow change as a fact.
+- **T4.10.7 Security review.** security-engineer, fresh, opus/high, at branch A's commit, against V1, M-A, L-A, L-C,
+  L-D, L-E and the consumer table. REQUEST CHANGES returns to devops.
+- **T4.10.8 Baseline.** After .1 PASS, .5 and branch A merged: the runbook 4.7 steps (read every first-parent change
+  outside `data/`, take `origin/main`), one PR setting `MAIN_PR_BASELINE` and making
+  `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha, merged with `merge-reviewed`. Done when: the next
+  scheduled run's gate logs `verified=true` with a count, and `update`, `push`, `deploy` are green (link it).
+
+Order: .1, .5 and branch A (.2, .3, .4, .6) in parallel; .7 on branch A; merge A; .8 the same day .1 passes, to
+close phase 0. `MORNING_NOTE_SEND` waits on .1 PASS and .8 (runbook section 4).
 
 ### Order for T4
 T4.1 + T4.2 + T4.3 + T4.6 in parallel now (T4.6 touches only templates and `morning_note.page`; T4.3 owns the rest of

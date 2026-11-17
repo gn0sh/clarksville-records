@@ -15,6 +15,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
+from sender.common import day_words, list_tag, seat_tag_prefix
+
 from . import config, morning
 
 PAGE = "morning/index.html"
@@ -74,6 +76,7 @@ def privacy(cfg: dict | None = None) -> dict | None:
     return {"provider": provider, "privacy_url": m["privacy_url"], "privacy_label": t["privacy_label"],
             "seats_sent": t["seats_sent"].format(**fill), "heading": t["method_heading"],
             "sent": t["method_sent"].format(**fill), "unsubscribe": t["method_unsubscribe"],
+            "change": t["method_change"],                   # sender/tags-seat-change; depends on runbook check 4a
             "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note"}
 
 
@@ -104,7 +107,8 @@ def _feeds_for(key: str, feeds: list[dict], cfg: dict) -> list[dict]:
 
 def _lists(feeds: list[dict], cfg: dict) -> list[dict]:
     m = settings(cfg)
-    return [{"key": x["key"], "label": x["label"], "checked": x["key"] in DEFAULT_PICKS,
+    # `tag`: what the enabled form posts for the list (a Buttondown tag the sender reads, sender/common.py)
+    return [{"key": x["key"], "label": x["label"], "checked": x["key"] in DEFAULT_PICKS, "tag": list_tag(x["key"]),
              "feeds": _feeds_for(x["key"], feeds, cfg), "needs_seats": x["key"] in ("zoning", "seats")}
             for x in m["lists"]]
 
@@ -117,6 +121,7 @@ def _section(feeds: list[dict], cfg: dict, preview: bool = False) -> dict:
     on_ = enabled(cfg)
     return {"lists": _lists(feeds, cfg), "text": m["page"], "enabled": on_,
             "action": m["form_action"] if on_ else "", "fields": fields if on_ else {},
+            "seat_tags": {s: seat_tag_prefix(s) for s in ("district", "ward")} if on_ else {},
             "sent_line": m["page"]["sent_line"].format(provider=m.get("provider") or "") if on_ else "",
             "privacy_url": m.get("privacy_url") if on_ else "",
             "preview": PAGE if preview else ""}
@@ -141,6 +146,16 @@ def _day_words(iso: str) -> str:
     """"2024-12-10" -> "December 10, 2024"."""
     d = date.fromisoformat(iso[:10])
     return f"{d:%B} {d.day}, {d.year}"
+
+
+def _meeting_words(iso) -> str | None:
+    """An entry's meeting day as the email writes it ("November 9, 2026"); None for anything but a real day."""
+    if not (isinstance(iso, str) and len(iso) == 10):
+        return None
+    try:
+        return day_words(iso)
+    except ValueError:
+        return None
 
 
 def _when(stamp: str) -> str:
@@ -173,7 +188,9 @@ def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
         # facts.json and finance.json are, so the one link rule (config.https_link) is applied where the URL becomes
         # a link; a URL that fails it gives an entry with no source link (qa.site_checks then fails the feed entry)
         url = config.https_link(src.get("url"))
-        entries.append({**e, "href": e.get("href") or "",
+        # CR7: the meeting day in the same words as the email ("November 9, 2026", sender/common.day_words)
+        words = _meeting_words(e.get("meeting_date"))
+        entries.append({**e, "href": e.get("href") or "", "meeting_words": words, "meeting": e.get("meeting"),
                         "lists_attr": " ".join(e.get("lists") or []), "seat_body": e.get("seat_body"),
                         "vote_on": e.get("vote_on"),
                         "watch": e["watch"] if (e.get("watch") or {}).get("url") and config.https_link(

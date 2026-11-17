@@ -1,10 +1,13 @@
 # Protect main: create the "main: pull request required" ruleset, or update it if it already exists
-# (docs/ops/morning-note.md, step 2.0.6). Safe to run more than once: it never makes a second ruleset.
+# (docs/ops/morning-note.md, step 2.0.1). Safe to run more than once: it never makes a second ruleset.
+# The ruleset has NO bypass: the daily update reaches main by its own pull request (the push job), so first this
+# turns on "Allow GitHub Actions to create and approve pull requests" (Settings > Actions > General), and it stops
+# before changing anything if main's workflow does not open data pull requests yet.
 #
 # Needs: GitHub CLI (winget install GitHub.cli), signed in as the repository owner: gh auth login
 # Run (PowerShell, in the repository folder):
-#   powershell -ExecutionPolicy Bypass -File scripts\protect-main.ps1
-# The rules and the bypass (the GitHub Actions app, id 15368) are in scripts\main-ruleset.json.
+#   powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
+# The rules (and the empty bypass list) are in scripts\main-ruleset.json.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): the name comes in through $ENV.
 
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
@@ -22,6 +25,18 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host 'Not signed in. Run gh auth login (as the repository owner), then run this again.'
     exit 1
 }
+
+# Without the bypass, a push job that still pushes main directly would fail every day: refuse until main's workflow
+# opens its data pull request.
+$wf = (gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" -H 'Accept: application/vnd.github.raw') -join "`n"
+if ($LASTEXITCODE -ne 0 -or $wf -notmatch 'Open and merge the data pull request') {
+    Write-Host 'Main does not have the data pull request change yet. Nothing was changed. Merge that pull request first, then run this again.'
+    exit 1
+}
+
+# Let the push job's GITHUB_TOKEN open and merge its data pull request.
+gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true --silent
+if ($LASTEXITCODE -ne 0) { Write-Host 'Turning on "Allow GitHub Actions to create and approve pull requests" failed (see above). Nothing else was changed. Send this output to the team.'; exit 1 }
 
 $ids = @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0) { Write-Host 'Could not list the rulesets (signed in as the owner?).'; exit 1 }
@@ -42,17 +57,30 @@ if ($ids.Count -eq 0) {
 $rules = (@(gh api "repos/$repo/rules/branches/main" --jq '.[].type') | Sort-Object -Unique) -join ','
 $ok = $rules -eq 'deletion,non_fast_forward,pull_request'
 Write-Host "Rules on main: $rules"
-foreach ($id in @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })) {
+$prs = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
+Write-Host "GitHub Actions may create pull requests: $prs"
+if ($prs -ne 'true') { $ok = $false }
+# main-protect L-D: auto-merge merges whatever head a branch has later, unreviewed; it stays off.
+$auto = (gh api "repos/$repo" --jq '.allow_auto_merge') -join ''
+Write-Host "Auto-merge allowed: $auto"
+if ($auto -ne 'false') { Write-Host 'Auto-merge must be off: Settings > General > Pull Requests > untick Allow auto-merge.'; $ok = $false }
+$found = @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })
+if ($found.Count -eq 0) { Write-Host 'No ruleset named main: pull request required found after writing it.'; $ok = $false }
+foreach ($id in $found) {
     $enf = (gh api "repos/$repo/rulesets/$id" --jq '.enforcement') -join ''
     $actors = (@(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id] | @tsv') |
                ForEach-Object { $_ -replace "`t", ':' }) -join ','
-    Write-Host "Ruleset ${id}: $enf, bypass $actors"
-    if ($enf -ne 'active' -or $actors -ne 'Integration:15368') { $ok = $false }
+    # main-protect L-E: approvals stay 0 (a workflow's approval would count toward any number above 0; ADR 0009).
+    $appr = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters.required_approving_review_count // empty')) -join ','
+    $shown = if ($actors) { $actors } else { 'none' }
+    Write-Host "Ruleset ${id}: $enf, bypass $shown, required approvals $appr"
+    if ($enf -ne 'active' -or $actors -ne '') { $ok = $false }
+    if ($appr -ne '0') { Write-Host 'Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow approval would count).'; $ok = $false }
 }
 if ($ok) {
     Write-Host 'OK: main is protected. Next: Actions > Daily update > Run workflow (the check run of step 2.0).'
 } else {
-    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request and active, bypass Integration:15368.'
+    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request, active, no bypass, required approvals 0, auto-merge off, and Actions may create pull requests.'
     Write-Host 'Send this output to the team.'
     exit 1
 }

@@ -21,7 +21,7 @@ import urllib.request
 from datetime import datetime, timezone
 from email.message import Message
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import pytest
 
@@ -36,6 +36,7 @@ from test_morning_sender_plan import TEST_HOSTS, cfg_with, msite  # noqa: F401
 ROOT = Path(__file__).resolve().parent.parent
 KEY = "made-up-test-key-not-a-real-one-32b"     # also the stamps' secret (test_morning_sender_deliver.SECRET)
 BASE = "https://api.buttondown.com/v1"
+A_STAMP = "2026-11-11.3fa9c1d2e07b.0123456789abcdef"     # the shape deliver.stamp_value writes
 
 
 @pytest.fixture(autouse=True)
@@ -111,10 +112,15 @@ class FakeHTTP:
         return self.answer(req.get_method(), u, body)
 
     def _page(self, rows, path, query):
-        page = int(parse_qs(query).get("page", ["1"])[0])
+        q = parse_qs(query)
+        page = int(q.get("page", ["1"])[0])
+        since = q.get("creation_date__start", [None])[0]
+        if since is not None:       # a provider that applies the filter: rows created before that day are left out
+            rows = [r for r in rows if (r.get("creation_date") or "9999")[:10] >= since]
         n = self.page_size
         chunk = rows[(page - 1) * n: page * n]
-        nxt = f"{BASE}{path}?page={page + 1}" if page * n < len(rows) else None
+        q["page"] = [str(page + 1)]
+        nxt = f"{BASE}{path}?{urlencode(q, doseq=True)}" if page * n < len(rows) else None
         return Resp(200, {"results": chunk, "next": nxt, "previous": None, "count": len(rows)})
 
     def answer(self, method, u, body):
@@ -132,7 +138,8 @@ class FakeHTTP:
             return self._page(self.email_rows, "/emails", u.query)
         if (method, route) == ("POST", "/emails"):
             row = {"id": f"em{len(self.email_rows) + 1:04d}", "subject": body["subject"], "status": body["status"],
-                   "metadata": body.get("metadata", {}), "publish_date": body.get("publish_date")}
+                   "metadata": body.get("metadata", {}), "publish_date": body.get("publish_date"),
+                   "archival_mode": body.get("archival_mode"), "creation_date": "2026-11-11T09:10:00Z"}
             if "filters" in body:
                 row["filters"] = body["filters"]
             self.email_rows.append(row)
@@ -254,7 +261,7 @@ def test_a_url_with_a_control_space_non_ascii_or_backslash_is_refused(ch):
     nxt = f"https://api.buttondown.com/v1/emails?page=2{ch}"
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, {"results": [], "next": nxt, "count": 0})]})
     with pytest.raises(deliver.ProviderError) as e:
-        client(http).emails()
+        client(http).emails("2026-11-10")
     assert str(e.value) == "GET /emails: a next link off the pinned host" and len(http.requests) == 1
 
 
@@ -281,7 +288,7 @@ def test_the_request_urllib_builds_must_agree_on_scheme_host_and_path(monkeypatc
     monkeypatch.setattr(bd.urllib.request, "Request", make)
     http = FakeHTTP()
     with pytest.raises(deliver.ProviderError) as e:
-        client(http).emails()
+        client(http).emails("2026-11-10")
     assert str(e.value) == "GET /emails: a URL off the pinned host" and http.requests == []
 
 
@@ -291,7 +298,7 @@ def test_a_listing_is_read_page_by_page_and_reduced_at_the_boundary(plan):
     got = client(http).subscribers()
     assert len(http.calls("GET", "/subscribers")) == 4            # 7 rows, 2 a page
     assert [g["id"] for g in got] == [r["id"] for r in rows]
-    assert all(set(g) == {"id", "type", "metadata"} for g in got)  # no address, IP or notes past the adapter
+    assert all(set(g) == {"id", "type", "tags", "metadata"} for g in got)  # no address, IP or notes past the adapter
     assert "example.com" not in json.dumps(got)
 
 
@@ -305,7 +312,7 @@ def test_a_listing_is_read_page_by_page_and_reduced_at_the_boundary(plan):
 def test_a_listing_of_an_unexpected_shape_fails_closed(page):
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, page)]})
     with pytest.raises(deliver.ProviderError):
-        client(http).emails()
+        client(http).emails("2026-11-10")
 
 
 def test_a_later_page_whose_count_differs_from_the_first_fails_closed():
@@ -321,12 +328,36 @@ def test_a_later_page_whose_count_differs_from_the_first_fails_closed():
         assert str(e.value) == "GET /subscribers: a page whose count differs from the first page's"
 
 
+def test_the_claim_listing_asks_for_emails_created_since_the_given_day_on_every_page():
+    """sender/claim-listing-unbounded: GET /emails?creation_date__start=<day>, kept on every next page; a provider
+    that applies it leaves older rows out, and today's rows are always in."""
+    rows = [{"id": f"em{i}", "status": "sent", "metadata": {}, "creation_date": f"2026-11-0{i}T12:00:00Z"}
+            for i in range(1, 6)]
+    rows += [{"id": "today", "status": "scheduled", "metadata": {"note_date": "2026-11-11"},
+              "creation_date": "2026-11-11T09:10:00Z", "archival_mode": "disabled"}]
+    http = FakeHTTP(emails=rows, page_size=1)
+    got = client(http).emails("2026-11-04")
+    assert [r["id"] for r in got] == ["em4", "em5", "today"]
+    assert got[-1] == {"id": "today", "status": "scheduled", "metadata": {"note_date": "2026-11-11"},
+                       "archival_mode": "disabled"}                     # creation_date and the rest dropped
+    urls = [r[1] for r in http.calls("GET", "/emails")]
+    assert len(urls) == 3 and all(parse_qs(urlsplit(u).query)["creation_date__start"] == ["2026-11-04"] for u in urls)
+
+
+@pytest.mark.parametrize("day", ["", "2026-11-4", "2026-11-04&page=9", "2026-11-04T00:00", None, 20261104])
+def test_the_claim_listing_refuses_a_day_that_is_not_one_before_any_request(day):
+    http = FakeHTTP()
+    with pytest.raises(deliver.ProviderError):
+        client(http).emails(day)
+    assert http.requests == []
+
+
 def test_a_page_that_links_back_fails_closed():
     loop = Resp(200, {"results": [], "next": f"{BASE}/emails?page=1", "count": 0})
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, {"results": [], "next": f"{BASE}/emails?page=1",
                                                              "count": 0}), loop]})
     with pytest.raises(deliver.ProviderError):
-        client(http).emails()
+        client(http).emails("2026-11-10")
 
 
 @pytest.mark.parametrize("resp", [
@@ -335,7 +366,7 @@ def test_a_page_that_links_back_fails_closed():
 ])
 def test_an_answer_that_is_not_json_or_too_big_fails_closed(resp):
     with pytest.raises(deliver.ProviderError):
-        client(FakeHTTP(faults={("GET", "/emails"): [resp]})).emails()
+        client(FakeHTTP(faults={("GET", "/emails"): [resp]})).emails("2026-11-10")
 
 
 @pytest.mark.parametrize("header, want", [("7", 7.0), ("0", 0.0), (None, bd.DEFAULT_RETRY), ("soon", bd.DEFAULT_RETRY),
@@ -348,7 +379,7 @@ def test_retry_after_reads_seconds_or_a_date_and_is_never_negative(header, want)
 def test_a_429_raises_rate_limited_with_its_retry_after():
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(429, raw=b"", headers={"Retry-After": "7"})]})
     with pytest.raises(deliver.RateLimited) as e:
-        client(http).emails()
+        client(http).emails("2026-11-10")
     assert e.value.retry_after == 7.0 and str(e.value) == "rate limited"
 
 
@@ -376,7 +407,7 @@ def test_an_error_names_method_path_template_and_status_only(status):
     http = FakeHTTP([{"id": "sub-0001-secret", "type": "regular", "metadata": {}}], faults={
         ("PATCH", "/subscribers/{id}"): [Resp(status, raw=SECRET_BODY.encode(), ctype="text/plain")]})
     with pytest.raises(deliver.ProviderError) as e:
-        client(http).set_metadata("sub-0001-secret", {"a": 1}, "idem")
+        client(http).set_metadata("sub-0001-secret", {"note_edition": A_STAMP}, "idem")
     assert str(e.value) == f"PATCH /subscribers/{{id}}: HTTP {status}"
 
 
@@ -423,7 +454,7 @@ def test_an_http_client_error_while_reading_is_wrapped_too():
         def read(self, n=-1):
             raise http.client.IncompleteRead(SECRET_BODY.encode())
     with pytest.raises(deliver.ProviderError) as e:
-        client(FakeHTTP(faults={("GET", "/emails"): [Broken(200, {"results": []})]})).emails()
+        client(FakeHTTP(faults={("GET", "/emails"): [Broken(200, {"results": []})]})).emails("2026-11-10")
     assert str(e.value) == "GET /emails: the answer could not be read" and SECRET_BODY not in repr(e.value)
 
 
@@ -453,18 +484,41 @@ def test_a_missing_subscriber_is_none_and_another_one_is_refused():
 
 
 # ------------------------------------------------------------------------------------------------ the writes
-def test_a_metadata_write_is_a_patch_of_metadata_only_and_must_echo_whole():
-    http = FakeHTTP([{"id": "s1", "type": "regular", "metadata": {"lists": ["budget"], "ward": 3}}])
+def test_a_metadata_write_is_a_patch_of_the_stamp_only_and_must_echo_whole():
+    """sender/stamp-write-replaces: the PATCH replaces the whole object (T4.0 probe), so the adapter writes exactly
+    {"note_edition": <stamp>}; a key the form wrote (lists, canary) is dropped by it."""
+    http = FakeHTTP([{"id": "s1", "type": "regular", "tags": ["note-budget"], "metadata": {"canary": "yes", "ward": 3}}])
     c = client(http)
-    c.set_metadata("s1", {"lists": ["budget"], "ward": 3, "note_edition": "x"}, "idem-1")
+    c.set_metadata("s1", {"note_edition": A_STAMP}, "idem-1")
     method, url, headers, body, _ = http.requests[-1]
-    assert (method, url, body) == ("PATCH", f"{BASE}/subscribers/s1",
-                                   {"metadata": {"lists": ["budget"], "ward": 3, "note_edition": "x"}})
+    assert (method, url, body) == ("PATCH", f"{BASE}/subscribers/s1", {"metadata": {"note_edition": A_STAMP}})
     assert headers["x-idempotency-key"] == "idem-1"
     # a provider that stored something else (merged, dropped a key) fails the write
     http.faults[("PATCH", "/subscribers/{id}")] = [Resp(200, {"id": "s1", "type": "regular", "metadata": {"x": 1}})]
     with pytest.raises(deliver.ProviderError):
-        c.set_metadata("s1", {"lists": ["budget"]}, "idem-2")
+        c.set_metadata("s1", {"note_edition": A_STAMP}, "idem-2")
+
+
+@pytest.mark.parametrize("bad", [{}, {"note_edition": A_STAMP, "lists": ["budget"]}, {"note_edition": "x"},
+                                 {"note_edition": "2026-11-11.3fa9c1d2e07b"}, {"canary": "yes"}, {"note_edition": 1},
+                                 [("note_edition", A_STAMP)], None])
+def test_a_metadata_write_other_than_one_stamp_is_refused_before_any_request(bad):
+    http = FakeHTTP([{"id": "s1", "type": "regular", "metadata": {}}])
+    with pytest.raises(deliver.ProviderError) as e:
+        client(http).set_metadata("s1", bad, "idem")
+    assert str(e.value) == "PATCH /subscribers/{id}: metadata that is not exactly one stamp" and http.requests == []
+
+
+def test_a_subscriber_keeps_its_tag_names_and_a_tags_field_of_another_shape_fails_closed():
+    http = FakeHTTP([{"id": "s1", "type": "regular", "tags": ["note-budget", "vip"], "metadata": {},
+                      "email_address": "a@example.com"}])
+    assert client(http).subscriber("s1") == {"id": "s1", "type": "regular", "tags": ["note-budget", "vip"],
+                                             "metadata": {}}
+    for bad in ("note-budget", [{"name": "note-budget"}], [1], {"note-budget": True}):
+        http = FakeHTTP([{"id": "s1", "type": "regular", "tags": bad, "metadata": {}}])
+        with pytest.raises(deliver.ProviderError) as e:
+            client(http).subscribers()
+        assert str(e.value) == "GET /subscribers: a subscriber whose tags are not a list of names"
 
 
 def test_no_write_can_change_type_address_or_create_or_delete_a_subscriber(plan):
@@ -486,7 +540,8 @@ def test_create_email_sends_known_fields_only_and_returns_what_the_provider_stor
     payload = {"subject": "s", "body": "b", "status": "draft", "metadata": {"note_date": DAY},
                "archival_mode": "disabled"}
     got = c.create_email(payload, "k")
-    assert got == {"id": "em0001", "status": "draft", "metadata": {"note_date": DAY}}    # no filters key: none stored
+    assert got == {"id": "em0001", "status": "draft", "metadata": {"note_date": DAY},       # no filters key: none stored
+                   "archival_mode": "disabled"}                       # read back, for the echo (render/archival-not-echoed)
     assert http.requests[-1][3] == payload and http.requests[-1][2]["x-idempotency-key"] == "k"
     http.faults[("POST", "/emails")] = [Resp(201, ["not", "an", "email"])]
     with pytest.raises(deliver.ProviderError):
@@ -522,7 +577,8 @@ def test_stamp_mode_end_to_end_reaches_exactly_each_editions_people(plan):
         key = e["metadata"]["note_edition"].split(".")[1]
         assert http.audience(e) == want[key]
         assert e["filters"]["filters"][0]["value"] == stamp(key)
-    assert http.subs["sub-0004-secret"]["metadata"]["favourite"] == "blue"     # other keys kept
+    # the write replaced the metadata with the stamp alone (other keys, such as "favourite", are gone)
+    assert http.subs["sub-0004-secret"]["metadata"] == {"note_edition": stamp(key_for(plan, ["budget", "contracts"]))}
 
 
 def test_ids_mode_end_to_end_drafts_then_sends_and_writes_no_subscriber(plan):
@@ -631,8 +687,9 @@ def plan_file(plan, tmp_path):
 def config_file(tmp_path, enabled: bool, canary_only=False, mode="stamp") -> Path:
     """The shipped config with the switches set and the fixture's link hosts added (the shipped file is unchanged)."""
     text = (ROOT / "config" / "site.yml").read_text(encoding="utf-8")
-    text, n1 = re.subn(r"(?m)^(    enabled: )false\b", rf"\g<1>{'true' if enabled else 'false'}", text, count=1)
-    text, n2 = re.subn(r"(?m)^(    canary_only: )true\b", rf"\g<1>{'true' if canary_only else 'false'}", text, count=1)
+    text, n1 = re.subn(r"(?m)^(    enabled: )(?:true|false)\b", rf"\g<1>{'true' if enabled else 'false'}", text, count=1)
+    text, n2 = re.subn(r"(?m)^(    canary_only: )(?:true|false)\b", rf"\g<1>{'true' if canary_only else 'false'}", text,
+                       count=1)
     text, n3 = re.subn(r'(?m)^(    link_hosts: ")', rf"\g<1>{TEST_HOSTS},", text, count=1)
     text, n4 = re.subn(r"(?m)^(    mode: )stamp\b", rf"\g<1>{mode}", text, count=1)
     assert (n1, n2, n3, n4) == (1, 1, 1, 1)

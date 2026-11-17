@@ -79,8 +79,22 @@ def signatures(cfg: dict):
                 yield lists, district, ward
 
 
-def edition_key(day: str, ids: list[str]) -> str:
-    return hashlib.sha256((day + "\n" + "\n".join(ids)).encode("utf-8")).hexdigest()[:12]
+def placed(note: dict, lists, seats: dict) -> list[tuple[str, str]]:
+    """[(entry id, the list key it stands under)] for one subscriber shape, in the email's order: select()'s entries,
+    each under the first of its own lists that the shape picked and that selected it, grouped by list in LIST_KEYS
+    order, the note's order kept within each list. So an entry on both the seats and the budget lists stands under
+    Budget for a reader who picked Budget but not My two seats (render/section-not-picked: it stood under the
+    entry's first list, a heading the reader never picked)."""
+    want = [k for k in LIST_KEYS if k in set(lists)]
+    rows = [(e["id"], next(k for k in e["lists"] if k in want and morning._seat_match(e, k, seats)))
+            for e in morning.select(note, lists, seats)]
+    return sorted(rows, key=lambda r: LIST_KEYS.index(r[1]))      # stable: the note's order within a list
+
+
+def edition_key(day: str, rows: list[tuple[str, str]]) -> str:
+    """The first 12 hex of sha256 over the day and each (entry id, list) row: two shapes share an edition only when
+    their emails are the same, entries and headings alike."""
+    return hashlib.sha256((day + "\n" + "\n".join(f"{i}\t{k}" for i, k in rows)).encode("utf-8")).hexdigest()[:12]
 
 
 def _at(day: date, hhmm: str, tz: str) -> str:
@@ -108,13 +122,13 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
         plan["reason"] = "quiet"
         return {"plan": plan, "texts": {}}
     by_id = {e["id"]: e for e in note["entries"]}
-    editions: dict[str, list[str]] = {}
+    editions: dict[str, list[tuple[str, str]]] = {}
     for lists, district, ward in signatures(cfg):
-        ids = [e["id"] for e in morning.select(note, lists, {"district": district, "ward": ward})]
-        if not ids:
+        rows = placed(note, lists, {"district": district, "ward": ward})
+        if not rows:
             continue        # nothing on this shape's lists today: no email
-        key = edition_key(plan["date"], ids)
-        if editions.setdefault(key, ids) != ids:
+        key = edition_key(plan["date"], rows)
+        if editions.setdefault(key, rows) != rows:
             raise PlanError(f"two different selections share the edition key {key}")
         plan["signatures"][signature(lists, district, ward)] = key
     ctx = render.context(cfg)
@@ -124,15 +138,15 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
         raise PlanError(str(exc)) from None
     texts = {}
     for key in sorted(editions):
-        rows = [by_id[i] for i in editions[key]]
-        body = render.body_html(ctx, note, rows)
+        rows, under = [by_id[i] for i, _ in editions[key]], dict(editions[key])
+        body = render.body_html(ctx, note, rows, under)
         # render/clean-order: the deliver stage's own body check, here too, so any render/deliver gap fails the plan
         # (the rehearsal's ::warning while the sender is off; a failed run once it is on), never a day lost at 7:00
         if not deliver.body_ok(body, ctx["link_hosts"], ctx["link_urls"]):
             raise PlanError(f"edition {key}: render wrote a body the deliver stage's body check refuses")
         plan["editions"].append({"key": key, "subject": render.subject(ctx, plan["date"]),
-                                 "body": body, "entry_ids": editions[key]})
-        texts[key] = render.body_text(ctx, note, rows)
+                                 "body": body, "entry_ids": [i for i, _ in editions[key]]})
+        texts[key] = render.body_text(ctx, note, rows, under)
     plan["signatures"] = dict(sorted(plan["signatures"].items()))
     plan["send"], plan["reason"] = (True, "ok") if on else (False, "disabled")
     built = {"plan": plan, "texts": texts}

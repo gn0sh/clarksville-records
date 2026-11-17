@@ -16,6 +16,46 @@ FIXTURE_SEATS = ROOT / "site" / "fixtures" / "seats.sample.yml"
 FIXTURE_DISTRICTS = ROOT / "site" / "fixtures" / "districts.sample.json"
 
 
+def note_off(cfg: dict) -> dict:
+    """A copy of `cfg` with the morning note switched off, as config/site.yml shipped it before the switch-on PR:
+    no sign-up form (enabled false, no provider, form_action or privacy_url), the sender off and no alerts.site_url
+    (feeds carry relative links). Tests of the off state and of the relative feed links build from this, so they
+    hold whatever the repository ships; the shipped switches are pinned by
+    test_morning_page.test_committed_config_is_the_switch_on."""
+    import copy
+    c = copy.deepcopy(cfg)
+    if "alerts" in c:
+        c["alerts"]["site_url"] = ""
+    mn = c.get("morning_note")
+    if mn:
+        mn.update(enabled=False, provider="", form_action="", privacy_url="")
+        if "sender" in mn:
+            mn["sender"]["enabled"] = False
+    return c
+
+
+def shipped_with(tmp_path, enabled=None, canary_only=None, mode=None, hosts="") -> Path:
+    """The shipped config/site.yml with the sender block's one-line switches set as asked, written to `tmp_path`
+    (the shipped file is unchanged), so a test of the off state, or of canary_only, does not depend on what the
+    repository ships today (test_morning_page.test_committed_config_is_the_switch_on pins that)."""
+    import re
+    text = (ROOT / "config" / "site.yml").read_text(encoding="utf-8")
+    for key, value in (("enabled", enabled), ("canary_only", canary_only)):
+        if value is not None:
+            text, n = re.subn(rf"(?m)^(    {key}: )(?:true|false)\b", rf"\g<1>{'true' if value else 'false'}", text,
+                              count=1)
+            assert n == 1, key
+    if mode is not None:
+        text, n = re.subn(r"(?m)^(    mode: )(?:stamp|ids)\b", rf"\g<1>{mode}", text, count=1)
+        assert n == 1
+    if hosts:
+        text, n = re.subn(r'(?m)^(    link_hosts: ")', rf"\g<1>{hosts},", text, count=1)
+        assert n == 1
+    out = tmp_path / "site.yml"
+    out.write_text(text, encoding="utf-8")
+    return out
+
+
 def rpc_config_unheld(locality: str = "cmc-rpc") -> dict:
     """The RPC's rpc.yml (sitegen.rpc.load_config) with `hold_motions` off: the tests of the reader's rules on fixture
     motions. The hold itself, as shipped, is tested in tests/test_rpc_hold.py."""
