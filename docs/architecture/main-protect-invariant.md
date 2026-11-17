@@ -1,54 +1,134 @@
-# main-protect invariant (loop rule: `main-protect` hit 3)
-devops-engineer, 2026-11-11. Sources: security reviews `security-tip-fixes-f94b8a9` (S1, S3),
-`security-tip-fixes2-a618a04` (N1, `main-protect/pr-check-path-scope`) and `security-n1-387d368` (L1-L3, nits).
-Applies to the `note` job of `.github/workflows/daily-update.yml`, the only job that gets `BUTTONDOWN_API_KEY`.
+# main-protect invariant (loop rule re-plan, 2026-11-17)
+software-architect, 2026-11-17. Replaces the 2026-11-11 version (devops-engineer; git history keeps it). The
+`main-protect/` family has been hit twice since the no-bypass ruleset: M1 (the Actions bypass let a workflow on any
+branch push `main`) and the bot-merge path that replaced it (security V1, M-A, L-A, L-C, L-D, L-E). Decision record:
+ADR 0009. Tasks: `docs/tasks/morning-note.md` T4.10.
 
 ## The invariant
-**No code that runs with the send key can reach `main` except as the merge of a pull request into `main`.** What the
-note job checks is "merged by pull request"; that the PR was *reviewed* is team process (the playbook's review gates),
-not something the job can prove: a writer who merges their own PR with 0 approvals passes the check (L3). The one
-control a writer cannot get around is the required reviewer on the `morning-note` environment; making it mandatory
-(today the runbook makes it optional and removable after canary week) is Brian's call on the go-live list.
+**I-main (what reaches `main`).** After `MAIN_PR_BASELINE`, every commit on `main`'s first-parent line that changes
+anything outside `data/` is the merge or squash commit of exactly one pull request into `main` that a person merged
+(`merged_by.type == "User"`), and that PR's head at merge (`head.sha`) carries a person's review of that exact commit
+(`user.type == "User"`, `commit_id == head.sha`, state `COMMENTED` or `APPROVED`, submitted no later than `merged_at`).
+Every other first-parent commit changes only `data/`, which holds only `*.json`, `*.yml` and `changes.jsonl` and is
+read as data, never executed.
 
-"Code" is anything the job executes or that can change what it executes: the workflow, the actions it uses, every
-Python module it imports, and any file or variable that can change which module is imported or how the sender behaves.
-Everything else it reads is data and is validated as data. The rule that enforces it: everything the job loads is taken
-from this commit's git objects, outside `data/` (so the PR check covers it), and is re-checked before each use.
-`data/` is the only part of the repository the PR check leaves out (the push job commits it daily without a PR), so
-nothing in the job may load anything from `data/`, from the repository root or from the working folder.
+**I-run (what may run with the credentials).** A job that holds the deploy credentials (`pages: write` and
+`id-token: write` in environment `github-pages`) or `BUTTONDOWN_API_KEY` (environment `morning-note`), and every job
+whose output such a job publishes or sends, runs only the workflow and code of one commit `S = github.sha`, fixed for
+the whole run, which the `gate` job has checked against I-main on `main`.
 
-## Every way code or config reaches the job, and its guard
+**The one line the gate cannot hold.** The gate runs inside the workflow it judges, so a bad workflow on `main` skips
+it. The workflow file at `S` meets I-main only because (a) the ruleset makes a pull request the only way into `main`,
+and (b) GitHub refuses `GITHUB_TOKEN` any change under `.github/workflows/`, by push **and by merging a PR** (V1). (b)
+is unverified for merges: the V1 probe (below) must pass before `MAIN_PR_BASELINE` or `MORNING_NOTE_SEND` is set.
+For the same reason the gate's check is inline in the workflow file, never a script in the repository: only
+`.github/workflows/` is out of a bot merge's reach, and a gate that runs `scripts/` code could be emptied by the very
+merge it must catch.
+
+Actors: a person with write (Brian, or the team acting as him): trusted, but a self-merge with 0 approvals passes
+(residual L3). A workflow on any branch (its `GITHUB_TOKEN` can push branches and, with the Actions setting on, open
+and merge PRs): must never produce a code commit that I-main accepts. Untrusted PDFs (parsed in `update`). Outsiders:
+no write.
+
+## Every consumer, and how it upholds the invariant
+| # | Consumer | How it upholds it |
+|---|---|---|
+| G | `gate` job (new, T4.10.2) | Runs first; `contents: read`, `pull-requests: read`, no secrets, no persisted token. Checks I-main for `S` (design below), outputs `sha` (= `S`) and `verified`. Fails closed on any API error, shallow history, bad baseline, or an empty list of commits to check. |
+| J1 | `update` job | `needs: gate`; checks out exactly `needs.gate.outputs.sha`, not `ref: main` (L-A). `contents: read`, token not persisted, `issues: write` only. Its build and plan come from the checked commit, so what `deploy` publishes and `note` sends was built by checked code. |
+| J2 | `push` job | `needs: [gate, update]`; commits on `update.sha` (= `S`). Local check: one commit on top of main, `data/` only. Server check: the PR's file list equals the local list exactly and is not empty (L-C); every name under `data/`; merge pinned to the checked `sha`, squash. Its merges are the only bot merges I-main allows (data only). |
+| J3 | `deploy` job | `needs: [gate, update, push]`, plus `needs.gate.result == 'success'` in its `if:`. Publishes only this run's artifact from J1. Environment `github-pages`, main only (E1). |
+| J4 | `note` job | `needs: [gate, update, deploy]`, `if:` adds `needs.gate.outputs.verified == 'true'`; checks out `needs.gate.outputs.sha`. Its own PR-check step is removed (one copy, in the gate); the stale-rerun step stays. Internals: table "Inside the note job" below. |
+| J5 | `note-failed`, `gate-failed` (new), push's failure step | `issues: write` only, fixed text, no checkout, run no repo code. |
+| W1 | The workflow file at `S` | Ruleset (R1) + V1. The gate also refuses a bot-merged `.github/` commit already in the history, so a later good workflow stops until a person moves the baseline past it. |
+| W2 | Workflows on any other branch | Can open and merge a PR to main (R2): any code commit that makes is refused by G on every later run (fail closed, `gate-failed` issue). Cannot change a workflow on main (V1). Cannot enter `github-pages` or `morning-note` (main-only deployment branches, E1, E2). |
+| E1 | Environment `github-pages` | Deployment branches **main only**. `gh-pages` is still allowed today (status: "optional hygiene"); under I-run it is not optional: a workflow a person pushes to `gh-pages` (the ruleset covers main only) would get `pages: write` outside the gate. Removed in T4.10.5. |
+| E2 | Environment `morning-note` | Main only (runbook 2.0). Required reviewer optional (runbook 5.0 A): the only control against L3. |
+| R1 | Main ruleset, `scripts/main-ruleset.json` | `deletion`, `non_fast_forward`, `pull_request` with 0 approvals, no bypass. Approvals stay 0 (L-E): with R2 on, a workflow's approval would count toward any number above 0. The gate counts no approvals, only a person's merge and a person's review at head, so a bot approval never satisfies it. |
+| R2 | Setting "Allow GitHub Actions to create and approve pull requests" | On, for J2. It is what lets a workflow on any branch merge to main (W2), which is why G exists. |
+| R3 | Repo merge settings | `allow_auto_merge: false` (L-D: auto-merge merges whatever head the branch has later). Squash and merge commits allowed; a rebase merge of more than one commit leaves commits whose sha is no PR's `merge_commit_sha`, so G refuses it: merge with squash or a merge commit (S2 uses squash). |
+| S1 | `scripts/protect-main.sh`, `.ps1` | Create or update R1, turn on R2; their OK check also asserts approvals 0 and `allow_auto_merge` false, and says NOT OK otherwise. |
+| S2 | `scripts/merge-reviewed.sh`, `.ps1` (new) | The only way a person merges a non-data PR: `merge-reviewed <pr> <reviewed-sha>` posts a COMMENT review with `commit_id=<reviewed-sha>` (body: the review report links), merges with `sha=<reviewed-sha>` (refused if the head moved: L-D), then deletes the head branch. |
+| B | `MAIN_PR_BASELINE` | Lives in the gate step's `env` only (moved from J4). Empty = phase 0: gate outputs `verified=false` and passes, so J1-J3 run as they do today and J4 never runs. Set by a person's PR (T4.10.8) after the V1 probe passes; from then the test accepts only a sha. Moved later only by a reviewed PR after a person read every commit it skips. |
+| D | `data/` | Validated by J2 (types, size, no symlinks); read with `json` and `yaml.safe_load` only (grep, 2026-11-17: `sitegen/`, `collector/`); not read by J4. |
+| K | Caches (`actions/cache` in J1) | Fetched documents and OCR: data, never executed; GitHub scopes them by branch (a branch run cannot write main's cache). |
+| P | Runbook `docs/ops/morning-note.md` | 2.0 (protect main; new 2.0.3 merge procedure S2; new 2.0.4 V1 probe), 4.6, 4.7 (baseline: now T4.10.8, check only), 5.0 A, "Rules for manual runs and re-runs", "When the note job fails" plus new "When the gate fails". Each says what this table says, no stronger. |
+| T | Tests, `tests/test_workflow_lock.py` | `PR_CASES` run against the gate step, plus the new review cases; `needs`, `ref` and `if:` of J1-J4; J2's L-C cases; R1 json (approvals 0, no bypass); G's permissions exactly the two reads; G runs no file from the checkout (allowlist lint, as `NOTE_STEP_COMMANDS`); baseline is "" or a sha (sha only after T4.10.8). |
+
+## The gate job
+Placed first in `jobs:`; `timeout-minutes: 10`; outputs `sha`, `verified`. Steps: checkout `ref: ${{ github.sha }}`,
+`persist-credentials: false`; one inline `run:` step with `GH_TOKEN`, `SHA: ${{ github.sha }}`,
+`REF: ${{ github.ref }}`, `MAIN_PR_BASELINE` in `env:`, `set -euo pipefail`:
+1. `git rev-parse HEAD` must equal `$SHA`.
+2. `REF` is not `refs/heads/main`: output `sha=$SHA`, `verified=false`, stop with success (push, deploy and note
+   are main-only already; update builds the branch's own commit, which a branch run's own workflow could do anyway).
+3. Baseline empty: same outputs plus a `::warning::` (phase 0). Not 40 lowercase hex: fail.
+4. As today's note step: full history (`--filter=blob:none`, unshallow), baseline on HEAD's first-parent line,
+   `shas=$(git log --first-parent --format=%H "$base..HEAD" -- . ':(exclude)data/')`; empty: fail (vacuous pass).
+5. For each sha: (a) exactly one PR from `commits/<sha>/pulls` with `merged_at`, base `main`,
+   `merge_commit_sha == sha` (more than one: fail); (b) `merged_by.type == "User"`; (c) if the commit has two
+   parents, the second is the PR's `head.sha`; (d) `gh api --paginate pulls/<n>/reviews` has a review with
+   `user.type == "User"`, `commit_id == head.sha`, state `COMMENTED` or `APPROVED`, `submitted_at <= merged_at`.
+6. Output `sha=$SHA`, `verified=true`.
+
+On main with a baseline, success implies `verified=true`, so J3 needs only `needs.gate.result == 'success'`. The
+result depends only on `S` and immutable PR records (a review dismissed later makes a re-run fail: closed). Cost: 3
+API calls per code commit since the baseline; move the baseline forward by reviewed PR if it grows past a few hundred.
+`gate-failed` opens or comments on one "Daily update: main history check failed" issue (`--app github-actions`
+lookup). Recovery: a person reads the refused commit; if it was meant, a PR (merged with S2) moves the baseline to it.
+
+## V1 probe (one time, T4.10.1)
+Preconditions: runbook 2.0.1 done (R1 active, R2 on) and one data PR merged by J2 (proves bot merges work, so a
+refusal below means the workflow rule, not a general refusal). Run by devops with the owner's session.
+1. A person pushes `probe/v1-target`: main plus one new file `.github/workflows/v1-canary.yml` (inert:
+   `on: workflow_dispatch`, `permissions: {}`, one job with `if: false`).
+2. A person pushes `probe/v1-runner`: main plus `.github/workflows/v1-probe.yml`, `on: push` to that branch only,
+   `permissions: contents: write, pull-requests: write`. Its one step opens a PR `probe/v1-target` into `main`,
+   posts nothing else, then tries `PUT pulls/<n>/merge` pinned to the head sha with `squash`, then `merge`, then
+   `rebase`, printing each HTTP status and message; it stops at the first `merged: true`.
+3. Expected: all three refused, with a message naming the `workflows` permission (for example "refusing to allow a
+   GitHub App to create or update workflow ... without `workflows` permission"); `main`'s sha unchanged
+   (`git ls-remote origin main` before and after). A refusal for any other reason (not mergeable, ruleset) is
+   inconclusive: fix and re-run.
+4. Same session, on the probe PR: post a COMMENT review as the PR's author with an explicit older `commit_id` and
+   check the API returns that `commit_id` (S2 and gate 5(d) depend on it).
+5. Clean up: close the PR unmerged, delete both probe branches (throwaway branches the team made), record the run
+   link, the three messages and step 4's result in `docs/platform-facts.md` "Main protection".
+
+If any merge goes through (V1 false): turn R2 off at once (`gh api -X PUT
+repos/gn0sh/clarksville-records/actions/permissions/workflow -F can_approve_pull_request_reviews=false`; J2 then
+fails and the site stops updating, which is the safe state); remove the inert canary by a person's PR; leave
+`MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset; the architect re-plans the data path (the leading candidate: data
+leaves `main` for a branch the build reads, so no workflow needs to merge to main). **The probe gates
+`MORNING_NOTE_SEND`:** runbook section 4 gets an item "V1 probe passed (link)" before item 7, and T4.10.8 depends on
+it.
+
+## Inside the note job (rows 3-15 and 18 of the 2026-11-11 version, still in force)
+"Code" is anything the job executes or that can change what it executes. Everything the job loads is taken from
+`S`'s git objects outside `data/`, staged outside the checkout and re-checked before each use; nothing is loaded from
+`data/`, the repository root or the working folder.
 | # | Consumer | Guard |
 |---|---|---|
-| 1 | This workflow file (job, `if:`, `run:` scripts, env, `MAIN_PR_BASELINE`) | `.github/` is outside `data/`: every first-parent commit on main after the baseline that touches it must be a merged PR (PR check). The stale-rerun check refuses a run whose `sender/`, `config/site.yml` or `.github/` differ from main's. A workflow on main that drops these steps: only the environment's required reviewer (row 17). |
-| 2 | Other workflows that could name the `morning-note` environment (L2) | The PR check does **not** run in them. Their guards: the `GITHUB_TOKEN` can never push a change under `.github/workflows/` (it has no `workflows` permission), so the Actions bypass of the main ruleset cannot add one; a person needs a PR to main (main ruleset: `pull_request`, `non_fast_forward`, `deletion`; `scripts/main-ruleset.json`); the environment's deployment-branch rule (main only) and its required reviewer. A workflow added to main by a ruleset bypass actor (row 16) is covered by the required reviewer only. |
-| 3 | Actions (`checkout`, `setup-python`, `download-artifact`) | Pinned by full commit sha (test `test_no_secrets_and_pinned_actions`); only these three are used (test). The pins are in `.github/`, so PR-checked. |
-| 4 | Bash for `run:` steps | No `shell:` is set, so GitHub runs each step as `bash -e {0}` (non-interactive, so bash reads no profile or rc file; `BASH_ENV` is the one startup file it would source). `defaults.run.shell: bash` was not set: it would add `-o pipefail` to every step of every job, a change beyond this fix. Every note-job step that runs Python or stages the sender starts `set -euo pipefail` itself, and the digest is one `&&`-joined pipeline so a failed `find` stops the step. Each step runs only an allowlisted set of programs (test `NOTE_STEP_COMMANDS`): no file by path, no `"$cmd"` launch, no `source`/`bash`/`sh`/`eval`/`exec`/`env`, no `node -e`/`perl -e`, `awk` only the plan-size sum, no `git -c`. That test is a **lint, not a boundary**: it reads shell text and cannot see every way a program can run another (the boundary is that the workflow is PR-checked, row 1). `GITHUB_ENV` and `GITHUB_PATH` (both read by every later step; an entry there is code: `BASH_ENV`, `LD_PRELOAD`, a `PATH` folder) are written only by: `setup-python` (pinned; `GITHUB_ENV`: `pythonLocation`, `PKG_CONFIG_PATH`, `Python_ROOT_DIR`, `Python2_ROOT_DIR`, `Python3_ROOT_DIR`, `LD_LIBRARY_PATH`; `GITHUB_PATH`: the toolcache Python folder and its `bin`), the stage step (`NOTE_LIB`, a `mktemp` path; `NOTE_LIB_SUM`, 64 hex) and "Validate the plan files" (`PLAN`, a date-checked path). No step of ours writes `GITHUB_PATH`. |
-| 5 | Tools `git`, `gh`, `jq`, `find`, `sort`, `xargs`, `sha256sum` | From the GitHub runner image, not the repo. `git` reads `.git/config` written by `checkout`; repo files cannot define hooks or filter drivers. Staging uses `git ls-tree`/`git cat-file blob`, which apply no `.gitattributes` rule (`git archive` would apply `export-ignore` and `export-subst`; tested). |
-| 6 | **`sys.path` and imports** (N1) | Every Python run in the job is `python -I -S -X pycache_prefix="$pc" -c` (`pc=$(mktemp -d)` on its own line, so a failed `mktemp` stops the step) with only `$NOTE_LIB/py` added to `sys.path` (exact strings, tested). `-I`: no current folder or script folder, no user site, `PYTHON*` variables ignored by the interpreter; `-S`: no site-packages, `.pth`, `sitecustomize`; `pycache_prefix`: a new empty folder, so no `.pyc` is read from or written beside the sources. `sys.path` is that folder plus the standard library, so importing anything but `sender` or the standard library (including optional fallbacks such as `winreg` or `tzdata`) fails. |
-| 7 | `sender/*.py` and the staged folder (L1) | Stage step, after both main checks and **before** the plan download: `git ls-tree -z HEAD -- sender/ config/site.yml` and `git cat-file blob` (the commit's objects as committed, not the working folder): only top-level `sender/<name>.py` and `config/site.yml` entries of mode 100644/100755 are written into a new random `NOTE_LIB` (no symlink, subfolder, `__pycache__`); a symlinked `sender` or `config/site.yml` stages nothing and fails. Its sha256 digest (every entry's type, mode and path, and every file's sha256) goes to `NOTE_LIB_SUM`. Validate, dry run and deliver each re-check it first and stop on any difference (tested: a planted `json.py`, a `__pycache__`, a changed module or config, a removed module, a symlink, a mode change). |
-| 8 | Working folder (checkout root) | Not read by any Python run and never on `sys.path`. Root files (`conftest.py`, `*.py`, `pyproject.toml`) are not importable, and are PR-checked anyway. |
-| 9 | `config/site.yml` (enabled, mode, canary_only, link_hosts, limits) | Read only as `$NOTE_LIB/site.yml` (`--config`), staged from the commit's objects and digest-checked; parsed by `sender/settings.py`'s own parser (no PyYAML; `api_base` pinned in `settings.py`). PR-checked and stale-checked. |
-| 10 | The plan artifact (`morning-send`, from the job that parses untrusted PDFs) | Untrusted data: downloaded after staging to `$RUNNER_TEMP/morning-send`, outside the checkout and `sys.path`; layout, names, symlinks and size checked by "Validate the plan files"; schema, bodies and links by `sender.deliver.check_plan`. Never executed. A write by the download into `NOTE_LIB` (zip-slip) is caught by row 7. |
-| 11 | `data/` | Not read by the note job and not on `sys.path`; so it is safe to leave out of the PR check. |
-| 12 | Environment secrets (`BUTTONDOWN_API_KEY`, `MORNING_NOTE_CANARY_IDS`) | Secrets of the `morning-note` environment, set by Brian in settings (not the repo); each only in the deliver step's env. `GH_TOKEN` (read-only) only in the PR check. |
-| 13 | Repository variables (`MORNING_NOTE_SEND`, `RECORDS_DEPLOY_ENABLED`) | Set in repo settings by admins, not in the repo; they only switch the job on (two locks: the job `if:` and the `--live` test). No variable is put into a `run:` script by `${{ }}` (test). |
-| 14 | Other environment variables (env-code-loading) | `-I` ignores only `PYTHON*`. These still load code or change trust, so they count as **code**: `LD_PRELOAD`, `LD_LIBRARY_PATH` (the dynamic loader; `setup-python` sets the latter to its toolcache `lib`), `OPENSSL_CONF`, `OPENSSL_MODULES` (OpenSSL loads providers and engines from them when `sender/buttondown.py` calls `ssl.create_default_context`), `SSL_CERT_FILE`, `SSL_CERT_DIR` (the trust store: swapping it lets a man in the middle read the key), `BASH_ENV` (sourced by every `bash` step). `PYTHONTZPATH` is read by `zoneinfo` directly (time-zone files: data, but it chooses which files). Guard: the job sets none of them except `setup-python`'s `LD_LIBRARY_PATH`; only the PR-checked workflow (row 1) or the three named `GITHUB_ENV` writers (row 4) could, and none of those take a value from the plan or the checkout. |
-| 15 | Installed packages and the interpreter | None installed: no pip step, no cache; `-S` leaves site-packages out. Interpreter from `setup-python` (pinned action), `python-version: "3.12"`: the patch release is GitHub's toolcache build, inside GitHub's trust boundary (not pinned further). |
-| 16 | The main ruleset and its bypass list | `scripts/main-ruleset.json`: bypass only `Integration 15368` (the GitHub Actions app, for the push job's `data/` commit). Its pushes are what the PR check is for (row 17); it cannot touch `.github/workflows/` (row 2). Repo admins changing the ruleset or environment settings is outside what any check in the repo can see. |
-| 17 | The PR-baseline check | Pathspec `. ':(exclude)data/'`: any direct push outside `data/` after `MAIN_PR_BASELINE` refuses the send. Fails closed on an unset baseline, shallow history or an API error. |
-| 18 | The stale-rerun check (stale-check-availability) | Decided: narrowed back to `sender/ config/site.yml .github/` (5f92778). It exists so an older run's sender and workflow don't meet today's plan; the job loads nothing else from the checkout (rows 6-8), so a wider stale check only added a failure mode (a docs PR merged during the run cancelled the day's note). The PR check (row 17) stays wide. |
-| 19 | The deployment-branch policy and required reviewer of `morning-note` | Environment settings, not the repo: deployment branch main only (runbook 2.0); required reviewer optional (runbook 5.0). Checked by the runbook's `gh api .../environments/morning-note` command. |
+| 3 | Actions (`checkout`, `setup-python`, `download-artifact`) | Pinned by full commit sha (test `test_no_secrets_and_pinned_actions`); only these three are used (test). |
+| 4 | Bash for `run:` steps | Default `bash -e {0}`; every Python or staging step starts `set -euo pipefail`; each step runs only allowlisted programs (test `NOTE_STEP_COMMANDS`, a lint, not a boundary). `GITHUB_ENV`/`GITHUB_PATH` written only by `setup-python` (pinned), the stage step (`NOTE_LIB`, `NOTE_LIB_SUM`) and "Validate the plan files" (`PLAN`). |
+| 5 | Tools `git`, `gh`, `jq`, `find`, `sort`, `xargs`, `sha256sum` | From the runner image. Staging uses `git ls-tree`/`git cat-file blob` (no `.gitattributes` rule applies). |
+| 6 | `sys.path` and imports | Every Python run is `python -I -S -X pycache_prefix="$pc" -c` with only `$NOTE_LIB/py` added (tested). |
+| 7 | `sender/*.py` and the staged folder | Staged from `S`'s objects (top-level `sender/<name>.py` and `config/site.yml`, regular files only) into a new `NOTE_LIB`; its digest is re-checked before validate, dry run and deliver (tested). |
+| 8 | Working folder | Never read by Python, never on `sys.path`. |
+| 9 | `config/site.yml` | Read only as the staged `$NOTE_LIB/site.yml`, parsed by `sender/settings.py`; `api_base` pinned in code. |
+| 10 | The plan artifact `morning-send` | Untrusted data from J1: downloaded after staging to `$RUNNER_TEMP`, layout and size checked, schema and links checked by `sender.deliver.check_plan`; never executed. |
+| 12 | Environment secrets | `BUTTONDOWN_API_KEY`, `MORNING_NOTE_CANARY_IDS` only in the deliver step's env. The job's `GH_TOKEN` is no longer used (the PR check moved to G). |
+| 13 | Repository variables | `MORNING_NOTE_SEND`, `RECORDS_DEPLOY_ENABLED` only switch jobs on; never put into `run:` by `${{ }}` (test). |
+| 14 | Code-loading environment variables | `LD_PRELOAD`, `LD_LIBRARY_PATH`, `OPENSSL_CONF`, `OPENSSL_MODULES`, `SSL_CERT_FILE`, `SSL_CERT_DIR`, `BASH_ENV`, `PYTHONTZPATH`: set by nothing but `setup-python`'s `LD_LIBRARY_PATH`. |
+| 15 | Packages and interpreter | No pip, no cache; `-S`; interpreter from the pinned `setup-python`. |
+| 18 | Stale-rerun check | `sender/ config/site.yml .github/` must equal main's tip, so an older run's sender never meets today's plan. |
 
-## Residual (covered by people, not by any check in the repo)
-- zip-slip-residual: a download that could write anywhere on the runner has better targets than `NOTE_LIB`, which the
-  digest does not cover and `-I -S` does not stop: the toolcache standard library
-  (`$RUNNER_TOOL_CACHE/Python/3.12.*`, its `pyvenv.cfg`, `lib-dynload`), the runner's `GITHUB_ENV`/`GITHUB_PATH`
-  files, the runner's own tools. No step in a job can guard against that; the defence is the pinned
-  `download-artifact` (v4.3.0, no known zip-slip; CVE-2024-42471 fixed in v4.1.7) and the plan coming only from
-  this run's own `update` job.
-- A writer who merges their own PR with 0 approvals (L3), a workflow on main that drops the checks, or a ruleset
-  bypass actor: only the required reviewer on `morning-note` (runbook 5.0) stops the job before it gets the key.
-- S3 (unverified): pushing a PR's head straight to main can mark the PR merged with that sha as `merge_commit_sha`;
-  covered only by the required reviewer. (A jq test `.head.sha != $ENV.SHA` was suggested; not added, unverified
-  against GitHub's behaviour for squash merges.)
+## Residual (people, not checks)
+- L3: a person who merges their own code PR with 0 approvals and a COMMENT review passes. S2's review body links the
+  team's review report; only the required reviewer on `morning-note` (E2) stops it before the key.
+- A person who pushes a workflow that drops the gate, or a repo admin who changes R1, R2, R3, E1 or E2: outside any
+  check in the repository. S1 re-verifies R1-R3 when run.
+- zip-slip-residual: a download that could write anywhere on the runner (toolcache, `GITHUB_ENV`) has better targets
+  than `NOTE_LIB`; the defence is the pinned `download-artifact` (v4.3.0) and the plan coming only from this run's J1.
+- Unverified GitHub behaviour, each failing closed if wrong except V1: V1 (probe step 3); an author's COMMENT review
+  keeps the `commit_id` it was posted with (probe step 4); a merged PR's `head.sha` stays as merged (S2 deletes the
+  head branch, so nothing can push it later).
