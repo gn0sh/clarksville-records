@@ -1704,6 +1704,21 @@ def test_the_committed_baseline_is_unset_or_a_sha():
     assert "MAIN_PR_BASELINE" in runbook
 
 
+def test_runbook_baseline_step_lists_who_merged_each_code_commit():
+    """L-3 main-protect/baseline-blesses-phase0: `%an` cannot show a bot merge, so 4.7.1 lists merged_by.type for each
+    first-parent commit outside data/ since the R1/R2 switch-on, via commits/<sha>/pulls then pulls/<n>, stops on a
+    Bot, and the output goes into the baseline PR. L-1's deferred change is named in 4.7.2 and in T4.10.8."""
+    runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
+    step = runbook[runbook.index("**The baseline `MAIN_PR_BASELINE`"):runbook.index("Never move the baseline later")]
+    assert "merged_by" in step and "merged_by.type" in step and "/commits/$c/pulls" in step and '"$R/pulls/$n"' in step
+    assert "--first-parent" in step and ":(exclude)data/" in step and "<switch-on sha>" in step
+    assert "Stop on any `Bot`" in step and "paste the whole output into the baseline PR" in step
+    assert "L-1" in step and "T4.10.8" in step
+    tasks = (ROOT / "docs" / "tasks" / "morning-note.md").read_text(encoding="utf-8")
+    t8 = tasks[tasks.index("- **T4.10.8 Baseline.**"):tasks.index("Order: .1, .5 and branch A")]
+    assert "L-1" in t8 and '("", "refs/heads/main")' in t8 and "refuse" in t8
+
+
 def test_the_gate_fails_closed_when_github_cannot_be_read(tmp_path):
     code, calls, _, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {"A": [_pr("A")]}, gh_fail=True)
     assert code != 0 and len(calls) == 1 and out == {}

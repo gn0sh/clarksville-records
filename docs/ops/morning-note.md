@@ -296,11 +296,28 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    everything up to here".
    1. `git fetch origin main`, then
       `git log --first-parent --format='%h %an %s' origin/main -- . ':(exclude)data/'` and read it: each
-      change outside `data/` was meant (the earlier ones were merged without pull requests). Then
-      `git rev-parse origin/main` prints the baseline sha.
+      change outside `data/` was meant (the earlier ones were merged without pull requests). `%an` is the commit's
+      author and cannot show a bot merge (main-protect L-3), so also list who merged each such commit since the
+      R1/R2 switch-on (`<switch-on sha>`: `main`'s sha when 2.0.1 first printed OK, recorded in
+      `docs/platform-facts.md` "Main protection"), and paste the whole output into the baseline PR:
+      ```bash
+      R=repos/gn0sh/clarksville-records
+      for c in $(git log --first-parent --format=%H "<switch-on sha>..origin/main" -- . ':(exclude)data/'); do
+        n=$(COMMIT=$c gh api "$R/commits/$c/pulls" --jq '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.COMMIT) | .number] | first // "none"')
+        t=none; [ "$n" = none ] || t=$(gh api "$R/pulls/$n" --jq '.merged_by.type // "none"')
+        echo "$c PR #$n merged_by.type=$t"
+        [ "$t" = User ] || { echo "STOP: $c was not merged by a person"; break; }
+      done
+      ```
+      Every line must say `merged_by.type=User`. **Stop on any `Bot`** (a workflow merged code: treat it as an
+      incident, `MAIN_PR_BASELINE` stays empty) and on `none` (no merged PR, which R1 should have made impossible):
+      a person reads that commit before anything else. Then `git rev-parse origin/main` prints the baseline sha.
    2. A PR that changes only `MAIN_PR_BASELINE: ""` to `MAIN_PR_BASELINE: "<that sha>"` (and makes
       `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha), reviewed, merged with
-      `scripts/merge-reviewed.ps1` (2.0.3). That PR comes after the baseline, so the gate checks it too.
+      `scripts/merge-reviewed.ps1` (2.0.3). That PR comes after the baseline, so the gate checks it too. The same
+      PR makes an empty baseline on `main` a refusal instead of phase 0 (main-protect L-1: otherwise a later PR
+      resetting it to `""` reopens phase 0 silently); the exact change and tests are in `docs/tasks/morning-note.md`
+      T4.10.8.
    3. Check (the day it merges, and again before setting `MORNING_NOTE_SEND`): the next Daily update run's `gate`
       job logs "Every change outside data/ on main after <baseline> was merged by a person, reviewed at its head:
       <n> commit(s)." and `update`, `push` and `deploy` are green. Link that run.
