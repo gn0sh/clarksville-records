@@ -193,6 +193,14 @@ function Ensure-Subscriber([string]$address, [string]$which) {
         $resp = Bd 'POST' '/subscribers' @{ email = $address; type = 'regular' } '' 'POST /subscribers (email field)'
         $R["create_subscriber_$which"] += " then HTTP $($resp.Status) with field 'email'"
     }
+    if ($resp.Status -eq 400 -or $resp.Status -eq 422) {
+        # Buttondown may refuse type 'regular' (skipping double opt-in) on this plan: record why, then create it the
+        # normal way; Buttondown sends a confirm email and the step below waits for the click.
+        $R["create_subscriber_${which}_refusal"] = Clean $resp.Text
+        $resp = Bd 'POST' '/subscribers' @{ email_address = $address } '' 'POST /subscribers (no type)'
+        $R["create_subscriber_$which"] += " then HTTP $($resp.Status) without type"
+        if (-not ($resp.Status -eq 200 -or $resp.Status -eq 201)) { $R["create_subscriber_${which}_refusal_2"] = Clean $resp.Text }
+    }
     $row = $null
     if (($resp.Status -eq 200 -or $resp.Status -eq 201) -and (Has $resp.Data 'id')) { $row = $resp.Data } else { $row = Find-Subscriber $address }
     if ($null -eq $row) { return $null }
