@@ -328,12 +328,22 @@ def test_the_html_edition_closes_with_the_site_footers_gnoshcodes_credit():
 def test_the_credit_png_ships_in_the_site_static_folder():
     """A PNG (Gmail shows no SVG): the 320x64 render of the light hook SVG, transparent, shown at 160x32. The build
     copies site/static/ whole, so it is served at CREDIT_IMAGE."""
-    from PIL import Image
+    # The PNG header read directly: Pillow is not in requirements.lock, so the daily job's test step cannot import it.
+    # The pixel check runs only where Pillow is installed (locally, not in the daily job).
+    import struct
     path = ROOT / "site" / common.CREDIT_PATH
+    head = path.read_bytes()[:29]
+    assert head[:8] == b"\x89PNG\r\n\x1a\n" and head[12:16] == b"IHDR"
+    width, height, depth, colour = struct.unpack(">IIBB", head[16:26])
+    assert (width, height, depth, colour) == (320, 64, 8, 6)          # 8-bit RGBA (colour type 6)
+    assert path.stat().st_size < 20_000
+    try:
+        from PIL import Image
+    except ImportError:
+        return
     with Image.open(path) as im:
         assert (im.format, im.size, im.mode) == ("PNG", (320, 64), "RGBA")
         assert im.getpixel((0, 0))[3] == 0 and im.getbbox()                 # a transparent ground, a visible mark
-    assert path.stat().st_size < 20_000
 
 
 def test_the_built_site_serves_the_credit_png(msite):  # noqa: F811
