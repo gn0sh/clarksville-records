@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 
 from .common import CUT, MAX_TITLE  # noqa: F401  common's since subject-unchecked, still importable from here
-from .common import DOTS, MARKUP, ZWSP, clean, day_words, exact_url_ok, link_ok, parse_hosts, subject_line
+from .common import DATE_RE, DOTS, MARKUP, ZWSP, clean, day_words, exact_url_ok, link_ok, parse_hosts, subject_line
 
 TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
 _INERT = {ord(c): f"&#{ord(c)};" for c in MARKUP}       # common.MARKUP: every markup character
@@ -90,6 +90,7 @@ def context(cfg: dict) -> dict:
     u = unofficial.load(cfg)
     return {"site_name": cfg["site_name"], "site_url": (cfg.get("alerts") or {}).get("site_url") or "",
             "text": dict(mn["sender"]["text"]), "source_label": mn["page"]["source_label"],
+            "meeting_line": mn["text"]["meeting_line"],
             "page_label": mn["page"]["page_label"], "notice": u["notice"], "email_line": u["email_line"],
             "support_label": cfg.get("support_label") or "",
             "link_hosts": parse_hosts(mn["sender"]["link_hosts"]),
@@ -103,6 +104,7 @@ def own_text(ctx: dict, note: dict) -> list[str]:
     from sitegen.morning import own_text as note_text
     support = support_of(ctx, note)
     return [subject(ctx, note["date"]), ctx["text"]["why"], ctx["text"]["open_site"], ctx["source_label"],
+            ctx["meeting_line"],
             ctx["page_label"], ctx["email_line"], ctx["notice"]] + (list(support[:2]) if support else []) + \
         note_text(note)
 
@@ -126,35 +128,53 @@ def support_of(ctx: dict, note: dict) -> tuple[str, str, str] | None:
     return line, ctx["support_label"], url
 
 
-def sections(note: dict, entries: list[dict]) -> list[tuple[str, list[dict]]]:
-    """[(list label, entries)] in the note's own order. An entry stands once, under the first of its lists (the
-    key the note is sorted by), so an edition reads the same for every subscriber who shares it."""
+def sections(note: dict, entries: list[dict], under: dict | None = None) -> list[tuple[str, list[dict]]]:
+    """[(list label, entries)] in the given order. An entry stands once, under `under[id]` (plan.placed: the first
+    of its lists the reader picked and that selected it), else under the first of its lists (the key the note is
+    sorted by). The edition key covers both, so an edition reads the same for every subscriber who shares it."""
     labels = {x["key"]: x["label"] for x in note["lists"]}
     out: list[tuple[str, list[dict]]] = []
     for e in entries:
-        label = labels.get(e["lists"][0], "")
+        label = labels.get(under[e["id"]] if under else e["lists"][0], "")
         if not out or out[-1][0] != label:
             out.append((label, []))
         out[-1][1].append(e)
     return out
 
 
+def who_when(ctx: dict, e: dict) -> str:
+    """An entry's first line: the body, and the meeting it is from ("<body name>, November 9, 2026
+    formal meeting", config morning_note.text.meeting_line), so two agendas of one item never read as a duplicate
+    (note/entry-meeting). Only the record's body, its meeting date and the meeting words the note carries; an entry
+    with no meeting (a budget book, a solicitation) is its body alone."""
+    body, day, meeting = e.get("body_name"), e.get("meeting_date"), e.get("meeting")
+    if not (isinstance(day, str) and DATE_RE.fullmatch(day) and isinstance(meeting, str) and meeting.strip()
+            and ctx.get("meeting_line")):
+        return clean(body)
+    try:
+        words = day_words(day)
+    except ValueError:
+        return clean(body)
+    return clean(ctx["meeting_line"].replace("{body}", clean(body)).replace("{date}", words)
+                 .replace("{meeting}", clean(meeting)))
+
+
 def _source_words(ctx: dict, page) -> str:
     return ctx["source_label"] + (f", {ctx['page_label']} {page}" if page else "")
 
 
-def body_html(ctx: dict, note: dict, entries: list[dict]) -> str:
+def body_html(ctx: dict, note: dict, entries: list[dict], under: dict | None = None) -> str:
     """The HTML body. No blank line and no indented line, so a Markdown step sees one HTML block and nothing else."""
     out = [f"<h1>{inert(ctx['site_name'])}</h1>", f"<p>{inert(day_words(note['date']))}</p>",
            f"<p>{inert(ctx['email_line'])}</p>"]
-    for label, rows in sections(note, entries):
+    for label, rows in sections(note, entries, under):
         out += [f"<h2>{inert(label)}</h2>", "<ul>"]
         for e in rows:
             page_url = site_link(ctx["site_url"], e.get("href"), ctx.get("link_hosts", ()))
             src, page = source_link(e, ctx.get("link_hosts", ()))
             links = ([f'<a href="{_attr(page_url)}">{inert(ctx["text"]["open_site"])}</a>'] if page_url else []) + \
                     ([f'<a href="{_attr(src)}">{inert(_source_words(ctx, page))}</a>'] if src else [])
-            parts = [inert(e.get("body_name")), inert(e.get("recorded")), f"<strong>{inert(e.get('title'))}</strong>"]
+            parts = [inert(who_when(ctx, e)), inert(e.get("recorded")), f"<strong>{inert(e.get('title'))}</strong>"]
             out.append("<li>" + "<br>".join(parts + ([" &middot; ".join(links)] if links else [])) + "</li>")
         out.append("</ul>")
     if note.get("unplaced_text"):
@@ -166,15 +186,15 @@ def body_html(ctx: dict, note: dict, entries: list[dict]) -> str:
     return "\n".join(out) + "\n"
 
 
-def body_text(ctx: dict, note: dict, entries: list[dict]) -> str:
+def body_text(ctx: dict, note: dict, entries: list[dict], under: dict | None = None) -> str:
     """The same edition as plain text, for a person reading the dry run. It is not what is sent."""
     out = [clean(ctx["site_name"]), day_words(note["date"]), clean(ctx["email_line"]), ""]
-    for label, rows in sections(note, entries):
+    for label, rows in sections(note, entries, under):
         out += [clean(label), ""]
         for e in rows:
             page_url = site_link(ctx["site_url"], e.get("href"), ctx.get("link_hosts", ()))
             src, page = source_link(e, ctx.get("link_hosts", ()))
-            out += [f"  {clean(e.get('body_name'))}", f"  {clean(e.get('recorded'))}", f"  {clean(e.get('title'))}"]
+            out += [f"  {who_when(ctx, e)}", f"  {clean(e.get('recorded'))}", f"  {clean(e.get('title'))}"]
             out += [f"  {clean(ctx['text']['open_site'])}: {page_url}"] if page_url else []
             out += [f"  {clean(_source_words(ctx, page))}: {src}"] if src else []
             out.append("")

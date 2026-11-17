@@ -41,13 +41,14 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    name; nothing that reads as an authority: no "City of", "County", "CMCSS", "RPC" or "official").
 2. **Brian:** Settings > Domains (sending domain): add the sending domain and add the SPF and DKIM records it shows
    at the DNS host. This may need the paid plan (hard stop 3: approve the spend first).
-   **Canary (decided 2026-11-16, devops): skipped.** The canary week runs on the free plan from Buttondown's own
-   sending address, so no spend. Launch precondition 9's DNS part moves to before widening (`canary_only: false`).
+   **Skipped (2026-11-16):** the free plan sends from Buttondown's own address, so no spend. Whether to add a
+   custom domain later is call B in section 5 step 0 (recommended: no).
 3. **Brian:** Settings > Subscribing: double opt-in **on** for form sign-ups.
 4. **Brian:** Settings > Tracking: open tracking **off**, click tracking **off**.
 5. **Brian:** Settings > Email: reply-to = a team address (not a personal one).
-6. **Brian:** Settings > Metadata (subscriber fields): add `lists` (multi-select), `district` and `ward`. Do **not**
-   add `canary` or `note_edition` (canaries are ids in a secret; the stamp is written by the sender only).
+6. **Brian:** Settings > Metadata: nothing to add. On the free plan the screen says metadata needs the Basic plan,
+   and the sign-up form posts Buttondown **tags** instead (`note-zoning`, `note-district-5`, ...; 2026-11-17). Do
+   **not** add `canary` or `note_edition` (canaries are ids in a secret; the stamp is written by the sender only).
 7. **Brian:** Settings > API > New key: a **scoped** key, never the primary key. Emails: write. Sending: write.
    Subscribers: write for `stamp` mode, read for `ids` mode (set after the T4.0 probe). Every other area: none.
    Copy it once; it goes straight into the GitHub secret in step 2.3 and nowhere else (not a file, chat or issue).
@@ -79,9 +80,9 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      would pass for that commit although nobody merged the pull request on its page. Only the required reviewer on
      the `morning-note` environment covers this. A pull request shown as merged that nobody merged on its page is a
      direct push: treat it as in "When the note job fails".
-     **Canary week (decided 2026-11-16): the required reviewer is OFF**, so this gap is open during it. Reason: the
-     reviewer must approve every morning between 03:07 and about 07:00 CT, and the canary sends only to the team's
-     own ids (`canary_only: true`). Before `canary_only: false` it is turned on or decided again (section 5 step 4).
+     **The required reviewer is OFF (decided 2026-11-16)**, so this gap is open. With no canary week (Brian,
+     2026-11-16) the note goes to the whole list, so the reviewer is call A in section 5 step 0 (recommended: stays
+     OFF; the reason and the risk are there).
    `main` takes changes by pull request only, except the daily job's own `data/` commit (the `push` job,
    `GITHUB_TOKEN`, `github-actions[bot]`).
    1. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
@@ -171,6 +172,9 @@ When the probe is finished, delete that key in the test newsletter's Settings > 
 11. Which features need the paid add-on (tagging and segmentation; metadata filters).
 Then set `morning_note.sender.mode` (`stamp` or `ids`) by PR. If neither mode passes, stop and return to the
 architect.
+**Done 2026-11-16** on the live newsletter (`daylight`, free plan, team addresses only): `stamp` works, `ids` cannot
+(send-draft only previews), and the form refused `metadata__` fields on a new address, so the form posts tags.
+Results and corrections to the probe file's manual answers: `docs/platform-facts.md` "Morning note provider".
 
 ## 4. Before the first send (team, by reviewed PRs)
 1. T4.6 done (privacy text, seat consent) and the launch preconditions of the architecture ("Launch
@@ -178,7 +182,16 @@ architect.
 2. Add the site's host (`daylight.gnoshcodes.com`) to `morning_note.sender.link_hosts`; check each government source
    host in `link_hosts` for an open redirect and record the result in `docs/platform-facts.md`.
 3. T4.8 security review of the T4.5 commit passed.
-4. `morning_note.enabled: true` and `morning_note.sender.enabled: true`, with `canary_only: true` (the default).
+4. `morning_note.enabled: true` and `morning_note.sender.enabled: true`, with `canary_only: false` (Brian,
+   2026-11-16: no canary week). The switch-on PR (branch `r2-note-on`) does this, with `mode: stamp` and the form
+   posting tags.
+4a. **One real sign-up on the live form, after the switch-on PR is deployed** (a team member, a team address that
+   is not yet subscribed; launch precondition 5): fill in the Alerts page form with two lists ticked and saved
+   seats included. Check, and write each answer into `docs/platform-facts.md` "Morning note provider": the post
+   lands on a buttondown.com page (no CSP error in the browser console); a confirmation email arrives (double
+   opt-in); before confirming, the subscriber is `unactivated` in Buttondown; after confirming, it shows exactly the
+   tags `note-<list>` for each ticked list plus `note-district-<n>` and `note-ward-<n>`. If the form answers an
+   error or the tags are missing, stop: `MORNING_NOTE_SEND` stays unset, and the form goes back off by PR.
 5. The site deploy is live (`RECORDS_DEPLOY_ENABLED` is `true`): the note job needs a successful deploy.
 6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.6) prints "OK: main is protected", and the last
    scheduled run's `push` job committed `data/` to `main` under the ruleset (or the 2.0 fallback is merged and green). Link the
@@ -201,41 +214,51 @@ architect.
       `gh api repos/gn0sh/clarksville-records/commits/<sha>/pulls --jq '.[].merge_commit_sha'` prints the same sha.
    Never move the baseline later except by a reviewed PR, after a person has checked every commit it skips.
 
-## 5. Go-live: Canary week (Brian; hard stop 1)
-0. **Canary week: OFF (decided 2026-11-16, devops and security review of the probe PR).** Reason: an approval would be
-   due every morning between 03:07 and about 07:00 CT while the canary sends only to the team's own ids. The known gap
-   in step 2.0 is open while it is off. **Precondition for `canary_only: false` (step 4):** turn it on with the
-   steps below, or record a new decision with its reason here. The steps, for when it is turned on:
-   **Brian approves each send himself.** A required reviewer on the
-   environment holds every job that uses `morning-note` (and so every job that could get the key, from any
-   workflow) until Brian clicks approve. It is the one control in this runbook a writer cannot get around.
+## 5. Go-live: every confirmed subscriber (Brian; hard stop 1)
+0. **No canary week (Brian, 2026-11-16, 8:56 PM CT).** At launch the note goes to every confirmed subscriber who
+   signed up (`canary_only: false`, shipped by the switch-on PR), once Brian approves the sample note
+   (`morning-note-sample/` in the project files). The canary path (`canary_only: true` with the
+   `MORNING_NOTE_CANARY_IDS` secret) stays built and tested for later trials; the secret is not required.
+   Two calls the runbook had tied to widening still need Brian's answer (team recommendation marked):
+   - **A. Required reviewer on the `morning-note` environment: OFF (recommended) or ON.** Risk while OFF: the gap in
+     step 2.0 (a direct push through the Actions bypass, reported as a pull request's merge commit) is open, and
+     now with the whole list as the audience instead of the team's ids. What still stands: the `main` ruleset
+     (pull request required, only the daily job's bot may bypass), the note job's checks (stale run, PR check,
+     `MAIN_PR_BASELINE`), code review of every PR, and `max_recipients` / `max_editions`. Why OFF: ON means Brian
+     approves a deployment every morning between 03:07 and about 07:00 CT; a missed approval skips that day, and a
+     run left waiting blocks the next day's data and deploy. If ON: the steps are below.
+   - **B. Custom sending domain (SPF, DKIM): NO (recommended) or YES.** The free plan sends from Buttondown's own
+     address; a custom domain costs money (a domain and, per Buttondown's pricing page, a paid plan: hard stop 3,
+     and Brian will not pay). Risk of NO: mail comes from a Buttondown address, which may land in spam more often
+     and reads less like "Daylight"; the From name stays the site name (section 1 item 1).
+   Steps for the required reviewer, only if Brian answers A with ON:
    1. Open https://github.com/gn0sh/clarksville-records/settings/environments > **morning-note**.
    2. Under **Deployment protection rules**, tick **Required reviewers**, type your own GitHub username in the box
       and pick it. Leave **Prevent self-review** unticked (the scheduled run may count as yours, and you could not
       approve it). **Save protection rules**.
    3. Each morning after 09:07 UTC (03:07 CST): the email "Deployment review requested" (or Actions > **Daily
       update** > today's run) > **Review deployments** > tick **morning-note** > **Approve and deploy**. Approve
-      before 10:00 site time (`latest_send`); later, the note job stops with "missed" and sends nothing. In stamp
-      mode the emails still go out at 7:00, so approve before 7:00 to get that day's note.
+      before 7:00 site time to get that day's note (stamp mode schedules it for 7:00; after 10:00, `latest_send`,
+      the note job stops with "missed").
    4. **Never leave a run waiting.** A run waiting for approval keeps the one-run-at-a-time group, so the next day's
       run (data, deploy and note) queues behind it. If you will not approve, click **Reject**: the note job fails,
       the "morning note failed" issue opens, nothing is sent, and the next run is free.
-   5. After the canary week, to stop approving: same page, untick **Required reviewers** > **Save protection
-      rules**. Keeping it on is also fine.
+   5. To stop approving later: same page, untick **Required reviewers** > **Save protection rules**.
    Check: `gh api repos/gn0sh/clarksville-records/environments/morning-note --jq '.protection_rules[].type'`
    prints `required_reviewers` (and `branch_policy`).
-1. **Brian**, only after section 4 is done, its item 7 (`MAIN_PR_BASELINE`) last:
-   https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository variable** >
-   name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
-2. The next scheduled run (09:07 UTC) sends to the canary ids only (`canary_only: true`): stamp mode schedules the
-   emails for 7:00 (site time zone); ids mode sends when the run ends.
-3. Each morning of the canary week, a team member checks: the run's `note` job is green, its log shows totals only
-   (no address, no id), the team addresses got exactly the editions their lists and seats call for (nothing on a
-   quiet day), the links open live pages, the unsubscribe link works, and nobody outside the canary list got mail
-   (the Buttondown dashboard's recipient count).
-4. Widening: after one clean canary week, and only after step 0's required reviewer is on (or a new decision is
-   recorded in step 0), a reviewed PR sets `canary_only: false`. Revisit `max_editions` (80) and
-   `max_recipients` (2000) in the same PR.
+1. **Brian**, only after section 4 is done, its item 7 (`MAIN_PR_BASELINE`) last, and after he approved the
+   sample note: https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository
+   variable** > name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
+2. The next scheduled run (09:07 UTC) schedules the day's emails for 7:00 (site time zone) to every confirmed
+   subscriber whose lists have something new; nothing on a quiet or backfill day.
+3. The first mornings (until one clean week), a team member checks: the run's `note` job is green, its log shows
+   totals only (no address, no id), the team's own addresses got exactly the editions their lists and seats call
+   for (nothing on a quiet day), the links open live pages, the unsubscribe link works, and the Buttondown
+   dashboard's recipient count matches the log's total.
+4. `max_editions` is 400 (was 80 until 2026-11-17: a busy real day plans up to 191 editions, and 80 would have
+   sent nothing that day; basis in architecture "Switch-on"). Revisit `max_recipients` (2000) before the list passes
+   about 1,000: a run over either sends nothing that day (loud), and 2,000 stamped subscribers take about 14 minutes,
+   close to the note job's 15-minute timeout.
 
 ## Rules for manual runs and re-runs
 - **Never re-run a Daily update run from an earlier day** ("Re-run all jobs" or "Re-run failed jobs" on yesterday's

@@ -34,8 +34,8 @@
   {% else %}
   <p class="small mn-unofficial">{{ site.unofficial.email_line }}</p>
   {{ picker(note, note.enabled) }}
-  <input type="hidden" name="{{ note.fields.district }}" value="" data-seat-field="district" disabled>
-  <input type="hidden" name="{{ note.fields.ward }}" value="" data-seat-field="ward" disabled>
+  <input type="hidden" name="{{ note.fields.district }}" value="" data-seat-field="district" data-tag-prefix="{{ note.seat_tags.district }}" disabled>
+  <input type="hidden" name="{{ note.fields.ward }}" value="" data-seat-field="ward" data-tag-prefix="{{ note.seat_tags.ward }}" disabled>
   {# Seat consent (morning-security/seat-consent): shown by static/morning.js only when this device keeps seats, with
      the numbers that would be sent. The box has no name (it is never posted itself); unticked, both seat fields
      stay disabled and empty, so nothing about a seat is posted. Without the script they are never enabled. #}

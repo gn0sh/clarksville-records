@@ -12,8 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, rpc_config_unheld
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, note_off, rpc_config_unheld
 from sitegen import config, fin_views, morning, views
+from sender import render
 from sitegen.build import BuildError, build, site_url_problems
 from test_rpc_pages import rpc_facts
 from test_site_neutrality import BANNED
@@ -215,6 +216,46 @@ def test_lists(site):
     assert "contracts/solicitation/sol-riding-mowers-fixture" in n
 
 
+# ------------------------------------------------------------------ each entry names its meeting (note/entry-meeting)
+def test_every_entry_from_a_meeting_names_its_kind_in_the_sites_own_words(site):
+    txt = config.SITE["morning_note"]["text"]
+    for e in note(site, D)["entries"]:
+        if e["meeting_date"] is None:          # a budget book, a solicitation: no meeting, no meeting words
+            assert e["meeting"] is None, e["id"]
+        elif e["body"] == "county":            # the meeting pages' own kind label, lower case
+            assert e["meeting"] in {v.lower() for v in config.KIND_LABELS.values()}, e["id"]
+            kind = re.search(r"/\d{4}-\d\d-\d\d-([a-z]+)", e["id"])
+            assert kind is None or e["meeting"] == config.KIND_LABELS[kind.group(1)].lower(), e["id"]
+        else:
+            assert isinstance(e["meeting"], str) and e["meeting"].strip(), e["id"]
+    rpc = [e for e in note(site, D)["entries"] if e["body"] == "rpc" and e["meeting_date"]]
+    assert rpc and all(e["meeting"] == txt["meeting"] for e in rpc)
+
+
+def test_one_item_on_two_agendas_reads_as_two_meetings_not_a_duplicate(inputs, tmp_path):
+    """Real data, 2026-11-10: 26-11-4 was on the Nov 2 informal and the Nov 9 formal agenda. The note had two entries
+    with the same body and title; each now carries its own meeting day and kind."""
+    agendas = json.loads(inputs["agendas"].read_text(encoding="utf-8"))
+    src = {**agendas["sources"][0], "id": "src-cccccccccccc", "sha256": "c" * 64, "label": "2026 November Informal",
+           "url": COUNTY_AGENDA.replace("2026-11-16", "2026-11-09-informal")}
+    agendas["sources"].append(src)
+    agendas["meetings"].append({**agendas["meetings"][0], "id": "2026-11-09-informal", "date": "2026-11-09",
+                                "kind": "informal", "source_id": src["id"]})
+    (tmp_path / "agendas.json").write_text(json.dumps(agendas), encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest_rows(
+        inputs["county"], inputs["rpcf"], agendas, json.loads(FIN.read_text(encoding="utf-8")))), encoding="utf-8")
+    make(inputs, tmp_path / "site", county_agendas=tmp_path / "agendas.json",
+         morning_manifests=[tmp_path / "manifest.json"])
+    n = json.loads((tmp_path / "site" / "morning" / f"{D.isoformat()}.json").read_text(encoding="utf-8"))
+    two = [e for e in n["entries"] if e["id"].startswith("county/item/26-11-1/")]
+    assert {(e["meeting_date"], e["meeting"]) for e in two} == {("2026-11-09", "informal meeting"),
+                                                               ("2026-11-16", "formal meeting")}
+    assert len({e["title"] for e in two}) == 1                      # the same item: only the meeting tells them apart
+    lines = {render.who_when(render.context(config.SITE), e) for e in two}
+    assert lines == {"Montgomery County Commission, November 9, 2026 informal meeting",
+                     "Montgomery County Commission, November 16, 2026 formal meeting"}
+
+
 def test_zoning_matches_by_district_and_by_ward_never_neither(site):
     n = note(site, D)
     z16 = "rpc/item/2026-10-27-regular-z-30-2026/2026-10-27-regular"      # district 16, ward 3
@@ -398,14 +439,19 @@ def test_fixture_build_without_manifests_writes_no_note(built):
 
 # ------------------------------------------------------------------ the provider seam
 def seam(**kw):
-    cfg = copy.deepcopy(config.SITE)
+    """morning.problems() of the shipped config with the note off (conftest.note_off), then `kw`."""
+    cfg = note_off(config.SITE)
     cfg["morning_note"].update(kw)
     return morning.problems(cfg)
 
 
-def test_config_as_shipped_is_off_and_clean():
-    assert config.SITE["morning_note"]["enabled"] is False and not config.SITE["morning_note"]["form_action"]
-    assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []
+def test_config_as_shipped_and_switched_off_is_clean():
+    """The shipped config (switched on: test_morning_page.test_committed_config_is_the_switch_on) and the same config
+    switched off are both clean."""
+    off = note_off(config.SITE)
+    assert off["morning_note"]["enabled"] is False and not off["morning_note"]["form_action"]
+    for cfg in (config.SITE, off):
+        assert morning.problems(cfg) == [] and site_url_problems(cfg) == []
 
 
 def test_enabled_needs_https_form_action_and_privacy_url():
@@ -422,7 +468,7 @@ def test_form_action_refused_while_disabled_and_shape_checks():
     assert seam(enabled="yes")
     assert seam(cutoff="7am") and seam(keep_days=0) and seam(lists=[{"key": "everything", "label": "X"}])
     assert seam(form_fields={"email": "email"})
-    cfg = copy.deepcopy(config.SITE)
+    cfg = note_off(config.SITE)
     cfg["morning_note"]["form_action"] = "https://example.org/subscribe"
     assert any("morning_note" in p for p in site_url_problems(cfg))
 
@@ -554,6 +600,15 @@ def test_unplaced_text_is_singular_for_one_case_and_comes_from_text():
     assert morning.unplaced_text(3) == t["unplaced_zoning"].format(n=3)
     page = config.SITE["morning_note"]["page"]
     assert not [k for k in page if k.startswith("unplaced") and k != "unplaced_link"]
+
+
+@pytest.mark.parametrize("gone", ["{body}", "{date}", "{meeting}"])
+def test_the_meeting_line_keeps_its_placeholders(gone):
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"]["text"]["meeting_line"] = "{body}, {date} {meeting}".replace(gone, "")
+    assert morning.problems(cfg) == [f"morning_note.text.meeting_line must contain {gone}"]
+    del cfg["morning_note"]["text"]["meeting"]
+    assert "morning_note.text.meeting must be set" in morning.problems(cfg)
 
 
 @pytest.mark.parametrize("key", sorted(morning.PAGE_KEYS))

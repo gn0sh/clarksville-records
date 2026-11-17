@@ -226,6 +226,17 @@ subscribers and the other gets nothing; creating a draft sends nothing); which s
 reaches. Then set `sender.mode`.
 If neither mode passes, stop and return to the architect.
 
+### T4.9 Switch-on PR (2026-11-17, backend-engineer; branch `r2-note-on`)
+After the T4.0 probe (done 2026-11-16, `docs/platform-facts.md` "Morning note provider"): the form posts Buttondown
+tags (no `metadata__` field; the free plan refused them on a new sign-up), the sender reads tags and writes only
+`{"note_edition": <stamp>}`, each entry stands under a list the reader picked (render/section-not-picked), config
+switched on with `mode: stamp` and `canary_only: false` (Brian, 2026-11-16: no canary week), and the tests that
+assumed the shipped config was off build their own (`conftest.note_off`, `conftest.shipped_with`). Security notes:
+architecture "Switch-on: tags, and the security notes". Before `MORNING_NOTE_SEND`: runbook section 4 item 4a (one
+real sign-up shows the tags) and Brian's approval of the sample note.
+Before review (2026-11-17): each entry names its meeting day and kind (`meeting`, `text.meeting_line`;
+note/entry-meeting), and `max_editions` is 400, was 80 (sender/max-editions-busy-day; a 190-edition day is sent whole).
+
 ### T4.8 Security review
 Fresh review at the T4.5 commit against the nine threat points in the architecture. The workflow job does not merge
 before it passes.

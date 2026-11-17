@@ -4,10 +4,11 @@ nothing.
 
 What it may do, and nothing else:
 - GET    /v1/emails                       every page, reduced to {"id", "status", "metadata"} per row (the day claim)
-- GET    /v1/subscribers                  every page, reduced to {"id", "type", "metadata"} per row: the address and
+- GET    /v1/subscribers                  every page, reduced to {"id", "type", "tags", "metadata"} per row: the address and
                                           every other field are dropped here, at the boundary
 - GET    /v1/subscribers/{id}             one subscriber, reduced the same way (None when there is none)
-- PATCH  /v1/subscribers/{id}             body exactly {"metadata": {...}}: never type, address, tags or anything else
+- PATCH  /v1/subscribers/{id}             body exactly {"metadata": {"note_edition": <stamp>}} (it replaces the whole
+                                          object, T4.0 probe): never type, address, tags or anything else
 - POST   /v1/emails                       one email from the deliver stage's payload (known fields only)
 - PATCH  /v1/emails/{id}                  body exactly {"status": "draft"} (take a wrong email back)
 - POST   /v1/emails/{id}/send-draft       body exactly {"subscribers": [ids]}
@@ -41,7 +42,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote, urlsplit
 
-from .deliver import Provider, ProviderError, RateLimited
+from .deliver import STAMP_RE, Provider, ProviderError, RateLimited
 from .settings import API_PATH, PROVIDER_HOSTS
 
 KEY_ENV = "BUTTONDOWN_API_KEY"
@@ -104,10 +105,14 @@ def retry_after(value, now: datetime | None = None) -> float:
 
 
 def _reduce_subscriber(row, method: str, template: str) -> dict:
-    """{"id", "type", "metadata"}: all deliver may know. The address, IP, notes and the rest stop here."""
+    """{"id", "type", "tags", "metadata"}: all deliver may know. The address, IP, notes and the rest stop here.
+    `tags` (the names the form posted; deliver reads only its own "note-" names) must be a list of text when
+    present: any other shape is not the documented one, so the run fails closed."""
     if not isinstance(row, dict):
         raise _fail(method, template, "a subscriber that is not an object")
-    out = {k: row[k] for k in ("id", "type", "metadata") if k in row}
+    out = {k: row[k] for k in ("id", "type", "tags", "metadata") if k in row}
+    if "tags" in out and not (isinstance(out["tags"], list) and all(isinstance(t, str) for t in out["tags"])):
+        raise _fail(method, template, "a subscriber whose tags are not a list of names")
     if not (isinstance(out.get("id"), str) and _ID.fullmatch(out["id"])):
         raise _fail(method, template, "a subscriber without a usable id")
     if not isinstance(out.get("type"), str):
@@ -266,8 +271,11 @@ class Buttondown(Provider):
 
     def set_metadata(self, subscriber_id: str, metadata: dict, idempotency_key: str) -> None:
         t = "/subscribers/{id}"
-        if not isinstance(metadata, dict):
-            raise _fail("PATCH", t, "metadata that is not an object")
+        # sender/stamp-write-replaces: the PATCH replaces the whole object (T4.0 probe), so the only object this
+        # adapter writes is the stamp alone; anything else could carry or keep a key the form wrote
+        if not (isinstance(metadata, dict) and set(metadata) == {"note_edition"}
+                and isinstance(metadata["note_edition"], str) and STAMP_RE.fullmatch(metadata["note_edition"])):
+            raise _fail("PATCH", t, "metadata that is not exactly one stamp")
         got = self._send("PATCH", self._path("PATCH", t, id=subscriber_id), t, body={"metadata": metadata},
                          idempotency_key=idempotency_key)
         row = _reduce_subscriber(got.data if got else None, "PATCH", t)

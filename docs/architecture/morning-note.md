@@ -60,7 +60,7 @@ today's), `morning/index.html`. Files are always written, an empty `entries` mea
 {"schema": "morning-note/1", "date": "2026-11-11", "window": {"from": "2026-11-10T07:00-06:00", "to": "...T07:00-06:00"},
  "data_as_of": "2026-11-11", "lists": [{"key": "zoning", "label": "Zoning near me"}, ...],
  "entries": [{"id": "rpc/case/Z-12-2026/rpc-2026-11-24", "lists": ["zoning"], "kind": "agenda_item|vote|document|solicitation",
-   "body": "rpc", "body_name": "...", "meeting_date": "2026-11-24", "title": "<verbatim>", "recorded": "On the agenda",
+   "body": "rpc", "body_name": "...", "meeting_date": "2026-11-24", "meeting": "meeting", "title": "<verbatim>", "recorded": "On the agenda",
    "district": 7, "ward": 6, "href": "rpc/meetings/2026.html#...", "source": {"url": "...", "page": 3}}],
  "unplaced_zoning": 0}
 ```
@@ -110,6 +110,11 @@ T1 additions (additive; T3 and the sender may rely on them):
 - each entry's meeting (`meeting_date`, the id's meeting part, a fallback title and link) is the fact's own
   `meeting_id`; a source named by two meetings (minutes covering both) gives each fact its own meeting, and a
   `document` entry for each meeting when nothing in it is itemised;
+- every entry from a meeting carries `meeting` (2026-11-17, note/entry-meeting): which meeting it is, in the site's
+  own words for that body's meeting kinds (`kind_labels`, lower case: "formal meeting", "informal meeting", "regular
+  session"), else config `morning_note.text.meeting` ("meeting", RPC); `null` with `meeting_date` (a budget book,
+  a solicitation). The same item on two agendas (real data: 26-11-4 on the Nov 2 informal and Nov 9 formal county
+  agendas) so reads as two meetings, not a duplicate. It is in `own_text`, so the neutrality scan reads it;
 - every zoning entry carries `case`: the case number in its one comparable form (rpc_minutes.link_key), `null` on
   other entries; `unplaced_zoning` counts distinct cases (a case on an agenda and in the minutes is one case).
 
@@ -124,7 +129,7 @@ morning_note:
   enabled: false        # true only after the CEO picks a provider (hard stops 3-5)
   provider: ""          # label for the record only; code never branches on it
   form_action: ""       # https URL the sign-up form POSTs to (the provider's hosted endpoint)
-  form_fields: {email: "email", lists: "tags", district: "metadata__district", ward: "metadata__ward"}
+  form_fields: {email: "email", lists: "tag", district: "tag", ward: "tag"}   # 2026-11-17: Buttondown tags only
   privacy_url: ""       # the provider's privacy policy, required when enabled
 ```
 Off (M3): the form has no `action`, no email field and no submit; it shows the picker, "Email starts at launch;
@@ -220,8 +225,11 @@ Input guards, each ending in `send: false` with a `reason`, exit 0, unless marke
 
 Otherwise, for every possible signature (each non-empty subset of the four lists x district none or 1..`district_count`
 x ward none or 1..`ward_count`; 15 x 22 x 13 = 4,290 calls of `morning.select`, cheap), take the selected entry ids.
-Signatures with the same non-empty id list share an edition; its key is the first 12 hex of
-`sha256(date + "\n" + ids joined by "\n")`. Signatures with an empty selection are left out: those people get nothing.
+Signatures with the same email share an edition: the same entries, each under the same list heading
+(`plan.placed()`: an entry stands under the first of its own lists that the shape picked and that selected it, grouped
+in list order, the note's order kept within a list; render/section-not-picked, 2026-11-17). Its key is the first 12
+hex of `sha256(date + "\n" + "<entry id>\t<list key>" rows joined by "\n")`. Signatures with an empty selection are
+left out: those people get nothing.
 
 `build/morning-send/<D>/plan.json` (and `edition-<key>.html` / `.txt` beside it for a person to read):
 ```
@@ -233,8 +241,9 @@ Signatures with the same non-empty id list share an edition; its key is the firs
 The plan is a pure function of the note and config: two runs on the same note give byte-identical files. It holds
 no subscriber data, so it is safe as a build artifact in a public repository.
 
-Body (`render.py`): the site name and date, then per picked list its config label and its entries: body name,
-`recorded`, the verbatim title, a link to the site page (`alerts.site_url` + `href`) and the source link; then
+Body (`render.py`): the site name and date, then per picked list its config label and the entries placed under it: body name
+and meeting (config `morning_note.text.meeting_line`, "{body}, {date} {meeting}": "Montgomery County Commission, November
+9, 2026 formal meeting"; the body alone for an entry with no meeting), `recorded`, the verbatim title, a link to the site page (`alerts.site_url` + `href`) and the source link; then
 `unplaced_text` when set; then one config line saying why the reader got this. Rules:
 - every title and URL is HTML-escaped, and `{{`, `{%` and a leading `---` are neutralised, because the body goes
   through the provider's own template and Markdown step (a record's title is untrusted text);
@@ -258,14 +267,15 @@ Order of work for `deliver --live` (any failed check stops before the first writ
      collection before 7:00 that adds a document changes the note; its additions are on the site and feeds only.)
    - the listing fails, is cut short or cannot be read: send nothing, exit non-zero. **Fail closed.**
 4. **Recipients**: page through subscribers, keep `type == "regular"` (confirmed; `unactivated`, `unsubscribed` and
-   the rest are never mailed), and reduce each at the adapter boundary to `(id, lists, district, ward)`. The address
-   and every other field are dropped there and never reach the rest of the program. Lists not in `LIST_KEYS`, and
-   district or ward values that are not whole numbers in range, are ignored (treated as not set). More than
-   `sender.max_recipients`: stop, send nothing.
+   the rest are never mailed), and reduce each at the adapter boundary to `(id, lists, district, ward)`, read from
+   the sender's own Buttondown tags only (`note-<list key>`, `note-district-<n>`, `note-ward-<n>`; 2026-11-17, see
+   "Switch-on"). The address, every other tag and the metadata are dropped there and never reach the rest of the
+   program. Tags that are not ours, and seats that are not one whole number in range, are ignored (two district
+   tags: no district). More than `sender.max_recipients`: stop, send nothing.
 5. **Per edition** (in key order): the subscribers whose signature maps to it. None: skip, no email is created.
    Otherwise deliver by the mode the T4.0 probe selected:
-   - `stamp` (preferred): set each recipient's metadata `note_edition` to the stamp `"<D>.<key>.<mac>"` (as built; always writing back the whole
-     metadata object, so district and ward survive), then create one email with `filters` = `subscriber.metadata.
+   - `stamp` (preferred): set each recipient's metadata to exactly `{"note_edition": "<D>.<key>.<mac>"}` (the
+     provider's PATCH replaces the whole object, T4.0 probe; lists and seats are tags, so nothing else is kept), then create one email with `filters` = `subscriber.metadata.
      note_edition equals <stamp>`, `status: "scheduled"`, `publish_date` = `send_at` (as built: at least 5 minutes after
      the clock, read per edition just before its email is created; past `latest_send`, exit 2 "late" and the rest
      are not sent), `archival_mode: "disabled"`, `metadata: {note_date, note_edition, note_sha256}`. A stamp from an
@@ -293,10 +303,12 @@ own list answers the same question.
 | Secret `MORNING_NOTE_CANARY_IDS` in the `morning-note` environment (the team's own subscriber ids) | GitHub settings | Brian, with the key |
 The `note` job also needs the `deploy` job to have succeeded, so it cannot run while the deploy is locked, and an
 email never links a page that is not live. `build.problems()` refuses `sender.enabled: true` unless
-`morning_note.enabled` is true and the site URL is set. `sender.canary_only: true` (the default) limits recipients to
+`morning_note.enabled` is true and the site URL is set. `sender.canary_only: true` limits recipients to
 the subscriber ids listed (comma separated) in `MORNING_NOTE_CANARY_IDS`, an environment secret of the `note` job, so
 the first live days reach only the team's own addresses. Never subscriber metadata: the public form writes it. With
 `canary_only` true and no list, the run sends to nobody ("no-canary", exit 0) and makes no provider call.
+**Shipped `canary_only: false` (Brian, 2026-11-16: no canary week; the note goes to every confirmed subscriber
+once he approves the sample note).** The canary path stays built and tested for later trials.
 
 ```
 morning_note:
@@ -329,8 +341,8 @@ morning_note:
   "over-limit"). The plan stage instead caps the size of what it writes (`MAX_PLAN_BYTES`, 32 MB), and the deliver
   command refuses a larger plan file. The fixture's real RPC agenda (27 cases printing 7 districts and 3 wards)
   gives 191 editions and about 2.7 MB of files (plan.json about 1.1 MB), so **T4.5's "under 2 MB" artifact check
-  must be raised** (to `MAX_PLAN_BYTES`). The shipped `max_editions: 80` is kept for the canary weeks; revisit it
-  before `canary_only` goes false.
+  must be raised** (to `MAX_PLAN_BYTES`). `max_editions` was 80 for the canary weeks; it is **400** since
+  2026-11-17 (see "Switch-on").
 - **Open: the unplaced line** is printed in every edition of a day that has one, as "Body" above says; the preview
   page shows it only to a reader who picked zoning.
 - **Every edition says the site is independent and unofficial** (review `render/no-independence-line`): the
@@ -360,10 +372,10 @@ morning_note:
   `support_url` (`Settings.link_urls`, read by the stdlib reader and held to parity), never as its host: anyone can
   host a page on `buymeacoffee.com` (security Low (a)). Unverified: whether any government source host has an open
   redirect that would let an allowed-host link land elsewhere; check before go-live (T4.5).
-- **Each stamp write re-reads that subscriber first** (security L2): until the T4.0 probe shows that a metadata
-  update merges keys, the write sends the whole object, so it is built from `Provider.subscriber(id)` read just
-  before the write, not from the listing. Someone whose type or shape changed since the listing is not stamped (no
-  email today). If the probe shows the provider merges, the adapter sends only `note_edition` instead.
+- **Each stamp write re-reads that subscriber first** (security L2): `Provider.subscriber(id)` just before the
+  write; someone whose type or tags changed since the listing is not stamped (no email today). The probe showed the
+  PATCH **replaces** the metadata, so the write is exactly `{"note_edition": <stamp>}` and the adapter refuses any
+  other object (sender/stamp-write-replaces, 2026-11-17).
 - **A stray stamp stops a `stamp` run** (review `audience/stamp-self-set`): before any write the deliver stage exits
   2 ("stray-stamp") if any subscriber holds exactly one of today's stamps and is not in that edition's audience. Any
   other value is ignored (the filter does not match it), so one subscriber cannot stop every send. The check reads
@@ -415,18 +427,17 @@ is none), so "verified" means "the public documentation says so".
 | `POST /v1/emails` fields: `subject`, `body`, `status`, `publish_date`, `filters`, `metadata`, `archival_mode` (`disabled` keeps it off the public archive) | verified (api-emails-create) |
 | Creating an email through the API "will instantly trigger sending"; a `scheduled` email goes out at its `publish_date` | verified as documented (api-emails-introduction). Which `status` to post for an immediate send: **assumed**, probe |
 | Filter shape `{"filters": [{"field": "subscriber.metadata.<key>", "operator": "equals", "value": "..."}], "groups": [], "predicate": "and"}` | verified for segments (api-segments-create). That an email's `filters` takes the same rule: **assumed**, probe. The field name for a tag and any operator but `equals`: not found |
-| `POST /v1/emails/{id}/send-draft` takes `subscribers` (ids) or `recipients` (addresses) | verified it exists (api-emails-send-draft). Whether it is a real send with the unsubscribe link or a test send: **assumed unknown**, probe |
-| Hosted form: POST to `https://buttondown.com/api/emails/embed-subscribe/<username>` with `email`, `embed=1`, `tag`, `metadata__<key>` (the key must be set up in the account; multi-select allowed); must be a plain form post, not `fetch` | verified (building-your-subscriber-base). Matches the seam's `form_fields` |
+| `POST /v1/emails/{id}/send-draft` takes `subscribers` (ids) or `recipients` (addresses) | exists, but **only sends a "[PREVIEW]" to the account owner** and the email stays a draft (probe 2026-11-16): `ids` mode cannot work |
+| Hosted form: POST to `https://buttondown.com/api/emails/embed-subscribe/<username>` with `email`, `embed=1`, `tag`, `metadata__<key>` (the key must be set up in the account; multi-select allowed); must be a plain form post, not `fetch` | verified (building-your-subscriber-base). **Probe 2026-11-16:** a new address with `metadata__` fields got 400 on the free plan, so the form posts `tag` fields only. Several `tag` fields adding several tags, and a new tag name created on the fly: **assumed**, check at the first real sign-up |
 | Subscriber `type` values include `regular`, `unactivated`, `unsubscribed`; API-created subscribers are double opt-in by default | verified (api-subscribers-create). Double opt-in for **form** sign-ups: not stated on the pages read, verify in the account |
 | Listing subscribers can filter by metadata; listing emails cannot | verified (api-filtering). So the day claim reads `metadata` from the email list client-side; list order and date filters: **assumed**, probe |
-| Tags are a paid feature; the pricing page shows "Tagging & segmentation" as a +$9 a month add-on, and the first 100 subscribers free | verified as shown on 2026-11-10. Whether metadata filters (the `stamp` mode) fall under that add-on: **assumed yes**. Brian owns the spend (hard stop 3) |
-| Updating a subscriber's metadata keeps other keys | **assumed no** (we always write the whole object back), probe |
+| Tags are a paid feature; the pricing page shows "Tagging & segmentation" as a +$9 a month add-on, and the first 100 subscribers free | as shown on 2026-11-10. **Probe 2026-11-16 on the free plan:** a metadata-filtered email reached exactly its one subscriber and no API call was refused as paid; `/tags` answered 200. Whether the free plan keeps tags from a form sign-up: **assumed**, first real sign-up. Brian will not pay (2026-11-16) |
+| Updating a subscriber's metadata keeps other keys | **no: it replaces** (probe 2026-11-16) |
 | The provider adds an unsubscribe link to every email; open and click tracking can be turned off | **assumed**, verify in the account (precondition 3) |
-| Template variables in a body (`{{ ... }}`) are evaluated by the provider | **assumed yes**, which is why titles are neutralised |
+| Template variables in a body (`{{ ... }}`) are evaluated by the provider | **yes** (probe 2026-11-16: `{{ subscriber.email }}` showed the address), which is why titles are neutralised |
 
-Consequence for the sign-up form: set `form_fields.lists` to `metadata__lists` (a multi-select metadata key) instead of
-`tags`. The sender reads lists from metadata, the form works without the tags add-on, and only `stamp` mode's filter
-may need it. Config only; the seam already takes any plain field name.
+Consequence for the sign-up form (superseded 2026-11-17, see "Switch-on"): it was `metadata__lists`; the probe showed
+the free plan refuses `metadata__` fields on a new sign-up, so lists, district and ward are Buttondown tags.
 Consequence for the copy: `page.about` says "at 7:00 AM"; with `ids` mode the mail leaves when the run ends (about
 4 AM). Change it to "by 7:00 AM", which is true in both modes.
 
@@ -445,11 +456,72 @@ From `docs/reviews/security-review-morning-2b4796b.md`:
    `form-action` origin (fix on the provider's side, never by widening the CSP).
 6. "Not checked: the sender job and API key": a fresh security review of T4 before the workflow job merges.
 Added by this design:
-7. T4.0 probe done on a test newsletter with team addresses only, and `sender.mode` set from it. It includes: the
-   public form does not accept `metadata__note_edition` or `metadata__canary` (audience/stamp-self-set).
+7. T4.0 probe done with team addresses only, and `sender.mode` set from it (done 2026-11-16 on the live newsletter:
+   `stamp`; `docs/platform-facts.md` "Morning note provider"). The form **does** accept `metadata__note_edition` and
+   `metadata__canary` on an existing subscriber; accepted, with the reasons in "Switch-on" below.
 8. A scoped API key (not the primary key): email and sending write, subscribers write for `stamp` or read for `ids`,
    every other area none. Stored only as the `morning-note` environment secret.
 9. Sending domain DNS (SPF, DKIM) set by Brian; one canary week with `canary_only: true` before he widens it.
+   **Changed 2026-11-16 (Brian):** no canary week, and no custom sending domain on the free plan (the note goes
+   from Buttondown's own sending address); the runbook section 5 records both calls.
+
+### Switch-on: tags, and the security notes (2026-11-17)
+What changed for the switch-on PR, after the T4.0 probe (`docs/platform-facts.md` "Morning note provider"):
+- **Form:** `form_fields: {email: email, lists: tag, district: tag, ward: tag}`. Each list box posts
+  `tag=note-<key>`; the two seat fields post `tag=note-district-<n>` / `tag=note-ward-<n>` (the script adds the
+  number to the field's `data-tag-prefix`, only while "Include my saved seats" is ticked, as before). No field
+  is a `metadata__` field; `morning.problems()` refuses `form_fields` that name anything but `tag` for lists and
+  seats, or `tag`/metadata for the email. The tag names are fixed in `sender/common.py` (`list_tag`,
+  `seat_tag_prefix`, `read_tags`), shared by the form and the sender.
+- **Sender:** reads lists and seats from tags (`deliver.recipient`), never from metadata; the adapter keeps `tags`
+  (a list of names, else the run fails closed) and drops the rest. A `stamp` write is exactly
+  `{"note_edition": <stamp>}`; `Recipient` no longer holds metadata.
+- **Config:** `enabled: true`, `form_action` `.../embed-subscribe/daylight`, `sender.enabled: true`, `mode: stamp`,
+  `canary_only: false`, `alerts.site_url` set. `privacy_url` is unverified (no network when set).
+
+Notes for the security review (each is a judgment call unless marked):
+- **(a) The form can set any tag, on anyone's existing address.** Anyone who knows a subscriber's address can post
+  the form with it and add tags: more lists (more mail they did not pick), or a second district or ward tag. The
+  sender ignores every tag it did not define, and two district (or two ward) tags count as none: a forged seat on
+  someone with no seat gives them that seat's zoning (unwanted mail, like a forged list); on someone with a seat it
+  cancels both (less zoning). A tag cannot add a recipient: only `type == regular`
+  (double opt-in confirmed) subscribers are mailed, and every email carries the provider's unsubscribe link.
+  Whether a form post can *remove* tags is **unverified** (if it replaces tags, an attacker could empty a victim's
+  lists: they then get nothing). This is the same class as before: with metadata, the probe showed a re-submit
+  already rewrote a confirmed subscriber's fields. No email names a subscriber or their seats.
+- **(b) The form can set `metadata__note_edition` on an existing subscriber** (probe: yes). The stamp is
+  `<D>.<key>.<HMAC-SHA256(API key, "<D>.<key>")[:16]>`: 64 bits keyed with a secret that never leaves the note job,
+  so a forged value matches no email's filter. The stamp is not in any email body, URL or public file: it is only in
+  the provider's metadata and the scheduled email's filter, which only the account sees (no preferences page;
+  archival disabled). Templates are on, but titles are neutralised and no body references metadata. Each send's
+  PATCH **replaces** the whole metadata object with the stamp alone (probe: PATCH replaces), so whatever the form
+  wrote before the run is gone for the stamped subscribers. Left open: a form post *after* the stamp and before
+  7:00 can overwrite one subscriber's stamp with junk (they miss that day's email; the attacker needs their
+  address), and the stray-stamp check reads only the default listing, which leaves out unconfirmed sign-ups; a
+  stamp can only reach such a row by the sender writing it to a subscriber who then changed type, and the
+  provider does not mail an unconfirmed or unsubscribed address.
+- **(c) The sender ignores what it did not define:** tags other than `note-<list>`, `note-district-<n>`,
+  `note-ward-<n>` (exact names, lower case, numbers in range, no leading zero); every metadata key except
+  `note_edition`, which only the stray-stamp check reads. Tests: `test_hostile_tags_are_ignored_not_passed_on`,
+  `test_metadata_never_names_an_audience`, `test_a_metadata_write_other_than_one_stamp_is_refused_before_any_request`.
+- **`canary_only: false`:** the first live morning reaches every confirmed subscriber. Bounds that stay:
+  `max_recipients` 2000 and `max_editions` (a run over either sends nothing, loud).
+- **`max_editions` 400 (was 80; sender/max-editions-busy-day).** A busy real day plans up to 191 editions (day D's
+  RPC agenda), so with the whole list on and many shapes, 80 would have sent nothing that morning. Every edition
+  with a recipient has at least one, so the editions a run creates are never more than its recipients; 400 is
+  about twice the busiest day measured and is a guard against a runaway, not a daily limit. Based on: Buttondown's
+  documented limit of 600 requests a minute on every endpoint (table below; the client paces 5 a second and
+  honours a 429's Retry-After); no per-day or per-run email limit in the docs read on 2026-11-10 or seen in the
+  probe (none known, not proven absent); and run time: an email per edition plus 2 requests per stamped subscriber
+  (re-read, stamp), so a run at the cap is at least 1,200 requests, about 4 minutes at 5 a second, inside the note
+  job's 15-minute timeout and the 07:00 to 10:00 window. Tests: `test_a_190_edition_day_is_sent_whole_with_the_
+  shipped_limits` (both modes, each edition once, a second run sends nothing) and `test_a_busy_day_cut_off_part_
+  way_is_finished_by_a_rerun_without_sending_twice`. **Open:** `max_recipients` 2000 is about 4,000 stamp requests,
+  about 14 minutes at 5 a second, close to the job's 15; a run cut off there leaves the rest of that day unsent
+  (never twice). It cannot bind on the free plan (100 subscribers); lower it or raise the timeout before the list
+  passes about 1,000.
+- **Not changed and still open:** the open-redirect check of the government source hosts in `link_hosts`
+  (runbook section 4 item 2).
 
 ### Threat points for the security review
 1. **The key.** Scope, storage in an environment limited to `main`, exposure to exactly one step, no pip install and

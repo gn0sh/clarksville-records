@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import note_off, shipped_with
 from sitegen import config, morning
 from sender import common, deliver, plan as plan_mod, settings as settings_mod
 from sender.__main__ import main
@@ -77,21 +78,36 @@ class CountingProvider(deliver.Provider):
         return object.__getattribute__(self, name)
 
 
-# ------------------------------------------------------------------ off by default: plans nothing, sends nothing
-def test_shipped_config_has_the_sender_off():
-    s = config.SITE["morning_note"]["sender"]
-    assert s["enabled"] is False and s["canary_only"] is True and config.SITE["morning_note"]["enabled"] is False
-    assert morning.problems(config.SITE) == []
+# ------------------------------------------------------------------ off: plans nothing, sends nothing
+@pytest.fixture()
+def sender_off(monkeypatch, tmp_path):
+    """The sender switched off for the CLI, whatever the repository ships: config.SITE is the shipped config with
+    the note off (conftest.note_off) and SITE_CONFIG_PATH a copy of config/site.yml with `sender.enabled: false`,
+    so the plan command's parity check (PyYAML against the deliver job's reader) sees one config. Returns the
+    file, for `deliver --config`."""
+    off = shipped_with(tmp_path, enabled=False)
+    monkeypatch.setattr(config, "SITE", note_off(config.SITE))
+    monkeypatch.setattr(config, "SITE_CONFIG_PATH", off)
+    assert settings_mod.load(off).enabled is False and config.SITE["morning_note"]["sender"]["enabled"] is False
+    return off
+
+
+def test_the_off_config_has_the_sender_off_and_is_clean():
+    """The state every "off" test below runs in (it was the shipped config until the switch-on PR)."""
+    off = note_off(config.SITE)
+    s = off["morning_note"]["sender"]
+    assert s["enabled"] is False and off["morning_note"]["enabled"] is False
+    assert morning.problems(off) == []
 
 
 def test_a_disabled_sender_plans_nothing_and_does_not_read_the_note(tmp_path):
-    got = plan_mod.build(tmp_path / "no-such-site", D, config.SITE)       # the shipped config, as it is
+    got = plan_mod.build(tmp_path / "no-such-site", D, note_off(config.SITE))       # the sender off
     p = got["plan"]
     assert p["send"] is False and p["reason"] == "disabled"
     assert p["editions"] == [] and p["signatures"] == {} and got["texts"] == {} and p["note_sha256"] == ""
 
 
-def test_a_disabled_sender_cli_writes_no_edition_and_delivers_nothing(msite, tmp_path, capsys):
+def test_a_disabled_sender_cli_writes_no_edition_and_delivers_nothing(msite, tmp_path, capsys, sender_off):
     out = tmp_path / "send"
     assert main(["plan", "--date", D.isoformat(), "--site", str(msite), "--out", str(out)]) == 0
     assert sorted(p.name for p in (out / D.isoformat()).iterdir()) == ["plan.json"]
@@ -100,7 +116,7 @@ def test_a_disabled_sender_cli_writes_no_edition_and_delivers_nothing(msite, tmp
     assert "send false (disabled); 0 edition(s)" in capsys.readouterr().out
     # even a live run with a provider at hand makes no call: neither on this plan nor on any plan, while disabled
     provider = CountingProvider()
-    s = settings_mod.load(ROOT / "config" / "site.yml")
+    s = settings_mod.load(sender_off)
     assert s.enabled is False
     import dataclasses
     s = dataclasses.replace(s, link_hosts=s.link_hosts + tuple(TEST_HOSTS.split(",")))   # the made-up site's links
@@ -111,22 +127,22 @@ def test_a_disabled_sender_cli_writes_no_edition_and_delivers_nothing(msite, tmp
         assert res.status == "disabled" and res.code == 0 and res.editions == 0 and provider.calls == []
 
 
-def test_rehearsal_of_a_disabled_sender_writes_editions_but_never_send_true(msite, tmp_path):
+def test_rehearsal_of_a_disabled_sender_writes_editions_but_never_send_true(msite, tmp_path, sender_off):
     out = tmp_path / "send"
     assert main(["plan", "--date", NEXT.isoformat(), "--site", str(msite), "--out", str(out), "--rehearse"]) == 0
     p = json.loads((out / NEXT.isoformat() / "plan.json").read_text(encoding="utf-8"))
     assert p["send"] is False and p["reason"] == "disabled" and p["editions"] and p["signatures"]
     names = sorted(x.name for x in (out / NEXT.isoformat()).iterdir())
     assert names == sorted(["plan.json"] + [f"edition-{e['key']}.{ext}" for e in p["editions"] for ext in ("html", "txt")])
-    assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--config", str(ROOT / "config" / "site.yml")]) == 0
+    assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--config", str(sender_off)]) == 0
 
 
-def test_live_with_the_shipped_config_is_a_dry_run(msite, tmp_path, capsys, monkeypatch):
-    """The shipped config has sender.enabled false, so --live (even with a key set) opens nothing: a dry run."""
+def test_live_with_the_sender_off_is_a_dry_run(msite, tmp_path, capsys, monkeypatch, sender_off):
+    """A config with sender.enabled false: --live (even with a key set) opens nothing, a dry run."""
     monkeypatch.setenv("BUTTONDOWN_API_KEY", "made-up-test-key-not-a-real-one-32b")
     out = tmp_path / "send"
     main(["plan", "--date", NEXT.isoformat(), "--site", str(msite), "--out", str(out), "--rehearse"])
-    assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--live"]) == 0
+    assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--live", "--config", str(sender_off)]) == 0
     got = capsys.readouterr()
     assert "dry run" in got.out and "enabled is false" in got.err and "made-up-test-key" not in got.out + got.err
 
@@ -165,7 +181,7 @@ def test_plan_shape(built, msite):
     assert p["editions"] and [e["key"] for e in p["editions"]] == sorted(e["key"] for e in p["editions"])
     for e in p["editions"]:
         assert sorted(e) == ["body", "entry_ids", "key", "subject"] and common.KEY_RE.fullmatch(e["key"])
-        assert e["key"] == plan_mod.edition_key(p["date"], e["entry_ids"]) and e["entry_ids"]
+        assert e["entry_ids"] and len(set(e["entry_ids"])) == len(e["entry_ids"])   # key: the every-signature test
     assert all(common.SIGNATURE_RE.fullmatch(s) for s in p["signatures"])
     hosts = common.parse_hosts(cfg_with()["morning_note"]["sender"]["link_hosts"])
     assert deliver.check_plan(p, hosts, (config.SITE["support_url"],)) is p     # deliver accepts what plan writes
@@ -185,11 +201,15 @@ def test_every_signature_gets_exactly_what_select_returns(built, msite):
     n = with_mail = 0
     for lists, district, ward in plan_mod.signatures(config.SITE):
         n += 1
-        ids = [e["id"] for e in morning.select(note, lists, {"district": district, "ward": ward})]
+        seats = {"district": district, "ward": ward}
+        ids = [e["id"] for e in morning.select(note, lists, seats)]
         sig = common.signature(lists, district, ward)
         if ids:
             with_mail += 1
-            assert editions[p["signatures"][sig]] == ids, sig
+            rows = plan_mod.placed(note, lists, seats)
+            key = p["signatures"][sig]
+            assert key == plan_mod.edition_key(p["date"], rows), sig
+            assert editions[key] == [i for i, _ in rows] and sorted(editions[key]) == sorted(ids), sig
         else:
             assert sig not in p["signatures"], sig
     assert n == 15 * 22 * 13 == 4290 and len(p["signatures"]) == with_mail
@@ -198,14 +218,51 @@ def test_every_signature_gets_exactly_what_select_returns(built, msite):
 
 def test_same_entries_share_an_edition_and_different_entries_do_not(built):
     p = built["plan"]
-    editions = [tuple(e["entry_ids"]) for e in p["editions"]]
-    assert len(set(editions)) == len(editions) > 1                     # no two editions hold the same entries
+    editions = [(tuple(e["entry_ids"]), e["body"]) for e in p["editions"]]
+    assert len(set(editions)) == len(editions) > 1                     # no two editions are the same email
     used = set(p["signatures"].values())
     assert used == {e["key"] for e in p["editions"]}                   # every edition has a shape; none is spare
     assert len(p["signatures"]) > len(used)                            # some shapes share one
     # budget and contracts ignore seats: every seat pair of a budget-only reader shares one edition
     assert len({k for s, k in p["signatures"].items() if s.startswith("budget|")}) == 1
     assert p["signatures"]["budget|-|-"] != p["signatures"]["contracts|-|-"]
+
+
+def _entry(eid, lists, district=None, ward=None, seat_body=None):
+    return {"id": eid, "lists": lists, "district": district, "ward": ward, "seat_body": seat_body}
+
+
+def test_an_entry_stands_under_a_list_the_reader_picked_and_that_selected_it():
+    """render/section-not-picked: an entry stood under its first list even when the reader had not picked it (a
+    county budget item on the seats and budget lists, under "My two seats" for a Budget-only reader) or it had not
+    selected the entry (a zoning case in another district, under "Zoning near me", that reached the reader through
+    their county seat)."""
+    note = {"entries": [_entry("a", ["zoning", "seats"], district=7, seat_body="district"),
+                        _entry("b", ["zoning", "seats"], district=3, seat_body="district"),
+                        _entry("c", ["seats", "budget"], seat_body="district"),
+                        _entry("d", ["budget"])]}
+    budget_only = plan_mod.placed(note, ["budget"], {"district": None, "ward": None})
+    assert budget_only == [("c", "budget"), ("d", "budget")]
+    near_7 = plan_mod.placed(note, ["zoning", "seats", "budget"], {"district": 7, "ward": None})
+    assert near_7 == [("a", "zoning"), ("b", "seats"), ("c", "seats"), ("d", "budget")]
+    near_3 = plan_mod.placed(note, ["zoning", "budget"], {"district": 3, "ward": None})
+    assert near_3 == [("b", "zoning"), ("c", "budget"), ("d", "budget")]
+    # the same entries under other headings are another email, so another edition
+    assert plan_mod.edition_key("2026-11-11", [("c", "budget")]) != plan_mod.edition_key("2026-11-11", [("c", "seats")])
+
+
+def test_editions_print_each_entry_under_its_placed_list(built, msite):
+    p, note = built["plan"], read_note(msite)
+    labels = {x["key"]: x["label"] for x in note["lists"]}
+    for lists, district, ward in plan_mod.signatures(config.SITE):
+        rows = plan_mod.placed(note, lists, {"district": district, "ward": ward})
+        if not rows:
+            continue
+        body = next(e["body"] for e in p["editions"] if e["key"] == p["signatures"][common.signature(lists, district, ward)])
+        heads = re.findall(r"(?m)^<h2>(.*)</h2>$", body)
+        want = [labels[k] for i, (_, k) in enumerate(rows) if i == 0 or rows[i - 1][1] != k]
+        assert heads == want and len(heads) == len(set(heads)), (lists, district, ward)
+        assert set(heads) <= {labels[k] for k in lists}                # never a list the reader did not pick
 
 
 def test_nobody_gets_two_emails_or_an_empty_one(built):
@@ -245,8 +302,10 @@ def test_a_missing_or_wrong_note_fails_the_run(msite, tmp_path, monkeypatch, cap
         (site / "morning" / f"{D.isoformat()}.json").write_text("{", encoding="utf-8")
     with pytest.raises(plan_mod.PlanError):
         plan_mod.build(site, D, cfg_with())
-    # The shipped config has the sender off: a rehearsal must never fail the daily site job. It says what is wrong,
-    # writes nothing and exits 0. (With the sender on, the same error fails the run: the build() call above.)
+    # With the sender off, a rehearsal must never fail the daily site job. It says what is wrong, writes nothing
+    # and exits 0. (With the sender on, the same error fails the run: the build() call above.)
+    monkeypatch.setattr(config, "SITE", note_off(config.SITE))
+    monkeypatch.setattr(config, "SITE_CONFIG_PATH", shipped_with(tmp_path, enabled=False))
     assert config.SITE["morning_note"]["sender"]["enabled"] is False
     out = tmp_path / "send"
     assert main(["plan", "--date", D.isoformat(), "--site", str(site), "--out", str(out), "--rehearse"]) == 0
@@ -279,13 +338,15 @@ def test_a_plan_over_the_size_ceiling_fails_the_run(msite, built, monkeypatch, t
 
 def test_the_fixtures_rpc_agenda_day_plans_with_the_shipped_config(msite, tmp_path, capsys):
     """A real RPC agenda day (27 cases printing 7 districts and 3 wards) gives 191 editions and about 2.7 MB of
-    files: more than the old cap of 80 editions and the 2 MB artifact check, well under the ceiling."""
+    files: more than the old cap of 80 editions and the 2 MB artifact check, well under the ceiling. Every shape
+    of that day fits under the shipped max_editions (400 since 2026-11-17), so even a whole list of distinct
+    shapes is sent, not refused."""
     cfg = copy.deepcopy(config.SITE)
     cfg["alerts"]["site_url"] = SITE_URL
-    cfg["morning_note"]["sender"]["enabled"] = True       # the shipped max_editions (80) and everything else
+    cfg["morning_note"]["sender"]["enabled"] = True       # the shipped max_editions and everything else
     cfg["morning_note"]["sender"]["link_hosts"] += "," + TEST_HOSTS       # but the fixture's links
     built = plan_mod.build(msite, D, cfg)
-    assert len(built["plan"]["editions"]) > cfg["morning_note"]["sender"]["max_editions"]
+    assert 80 < len(built["plan"]["editions"]) == 191 < cfg["morning_note"]["sender"]["max_editions"]
     assert 2_000_000 < plan_mod.size_of(built) < common.MAX_PLAN_BYTES
     assert main(["plan", "--date", D.isoformat(), "--site", str(msite), "--out", str(tmp_path / "o"), "--rehearse"]) == 0
     assert (tmp_path / "o" / D.isoformat() / "plan.json").is_file()
@@ -310,7 +371,7 @@ def test_writing_again_removes_an_earlier_runs_edition_files(msite, tmp_path):
     plan_mod.write(out, plan_mod.build(msite, D, cfg_with()))
     stale = out / D.isoformat() / "edition-000000000000.html"
     stale.write_text("old", encoding="utf-8")
-    plan_mod.write(out, plan_mod.build(msite, D, config.SITE))         # disabled: no edition at all
+    plan_mod.write(out, plan_mod.build(msite, D, note_off(config.SITE)))   # disabled: no edition at all
     assert sorted(p.name for p in (out / D.isoformat()).iterdir()) == ["plan.json"]
 
 

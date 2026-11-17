@@ -36,6 +36,7 @@ from test_morning_sender_plan import TEST_HOSTS, cfg_with, msite  # noqa: F401
 ROOT = Path(__file__).resolve().parent.parent
 KEY = "made-up-test-key-not-a-real-one-32b"     # also the stamps' secret (test_morning_sender_deliver.SECRET)
 BASE = "https://api.buttondown.com/v1"
+A_STAMP = "2026-11-11.3fa9c1d2e07b.0123456789abcdef"     # the shape deliver.stamp_value writes
 
 
 @pytest.fixture(autouse=True)
@@ -291,7 +292,7 @@ def test_a_listing_is_read_page_by_page_and_reduced_at_the_boundary(plan):
     got = client(http).subscribers()
     assert len(http.calls("GET", "/subscribers")) == 4            # 7 rows, 2 a page
     assert [g["id"] for g in got] == [r["id"] for r in rows]
-    assert all(set(g) == {"id", "type", "metadata"} for g in got)  # no address, IP or notes past the adapter
+    assert all(set(g) == {"id", "type", "tags", "metadata"} for g in got)  # no address, IP or notes past the adapter
     assert "example.com" not in json.dumps(got)
 
 
@@ -376,7 +377,7 @@ def test_an_error_names_method_path_template_and_status_only(status):
     http = FakeHTTP([{"id": "sub-0001-secret", "type": "regular", "metadata": {}}], faults={
         ("PATCH", "/subscribers/{id}"): [Resp(status, raw=SECRET_BODY.encode(), ctype="text/plain")]})
     with pytest.raises(deliver.ProviderError) as e:
-        client(http).set_metadata("sub-0001-secret", {"a": 1}, "idem")
+        client(http).set_metadata("sub-0001-secret", {"note_edition": A_STAMP}, "idem")
     assert str(e.value) == f"PATCH /subscribers/{{id}}: HTTP {status}"
 
 
@@ -453,18 +454,41 @@ def test_a_missing_subscriber_is_none_and_another_one_is_refused():
 
 
 # ------------------------------------------------------------------------------------------------ the writes
-def test_a_metadata_write_is_a_patch_of_metadata_only_and_must_echo_whole():
-    http = FakeHTTP([{"id": "s1", "type": "regular", "metadata": {"lists": ["budget"], "ward": 3}}])
+def test_a_metadata_write_is_a_patch_of_the_stamp_only_and_must_echo_whole():
+    """sender/stamp-write-replaces: the PATCH replaces the whole object (T4.0 probe), so the adapter writes exactly
+    {"note_edition": <stamp>}; a key the form wrote (lists, canary) is dropped by it."""
+    http = FakeHTTP([{"id": "s1", "type": "regular", "tags": ["note-budget"], "metadata": {"canary": "yes", "ward": 3}}])
     c = client(http)
-    c.set_metadata("s1", {"lists": ["budget"], "ward": 3, "note_edition": "x"}, "idem-1")
+    c.set_metadata("s1", {"note_edition": A_STAMP}, "idem-1")
     method, url, headers, body, _ = http.requests[-1]
-    assert (method, url, body) == ("PATCH", f"{BASE}/subscribers/s1",
-                                   {"metadata": {"lists": ["budget"], "ward": 3, "note_edition": "x"}})
+    assert (method, url, body) == ("PATCH", f"{BASE}/subscribers/s1", {"metadata": {"note_edition": A_STAMP}})
     assert headers["x-idempotency-key"] == "idem-1"
     # a provider that stored something else (merged, dropped a key) fails the write
     http.faults[("PATCH", "/subscribers/{id}")] = [Resp(200, {"id": "s1", "type": "regular", "metadata": {"x": 1}})]
     with pytest.raises(deliver.ProviderError):
-        c.set_metadata("s1", {"lists": ["budget"]}, "idem-2")
+        c.set_metadata("s1", {"note_edition": A_STAMP}, "idem-2")
+
+
+@pytest.mark.parametrize("bad", [{}, {"note_edition": A_STAMP, "lists": ["budget"]}, {"note_edition": "x"},
+                                 {"note_edition": "2026-11-11.3fa9c1d2e07b"}, {"canary": "yes"}, {"note_edition": 1},
+                                 [("note_edition", A_STAMP)], None])
+def test_a_metadata_write_other_than_one_stamp_is_refused_before_any_request(bad):
+    http = FakeHTTP([{"id": "s1", "type": "regular", "metadata": {}}])
+    with pytest.raises(deliver.ProviderError) as e:
+        client(http).set_metadata("s1", bad, "idem")
+    assert str(e.value) == "PATCH /subscribers/{id}: metadata that is not exactly one stamp" and http.requests == []
+
+
+def test_a_subscriber_keeps_its_tag_names_and_a_tags_field_of_another_shape_fails_closed():
+    http = FakeHTTP([{"id": "s1", "type": "regular", "tags": ["note-budget", "vip"], "metadata": {},
+                      "email_address": "a@example.com"}])
+    assert client(http).subscriber("s1") == {"id": "s1", "type": "regular", "tags": ["note-budget", "vip"],
+                                             "metadata": {}}
+    for bad in ("note-budget", [{"name": "note-budget"}], [1], {"note-budget": True}):
+        http = FakeHTTP([{"id": "s1", "type": "regular", "tags": bad, "metadata": {}}])
+        with pytest.raises(deliver.ProviderError) as e:
+            client(http).subscribers()
+        assert str(e.value) == "GET /subscribers: a subscriber whose tags are not a list of names"
 
 
 def test_no_write_can_change_type_address_or_create_or_delete_a_subscriber(plan):
@@ -522,7 +546,8 @@ def test_stamp_mode_end_to_end_reaches_exactly_each_editions_people(plan):
         key = e["metadata"]["note_edition"].split(".")[1]
         assert http.audience(e) == want[key]
         assert e["filters"]["filters"][0]["value"] == stamp(key)
-    assert http.subs["sub-0004-secret"]["metadata"]["favourite"] == "blue"     # other keys kept
+    # the write replaced the metadata with the stamp alone (other keys, such as "favourite", are gone)
+    assert http.subs["sub-0004-secret"]["metadata"] == {"note_edition": stamp(key_for(plan, ["budget", "contracts"]))}
 
 
 def test_ids_mode_end_to_end_drafts_then_sends_and_writes_no_subscriber(plan):
@@ -631,8 +656,9 @@ def plan_file(plan, tmp_path):
 def config_file(tmp_path, enabled: bool, canary_only=False, mode="stamp") -> Path:
     """The shipped config with the switches set and the fixture's link hosts added (the shipped file is unchanged)."""
     text = (ROOT / "config" / "site.yml").read_text(encoding="utf-8")
-    text, n1 = re.subn(r"(?m)^(    enabled: )false\b", rf"\g<1>{'true' if enabled else 'false'}", text, count=1)
-    text, n2 = re.subn(r"(?m)^(    canary_only: )true\b", rf"\g<1>{'true' if canary_only else 'false'}", text, count=1)
+    text, n1 = re.subn(r"(?m)^(    enabled: )(?:true|false)\b", rf"\g<1>{'true' if enabled else 'false'}", text, count=1)
+    text, n2 = re.subn(r"(?m)^(    canary_only: )(?:true|false)\b", rf"\g<1>{'true' if canary_only else 'false'}", text,
+                       count=1)
     text, n3 = re.subn(r'(?m)^(    link_hosts: ")', rf"\g<1>{TEST_HOSTS},", text, count=1)
     text, n4 = re.subn(r"(?m)^(    mode: )stamp\b", rf"\g<1>{mode}", text, count=1)
     assert (n1, n2, n3, n4) == (1, 1, 1, 1)

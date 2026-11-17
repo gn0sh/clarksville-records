@@ -7,7 +7,7 @@ import subprocess
 
 import pytest
 
-from conftest import FIXTURE, ROOT, build, parse
+from conftest import FIXTURE, ROOT, build, note_off, parse
 from sitegen import config
 from test_council_pages import cfg, city_facts, city_wards, cpages, site  # noqa: F401  (council fixture site)
 
@@ -17,8 +17,12 @@ ADDRESS_JS = ROOT / "site" / "static" / "address.js"
 
 @pytest.fixture(scope="module")
 def addr_site(tmp_path_factory):
+    """The fixture site with the morning note off (conftest.note_off): the seats are then never sent anywhere, as
+    these pages say. The enabled wording is tested in test_morning_page."""
     out = tmp_path_factory.mktemp("seats") / "build" / "site"
-    build(FIXTURE, out, seats_path=None, districts_path=config.DISTRICTS_PATH)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(config, "SITE", note_off(config.SITE))
+        build(FIXTURE, out, seats_path=None, districts_path=config.DISTRICTS_PATH)
     return out
 
 

@@ -573,14 +573,23 @@ def _alt(entry):
     return next(x.get("href") for x in entry.findall(ATOM + "link") if x.get("rel") == "alternate")
 
 
+def _site_path(href: str) -> str:
+    """A feed entry's page link as a path from the site root: under alerts.site_url when the config sets one (the
+    shipped config does), else relative to feeds/ ("../"). Either way it must be exactly that form."""
+    base = config.SITE["alerts"].get("site_url") or ""
+    prefix = base or "../"
+    assert href.startswith(prefix), href
+    return href[len(prefix):]
+
+
 def test_council_feed_hrefs_resolve_to_council_pages(site):
     out, _ = site
     entries = _feed(out, "city-meetings.xml").findall(ATOM + "entry")
     assert entries
     for e in entries:
         href = _alt(e)
-        assert href.startswith("../city/meetings/"), href
-        page, _, anchor = href[3:].partition("#")
+        assert _site_path(href).startswith("city/meetings/"), href
+        page, _, anchor = _site_path(href).partition("#")
         assert (out / page).is_file(), href
         assert f'id="{anchor}"' in (out / page).read_text(encoding="utf-8"), href
 
@@ -608,4 +617,4 @@ def test_council_item_entries_link_to_council_item_pages(site, cix):
     prefix = config.SITE["alerts"]["feed_id"] + cix.body_key + "/item/"
     hrefs = [_alt(e) for f in (out / "feeds").glob("topic-*.xml") for e in _feed(out, f.name).findall(ATOM + "entry")
              if e.find(ATOM + "id").text.startswith(prefix)]
-    assert hrefs and all(h.startswith("../city/items/") for h in hrefs)
+    assert hrefs and all(_site_path(h).startswith("city/items/") for h in hrefs)

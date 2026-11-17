@@ -1,12 +1,13 @@
 {# Morning note (Daylight M3, sitegen/morning_page.py): the list picker and, per list, the feeds that follow it now.
    static/morning.js shows the picked lists and the feeds for the seats this device keeps; without it every list and
    every list's feeds are shown and the picker stays hidden (its boxes would do nothing). While the note is off the
-   boxes carry no name: nothing is ever submitted. #}
+   boxes carry no name: nothing is ever submitted. Enabled, each box posts its list's tag (value "note-zoning");
+   the script reads the list key from data-key either way. #}
 {% macro picker(note, submit) %}
 <fieldset class="mn-picker"{% if not submit %} hidden{% endif %}>
   <legend>{{ note.text.legend }}</legend>
   {% for l in note.lists %}
-  <label class="pick"><input type="checkbox" id="n-{{ l.key }}" value="{{ l.key }}"{% if submit %} name="{{ note.fields.lists }}"{% endif %}{% if l.checked %} checked{% endif %}><span>{{ l.label }}</span></label>
+  <label class="pick"><input type="checkbox" id="n-{{ l.key }}" data-key="{{ l.key }}" value="{% if submit %}{{ l.tag }}{% else %}{{ l.key }}{% endif %}"{% if submit %} name="{{ note.fields.lists }}"{% endif %}{% if l.checked %} checked{% endif %}><span>{{ l.label }}</span></label>
   {% endfor %}
 </fieldset>
 {% endmacro %}

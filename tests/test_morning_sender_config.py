@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from conftest import note_off
 from sitegen import config, morning
 from sitegen.build import site_url_problems
 from sender import settings as settings_mod
@@ -18,7 +19,8 @@ FORM_ON = {"enabled": True, "provider": "Example Mail", "form_action": "https://
 
 
 def problems(sender=None, note=None, site_url="https://records.example.com/", drop=()):
-    cfg = copy.deepcopy(config.SITE)
+    """morning.problems() of the shipped config with the note switched off (conftest.note_off), then the changes."""
+    cfg = note_off(config.SITE)
     cfg["alerts"]["site_url"] = site_url
     cfg["morning_note"].update(note or {})
     cfg["morning_note"]["sender"].update(sender or {})
@@ -27,22 +29,36 @@ def problems(sender=None, note=None, site_url="https://records.example.com/", dr
     return morning.problems(cfg)
 
 
-def test_the_shipped_block_is_off_and_clean():
+def test_the_shipped_block_is_on_and_clean():
+    """The switch-on PR: the sender on in stamp mode, to every confirmed subscriber (Brian, 2026-11-16: no canary
+    week). The off state stays clean too (conftest.note_off)."""
     s = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]["sender"]   # the file, not the env
-    assert s == {"enabled": False, "provider": "buttondown", "api_base": "https://api.buttondown.com/v1",
-                 "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 80,
-                 "max_recipients": 2000, "canary_only": True, "link_hosts": s["link_hosts"], "text": s["text"]}
+    assert s == {"enabled": True, "provider": "buttondown", "api_base": "https://api.buttondown.com/v1",
+                 "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 400,
+                 "max_recipients": 2000, "canary_only": False, "link_hosts": s["link_hosts"], "text": s["text"]}
     assert sorted(s["text"]) == ["open_site", "subject", "why"]
     assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []
+    off = note_off(config.SITE)
+    assert morning.problems(off) == [] and site_url_problems(off) == []
     assert tuple(s) == morning.SENDER_KEYS
 
 
 def test_the_form_sends_lists_where_the_sender_reads_them_and_the_page_promises_no_exact_time():
-    """task-contract/t43-form-fields: the deliver stage reads a subscriber's lists from `metadata.lists`; a form that
-    sent them as tags would reach nobody while the run says "sent". `ids` mode mails when the run ends, so the page
-    says "by 7:00 AM", true in both modes."""
+    """task-contract/t43-form-fields: the deliver stage reads a subscriber's lists and seats from their Buttondown
+    tags (sender/common.py read_tags); a form that sent them anywhere else would reach nobody while the run says
+    "sent". On the free plan a new sign-up with metadata__ fields is refused (platform-facts, 2026-11-16), so the
+    build refuses them. `ids` mode mails when the run ends, so the page says "by 7:00 AM", true in both modes."""
+    from sender import common
     mn = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]
-    assert mn["form_fields"]["lists"] == "metadata__lists"
+    assert mn["form_fields"] == {"email": "email", "lists": common.TAG_FIELD, "district": common.TAG_FIELD,
+                                 "ward": common.TAG_FIELD}
+    assert morning.TAG_FIELD == common.TAG_FIELD == "tag"
+    for k in ("lists", "district", "ward"):
+        for bad in (f"metadata__{k}", "tags", "email"):
+            got = problems(note={"form_fields": {**mn["form_fields"], k: bad}})
+            assert got and any("form_fields" in p for p in got), (k, bad)
+    for bad in ("tag", "metadata__email"):
+        assert any("form_fields" in p for p in problems(note={"form_fields": {**mn["form_fields"], "email": bad}}))
     assert "by 7:00 AM" in mn["page"]["about"] and "at 7:00 AM" not in mn["page"]["about"]
 
 
@@ -61,7 +77,7 @@ def test_enabling_the_sender_needs_the_form_enabled_and_a_site_url():
     assert no_url and all("site_url" in p for p in no_url)
     hosts = config.SITE["morning_note"]["sender"]["link_hosts"] + ",records.example.com"
     assert problems({"enabled": True, "link_hosts": hosts}, FORM_ON) == []
-    cfg = copy.deepcopy(config.SITE)                                     # and the build's own check refuses it
+    cfg = note_off(config.SITE)                                          # and the build's own check refuses it
     cfg["morning_note"]["sender"]["enabled"] = True
     assert any("morning_note.sender.enabled" in p for p in site_url_problems(cfg))
 
@@ -109,7 +125,9 @@ def test_the_stdlib_reader_agrees_with_yaml_on_the_shipped_file():
     assert got["top"] == {k: full[k] for k in ("site_timezone", "district_count", "ward_count", "support_url",
                                                "site_name")}
     s = settings_mod.load(SITE_YML)
-    assert (s.enabled, s.canary_only, s.mode, s.max_recipients, s.timezone) == (False, True, "stamp", 2000, "America/Chicago")
+    assert (s.enabled, s.canary_only, s.mode, s.max_recipients, s.timezone) == \
+        (sender["enabled"], sender["canary_only"], "stamp", 2000, "America/Chicago")
+    assert isinstance(s.enabled, bool) and isinstance(s.canary_only, bool)
     assert (s.district_count, s.ward_count, s.send_at, s.latest_send) == (21, 12, "07:00", "10:00")
 
 
@@ -324,8 +342,11 @@ def test_parity_with_pyyaml_on_the_shipped_file():
     assert settings_mod.parity(text, yaml.safe_load(text)) == []
 
 
+FLIP = object()     # the opposite of the shipped boolean, whichever it is
+
+
 @pytest.mark.parametrize("path, value", [
-    (("morning_note", "sender", "enabled"), True), (("morning_note", "sender", "canary_only"), False),
+    (("morning_note", "sender", "enabled"), FLIP), (("morning_note", "sender", "canary_only"), FLIP),
     (("morning_note", "sender", "max_recipients"), 64), (("morning_note", "sender", "max_recipients"), "2000"),
     (("morning_note", "sender", "enabled"), 0), (("ward_count",), 13), (("site_name",), "Elsewhere"),
     (("morning_note", "sender", "text", "subject"), "{site_name} other, {date}")])
@@ -335,13 +356,16 @@ def test_parity_names_any_value_pyyaml_reads_differently(path, value):
     node = loaded
     for k in path[:-1]:
         node = node[k]
-    node[path[-1]] = value
+    node[path[-1]] = (not node[path[-1]]) if value is FLIP else value
     got = settings_mod.parity(text, loaded)
     assert len(got) == 1 and path[-1] in got[0], got
 
 
 def test_parity_reports_a_file_the_reader_refuses():
-    text = SITE_YML.read_text(encoding="utf-8").replace("    canary_only: true", "    \"canary_only\": false", 1)
+    import re
+    text, n = re.subn(r"(?m)^    canary_only: (true|false)", r'    "canary_only": \1', SITE_YML.read_text(encoding="utf-8"),
+                      count=1)
+    assert n == 1
     got = settings_mod.parity(text, yaml.safe_load(text))
     assert got and "sender/settings.py" in got[0]
 
@@ -362,7 +386,7 @@ def test_the_build_refuses_a_config_the_reader_reads_differently(tmp_path, monke
 def test_the_plan_command_refuses_a_config_the_reader_reads_differently(tmp_path, monkeypatch, capsys):
     from sender.__main__ import main
     cfg = copy.deepcopy(config.SITE)
-    cfg["morning_note"]["sender"]["canary_only"] = False       # what PyYAML gave is not what the deliver job reads
+    cfg["morning_note"]["sender"]["canary_only"] = not cfg["morning_note"]["sender"]["canary_only"]   # not what the deliver job reads
     monkeypatch.setattr(config, "SITE", cfg)
     assert main(["plan", "--site", str(tmp_path / "site"), "--out", str(tmp_path / "out")]) == 2
     assert "canary_only" in capsys.readouterr().err
@@ -451,3 +475,19 @@ def test_enabling_needs_the_site_host_among_the_link_hosts():
     assert any("link_hosts" in p and "records.example.com" in p for p in got), got
     base = config.SITE["morning_note"]["sender"]["link_hosts"]
     assert problems({"enabled": True, "link_hosts": base + ",records.example.com"}, FORM_ON) == []
+
+
+def test_tag_names_are_fixed_and_shared_by_the_form_and_the_sender():
+    """The form posts and the sender reads one set of Buttondown tag names (sender/common.py): a list's tag, and a
+    seat's tag as its prefix plus the stored number. Anything else is not ours."""
+    from sender import common
+    assert [common.list_tag(k) for k in common.LIST_KEYS] == ["note-zoning", "note-seats", "note-budget", "note-contracts"]
+    assert (common.seat_tag_prefix("district"), common.seat_tag_prefix("ward")) == ("note-district-", "note-ward-")
+    for bad in ("everything", "", "note-zoning", None):
+        with pytest.raises(ValueError):
+            common.list_tag(bad)
+    with pytest.raises(ValueError):
+        common.seat_tag_prefix("council")
+    tags = [common.list_tag(k) for k in ("budget", "zoning")] + ["note-district-5", "note-ward-3", "vip", "note-ward-x"]
+    assert common.read_tags(tags) == (("zoning", "budget"), [5], [3])
+    assert common.read_tags(None) == ((), [], []) and common.read_tags("note-budget") == ((), [], [])

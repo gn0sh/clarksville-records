@@ -223,3 +223,46 @@
 - Independent checks: the 32,002 sampled points of the poster's drawn roads lie a median 0.38 m (p90 2.2 m) from TIGER road lines; the 2025 TIGER Clarksville place outline lies a median 0.3 m from the poster's city outline, 93.5% within 10 m. The rest is annexation timing (0.36 km2 in the wards but not in TIGER 2025, 0.06 km2 the other way, of 261.5 km2).
 - Expected error and margin: 76 m = transform 3 + trace 5 + poster export 3 (judgment) + Census geocoder 65 (judgment call, as for the districts: no measurement of the geocoder's error against known addresses backs the 65 m, and rural and new-subdivision segments, where the Census address ranges are interpolated or missing, may be worse). An address within 76 m of a ward line or the city line is answered "near a ward line": check with the Election Commission or GoVoteTN.
 - Accuracy evidence: no public record we hold ties an address to a ward (city agendas and minutes print no ward for zoning cases or property items; council members' addresses are not used). So the tests use the poster: each ward's printed number plus 3 named-street crossings per ward, all at least 250 m inside the ward, 48 points, all answered with the poster's ward (`tests/test_ward_map.py`); 8 were also checked by eye on rendered crops. Confidence: high that the lookup reproduces the poster to within about 10 m; medium that the poster matches the legal ward lines everywhere (it is RPC's map, not the Election Commission's; annexations after 2026-02-25 are not on it).
+
+## Morning note provider (Buttondown; seen 2026-11-16 by Brian with the team)
+The T4.0 probe (`scripts/morning-note-probe.ps1`, run once on 2026-11-16 at 18:54 CT on the **live** newsletter,
+username `daylight`, free plan, team addresses only; results file `results-20261116-1854.json` in the project files,
+no address or id in it) plus Brian's inbox checks. Brian is on the free plan and will not pay (2026-11-16).
+- **API, free plan:** no paid-feature refusal from any call. Subscriber `metadata` can be written: `PATCH
+  /v1/subscribers/{id}` answers 200, **replaces** the whole object (does not merge) and echoes the stored metadata.
+  `X-Idempotency-Key` is honoured on PATCH and POST. A scoped key read `/tags` (200) and was refused
+  `/newsletters` (403).
+- **Settings UI:** "Subscriber metadata is only available for accounts on the Basic plan or higher" (Settings >
+  Metadata). The API accepted metadata anyway. There is no preferences page where a subscriber can edit fields.
+- **Stamp mode works.** A `scheduled` email filtered on `subscriber.metadata.note_edition equals <value>` reached
+  exactly one recipient (analytics: recipients 1, deliveries 1); Gmail showed it reached only the second address.
+  The probe file's manual answer "runbook-1 ... => no" is wrong; the right answer is yes.
+- **A scheduled email holds:** status `scheduled` with 337 s to go, `sent` after `publish_date`. `PATCH` with
+  `{"status": "draft"}` takes a scheduled email back to a draft.
+- **`ids` mode does not work.** `POST /v1/emails/{id}/send-draft` sends only a "[PREVIEW]" copy to the account
+  owner; the email stays a draft. (The probe's "probe 4 reached the first address" is most likely that preview:
+  inference, not checked.) Also, an `ids` draft comes back with `filters: {"filters":[],"groups":[],"predicate":"and"}`,
+  not without filters, so the probe's ids checks fail on that too.
+- **Templates are on.** `{{ subscriber.email }}` in a body showed the address (Brian answered "renders literally",
+  but the email showed the address). The sender neutralises `{{` and `{%` in every record title (already built).
+- **Listings:** `GET /v1/subscribers` and `/v1/emails` are `{results, next, count}`; count equals rows; the email
+  listing holds drafts and scheduled emails with their `metadata`, oldest first. The **default subscriber listing
+  does not include unconfirmed (form) sign-ups**: to see every type, ask for each type.
+- **Public form** (`https://buttondown.com/api/emails/embed-subscribe/daylight`):
+  - an **existing** subscriber: 302 to buttondown.com, and the post **does** set `metadata__note_edition` and
+    `metadata__canary`; re-submitting changes a confirmed subscriber's metadata;
+  - a **new** address with `metadata__lists`, `metadata__district`, `metadata__ward`, `metadata__note_edition` and
+    `metadata__canary`: HTTP 400, no subscriber created. Likely cause: the free plan refuses metadata on form
+    sign-ups. Unproven: the Buttondown firewall had IP filtering off at the time.
+- **Consequence (2026-11-17):** the sign-up form posts no `metadata__` field. Lists, district and ward go as
+  Buttondown tags (`tag` fields: `note-zoning`, `note-district-5`, `note-ward-3`); the sender reads only those tags,
+  and metadata holds only the sender's stamp. **Unverified until the first real sign-up:** that the free plan's form
+  accepts `tag` on a new address (and adds several when several `tag` fields are posted), that a new tag name is
+  created on the fly, that a form sign-up gets double opt-in, and that the API returns `tags` as a list of names.
+- **Probe scoring (not changed):** the script scored `stamp_checks_pass: false` for three reasons: the wrong manual
+  runbook-1 answer above; `runbook-8` (the form sets `note_edition` on an existing subscriber), which the design
+  now accepts because the stamp carries a MAC (architecture "Switch-on: tags, and the security notes"); and the
+  new-subscriber form check, which never ran (the 400). The probe has done its job and is not run again, so the
+  scoring is left as is; read it with this section.
+- **Not yet checked (no network on 2026-11-17):** that `https://buttondown.com/legal/privacy` is the provider's
+  privacy policy (config `privacy_url`).
