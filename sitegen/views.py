@@ -1193,7 +1193,8 @@ def about(facts) -> dict:
 # pages link the county's budget page and purchasing archive.
 RECORD_BODY = frozenset({
     "votes_year.html.j2", "items_year.html.j2", "official.html.j2", "official_year.html.j2", "official_roster.html.j2",
-    "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2", "council_items_year.html.j2"})
+    "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2", "council_items_year.html.j2",
+    "official_votes.html.j2"})   # an official's vote list (onceover/votes/member-yes-no-list), as the official page
 RECORD_RPC = frozenset({"rpc_home.html.j2", "rpc_meetings_year.html.j2"})   # the RPC's agendas and minutes page
 RECORD_COMMITTEE = frozenset({"city_committee_home.html.j2", "city_committee_meetings_year.html.j2"})   # city portal
 RECORD_FINANCE = frozenset({"fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2"})
