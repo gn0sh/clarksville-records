@@ -224,6 +224,13 @@ def _until(facts, wards, date):
     return facts, [w for w in wards if w["date"] <= date]
 
 
+def _at(real_city, date):
+    """(facts, wards, cix) of the committed city data cut at `date` (_until): for tests that read one list as the
+    latest, so a newer list from the daily refresh (2026-10-01) does not move it."""
+    facts, wards = _until(*real_city[:2], date)
+    return facts, wards, council.load({**CFG}, facts, wards)
+
+
 def _home(tmp_path, seats: dict, previous=(), notes=None):
     """A city/index.html with the seat rows (and held-over notes) and the Served previously list in the template's
     shape."""
@@ -336,10 +343,12 @@ def _uncorrected(facts, wards, date="2026-07-06"):
 
 
 def _next_list(facts, wards, date, after="2026-07-06"):
-    """A list after the real latest one (2026-07-06), dated `date`: the 07-06 list with CLAULNCH read as Claunch, so it
+    """A list right after the 2026-07-06 one, dated `date`: the 07-06 list with CLAULNCH read as Claunch, so it
     resolves all 13 names. (The 2026-07-09 minutes printed such a list; they are agenda-only since d1-minutes-identity,
-    being called to order on July 6, so the next real list is not in the data yet. A made-up date avoids that row.)"""
-    facts, wards = _uncorrected(facts, wards, after)
+    being called to order on July 6. A made-up date avoids that row.) The data is cut at `after` first (_until), so
+    the made-up list is the latest whatever real lists the daily refresh has collected since (the 2026-10-01 list
+    made 07-06 no longer the real latest)."""
+    facts, wards = _uncorrected(*_until(facts, wards, after), after)
     rows = [{**w, "date": date, "meeting_id": f"{date}-special"} for w in wards if w["date"] == after]
     claunch = next(w for w in wards if w["official_id"] == "city-eric-claunch" and w["date"] == "2026-06-22")
     rows.append({**claunch, "date": date, "meeting_id": f"{date}-special"})
@@ -376,10 +385,11 @@ def test_a_member_left_out_of_the_list_after_2026_07_06_is_held_over_not_former(
 
 
 def test_the_07_06_list_read_as_printed_holds_ward_2_over_and_shows_no_wrong_holder(real_city, tmp_path):
-    """The real latest list (2026-07-06) read as printed (_uncorrected): CLAULNCH resolves to no official (never a
+    """The 2026-07-06 list read as printed (_uncorrected), with the data cut there (_until) so it is the latest list
+    whatever later lists have been collected: CLAULNCH resolves to no official (never a
     guess), so the list is incomplete, Eric Claunch (last listed 2026-06-22) is held over, not current and not former,
     and Ward 2 shows no holder, only the neutral held-over note, which says what the list prints."""
-    facts, wards = _uncorrected(*real_city[:2])
+    facts, wards = _uncorrected(*_until(*real_city[:2], "2026-07-06"))
     cix = council.load({**CFG}, facts, wards)
     assert cix.seats.latest == "2026-07-06"
     assert council.latest_list_incomplete(wards, facts, "2026-07-06", "2026-06-22") is True
@@ -412,7 +422,7 @@ def test_the_real_latest_list_2026_07_06_read_through_its_printing_correction_se
     """city-seats/printed-misspelling-of-seated-member: the 07-06 list's CLAULNCH is read as CLAUNCH (the configured,
     build-checked correction: p. 1 prints CLAUNCH in its votes). The list resolves all 13 names, Eric Claunch is the
     current Ward 2 member, and the seat line and his dates say plainly that the list prints "CLAULNCH", linked."""
-    facts, wards, cix = real_city
+    facts, wards, cix = _at(real_city, "2026-07-06")   # 07-06 as the latest list, whatever came later
     oid = "city-eric-claunch"
     m = next(m for m in facts["meetings"] if m["id"] == "2026-07-06-special")
     a = next(a for a in m["attendance"] if a["raw_name"] == "CLAULNCH")
@@ -553,7 +563,7 @@ def test_city_seats_csv_separates_printed_and_name_only_dates(real_city):
     import io
 
     from collector.export import PROVENANCE, SEAT_COLS, seats_csv
-    facts, wards, cix = real_city
+    facts, wards, cix = _at(real_city, "2026-07-06")   # 07-06 as the latest list, whatever came later
     names = {o["id"]: o["name"] for o in facts["officials"]}
     out = list(csv.DictReader(io.StringIO(seats_csv(cix._rows, facts, names))))
     assert all(f"seats.{c}" in PROVENANCE for c in SEAT_COLS)
@@ -669,7 +679,7 @@ def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_s
     latest list (2026-07-06) prints CLAULNCH, read as CLAUNCH through its build-checked printing correction, so he is
     current, and his dates say what the list prints
     (test_the_real_latest_list_2026_07_06_read_through_its_printing_correction_seats_claunch_in_ward_2)."""
-    facts, wards, cix = real_city
+    facts, wards, cix = _at(real_city, "2026-07-06")   # 07-06 as the latest list, whatever came later
     src = next(s for s in facts["sources"] if s["url"].endswith("fileId=3068,plainText=false)"))
     rows = [r for r in cix._rows if r["seat"] == "ward-2"]
     claunch = next(r for r in rows if r["official_id"] == "city-eric-claunch")
