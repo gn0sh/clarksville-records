@@ -267,6 +267,9 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
 - **Privacy policy (seen 2026-11-17 by the security reviewer):** `https://buttondown.com/legal/privacy` is
   Buttondown's privacy policy; for subscriber data it points to their data processing agreement (DPA). Config
   `privacy_url` is that address.
+- **Unverified: `archival_mode` in the create answer** (render/archival-not-echoed). Nothing on record shows that
+  `POST /v1/emails` answers with `archival_mode`, so the echo check compares it only when present (it must then be
+  `disabled`). Check it on the first real send (the stored email in the dashboard is off the public archive).
 - **Email listing filter (sender/claim-listing-unbounded):** the probe's `GET /emails?creation_date__start=<that
   day>` answered 200 with all 4 of that day's emails, so the filter keeps the day's rows. Whether it leaves older
   rows out is unproven (there were none). The sender asks for emails created since yesterday; ignored, the listing

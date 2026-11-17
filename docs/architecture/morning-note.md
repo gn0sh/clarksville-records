@@ -528,7 +528,22 @@ Notes for the security review (each is a judgment call unless marked):
     already created (`done`: a re-run after a stamped subscriber changed lists) or has nobody to mail this run. A
     holder of a not-yet-created edition's stamp who is in another not-yet-created edition's audience is stamped for
     that edition before any email is created (written over); otherwise, or if they changed again, the run stops.
-  - *render/archival-not-echoed (L7):* the adapter keeps `archival_mode` and the echo check compares it.
+    Superseded for a created edition by the invariant below (delta review of 55c097a).
+  - *render/archival-not-echoed (L7):* the adapter keeps `archival_mode`; the echo check compares it when the
+    stored email carries it (it must then be `disabled`). That the create answer carries it is unverified.
+- **Invariant: one stamp, one email a day (audience/ family, 2nd hit; never-twice over never-missed).** A
+  subscriber who holds the stamp of an edition already created today is never placed in another edition that day;
+  they get only the edition they hold, or nothing. Consumers, each keeping it:
+  1. `_claim`: which editions are created (`done`, the plan's own emails by note and plan digest);
+  2. `held_stamps`: who holds which of today's stamps, every row of the listing, whatever its type;
+  3. `run`, `by_key`: holders of a created edition's stamp are dropped from every audience before any write;
+  4. `_strays`: a stray of a created edition is skipped; one of a not-created edition is written over or stops the run;
+  5. `stamp()`: the only stamp write (re-read first; the idempotency key carries the stamp held, sender/stamp-idem-replay);
+  6. the edition loop: a `done` edition is never created again, and an edition is created only after its stamps;
+  7. the provider's filter (`stamp_filter`), which decides at send time who holds the stamp;
+  8. `buttondown.set_metadata`: the write replaces the whole object with the one stamp.
+  Accepted (nit 4): a holder of a created, still-scheduled edition who has since unticked every list still gets
+  that morning's email (their stamp is never removed: no write but a stamp exists); from the next day, nothing.
   - *sender/tags-silent-zero (CR2):* confirmed subscribers of whom none carries a `note-` tag end the run with
     exit 2, status `no-tags`, totals only.
   - *sender/claim-listing-unbounded (CR4):* the claim lists `GET /emails?creation_date__start=<yesterday>`. The

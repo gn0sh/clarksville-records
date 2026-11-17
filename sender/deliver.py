@@ -398,14 +398,15 @@ def _strays(held: list, by_key: dict, expected: dict, done: set) -> list[tuple[s
 
 def _check_echo(mode: str, payload: dict, stored) -> str:
     """audience/provider-echo: the email as the provider stored it decides who gets it, so it must carry exactly
-    the status, claim metadata, archival mode (off the public archive) and (in `stamp` mode) filter deliver sent,
-    and an `ids` draft no filter at all.
+    the status, claim metadata and (in `stamp` mode) filter deliver sent, and an `ids` draft no filter at all. Its
+    archival mode, when it carries one, must be the one sent ("disabled": off the public archive); that the create
+    answer carries it at all is unverified (render/archival-not-echoed, platform-facts).
     Returns its id; raises EchoMismatch (with the id when one came back) otherwise."""
     sid = stored.get("id") if isinstance(stored, dict) else stored if isinstance(stored, str) else None
     sid = sid if isinstance(sid, str) and sid else None
     ok = isinstance(stored, dict) and sid is not None and stored.get("status") == payload["status"] \
         and stored.get("metadata") == payload["metadata"] \
-        and stored.get("archival_mode") == payload["archival_mode"]       # render/archival-not-echoed
+        and ("archival_mode" not in stored or stored["archival_mode"] == payload["archival_mode"])
     if ok and mode == "stamp":
         ok = stored.get("filters") == payload["filters"]
     elif ok:
@@ -579,8 +580,16 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             audience = [r for r in audience if r.id in canary_ids]
         if len(audience) > settings.max_recipients:
             return end(2, "over-limit", why="more recipients than max_recipients")
+        # The invariant "one stamp, one email a day" (architecture; audience/stamp-rerun-false-stray): whoever holds
+        # the stamp of an edition already created today is in no audience this run, so is never re-stamped into
+        # another edition; they get the email they hold, or nothing.
+        expected = {stamp_value(day, ed["key"], stamp_secret): ed["key"] for ed in plan["editions"]} \
+            if settings.mode == "stamp" else {}
+        holds_created = {sid for sid, value in held if isinstance(value, str) and expected.get(value) in done}
         by_key: dict[str, list[Recipient]] = {}
         for r in audience:
+            if r.id in holds_created:
+                continue
             key = plan["signatures"].get(signature(r.lists, r.district, r.ward)) if r.lists else None
             if key is not None:
                 by_key.setdefault(key, []).append(r)
@@ -588,19 +597,27 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         # edition any shape could get), counted before the first write
         if len(by_key) > settings.max_editions:
             return end(2, "over-limit", why="more editions with a recipient than max_editions")
-        expected = {stamp_value(day, ed["key"], stamp_secret): ed["key"] for ed in plan["editions"]} \
-            if settings.mode == "stamp" else {}
+
         def stamp(r: Recipient, key: str, value: str) -> bool:
             """Re-read one subscriber just before the write (L2), then stamp them; False (no write) when their type
             or tags changed since the listing: they get nothing today."""
             nonlocal step
             step = "subscriber re-read"
-            fresh = recipient(_call(sleep, provider.subscriber, r.id), settings)
+            raw = _call(sleep, provider.subscriber, r.id)
+            fresh = recipient(raw, settings)
             if fresh is None or fresh.id != r.id or not fresh.lists or \
                     signature(fresh.lists, fresh.district, fresh.ward) != signature(r.lists, r.district, r.ward):
                 return False
+            # sender/stamp-idem-replay: the key carries the stamp held now, so a replay after someone changed it (the
+            # form can write metadata) is a new write, not the provider's remembered answer to an old one
+            meta_now = raw.get("metadata") if isinstance(raw, dict) else None
+            held_now = meta_now.get("note_edition") if isinstance(meta_now, dict) else None
+            if isinstance(held_now, str) and expected.get(held_now) in done:
+                return False        # took a created edition's stamp since the listing: keep it (the invariant)
+            was = hashlib.sha256(repr(held_now).encode("utf-8")).hexdigest()[:16]
             step = "subscriber stamp"
-            _call(sleep, provider.set_metadata, r.id, {"note_edition": value}, idempotency_key(day, key, f"stamp/{r.id}"))
+            _call(sleep, provider.set_metadata, r.id, {"note_edition": value},
+                  idempotency_key(day, key, f"stamp/{r.id}/{was}"))
             return True
 
         stamped_early = set()

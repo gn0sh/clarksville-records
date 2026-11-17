@@ -758,12 +758,15 @@ def test_a_stray_who_changes_again_before_the_write_over_stops_the_run(plan):
 
 
 @pytest.mark.parametrize("now_picks", [["contracts"], "a new edition", []])
-def test_a_rerun_after_a_stamped_subscriber_changed_lists_is_not_a_stray(plan, now_picks):
-    """audience/stamp-rerun-false-stray: run 1 stamped and mailed sub 1 for budget; sub 1 then changed lists. Run 2
-    of the same plan no longer stops at "stray-stamp": the budget email was created by run 1 and nothing run 2 does
-    changes who it reaches. A new shape that has an edition not yet created gets it; nothing is created twice."""
+@pytest.mark.parametrize("when", ["before 07:00", "after 07:00, A already sent"])
+def test_a_rerun_after_a_stamped_subscriber_changed_lists_is_not_a_stray(plan, now_picks, when):
+    """audience/stamp-rerun-false-stray and the invariant "one stamp, one email a day": run 1 stamped sub 1 for the
+    budget edition A and created A; sub 1 then changed lists. Run 2 of the same plan neither stops at "stray-stamp"
+    nor puts sub 1 in another edition, even one not created yet: they keep A's stamp and get A only. After 07:00 (A
+    already sent) the same holds: no second email that day."""
     fake = Fake(people(plan))
     assert go(plan, fake)[0].editions == 3
+    a = stamp(key_for(plan, ["budget"]))
     if now_picks == "a new edition":        # a shape whose edition run 1 did not create
         done = {p["metadata"]["note_edition"] for p in fake.created}
         sig = next(g for g, k in sorted(plan["signatures"].items()) if stamp(k) not in done)
@@ -772,11 +775,50 @@ def test_a_rerun_after_a_stamped_subscriber_changed_lists_is_not_a_stray(plan, n
                                                    None if w == "-" else int(w))["tags"]
     else:
         fake.subs["sub-0001-secret"]["tags"] = [common.list_tag(k) for k in now_picks]
-    res, text = go(plan, fake)
-    new = 1 if now_picks == "a new edition" else 0
-    assert (res.code, res.status, res.editions) == (0, "sent", new), text
+    now = AT_5
+    if when.startswith("after"):
+        for row in fake.email_rows:
+            row["status"] = "sent"
+        now = datetime(2026, 11, 11, 7, 30, tzinfo=TZ)
+    writes = fake.calls.count("set_metadata")
+    res, text = go(plan, fake, now=now)
+    assert (res.code, res.status, res.editions) == (0, "sent", 0), text
+    assert fake.calls.count("set_metadata") == writes                  # sub 1 is never stamped again
+    assert fake.subs["sub-0001-secret"]["metadata"] == {"note_edition": a}
     editions = [p["metadata"]["note_edition"] for p in fake.created]
-    assert len(editions) == len(set(editions)) == 3 + new
+    assert len(editions) == len(set(editions)) == 3
+    assert [p for p in fake.created if "sub-0001-secret" in fake.audience(p)] == \
+        [p for p in fake.created if p["metadata"]["note_edition"] == a]                       # A only
+
+
+def test_a_holder_of_a_created_edition_is_left_out_of_a_new_one_with_other_people(plan):
+    """The invariant with company: sub 1 (holds A) and a new subscriber pick the same new shape; the new edition is
+    created for the new subscriber alone."""
+    fake = Fake(people(plan))
+    go(plan, fake)
+    done = {p["metadata"]["note_edition"] for p in fake.created}
+    sig = next(g for g, k in sorted(plan["signatures"].items()) if stamp(k) not in done)
+    lists, d, w = sig.split("|")
+    shape = (lists.split(","), None if d == "-" else int(d), None if w == "-" else int(w))
+    fake.subs["sub-0001-secret"]["tags"] = sub(1, *shape)["tags"]
+    fake.subs["sub-0010-secret"] = sub(10, *shape)
+    res, _ = go(plan, fake)
+    assert (res.status, res.editions, res.recipients) == ("sent", 1, 1)
+    assert fake.audience(fake.created[-1]) == {"sub-0010-secret"}
+
+
+def test_the_stamp_idempotency_key_carries_the_stamp_held_now(plan):
+    """sender/stamp-idem-replay: the same stamp written over a different held value uses another key, so the
+    provider never answers it from memory without writing; over the same held value, the same key."""
+    fake = Fake([sub(1, ["budget"])], fail={"create_email": [deliver.ProviderError("x")] * 2})
+    go(plan, fake)
+    first = fake.keys[-1]
+    fake.subs["sub-0001-secret"]["metadata"] = {}                            # held as before run 1: same key
+    go(plan, fake)
+    assert fake.keys[-1] == first
+    fake.subs["sub-0001-secret"]["metadata"] = {"note_edition": "something the form wrote"}
+    go(plan, fake)
+    assert fake.keys[-2] != first and fake.calls.count("create_email") == 3
 
 
 @pytest.mark.parametrize("type_", ["premium", "gifted", "trialed", "churning", "past_due", "unactivated", None])
@@ -950,8 +992,8 @@ def _drop_filter(row):
     lambda r: {**r, "filters": {**r["filters"], "predicate": "or"}}, lambda r: {**r, "status": "about_to_send"},
     lambda r: {**r, "metadata": {**r["metadata"], "note_sha256": "0" * 64}}, lambda r: r["id"], lambda r: None,
     lambda r: {**r, "id": ""},
-    # render/archival-not-echoed: stored on the public archive, or with no archival mode at all
-    lambda r: {**r, "archival_mode": "enabled"}, lambda r: {k: v for k, v in r.items() if k != "archival_mode"}])
+    # render/archival-not-echoed: stored on the public archive (any mode but the "disabled" sent)
+    lambda r: {**r, "archival_mode": "enabled"}, lambda r: {**r, "archival_mode": None}])
 def test_stamp_unschedules_an_email_the_provider_stored_differently(plan, echo):
     """audience/provider-echo: the stored email decides who gets it, so it must echo exactly the filter, status and
     claim deliver sent; otherwise it is taken back to a draft and the run fails before the next edition."""
@@ -999,6 +1041,15 @@ def test_a_failed_take_back_is_named_in_the_output(plan):
     res, text = go(plan, fake)
     assert (res.code, res.status) == (1, "failed") and "an email may still be scheduled" in text
     assert SECRET_BODY not in text
+
+
+def test_an_echo_without_an_archival_mode_is_accepted(plan):
+    """render/archival-not-echoed: nothing on record shows the create answer carries archival_mode, so it is checked
+    only when present (platform-facts: unverified)."""
+    for mode in ("stamp", "ids"):
+        fake = Fake(people(plan), echo=lambda r: {k: v for k, v in r.items() if k != "archival_mode"})
+        res, _ = go(plan, fake, s=settings(mode=mode))
+        assert (res.code, res.editions) == (0, 3) and fake.unscheduled == []
 
 
 def test_a_faithful_echo_sends_and_unschedules_nothing(plan):
