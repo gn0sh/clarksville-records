@@ -8,10 +8,12 @@
 #      and opens its pull request into main (author: you);
 #   3. posts a COMMENT review on it pinned to the OLDER commit and checks GitHub keeps that commit_id;
 #   4. pushes probe/v1-runner (main plus .github/workflows/v1-probe.yml), which starts a run that tries to merge the
-#      pull request with GITHUB_TOKEN: squash, then merge, then rebase;
-#   5. reads the run's answers and main's sha before and after, prints PASS, FAIL or INCONCLUSIVE, and cleans up
-#      (closes the pull request, deletes both probe branches).
-# On FAIL (a merge went through) it turns "Allow GitHub Actions to create and approve pull requests" off at once.
+#      pull request with GITHUB_TOKEN: squash, then merge, then rebase (REST), then GraphQL mergePullRequest;
+#   5. reads the run's answers, whether the probe PR merged, whether v1-canary.yml is on main, and main's sha before
+#      and after; prints PASS, FAIL or INCONCLUSIVE, and cleans up (closes the PR, deletes both probe branches).
+# FAIL means the probe PR merged (the run's own merge answer, or the PR reads merged) or v1-canary.yml is on main
+# (v1-probe/verdict-from-main-sha): then it turns "Allow GitHub Actions to create and approve pull requests" off at
+# once. main moving for another reason, or a read that failed, is INCONCLUSIVE and leaves that setting on.
 # Writes the result to Documents\v1-probe-results-<time>.txt. Nothing is sent to anyone.
 #
 # Run (PowerShell, in the repository folder):  powershell -NoProfile -File scripts\v1-probe.ps1
@@ -51,6 +53,7 @@ if ($dataPrs -notmatch '^[0-9]+$' -or [int]$dataPrs -lt 1) {
 Set-Content -Path $results -Value ''
 $mainBefore = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
 Log ("V1 probe " + (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') + ". main before: $mainBefore")
+if ($mainBefore -notmatch '^[0-9a-f]{40}$') { Log 'INCONCLUSIVE: could not read main. Nothing was changed.'; exit 1 }
 Quiet -X DELETE "repos/$repo/git/refs/heads/$target"     # leftovers of an earlier try
 Quiet -X DELETE "repos/$repo/git/refs/heads/$runner"
 
@@ -90,27 +93,39 @@ try {
     Log "Probe run: https://github.com/$repo/actions/runs/$run"
     gh run watch $run --repo $repo *> $null
     $lines = @(gh run view $run --repo $repo --log 2>$null | ForEach-Object {
-        if ($_ -match 'V1-(RESULT|MERGED) (squash|merge|rebase).*') { $Matches[0] } })
+        if ($_ -match 'V1-(RESULT|MERGED) (squash|merge|rebase|graphql).*') { $Matches[0] } })
     $mainAfter = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
     foreach ($l in $lines) { Log $l }
     Log "main after: $mainAfter"
+    # The verdict comes from the probe PR and the canary file, not from main's sha (any other merge moves main).
+    $prMerged = (gh api "repos/$repo/pulls/$($script:num)" --jq '.merged' 2>$null) -join ''
+    $canaryOut = (gh api "repos/$repo/contents/.github/workflows/v1-canary.yml?ref=main" --jq '.sha' 2>&1) -join ' '
+    $canaryRc = $LASTEXITCODE
+    $canary = 'unread'
+    if ($canaryRc -eq 0) { if ($canaryOut -match '^[0-9a-f]{40}$') { $canary = 'on-main' } }
+    elseif ($canaryOut -match 'HTTP 404') { $canary = 'absent' }
+    $prShown = if ($prMerged) { $prMerged } else { 'unread' }
+    Log "Probe pull request merged: $prShown. v1-canary.yml on main: $canary"
 
-    $refusedLines = @($lines | Where-Object { $_ -match '^V1-RESULT (squash|merge|rebase) exit=[1-9]' })
-    $named = @($refusedLines | Where-Object { $_ -match 'workflow' }).Count
-    $merged = @($lines | Where-Object { $_ -match '^V1-MERGED (squash|merge|rebase)' }).Count
-    if ($merged -gt 0 -or $mainAfter -ne $mainBefore) {
+    $refusedLines = @($lines | Where-Object { $_ -match '^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]' })
+    $named = @($refusedLines | Where-Object { $_ -match 'without .workflows. permission' }).Count
+    $merged = @($lines | Where-Object { $_ -match '^V1-MERGED (squash|merge|rebase|graphql)' }).Count
+    if ($merged -gt 0 -or $prMerged -eq 'true' -or $canary -eq 'on-main') {
         Log 'FAIL (V1 false): GITHUB_TOKEN merged a workflow change into main. Turning off Allow GitHub Actions to create and approve pull requests now.'
         gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
         if ($LASTEXITCODE -eq 0) { Log 'Turned off. The daily update now stops saving data (the safe state).' }
         else { Log 'Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now.' }
         Log 'Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team.'
-        $script:num = ''                         # the pull request is merged: nothing to close
+        if ($prMerged -eq 'true') { $script:num = '' }   # the pull request is merged: nothing to close
         $code = 2
-    } elseif ($refusedLines.Count -eq 3 -and $named -eq 3 -and $reviewOk -eq 'yes') {
-        Log 'PASS: all three merges refused for the workflows permission, main unchanged, review commit_id kept. Send this output to the team.'
+    } elseif ($prMerged -ne 'false' -or $canary -ne 'absent' -or $mainAfter -notmatch '^[0-9a-f]{40}$' -or $mainAfter -ne $mainBefore) {
+        Log 'INCONCLUSIVE: the probe pull request is not shown merged, but main moved during the probe or a read failed (see above). Allow GitHub Actions to create and approve pull requests is left on. Send this output to the team.'
+        $code = 1
+    } elseif ($refusedLines.Count -eq 4 -and $named -eq 4 -and $reviewOk -eq 'yes') {
+        Log 'PASS: all four merges (squash, merge, rebase, GraphQL) refused for the workflows permission, main unchanged, review commit_id kept. Send this output to the team.'
         $code = 0
     } else {
-        Log "INCONCLUSIVE: refused $($refusedLines.Count) of 3, $named naming the workflows permission, review commit_id kept: $reviewOk. Send this output to the team."
+        Log "INCONCLUSIVE: refused $($refusedLines.Count) of 4, $named naming the workflows permission, review commit_id kept: $reviewOk. Send this output to the team."
         $code = 1
     }
 } finally {

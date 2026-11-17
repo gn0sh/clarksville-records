@@ -89,15 +89,18 @@ refusal below means the workflow rule, not a general refusal). Run by devops wit
 2. A person pushes `probe/v1-runner`: main plus `.github/workflows/v1-probe.yml`, `on: push` to that branch only,
    `permissions: contents: write, pull-requests: write`. Its one step opens a PR `probe/v1-target` into `main`,
    posts nothing else, then tries `PUT pulls/<n>/merge` pinned to the head sha with `squash`, then `merge`, then
-   `rebase`, printing each HTTP status and message; it stops at the first `merged: true`.
-3. Expected: all three refused, with a message naming the `workflows` permission (for example "refusing to allow a
+   `rebase`, then GraphQL `mergePullRequest` (`expectedHeadOid` = the head, `SQUASH`), printing each answer; it
+   stops at the first merge that goes through.
+3. Expected: all four refused, with a message naming the `workflows` permission (for example "refusing to allow a
    GitHub App to create or update workflow ... without `workflows` permission"); `main`'s sha unchanged
    (`git ls-remote origin main` before and after). A refusal for any other reason (not mergeable, ruleset) is
-   inconclusive: fix and re-run.
+   inconclusive: fix and re-run. The verdict FAIL comes only from the probe PR reading `merged` (or the run's own
+   merge answer) or `v1-canary.yml` being on `main`; `main` moving while the PR stays unmerged, or a failed read, is
+   inconclusive and leaves R2 on (v1-probe/verdict-from-main-sha).
 4. Same session, on the probe PR: post a COMMENT review as the PR's author with an explicit older `commit_id` and
    check the API returns that `commit_id` (S2 and gate 5(d) depend on it).
 5. Clean up: close the PR unmerged, delete both probe branches (throwaway branches the team made), record the run
-   link, the three messages and step 4's result in `docs/platform-facts.md` "Main protection".
+   link, the four messages and step 4's result in `docs/platform-facts.md` "Main protection".
 
 If any merge goes through (V1 false): turn R2 off at once (`gh api -X PUT
 repos/gn0sh/clarksville-records/actions/permissions/workflow -F can_approve_pull_request_reviews=false`; J2 then

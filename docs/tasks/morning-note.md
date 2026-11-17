@@ -261,8 +261,8 @@ Owner: devops-engineer unless named. One branch for T4.10.2 to T4.10.4 and T4.10
 | T4.10.7 Security review (fresh, opus/high) | branch A committed | before branch A merges |
 | T4.10.8 Set `MAIN_PR_BASELINE` | .1 PASS, .5, branch A merged | last |
 
-- **T4.10.1 V1 probe.** Exactly the steps in the architecture "V1 probe" (canary, runner, three merge methods, the
-  `commit_id` check, cleanup). Done when: `docs/platform-facts.md` "Main protection" has the run link, the three
+- **T4.10.1 V1 probe.** Exactly the steps in the architecture "V1 probe" (canary, runner, four merge tries, the
+  `commit_id` check, cleanup). Done when: `docs/platform-facts.md` "Main protection" has the run link, the four
   refusal messages, the `commit_id` result and `main`'s sha before and after. If a merge goes through: the "V1 false"
   steps there, at once, then stop T4.10.8 and hand back to the architect.
 - **T4.10.2 Gate job.** New first job `gate` as in the architecture "The gate job" (steps 1-6, inline, outputs `sha`,

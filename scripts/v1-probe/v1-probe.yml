@@ -1,9 +1,10 @@
 # V1 probe runner (docs/architecture/main-protect-invariant.md "V1 probe"; runbook docs/ops/morning-note.md 2.0.4).
 # The probe script puts this file on the throwaway branch probe/v1-runner as .github/workflows/v1-probe.yml; that
 # push starts it. With GITHUB_TOKEN only, it tries to merge the open probe/v1-target pull request (which adds a
-# workflow file) into main with squash, then merge, then rebase, each pinned to the PR's head, and prints GitHub's
-# answer to each. Expected (V1 true): all three refused for lack of the `workflows` permission. It stops at the
-# first merge that goes through. It reads no secret and runs no file from the repository.
+# workflow file) into main with squash, then merge, then rebase (REST), then GraphQL mergePullRequest (squash), each
+# pinned to the PR's head, and prints GitHub's answer to each. Expected (V1 true): all four refused for lack of the
+# `workflows` permission. It stops at the first merge that goes through. It reads no secret and runs no file from
+# the repository.
 name: V1 probe (one time)
 on:
   push:
@@ -28,9 +29,22 @@ jobs:
           if ! [[ "$num" =~ ^[0-9]+$ ]]; then echo "V1-ERROR: no open pull request from probe/v1-target"; exit 1; fi
           head=$(gh api "repos/$repo/pulls/$num" --jq '.head.sha')
           echo "V1-PR #$num head $head"
+          merged=""
           for method in squash merge rebase; do
             out=$(gh api -X PUT "repos/$repo/pulls/$num/merge" -f merge_method="$method" -f sha="$head" 2>&1)
             code=$?
             echo "V1-RESULT $method exit=$code $(printf '%s' "$out" | tr '\n' ' ')"
-            if [ "$code" = 0 ]; then echo "V1-MERGED $method"; break; fi
+            if [ "$code" = 0 ]; then echo "V1-MERGED $method"; merged=yes; break; fi
           done
+          # The GraphQL merge path (security, 2026-11-17): a separate API that the REST refusals do not prove.
+          # Pinned to the same head (expectedHeadOid), squash. The method name sits in a variable so the run's own
+          # text, which the log also shows, never matches the probe script's result pattern.
+          if [ -z "$merged" ]; then
+            method=graphql
+            node=$(gh api "repos/$repo/pulls/$num" --jq '.node_id')
+            q='mutation($id: ID!, $oid: GitObjectID!) { mergePullRequest(input: {pullRequestId: $id, expectedHeadOid: $oid, mergeMethod: SQUASH}) { pullRequest { merged } } }'
+            out=$(gh api graphql -f query="$q" -f id="$node" -f oid="$head" 2>&1)
+            code=$?
+            echo "V1-RESULT $method exit=$code $(printf '%s' "$out" | tr '\n' ' ')"
+            if [ "$code" = 0 ]; then echo "V1-MERGED $method"; fi
+          fi

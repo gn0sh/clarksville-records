@@ -185,17 +185,18 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       (bash: `bash scripts/v1-probe.sh`.) It may open a browser once to add the `workflow` scope to your GitHub CLI
       sign-in (it pushes two throwaway branches holding workflow files, `probe/v1-target` with an inert canary and
       `probe/v1-runner`, which starts a run that tries to merge the canary's pull request with `GITHUB_TOKEN`:
-      squash, merge, rebase). It takes about 3 minutes, cleans up after itself (closes the PR, deletes both
+      squash, merge, rebase, then GraphQL `mergePullRequest`). It takes about 3 minutes, cleans up after itself (closes the PR, deletes both
       branches), saves `Documents\v1-probe-results-<time>.txt`, and ends with one of:
-      - **PASS**: all three merges refused for the `workflows` permission, `main` unchanged, and the review's
-        `commit_id` kept. Send the output to the team; they record it in `docs/platform-facts.md` "Main protection"
+      - **PASS**: all four merges refused for the `workflows` permission (the message says "without `workflows`
+        permission"), `main` unchanged, and the review's `commit_id` kept. Send the output to the team; they record it in `docs/platform-facts.md` "Main protection"
         and set the baseline (section 4 item 7) the same day.
-      - **FAIL (V1 false)**: a merge went through. The script has already turned **Allow GitHub Actions to create
+      - **FAIL (V1 false)**: the probe pull request merged, or `v1-canary.yml` is on `main`. The script has already turned **Allow GitHub Actions to create
         and approve pull requests** off (the daily data then stops saving: the safe state). Leave
         `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the output to the team; the inert canary is removed
         by a person's PR and the architect re-plans the data path.
-      - **INCONCLUSIVE**: refused for another reason, or the run did not start: send the output; the team fixes the
-        cause and you run it again.
+      - **INCONCLUSIVE**: refused for another reason, the run did not start, `main` moved during the probe while
+        the probe pull request stayed unmerged (another merge in the window), or a read failed: the Actions setting
+        is left on. Send the output; the team fixes the cause and you run it again.
       `MORNING_NOTE_SEND` waits on PASS (section 4 item 6a).
    5. **`github-pages` deploys from `main` only (T4.10.5; Brian, one click; the live site keeps deploying).** The
       site deploys today from the `deploy` job on `main` (Pages source: GitHub Actions, since go-live 2026-11-13);

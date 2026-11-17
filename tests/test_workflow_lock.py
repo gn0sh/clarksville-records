@@ -2323,8 +2323,12 @@ def test_the_v1_probe_workflows_are_inert_and_least_privilege():
     assert "secrets." not in text and "uses:" not in text                        # no secret, no action, no checkout
     run = job["steps"][0]["run"]
     assert "for method in squash merge rebase" in run and '-f sha="$head"' in run
+    # security Info (2026-11-17): the GraphQL merge path too, after the REST tries, pinned to the head, squash
+    assert run.index("for method in squash merge rebase") < run.index("gh api graphql")
+    assert "mergePullRequest(input: {pullRequestId: $id, expectedHeadOid: $oid, mergeMethod: SQUASH})" in run
+    assert '-f oid="$head"' in run and 'if [ -z "$merged" ]; then' in run
     # the verdict markers in the script's own text never match the probe script's patterns (the log shows the source)
-    assert not re.search(r"V1-(RESULT|MERGED) (squash|merge|rebase)", text)
+    assert not re.search(r"V1-(RESULT|MERGED) (squash|merge|rebase|graphql)", text)
     assert not (ROOT / ".github" / "workflows" / "v1-probe.yml").exists()
     assert not (ROOT / ".github" / "workflows" / "v1-canary.yml").exists()
     for name in ("v1-probe.sh", "v1-probe.ps1"):
@@ -2332,6 +2336,29 @@ def test_the_v1_probe_workflows_are_inert_and_least_privilege():
         assert "can_approve_pull_request_reviews=false" in s and "probe/v1-target" in s, name
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
     assert not re.search(r"--jq '[^']*\"", ps1)
+
+
+def test_the_v1_probe_scripts_agree():
+    """v1-probe/verdict-from-main-sha: the .ps1 Brian runs and its tested .sh twin read the same evidence and use the
+    same patterns and counts (no PowerShell on the test runner, so the .ps1 is checked by its text)."""
+    sh = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    for s in (sh, ps1):
+        assert "V1-(RESULT|MERGED) (squash|merge|rebase|graphql)" in s
+        assert "^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]" in s
+        assert "^V1-MERGED (squash|merge|rebase|graphql)" in s
+        assert "without .workflows. permission" in s and "-ci \"workflow\"" not in s
+        assert "--jq '.merged'" in s
+        assert "contents/.github/workflows/v1-canary.yml?ref=main" in s and "HTTP 404" in s
+        assert "of 4" in s and "all four merges" in s and "is left on" in s
+        assert "INCONCLUSIVE: could not read main. Nothing was changed." in s
+        assert "-ExecutionPolicy Bypass" not in s
+    # FAIL never from main's sha alone: the FAIL condition names only the merge answers, the PR and the canary
+    fail_sh = next(ln for ln in sh.splitlines() if "^V1-MERGED" in ln and ln.startswith("if "))
+    fail_ps1 = next(ln for ln in ps1.splitlines() if "$merged -gt 0" in ln)
+    for ln in (fail_sh, fail_ps1):
+        assert "main_after" not in ln and "mainAfter" not in ln, ln
+        assert "merged" in ln.lower() and "canary" in ln, ln
 
 
 _V1_STUB = '''#!/usr/bin/env python3
@@ -2356,7 +2383,20 @@ if a[:2] == ["run", "view"]:
     sys.stdout.write(open(os.environ["RUN_LOG"]).read()); sys.exit(0)
 path = [x for x in a if x.startswith("repos/")][0]
 if path.endswith("/git/ref/heads/main"):
-    print("1" * 40 if count("main") == 0 else os.environ.get("MAIN_AFTER", "1" * 40)); sys.exit(0)
+    sha = os.environ.get("MAIN_BEFORE", "1" * 40) if count("main") == 0 else os.environ.get("MAIN_AFTER", "1" * 40)
+    if sha == "EMPTY":
+        sys.stderr.write("gh: Bad gateway (HTTP 502)\\n"); sys.exit(1)
+    print(sha); sys.exit(0)
+if path.endswith("/contents/.github/workflows/v1-canary.yml?ref=main"):
+    canary = os.environ.get("CANARY", "404")
+    if canary == "on-main":
+        print("e" * 40); sys.exit(0)
+    sys.stderr.write("gh: Not Found (HTTP 404)\\n" if canary == "404" else "gh: Bad gateway (HTTP 502)\\n"); sys.exit(1)
+if path.endswith("/pulls/77") and "--jq" in a and a[a.index("--jq") + 1] == ".merged":
+    merged = os.environ.get("PR_MERGED", "false")
+    if merged == "EMPTY":
+        sys.exit(1)
+    print(merged); sys.exit(0)
 if "-X" in a and a[a.index("-X") + 1] == "PUT" and "/contents/" in path:
     if "branch=probe/v1-runner" in a:
         print("9" * 40)
@@ -2375,9 +2415,13 @@ _SOURCE = ('probe\\tTry\\t2026-11-18T09:00:00Z echo "V1-RESULT $method exit=$cod
            'probe\\tTry\\t2026-11-18T09:00:00Z if [ "$code" = 0 ]; then echo "V1-MERGED $method"; break; fi\n')
 _REFUSED = ("probe\\tTry\\t2026-11-18T09:00:01Z V1-RESULT {m} exit=1 {{\"message\":\"refusing to allow a GitHub App to "
             "create or update workflow `.github/workflows/v1-canary.yml` without `workflows` permission\"}}\n")
+_GQL_REFUSED = ("probe\tTry\t2026-11-18T09:00:02Z V1-RESULT graphql exit=1 GraphQL: refusing to allow a GitHub App to "
+                "create or update workflow `.github/workflows/v1-canary.yml` without `workflows` permission "
+                "(mergePullRequest)\n")
+_ALL_REFUSED = _SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")) + _GQL_REFUSED
 
 
-def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1"):
+def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1", **extra):
     bindir, calls = tmp_path / "bin", tmp_path / "calls"
     bindir.mkdir()
     (bindir / "gh").write_text(_V1_STUB)
@@ -2387,7 +2431,7 @@ def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1"):
     (tmp_path / "log").write_text(log)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls),
            "RUN_LOG": str(tmp_path / "log"), "RESULTS_DIR": str(tmp_path), "DATA_PRS": data_prs,
-           **({"MAIN_AFTER": main_after} if main_after else {}), **({"KEPT": kept} if kept else {})}
+           **({"MAIN_AFTER": main_after} if main_after else {}), **({"KEPT": kept} if kept else {}), **extra}
     r = subprocess.run(["bash", str(ROOT / "scripts" / "v1-probe.sh")], env=env, capture_output=True, text=True)
     made = [json.loads(ln) for ln in calls.read_text().splitlines()] if calls.exists() else []
     return r, made
@@ -2398,8 +2442,7 @@ def _turned_off(made):
 
 
 def test_v1_probe_pass(tmp_path):
-    log = _SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
-    r, made = _v1(tmp_path, log)
+    r, made = _v1(tmp_path, _ALL_REFUSED)
     assert r.returncode == 0 and "PASS" in r.stdout, r.stdout + r.stderr
     assert not _turned_off(made)
     review = next(c for c in made if any(str(x).endswith("/reviews") for x in c))
@@ -2411,22 +2454,55 @@ def test_v1_probe_pass(tmp_path):
     assert list(tmp_path.glob("v1-probe-results-*.txt"))
 
 
-@pytest.mark.parametrize("log,main_after", [
+_GQL_MERGED = (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
+               + "probe\tx\tt V1-RESULT graphql exit=0 {\"data\":{\"mergePullRequest\":{\"pullRequest\":"
+               "{\"merged\":true}}}}\nprobe\tx\tt V1-MERGED graphql\n")
+
+
+@pytest.mark.parametrize("log,extra", [
     (_SOURCE + "probe\tx\tt V1-RESULT squash exit=0 {\"sha\":\"x\",\"merged\":true}\nprobe\tx\tt V1-MERGED squash\n",
-     None),
-    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")), "2" * 40),   # main moved
-], ids=["merged", "main-moved"])
-def test_v1_probe_fail_turns_the_actions_pr_setting_off(tmp_path, log, main_after):
-    r, made = _v1(tmp_path, log, main_after=main_after)
+     {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),
+    (_GQL_MERGED, {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),         # any GraphQL merge is FAIL
+    (_GQL_MERGED, {}),                                                     # even before the PR reads merged
+    (_ALL_REFUSED, {"PR_MERGED": "true"}),                                 # the PR reads merged, whatever the log says
+    (_ALL_REFUSED, {"CANARY": "on-main"}),                                 # the canary reached main
+], ids=["merged", "graphql-merged", "graphql-answer-only", "pr-merged", "canary-on-main"])
+def test_v1_probe_fail_turns_the_actions_pr_setting_off(tmp_path, log, extra):
+    r, made = _v1(tmp_path, log, **extra)
     assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
+    closed = any("state=closed" in c for c in made)
+    assert closed == (extra.get("PR_MERGED") != "true")                   # a merged PR is not closed again
+
+
+@pytest.mark.parametrize("extra", [
+    {"MAIN_AFTER": "2" * 40},              # main moved (another merge in the window), the probe PR unmerged
+    {"MAIN_AFTER": "EMPTY"},               # main could not be read after
+    {"PR_MERGED": "EMPTY"},                # the probe PR could not be read
+    {"CANARY": "error"},                   # the canary check failed (not a 404)
+], ids=["main-moved", "main-read-failed", "pr-read-failed", "canary-read-failed"])
+def test_v1_probe_main_moved_or_a_failed_read_is_inconclusive_and_leaves_r2_on(tmp_path, extra):
+    """v1-probe/verdict-from-main-sha: FAIL only when the probe PR merged or the canary is on main."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, **extra)
+    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and "is left on" in r.stdout, r.stdout + r.stderr
+    assert not _turned_off(made) and "FAIL" not in r.stdout
+    assert any("state=closed" in c for c in made)                          # cleanup still closes the probe PR
+
+
+def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):
+    r, made = _v1(tmp_path, _ALL_REFUSED, MAIN_BEFORE="EMPTY")
+    assert r.returncode == 1 and "could not read main. Nothing was changed." in r.stdout
+    assert not any("-X" in c for c in made)
 
 
 @pytest.mark.parametrize("log,kept", [
     (_SOURCE + "probe\tx\tt V1-RESULT squash exit=1 {\"message\":\"Pull Request is not mergeable\"}\n"
      + "".join(_REFUSED.format(m=m) for m in ("merge", "rebase")), None),
-    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")), "d" * 40),   # commit_id moved
+    (_ALL_REFUSED, "d" * 40),                                                                      # commit_id moved
     (_SOURCE, None),                                                                               # no answers
-], ids=["other-refusal", "review-moved", "no-results"])
+    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")), None),        # no GraphQL try
+    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
+     + "probe\tx\tt V1-RESULT graphql exit=1 GraphQL: Resource not accessible by integration (workflow)\n", None),
+], ids=["other-refusal", "review-moved", "no-results", "three-of-four", "graphql-other-reason"])
 def test_v1_probe_inconclusive(tmp_path, log, kept):
     r, made = _v1(tmp_path, log, kept=kept)
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and not _turned_off(made), r.stdout + r.stderr
