@@ -60,20 +60,27 @@ Write-Host "Rules on main: $rules"
 $prs = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
 Write-Host "GitHub Actions may create pull requests: $prs"
 if ($prs -ne 'true') { $ok = $false }
+# main-protect L-D: auto-merge merges whatever head a branch has later, unreviewed; it stays off.
+$auto = (gh api "repos/$repo" --jq '.allow_auto_merge') -join ''
+Write-Host "Auto-merge allowed: $auto"
+if ($auto -ne 'false') { Write-Host 'Auto-merge must be off: Settings > General > Pull Requests > untick Allow auto-merge.'; $ok = $false }
 $found = @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })
 if ($found.Count -eq 0) { Write-Host 'No ruleset named main: pull request required found after writing it.'; $ok = $false }
 foreach ($id in $found) {
     $enf = (gh api "repos/$repo/rulesets/$id" --jq '.enforcement') -join ''
     $actors = (@(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id] | @tsv') |
                ForEach-Object { $_ -replace "`t", ':' }) -join ','
+    # main-protect L-E: approvals stay 0 (a workflow's approval would count toward any number above 0; ADR 0009).
+    $appr = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters.required_approving_review_count // empty')) -join ','
     $shown = if ($actors) { $actors } else { 'none' }
-    Write-Host "Ruleset ${id}: $enf, bypass $shown"
+    Write-Host "Ruleset ${id}: $enf, bypass $shown, required approvals $appr"
     if ($enf -ne 'active' -or $actors -ne '') { $ok = $false }
+    if ($appr -ne '0') { Write-Host 'Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow approval would count).'; $ok = $false }
 }
 if ($ok) {
     Write-Host 'OK: main is protected. Next: Actions > Daily update > Run workflow (the check run of step 2.0).'
 } else {
-    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request, active, no bypass, and Actions may create pull requests.'
+    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request, active, no bypass, required approvals 0, auto-merge off, and Actions may create pull requests.'
     Write-Host 'Send this output to the team.'
     exit 1
 }

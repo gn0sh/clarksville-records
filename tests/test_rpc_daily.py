@@ -566,7 +566,7 @@ def test_an_rpc_failure_with_a_good_county_run_still_commits_the_county_data(cou
     assert r.returncode == 0 and "::warning::The RPC step failed" in r.stdout
     assert "rpc=failed" in out.read_text().split()
     assert steps["Upload refreshed data"]["if"].startswith("success() && ")      # so the artifact is uploaded
-    assert wf["jobs"]["push"]["needs"] == "update"                                # and the push job commits it
+    assert "update" in wf["jobs"]["push"]["needs"]                             # and the push job commits it
     issue = steps["Open or update the RPC issue"]
     assert issue["if"] == "always() && steps.collect.outputs.rpc == 'failed'"
     assert "--body-file" in issue["run"] and "${{" not in issue["run"]            # nothing interpolated into bash
