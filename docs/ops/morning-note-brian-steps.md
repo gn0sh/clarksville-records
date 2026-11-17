@@ -65,12 +65,17 @@ Three addresses, for example `brian+probe1@gnoshcodes.com`, `brian+probe2@gnoshc
     Permissions: **Emails: Write**, **Sending: Write**, **Subscribers:** the word from step 13 (Write or Read), every
     other area **None**. **Create**. Keep this page open for step 22. Do not copy it anywhere else.
 
-### E. GitHub: protect `main` (web clicks)
-16. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
-17. **Ruleset name**: `main: pull request required`. **Enforcement status**: **Active**.
-18. **Bypass list** > **Add bypass**. If **GitHub Actions** is in the list: tick it, pick **Always**, **Add selected**.
-    If it is **not** in the list: click **Cancel** at the top, do not create the ruleset, tell the team
-    "no Actions bypass", and go to step 20. (Without that bypass the daily update could not save its data.)
+### E. GitHub: protect `main` (web clicks; only after the team says the "data pull request" change is on `main`)
+The daily update now saves its data through its own pull request, so the ruleset gets **no bypass** (changed
+2026-11-17). Doing this before that change is on `main` would stop the daily data from saving.
+16. Open https://github.com/gn0sh/clarksville-records/settings/actions > **Workflow permissions** > tick **Allow
+    GitHub Actions to create and approve pull requests** > **Save**.
+    You should see: the box ticked after the page reloads.
+17. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
+    **Ruleset name**: `main: pull request required`. **Enforcement status**: **Active**.
+    (If `main: pull request required` is already listed: open it, remove **GitHub Actions** from the **Bypass list**
+    so it is empty, **Save changes**, and go to step 20.)
+18. **Bypass list**: leave it empty (add nobody, not GitHub Actions, not yourself).
 19. **Target branches** > **Add target** > **Include default branch**. Under **Rules** tick **Restrict deletions**,
     **Block force pushes** and **Require a pull request before merging** (Required approvals: **0**). Leave the rest.
     Click **Create**.
@@ -86,7 +91,7 @@ Three addresses, for example `brian+probe1@gnoshcodes.com`, `brian+probe2@gnoshc
     You should see: `BUTTONDOWN_API_KEY` listed, updated "now". Close the Buttondown key page.
 23. Press **Win+V** > **Clear all** (empties the clipboard history, which may still hold both keys).
     You should see: "Nothing here" (or the clipboard panel empty). Do **not** add `MORNING_NOTE_SEND` yet (Session 2).
-24. Tell the team in one line: "probe done" (plus any of: "no scoped keys", "no Actions bypass", or the step where
+24. Tell the team in one line: "probe done" (plus any of: "no scoped keys", or the step where
     Buttondown asked to pay). The results file is already in OneDrive > Documents > App Development.
 
 ## Waits for the team (no action from you)
