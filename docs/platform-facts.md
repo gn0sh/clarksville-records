@@ -306,4 +306,5 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   auto-merge allowed: false. The baseline window (runbook 4.7.1) starts here.
 - Not run yet. When it runs (runbook 2.0.4): the run link, the four merge answers (REST squash, merge, rebase; GraphQL), the review `commit_id` result,
   and `main`'s sha before and after go here.
-- `github-pages` deployment branches after runbook 2.0.5: not checked yet.
+- `github-pages` deployment branches after runbook 2.0.5 (2026-11-17 ~4:25 PM CT, `gh api` on Brian's PC): `gh-pages` policy
+  66107711 deleted; the list now holds only `main` (66542479).
