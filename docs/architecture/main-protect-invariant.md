@@ -2,7 +2,8 @@
 software-architect, 2026-11-17. Replaces the 2026-11-11 version (devops-engineer; git history keeps it). The
 `main-protect/` family has been hit twice since the no-bypass ruleset: M1 (the Actions bypass let a workflow on any
 branch push `main`) and the bot-merge path that replaced it (security V1, M-A, L-A, L-C, L-D, L-E). Decision record:
-ADR 0009. Tasks: `docs/tasks/morning-note.md` T4.10.
+ADR 0009. Tasks: `docs/tasks/morning-note.md` T4.10. Third hit (security S-1, L-a, L-b at 6e3c019): the data/ shape
+check failed open on non-UTF-8 names; the shape is restated below as I-data, with every consumer.
 
 ## The invariant
 **I-main (what reaches `main`).** After `MAIN_PR_BASELINE`, every commit on `main`'s first-parent line that changes
@@ -10,9 +11,9 @@ anything outside `data/` is the merge or squash commit of exactly one pull reque
 (`merged_by.type == "User"`), and that PR's head at merge (`head.sha`) carries a person's review of that exact commit
 (`user.type == "User"`, `author_association` `OWNER` or `COLLABORATOR` (M-1: the repo is public, so any account can
 post a review), `commit_id == head.sha`, state `COMMENTED` or `APPROVED`, submitted no later than `merged_at`).
-Every other first-parent commit changes only `data/`, which holds only regular files (mode 100644) named `*.json`,
-`*.yml` or `changes.jsonl` (the gate checks this shape on every run on `main`, phase 0 included) and is read as data,
-never executed. Who made a data-only commit is not checked (residual M-2 below).
+Every other first-parent commit changes only `data/`, whose tree meets I-data (below; the gate checks it on every run
+on `main`, phase 0 included) and which is read as data, never executed. Who made a data-only commit is not checked
+(residual M-2 below).
 
 **I-run (what may run with the credentials).** A job that holds the deploy credentials (`pages: write` and
 `id-token: write` in environment `github-pages`) or `BUTTONDOWN_API_KEY` (environment `morning-note`), and every job
@@ -32,6 +33,33 @@ Actors: a person with write (Brian, or the team acting as him): trusted, but a s
 and merge PRs): must never produce a code commit that I-main accepts. Untrusted PDFs (parsed in `update`). Outsiders:
 no write.
 
+## I-data: the shape of `data/` (restated 2026-11-17 after S-1, L-a)
+**I-data.** In every commit the gate passes on `main`: `HEAD:data` is a tree; `git ls-tree -r -z HEAD -- data` lists
+at least one entry; and every entry, compared **as bytes**, matches the one shape literal `SHAPE`
+(ERE, matched whole):
+`^100644 blob [0-9a-f]{40}<TAB>data/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\.(json|yml)|changes\.jsonl)$`
+So: regular non-executable files only (no symlink 120000, executable 100755, submodule 160000), names in printable
+ASCII from that set only (no byte >= 0x80, no control character or newline, no path part starting with `.`), ending
+`.json`, `.yml`, or exactly `changes.jsonl`. All 45 tracked entries fit today (checked at 506ae79). Sizes are not
+in I-data (reading them needs blobs); J2 caps them at 50 MB.
+**Rule for every check of it:** pass only by counting entries that match (`total == matched`, `total >= 1`), never by
+finding no entry that fails; a tool that can withhold a line (grep under a UTF-8 locale prints "binary file
+matches" and exits 0: S-1) must then fail, not pass.
+
+| Consumer | What it checks or relies on |
+|---|---|
+| G, step 2a (inline; after the not-main exit, before the baseline) | (1) `git cat-file -t HEAD:data` prints `tree`, else refuse (absent, a symlink or file, failed read: L-a). (2) `git ls-tree -r -z HEAD -- data` into a file under `$RUNNER_TEMP` (a bash variable cannot hold NUL); failed read refuses. (3) `total` = NUL bytes in it; `matched` = `LC_ALL=C grep -zacE -- "$SHAPE"` on it (NUL-separated records, so a name with a newline stays one record and fails; exit 1 on zero matches is allowed only there, and `matched` must then be a number). Refuse unless `total >= 1` and `matched == total`. (4) On refusal print at most 20 failing records (`LC_ALL=C grep -zavE`), each on its own `::error::` line with every byte outside 0x20-0x7E replaced by `?` (`LC_ALL=C tr -c '\040-\176\000' '?'`, then NUL to newline); never a raw name. |
+| J2, push job | Before `git add` (kept): no symlink or special file, 50 MB cap; new: the artifact holds at least one file (otherwise the merge empties `data/` and G refuses every later run). After the rebase, on the commit it is about to push: G's checks (1)-(4) with the same `SHAPE`, which also catches an executable bit that `cp -a` carried over. The `case` name allowlist may stay as a first filter but is no longer the check. |
+| Tests | `test_tracked_data_files_fit_the_allowlist`: reads `SHAPE` from the gate step, lists `git ls-tree -r -z HEAD -- data` as bytes (`text=False`), asserts entries non-empty and every entry `re.fullmatch`es (bytes); a test asserts G and J2 carry the identical `SHAPE` text. Gate and J2 cases: list in row T. |
+| sitegen (J1; local builds) | Reads named files and `glob("*.json")` under `data/` with `json` and `yaml.safe_load`; `open` follows symlinks. Relies on G: J1 `needs: gate` and checks out exactly `S`, so on `main` no symlink or odd name reaches it. No own guard. |
+| collector (J1) | Reads and rewrites `data/`; relies on G as sitegen does. Keeps its own refusal of a symlinked `data/<slug>` folder (`collector/rpc_export.py:278`) because it deletes files there. What it writes re-enters only through J2 and the next run's G. |
+| sender (J4) | Does not read `data/`: loads only the staged `sender/`, `config/site.yml` and the plan artifact (rows 7-10). Nothing to do. |
+| Branch runs, local runs | Outside I-data (G exits before 2a off `main`; such runs hold no deploy or send credential). |
+
+A new reader that runs with a credential outside a gated `main` run, or that writes or deletes inside `data/`, must
+refuse symlinks itself (`os.lstat`/`is_symlink`), as `rpc_export` does; a change to `SHAPE` changes G, J2 and the
+test in one PR.
+
 ## Every consumer, and how it upholds the invariant
 | # | Consumer | How it upholds it |
 |---|---|---|
@@ -48,13 +76,13 @@ no write.
 | R1 | Main ruleset, `scripts/main-ruleset.json` | `deletion`, `non_fast_forward`, `pull_request` with 0 approvals, no bypass. Approvals stay 0 (L-E): with R2 on, a workflow's approval would count toward any number above 0. The gate counts no approvals, only a person's merge and a person's review at head, so a bot approval never satisfies it. |
 | R2 | Setting "Allow GitHub Actions to create and approve pull requests" | On, for J2. It is what lets a workflow on any branch merge to main (W2), which is why G exists. |
 | R3 | Repo merge settings | `allow_auto_merge: false` (L-D: auto-merge merges whatever head the branch has later). Squash and merge commits allowed; a rebase merge of more than one commit leaves commits whose sha is no PR's `merge_commit_sha`, so G refuses it: merge with squash or a merge commit (S2 uses squash). |
-| S1 | `scripts/protect-main.sh`, `.ps1` | Create or update R1, turn on R2; their OK check also asserts approvals 0 and `allow_auto_merge` false, and says NOT OK otherwise. |
+| S1 | `scripts/protect-main.sh`, `.ps1` | Create or update R1, then read R2 and `main`'s sha, then turn on R2 (today R2 comes first: reorder, L-b), printing `R2 was off; main was <sha>` or `R2 already on`; their OK check also asserts approvals 0 and `allow_auto_merge` false, and says NOT OK otherwise. |
 | S2 | `scripts/merge-reviewed.sh`, `.ps1` (new) | The only way a person merges a non-data PR: `merge-reviewed <pr> <reviewed-sha>` posts a COMMENT review with `commit_id=<reviewed-sha>` (body: the review report links), merges with `sha=<reviewed-sha>` (refused if the head moved: L-D), then deletes the head branch. |
-| B | `MAIN_PR_BASELINE` | Lives in the gate step's `env` only (moved from J4). Empty = phase 0: gate outputs `verified=false` and passes, so J1-J3 run as they do today and J4 never runs. Set by a person's PR (T4.10.8) after the V1 probe passes; from then the test accepts only a sha. Moved later only by a reviewed PR after a person read every commit it skips. |
-| D | `data/` | Validated by J2 (types, size, no symlinks); G's shape check refuses, on every run on main (phase 0 included), any `git ls-tree -r` entry under `data/` that is not mode 100644 named `*.json`, `*.yml` or `changes.jsonl` (no symlink, submodule or executable; tested, and on a `blob:none` clone it reads no blob). Who merged a data-only commit is not checked (residual M-2). Read with `json` and `yaml.safe_load` only (grep, 2026-11-17: `sitegen/`, `collector/`); not read by J4. |
+| B | `MAIN_PR_BASELINE` | Lives in the gate step's `env` only (moved from J4). Empty = phase 0: gate outputs `verified=false` and passes, so J1-J3 run as they do today and J4 never runs. Set by a person's PR (T4.10.8) after the V1 probe passes; from then the test accepts only a sha. Before it is set, runbook 4.7.1 checks the window from the R2 switch-on (section "Baseline window check"). Moved later only by a reviewed PR after a person read every commit it skips. |
+| D | `data/` | Meets I-data: checked by G on every run on main (phase 0 included; on a `blob:none` clone it reads no blob) and by J2 on the commit it pushes; consumers in section "I-data". Who merged a data-only commit is not checked (residual M-2). Read with `json` and `yaml.safe_load` only (grep, 2026-11-17: `sitegen/`, `collector/`); not read by J4. |
 | K | Caches (`actions/cache` in J1) | Fetched documents and OCR: data, never executed; GitHub scopes them by branch (a branch run cannot write main's cache). |
 | P | Runbook `docs/ops/morning-note.md` | 2.0 (protect main; new 2.0.3 merge procedure S2; new 2.0.4 V1 probe), 4.6, 4.7 (baseline: now T4.10.8, check only), 5.0 A, "Rules for manual runs and re-runs", "When the note job fails" plus new "When the gate fails". Each says what this table says, no stronger. |
-| T | Tests, `tests/test_workflow_lock.py` | `PR_CASES` run against the gate step, plus the new review cases (M-1: outsider and contributor refused, collaborator and owner accepted); the data/ shape cases (M-2: symlink, submodule, 100755, other names refused; also on a `blob:none` clone with no blob fetched); only J2 grants `contents: write` or `pull-requests: write` in any workflow; `needs`, `ref` and `if:` of J1-J4; J2's L-C cases; R1 json (approvals 0, no bypass); G's permissions exactly the two reads; G runs no file from the checkout (allowlist lint, as `NOTE_STEP_COMMANDS`); baseline is "" or a sha (sha only after T4.10.8). |
+| T | Tests, `tests/test_workflow_lock.py` | `PR_CASES` run against the gate step, plus the new review cases (M-1: outsider and contributor refused, collaborator and owner accepted); the I-data cases, each run with `LC_ALL=C.UTF-8` and with `LC_ALL` unset as well as `C` (refused: symlink, submodule, 100755, other suffix, names `data/\xff.json`, `data/a\nb.json`, `data/x\x1b.json`, `data/.x.json`, `data/a/../b.json`, a tree with no `data/`, `data` as a symlink or file, `data/` emptied; passed: today's tree, `data/changes.jsonl`, `data/a/b/changes.jsonl`; a refusal's `::error::` lines hold no byte outside 0x20-0x7E; also on a `blob:none` clone with no blob fetched); J2 runs the same checks after the rebase (an executable or `\xff` name refused, an empty artifact refused) with the identical `SHAPE` text; only J2 grants `contents: write` or `pull-requests: write` in any workflow; `needs`, `ref` and `if:` of J1-J4; J2's L-C cases; R1 json (approvals 0, no bypass); G's permissions exactly the two reads; G runs no file from the checkout (allowlist lint, as `NOTE_STEP_COMMANDS`); baseline is "" or a sha (sha only after T4.10.8). |
 
 ## The gate job
 Placed first in `jobs:`; `timeout-minutes: 10`; outputs `sha`, `verified`. Steps: checkout `ref: ${{ github.sha }}`,
@@ -63,9 +91,8 @@ Placed first in `jobs:`; `timeout-minutes: 10`; outputs `sha`, `verified`. Steps
 1. `git rev-parse HEAD` must equal `$SHA`.
 2. `REF` is not `refs/heads/main`: output `sha=$SHA`, `verified=false`, stop with success (push, deploy and note
    are main-only already; update builds the branch's own commit, which a branch run's own workflow could do anyway).
-2a. Shape of `data/` (M-2, phase 0 too): every `git ls-tree -r -z HEAD -- data` entry is
-   `100644 blob <sha>	data/...` named `*.json`, `*.yml` or `changes.jsonl`; anything else (symlink, submodule,
-   executable, other name, `data` not a folder) or a failed read: fail. Tree objects only, no file contents.
+2a. I-data (M-2, phase 0 too): checks (1)-(4) of section "I-data", all under `LC_ALL=C`. Tree objects only, no
+   file contents.
 3. Baseline empty: same outputs plus a `::warning::` (phase 0). Not 40 lowercase hex: fail.
 4. As today's note step: full history (`--filter=blob:none`, unshallow), baseline on HEAD's first-parent line,
    `shas=$(git log --first-parent --format=%H "$base..HEAD" -- . ':(exclude)data/')`; empty: fail (vacuous pass).
@@ -80,6 +107,22 @@ result depends only on `S` and immutable PR records (a review dismissed later ma
 API calls per code commit since the baseline; move the baseline forward by reviewed PR if it grows past a few hundred.
 `gate-failed` opens or comments on one "Daily update: main history check failed" issue (`--app github-actions`
 lookup). Recovery: a person reads the refused commit; if it was meant, a PR (merged with S2) moves the baseline to it.
+
+## Baseline window check (runbook 4.7.1, L-3 and L-b)
+Before the baseline is set, a person lists `merged_by.type` for every non-data first-parent commit in the window
+`<R2-on sha>..origin/main`, because the gate checks nothing in phase 0.
+- **Start.** `<R2-on sha>` is `main`'s sha read (`git ls-remote origin refs/heads/main`) immediately before S1 first
+  turns R2 on: before that no workflow could open or merge a PR, and R1 (switched on by the same S1 run) already
+  refused direct pushes. S1 prints `R2 was off; main was <sha>` when it turns R2 on, and `R2 already on` if it finds
+  it on. The person records that line, the date and the S1 output in `docs/platform-facts.md` "Main protection" as
+  `R2 first on: <sha>`. If S1 found R2 already on, the start is unknown: do not set the baseline; the architect
+  picks the window.
+- **Loop.** `set -euo pipefail`; the recorded sha must be 40 hex and an ancestor of `origin/main`
+  (`git merge-base --is-ancestor`); the commit list is assigned to a variable first (a failing `git log` inside
+  `for c in $(...)` would not stop the loop); each line prints `sha PR #n merged_by.type=t`; the end prints
+  `checked N commits`. Stop on any `Bot`, any `none` (no merged PR), any failed read, or **N = 0** (a wrong or
+  placeholder sha, since the gate's own PR at least is in the window). The whole output is pasted into the baseline
+  PR; a test keeps `merged_by`, `merge-base --is-ancestor` and `checked` in the runbook text.
 
 ## V1 probe (one time, T4.10.1)
 Preconditions: runbook 2.0.1 done (R1 active, R2 on) and one data PR merged by J2 (proves bot merges work, so a
@@ -141,7 +184,7 @@ it.
   and author are all writable by any `GITHUB_TOKEN`), and a person with write can already merge a data-only PR by
   hand, which I-main deliberately does not check. The exposure is bounded: `data/` is untrusted input already (it
   comes from public PDFs), is read only with `json` and `yaml.safe_load`, and is rendered with autoescape; the gate's
-  shape check (step 2a) keeps it to regular `*.json`, `*.yml` and `changes.jsonl` files; and a test keeps
+  shape check (step 2a, I-data) keeps it to regular `*.json`, `*.yml` and `changes.jsonl` files with plain ASCII names; and a test keeps
   `contents: write` and `pull-requests: write` to J2 alone. Reopen if another workflow needs either permission, or if
   the note ever sends without the E2 reviewer.
 - zip-slip-residual: a download that could write anywhere on the runner (toolcache, `GITHUB_ENV`) has better targets
