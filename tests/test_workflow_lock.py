@@ -2908,17 +2908,24 @@ def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
     assert r.returncode == 2 and "Close every open pull request into main now: https://github.com/gn0sh/" in r.stdout
     # v1-probe/v1-fail-containment-incomplete: a closed PR whose branch exists can be reopened and merged
     # Disable actions is required (public repo: anyone can open a PR); deleting closed PRs' branches is extra
-    contain = ("Then turn off GitHub Actions (Settings > Actions > General > Disable actions) and also delete each "
-               "closed pull request's head branch; this stops the daily data update until the architect re-plans.")
+    # v1-fail-containment-order: Disable actions is the first manual step, before closing PRs and deleting branches
+    contain = ("First, now: turn off GitHub Actions (Settings > Actions > General > Disable actions); this stops the "
+               "daily data update until the architect re-plans.")
+    branch = "Then delete each closed pull request's head branch"
     assert contain in r.stdout
+    out = r.stdout
+    assert out.index(contain) < out.index("Close every open pull request into main now") < out.index(branch)
     for name in ("v1-probe.sh", "v1-probe.ps1"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
         assert "This setting does not stop merging" in text and "safe state" not in text, name
-        assert contain in text, name
+        assert contain in text and text.index(contain) < text.index("Close every open pull request") \
+            < text.index(branch), name
     for doc in ("docs/ops/morning-note.md", "docs/architecture/main-protect-invariant.md"):
         flat = " ".join((ROOT / doc).read_text(encoding="utf-8").split())
         assert "head branch" in flat and "Disable actions" in flat and "v1-fail-containment-incomplete" in flat, doc
         assert "stops the daily data update until the architect re-plans" in flat and ", or turn off" not in flat, doc
+        sec = flat[flat.index("(V1 false)"):]                 # the V1-false steps: Disable actions comes first
+        assert sec.index("Disable actions") < sec.index("close every open") < sec.index("head branch"), doc
 
 
 def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):
@@ -2932,6 +2939,24 @@ def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):
     assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not read node_id"]
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
     assert "if ($_ -match 'V1-ERROR: .*')" in ps1 and "foreach ($l in $errors) { Log $l }" in ps1
+
+
+def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
+    """v1-probe/log-raw-to-console: colour codes and control characters in the run's log never reach the console or
+    the results file, and the V1 lines are still found after stripping."""
+    esc = "\x1b"
+    log = (_SOURCE + "".join(_REFUSED.format(m=m).replace("V1-RESULT", f"{esc}[36mV1-RESULT")
+                             for m in ("squash", "merge", "rebase"))
+           + f"probe\tTry\t2026-11-18T09:00:02Z {esc}[31mV1-ERROR: could not{esc}]0;title\x07 read node_id{esc}[0m\x08\n")
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
+    assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not]0;title read node_id"]
+    assert len([ln for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")]) == 3
+    saved = next(tmp_path.glob("v1-probe-results-*.txt")).read_text()
+    for text in (r.stdout, saved):
+        assert not re.search(r"[\x00-\x08\x0b-\x1f\x7f]", text), repr(text)
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert "-replace '[\\x00-\\x08\\x0B-\\x1F\\x7F]', ''" in ps1 and "-replace '\\x1b\\[" in ps1
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):

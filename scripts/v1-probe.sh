@@ -83,8 +83,9 @@ turn_r2_off() {
   gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
     && log "Turned off: workflows can no longer open pull requests, so the daily update stops saving data." \
     || log "Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now."
+  log "First, now: turn off GitHub Actions (Settings > Actions > General > Disable actions); this stops the daily data update until the architect re-plans. The repository is public, so anyone can open a pull request at any time."
   log "This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain"
-  log "Then turn off GitHub Actions (Settings > Actions > General > Disable actions) and also delete each closed pull request's head branch; this stops the daily data update until the architect re-plans. The repository is public, so anyone can open a pull request at any time, and a closed one whose branch still exists can be reopened and merged."
+  log "Then delete each closed pull request's head branch (a closed one whose branch still exists can be reopened and merged)."
   log "Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team."
 }
 # v1-probe/verdict-race (L-c): a PASS or INCONCLUSIVE is final only after cleanup closed the probe pull request and
@@ -107,7 +108,10 @@ log "Probe run: https://github.com/$repo/actions/runs/$run"
 gh run watch "$run" --repo "$repo" >/dev/null 2>&1 || true
 status=$(gh run view "$run" --repo "$repo" --json status --jq '.status' 2>/dev/null || true)
 log "Probe run status: ${status:-unread}"
-log_text=$(gh run view "$run" --repo "$repo" --log 2>/dev/null || true)
+# v1-probe/log-raw-to-console: the run's log is untrusted text; drop ANSI colour codes, then control characters,
+# before any of it is matched or printed.
+log_text=$(gh run view "$run" --repo "$repo" --log 2>/dev/null | sed -E $'s/\x1b\\[[0-9;?]*[ -\\/]*[@-~]//g' \
+           | tr -d '\000-\010\016-\037\177' || true)
 lines=$(grep -oE "V1-(RESULT|MERGED) (squash|merge|rebase|graphql).*" <<< "$log_text" || true)
 # v1-probe/node-read-under-e: the run's own V1-ERROR lines reach Brian too (not the step's echo text the log shows).
 errors=$(grep -v 'echo "V1-ERROR' <<< "$log_text" | grep -oE "V1-ERROR: .*" || true)
