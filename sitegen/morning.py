@@ -47,7 +47,7 @@ PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_h
              "seats_hint": (), "seats_link": (), "preview_link": (), "email_label": (), "submit": (),
              "sent_line": ("{provider}",), "privacy_label": (), "preview_title": (),
              "seats_include": (), "seats_sent": ("{provider}", "{box}"), "method_heading": (),
-             "method_sent": ("{provider}", "{box}"), "method_unsubscribe": (), "method_logo": (), "method_signup_link": (),
+             "method_sent": ("{provider}", "{box}"), "method_unsubscribe": (), "method_signup_link": (),
              "preview_lede": ("{date}", "{from}", "{to}"), "preview_mine": (), "quiet": (), "backfill": (),
              "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": (),
              "vote_on_label": ()}

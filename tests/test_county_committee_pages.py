@@ -171,6 +171,18 @@ def test_switch_cards_and_day_page_and_search(built):
     assert 'id="school-board-2024-11-26-formal"' in today and 'data-body="school"' in today
     assert 'id="budget-committee-2024-11-20-regular"' in today
     assert "Its meetings are not collected yet" not in today
+    # the school board's day card says its minutes are not collected, under that tag, never "Coming"
+    # (notcollected/today-minutes-coming); the county finance committee's card keeps "Coming"
+    tag = config.SITE["switch"]["not_collected_tag"]
+    school_card = today.split('id="school-board-2024-11-26-formal"', 1)[1].split("</article>", 1)[0]
+    assert f'<p class="coming-note"><span class="chip chip-uncollected">{tag}</span> Minutes:' in school_card
+    assert "chip-coming" not in school_card
+    fin_card = today.split('id="budget-committee-2024-11-20-regular"', 1)[1].split("</article>", 1)[0]
+    assert '<span class="chip chip-coming">Coming</span> Minutes:' in fin_card
+    from qa import site_checks
+    pages = {p.relative_to(out).as_posix(): None for p in out.rglob("*.html")}
+    problems, note = site_checks.check_not_collected(out, pages)
+    assert problems == [] and not note.startswith("0 "), (problems, note)
     idx = (out / "static" / "search-index.js").read_text(encoding="utf-8")
     rec = json.loads(idx.split("=", 1)[1].rstrip().rstrip(";"))
     mine = [r for r in rec["records"] if r["id"].startswith(("school-board-", "budget-committee-"))]
@@ -266,3 +278,17 @@ def test_year_pages_carry_the_one_crumb_line(built):
                                                                      "county-committees/index.html"]
     assert crumb("county-committees/index.html") == ["montgomery-county.html"]
     assert "kicker-line" not in main_of(out / "school-board" / "meetings" / "2024.html")
+
+
+def test_the_not_collected_check_fails_a_line_that_also_says_coming(tmp_path):
+    """notcollected/check-gap: the QA check fails a coming note, hub card or door line holding both tags."""
+    from qa import site_checks
+    tag = config.SITE["switch"]["not_collected_tag"]
+    both = (f'<p class="coming-note"><span class="chip chip-uncollected">{tag}</span> '
+            '<span class="chip chip-coming">Coming</span> Minutes.</p>')
+    (tmp_path / "bad.html").write_text(f"<main>{both}</main>", encoding="utf-8")
+    (tmp_path / "ok.html").write_text(f'<main><p class="door-coming door-uncollected"><span class="chip '
+                                      f'chip-uncollected">{tag}</span> School board: Budget.</p></main>',
+                                      encoding="utf-8")
+    problems, _ = site_checks.check_not_collected(tmp_path, {"bad.html": None, "ok.html": None})
+    assert problems == [f"bad.html: a line tagged {tag!r} also carries the Coming tag"]
