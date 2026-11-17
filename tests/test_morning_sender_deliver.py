@@ -78,8 +78,9 @@ class Fake(deliver.Provider):
         elif f is not None:
             raise f
 
-    def emails(self):
+    def emails(self, since):
         self._hit("emails")
+        self.since = since
         return copy.deepcopy(self.email_rows)
 
     def subscribers(self):
@@ -102,7 +103,7 @@ class Fake(deliver.Provider):
         self._hit("create_email")
         self.keys.append(idempotency_key)
         row = {"id": f"em-{len(self.email_rows) + 1}", "status": payload["status"],
-               "metadata": copy.deepcopy(payload["metadata"])}
+               "metadata": copy.deepcopy(payload["metadata"]), "archival_mode": payload["archival_mode"]}
         if "filters" in payload:
             row["filters"] = copy.deepcopy(payload["filters"])
         self.email_rows.append(row)
@@ -271,14 +272,14 @@ def test_a_190_edition_day_is_sent_whole_with_the_shipped_limits(plan, mode):
         assert set().union(*(fake.audience(p) for p in fake.created)) == set(fake.subs)
     else:
         assert sorted(len(ids) for _, ids in fake.sent_drafts) == [1] * 190
-    # the run fits the note job: every request at the client's pace (buttondown.py MIN_INTERVAL, read from the
-    # file: this suite never imports the client) in under half its timeout, the busy day and a run at max_editions
-    # alike (2 requests per stamped subscriber, 1 per email)
+    # sender/run-time-budget: the run fits the note job. Every request at the client's pace (buttondown.py
+    # MIN_INTERVAL, read from the file: this suite never imports the client): the busy day in under half the
+    # timeout, and a run at both caps (2 listings, 1 request per email, 2 per stamped recipient) inside it
     pace = float(re.search(r"(?m)^MIN_INTERVAL = ([0-9.]+)", (ROOT / "sender" / "buttondown.py").read_text()).group(1))
     job = yaml.safe_load((ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8"))
     budget = job["jobs"]["note"]["timeout-minutes"] * 60 / 2
     assert pace > 0 and len(fake.calls) * pace < budget
-    assert (2 + 3 * shipped.max_editions) * pace < budget
+    assert (2 + shipped.max_editions + 2 * shipped.max_recipients) * pace < budget * 2
     again, _ = go(plan, fake, s=settings(mode=mode))
     assert (again.status, again.editions, len(fake.created)) == ("sent", 0, 190)      # never twice
 
@@ -416,7 +417,8 @@ def test_stamp_sends_one_scheduled_email_per_edition_to_exactly_its_people(plan)
         assert p["filters"]["filters"][0]["value"] == stamp(key)                     # exactly "<D>.<key>.<mac>"
         assert p["status"] == "scheduled" and p["publish_date"] == "2026-11-11T07:00:00-06:00"
         assert p["archival_mode"] == "disabled"
-        assert p["metadata"] == {"note_date": DAY, "note_edition": stamp(key), "note_sha256": plan["note_sha256"]}
+        assert p["metadata"] == {"note_date": DAY, "note_edition": stamp(key), "note_sha256": plan["note_sha256"],
+                                 "note_plan": deliver.plan_digest(plan)}
         assert (p["subject"], p["body"]) == (editions[key]["subject"], editions[key]["body"])
         assert sorted(p) == ["archival_mode", "body", "filters", "metadata", "publish_date", "status", "subject"]
     assert [p["metadata"]["note_edition"] for p in fake.created] == sorted(by_key)    # in key order
@@ -548,7 +550,7 @@ def test_an_edition_with_no_recipient_creates_no_email(plan):
     fake = Fake([sub(1, ["budget"])])
     res, _ = go(plan, fake)
     assert (res.editions, res.recipients) == (1, 1) and len(fake.created) == 1
-    fake = Fake([sub(5, ["budget"], type_="unactivated"), sub(7, [])])
+    fake = Fake([sub(5, ["budget"], type_="unactivated"), sub(7, []), sub(8, [], district=3)])   # a seat, no list
     res, _ = go(plan, fake)
     assert (res.status, res.editions) == ("sent", 0) and fake.created == [] and "set_metadata" not in fake.calls
 
@@ -662,8 +664,9 @@ def test_metadata_never_names_an_audience(plan, meta):
     r = deliver.recipient({"id": "a", "type": "regular", "tags": ["note-contracts"], "metadata": meta}, s)
     assert common.signature(r.lists, r.district, r.ward) == "contracts|-|-"
     fake = Fake([{"id": "sub-0001-secret", "type": "regular", "metadata": meta}])
-    res, _ = go(plan, fake)
-    assert (res.status, res.editions) == ("sent", 0) and fake.created == [] and "set_metadata" not in fake.calls
+    res, _ = go(plan, fake)                 # the one confirmed subscriber carries no note- tag (tags-silent-zero)
+    assert (res.code, res.status, res.editions) == (2, "no-tags", 0) and fake.created == []
+    assert "set_metadata" not in fake.calls
 
 
 def test_a_subscriber_row_that_is_not_a_record_is_skipped(plan):
@@ -722,15 +725,58 @@ def test_a_subscriber_holding_todays_stamp_outside_its_audience_stops_the_run(pl
     themselves through the form and the provider's filter would mail them. Any regular subscriber holding a stamp
     for today who is not in that edition's audience stops the run before any write."""
     value = stamp(key_for(plan, ['budget']))
-    stranger = sub(9, ["contracts"], note_edition=value)                   # picked contracts, stamped for budget
-    for rows, s in ((people(plan) + [stranger], settings()),
-                    ([sub(1, ["budget"]), sub(9, ["budget"], note_edition=value)],          # not a canary
+    for rows, s in (([sub(1, ["budget"]), sub(9, ["budget"], note_edition=value)],          # not a canary
                      settings(canary_only=True)),
                     (people(plan) + [sub(9, [], note_edition=value)], settings())):
         fake = Fake(rows)
         res, text = go(plan, fake, s=s, canary_ids=frozenset({"sub-0001-secret"}))
         assert (res.code, res.status, res.editions) == (2, "stray-stamp", 0), text
         assert fake.calls == ["emails", "subscribers"] and "sub-0009" not in text
+
+
+def test_a_stray_stamp_is_written_over_before_any_email_when_its_holder_gets_another_edition(plan):
+    """audience/stamp-rerun-false-stray: a stray in another edition's audience this run (picked contracts, holds
+    the budget stamp) is stamped for contracts before any email is created, so the budget email cannot reach them."""
+    stranger = sub(9, ["contracts"], note_edition=stamp(key_for(plan, ["budget"])))
+    fake = Fake(people(plan) + [stranger])
+    res, text = go(plan, fake)
+    assert (res.code, res.status, res.editions) == (0, "sent", 3), text
+    by_key = {p["metadata"]["note_edition"]: fake.audience(p) for p in fake.created}
+    assert "sub-0009-secret" not in by_key[stamp(key_for(plan, ["budget"]))]
+    assert "sub-0009-secret" in by_key[stamp(key_for(plan, ["contracts"]))]
+    assert fake.calls.index("set_metadata") < fake.calls.index("create_email")
+    assert fake.calls[2:4] == ["subscriber", "set_metadata"]          # the stranger first, before every edition
+
+
+def test_a_stray_who_changes_again_before_the_write_over_stops_the_run(plan):
+    stranger = sub(9, ["contracts"], note_edition=stamp(key_for(plan, ["budget"])))
+    fake = Fake(people(plan) + [stranger])
+    fake.after_listing = lambda subs: subs["sub-0009-secret"].update(tags=["note-zoning"])
+    res, _ = go(plan, fake)
+    assert (res.code, res.status, res.editions) == (2, "stray-stamp", 0) and "create_email" not in fake.calls
+    assert "set_metadata" not in fake.calls
+
+
+@pytest.mark.parametrize("now_picks", [["contracts"], "a new edition", []])
+def test_a_rerun_after_a_stamped_subscriber_changed_lists_is_not_a_stray(plan, now_picks):
+    """audience/stamp-rerun-false-stray: run 1 stamped and mailed sub 1 for budget; sub 1 then changed lists. Run 2
+    of the same plan no longer stops at "stray-stamp": the budget email was created by run 1 and nothing run 2 does
+    changes who it reaches. A new shape that has an edition not yet created gets it; nothing is created twice."""
+    fake = Fake(people(plan))
+    assert go(plan, fake)[0].editions == 3
+    if now_picks == "a new edition":        # a shape whose edition run 1 did not create
+        done = {p["metadata"]["note_edition"] for p in fake.created}
+        sig = next(g for g, k in sorted(plan["signatures"].items()) if stamp(k) not in done)
+        lists, d, w = sig.split("|")
+        fake.subs["sub-0001-secret"]["tags"] = sub(1, lists.split(","), None if d == "-" else int(d),
+                                                   None if w == "-" else int(w))["tags"]
+    else:
+        fake.subs["sub-0001-secret"]["tags"] = [common.list_tag(k) for k in now_picks]
+    res, text = go(plan, fake)
+    new = 1 if now_picks == "a new edition" else 0
+    assert (res.code, res.status, res.editions) == (0, "sent", new), text
+    editions = [p["metadata"]["note_edition"] for p in fake.created]
+    assert len(editions) == len(set(editions)) == 3 + new
 
 
 @pytest.mark.parametrize("type_", ["premium", "gifted", "trialed", "churning", "past_due", "unactivated", None])
@@ -838,6 +884,48 @@ def test_a_day_claimed_by_a_different_note_sends_nothing(plan):
     assert go(plan, fake)[0].status == "claimed" and fake.calls == ["emails"]
 
 
+def test_another_plan_of_the_same_note_claims_the_day(plan):
+    """sender/claim-plan-identity: a second plan of the same note (other code or config: here one edition lists an
+    extra entry) has the same note digest but another plan digest, so it takes nothing of the first plan's as its
+    own and sends nothing."""
+    fake = Fake(people(plan))
+    assert go(plan, fake)[0].editions == 3
+    other = copy.deepcopy(plan)
+    other["editions"][0]["entry_ids"].append("county/item/x/2026-11-16-formal")
+    assert deliver.plan_digest(other) != deliver.plan_digest(plan) and other["note_sha256"] == plan["note_sha256"]
+    res, _ = go(other, fake)
+    assert (res.code, res.status, res.editions, len(fake.created)) == (0, "claimed", 0, 3)
+    assert {p["metadata"]["note_plan"] for p in fake.created} == {deliver.plan_digest(plan)}
+    assert go(plan, fake)[0].status == "sent" and len(fake.created) == 3          # the first plan: nothing twice
+
+
+def test_the_claim_lists_emails_since_yesterday_in_the_sites_zone(plan):
+    """sender/claim-listing-unbounded: the claim asks for emails created since yesterday, so every email of today is
+    in it and the listing does not grow with the history."""
+    fake = Fake(people(plan))
+    go(plan, fake)
+    assert fake.since == "2026-11-10"
+    fake = Fake(people(plan))
+    go(plan, fake, now=datetime(2026, 11, 11, 0, 30, tzinfo=TZ))         # 06:30 UTC: still Nov 11 in the zone
+    assert fake.since == "2026-11-10"
+
+
+# ------------------------------------------------------------------ sender/tags-silent-zero
+def test_confirmed_subscribers_none_with_a_note_tag_end_the_run_non_zero(plan):
+    """The form's tags did not arrive (runbook 4a): a green "sent, 0" would hide it, so the run fails, with totals
+    only, before any write."""
+    fake = Fake([sub(1, []), sub(2, [], favourite="blue"), sub(3, ["budget"], type_="unactivated")])
+    res, text = go(plan, fake)
+    assert (res.code, res.status, res.editions, res.recipients) == (2, "no-tags", 0, 0)
+    assert fake.calls == ["emails", "subscribers"] and "sub-000" not in text and "example.com" not in text
+    assert text.startswith(f"morning note {DAY}: no-tags (") and "none carries a note- tag" in text
+    # nobody confirmed yet is a quiet morning, not a failure; one tagged subscriber is enough to send
+    res = go(plan, Fake([sub(3, ["budget"], type_="unactivated")]))[0]
+    assert (res.code, res.status) == (0, "sent")
+    res = go(plan, Fake([sub(1, []), sub(4, ["budget"])]))[0]
+    assert (res.code, res.status, res.editions) == (0, "sent", 1)
+
+
 def test_emails_of_other_days_and_other_kinds_do_not_claim_the_day(plan):
     rows = [{"id": "em-1", "status": "sent", "metadata": {"note_date": "2026-11-10", "note_sha256": "0" * 64}},
             {"id": "em-2", "status": "sent", "metadata": {}}, {"id": "em-4", "status": "sent", "metadata": None}]
@@ -861,7 +949,9 @@ def _drop_filter(row):
     _drop_filter, lambda r: {**r, "filters": {"filters": [], "groups": [], "predicate": "and"}},
     lambda r: {**r, "filters": {**r["filters"], "predicate": "or"}}, lambda r: {**r, "status": "about_to_send"},
     lambda r: {**r, "metadata": {**r["metadata"], "note_sha256": "0" * 64}}, lambda r: r["id"], lambda r: None,
-    lambda r: {**r, "id": ""}])
+    lambda r: {**r, "id": ""},
+    # render/archival-not-echoed: stored on the public archive, or with no archival mode at all
+    lambda r: {**r, "archival_mode": "enabled"}, lambda r: {k: v for k, v in r.items() if k != "archival_mode"}])
 def test_stamp_unschedules_an_email_the_provider_stored_differently(plan, echo):
     """audience/provider-echo: the stored email decides who gets it, so it must echo exactly the filter, status and
     claim deliver sent; otherwise it is taken back to a draft and the run fails before the next edition."""
@@ -895,7 +985,8 @@ def test_a_take_back_that_is_not_confirmed_a_draft_is_named(plan, answer):
 
 @pytest.mark.parametrize("echo", [lambda r: {**r, "status": "scheduled"},
                                   lambda r: {**r, "filters": {"filters": [], "groups": [], "predicate": "and"}},
-                                  lambda r: {**r, "metadata": {}}, lambda r: r["id"]])
+                                  lambda r: {**r, "metadata": {}}, lambda r: r["id"],
+                                  lambda r: {**r, "archival_mode": "enabled"}])
 def test_ids_never_sends_a_draft_the_provider_stored_differently(plan, echo):
     fake = Fake(people(plan), echo=echo)
     res, text = go(plan, fake, s=settings(mode="ids"))
@@ -924,7 +1015,7 @@ def test_a_faithful_echo_sends_and_unschedules_nothing(plan):
 def test_a_failed_or_unreadable_email_listing_sends_nothing_and_fails(plan, failure):
     fake = Fake(people(plan), fail=failure.get("fail"))
     if "rows" in failure:
-        fake.emails = lambda: (fake.calls.append("emails"), failure["rows"])[1]
+        fake.emails = lambda since: (fake.calls.append("emails"), failure["rows"])[1]
     res, text = go(plan, fake)
     assert (res.code, res.status, res.editions) == (1, "failed", 0) and fake.calls == ["emails"]
     assert "email listing" in text and SECRET_BODY not in text
@@ -1095,7 +1186,7 @@ def test_the_deliver_stage_opens_no_connection(plan, monkeypatch):
 
 def test_the_base_provider_does_nothing():
     p = deliver.Provider()
-    for call in (p.emails, p.subscribers, lambda: p.set_metadata("a", {}, "k"), lambda: p.create_email({}, "k"),
+    for call in (lambda: p.emails("2026-11-10"), p.subscribers, lambda: p.set_metadata("a", {}, "k"), lambda: p.create_email({}, "k"),
                  lambda: p.send_draft("a", [], "k"), lambda: p.unschedule("a", "k"), lambda: p.subscriber("a")):
         with pytest.raises(NotImplementedError):
             call()

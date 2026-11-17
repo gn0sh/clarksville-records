@@ -140,7 +140,7 @@ morning_note:
   # fixed tag name (sender/common.py tag(): note-zoning, note-district-5, note-ward-3); the sender reads those tags
   # and ignores every other tag. The build refuses any other name for lists, district or ward.
   form_fields: {email: email, lists: tag, district: tag, ward: tag}
-  privacy_url: "https://buttondown.com/legal/privacy"       # UNVERIFIED address (no network when set, 2026-11-17): open it before merging; the provider's privacy policy, required when enabled
+  privacy_url: "https://buttondown.com/legal/privacy"       # the provider's privacy policy, required when enabled (checked 2026-11-17, platform-facts)
   # The sender (ADR 0004; architecture "T4 sender"; package sender/). Switched on in this file; nothing is sent
   # until Brian sets the MORNING_NOTE_SEND variable and the BUTTONDOWN_API_KEY secret (runbook
   # docs/ops/morning-note.md section 5; hard stops 1 and 5). `python -m sender plan --rehearse` writes the would-send editions as a dry run.
@@ -156,11 +156,12 @@ morning_note:
     latest_send: "10:00"     # a run that ends later than this skips the day; a note is never sent late
     # Emails one run may create (editions with a recipient). 2026-11-17, was 80: a busy real day plans up to 191
     # editions, so 80 would have sent nothing. 400 is about twice that. Basis (architecture "max_editions"):
-    # Buttondown's documented 600 requests a minute (the client paces 5 a second), no per-day email limit in the
-    # docs read or the probe, and one run's requests (an email per edition plus 2 per stamped subscriber, at most
-    # 400 + 800) take about 4 minutes at that pace, inside the note job's 15.
+    # Buttondown's documented 600 requests a minute (the client paces 5 a second), and no per-day email limit in
+    # the docs read or the probe. Run time (sender/run-time-budget): 2 listings, an email per edition and 2
+    # requests (re-read, stamp) per recipient, so at both caps (2 + 400 + 2 x 1000) x 0.2 s = 8 minutes, inside
+    # the note job's 15. max_recipients was 2000 (about 14 minutes); the free plan stops at 100 subscribers.
     max_editions: 400
-    max_recipients: 2000
+    max_recipients: 1000
     canary_only: false       # Brian, 2026-11-16: no canary week; every confirmed subscriber. true: only the ids in the note job's MORNING_NOTE_CANARY_IDS secret; none listed: nobody
     # The only hosts an email may link to (the plan stage drops any other link; the deliver stage refuses a body with
     # one): the collectors' source hosts. Add the site's own host before enabling. The support link is allowed as
@@ -197,6 +198,10 @@ morning_note:
     method_heading: Morning note
     method_sent: "The morning note is an email you sign up for on the Alerts page. Sending the sign-up form gives {provider} your email address and the lists you picked. Your saved district and ward go with it only while \"{box}\" is ticked; the form shows the numbers before you send it. None of this is sent until you send the form."
     method_unsubscribe: "To stop the email, use the unsubscribe link in any morning note."
+    # sender/tags-seat-change: there is no preferences page (T4.0 probe), so a change is unsubscribe, then sign up
+    # again. DEPENDS ON runbook check 4a: that a sign-up after unsubscribing leaves only the new tags. If the old
+    # ones stay, this line is wrong (lists would add up, two seats would cancel out) and must change before launch.
+    method_change: "To change your lists or seats, use the unsubscribe link in any morning note, then sign up again on the Alerts page with your new picks."
     method_signup_link: Sign up on the Alerts page
     preview_title: Today's morning note
     preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."

@@ -21,6 +21,7 @@ import pytest
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, note_off, parse
 from qa import site_checks
 from sitegen import config, morning, morning_page, views
+from sender import common
 from sitegen.build import build
 from test_site_neutrality import BANNED
 
@@ -214,7 +215,9 @@ def test_entries_without_a_meeting_date_print_no_none(site):
     assert len(metas) == len(DAY["entries"])
     assert not [m for m in metas if "None" in m]
     for m, e in zip(metas, DAY["entries"]):
-        assert (e["meeting_date"] or "") in m and (", " + e["meeting_date"] if e["meeting_date"] else "") in m
+        # CR7: the day in the email's words ("December 17, 2024"), then the meeting kind
+        words = common.day_words(e["meeting_date"]) if e["meeting_date"] else None
+        assert (", " + words + " " + e["meeting"] if words else "") in m and not (e["meeting_date"] and e["meeting_date"] in m)
         if e["meeting_date"] is None:
             assert not m.rstrip().endswith(",")
 
@@ -505,6 +508,9 @@ def test_enabled_build_says_what_is_sent_on_the_landing_and_method_pages(enabled
     text = " ".join(parse(sec).all_text().split())
     assert f"<h2 id=\"note-sent-h\">{t['method_heading']}</h2>" in sec
     assert t["method_sent"].format(provider="Example Mail", box=box) in text and t["method_unsubscribe"] in text
+    # sender/tags-seat-change: how to change lists or seats (no preferences page), right after how to stop
+    assert f'{t["method_unsubscribe"]} {t["method_change"]}' in text
+    assert "sign up again" in t["method_change"] and "unsubscribe" in t["method_change"]
     assert f'"{box}"' in text and "{box}" not in text
     for word in ("email address", "lists", "district and ward", "Example Mail", "unsubscribe"):
         assert word in text, word
@@ -519,11 +525,11 @@ def test_privacy_text_is_config_text(tmp_path, monkeypatch):
     cfg["morning_note"]["page"].update({
         "seats_sent": "SEATS-SENT to {provider} [{box}].", "method_heading": "METHOD-HEADING",
         "method_sent": "METHOD-SENT to {provider} [{box}].", "method_unsubscribe": "METHOD-STOP.",
-        "method_signup_link": "METHOD-LINK", "seats_include": "SEATS-INCLUDE: "})
+        "method_change": "METHOD-CHANGE.", "method_signup_link": "METHOD-LINK", "seats_include": "SEATS-INCLUDE: "})
     pages = _build(tmp_path / "site", monkeypatch, cfg)
     # {box} is the form's own label without its colon (privacy-text/label-wording-drift)
     for want in ("SEATS-SENT to Example Mail [SEATS-INCLUDE].", "METHOD-HEADING",
-                 "METHOD-SENT to Example Mail [SEATS-INCLUDE].", "METHOD-STOP.",
+                 "METHOD-SENT to Example Mail [SEATS-INCLUDE].", "METHOD-STOP. METHOD-CHANGE.",
                  "METHOD-LINK"):
         assert want in pages["method.html"], want
     assert "SEATS-SENT to Example Mail [SEATS-INCLUDE]." in pages["index.html"] and "SEATS-INCLUDE" in pages["alerts.html"]
@@ -534,7 +540,7 @@ def test_privacy_text_is_config_text(tmp_path, monkeypatch):
     ("seats_sent", "They go to {provider}.", "must contain {box}"),
     ("method_sent", "It is sent to {provider}.", "must contain {box}"),
     ("method_sent", "It is sent.", "must contain {provider}"), ("method_heading", " ", "must be set"),
-    ("method_unsubscribe", None, "must be set"), ("seats_include", "", "must be set"),
+    ("method_unsubscribe", None, "must be set"), ("method_change", "", "must be set"), ("seats_include", "", "must be set"),
     ("method_signup_link", "", "must be set")])
 def test_config_refuses_missing_privacy_text(key, value, why):
     cfg = copy.deepcopy(config.SITE)
@@ -775,9 +781,11 @@ def test_seat_consent_in_a_browser(enabled_site):
     assert ff["lists"] == ff["district"] == ff["ward"] == "tag"
 
     def seat_posts(x):
-        """Every posted entry that is not the email or a list tag: a seat tag, or anything unexpected."""
+        """Every posted entry that is not the email, a list tag or embed=1: a seat tag, or anything unexpected."""
         lists = {f"note-{k}" for k in LISTS}
-        return sorted(e for e in x["posted"] if not (e[0] == ff["email"] or (e[0] == "tag" and e[1] in lists)))
+        assert x["posted"].count(["embed", "1"]) == 1                    # CR8: Buttondown's embed form field, once
+        return sorted(e for e in x["posted"] if not (e[0] == ff["email"] or (e[0] == "tag" and e[1] in lists)
+                                                     or e == ["embed", "1"]))
 
     def T(seat, n):
         return [ff[seat], f"note-{seat}-{n}"]

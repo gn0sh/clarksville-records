@@ -477,7 +477,7 @@ What changed for the switch-on PR, after the T4.0 probe (`docs/platform-facts.md
   (a list of names, else the run fails closed) and drops the rest. A `stamp` write is exactly
   `{"note_edition": <stamp>}`; `Recipient` no longer holds metadata.
 - **Config:** `enabled: true`, `form_action` `.../embed-subscribe/daylight`, `sender.enabled: true`, `mode: stamp`,
-  `canary_only: false`, `alerts.site_url` set. `privacy_url` is unverified (no network when set).
+  `canary_only: false`, `alerts.site_url` set. `privacy_url` checked 2026-11-17 (platform-facts).
 
 Notes for the security review (each is a judgment call unless marked):
 - **(a) The form can set any tag, on anyone's existing address.** Anyone who knows a subscriber's address can post
@@ -505,7 +505,7 @@ Notes for the security review (each is a judgment call unless marked):
   `note_edition`, which only the stray-stamp check reads. Tests: `test_hostile_tags_are_ignored_not_passed_on`,
   `test_metadata_never_names_an_audience`, `test_a_metadata_write_other_than_one_stamp_is_refused_before_any_request`.
 - **`canary_only: false`:** the first live morning reaches every confirmed subscriber. Bounds that stay:
-  `max_recipients` 2000 and `max_editions` (a run over either sends nothing, loud).
+  `max_recipients` 1000 (was 2000) and `max_editions` (a run over either sends nothing, loud).
 - **`max_editions` 400 (was 80; sender/max-editions-busy-day).** A busy real day plans up to 191 editions (day D's
   RPC agenda), so with the whole list on and many shapes, 80 would have sent nothing that morning. Every edition
   with a recipient has at least one, so the editions a run creates are never more than its recipients; 400 is
@@ -516,10 +516,29 @@ Notes for the security review (each is a judgment call unless marked):
   (re-read, stamp), so a run at the cap is at least 1,200 requests, about 4 minutes at 5 a second, inside the note
   job's 15-minute timeout and the 07:00 to 10:00 window. Tests: `test_a_190_edition_day_is_sent_whole_with_the_
   shipped_limits` (both modes, each edition once, a second run sends nothing) and `test_a_busy_day_cut_off_part_
-  way_is_finished_by_a_rerun_without_sending_twice`. **Open:** `max_recipients` 2000 is about 4,000 stamp requests,
-  about 14 minutes at 5 a second, close to the job's 15; a run cut off there leaves the rest of that day unsent
-  (never twice). It cannot bind on the free plan (100 subscribers); lower it or raise the timeout before the list
-  passes about 1,000.
+  way_is_finished_by_a_rerun_without_sending_twice`. **Run-time budget (sender/run-time-budget):** 2 listings, 1
+  request per email and 2 per stamped recipient, so at both caps (2 + 400 + 2 x 1000) x 0.2 s = 8 minutes, inside
+  the job's 15; the test asserts it from the workflow file and the client's pace. `max_recipients` was 2000
+  (about 14 minutes); the free plan stops at 100 subscribers anyway.
+- **Review fixes (2026-11-17, review of a23427e; branch `r2-note-fix`):**
+  - *audience/stamp-rerun-false-stray (L1):* the stray check (`_strays`) skips a holder whose held edition is
+    already created (`done`: a re-run after a stamped subscriber changed lists) or has nobody to mail this run. A
+    holder of a not-yet-created edition's stamp who is in another not-yet-created edition's audience is stamped for
+    that edition before any email is created (written over); otherwise, or if they changed again, the run stops.
+  - *render/archival-not-echoed (L7):* the adapter keeps `archival_mode` and the echo check compares it.
+  - *sender/tags-silent-zero (CR2):* confirmed subscribers of whom none carries a `note-` tag end the run with
+    exit 2, status `no-tags`, totals only.
+  - *sender/claim-listing-unbounded (CR4):* the claim lists `GET /emails?creation_date__start=<yesterday>`. The
+    listing is oldest first (probe), so stopping at old rows is impossible. Relied on: the probe's call of that
+    filter answered 200 and kept all of the day's emails; that it drops older rows is unproven. Ignored, it is the
+    whole history: still correct, bounded by `MAX_PAGES`.
+  - *sender/claim-plan-identity (CR9):* every email's claim metadata carries `note_plan`, `deliver.plan_digest`
+    (sha256 over the note digest, every edition's key, subject, body and entry ids, and the signatures). An email
+    of the day is ours only with both digests, so another plan of the same note claims nothing of ours.
+  - *sender/tags-seat-change (CR5):* the Method page says how to change lists or seats (unsubscribe, sign up
+    again; config `page.method_change`), which depends on runbook check 4a.
+  - CR6 an entry with no body name reads "<date> <meeting>"; CR7 the preview page prints the meeting day as the
+    email does ("November 9, 2026"); CR8 the form posts Buttondown's hidden `embed=1`.
 - **Not changed and still open:** the open-redirect check of the government source hosts in `link_hosts`
   (runbook section 4 item 2).
 

@@ -236,6 +236,8 @@ architecture "Switch-on: tags, and the security notes". Before `MORNING_NOTE_SEN
 real sign-up shows the tags) and Brian's approval of the sample note.
 Before review (2026-11-17): each entry names its meeting day and kind (`meeting`, `text.meeting_line`;
 note/entry-meeting), and `max_editions` is 400, was 80 (sender/max-editions-busy-day; a 190-edition day is sent whole).
+Review fixes (branch `r2-note-fix`, from a23427e): L1, L7, CR2 to CR9 and `privacy_url` checked; architecture
+"Switch-on", "Review fixes (2026-11-17)".
 
 ### T4.8 Security review
 Fresh review at the T4.5 commit against the nine threat points in the architecture. The workflow job does not merge

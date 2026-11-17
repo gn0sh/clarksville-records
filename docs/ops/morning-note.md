@@ -192,6 +192,11 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    opt-in); before confirming, the subscriber is `unactivated` in Buttondown; after confirming, it shows exactly the
    tags `note-<list>` for each ticked list plus `note-district-<n>` and `note-ward-<n>`. If the form answers an
    error or the tags are missing, stop: `MORNING_NOTE_SEND` stays unset, and the form goes back off by PR.
+   Then (sender/tags-seat-change; the Method page tells readers to do this): unsubscribe that address with the
+   link in its confirmation or first email, sign up again with one other list and another ward, confirm, and check
+   it shows only the new tags. If the old tags stay, the Method page's `method_change` line is wrong: change it by
+   PR before `MORNING_NOTE_SEND` is set. A note job that finds confirmed subscribers but no `note-` tag fails as
+   `no-tags` (sender/tags-silent-zero).
 5. The site deploy is live (`RECORDS_DEPLOY_ENABLED` is `true`): the note job needs a successful deploy.
 6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.6) prints "OK: main is protected", and the last
    scheduled run's `push` job committed `data/` to `main` under the ruleset (or the 2.0 fallback is merged and green). Link the
@@ -256,9 +261,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    for (nothing on a quiet day), the links open live pages, the unsubscribe link works, and the Buttondown
    dashboard's recipient count matches the log's total.
 4. `max_editions` is 400 (was 80 until 2026-11-17: a busy real day plans up to 191 editions, and 80 would have
-   sent nothing that day; basis in architecture "Switch-on"). Revisit `max_recipients` (2000) before the list passes
-   about 1,000: a run over either sends nothing that day (loud), and 2,000 stamped subscribers take about 14 minutes,
-   close to the note job's 15-minute timeout.
+   sent nothing that day; basis in architecture "Switch-on"). `max_recipients` is 1000 (was 2000, about 14
+   minutes of requests against the note job's 15): a run over either sends nothing that day (loud). At both caps a
+   run takes about 8 minutes. Revisit both, and the job timeout, before the list nears 1,000.
 
 ## Rules for manual runs and re-runs
 - **Never re-run a Daily update run from an earlier day** ("Re-run all jobs" or "Re-run failed jobs" on yesterday's

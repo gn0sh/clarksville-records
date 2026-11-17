@@ -155,8 +155,10 @@ def who_when(ctx: dict, e: dict) -> str:
         words = day_words(day)
     except ValueError:
         return clean(body)
-    return clean(ctx["meeting_line"].replace("{body}", clean(body)).replace("{date}", words)
-                 .replace("{meeting}", clean(meeting)))
+    line = ctx["meeting_line"]
+    if not clean(body) and "{date}" in line:     # CR6: no body name, so "<date> <meeting>", the line's own tail
+        line = line[line.index("{date}"):]
+    return clean(line.replace("{body}", clean(body)).replace("{date}", words).replace("{meeting}", clean(meeting)))
 
 
 def _source_words(ctx: dict, page) -> str:

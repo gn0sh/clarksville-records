@@ -280,6 +280,14 @@ def test_an_entry_without_a_meeting_is_its_body_alone(kw):
     assert "None" not in render.body_text(CTX, note_of(e), [e])
 
 
+@pytest.mark.parametrize("body", [None, "", "  ", "\u200b"])
+def test_an_entry_with_no_body_name_reads_date_and_meeting_only(body):
+    """CR6: no "None, " and no leading ", ": the meeting line's own tail, "<date> <meeting>"."""
+    e = entry(body_name=body, meeting="formal meeting", meeting_date="2026-11-09")
+    assert render.who_when(CTX, e) == "November 9, 2026 formal meeting"
+    assert "  November 9, 2026 formal meeting" in render.body_text(CTX, note_of(e), [e]).split("\n")
+
+
 def test_the_meeting_words_are_escaped_like_every_other_field():
     e = entry(meeting="<b>{{ x }}</b> [z](https://evil.example.com)")
     html = html_of(e)

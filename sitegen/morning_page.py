@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
-from sender.common import list_tag, seat_tag_prefix
+from sender.common import day_words, list_tag, seat_tag_prefix
 
 from . import config, morning
 
@@ -76,6 +76,7 @@ def privacy(cfg: dict | None = None) -> dict | None:
     return {"provider": provider, "privacy_url": m["privacy_url"], "privacy_label": t["privacy_label"],
             "seats_sent": t["seats_sent"].format(**fill), "heading": t["method_heading"],
             "sent": t["method_sent"].format(**fill), "unsubscribe": t["method_unsubscribe"],
+            "change": t["method_change"],                   # sender/tags-seat-change; depends on runbook check 4a
             "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note"}
 
 
@@ -147,6 +148,16 @@ def _day_words(iso: str) -> str:
     return f"{d:%B} {d.day}, {d.year}"
 
 
+def _meeting_words(iso) -> str | None:
+    """An entry's meeting day as the email writes it ("November 9, 2026"); None for anything but a real day."""
+    if not (isinstance(iso, str) and len(iso) == 10):
+        return None
+    try:
+        return day_words(iso)
+    except ValueError:
+        return None
+
+
 def _when(stamp: str) -> str:
     """A window edge as the contract writes it ("2024-12-09T07:00-06:00", the site's zone) -> "December 9, 7:00 AM".
     Anything else is shown as given."""
@@ -177,7 +188,9 @@ def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
         # facts.json and finance.json are, so the one link rule (config.https_link) is applied where the URL becomes
         # a link; a URL that fails it gives an entry with no source link (qa.site_checks then fails the feed entry)
         url = config.https_link(src.get("url"))
-        entries.append({**e, "href": e.get("href") or "",
+        # CR7: the meeting day in the same words as the email ("November 9, 2026", sender/common.day_words)
+        words = _meeting_words(e.get("meeting_date"))
+        entries.append({**e, "href": e.get("href") or "", "meeting_words": words, "meeting": e.get("meeting"),
                         "lists_attr": " ".join(e.get("lists") or []), "seat_body": e.get("seat_body"),
                         "vote_on": e.get("vote_on"),
                         "watch": e["watch"] if (e.get("watch") or {}).get("url") and config.https_link(

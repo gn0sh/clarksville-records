@@ -264,5 +264,10 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   now accepts because the stamp carries a MAC (architecture "Switch-on: tags, and the security notes"); and the
   new-subscriber form check, which never ran (the 400). The probe has done its job and is not run again, so the
   scoring is left as is; read it with this section.
-- **Not yet checked (no network on 2026-11-17):** that `https://buttondown.com/legal/privacy` is the provider's
-  privacy policy (config `privacy_url`).
+- **Privacy policy (seen 2026-11-17 by the security reviewer):** `https://buttondown.com/legal/privacy` is
+  Buttondown's privacy policy; for subscriber data it points to their data processing agreement (DPA). Config
+  `privacy_url` is that address.
+- **Email listing filter (sender/claim-listing-unbounded):** the probe's `GET /emails?creation_date__start=<that
+  day>` answered 200 with all 4 of that day's emails, so the filter keeps the day's rows. Whether it leaves older
+  rows out is unproven (there were none). The sender asks for emails created since yesterday; ignored, the listing
+  is the whole history (still correct, bounded by the adapter's page limit).

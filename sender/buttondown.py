@@ -3,7 +3,9 @@ ADR 0004; T4.4). Standard library only (urllib.request over http.client), so the
 nothing.
 
 What it may do, and nothing else:
-- GET    /v1/emails                       every page, reduced to {"id", "status", "metadata"} per row (the day claim)
+- GET    /v1/emails?creation_date__start=<yesterday>
+                                          every page, reduced to {"id", "status", "metadata", "archival_mode"} per
+                                          row (the day claim; sender/claim-listing-unbounded)
 - GET    /v1/subscribers                  every page, reduced to {"id", "type", "tags", "metadata"} per row: the address and
                                           every other field are dropped here, at the boundary
 - GET    /v1/subscribers/{id}             one subscriber, reduced the same way (None when there is none)
@@ -58,6 +60,7 @@ USER_AGENT = "daylight-morning-note"
 _KEY = re.compile(r"[!-~]{16,256}")
 # ids go into a path: refuse anything that could leave its segment ("/", "..", "?", "%")
 _ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+_DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 # sender/transport/parse-differential: urlsplit drops tab and newline and other parsers read a backslash as "/", so
 # a URL holding any character outside printable ASCII, or a backslash, is refused before it is parsed at all
 _UNSAFE_URL = re.compile(r"[^\x21-\x7e]|\\")
@@ -123,11 +126,12 @@ def _reduce_subscriber(row, method: str, template: str) -> dict:
 
 
 def _reduce_email(row, method: str, template: str) -> dict:
-    """{"id", "status", "metadata"} (and "filters" when asked): what the day claim and the echo check read. A row
-    without a `metadata` key stays without it, so deliver fails closed on it."""
+    """{"id", "status", "metadata", "archival_mode"} (and "filters" when asked): what the day claim and the echo
+    check read (render/archival-not-echoed: an email stored on the public archive is taken back). A row without a
+    `metadata` key stays without it, so deliver fails closed on it."""
     if not isinstance(row, dict):
         raise _fail(method, template, "an email that is not an object")
-    return {k: row[k] for k in ("id", "status", "metadata") if k in row}
+    return {k: row[k] for k in ("id", "status", "metadata", "archival_mode") if k in row}
 
 
 class Buttondown(Provider):
@@ -217,11 +221,12 @@ class Buttondown(Provider):
                 raise _fail(method, template, "an id that cannot go in a path")
         return API_BASE + template.format(**{k: quote(v, safe="") for k, v in ids.items()})
 
-    def _listing(self, template: str) -> list:
+    def _listing(self, path: str, template: str | None = None) -> list:
         """Every row of a paged listing ({"results": [...], "next": url|null, "count": n}). Raises unless every
         page was read, every page gives the same `count`, and the rows add up to it: a listing is never cut short
         (or grown under us) silently."""
-        url, seen, rows, count = API_BASE + template, set(), [], None
+        template = template or path
+        url, seen, rows, count = API_BASE + path, set(), [], None
         for _ in range(MAX_PAGES):
             if url in seen:
                 raise _fail("GET", template, "a page that links back")
@@ -253,8 +258,17 @@ class Buttondown(Provider):
         raise _fail("GET", template, "more pages than MAX_PAGES")
 
     # ------------------------------------------------------------------------------------------ the interface
-    def emails(self) -> list[dict]:
-        return [_reduce_email(r, "GET", "/emails") for r in self._listing("/emails")]
+    def emails(self, since: str) -> list[dict]:
+        # sender/claim-listing-unbounded: the listing is oldest first (T4.0 probe), so paging cannot stop at old
+        # rows; it is asked for emails created since yesterday instead. Relied on: the
+        # `creation_date__start` filter the T4.0 probe sent (GET /emails?creation_date__start=<that day>: HTTP 200,
+        # all 4 of that day's emails, so it keeps the day's rows). Whether it drops older rows is unproven (there
+        # were none); if it is ignored the listing is the whole history, still bounded by MAX_PAGES and still right,
+        # since the claim reads only rows of the plan's day.
+        if not (isinstance(since, str) and _DAY.fullmatch(since)):
+            raise _fail("GET", "/emails", "a day that is not YYYY-MM-DD")
+        t = "/emails"                 # what an error may say: the path, never the query
+        return [_reduce_email(r, "GET", t) for r in self._listing(f"/emails?creation_date__start={since}", t)]
 
     def subscribers(self) -> list[dict]:
         return [_reduce_subscriber(r, "GET", "/subscribers") for r in self._listing("/subscribers")]

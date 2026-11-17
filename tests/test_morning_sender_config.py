@@ -35,7 +35,7 @@ def test_the_shipped_block_is_on_and_clean():
     s = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]["sender"]   # the file, not the env
     assert s == {"enabled": True, "provider": "buttondown", "api_base": "https://api.buttondown.com/v1",
                  "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 400,
-                 "max_recipients": 2000, "canary_only": False, "link_hosts": s["link_hosts"], "text": s["text"]}
+                 "max_recipients": 1000, "canary_only": False, "link_hosts": s["link_hosts"], "text": s["text"]}
     assert sorted(s["text"]) == ["open_site", "subject", "why"]
     assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []
     off = note_off(config.SITE)
@@ -126,7 +126,7 @@ def test_the_stdlib_reader_agrees_with_yaml_on_the_shipped_file():
                                                "site_name")}
     s = settings_mod.load(SITE_YML)
     assert (s.enabled, s.canary_only, s.mode, s.max_recipients, s.timezone) == \
-        (sender["enabled"], sender["canary_only"], "stamp", 2000, "America/Chicago")
+        (sender["enabled"], sender["canary_only"], "stamp", 1000, "America/Chicago")
     assert isinstance(s.enabled, bool) and isinstance(s.canary_only, bool)
     assert (s.district_count, s.ward_count, s.send_at, s.latest_send) == (21, 12, "07:00", "10:00")
 
@@ -374,7 +374,7 @@ def test_the_build_refuses_a_config_the_reader_reads_differently(tmp_path, monke
     from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
     from sitegen.build import BuildError, build
     bad = tmp_path / "site.yml"
-    bad.write_text(SITE_YML.read_text(encoding="utf-8").replace("    max_recipients: 2000", "    max_recipients: 0100"),
+    bad.write_text(SITE_YML.read_text(encoding="utf-8").replace("    max_recipients: 1000", "    max_recipients: 0100"),
                    encoding="utf-8")
     assert morning.reader_problems(SITE_YML) == []
     assert morning.reader_problems(bad)

@@ -21,7 +21,7 @@ import urllib.request
 from datetime import datetime, timezone
 from email.message import Message
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import pytest
 
@@ -112,10 +112,15 @@ class FakeHTTP:
         return self.answer(req.get_method(), u, body)
 
     def _page(self, rows, path, query):
-        page = int(parse_qs(query).get("page", ["1"])[0])
+        q = parse_qs(query)
+        page = int(q.get("page", ["1"])[0])
+        since = q.get("creation_date__start", [None])[0]
+        if since is not None:       # a provider that applies the filter: rows created before that day are left out
+            rows = [r for r in rows if (r.get("creation_date") or "9999")[:10] >= since]
         n = self.page_size
         chunk = rows[(page - 1) * n: page * n]
-        nxt = f"{BASE}{path}?page={page + 1}" if page * n < len(rows) else None
+        q["page"] = [str(page + 1)]
+        nxt = f"{BASE}{path}?{urlencode(q, doseq=True)}" if page * n < len(rows) else None
         return Resp(200, {"results": chunk, "next": nxt, "previous": None, "count": len(rows)})
 
     def answer(self, method, u, body):
@@ -133,7 +138,8 @@ class FakeHTTP:
             return self._page(self.email_rows, "/emails", u.query)
         if (method, route) == ("POST", "/emails"):
             row = {"id": f"em{len(self.email_rows) + 1:04d}", "subject": body["subject"], "status": body["status"],
-                   "metadata": body.get("metadata", {}), "publish_date": body.get("publish_date")}
+                   "metadata": body.get("metadata", {}), "publish_date": body.get("publish_date"),
+                   "archival_mode": body.get("archival_mode"), "creation_date": "2026-11-11T09:10:00Z"}
             if "filters" in body:
                 row["filters"] = body["filters"]
             self.email_rows.append(row)
@@ -255,7 +261,7 @@ def test_a_url_with_a_control_space_non_ascii_or_backslash_is_refused(ch):
     nxt = f"https://api.buttondown.com/v1/emails?page=2{ch}"
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, {"results": [], "next": nxt, "count": 0})]})
     with pytest.raises(deliver.ProviderError) as e:
-        client(http).emails()
+        client(http).emails("2026-11-10")
     assert str(e.value) == "GET /emails: a next link off the pinned host" and len(http.requests) == 1
 
 
@@ -282,7 +288,7 @@ def test_the_request_urllib_builds_must_agree_on_scheme_host_and_path(monkeypatc
     monkeypatch.setattr(bd.urllib.request, "Request", make)
     http = FakeHTTP()
     with pytest.raises(deliver.ProviderError) as e:
-        client(http).emails()
+        client(http).emails("2026-11-10")
     assert str(e.value) == "GET /emails: a URL off the pinned host" and http.requests == []
 
 
@@ -306,7 +312,7 @@ def test_a_listing_is_read_page_by_page_and_reduced_at_the_boundary(plan):
 def test_a_listing_of_an_unexpected_shape_fails_closed(page):
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, page)]})
     with pytest.raises(deliver.ProviderError):
-        client(http).emails()
+        client(http).emails("2026-11-10")
 
 
 def test_a_later_page_whose_count_differs_from_the_first_fails_closed():
@@ -322,12 +328,36 @@ def test_a_later_page_whose_count_differs_from_the_first_fails_closed():
         assert str(e.value) == "GET /subscribers: a page whose count differs from the first page's"
 
 
+def test_the_claim_listing_asks_for_emails_created_since_the_given_day_on_every_page():
+    """sender/claim-listing-unbounded: GET /emails?creation_date__start=<day>, kept on every next page; a provider
+    that applies it leaves older rows out, and today's rows are always in."""
+    rows = [{"id": f"em{i}", "status": "sent", "metadata": {}, "creation_date": f"2026-11-0{i}T12:00:00Z"}
+            for i in range(1, 6)]
+    rows += [{"id": "today", "status": "scheduled", "metadata": {"note_date": "2026-11-11"},
+              "creation_date": "2026-11-11T09:10:00Z", "archival_mode": "disabled"}]
+    http = FakeHTTP(emails=rows, page_size=1)
+    got = client(http).emails("2026-11-04")
+    assert [r["id"] for r in got] == ["em4", "em5", "today"]
+    assert got[-1] == {"id": "today", "status": "scheduled", "metadata": {"note_date": "2026-11-11"},
+                       "archival_mode": "disabled"}                     # creation_date and the rest dropped
+    urls = [r[1] for r in http.calls("GET", "/emails")]
+    assert len(urls) == 3 and all(parse_qs(urlsplit(u).query)["creation_date__start"] == ["2026-11-04"] for u in urls)
+
+
+@pytest.mark.parametrize("day", ["", "2026-11-4", "2026-11-04&page=9", "2026-11-04T00:00", None, 20261104])
+def test_the_claim_listing_refuses_a_day_that_is_not_one_before_any_request(day):
+    http = FakeHTTP()
+    with pytest.raises(deliver.ProviderError):
+        client(http).emails(day)
+    assert http.requests == []
+
+
 def test_a_page_that_links_back_fails_closed():
     loop = Resp(200, {"results": [], "next": f"{BASE}/emails?page=1", "count": 0})
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, {"results": [], "next": f"{BASE}/emails?page=1",
                                                              "count": 0}), loop]})
     with pytest.raises(deliver.ProviderError):
-        client(http).emails()
+        client(http).emails("2026-11-10")
 
 
 @pytest.mark.parametrize("resp", [
@@ -336,7 +366,7 @@ def test_a_page_that_links_back_fails_closed():
 ])
 def test_an_answer_that_is_not_json_or_too_big_fails_closed(resp):
     with pytest.raises(deliver.ProviderError):
-        client(FakeHTTP(faults={("GET", "/emails"): [resp]})).emails()
+        client(FakeHTTP(faults={("GET", "/emails"): [resp]})).emails("2026-11-10")
 
 
 @pytest.mark.parametrize("header, want", [("7", 7.0), ("0", 0.0), (None, bd.DEFAULT_RETRY), ("soon", bd.DEFAULT_RETRY),
@@ -349,7 +379,7 @@ def test_retry_after_reads_seconds_or_a_date_and_is_never_negative(header, want)
 def test_a_429_raises_rate_limited_with_its_retry_after():
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(429, raw=b"", headers={"Retry-After": "7"})]})
     with pytest.raises(deliver.RateLimited) as e:
-        client(http).emails()
+        client(http).emails("2026-11-10")
     assert e.value.retry_after == 7.0 and str(e.value) == "rate limited"
 
 
@@ -424,7 +454,7 @@ def test_an_http_client_error_while_reading_is_wrapped_too():
         def read(self, n=-1):
             raise http.client.IncompleteRead(SECRET_BODY.encode())
     with pytest.raises(deliver.ProviderError) as e:
-        client(FakeHTTP(faults={("GET", "/emails"): [Broken(200, {"results": []})]})).emails()
+        client(FakeHTTP(faults={("GET", "/emails"): [Broken(200, {"results": []})]})).emails("2026-11-10")
     assert str(e.value) == "GET /emails: the answer could not be read" and SECRET_BODY not in repr(e.value)
 
 
@@ -510,7 +540,8 @@ def test_create_email_sends_known_fields_only_and_returns_what_the_provider_stor
     payload = {"subject": "s", "body": "b", "status": "draft", "metadata": {"note_date": DAY},
                "archival_mode": "disabled"}
     got = c.create_email(payload, "k")
-    assert got == {"id": "em0001", "status": "draft", "metadata": {"note_date": DAY}}    # no filters key: none stored
+    assert got == {"id": "em0001", "status": "draft", "metadata": {"note_date": DAY},       # no filters key: none stored
+                   "archival_mode": "disabled"}                       # read back, for the echo (render/archival-not-echoed)
     assert http.requests[-1][3] == payload and http.requests[-1][2]["x-idempotency-key"] == "k"
     http.faults[("POST", "/emails")] = [Resp(201, ["not", "an", "email"])]
     with pytest.raises(deliver.ProviderError):

@@ -12,11 +12,14 @@ Order of work, each check stopping before the first write:
  1. `morning_note.sender.enabled` is not true (read from the repository, not from the plan): nothing.
  2. `plan.send` is false (a quiet day, a backfill day, a disabled or rehearsal plan): nothing.
  3. the plan's date is not today in the site's zone, or now is past `latest_send` ("missed", exit 3): nothing.
- 4. day claim, read from the provider's own emails (`metadata.note_date`, `note_sha256`): a day claimed by another
-    plan sends nothing; the same plan continues with the editions not yet created; a listing that fails sends
-    nothing and fails the run (fail closed).
+ 4. day claim, read from the provider's own emails since yesterday (`metadata.note_date`, `note_sha256`,
+    `note_plan`: the note's digest and the plan's, sender/claim-plan-identity): a day claimed by another plan, even
+    one from the same note, sends nothing; the same plan continues with the editions not yet created; a listing
+    that fails sends nothing and fails the run (fail closed).
  5. recipients: confirmed (`type == "regular"`) subscribers only, each reduced at once to Recipient (id, and the
-    lists and seats its "note-" tags name); the address, every other tag and the metadata stop there. With
+    lists and seats its "note-" tags name); the address, every other tag and the metadata stop there. Confirmed
+    subscribers of whom none carries a "note-" tag end the run non-zero ("no-tags", sender/tags-silent-zero): the
+    form's tags did not arrive, and a green run would hide it. With
     `canary_only`, only the subscriber ids listed in the note job's environment (`MORNING_NOTE_CANARY_IDS`); with
     no list, nobody and no provider call. Never subscriber metadata or tags for that: a subscriber writes both
     through the public form.
@@ -31,6 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import re
 import time as time_mod
 import uuid
@@ -111,8 +115,10 @@ class Provider:
     the only module allowed to open a connection) and the tests' in-memory fake. Every method raises ProviderError when the
     call failed or its answer could not be read in full; a listing that is cut short must raise, never return less."""
 
-    def emails(self) -> list[dict]:
-        """Every recent email: [{"id", "status", "metadata": {...}}]."""
+    def emails(self, since: str) -> list[dict]:
+        """Every email created on or after day `since` (YYYY-MM-DD; deliver asks for yesterday, so every email of
+        today is in it): [{"id", "status", "metadata": {...}, "archival_mode"}]. A provider that cannot filter
+        returns more, never less (sender/claim-listing-unbounded)."""
         raise NotImplementedError
 
     def subscribers(self) -> list[dict]:
@@ -157,7 +163,7 @@ class Recipient:
 @dataclass(frozen=True)
 class Outcome:
     code: int               # the process exit code
-    status: str             # dry-run | disabled | no-send | wrong-date | missed | claimed | sent | failed | ...
+    status: str             # dry-run | disabled | no-send | wrong-date | missed | claimed | no-tags | sent | failed | ...
     editions: int = 0       # emails created by this run
     recipients: int = 0     # recipients of those emails, in total
 
@@ -359,26 +365,44 @@ def held_stamps(rows) -> list[tuple[str, object]]:
     return out
 
 
-def _stray_stamp(held: list, by_key: dict, expected: dict) -> bool:
-    """audience/stamp-self-set: in `stamp` mode the provider mails whoever holds an edition's stamp. True when any
-    subscriber holds exactly one of today's stamps (`expected`: {stamp: edition key}) and is not in that edition's
-    audience; a stamp written by an earlier run of this plan always is. Any other value is ignored: the filter does
-    not match it, and it must not let one subscriber stop every send (audience/stamp-self-set-race)."""
+def _strays(held: list, by_key: dict, expected: dict, done: set) -> list[tuple[str, str]] | None:
+    """audience/stamp-self-set: in `stamp` mode the provider mails whoever holds an edition's stamp. A stray holds
+    exactly one of today's stamps (`expected`: {stamp: edition key}) and is not in that edition's audience now.
+    - its edition is in `done` (an earlier run of this plan created that email, and stamped them while they were in
+      its audience; they changed lists since): nothing this run does changes who that email reaches, so it is
+      skipped (audience/stamp-rerun-false-stray);
+    - its edition has nobody to mail this run: its email is not created, so the stamp reaches nothing;
+    - otherwise its email is still to be created. When the stray is in another edition's audience this run that is
+      not created yet, it is returned as (id, that edition's key): run() writes that stamp over the stray one before
+      any email is created. Else None: the run stops before any write.
+    Any other value is ignored: the filter does not match it, and it must not let one subscriber stop every send
+    (audience/stamp-self-set-race)."""
     members = {key: {m.id for m in to} for key, to in by_key.items()}
+    now_in = {m.id: key for key, to in by_key.items() for m in to}
+    out = []
     for sid, value in held:
-        if isinstance(value, str) and value in expected and sid not in members.get(expected[value], ()):
-            return True
-    return False
+        if not (isinstance(value, str) and value in expected):
+            continue
+        key = expected[value]
+        if sid in members.get(key, ()) or key in done or key not in by_key:
+            continue
+        new = now_in.get(sid)
+        if new is None or new in done:
+            return None
+        out.append((sid, new))
+    return out
 
 
 def _check_echo(mode: str, payload: dict, stored) -> str:
     """audience/provider-echo: the email as the provider stored it decides who gets it, so it must carry exactly
-    the status, claim metadata and (in `stamp` mode) filter deliver sent, and an `ids` draft no filter at all.
+    the status, claim metadata, archival mode (off the public archive) and (in `stamp` mode) filter deliver sent,
+    and an `ids` draft no filter at all.
     Returns its id; raises EchoMismatch (with the id when one came back) otherwise."""
     sid = stored.get("id") if isinstance(stored, dict) else stored if isinstance(stored, str) else None
     sid = sid if isinstance(sid, str) and sid else None
     ok = isinstance(stored, dict) and sid is not None and stored.get("status") == payload["status"] \
-        and stored.get("metadata") == payload["metadata"]
+        and stored.get("metadata") == payload["metadata"] \
+        and stored.get("archival_mode") == payload["archival_mode"]       # render/archival-not-echoed
     if ok and mode == "stamp":
         ok = stored.get("filters") == payload["filters"]
     elif ok:
@@ -400,8 +424,19 @@ def _call(sleep, fn, *args):
             sleep(min(max(float(wait), 0.0), MAX_WAIT))
 
 
-def _claim(emails, plan: dict) -> tuple[str, set]:
-    """("free" | "ours" | "other", the edition keys this plan has already created) from the provider's emails."""
+def plan_digest(plan: dict) -> str:
+    """sha256 over what decides who gets which email: the note's digest, every edition (key, subject, body, entry
+    ids) and every signature. Two plans of one note made by different code or config differ here, so a re-run of
+    another plan can never take this plan's created editions as its own (sender/claim-plan-identity)."""
+    canon = {"note_sha256": plan["note_sha256"], "signatures": plan["signatures"],
+             "editions": sorted(([e["key"], e["subject"], e["body"], e["entry_ids"]] for e in plan["editions"]))}
+    return hashlib.sha256(json.dumps(canon, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+                          .encode("ascii")).hexdigest()
+
+
+def _claim(emails, plan: dict, digest: str) -> tuple[str, set]:
+    """("free" | "ours" | "other", the edition keys this plan has already created) from the provider's emails. An
+    email of the day is ours only when it carries this plan's note digest and plan digest (`digest`)."""
     if not isinstance(emails, list):
         raise ProviderError("email listing")
     done, state = set(), "free"
@@ -415,7 +450,7 @@ def _claim(emails, plan: dict) -> tuple[str, set]:
             raise ProviderError("email listing")
         if meta.get("note_date") != plan["date"]:
             continue
-        if meta.get("note_sha256") != plan["note_sha256"]:
+        if meta.get("note_sha256") != plan["note_sha256"] or meta.get("note_plan") != digest:
             return "other", set()
         state = "ours"
         edition = meta.get("note_edition")
@@ -518,7 +553,8 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             raise
 
     try:
-        state, done = _claim(_call(sleep, provider.emails), plan)
+        digest = plan_digest(plan)
+        state, done = _claim(_call(sleep, provider.emails, (the_day - timedelta(days=1)).isoformat()), plan, digest)
         if state == "other":
             return end(0, "claimed", why="the day belongs to an earlier, different plan")
         step = "subscriber listing"
@@ -533,6 +569,9 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 audience.append(r)
         del seen
         del raw
+        if audience and not any(r.lists or r.district is not None or r.ward is not None for r in audience):
+            return end(2, "no-tags", why="confirmed subscribers, and none carries a note- tag: the sign-up form's "
+                                         "tags did not arrive")
         if settings.canary_only:
             audience = [r for r in audience if r.id in canary_ids]
         if len(audience) > settings.max_recipients:
@@ -548,9 +587,32 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             return end(2, "over-limit", why="more editions with a recipient than max_editions")
         expected = {stamp_value(day, ed["key"], stamp_secret): ed["key"] for ed in plan["editions"]} \
             if settings.mode == "stamp" else {}
-        if settings.mode == "stamp" and _stray_stamp(held, by_key, expected):
-            return end(2, "stray-stamp", why="a subscriber holds a stamp for today outside that edition's audience; "
-                                             "the provider's filter would mail them")
+        def stamp(r: Recipient, key: str, value: str) -> bool:
+            """Re-read one subscriber just before the write (L2), then stamp them; False (no write) when their type
+            or tags changed since the listing: they get nothing today."""
+            nonlocal step
+            step = "subscriber re-read"
+            fresh = recipient(_call(sleep, provider.subscriber, r.id), settings)
+            if fresh is None or fresh.id != r.id or not fresh.lists or \
+                    signature(fresh.lists, fresh.district, fresh.ward) != signature(r.lists, r.district, r.ward):
+                return False
+            step = "subscriber stamp"
+            _call(sleep, provider.set_metadata, r.id, {"note_edition": value}, idempotency_key(day, key, f"stamp/{r.id}"))
+            return True
+
+        stamped_early = set()
+        if settings.mode == "stamp":
+            strays = _strays(held, by_key, expected, done)
+            if strays is None:
+                return end(2, "stray-stamp", why="a subscriber holds a stamp for today outside that edition's audience, "
+                                                 "and no stamp of theirs is written over it; the provider's filter "
+                                                 "would mail them")
+            who = {m.id: m for to in by_key.values() for m in to}
+            for sid, key in strays:     # their stamp of today is written over before any email is created
+                if not stamp(who[sid], key, stamp_value(day, key, stamp_secret)):
+                    return end(2, "stray-stamp", why="a subscriber holding a stamp for today outside that edition's "
+                                                     "audience changed again before it could be written over")
+                stamped_early.add(sid)
         del held
         send_at, latest = at(settings.send_at), at(settings.latest_send)
         for ed in sorted(plan["editions"], key=lambda e: e["key"]):
@@ -558,7 +620,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             if key in done or not to:
                 continue        # already created by an earlier run of this plan, or nobody to mail: no email
             edition_id = stamp_value(day, key, stamp_secret) if settings.mode == "stamp" else f"{day}.{key}"
-            meta = {"note_date": day, "note_edition": edition_id, "note_sha256": plan["note_sha256"]}
+            meta = {"note_date": day, "note_edition": edition_id, "note_sha256": plan["note_sha256"], "note_plan": digest}
             payload = {"subject": ed["subject"], "body": ed["body"], "archival_mode": "disabled", "metadata": meta}
             if settings.mode == "stamp":
                 # The T4.0 probe (2026-11-16) showed a metadata PATCH replaces the whole object, and the lists and
@@ -566,17 +628,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 # public form wrote, a forged note_edition, an old stamp) is dropped by it (sender/stamp-write-
                 # replaces). Each subscriber is read again just before the write (L2): someone whose type or tags
                 # changed since the listing is not stamped and gets nothing today.
-                stamped = []
-                for r in to:
-                    step = "subscriber re-read"
-                    fresh = recipient(_call(sleep, provider.subscriber, r.id), settings)
-                    if fresh is None or fresh.id != r.id or not fresh.lists or \
-                            signature(fresh.lists, fresh.district, fresh.ward) != signature(r.lists, r.district, r.ward):
-                        continue
-                    step = "subscriber stamp"
-                    _call(sleep, provider.set_metadata, r.id, {"note_edition": meta["note_edition"]},
-                          idempotency_key(day, key, f"stamp/{r.id}"))
-                    stamped.append(r)
+                stamped = [r for r in to if r.id in stamped_early or stamp(r, key, meta["note_edition"])]
                 if not stamped:
                     continue
                 to = stamped
