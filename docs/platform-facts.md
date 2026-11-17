@@ -300,6 +300,10 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
 
 ## Main protection (V1 probe, T4.10.1)
+- R2 first on: 4c5cd91022b74f5b7ad68ec94cdb863fcc444acd (2026-11-17 ~4:25 PM CT, `scripts/protect-main.ps1` first run on
+  Brian's PC, exit 0: `Main before the ruleset` and `R2 was off; main was` both this sha). Ruleset 27502319 active, bypass
+  none, rules deletion, non_fast_forward, pull_request (0 approvals); Actions may create pull requests: true;
+  auto-merge allowed: false. The baseline window (runbook 4.7.1) starts here.
 - Not run yet. When it runs (runbook 2.0.4): the run link, the four merge answers (REST squash, merge, rebase; GraphQL), the review `commit_id` result,
   and `main`'s sha before and after go here.
 - `github-pages` deployment branches after runbook 2.0.5: not checked yet.
