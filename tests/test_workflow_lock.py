@@ -240,15 +240,15 @@ def test_push_validates_the_artifact_before_staging():
 
 
 def test_tracked_data_files_fit_the_allowlist():
-    """Names and modes: every tracked file under data/ is a regular non-executable file (100644; never a symlink
-    120000, an executable 100755 or a submodule 160000), named as the gate's shape check allows."""
-    out = subprocess.run(["git", "ls-files", "-s", "-z", "--", "data"], cwd=ROOT, capture_output=True, text=True,
+    """I-data on the committed tree: every `git ls-tree -r -z HEAD -- data` entry, as bytes, fits the gate's own SHAPE
+    (regular 100644 files, plain names, .json/.yml or changes.jsonl), and there is at least one."""
+    out = subprocess.run(["git", "ls-tree", "-r", "-z", "HEAD", "--", "data"], cwd=ROOT, capture_output=True,
                          check=True).stdout
-    entries = [e.split("\t", 1) for e in out.split("\0") if e]
+    entries = [e for e in out.split(b"\0") if e]
+    shape = re.compile(_gate_shape())
     assert entries
-    for meta, f in entries:
-        assert meta.split()[0] == "100644", (meta, f)
-        assert f.endswith((".json", ".yml")) or f.endswith("/changes.jsonl"), f
+    for e in entries:
+        assert shape.fullmatch(e), e
 
 
 def _validate(folder: Path, tmp_path: Path) -> subprocess.CompletedProcess:
@@ -301,6 +301,14 @@ def test_other_file_types_are_still_refused(tmp_path, name):
     (data / "manifest.json").write_text("[]\n")
     r = _validate(data, tmp_path)
     assert r.returncode == 1 and "file type not allowed in data/" in r.stdout
+
+
+def test_an_empty_artifact_is_refused(tmp_path):
+    """I-data: merging an empty data/ would leave main with no data/ tree, which the gate refuses on every run."""
+    data = tmp_path / "data"
+    (data / "sub").mkdir(parents=True)
+    r = _validate(data, tmp_path)
+    assert r.returncode == 1 and "the refreshed data holds no file" in r.stdout
 
 
 def test_a_symlinked_change_log_is_still_refused(tmp_path):
@@ -386,6 +394,9 @@ def _run_commit_step(tmp_path, work, new_data: dict, allowed=""):
         (art / rel).parent.mkdir(parents=True, exist_ok=True)
         if text is None:
             (art / rel).unlink()
+        elif isinstance(text, tuple):           # ("exec", text): an executable file, as cp -a would carry it
+            (art / rel).write_text(text[1])
+            (art / rel).chmod(0o755)
         else:
             (art / rel).write_text(text)
     out = tmp_path / "github-output"
@@ -425,6 +436,35 @@ def test_no_data_change_pushes_nothing_and_skips_the_pr(tmp_path):
     r, out = _run_commit_step(tmp_path, work, {})
     assert r.returncode == 0 and "No data changes." in r.stdout and out == {}
     assert _branches(origin) == ["refs/heads/main"]
+
+
+@pytest.mark.parametrize("new", [{"x.json": ("exec", "2\n")}, {os.fsdecode(b"\xff.json"): "2\n"},
+                                 {"a b.json": "2\n"}, {"x.json": None, "y.json": None}],
+                         ids=["executable", "non-utf8-name", "space-in-name", "emptied"])
+@pytest.mark.parametrize("loc", ["C.UTF-8", "C"])
+def test_the_push_job_checks_i_data_on_the_commit_it_pushes(tmp_path, new, loc, monkeypatch):
+    """J2 runs the gate's checks on the rebased commit before anything leaves the runner: an executable bit cp -a
+    carried over, a name the gate would refuse, or an emptied data/ is refused; nothing is pushed."""
+    monkeypatch.setenv("LC_ALL", loc)
+    origin, work, _ = _data_repo(tmp_path)
+    _git(work, "config", "core.fileMode", "true")
+    r, out = _run_commit_step(tmp_path, work, new)
+    assert r.returncode == 1 and out == {}, r.stdout + r.stderr
+    assert "does not meet I-data" in r.stdout or "not a folder in the data commit" in r.stdout, r.stdout
+    assert _branches(origin) == ["refs/heads/main"]
+    for ln in r.stdout.splitlines():
+        if ln.startswith("::error::"):
+            assert all(0x20 <= ord(c) <= 0x7E for c in ln), ln
+
+
+def test_the_gate_and_the_push_job_carry_the_identical_shape():
+    gate = [ln.strip() for ln in _gate_steps()[GATE_STEP]["run"].splitlines() if ln.strip().startswith("SHAPE=")]
+    push = [ln.strip() for ln in _push_steps()[COMMIT_STEP]["run"].splitlines() if ln.strip().startswith("SHAPE=")]
+    assert len(gate) == 1 and gate == push
+    run = _push_steps()[COMMIT_STEP]["run"]
+    assert run.index("git pull --rebase origin main") < run.index('LC_ALL=C grep -zacE -- "$SHAPE"') \
+        < run.index('git push origin "HEAD:refs/heads/$branch"')
+    assert "git cat-file -t HEAD:data" in run and '[ "$matched" != "$total" ]' in run and '"$total" -lt 1' in run
 
 
 def test_a_concurrent_data_edit_on_main_fails_loudly(tmp_path):
@@ -1378,7 +1418,7 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE", ref="refs/he
     out.write_text("")
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
            "GH_CALLS": str(calls), "PULLS": str(tmp_path / "pulls.json"), "EXPECTED_JQ": PR_JQ, "PULL_JQ": PULL_JQ,
-           "REVIEW_JQ": REVIEW_JQ, "SHA": tip, "REF": ref, "GITHUB_OUTPUT": str(out),
+           "REVIEW_JQ": REVIEW_JQ, "SHA": tip, "REF": ref, "GITHUB_OUTPUT": str(out), "RUNNER_TEMP": str(tmp_path),
            "MAIN_PR_BASELINE": shas.get(baseline, baseline), **({"GH_FAIL": "1"} if gh_fail else {})}
     r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
     assert "Traceback" not in r.stderr, r.stderr
@@ -1567,33 +1607,94 @@ def test_the_gate_refuses_a_checkout_that_is_not_the_runs_commit(tmp_path):
         assert r.returncode == 2 and out.read_text() == "", sha
 
 
-# M-2 (architect, 2026-11-17): the gate's shape check on data/. Entries are (mode, path); written straight into the
-# index, so the mode is exact (120000 symlink, 160000 submodule, 100755 executable) whatever the file system allows.
-MANIFEST = ("100644", "data/manifest.json")
+# I-data (docs/architecture/main-protect-invariant.md "I-data", after M-2 and S-1): the gate's check of data/'s shape.
+# Entries are (mode, path bytes), built straight into tree objects (git mktree), so modes are exact (120000 symlink,
+# 160000 submodule, 100755 executable) and names may hold any byte, whatever the file system or index would allow.
+def _shape_literal(run: str) -> bytes:
+    """SHAPE as bash makes it from the step's own `SHAPE=$'...'` line (exactly one such line)."""
+    lines = [ln.strip() for ln in run.splitlines() if ln.strip().startswith("SHAPE=$'")]
+    assert len(lines) == 1, lines
+    return subprocess.run(["bash", "-c", lines[0] + '\nprintf %s "$SHAPE"'], capture_output=True, check=True).stdout
+
+
+GATE_SHAPE = None     # filled lazily: _gate_steps() needs WF, defined above
+
+
+def _gate_shape() -> bytes:
+    global GATE_SHAPE
+    if GATE_SHAPE is None:
+        GATE_SHAPE = _shape_literal(_gate_steps()[GATE_STEP]["run"])
+    return GATE_SHAPE
+
+
+MANIFEST = ("100644", b"data/manifest.json")
 SHAPE_OK = {
-    "json-yml-and-change-logs": [MANIFEST, ("100644", "data/a/b.yml"), ("100644", "data/changes.jsonl"),
-                                 ("100644", "data/localities/c/changes.jsonl"), ("100644", "data/localities/c/m.json")],
+    "json-yml-and-change-logs": [MANIFEST, ("100644", b"data/a/b.yml"), ("100644", b"data/changes.jsonl"),
+                                 ("100644", b"data/a/b/changes.jsonl"), ("100644", b"data/localities/c-tn/m_1.json")],
     # outside data/: not the shape check's (a code change; the history check reads its PR)
-    "outside-data-is-not-shape-checked": [MANIFEST, ("100755", "database.sh"), ("120000", "data.json")],
+    "outside-data-is-not-shape-checked": [MANIFEST, ("100755", b"database.sh"), ("120000", b"data.json")],
 }
 SHAPE_BAD = {
-    "symlink": [MANIFEST, ("120000", "data/x.json")],
-    "symlinked-change-log": [MANIFEST, ("120000", "data/changes.jsonl")],
-    "submodule": [MANIFEST, ("160000", "data/sub")],
-    "submodule-named-json": [MANIFEST, ("160000", "data/x.json")],
-    "executable": [MANIFEST, ("100755", "data/x.json")],
-    "html": [MANIFEST, ("100644", "data/x.html")],
-    "other-jsonl": [MANIFEST, ("100644", "data/x.jsonl")],
-    "xchanges-jsonl": [MANIFEST, ("100644", "data/xchanges.jsonl")],
-    "script": [MANIFEST, ("100644", "data/run.sh")],
-    "json-then-suffix": [MANIFEST, ("100644", "data/x.json.sh")],
-    "gitattributes": [MANIFEST, ("100644", "data/.gitattributes")],
-    # a name holding a newline that forges a good-looking second line: the first line (real mode, own name) refuses
-    "newline-forged-name": [MANIFEST, ("100644", "data/run.sh\n100644 blob " + "a" * 40 + "\tdata/y.json")],
-    "newline-symlink": [MANIFEST, ("120000", "data/l\n100644 blob " + "a" * 40 + "\tdata/y.json")],
-    "data-is-a-symlink": [("120000", "data")],
-    "data-is-a-submodule": [("160000", "data")],
+    "symlink": [MANIFEST, ("120000", b"data/x.json")],
+    "symlinked-change-log": [MANIFEST, ("120000", b"data/changes.jsonl")],
+    "submodule": [MANIFEST, ("160000", b"data/sub")],
+    "submodule-named-json": [MANIFEST, ("160000", b"data/x.json")],
+    "executable": [MANIFEST, ("100755", b"data/x.json")],
+    "html": [MANIFEST, ("100644", b"data/x.html")],
+    "other-jsonl": [MANIFEST, ("100644", b"data/x.jsonl")],
+    "xchanges-jsonl": [MANIFEST, ("100644", b"data/xchanges.jsonl")],
+    "script": [MANIFEST, ("100644", b"data/run.sh")],
+    "json-then-suffix": [MANIFEST, ("100644", b"data/x.json.sh")],
+    "gitattributes": [MANIFEST, ("100644", b"data/.gitattributes")],
+    # S-1: names compared as bytes; under a UTF-8 locale grep would withhold these ("binary file matches")
+    "non-utf8-byte": [MANIFEST, ("100644", b"data/\xff.json")],
+    "non-utf8-symlink": [MANIFEST, ("120000", b"data/\xff.json")],
+    "newline-in-name": [MANIFEST, ("100644", b"data/a\nb.json")],
+    "escape-in-name": [MANIFEST, ("100644", b"data/x\x1b.json")],
+    "hidden-name": [MANIFEST, ("100644", b"data/.x.json")],
+    "dot-dot-part": [MANIFEST, ("100644", b"data/a/../b.json")],
+    "space-in-name": [MANIFEST, ("100644", b"data/a b.json")],
+    # a name with a newline that forges a good-looking second record: one NUL record, so it fails whole
+    "newline-forged-name": [MANIFEST, ("120000", b"data/l\n100644 blob " + b"a" * 40 + b"\tdata/y.json")],
+    # L-a: no data/ tree, data as a link or a file, or data/ emptied
+    "no-data": [],
+    "data-is-a-symlink": [("120000", b"data")],
+    "data-is-a-file": [("100644", b"data")],
+    "data-is-a-submodule": [("160000", b"data")],
+    "data-emptied": [("040000", b"data")],
 }
+# the gate's step under a UTF-8 locale (where S-1 failed open), under C, and with LC_ALL unset (LANG UTF-8)
+LOCALES = {"C.UTF-8": {"LC_ALL": "C.UTF-8"}, "C": {"LC_ALL": "C"}, "unset": {"LC_ALL": None, "LANG": "C.UTF-8"}}
+
+
+def _mktree(repo, entries) -> str:
+    """A tree holding `entries` [(mode, path bytes)]; mode 040000 is an empty folder; 160000 names a commit that need
+    not exist; a symlink's blob is its target, any other blob a small JSON naming its path (so blobs differ)."""
+    tree: dict = {}
+    for mode, path in entries:
+        *dirs, leaf = path.split(b"/")
+        node = tree
+        for d in dirs:
+            node = node.setdefault(d, {})
+        node[leaf] = mode
+
+    def write(node) -> str:
+        recs = []
+        for name, v in node.items():
+            if isinstance(v, dict):
+                recs.append(b"040000 tree " + write(v).encode() + b"\t" + name)
+            elif v == "040000":
+                recs.append(b"040000 tree " + write({}).encode() + b"\t" + name)
+            elif v == "160000":
+                recs.append(b"160000 commit " + b"c" * 40 + b"\t" + name)
+            else:
+                content = b"/etc/passwd" if v == "120000" else b"{\"name\": \"" + name.hex().encode() + b"\"}\n"
+                blob = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=repo, input=content,
+                                      capture_output=True, check=True).stdout.strip()
+                recs.append(v.encode() + b" blob " + blob + b"\t" + name)
+        return subprocess.run(["git", "mktree", "-z", "--missing"], cwd=repo, input=b"".join(r + b"\0" for r in recs),
+                              capture_output=True, check=True).stdout.decode().strip()
+    return write(tree)
 
 
 def _shape_origin(tmp_path, entries):
@@ -1602,34 +1703,29 @@ def _shape_origin(tmp_path, entries):
     _git(tmp_path, "init", "-q", "--bare", str(origin))
     _git(origin, "config", "uploadpack.allowFilter", "true")
     _git(tmp_path, "init", "-q", str(src))
-    (src / "sender").mkdir()
-    (src / "sender" / "x.py").write_text("x = 1\n")
-    _git(src, "add", "-A")
-    for mode, path in entries:
-        if mode == "160000":
-            obj = "c" * 40                                      # a gitlink names a commit that need not exist here
-        else:
-            content = "/etc/passwd" if mode == "120000" else "{}\n"
-            obj = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=src, input=content, text=True,
-                                 capture_output=True, check=True).stdout.strip()
-        subprocess.run(["git", "update-index", "--add", "-z", "--index-info"], cwd=src, check=True,
-                       input=f"{mode} {obj}\t{path}\0", text=True, capture_output=True)
-    _git(src, "commit", "-q", "-m", "c")
-    _git(src, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
-    return origin, _git(src, "rev-parse", "HEAD")
+    tree = _mktree(src, [("100644", b"sender/x.py"), *entries])
+    tip = _git(src, "commit-tree", tree, "-m", "c")
+    _git(src, "push", "-q", f"file://{origin}", f"{tip}:refs/heads/main")
+    return origin, tip
 
 
-def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main"):
-    """The gate step in `work`, with a gh that only records that it was called (the shape check never needs it)."""
+def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main", env_over=None):
+    """The gate step in `work`, with a gh that only records that it was called (the shape check never needs it).
+    stdout is bytes, so a test can see every byte the step would put in the log."""
     bindir, calls, out = tmp_path / "bin", tmp_path / "gh-calls", tmp_path / "github-output"
     bindir.mkdir(exist_ok=True)
     (bindir / "gh").write_text(f"#!/bin/sh\necho \"$*\" >> '{calls}'\nexit 1\n")
     (bindir / "gh").chmod(0o755)
     out.write_text("")
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
-           "SHA": tip, "REF": ref, "GITHUB_OUTPUT": str(out), "MAIN_PR_BASELINE": baseline}
-    r = subprocess.run(["bash", "-c", _gate_steps()[GATE_STEP]["run"]], cwd=work, env=env, capture_output=True,
-                       text=True)
+           "SHA": tip, "REF": ref, "GITHUB_OUTPUT": str(out), "MAIN_PR_BASELINE": baseline,
+           "RUNNER_TEMP": str(tmp_path)}
+    for k, v in (env_over or {}).items():
+        if v is None:
+            env.pop(k, None)
+        else:
+            env[k] = v
+    r = subprocess.run(["bash", "-c", _gate_steps()[GATE_STEP]["run"]], cwd=work, env=env, capture_output=True)
     outputs = dict(ln.split("=", 1) for ln in out.read_text().splitlines() if "=" in ln)
     return r, outputs, calls.exists()
 
@@ -1637,24 +1733,71 @@ def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main"):
 def _shape_check(tmp_path, entries, **kw):
     origin, tip = _shape_origin(tmp_path, entries)
     work = tmp_path / "work"
-    _git(tmp_path, "clone", "-q", "--depth=1", f"file://{origin}", str(work))    # as actions/checkout does
+    # depth 1, as actions/checkout; no working files (a name like a/../b.json cannot be checked out, and the check
+    # reads only the commit's tree)
+    _git(tmp_path, "clone", "-q", "--depth=1", "--no-checkout", f"file://{origin}", str(work))
     assert _git(work, "rev-parse", "HEAD") == tip
     return (tip, *_run_gate(work, tmp_path, tip, **kw))
 
 
+def _error_lines_are_printable(stdout: bytes):
+    for ln in stdout.split(b"\n"):
+        if ln.startswith(b"::error::"):
+            assert all(0x20 <= c <= 0x7E for c in ln), ln
+
+
+@pytest.mark.parametrize("loc", list(LOCALES))
 @pytest.mark.parametrize("case", list(SHAPE_OK))
-def test_the_gate_accepts_data_that_is_only_regular_json_yml_and_change_logs(tmp_path, case):
-    tip, r, out, called = _shape_check(tmp_path, SHAPE_OK[case])
+def test_the_gate_accepts_data_that_meets_i_data(tmp_path, case, loc):
+    tip, r, out, called = _shape_check(tmp_path, SHAPE_OK[case], env_over=LOCALES[loc])
     assert r.returncode == 0, r.stdout + r.stderr
     assert out == {"sha": tip, "verified": "false"} and not called          # phase 0 on main: passes, unverified
 
 
+@pytest.mark.parametrize("loc", list(LOCALES))
+def test_the_gate_accepts_todays_data_tree(tmp_path, loc):
+    """The repository's own committed data/ (HEAD), as the daily run sees it."""
+    tip = _git(ROOT, "rev-parse", "HEAD")
+    r, out, called = _run_gate(ROOT, tmp_path, tip, env_over=LOCALES[loc])
+    assert r.returncode == 0 and out == {"sha": tip, "verified": "false"}, r.stdout + r.stderr
+
+
+@pytest.mark.parametrize("loc", list(LOCALES))
 @pytest.mark.parametrize("case", list(SHAPE_BAD))
-def test_the_gate_refuses_any_other_shape_under_data(tmp_path, case):
-    """Phase 0 on main: refused before the baseline check, so no build, deploy or note, and no PR read."""
-    _, r, out, called = _shape_check(tmp_path, SHAPE_BAD[case])
+def test_the_gate_refuses_anything_else_under_data(tmp_path, case, loc):
+    """Phase 0 on main: refused before the baseline check, so no build, deploy or note, and no PR read; whatever the
+    locale (S-1); the log's ::error:: lines carry only printable ASCII, never a raw name."""
+    _, r, out, called = _shape_check(tmp_path, SHAPE_BAD[case], env_over=LOCALES[loc])
     assert r.returncode == 2 and out == {} and not called, r.stdout + r.stderr
-    assert "data/ holds something other than regular" in r.stdout
+    assert b"(I-data)" in r.stdout
+    _error_lines_are_printable(r.stdout)
+
+
+def test_a_refusal_names_at_most_20_entries_cleaned(tmp_path):
+    bad = [("100644", b"data/n%02d\xff\x1b.html" % i) for i in range(30)]
+    _, r, out, _ = _shape_check(tmp_path, [MANIFEST, *bad])
+    assert r.returncode == 2
+    listed = [ln for ln in r.stdout.split(b"\n") if ln.startswith(b"::error::not allowed in data/: ")]
+    assert len(listed) == 20 and all(b"??.html" in ln for ln in listed), listed
+    assert b"1 of 31 entries fit" in r.stdout
+    _error_lines_are_printable(r.stdout)
+
+
+def test_the_gate_shape_is_the_architects_literal_and_python_agrees():
+    """SHAPE in the gate is I-data's literal (TAB for <TAB>); Python's bytes regex gives the same verdicts as grep."""
+    doc = (ROOT / "docs" / "architecture" / "main-protect-invariant.md").read_text(encoding="utf-8")
+    lit = re.search(r"`(\^100644 blob \[0-9a-f\]\{40\}<TAB>data/[^`]*)`", doc).group(1)
+    assert _gate_shape() == lit.replace("<TAB>", "\t").encode()
+    pat = re.compile(_gate_shape())
+    sha = b"a" * 40
+    for case, entries in {**SHAPE_OK, **SHAPE_BAD}.items():
+        fits = all(pat.fullmatch(m.encode() + (b" commit " if m == "160000" else b" tree " if m == "040000"
+                                                else b" blob ") + sha + b"\t" + p) for m, p in entries
+                   if p.startswith(b"data/") or p == b"data")
+        if case in SHAPE_OK:
+            assert fits, case
+        elif entries and case not in ("data-emptied",):
+            assert not fits, case
 
 
 def test_the_shape_check_runs_before_the_baseline_and_after_the_not_main_exit(tmp_path):
@@ -1662,12 +1805,14 @@ def test_the_shape_check_runs_before_the_baseline_and_after_the_not_main_exit(tm
     unverified first (that run cannot push, deploy or send)."""
     (tmp_path / "a").mkdir()
     tip, r, out, called = _shape_check(tmp_path / "a", SHAPE_BAD["symlink"], baseline="b" * 40)
-    assert r.returncode == 2 and not called and "data/ holds something other than regular" in r.stdout
+    assert r.returncode == 2 and not called and b"(I-data)" in r.stdout
     (tmp_path / "b").mkdir()
     tip, r, out, called = _shape_check(tmp_path / "b", SHAPE_BAD["symlink"], ref="refs/heads/feature")
     assert r.returncode == 0 and out == {"sha": tip, "verified": "false"} and not called
     run = _gate_steps()[GATE_STEP]["run"]
-    assert run.index("refs/heads/main") < run.index("git ls-tree -r -z HEAD -- data") < run.index("MAIN_PR_BASELINE")
+    assert run.index("refs/heads/main") < run.index("git cat-file -t HEAD:data") \
+        < run.index("git ls-tree -r -z HEAD -- data") < run.index("MAIN_PR_BASELINE")
+    assert 'LC_ALL=C grep -zacE -- "$SHAPE"' in run and '[ "$matched" != "$total" ]' in run and '"$total" -lt 1' in run
 
 
 def _missing_blobs(work) -> int:
@@ -1676,11 +1821,12 @@ def _missing_blobs(work) -> int:
 
 
 @pytest.mark.parametrize("entries,ok", [(SHAPE_OK["json-yml-and-change-logs"], True), (SHAPE_BAD["symlink"], False),
-                                        (SHAPE_BAD["executable"], False)])
+                                        (SHAPE_BAD["executable"], False), (SHAPE_BAD["non-utf8-byte"], False)])
 def test_the_shape_check_reads_no_blob_on_a_blob_none_partial_clone(tmp_path, entries, ok):
-    """The architect's check: `git ls-tree -r` reads tree objects only. On a --filter=blob:none clone with no checkout
-    (no file contents at all) and its promisor remote made unreachable, the gate gives the same verdict, and every
-    blob is still missing afterwards, so it fetched none (a lazy fetch would have failed on the dead remote)."""
+    """The architect's check: `git cat-file -t` and `git ls-tree -r` read tree objects only. On a --filter=blob:none
+    clone with no checkout (no file contents at all) and its promisor remote made unreachable, the gate gives the
+    same verdict, and every blob is still missing afterwards, so it fetched none (a lazy fetch would have failed on
+    the dead remote)."""
     origin, tip = _shape_origin(tmp_path, entries)
     work = tmp_path / "work"
     _git(tmp_path, "clone", "-q", "--filter=blob:none", "--no-checkout", f"file://{origin}", str(work))
@@ -1690,7 +1836,7 @@ def test_the_shape_check_reads_no_blob_on_a_blob_none_partial_clone(tmp_path, en
     _git(work, "remote", "set-url", "origin", f"file://{tmp_path / 'gone.git'}")
     r, out, called = _run_gate(work, tmp_path, tip)
     assert (r.returncode == 0) == ok and r.returncode in (0, 2), r.stdout + r.stderr
-    assert "gone.git" not in r.stderr and "fetch" not in r.stderr.lower(), r.stderr
+    assert b"gone.git" not in r.stderr and b"fetch" not in r.stderr.lower(), r.stderr
     assert _missing_blobs(work) == before and not called
 
 
@@ -1704,19 +1850,88 @@ def test_the_committed_baseline_is_unset_or_a_sha():
     assert "MAIN_PR_BASELINE" in runbook
 
 
-def test_runbook_baseline_step_lists_who_merged_each_code_commit():
-    """L-3 main-protect/baseline-blesses-phase0: `%an` cannot show a bot merge, so 4.7.1 lists merged_by.type for each
-    first-parent commit outside data/ since the R1/R2 switch-on, via commits/<sha>/pulls then pulls/<n>, stops on a
-    Bot, and the output goes into the baseline PR. L-1's deferred change is named in 4.7.2 and in T4.10.8."""
+def _window_step() -> str:
     runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
-    step = runbook[runbook.index("**The baseline `MAIN_PR_BASELINE`"):runbook.index("Never move the baseline later")]
-    assert "merged_by" in step and "merged_by.type" in step and "/commits/$c/pulls" in step and '"$R/pulls/$n"' in step
-    assert "--first-parent" in step and ":(exclude)data/" in step and "<switch-on sha>" in step
-    assert "Stop on any `Bot`" in step and "paste the whole output into the baseline PR" in step
+    return runbook[runbook.index("**The baseline `MAIN_PR_BASELINE`"):runbook.index("Never move the baseline later")]
+
+
+def _window_script() -> str:
+    """The 4.7.1 bash block, as a person pastes it (the list indentation removed)."""
+    block = _window_step().split("```bash\n", 1)[1].split("```", 1)[0]
+    return "\n".join(ln[6:] if ln.startswith("      ") else ln for ln in block.splitlines()) + "\n"
+
+
+def test_runbook_baseline_step_lists_who_merged_each_code_commit():
+    """L-3, L-b: `%an` cannot show a bot merge, so 4.7.1 lists merged_by.type for each first-parent commit outside
+    data/ in the window from where R2 was first turned on, via commits/<sha>/pulls then pulls/<n>; set -euo
+    pipefail, a 40-hex start that is an ancestor of origin/main, the list in a variable, `checked N commits`; it stops
+    on Bot, none, a failed read or N = 0. L-1's deferred change is named in 4.7.2 and in T4.10.8."""
+    step = _window_step()
+    script = _window_script()
+    assert "merged_by" in step and "merged_by.type" in script and "/commits/$c/pulls" in script
+    assert '"$R/pulls/$pr"' in script and "--first-parent" in script and ":(exclude)data/" in script
+    assert script.startswith('bash -s "<R2-on sha>" <<\'WINDOW\'\nset -euo pipefail\n')
+    assert "git merge-base --is-ancestor" in script and "^[0-9a-f]{40}$" in script
+    assert "list=$(git log" in script and "for c in $list; do" in script and 'echo "checked $n commits"' in script
+    assert "R2 first on: <sha>" in step and "Paste the whole output into the baseline PR" in step
     assert "L-1" in step and "T4.10.8" in step
     tasks = (ROOT / "docs" / "tasks" / "morning-note.md").read_text(encoding="utf-8")
     t8 = tasks[tasks.index("- **T4.10.8 Baseline.**"):tasks.index("Order: .1, .5 and branch A")]
     assert "L-1" in t8 and '("", "refs/heads/main")' in t8 and "refuse" in t8
+
+
+_WINDOW_GH = """#!/usr/bin/env python3
+import json, os, sys
+a = sys.argv[1:]
+types = json.loads(os.environ["TYPES"])          # {commit sha: merged_by.type, or "none" (no PR), or "FAIL"}
+path = a[1]
+if "/commits/" in path:
+    sha = path.split("/commits/")[1].split("/")[0]
+    assert os.environ["COMMIT"] == sha
+    if types.get(sha) == "FAIL":
+        sys.exit(1)
+    print("none" if types.get(sha) == "none" else str(int(sha[:6], 16)))
+else:
+    num = int(path.rsplit("/", 1)[1])
+    print(next(t for s, t in types.items() if s[:6] and int(s[:6], 16) == num))
+"""
+
+
+@pytest.mark.parametrize("case", ["ok", "bot", "none", "read-fails", "zero", "placeholder", "not-ancestor"])
+def test_the_window_check_runs_and_stops_where_it_must(tmp_path, case):
+    """Runs the runbook's own 4.7.1 block against a local origin and a fake gh."""
+    origin, work, bindir = tmp_path / "origin.git", tmp_path / "work", tmp_path / "bin"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(tmp_path, "init", "-q", str(work))
+    shas = []
+    for i, rel in enumerate(["sender/a.py", "data/x.json", "sender/a.py", "data/x.json", "config/site.yml"]):
+        (work / rel).parent.mkdir(parents=True, exist_ok=True)
+        (work / rel).write_text(f"{i}\n")
+        _git(work, "add", "-A")
+        _git(work, "commit", "-q", "-m", f"c{i}")
+        shas.append(_git(work, "rev-parse", "HEAD"))
+    _git(work, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
+    _git(work, "remote", "add", "origin", f"file://{origin}")
+    start = {"zero": shas[4], "placeholder": "<R2-on sha>", "not-ancestor": "f" * 40}.get(case, shas[0])
+    if case == "not-ancestor":
+        _git(work, "checkout", "-q", "--orphan", "other")
+        _git(work, "commit", "-q", "--allow-empty", "-m", "elsewhere")
+        start = _git(work, "rev-parse", "HEAD")
+    types = {shas[2]: "User", shas[4]: {"bot": "Bot", "none": "none", "read-fails": "FAIL"}.get(case, "User")}
+    bindir.mkdir()
+    (bindir / "gh").write_text(_WINDOW_GH)
+    (bindir / "gh").chmod(0o755)
+    script = _window_script().replace('"<R2-on sha>"', f'"{start}"', 1)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "TYPES": json.dumps(types),
+           "GIT_CONFIG_GLOBAL": "/dev/null"}
+    r = subprocess.run(["bash", "-c", script], cwd=work, env=env, capture_output=True, text=True)
+    if case == "ok":
+        assert r.returncode == 0 and r.stdout.splitlines()[-1] == "checked 2 commits", r.stdout + r.stderr
+        assert r.stdout.splitlines()[:2] == [f"{shas[4]} PR #{int(shas[4][:6], 16)} merged_by.type=User",
+                                             f"{shas[2]} PR #{int(shas[2][:6], 16)} merged_by.type=User"]
+    else:
+        assert r.returncode == 1 and "STOP:" in r.stdout, r.stdout + r.stderr
+        assert "checked 2 commits" not in r.stdout
 
 
 def test_the_gate_fails_closed_when_github_cannot_be_read(tmp_path):
@@ -2111,6 +2326,8 @@ if "-X" in a:
     if "POST" in a:                        # the new ruleset is listed from now on, as on GitHub
         os.environ["EXISTING"] = "99"
         open(os.environ["GH_CALLS"] + ".created", "w").close()
+    if "can_approve_pull_request_reviews=true" in a:
+        open(os.environ["GH_CALLS"] + ".r2on", "w").close()
     sys.exit(0)
 if os.path.exists(os.environ["GH_CALLS"] + ".created"):
     os.environ["EXISTING"] = "99"
@@ -2122,7 +2339,15 @@ if path == "repos/gn0sh/clarksville-records/contents/.github/workflows/daily-upd
 jq = a[a.index("--jq") + 1]
 if path.endswith("/actions/permissions/workflow"):
     assert jq == ".can_approve_pull_request_reviews", jq
-    print("true")
+    r2 = "true" if os.path.exists(os.environ["GH_CALLS"] + ".r2on") else os.environ.get("R2", "false")
+    if r2 == "FAIL":
+        sys.exit(1)
+    print(r2)
+elif path.endswith("/git/ref/heads/main"):
+    assert jq == ".object.sha", jq
+    if os.environ.get("MAIN_SHA") == "FAIL":
+        sys.exit(1)
+    print(os.environ.get("MAIN_SHA", "1" * 40))
 elif path == "repos/gn0sh/clarksville-records":
     assert jq == ".allow_auto_merge", jq
     print(os.environ.get("AUTO", "false"))
@@ -2156,12 +2381,16 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     assert "bypass none, required approvals 0" in r.stdout and "GitHub Actions may create pull requests: true" in r.stdout
     assert "Auto-merge allowed: false" in r.stdout
     lines = calls.read_text().splitlines()
-    # main-protect/actions-bypass-reopens-M1: the Actions PR setting goes on before the ruleset is written
+    # L-b: R1 (the ruleset) first; then R2's state and main's sha are read; then R2 goes on, and the line naming
+    # main's sha (the start of the runbook 4.7.1 window) is printed
     setting = [i for i, c in enumerate(lines) if "-X PUT" in c and "actions/permissions/workflow" in c]
     writes = [i for i, c in enumerate(lines) if ("-X PUT" in c or "-X POST" in c) and "/rulesets" in c]
-    assert len(setting) == 1 and writes and setting[0] < min(writes)
+    read_r2 = next(i for i, c in enumerate(lines) if "actions/permissions/workflow" in c and "-X" not in c)
+    read_main = next(i for i, c in enumerate(lines) if "/git/ref/heads/main" in c)
+    assert len(setting) == 1 and writes and max(writes) < read_r2 < read_main < setting[0]
     assert "-F can_approve_pull_request_reviews=true" in lines[setting[0]]
-    lines = [c for c in lines if "actions/permissions/workflow" not in c]
+    assert f"R2 was off; main was {'1' * 40}" in r.stdout
+    lines = [c for c in lines if "actions/permissions/workflow" not in c and "/git/ref/" not in c]
     posts = [c for c in lines if "-X POST" in c]
     puts = [c.split()[3] for c in lines if "-X PUT" in c]
     if existing:
@@ -2205,6 +2434,37 @@ def test_protect_main_needs_approvals_0_and_auto_merge_off(tmp_path, auto, appro
         assert "Auto-merge must be off" in r.stdout
     if approvals != "0":
         assert "needs ADR 0009 changed" in r.stdout
+
+
+@pytest.mark.parametrize("r2,main_sha,code,says", [
+    ("true", None, 0, "R2 already on"),
+    ("false", "FAIL", 1, "was NOT turned on"),
+    ("false", "not-a-sha", 1, "was NOT turned on"),
+    ("FAIL", None, 1, "it was not changed"),
+])
+def test_protect_main_reads_r2_and_main_before_turning_r2_on(tmp_path, r2, main_sha, code, says):
+    """L-b: R2 already on is said (the window start is then unknown); a failed read of R2 or of main's sha leaves R2
+    as it was, after the ruleset is written."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT, "R2": r2, **({"MAIN_SHA": main_sha} if main_sha else {})}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == code and says in r.stdout, r.stdout + r.stderr
+    lines = calls.read_text().splitlines()
+    assert not any("-X PUT" in c and "actions/permissions/workflow" in c for c in lines)
+    assert any("-X PUT" in c and "/rulesets/42" in c for c in lines)
+    assert "R2 was off" not in r.stdout
+
+
+def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
+    for name in ("protect-main.sh", "protect-main.ps1"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert "R2 was off; main was $" in text and "'R2 already on'" in text.replace('"R2 already on"', "'R2 already on'")
+        assert text.index("/rulesets") < text.index("can_approve_pull_request_reviews=true"), name
+        assert text.index("git/ref/heads/main") < text.index("can_approve_pull_request_reviews=true"), name
 
 
 def test_protect_main_scripts_share_one_ruleset_body():
@@ -2353,6 +2613,10 @@ def test_the_v1_probe_scripts_agree():
         assert "of 4" in s and "all four merges" in s and "is left on" in s
         assert "INCONCLUSIVE: could not read main. Nothing was changed." in s
         assert "-ExecutionPolicy Bypass" not in s
+        # L-c v1-probe/verdict-race: the run must be completed, and .merged is read again after cleanup
+        assert "--json status --jq '.status'" in s and "had not finished" in s
+        assert "read again after cleanup" in s and s.rindex("read again after cleanup") > s.index("Cleanup" if s is ps1
+                                                                                                 else "cleanup()")
     # FAIL never from main's sha alone: the FAIL condition names only the merge answers, the PR and the canary
     fail_sh = next(ln for ln in sh.splitlines() if "^V1-MERGED" in ln and ln.startswith("if "))
     fail_ps1 = next(ln for ln in ps1.splitlines() if "$merged -gt 0" in ln)
@@ -2379,6 +2643,9 @@ if a[:2] == ["run", "list"]:
     print("123"); sys.exit(0)
 if a[:2] == ["run", "watch"]:
     sys.exit(0)
+if a[:2] == ["run", "view"] and "--json" in a:
+    assert a[a.index("--json") + 1] == "status" and a[a.index("--jq") + 1] == ".status", a
+    print(os.environ.get("RUN_STATUS", "completed")); sys.exit(0)
 if a[:2] == ["run", "view"]:
     sys.stdout.write(open(os.environ["RUN_LOG"]).read()); sys.exit(0)
 path = [x for x in a if x.startswith("repos/")][0]
@@ -2394,6 +2661,8 @@ if path.endswith("/contents/.github/workflows/v1-canary.yml?ref=main"):
     sys.stderr.write("gh: Not Found (HTTP 404)\\n" if canary == "404" else "gh: Bad gateway (HTTP 502)\\n"); sys.exit(1)
 if path.endswith("/pulls/77") and "--jq" in a and a[a.index("--jq") + 1] == ".merged":
     merged = os.environ.get("PR_MERGED", "false")
+    if count("merged") > 0:                  # the read after cleanup (L-c)
+        merged = os.environ.get("PR_MERGED_AFTER", merged)
     if merged == "EMPTY":
         sys.exit(1)
     print(merged); sys.exit(0)
@@ -2486,6 +2755,29 @@ def test_v1_probe_main_moved_or_a_failed_read_is_inconclusive_and_leaves_r2_on(t
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and "is left on" in r.stdout, r.stdout + r.stderr
     assert not _turned_off(made) and "FAIL" not in r.stdout
     assert any("state=closed" in c for c in made)                          # cleanup still closes the probe PR
+
+
+@pytest.mark.parametrize("status", ["in_progress", "queued", "EMPTY"])
+def test_v1_probe_a_run_not_completed_is_inconclusive(tmp_path, status):
+    """L-c: answers read while the run may still be merging are not final."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, RUN_STATUS="" if status == "EMPTY" else status)
+    assert r.returncode == 1 and "had not finished" in r.stdout and "PASS" not in r.stdout, r.stdout + r.stderr
+    assert not _turned_off(made)
+
+
+def test_v1_probe_a_merge_seen_after_cleanup_is_fail(tmp_path):
+    """L-c: the probe PR is closed first, then read again; merged by then means FAIL, never PASS."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER="true")
+    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and "PASS" not in r.stdout and _turned_off(made)
+    closed = next(i for i, c in enumerate(made) if "state=closed" in c)
+    reads = [i for i, c in enumerate(made) if c[-2:] == ["--jq", ".merged"]]
+    assert len(reads) == 2 and reads[0] < closed < reads[1]
+
+
+def test_v1_probe_pass_needs_the_read_after_cleanup(tmp_path):
+    r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER="EMPTY")
+    assert r.returncode == 1 and "could not be read again after cleanup" in r.stdout and "PASS" not in r.stdout
+    assert not _turned_off(made)
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):

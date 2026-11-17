@@ -124,15 +124,19 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       ```
       (Local scripts are allowed in Windows Settings > For developers; never add `-ExecutionPolicy Bypass`.)
       (macOS or Linux: `bash scripts/protect-main.sh`.) It (a) stops with "Main does not have the data pull request
-      change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly; (b) turns on **Allow
-      GitHub Actions to create and approve pull requests** (Settings > Actions > General > Workflow permissions);
-      (c) creates the ruleset from `scripts/main-ruleset.json` (no bypass), or, if a ruleset named `main: pull
-      request required` already exists, updates that one, which also removes any bypass it had (running it twice
-      never makes a second ruleset); (d) prints **OK: main is protected** (rules on main
+      change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly; (b) creates the ruleset
+      from `scripts/main-ruleset.json` (no bypass), or, if a ruleset named `main: pull request required` already
+      exists, updates that one, which also removes any bypass it had (running it twice never makes a second
+      ruleset); (c) then turns on **Allow GitHub Actions to create and approve pull requests** (Settings > Actions >
+      General > Workflow permissions) and prints **`R2 was off; main was <sha>`** (or `R2 already on`): send that
+      line to the team; they record it in `docs/platform-facts.md` "Main protection" as `R2 first on: <sha>`, the
+      start of the 4.7.1 window (L-b); (d) prints **OK: main is protected** (rules on main
       `deletion,non_fast_forward,pull_request`, `GitHub Actions may create pull requests: true`, `Auto-merge
       allowed: false`, and the ruleset `active, bypass none, required approvals 0`), or **NOT OK** with what it
       found: send that output to the team.
-   2. **Or by hand, in the browser** (only if the terminal is not an option):
+   2. **Or by hand, in the browser** (only if the terminal is not an option). Do 2 (the ruleset) first, then 1;
+      just before ticking the box in 1, open https://github.com/gn0sh/clarksville-records/commits/main and send the
+      team the first commit's full sha (the copy button), as `R2 was off; main was <sha>` (L-b):
       1. https://github.com/gn0sh/clarksville-records/settings/actions > **Workflow permissions** > tick **Allow
          GitHub Actions to create and approve pull requests** > **Save**.
       2. https://github.com/gn0sh/clarksville-records/settings/rules: if `main: pull request required` is listed,
@@ -194,7 +198,8 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         and approve pull requests** off (the daily data then stops saving: the safe state). Leave
         `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the output to the team; the inert canary is removed
         by a person's PR and the architect re-plans the data path.
-      - **INCONCLUSIVE**: refused for another reason, the run did not start, `main` moved during the probe while
+      - **INCONCLUSIVE**: refused for another reason, the run did not start or had not finished, the probe pull
+        request could not be read again after cleanup, `main` moved during the probe while
         the probe pull request stayed unmerged (another merge in the window), or a read failed: the Actions setting
         is left on. Send the output; the team fixes the cause and you run it again.
       `MORNING_NOTE_SEND` waits on PASS (section 4 item 6a).
@@ -298,21 +303,39 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    1. `git fetch origin main`, then
       `git log --first-parent --format='%h %an %s' origin/main -- . ':(exclude)data/'` and read it: each
       change outside `data/` was meant (the earlier ones were merged without pull requests). `%an` is the commit's
-      author and cannot show a bot merge (main-protect L-3), so also list who merged each such commit since the
-      R1/R2 switch-on (`<switch-on sha>`: `main`'s sha when 2.0.1 first printed OK, recorded in
-      `docs/platform-facts.md` "Main protection"), and paste the whole output into the baseline PR:
+      author and cannot show a bot merge (main-protect L-3), so also list who merged each such commit in the window
+      that starts where R2 was first turned on (architecture "Baseline window check", L-b): `<R2-on sha>` is the
+      `R2 first on: <sha>` line in `docs/platform-facts.md` "Main protection" (from 2.0.1's
+      `R2 was off; main was <sha>`). If 2.0.1 said `R2 already on`, the start is unknown: stop, the architect picks
+      the window. Paste the whole output into the baseline PR:
       ```bash
-      R=repos/gn0sh/clarksville-records
-      for c in $(git log --first-parent --format=%H "<switch-on sha>..origin/main" -- . ':(exclude)data/'); do
-        n=$(COMMIT=$c gh api "$R/commits/$c/pulls" --jq '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.COMMIT) | .number] | first // "none"')
-        t=none; [ "$n" = none ] || t=$(gh api "$R/pulls/$n" --jq '.merged_by.type // "none"')
-        echo "$c PR #$n merged_by.type=$t"
-        [ "$t" = User ] || { echo "STOP: $c was not merged by a person"; break; }
+      bash -s "<R2-on sha>" <<'WINDOW'
+      set -euo pipefail
+      start=$1; R=repos/gn0sh/clarksville-records
+      git fetch -q origin main
+      [[ "$start" =~ ^[0-9a-f]{40}$ ]] || { echo "STOP: the start '$start' is not a 40-hex sha"; exit 1; }
+      git merge-base --is-ancestor "$start" origin/main || { echo "STOP: $start is not an ancestor of origin/main"; exit 1; }
+      list=$(git log --first-parent --format=%H "$start..origin/main" -- . ':(exclude)data/')
+      n=0
+      for c in $list; do
+        pr=$(COMMIT=$c gh api "$R/commits/$c/pulls" --jq '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.COMMIT) | .number] | first // "none"') \
+          || { echo "STOP: could not read the pull requests of $c"; exit 1; }
+        t=none
+        if [ "$pr" != none ]; then
+          t=$(gh api "$R/pulls/$pr" --jq '.merged_by.type // "none"') || { echo "STOP: could not read pull request #$pr"; exit 1; }
+        fi
+        n=$((n + 1))
+        echo "$c PR #$pr merged_by.type=$t"
+        [ "$t" = User ] || { echo "STOP: $c was not merged by a person"; exit 1; }
       done
+      echo "checked $n commits"
+      [ "$n" -gt 0 ] || { echo "STOP: no commit in the window (a wrong or placeholder start: the gate's own PR at least is in it)"; exit 1; }
+      WINDOW
       ```
-      Every line must say `merged_by.type=User`. **Stop on any `Bot`** (a workflow merged code: treat it as an
-      incident, `MAIN_PR_BASELINE` stays empty) and on `none` (no merged PR, which R1 should have made impossible):
-      a person reads that commit before anything else. Then `git rev-parse origin/main` prints the baseline sha.
+      It must end `checked N commits` with N at least 1 and every line `merged_by.type=User`. **It stops on any
+      `Bot`** (a workflow merged code: treat it as an incident, `MAIN_PR_BASELINE` stays empty), on `none` (no
+      merged PR, which R1 should have made impossible), on any failed read, and on N = 0: a person reads why before
+      anything else. Then `git rev-parse origin/main` prints the baseline sha.
    2. A PR that changes only `MAIN_PR_BASELINE: ""` to `MAIN_PR_BASELINE: "<that sha>"` (and makes
       `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha), reviewed, merged with
       `scripts/merge-reviewed.ps1` (2.0.3). That PR comes after the baseline, so the gate checks it too. The same

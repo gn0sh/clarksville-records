@@ -61,8 +61,8 @@ jobs:
   # first-parent line that changes anything outside data/ is the merge or squash commit of exactly one pull request
   # into main, merged by a person (merged_by.type User), whose head at merge carries a person's review of that exact
   # commit (by the owner or a collaborator, COMMENTED or APPROVED, commit_id == head.sha, submitted no later than
-  # merged_at); a merge commit's second parent is that head. On main, phase 0 included, data/ must hold only regular
-  # *.json, *.yml and changes.jsonl files (M-2 shape check; who merged a data-only commit is a recorded residual).
+  # merged_at); a merge commit's second parent is that head. On main, phase 0 included, data/ must meet I-data: only
+  # regular *.json, *.yml and changes.jsonl files with plain names (who merged a data-only commit is a residual).
   # Every other job builds, deploys or sends only S: update checks out the gate's sha, deploy
   # needs the gate's success and note needs verified == 'true'. Outputs: sha (= S) and verified.
   # Why: the setting "Allow GitHub Actions to create and approve pull requests" (on for the push job's data PR) lets
@@ -109,16 +109,25 @@ jobs:
           if [ "$REF" != refs/heads/main ]; then
             echo "Not main ($REF): no history check; verified=false."; verdict false; exit 0
           fi
-          # M-2 shape check (phase 0 too): data/ is read as data only, so it may hold only regular files (mode 100644)
-          # named *.json, *.yml or changes.jsonl. No symlink, submodule, executable or other type; `data` itself must
-          # be a folder. Reads tree objects only (no file contents), so it works on a blob:none partial clone.
-          # -z, then one entry per line: a name holding a newline splits into lines that are each checked, and the real
-          # mode starts the first of them, so a split never lets a non-100644 entry through. A failed read refuses.
-          if ! listing=$(git ls-tree -r -z HEAD -- data | tr '\0' '\n'); then refuse "could not read data/ in this commit's tree."; fi
-          shape=$'^100644 blob [0-9a-f]{40}\tdata/(.+\\.(json|yml)|(.+/)?changes\\.jsonl)$'
-          bad=$(grep -vE -- "$shape" <<< "$listing" || [ $? = 1 ])
-          if [ -n "$bad" ]; then
-            refuse "data/ holds something other than regular *.json, *.yml or changes.jsonl files: ${bad//$'\n'/; }"
+          # I-data (docs/architecture/main-protect-invariant.md "I-data"; phase 0 too): data/ is a folder of regular
+          # files (mode 100644) with plain ASCII names ending .json or .yml, or named changes.jsonl. Passes only by
+          # counting entries that fit (matched == total >= 1), compared as bytes (LC_ALL=C, grep -a: under a UTF-8
+          # locale grep withholds a non-UTF-8 name as "binary file matches", S-1). NUL-separated records, so a name
+          # holding a newline stays one record and fails. Tree objects only: works on a blob:none partial clone.
+          # SHAPE is the same text in the push job's commit step (a test keeps them identical).
+          SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.(json|yml)|changes\\.jsonl)$'
+          if [ "$(git cat-file -t HEAD:data 2>/dev/null || true)" != tree ]; then
+            refuse "data/ is not a folder in this commit (missing, a file or a link), or could not be read (I-data)."
+          fi
+          listing="$RUNNER_TEMP/gate-data-tree"
+          if ! git ls-tree -r -z HEAD -- data > "$listing"; then refuse "could not read data/ in this commit's tree."; fi
+          total=$(LC_ALL=C tr -cd '\000' < "$listing" | wc -c)
+          matched=$(LC_ALL=C grep -zacE -- "$SHAPE" "$listing") || { [ $? = 1 ] || refuse "could not check data/'s names."; }
+          if ! [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] || [ "$total" -lt 1 ] || [ "$matched" != "$total" ]; then
+            # at most 20 refused entries, every byte outside 0x20-0x7E shown as ?: never a raw name in the log
+            LC_ALL=C grep -zavE -m 20 -- "$SHAPE" "$listing" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
+              | while IFS= read -r entry; do echo "::error::not allowed in data/: $entry"; done || true
+            refuse "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): ${matched:-?} of ${total:-?} entries fit."
           fi
           base="${MAIN_PR_BASELINE:-}"
           if [ -z "$base" ]; then
@@ -789,6 +798,8 @@ jobs:
           while IFS= read -r -d '' f; do
             echo "::error::file over 50 MB: $f"; bad=1
           done < <(find "$dir" -type f -size +50M -print0)
+          # I-data: an empty artifact would empty data/ on main, and the gate would refuse every later run
+          if [ -z "$(find "$dir" -type f -print -quit)" ]; then echo "::error::the refreshed data holds no file."; bad=1; fi
           [ "$bad" = 0 ]
 
       # main-protect/actions-bypass-reopens-M1 (security M1, note-key/writer-reach-whole-list): main takes changes by
@@ -828,6 +839,23 @@ jobs:
           outside=$(git diff --name-only "$main_sha" HEAD -- . ':(exclude)data/')
           if [ -n "$outside" ]; then
             echo "::error::the data commit changes files outside data/. Nothing pushed:"; echo "$outside"; exit 1
+          fi
+          # I-data on the commit about to be pushed, the gate's checks (1)-(4) with the identical SHAPE (a test keeps
+          # them equal): data/ is a tree of regular files (also catches an executable bit cp -a carried over) with
+          # plain names, counted as bytes. Otherwise the gate would refuse every run after this merge.
+          SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.(json|yml)|changes\\.jsonl)$'
+          if [ "$(git cat-file -t HEAD:data 2>/dev/null || true)" != tree ]; then
+            echo "::error::data/ is not a folder in the data commit (I-data). Nothing pushed."; exit 1
+          fi
+          listing="$RUNNER_TEMP/push-data-tree"
+          git ls-tree -r -z HEAD -- data > "$listing"
+          total=$(LC_ALL=C tr -cd '\000' < "$listing" | wc -c)
+          matched=$(LC_ALL=C grep -zacE -- "$SHAPE" "$listing") || [ $? = 1 ]
+          if ! [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] || [ "$total" -lt 1 ] || [ "$matched" != "$total" ]; then
+            LC_ALL=C grep -zavE -m 20 -- "$SHAPE" "$listing" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
+              | while IFS= read -r entry; do echo "::error::not allowed in data/: $entry"; done || true
+            echo "::error::data/ in the data commit does not meet I-data (${matched:-?} of ${total:-?} entries fit). Nothing pushed."
+            exit 1
           fi
           branch="data/$day-run$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           git push origin "HEAD:refs/heads/$branch"

@@ -1,8 +1,10 @@
 # Protect main: create the "main: pull request required" ruleset, or update it if it already exists
 # (docs/ops/morning-note.md, step 2.0.1). Safe to run more than once: it never makes a second ruleset.
-# The ruleset has NO bypass: the daily update reaches main by its own pull request (the push job), so first this
-# turns on "Allow GitHub Actions to create and approve pull requests" (Settings > Actions > General), and it stops
-# before changing anything if main's workflow does not open data pull requests yet.
+# The ruleset has NO bypass: the daily update reaches main by its own pull request (the push job), so after writing
+# the ruleset (R1) this reads "Allow GitHub Actions to create and approve pull requests" (R2, Settings > Actions >
+# General) and main's sha, then turns R2 on, printing "R2 was off; main was <sha>" or "R2 already on": record that
+# line in docs/platform-facts.md "Main protection" (the start of the runbook 4.7.1 window, L-b). It stops before
+# changing anything if main's workflow does not open data pull requests yet.
 #
 # Needs: GitHub CLI (winget install GitHub.cli), signed in as the repository owner: gh auth login
 # Run (PowerShell, in the repository folder):
@@ -34,10 +36,6 @@ if ($LASTEXITCODE -ne 0 -or $wf -notmatch 'Open and merge the data pull request'
     exit 1
 }
 
-# Let the push job's GITHUB_TOKEN open and merge its data pull request.
-gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true --silent
-if ($LASTEXITCODE -ne 0) { Write-Host 'Turning on "Allow GitHub Actions to create and approve pull requests" failed (see above). Nothing else was changed. Send this output to the team.'; exit 1 }
-
 $ids = @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0) { Write-Host 'Could not list the rulesets (signed in as the owner?).'; exit 1 }
 
@@ -51,6 +49,24 @@ if ($ids.Count -eq 0) {
         gh api -X PUT "repos/$repo/rulesets/$id" --input $body --silent
         if ($LASTEXITCODE -ne 0) { Write-Host "Updating ruleset $id failed (see the message above). The ruleset may be unchanged. Send this output to the team."; exit 1 }
     }
+}
+
+# R1 first, then R2 (L-b): with R1 on nobody pushes main directly, and before R2 is on no workflow can open or merge
+# a pull request, so main's sha read now is where the window of runbook 4.7.1 starts. Then the push job's
+# GITHUB_TOKEN may open and merge its data pull request.
+$r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
+if ($r2 -eq 'true') {
+    Write-Host 'R2 already on'
+} elseif ($r2 -eq 'false') {
+    $mainSha = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
+    if ($mainSha -notmatch '^[0-9a-f]{40}$') {
+        Write-Host 'Could not read the main commit, so Allow GitHub Actions to create and approve pull requests was NOT turned on (the ruleset is written). Run this again; send this output to the team if it repeats.'; exit 1
+    }
+    gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true --silent
+    if ($LASTEXITCODE -ne 0) { Write-Host 'Turning on "Allow GitHub Actions to create and approve pull requests" failed (see above); the ruleset is written. Send this output to the team.'; exit 1 }
+    Write-Host "R2 was off; main was $mainSha"
+} else {
+    Write-Host "Could not read Allow GitHub Actions to create and approve pull requests ('$r2'); it was not changed (the ruleset is written). Send this output to the team."; exit 1
 }
 
 # The checks of step 2.0.
