@@ -300,6 +300,6 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
 
 ## Main protection (V1 probe, T4.10.1)
-- Not run yet. When it runs (runbook 2.0.4): the run link, the three merge answers, the review `commit_id` result,
+- Not run yet. When it runs (runbook 2.0.4): the run link, the four merge answers (REST squash, merge, rebase; GraphQL), the review `commit_id` result,
   and `main`'s sha before and after go here.
 - `github-pages` deployment branches after runbook 2.0.5: not checked yet.

@@ -511,6 +511,11 @@ def test_enabled_build_says_what_is_sent_on_the_landing_and_method_pages(enabled
     # sender/tags-seat-change: how to change lists or seats (no preferences page), right after how to stop
     assert f'{t["method_unsubscribe"]} {t["method_change"]}' in text
     assert "sign up again" in t["method_change"] and "unsubscribe" in t["method_change"]
+    # note/credit-logo-privacy: the email's footer logo is a remote image from this site, so Pages sees the open
+    assert f'{t["method_change"]} {t["method_logo"]}' in text
+    for words in ("loaded from this site when your email app shows images", "GitHub Pages, which hosts this site",
+                  "may see your IP address and when the image was loaded"):
+        assert words in t["method_logo"], words
     assert f'"{box}"' in text and "{box}" not in text
     for word in ("email address", "lists", "district and ward", "Example Mail", "unsubscribe"):
         assert word in text, word
@@ -525,11 +530,12 @@ def test_privacy_text_is_config_text(tmp_path, monkeypatch):
     cfg["morning_note"]["page"].update({
         "seats_sent": "SEATS-SENT to {provider} [{box}].", "method_heading": "METHOD-HEADING",
         "method_sent": "METHOD-SENT to {provider} [{box}].", "method_unsubscribe": "METHOD-STOP.",
-        "method_change": "METHOD-CHANGE.", "method_signup_link": "METHOD-LINK", "seats_include": "SEATS-INCLUDE: "})
+        "method_change": "METHOD-CHANGE.", "method_logo": "METHOD-LOGO.", "method_signup_link": "METHOD-LINK",
+        "seats_include": "SEATS-INCLUDE: "})
     pages = _build(tmp_path / "site", monkeypatch, cfg)
     # {box} is the form's own label without its colon (privacy-text/label-wording-drift)
     for want in ("SEATS-SENT to Example Mail [SEATS-INCLUDE].", "METHOD-HEADING",
-                 "METHOD-SENT to Example Mail [SEATS-INCLUDE].", "METHOD-STOP. METHOD-CHANGE.",
+                 "METHOD-SENT to Example Mail [SEATS-INCLUDE].", "METHOD-STOP. METHOD-CHANGE. METHOD-LOGO.",
                  "METHOD-LINK"):
         assert want in pages["method.html"], want
     assert "SEATS-SENT to Example Mail [SEATS-INCLUDE]." in pages["index.html"] and "SEATS-INCLUDE" in pages["alerts.html"]
@@ -541,7 +547,7 @@ def test_privacy_text_is_config_text(tmp_path, monkeypatch):
     ("method_sent", "It is sent to {provider}.", "must contain {box}"),
     ("method_sent", "It is sent.", "must contain {provider}"), ("method_heading", " ", "must be set"),
     ("method_unsubscribe", None, "must be set"), ("method_change", "", "must be set"), ("seats_include", "", "must be set"),
-    ("method_signup_link", "", "must be set")])
+    ("method_signup_link", "", "must be set"), ("method_logo", "", "must be set")])
 def test_config_refuses_missing_privacy_text(key, value, why):
     cfg = copy.deepcopy(config.SITE)
     cfg["morning_note"]["page"][key] = value

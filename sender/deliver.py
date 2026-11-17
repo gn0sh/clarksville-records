@@ -666,6 +666,12 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 step = "email check"
                 checked(payload, stored, key)
             else:
+                # sender/ids-no-invariant: this branch relies on two provider facts: a draft has no audience of its
+                # own (stored with no filter), and send_draft delivers it to exactly the listed subscriber ids. On
+                # Buttondown neither holds (T4.0 probe 2026-11-16, docs/platform-facts.md: send-draft mails only a
+                # "[PREVIEW]" to the account owner and the draft stays a draft; a draft comes back with an empty
+                # filters object). So `mode: ids` is not usable with Buttondown: config/site.yml keeps `stamp`, and
+                # ids may be switched on only for a provider whose probe shows both facts.
                 # Never twice before never missed: a run that dies between the draft and its send leaves the
                 # edition claimed (the draft carries the metadata), so a re-run does not send it again. That
                 # edition is then not mailed today; its records are on the site and the feeds.

@@ -44,3 +44,29 @@ The earlier report's detail was lost with the old thread, so security re-derived
 - Binding data merges to the daily run can't be made sound: no GitHub record links a PR or merge to the run that made it (branch name, body, message, author are all writable by any `GITHUB_TOKEN`), and a person with write can already merge a data-only PR by hand, which I-main deliberately doesn't check. data/ is untrusted input already (from public PDFs), read only via `json`/`yaml.safe_load`, rendered with autoescape.
 - Add: (1) gate shape check, inline, after the not-main exit and before the baseline check (runs in phase 0 too), git only: every `git ls-tree -r` entry under data/ is mode 100644 and named `*.json`, `*.yml` or `changes.jsonl`, else refuse. Verify `ls-tree` works on the blob:none partial clone without fetching blobs. (2) Test: across `.github/workflows/*.yml`, only daily-update.yml's `push` job may grant `contents: write` or `pull-requests: write`.
 - Residual paragraph added to `docs/architecture/main-protect-invariant.md`; I-main wording and row D say the gate checks data/'s shape; one line in ADR 0009 Consequences. Reopen if another workflow needs write permissions, or if the note ever sends without the E2 reviewer.
+
+## Security r3-gate-fixes 0a70bbe..6e3c019 (2026-11-17, opus/high): OK WITH FOLLOW-UPS, S-1 before merge
+- S-1 main-protect/shape-check-locale-fail-open (medium, 3rd main-protect hit): the gate's `grep -vE` on the data/ listing, under a UTF-8 locale, withholds lines with invalid UTF-8 ("binary file matches", exit 0), so a symlink named `data/\xff.json` passes. Reproduced with LC_ALL=C.UTF-8 (pass) vs LC_ALL=C (refuse). Fix: `LC_ALL=C grep -a`, plus count check (total lines == lines matching the allowed shape); test with non-UTF-8 names under C.UTF-8.
+- L-a main-protect/shape-absent-data (low): a tree with no data/ passes (empty listing); refuse unless `HEAD:data` is a tree and the listing is non-empty.
+- L-b main-protect/baseline-window-start (low): runbook 4.7.1 loop passes silently on a bad/placeholder sha; window should start when R2 was first turned on; record the sha, `set -e`, print "checked N commits", stop on N=0.
+- L-c v1-probe/verdict-race (low): verdict can be read while the run is still going; require run status completed, re-read `.merged` after cleanup.
+- Info: GraphQL refusal text unverified (record from first run); author_association is read-time (fail closed on removal); raw names in `::error::` (strip control chars); pre-existing `-ExecutionPolicy Bypass` in scripts/morning-note-probe.cmd/.ps1:4.
+- Holds: M-1 jq, check placement, -z parsing, type refusals, failed reads, partial clone, probe verdicts, GraphQL step privileges, write-permission test.
+- Loop rule: 3rd main-protect hit -> architect restates the data/ shape invariant (incl. encoding) before the fix.
+
+## Code review r3-gate-fixes 0a70bbe..e3f0240 (opus/high): REQUEST CHANGES
+- must-fix v1-probe/step-exits-on-first-refusal: `scripts/v1-probe/v1-probe.yml:26,34,46` runs under GitHub's default `bash -e`, so the first refused merge ends the step before any `V1-RESULT` line: every real probe would be INCONCLUSIVE 0 of 4 (pre-existing since #26). Fix `set +e` or `|| code=$?`; test runs the step text under `bash -e` with a refusing gh stub, expects four lines.
+- should-fix runbook/gate-message-drift (`morning-note.md:452`): quote the gate's real messages; add the restore step for "data/ is not a folder".
+- should-fix note/credit-logo-privacy (`config/site.yml:206`): "can see" -> "may see" (Gmail proxy, Apple MPP).
+- nits: main-protect/window-start-rationale (stale row S1 text, ls-remote vs gh api, protect-main comment overclaims R2), tests/suite-time (3-locale matrix only for byte-sensitive cases), tests/text-lint-brittle (plain `in` checks).
+
+## Security r3-gate-fixes 0a70bbe..e3f0240 (opus/high, fresh): OK WITH FOLLOW-UPS
+- low main-protect/r2-does-not-gate-merge (needs verification): R2 governs creating/approving PRs, not merging; wording in invariant :115, protect-main sh:34/ps1:54, v1-probe FAIL text overclaims. V1 FAIL output should also say to close every open PR into main. Impact bounded by the gate's merged_by check once the baseline is set.
+- nit main-protect/runbook-refusal-text: same as code review's message drift; add a test that the runbook carries the exact strings.
+- Info: ps1 text-only (compared by hand, agrees); `%0A` only changes annotation display.
+- Holds: shape check under C/C.UTF-8/en_US.UTF-8 incl. embedded newline and \xff records, push job check, M-1 (live: #25-27 reviews show OWNER), GraphQL privileges, protect-main order, 4.7.1 block; new tests fail on 0a70bbe; two mutants caught.
+
+## Fix round 3f0456e..2054262 (fresh code + security review, opus/high)
+- Code review: APPROVE WITH NITS. All earlier findings fixed; new bash -e test fails 3 of 4 cases on the old step. Nits: main-protect/window-start-rationale (if protect-main needs more than one run, the window starts at main's sha before the first run, or the architect picks it); v1-probe/node-read-under-e (log a V1-ERROR if the node_id read fails; fails safe as INCONCLUSIVE today).
+- Security: OK WITH FOLLOW-UPS, nothing critical/high/medium. Low main-protect/v1-fail-containment-incomplete (needs verification): after a V1 FAIL a workflow could reopen a closed PR whose head branch still exists; FAIL text should also say delete each closed PR's head branch, or disable Actions until the re-plan. Nits: node-read-under-e; main-protect/window-start-gap (read main's sha before writing R1).
+- Manager decision: merge now. The low/nit items above go into the baseline PR (T4.10.8), which must land before any send, and are listed under "Follow-ups for the baseline PR" in docs/tasks/morning-note.md.

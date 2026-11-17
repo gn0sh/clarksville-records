@@ -6,7 +6,8 @@ Status: proposed (software-architect, 2026-11-17), feature `morning-note` (T4.10
 ## Context
 The no-bypass ruleset moved the daily `data/` commit to a pull request the `push` job opens and merges with
 `GITHUB_TOKEN`, which needs "Allow GitHub Actions to create and approve pull requests". With that setting any
-workflow on any branch can merge a PR to main. Only the `note` job checked who merged each code commit; `update`
+workflow on any branch can open a PR to main, and with `contents: write` merge it (the setting governs creating and
+approving PRs, not merging: a workflow can merge any open PR, 2026-11-17 security note). Only the `note` job checked who merged each code commit; `update`
 built and `deploy` published bot-merged `sitegen/` or `collector/` code unchecked (M-A), and `update` checked out
 `main` at job time, not the run's commit (L-A). Workflow files are held only by GitHub refusing `GITHUB_TOKEN` a
 workflow change (V1), unverified for merges.
@@ -38,3 +39,6 @@ workflow change (V1), unverified for merges.
 - Until the baseline is set (phase 0) `update` and `deploy` run as today; that window should end the day the probe
   passes.
 - `github-pages` must lose its `gh-pages` deployment branch.
+- Data-only merges by any workflow stay unchecked by design (M-2, 2026-11-17: no GitHub record ties a merge to the run
+  that made it); the gate checks data/'s shape instead (100644 `*.json`, `*.yml`, `changes.jsonl` only), and a test
+  keeps `contents: write` and `pull-requests: write` to the push job alone.

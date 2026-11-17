@@ -2,15 +2,33 @@
 
 **Feature:** Daylight public-records site. **LIVE (soft opening) at https://daylight.gnoshcodes.com/ since 2026-11-13 ~1:08 AM CT.** No marketing until Brian's formal launch in January 2027 (after his council term); friends and family only.
 **Stage:** Live. Brian typed "launch" in thread "Launch the Daylight records site" (2026-11-13 12:40 AM CT), did go-live steps 1-6 (Pages source Actions, custom domain, Porkbun CNAME, HTTPS enforced, RECORDS_DEPLOY_ENABLED=true). PR #12 (live: true) merged; deploy run 43381404639 green. Report an error emails brian@gnoshcodes.com first (PR #18). Uptime: gnosh-uptime monitor.config.json (PR #15) + Better Stack (Brian). gh-pages preview no longer served (Pages source is Actions); removing gh-pages from the env branch policy is optional hygiene, not asked.
-**In review (Nov 14, branch claude/project-thread-di9pc4):** one header on the four body pages + a moon at its real Clarksville place and phase (Brian's Fable list items 1-2) + Fable once-over fix-now items 1-9 and 16 (findings: /mnt/project-files/clarksville-records/onceover/findings.md; Next items 10-15, 17-20 and Ideas A-D still open). Waits on Brian's phone check before merge (merging deploys).
-**Next:** after the Nov 16 reset: Fable once-over of the whole site; hub ideas (news tied to agenda items, Parks & Rec events, gas/water/CDE outages, city press releases, possible city partnership); Nov 18 batch (ADR 0006 list). Open option for Brian: hide the tip jar until his term ends (raised in thread, no answer yet; default keep).
+**Now (Nov 17, thread "Finish Clarksville Daylight by Wednesday"):** round 2 (PR #25), morning note switch-on + gate (PR #26) and the Pillow-free test fix (PR #27) are live since run 44055540243 (dispatched by hand 09:26 UTC; GitHub's 09:07 schedule had not fired). Gate/probe security follow-ups (M-1, M-2 residual + I-data shape check, L-2, L-3, S-1, L-a, L-b, L-c, GraphQL probe try, Method logo line) on branch claude/project-thread-xug1nx, PR pending. L-1 and three low follow-ups ride with the baseline PR (docs/tasks/morning-note.md T4.10.8).
+**Morning note:** nothing sends until, in order: Brian's runbook 2.0 steps, V1 probe PASS, baseline PR (T4.10.8), MORNING_NOTE_SEND set by Brian (hard stop). Sample approved; no test week.
+**Next:** Brian's 2.0 steps one at a time; after Wed: CMCSS meeting videos + transcripts (big PC), RPC 2019-2021 backfill, FY2025 city book, property-tax split.
+**Backlog (Nov 17):** full test suite now ~60-80 min in CI (was ~22 min Nov 16; job timeout 355 min): trim; GitHub's scheduled trigger fires late or not at all (Nov 16 ran 19:29 UTC; Nov 17 none by 09:26): consider a backup check; `-ExecutionPolicy Bypass` in scripts/morning-note-probe.cmd/.ps1 (pre-existing, against the runbook rule).
 
 ## Waiting on the CEO
-- (none)
+- Runbook 2.0 steps (protect main, env branch policy, run Daily update, V1 probe) | docs/ops/morning-note-brian-steps.md | one step at a time in this thread | to ask Nov 17 after the gate PR merges | default: no sends
+
+## Problem keys (Nov 16-17)
+- main-protect/: 3 hits (M1; V1 bot-merge family; S-1 shape-check-locale-fail-open). Invariant re-stated twice: docs/architecture/main-protect-invariant.md (I-data, Baseline window check). A 4th hit escalates to Brian per the loop rule.
+- audience/: 2. committees-privacy: 3 (earlier). v1-probe/: step-exits-on-first-refusal, verdict-from-main-sha, verdict-race (fixed).
 
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-17 | security-engineer | opus/high | re-derive gate follow-ups at 33da134 | OK with follow-ups (M-1, M-2, L-1..L-3, info) |
+| 2026-11-17 | software-architect | opus/high | M-2 decision | accept residual + gate shape check + write-permission test |
+| 2026-11-17 | devops-engineer | opus/high | gate/probe fixes 4a81221..6e3c019 | done; full suite 5231 pass, 1 fail (Pillow, pre-existing) fixed |
+| 2026-11-17 | code-reviewer | sonnet/medium | PR #27 Pillow-free test | approve (nit); merged 38b78d8 |
+| 2026-11-17 | security-engineer | opus/high | fresh 0a70bbe..6e3c019 | OK with follow-ups; S-1 medium (3rd main-protect hit) |
+| 2026-11-17 | software-architect | opus/high | loop rule: I-data invariant c8d920f | done |
+| 2026-11-17 | devops-engineer | opus/high (resumed) | I-data, window, S1 reorder, L-c e3f0240 | done; full suite 5326 pass |
+| 2026-11-17 | code-reviewer | opus/high | fresh 0a70bbe..e3f0240 | request changes (must-fix v1-probe/step-exits-on-first-refusal) |
+| 2026-11-17 | security-engineer | opus/high | fresh 0a70bbe..e3f0240 | OK with follow-ups (low r2-does-not-gate-merge) |
+| 2026-11-17 | devops-engineer | opus/high (resumed) | review fixes 2054262 | done; 641 affected pass |
+| 2026-11-17 | code-reviewer | opus/high | fresh 3f0456e..2054262 | approve with nits |
+| 2026-11-17 | security-engineer | opus/high | fresh 3f0456e..2054262 | OK with follow-ups (low, to baseline PR) |
 | 2026-11-14 | ux-designer | fable | site-wide once-over (code-based; no shell) | 9 fix-now, 11 next, 4 ideas |
 | 2026-11-14 | frontend-engineer | fable | once-over items 1-9, 16 (aec3cba..456b7c6) | done; 2848 pass, site_checks PASS |
 | 2026-11-14 | code-reviewer | opus/high | fresh cef4e6a..456b7c6 | request changes (must-fix onceover/touch/hit-area-covers-source-link; 2 should-fix; nits) |

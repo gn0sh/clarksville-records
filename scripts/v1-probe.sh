@@ -9,10 +9,14 @@
 #      and opens its pull request into main (author: you);
 #   3. posts a COMMENT review on it pinned to the OLDER commit and checks GitHub keeps that commit_id (step 4);
 #   4. pushes probe/v1-runner (main plus .github/workflows/v1-probe.yml), which starts a run that tries to merge the
-#      pull request with GITHUB_TOKEN: squash, then merge, then rebase;
-#   5. reads the run's answers and main's sha before and after, prints PASS, FAIL or INCONCLUSIVE, and cleans up
-#      (closes the pull request, deletes both probe branches).
-# On FAIL (a merge went through) it turns "Allow GitHub Actions to create and approve pull requests" off at once.
+#      pull request with GITHUB_TOKEN: squash, then merge, then rebase (REST), then GraphQL mergePullRequest;
+#   5. reads the run's answers, whether the probe PR merged, whether v1-canary.yml is on main, and main's sha before
+#      and after; prints PASS, FAIL or INCONCLUSIVE, and cleans up (closes the PR, deletes both probe branches).
+# FAIL means the probe PR merged (the run's own merge answer, or the PR reads merged) or v1-canary.yml is on main
+# (v1-probe/verdict-from-main-sha): then it turns "Allow GitHub Actions to create and approve pull requests" off at
+# once. main moving for another reason, or a read that failed, is INCONCLUSIVE and leaves that setting on.
+# v1-probe/verdict-race (L-c): the run must read `completed` before its answers count (else INCONCLUSIVE), and a PASS
+# or INCONCLUSIVE stands only if the probe PR, read again after cleanup closed it, is still unmerged.
 # Writes the result to v1-probe-results-<time>.txt in RESULTS_DIR (default: the home folder). Nothing is sent.
 set -euo pipefail
 repo=gn0sh/clarksville-records
@@ -36,8 +40,9 @@ if ! [[ "$data_prs" =~ ^[0-9]+$ ]] || [ "$data_prs" -lt 1 ]; then
 fi
 
 : > "$results"
-main_before=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')
+main_before=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true)
 log "V1 probe $(date -u +%FT%TZ). main before: $main_before"
+if ! [[ "$main_before" =~ ^[0-9a-f]{40}$ ]]; then log "INCONCLUSIVE: could not read main. Nothing was changed."; exit 1; fi
 api_quiet -X DELETE "repos/$repo/git/refs/heads/$target"          # leftovers of an earlier try
 api_quiet -X DELETE "repos/$repo/git/refs/heads/$runner"
 cleanup() {
@@ -73,28 +78,63 @@ for _ in $(seq 1 18); do
   if [ -n "$run" ]; then break; fi
   sleep 10
 done
-if [ -z "$run" ]; then log "INCONCLUSIVE: the probe run did not start within 3 minutes. Send this output to the team."; exit 1; fi
-log "Probe run: https://github.com/$repo/actions/runs/$run"
-gh run watch "$run" --repo "$repo" >/dev/null 2>&1 || true
-lines=$(gh run view "$run" --repo "$repo" --log 2>/dev/null | grep -oE "V1-(RESULT|MERGED) (squash|merge|rebase).*" || true)
-main_after=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')
-while IFS= read -r line; do [ -n "$line" ] && log "$line"; done <<< "$lines"
-log "main after: $main_after"
-
-refused=$(grep -cE "^V1-RESULT (squash|merge|rebase) exit=[1-9]" <<< "$lines" || true)
-named=$(grep -E "^V1-RESULT (squash|merge|rebase) exit=[1-9]" <<< "$lines" | grep -ci "workflow" || true)
-if grep -qE "^V1-MERGED (squash|merge|rebase)" <<< "$lines" || [ "$main_after" != "$main_before" ]; then
+turn_r2_off() {
   log "FAIL (V1 false): GITHUB_TOKEN merged a workflow change into main. Turning off 'Allow GitHub Actions to create and approve pull requests' now."
   gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
-    && log "Turned off. The daily update now stops saving data (the safe state)." \
+    && log "Turned off: workflows can no longer open pull requests, so the daily update stops saving data." \
     || log "Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now."
+  log "This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain"
   log "Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team."
-  num=""                                   # the pull request is merged: nothing to close
+}
+# v1-probe/verdict-race (L-c): a PASS or INCONCLUSIVE is final only after cleanup closed the probe pull request and
+# a fresh read still shows it unmerged; a merge that landed meanwhile turns it into FAIL.
+finish() {   # $1: 0 (PASS) or 1 (INCONCLUSIVE); $2: the verdict line
+  trap - EXIT
+  cleanup
+  local again
+  again=$(gh api "repos/$repo/pulls/$num" --jq '.merged' 2>/dev/null || true)
+  log "Probe pull request merged, read again after cleanup: ${again:-unread}"
+  if [ "$again" = true ]; then turn_r2_off; exit 2; fi
+  if [ "$1" = 0 ] && [ "$again" != false ]; then
+    log "INCONCLUSIVE: the probe pull request could not be read again after cleanup. Send this output to the team."; exit 1
+  fi
+  log "$2"
+  exit "$1"
+}
+if [ -z "$run" ]; then finish 1 "INCONCLUSIVE: the probe run did not start within 3 minutes. Send this output to the team."; fi
+log "Probe run: https://github.com/$repo/actions/runs/$run"
+gh run watch "$run" --repo "$repo" >/dev/null 2>&1 || true
+status=$(gh run view "$run" --repo "$repo" --json status --jq '.status' 2>/dev/null || true)
+log "Probe run status: ${status:-unread}"
+lines=$(gh run view "$run" --repo "$repo" --log 2>/dev/null | grep -oE "V1-(RESULT|MERGED) (squash|merge|rebase|graphql).*" || true)
+main_after=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true)
+while IFS= read -r line; do [ -n "$line" ] && log "$line"; done <<< "$lines"
+log "main after: $main_after"
+# The verdict comes from the probe PR and the canary file, not from main's sha (any other merge moves main).
+pr_merged=$(gh api "repos/$repo/pulls/$num" --jq '.merged' 2>/dev/null || true)
+canary=unread
+if canary_out=$(gh api "repos/$repo/contents/.github/workflows/v1-canary.yml?ref=main" --jq '.sha' 2>&1); then
+  if [[ "$canary_out" =~ ^[0-9a-f]{40}$ ]]; then canary=on-main; fi
+elif grep -q "HTTP 404" <<< "$canary_out"; then
+  canary=absent
+fi
+log "Probe pull request merged: ${pr_merged:-unread}. v1-canary.yml on main: $canary"
+
+refused=$(grep -cE "^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]" <<< "$lines" || true)
+named=$(grep -E "^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]" <<< "$lines" | grep -ci "without .workflows. permission" || true)
+if grep -qE "^V1-MERGED (squash|merge|rebase|graphql)" <<< "$lines" || [ "$pr_merged" = true ] || [ "$canary" = on-main ]; then
+  turn_r2_off
+  if [ "$pr_merged" = true ]; then num=""; fi   # the pull request is merged: nothing to close
   exit 2
 fi
-if [ "$refused" = 3 ] && [ "$named" = 3 ] && [ "$review_ok" = yes ]; then
-  log "PASS: all three merges refused for the workflows permission, main unchanged, review commit_id kept. Send this output to the team."
-  exit 0
+if [ "$status" != completed ]; then
+  finish 1 "INCONCLUSIVE: the probe run had not finished ('${status:-unread}'), so its answers are not final. 'Allow GitHub Actions to create and approve pull requests' is left on. Send this output to the team."
 fi
-log "INCONCLUSIVE: refused $refused of 3, $named naming the workflows permission, review commit_id kept: $review_ok. Send this output to the team."
-exit 1
+if [ "$pr_merged" != false ] || [ "$canary" != absent ] || ! [[ "$main_after" =~ ^[0-9a-f]{40}$ ]] \
+   || [ "$main_after" != "$main_before" ]; then
+  finish 1 "INCONCLUSIVE: the probe pull request is not shown merged, but main moved during the probe or a read failed (see above). 'Allow GitHub Actions to create and approve pull requests' is left on. Send this output to the team."
+fi
+if [ "$refused" = 4 ] && [ "$named" = 4 ] && [ "$review_ok" = yes ]; then
+  finish 0 "PASS: all four merges (squash, merge, rebase, GraphQL) refused for the workflows permission, main unchanged, review commit_id kept. Send this output to the team."
+fi
+finish 1 "INCONCLUSIVE: refused $refused of 4, $named naming the workflows permission, review commit_id kept: $review_ok. Send this output to the team."
