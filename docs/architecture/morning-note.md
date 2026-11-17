@@ -60,7 +60,7 @@ today's), `morning/index.html`. Files are always written, an empty `entries` mea
 {"schema": "morning-note/1", "date": "2026-11-11", "window": {"from": "2026-11-10T07:00-06:00", "to": "...T07:00-06:00"},
  "data_as_of": "2026-11-11", "lists": [{"key": "zoning", "label": "Zoning near me"}, ...],
  "entries": [{"id": "rpc/case/Z-12-2026/rpc-2026-11-24", "lists": ["zoning"], "kind": "agenda_item|vote|document|solicitation",
-   "body": "rpc", "body_name": "...", "meeting_date": "2026-11-24", "title": "<verbatim>", "recorded": "On the agenda",
+   "body": "rpc", "body_name": "...", "meeting_date": "2026-11-24", "meeting": "meeting", "title": "<verbatim>", "recorded": "On the agenda",
    "district": 7, "ward": 6, "href": "rpc/meetings/2026.html#...", "source": {"url": "...", "page": 3}}],
  "unplaced_zoning": 0}
 ```
@@ -110,6 +110,11 @@ T1 additions (additive; T3 and the sender may rely on them):
 - each entry's meeting (`meeting_date`, the id's meeting part, a fallback title and link) is the fact's own
   `meeting_id`; a source named by two meetings (minutes covering both) gives each fact its own meeting, and a
   `document` entry for each meeting when nothing in it is itemised;
+- every entry from a meeting carries `meeting` (2026-11-17, note/entry-meeting): which meeting it is, in the site's
+  own words for that body's meeting kinds (`kind_labels`, lower case: "formal meeting", "informal meeting", "regular
+  session"), else config `morning_note.text.meeting` ("meeting", RPC); `null` with `meeting_date` (a budget book,
+  a solicitation). The same item on two agendas (real data: 26-11-4 on the Nov 2 informal and Nov 9 formal county
+  agendas) so reads as two meetings, not a duplicate. It is in `own_text`, so the neutrality scan reads it;
 - every zoning entry carries `case`: the case number in its one comparable form (rpc_minutes.link_key), `null` on
   other entries; `unplaced_zoning` counts distinct cases (a case on an agenda and in the minutes is one case).
 
@@ -236,8 +241,9 @@ left out: those people get nothing.
 The plan is a pure function of the note and config: two runs on the same note give byte-identical files. It holds
 no subscriber data, so it is safe as a build artifact in a public repository.
 
-Body (`render.py`): the site name and date, then per picked list its config label and the entries placed under it: body name,
-`recorded`, the verbatim title, a link to the site page (`alerts.site_url` + `href`) and the source link; then
+Body (`render.py`): the site name and date, then per picked list its config label and the entries placed under it: body name
+and meeting (config `morning_note.text.meeting_line`, "{body}, {date} {meeting}": "Montgomery County Commission, November
+9, 2026 formal meeting"; the body alone for an entry with no meeting), `recorded`, the verbatim title, a link to the site page (`alerts.site_url` + `href`) and the source link; then
 `unplaced_text` when set; then one config line saying why the reader got this. Rules:
 - every title and URL is HTML-escaped, and `{{`, `{%` and a leading `---` are neutralised, because the body goes
   through the provider's own template and Markdown step (a record's title is untrusted text);
@@ -335,8 +341,8 @@ morning_note:
   "over-limit"). The plan stage instead caps the size of what it writes (`MAX_PLAN_BYTES`, 32 MB), and the deliver
   command refuses a larger plan file. The fixture's real RPC agenda (27 cases printing 7 districts and 3 wards)
   gives 191 editions and about 2.7 MB of files (plan.json about 1.1 MB), so **T4.5's "under 2 MB" artifact check
-  must be raised** (to `MAX_PLAN_BYTES`). The shipped `max_editions: 80` is kept for the canary weeks; revisit it
-  before `canary_only` goes false.
+  must be raised** (to `MAX_PLAN_BYTES`). `max_editions` was 80 for the canary weeks; it is **400** since
+  2026-11-17 (see "Switch-on").
 - **Open: the unplaced line** is printed in every edition of a day that has one, as "Body" above says; the preview
   page shows it only to a reader who picked zoning.
 - **Every edition says the site is independent and unofficial** (review `render/no-independence-line`): the
@@ -499,9 +505,21 @@ Notes for the security review (each is a judgment call unless marked):
   `note_edition`, which only the stray-stamp check reads. Tests: `test_hostile_tags_are_ignored_not_passed_on`,
   `test_metadata_never_names_an_audience`, `test_a_metadata_write_other_than_one_stamp_is_refused_before_any_request`.
 - **`canary_only: false`:** the first live morning reaches every confirmed subscriber. Bounds that stay:
-  `max_recipients` 2000 and `max_editions` 80 (a run over either sends nothing). A busy real day gives up to about
-  190 editions in the plan, so with many subscribers of different shapes a run could stop at "over-limit": loud,
-  nothing sent, but revisit before the list grows.
+  `max_recipients` 2000 and `max_editions` (a run over either sends nothing, loud).
+- **`max_editions` 400 (was 80; sender/max-editions-busy-day).** A busy real day plans up to 191 editions (day D's
+  RPC agenda), so with the whole list on and many shapes, 80 would have sent nothing that morning. Every edition
+  with a recipient has at least one, so the editions a run creates are never more than its recipients; 400 is
+  about twice the busiest day measured and is a guard against a runaway, not a daily limit. Based on: Buttondown's
+  documented limit of 600 requests a minute on every endpoint (table below; the client paces 5 a second and
+  honours a 429's Retry-After); no per-day or per-run email limit in the docs read on 2026-11-10 or seen in the
+  probe (none known, not proven absent); and run time: an email per edition plus 2 requests per stamped subscriber
+  (re-read, stamp), so a run at the cap is at least 1,200 requests, about 4 minutes at 5 a second, inside the note
+  job's 15-minute timeout and the 07:00 to 10:00 window. Tests: `test_a_190_edition_day_is_sent_whole_with_the_
+  shipped_limits` (both modes, each edition once, a second run sends nothing) and `test_a_busy_day_cut_off_part_
+  way_is_finished_by_a_rerun_without_sending_twice`. **Open:** `max_recipients` 2000 is about 4,000 stamp requests,
+  about 14 minutes at 5 a second, close to the job's 15; a run cut off there leaves the rest of that day unsent
+  (never twice). It cannot bind on the free plan (100 subscribers); lower it or raise the timeout before the list
+  passes about 1,000.
 - **Not changed and still open:** the open-redirect check of the government source hosts in `link_hosts`
   (runbook section 4 item 2).
 

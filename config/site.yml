@@ -127,6 +127,11 @@ morning_note:
     contract_document: New document
     unplaced_zoning: "{n} zoning cases printed no district or ward"
     unplaced_zoning_one: "1 zoning case printed no district or ward"
+    # note/entry-meeting: which meeting each email entry is from. {meeting} is the site's own label for that body's
+    # meeting kind, lower case ("formal meeting", "regular session"), or `meeting` when the body's labels are not
+    # meeting kinds (the RPC's). {date} as the site writes a day ("November 9, 2026").
+    meeting: meeting
+    meeting_line: "{body}, {date} {meeting}"
   enabled: true         # switched on (runbook docs/ops/morning-note.md section 4 item 4); the form is public
   provider: Buttondown  # who receives the form, printed in its sent line; required when enabled; code never branches on it
   form_action: "https://buttondown.com/api/emails/embed-subscribe/daylight"       # the live newsletter (username `daylight`, T4.0 probe 2026-11-16); https URL the sign-up form POSTs to
@@ -149,7 +154,12 @@ morning_note:
     mode: stamp              # stamp | ids. T4.0 probe 2026-11-16: stamp works; ids cannot (send-draft only previews)
     send_at: "07:00"         # site_timezone
     latest_send: "10:00"     # a run that ends later than this skips the day; a note is never sent late
-    max_editions: 80
+    # Emails one run may create (editions with a recipient). 2026-11-17, was 80: a busy real day plans up to 191
+    # editions, so 80 would have sent nothing. 400 is about twice that. Basis (architecture "max_editions"):
+    # Buttondown's documented 600 requests a minute (the client paces 5 a second), no per-day email limit in the
+    # docs read or the probe, and one run's requests (an email per edition plus 2 per stamped subscriber, at most
+    # 400 + 800) take about 4 minutes at that pace, inside the note job's 15.
+    max_editions: 400
     max_recipients: 2000
     canary_only: false       # Brian, 2026-11-16: no canary week; every confirmed subscriber. true: only the ids in the note job's MORNING_NOTE_CANARY_IDS secret; none listed: nobody
     # The only hosts an email may link to (the plan stage drops any other link; the deliver stage refuses a body with

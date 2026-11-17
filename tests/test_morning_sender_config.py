@@ -34,7 +34,7 @@ def test_the_shipped_block_is_on_and_clean():
     week). The off state stays clean too (conftest.note_off)."""
     s = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]["sender"]   # the file, not the env
     assert s == {"enabled": True, "provider": "buttondown", "api_base": "https://api.buttondown.com/v1",
-                 "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 80,
+                 "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 400,
                  "max_recipients": 2000, "canary_only": False, "link_hosts": s["link_hosts"], "text": s["text"]}
     assert sorted(s["text"]) == ["open_site", "subject", "why"]
     assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []

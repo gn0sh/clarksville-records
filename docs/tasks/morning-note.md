@@ -234,6 +234,8 @@ switched on with `mode: stamp` and `canary_only: false` (Brian, 2026-11-16: no c
 assumed the shipped config was off build their own (`conftest.note_off`, `conftest.shipped_with`). Security notes:
 architecture "Switch-on: tags, and the security notes". Before `MORNING_NOTE_SEND`: runbook section 4 item 4a (one
 real sign-up shows the tags) and Brian's approval of the sample note.
+Before review (2026-11-17): each entry names its meeting day and kind (`meeting`, `text.meeting_line`;
+note/entry-meeting), and `max_editions` is 400, was 80 (sender/max-editions-busy-day; a 190-edition day is sent whole).
 
 ### T4.8 Security review
 Fresh review at the T4.5 commit against the nine threat points in the architecture. The workflow job does not merge

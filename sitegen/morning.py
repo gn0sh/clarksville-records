@@ -40,7 +40,7 @@ FOLDER = "morning"
 LIST_KEYS = ("zoning", "seats", "budget", "contracts")
 KINDS = ("agenda_item", "vote", "document", "solicitation")
 TEXT_KEYS = ("agenda_item", "vote", "vote_unconfirmed", "agenda", "minutes", "budget_book", "solicitation",
-             "contract_document", "unplaced_zoning", "unplaced_zoning_one")
+             "contract_document", "unplaced_zoning", "unplaced_zoning_one", "meeting", "meeting_line")
 # `morning_note.page`: every word the sign-up section and the preview page print (sitegen/morning_page.py), and the
 # placeholders each one must keep.
 PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_heading": (), "no_feed": (),
@@ -115,6 +115,9 @@ def problems(cfg: dict) -> list[str]:
                 if not (isinstance(text.get(k), str) and text[k].strip())]
         if isinstance(text.get("unplaced_zoning"), str) and "{n}" not in text["unplaced_zoning"]:
             out.append("morning_note.text.unplaced_zoning must contain {n}")
+        line = text.get("meeting_line")
+        out += [f"morning_note.text.meeting_line must contain {m}" for m in ("{body}", "{date}", "{meeting}")
+                if isinstance(line, str) and m not in line]
     page = mn.get("page")
     if not isinstance(page, dict):
         out.append("morning_note.page must be a mapping (the sign-up section's and preview page's text)")
@@ -326,12 +329,21 @@ def _stamp(dt: datetime) -> str:
 
 # ---------------------------------------------------------------------------------------------- documents
 def _entry(**kw) -> dict:
-    e = {"id": None, "lists": [], "kind": None, "body": None, "body_name": None, "meeting_date": None, "title": None,
+    e = {"id": None, "lists": [], "kind": None, "body": None, "body_name": None, "meeting_date": None, "meeting": None,
+         "title": None,
          "title_ours": False, "recorded": None, "district": None, "ward": None, "case": None, "seat_body": None,
          "href": None, "source": {"url": None, "page": None}}
     e.update(kw)
     e["lists"] = [k for k in LIST_KEYS if k in e["lists"]]
     return e
+
+
+def _kind(ix, m: dict, txt: dict) -> str:
+    """Which meeting an entry is from, in the site's own words for that body's meeting kinds (`kind_labels`, as the
+    meeting pages print them, lower case: "formal meeting", "regular session"), else morning_note.text.meeting. Two
+    agendas of one item (an informal and a formal meeting) then never read as a duplicate (note/entry-meeting)."""
+    label = (getattr(ix, "kind_labels", None) or {}).get(m.get("kind"))
+    return label.lower() if isinstance(label, str) and label.strip() else txt["meeting"]
 
 
 def _number_title(number: str | None, title: str) -> str:
@@ -417,7 +429,7 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                 vote_on = views.outcome_kind_label(fact.get("outcome_text")) if confirmed else None
                 entries.append(_entry(
                     id=f"{body}/vote/{fact['id']}", kind="vote", body=body, body_name=body_name,
-                    meeting_date=m["date"], title=title,
+                    meeting_date=m["date"], meeting=_kind(ix, m, txt), title=title,
                     lists=["seats"] + (["budget"] if it and "budget" in views.item_types(it) else [])
                     + (["zoning"] if case else []),
                     recorded=txt["vote"] if confirmed else txt["vote_unconfirmed"], seat_body=seat_body,
@@ -439,7 +451,8 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                 case = zoning.county_case(it.get("number")) if zoning else None
                 entries.append(_entry(
                     id=f"{body}/item/{item_id}/{m['id']}", kind="agenda_item", body=body, body_name=body_name,
-                    meeting_date=m["date"], title=_number_title(it.get("number"), ix.item_title(it)),
+                    meeting_date=m["date"], meeting=_kind(ix, m, txt),
+                    title=_number_title(it.get("number"), ix.item_title(it)),
                     lists=["seats"] + (["budget"] if "budget" in views.item_types(it) else [])
                     + (["zoning"] if case else []), title_ours=not it.get("title"),
                     recorded=txt["agenda_item"], seat_body=seat_body, href=ix.item_href(it),
@@ -447,7 +460,8 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
         if not entries:     # nothing itemised: the document itself, once for each meeting naming it
             entries += [_entry(
                 id=f"{body}/meeting/{m['id']}/{s['kind']}", kind="document", body=body, body_name=body_name,
-                meeting_date=m["date"], title=ix.meeting_label(m), title_ours=True, lists=["seats"],
+                meeting_date=m["date"], meeting=_kind(ix, m, txt),
+                title=ix.meeting_label(m), title_ours=True, lists=["seats"],
                 seat_body=seat_body, recorded=txt["minutes"] if s["kind"] == "minutes" else txt["agenda"],
                 href=ix.meeting_href(m["id"]), source={"url": s["url"], "page": None}) for m in named_by]
         docs.append({"url": s["url"], "entries": entries})
@@ -478,14 +492,16 @@ def _agenda_only_documents(ax, ix, body: str, body_name: str, txt: dict, zoning:
             title = _number_title(it["number"], it.get("title") or it["number"] or "")
             href = ix.item_href(known) if known else (ax.href(m["id"]) if m["id"] in listed else county_agendas.PAGE)
             entries.append(_entry(
-                id=eid, kind="agenda_item", body=body, body_name=body_name, meeting_date=m["date"], title=title,
+                id=eid, kind="agenda_item", body=body, body_name=body_name, meeting_date=m["date"],
+                meeting=_kind(ix, m, txt), title=title,
                 lists=["seats"] + (["budget"] if "budget" in views.item_types(it) else []) + (["zoning"] if case else []),
                 recorded=txt["agenda_item"], seat_body="district", href=href,
                 source={"url": f"{s['url']}#page={it['page']}", "page": it["page"]}, **_seat_fields(case)))
         if not entries:
             entries.append(_entry(
                 id=f"{body}/meeting/{m['id']}/agenda", kind="document", body=body, body_name=body_name,
-                meeting_date=m["date"], title=f"{m['date']}, {ix.kind_labels.get(m['kind'], m['kind']).lower()}",
+                meeting_date=m["date"], meeting=_kind(ix, m, txt),
+                title=f"{m['date']}, {ix.kind_labels.get(m['kind'], m['kind']).lower()}",
                 title_ours=True, lists=["seats"], seat_body="district", recorded=txt["agenda"],
                 href=ax.href(m["id"]) if m["id"] in listed else county_agendas.PAGE,
                 source={"url": s["url"], "page": None}))
@@ -515,7 +531,8 @@ def _rpc_documents(rpx, txt: dict, zoning: _Zoning) -> list[dict]:
                 continue
             m = meetings[f["meeting_id"]]
             href = f"{rpx.year_href(m['date'][:4])}#{rpx.case_anchor(c)}" if c["meeting_id"] in meetings else None
-            common = dict(body=body, body_name=name, meeting_date=m["date"], title=_case_title(c), lists=["zoning"],
+            common = dict(body=body, body_name=name, meeting_date=m["date"], meeting=txt["meeting"],
+                          title=_case_title(c), lists=["zoning"],
                           **_seat_fields(c), href=href,
                           source={"url": f"{s['url']}#page={f['page']}", "page": f["page"]})
             if what == "case":
@@ -696,6 +713,7 @@ def own_text(note: dict) -> list[str]:
     out = [x["label"] for x in note["lists"]] + ([note["unplaced_text"]] if note["unplaced_text"] else [])
     for e in note["entries"]:
         out += [e["recorded"], e["body_name"]] + ([e["title"]] if e.get("title_ours") else [])
+        out += [e["meeting"]] if e.get("meeting") else []       # the site's kind label or text.meeting (config)
         out += [e["vote_on"]] if e.get("vote_on") else []       # a fixed config label, never the record's text
         out += [e["watch"]["link"], e["watch"]["label"]] if e.get("watch") else []   # config text
     return out

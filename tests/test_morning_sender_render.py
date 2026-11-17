@@ -251,6 +251,47 @@ def test_the_text_version_reads_the_same_edition():
     assert CTX["text"]["why"] in text and CTX["email_line"] in text
 
 
+# ------------------------------------------------------------------ note/entry-meeting
+TWO = (entry(id="county/item/26-11-4/2026-11-02-informal", meeting_date="2026-11-02", meeting="informal meeting"),
+       entry(id="county/item/26-11-4/2026-11-09-formal", meeting_date="2026-11-09", meeting="formal meeting"))
+
+
+def test_each_entry_names_its_meeting_day_and_kind_in_both_bodies():
+    """Two agendas of one item (real data: 26-11-4, the Nov 2 informal and Nov 9 formal agendas) read as two
+    meetings, not a duplicate. The line is config morning_note.text.meeting_line filled with the record's own body,
+    day and the site's kind label."""
+    line = config.SITE["morning_note"]["text"]["meeting_line"]
+    want = [line.replace("{body}", "Fixture Commission").replace("{date}", d).replace("{meeting}", k)
+            for d, k in (("November 2, 2026", "informal meeting"), ("November 9, 2026", "formal meeting"))]
+    assert want == ["Fixture Commission, November 2, 2026 informal meeting",
+                    "Fixture Commission, November 9, 2026 formal meeting"]
+    n = note_of(*TWO)
+    text, html = render.body_text(CTX, n, n["entries"]), render.body_html(CTX, n, n["entries"])
+    assert [f"  {w}" in text.split("\n") for w in want] == [True, True]
+    shown = [x.all_text() for x in parse(html).walk() if x.tag == "li"]
+    assert [sum(w in s for s in shown) for w in want] == [1, 1]
+
+
+@pytest.mark.parametrize("kw", [{"meeting": None}, {"meeting": "  "}, {"meeting_date": None},
+                                {"meeting_date": "2026-13-40"}, {"meeting_date": "Nov 9"}, {"meeting": 3}])
+def test_an_entry_without_a_meeting_is_its_body_alone(kw):
+    e = entry(**{"meeting": "formal meeting", **kw})
+    assert render.who_when(CTX, e) == "Fixture Commission"
+    assert "None" not in render.body_text(CTX, note_of(e), [e])
+
+
+def test_the_meeting_words_are_escaped_like_every_other_field():
+    e = entry(meeting="<b>{{ x }}</b> [z](https://evil.example.com)")
+    html = html_of(e)
+    assert tags(html) == {"h1", "p", "h2", "ul", "li", "br", "strong", "a"}
+    assert "{{" not in html and "evil.example.com" not in "".join(links(html))
+
+
+def test_the_meeting_line_is_config_text_in_the_neutrality_scan():
+    assert CTX["meeting_line"] in render.own_text(CTX, note_of())
+    assert BANNED.search(CTX["meeting_line"]) is None
+
+
 # ------------------------------------------------------------------ render/no-independence-line
 UNOFF = config.SITE["unofficial"]
 SUPPORT = {"support_line": config.SITE["support_line"], "support_url": config.SITE["support_url"]}

@@ -6,6 +6,7 @@ import contextlib
 import copy
 import dataclasses
 import io
+import re
 import socket
 import subprocess
 import sys
@@ -239,6 +240,60 @@ def test_max_editions_counts_only_editions_with_a_recipient_before_the_first_wri
         assert go(plan, Fake(people(plan)), s=settings(mode=mode, max_editions=3))[0].editions == 3
     shipped = settings_mod.load(ROOT / "config" / "site.yml").max_editions
     assert go(plan, Fake(people(plan)), s=settings(max_editions=shipped))[0].status == "sent"
+
+
+def busy_day(plan, n: int = 190) -> list[dict]:
+    """n made-up subscribers, each alone in an edition of their own: the busiest day we have measured (day D's real
+    RPC agenda, 27 cases printing 7 districts and 3 wards, plans 191 editions) with the whole list on."""
+    first = {}
+    for sig, key in sorted(plan["signatures"].items()):
+        first.setdefault(key, sig)
+    assert len(first) >= n
+    out = []
+    for i, sig in enumerate(sorted(first.values())[:n]):
+        lists, d, w = sig.split("|")
+        out.append(sub(i + 1, lists.split(","), None if d == "-" else int(d), None if w == "-" else int(w)))
+    return out
+
+
+@pytest.mark.parametrize("mode", ["stamp", "ids"])
+def test_a_190_edition_day_is_sent_whole_with_the_shipped_limits(plan, mode):
+    """sender/max-editions-busy-day: with the old cap (80) a busy day with the whole list on sent nothing. With the
+    shipped limits all 190 editions go, each once, to exactly its one person, and a second run sends nothing more."""
+    import yaml
+    shipped = settings_mod.load(ROOT / "config" / "site.yml")
+    fake = Fake(busy_day(plan))
+    res, text = go(plan, fake, s=settings(mode=mode))
+    assert (res.code, res.status, res.editions, res.recipients) == (0, "sent", 190, 190), text
+    assert len({p["metadata"]["note_edition"] for p in fake.created}) == len(fake.created) == 190
+    if mode == "stamp":
+        assert sorted(len(fake.audience(p)) for p in fake.created) == [1] * 190
+        assert set().union(*(fake.audience(p) for p in fake.created)) == set(fake.subs)
+    else:
+        assert sorted(len(ids) for _, ids in fake.sent_drafts) == [1] * 190
+    # the run fits the note job: every request at the client's pace (buttondown.py MIN_INTERVAL, read from the
+    # file: this suite never imports the client) in under half its timeout, the busy day and a run at max_editions
+    # alike (2 requests per stamped subscriber, 1 per email)
+    pace = float(re.search(r"(?m)^MIN_INTERVAL = ([0-9.]+)", (ROOT / "sender" / "buttondown.py").read_text()).group(1))
+    job = yaml.safe_load((ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8"))
+    budget = job["jobs"]["note"]["timeout-minutes"] * 60 / 2
+    assert pace > 0 and len(fake.calls) * pace < budget
+    assert (2 + 3 * shipped.max_editions) * pace < budget
+    again, _ = go(plan, fake, s=settings(mode=mode))
+    assert (again.status, again.editions, len(fake.created)) == ("sent", 0, 190)      # never twice
+
+
+def test_a_busy_day_cut_off_part_way_is_finished_by_a_rerun_without_sending_twice(plan):
+    """A run stopped after 100 of 190 emails (a provider error, the job's timeout) leaves those 100 claimed; the
+    next run of the same plan creates the other 90 and none of the first 100 again."""
+    fake = Fake(busy_day(plan), fail={"create_email": [None] * 100 + [deliver.ProviderError("email create")]})
+    res, _ = go(plan, fake)
+    assert (res.code, res.status, res.editions, len(fake.created)) == (1, "failed", 100, 100)
+    res, _ = go(plan, fake)
+    assert (res.code, res.status, res.editions) == (0, "sent", 90)
+    editions = [p["metadata"]["note_edition"] for p in fake.created]
+    assert len(editions) == len(set(editions)) == 190
+    assert sorted(len(fake.audience(p)) for p in fake.created) == [1] * 190
 
 
 @pytest.mark.parametrize("change", [

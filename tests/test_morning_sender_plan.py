@@ -338,13 +338,15 @@ def test_a_plan_over_the_size_ceiling_fails_the_run(msite, built, monkeypatch, t
 
 def test_the_fixtures_rpc_agenda_day_plans_with_the_shipped_config(msite, tmp_path, capsys):
     """A real RPC agenda day (27 cases printing 7 districts and 3 wards) gives 191 editions and about 2.7 MB of
-    files: more than the old cap of 80 editions and the 2 MB artifact check, well under the ceiling."""
+    files: more than the old cap of 80 editions and the 2 MB artifact check, well under the ceiling. Every shape
+    of that day fits under the shipped max_editions (400 since 2026-11-17), so even a whole list of distinct
+    shapes is sent, not refused."""
     cfg = copy.deepcopy(config.SITE)
     cfg["alerts"]["site_url"] = SITE_URL
-    cfg["morning_note"]["sender"]["enabled"] = True       # the shipped max_editions (80) and everything else
+    cfg["morning_note"]["sender"]["enabled"] = True       # the shipped max_editions and everything else
     cfg["morning_note"]["sender"]["link_hosts"] += "," + TEST_HOSTS       # but the fixture's links
     built = plan_mod.build(msite, D, cfg)
-    assert len(built["plan"]["editions"]) > cfg["morning_note"]["sender"]["max_editions"]
+    assert 80 < len(built["plan"]["editions"]) == 191 < cfg["morning_note"]["sender"]["max_editions"]
     assert 2_000_000 < plan_mod.size_of(built) < common.MAX_PLAN_BYTES
     assert main(["plan", "--date", D.isoformat(), "--site", str(msite), "--out", str(tmp_path / "o"), "--rehearse"]) == 0
     assert (tmp_path / "o" / D.isoformat() / "plan.json").is_file()

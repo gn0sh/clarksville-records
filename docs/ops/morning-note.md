@@ -255,8 +255,10 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    totals only (no address, no id), the team's own addresses got exactly the editions their lists and seats call
    for (nothing on a quiet day), the links open live pages, the unsubscribe link works, and the Buttondown
    dashboard's recipient count matches the log's total.
-4. Revisit `max_editions` (80) and `max_recipients` (2000) when the list grows: a run over either sends nothing
-   that day (loud, never partial). A busy real day plans up to about 190 editions.
+4. `max_editions` is 400 (was 80 until 2026-11-17: a busy real day plans up to 191 editions, and 80 would have
+   sent nothing that day; basis in architecture "Switch-on"). Revisit `max_recipients` (2000) before the list passes
+   about 1,000: a run over either sends nothing that day (loud), and 2,000 stamped subscribers take about 14 minutes,
+   close to the note job's 15-minute timeout.
 
 ## Rules for manual runs and re-runs
 - **Never re-run a Daily update run from an earlier day** ("Re-run all jobs" or "Re-run failed jobs" on yesterday's
