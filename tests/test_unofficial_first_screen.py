@@ -20,7 +20,7 @@ def _browser_ok() -> bool:
 @pytest.fixture(scope="module")
 def real_site(tmp_path_factory):
     out = tmp_path_factory.mktemp("real-unofficial") / "build" / "site"
-    build(ROOT / "data" / "facts.json", out)
+    build(ROOT / "data" / "facts.json", out, target="pages")   # the real site is over the preview's file cap
     return out
 
 
