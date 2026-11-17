@@ -2,8 +2,10 @@
 #
 # update job : collect politely, rebuild, check, upload the refreshed data/ and the site as artifacts. It parses
 #              untrusted downloaded PDFs, so it has read-only repo access and no persisted token. It never publishes.
-# push job   : commits the refreshed data/ (from the update job's artifact) to main. The only job with contents: write;
-#              it parses nothing.
+# push job   : commits the refreshed data/ (from the update job's artifact) to a data/<date> branch, opens a pull
+#              request to main and merges it with GITHUB_TOKEN, only when that PR touches nothing outside data/
+#              (main takes changes by pull request only: no bypass on the main ruleset). The only job with
+#              contents: write; it parses nothing.
 # deploy job : publishes that artifact to GitHub Pages. LOCKED until launch: it runs only when the repository variable
 #              RECORDS_DEPLOY_ENABLED is exactly 'true'. Setting that variable is the CEO's go-live step (hard stop 1).
 #              See docs/ops/launch-runbook.md.
@@ -629,7 +631,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      contents: write        # commit refreshed data/ to main: the only job that can write to the repository
+      contents: write        # push the data/<date> branch and merge its PR: the only job that can write to the repository
+      pull-requests: write   # open that pull request (needs Settings > Actions > General > "Allow GitHub Actions to
+                             # create and approve pull requests"; runbook docs/ops/morning-note.md 2.0)
       issues: write          # open one issue when this job fails (pipeline/push-failure-silent)
     steps:
       # The exact commit the update job built on, not whatever main is now: the data commit is made on it, then
@@ -669,10 +673,16 @@ jobs:
           done < <(find "$dir" -type f -size +50M -print0)
           [ "$bad" = 0 ]
 
-      - name: Commit refreshed data to main
+      # main-protect/actions-bypass-reopens-M1 (security M1, note-key/writer-reach-whole-list): main takes changes by
+      # pull request only, with no bypass for GitHub Actions, so a workflow pushed on any branch can no longer push
+      # main directly. The data/ commit goes to its own branch instead, and the next step opens and merges its PR.
+      # The branch name carries the run id and attempt, so a manual run on the same day or a re-run never collides.
+      - name: Commit refreshed data to a data branch
+        id: commit
         env:
           ALLOWED: ${{ needs.update.outputs.allowed }}
         run: |
+          set -euo pipefail
           # data/ in a fresh checkout holds only tracked files (the ignored caches are absent), so replacing it whole
           # keeps deletions too. Only data/ is ever staged.
           rm -rf data
@@ -682,16 +692,94 @@ jobs:
           git add data
           if git diff --cached --quiet; then
             echo "No data changes."
-          else
-            msg="Daily update: refreshed records data ($(date -u +%F))"
-            if [ "$ALLOWED" = yes ]; then     # ci/allow-shrink-audit: the manual override is named in the history
-              msg="$msg; allow_shrink: committed verified roll calls or meetings replaced by a manual run"
-            fi
-            git commit -m "$msg"
-            # A concurrent change to data/ on main conflicts here and fails the job (the failure step opens the issue).
-            git pull --rebase origin main
-            git push origin HEAD:main
+            exit 0
           fi
+          day=$(date -u +%F)
+          msg="Daily update: refreshed records data ($day)"
+          if [ "$ALLOWED" = yes ]; then     # ci/allow-shrink-audit: the manual override is named in the history
+            msg="$msg; allow_shrink: committed verified roll calls or meetings replaced by a manual run"
+          fi
+          git commit -m "$msg"
+          # A concurrent change to data/ on main conflicts here and fails the job (the failure step opens the issue).
+          git pull --rebase origin main
+          main_sha=$(git rev-parse FETCH_HEAD)
+          # Before anything leaves the runner: exactly one commit on top of main, and it touches data/ only.
+          if [ "$(git rev-parse HEAD^)" != "$main_sha" ]; then
+            echo "::error::the data commit is not exactly one commit on top of main. Nothing pushed."; exit 1
+          fi
+          outside=$(git diff --name-only "$main_sha" HEAD -- . ':(exclude)data/')
+          if [ -n "$outside" ]; then
+            echo "::error::the data commit changes files outside data/. Nothing pushed:"; echo "$outside"; exit 1
+          fi
+          branch="data/$day-run$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git push origin "HEAD:refs/heads/$branch"
+          {
+            echo "branch=$branch"
+            echo "sha=$(git rev-parse HEAD)"
+            echo "title=$msg"
+          } >> "$GITHUB_OUTPUT"
+
+      # Opens the data pull request and merges it with GITHUB_TOKEN (0 required approvals under the ruleset), only
+      # after checking, on GitHub's own copy of the PR: open, into main, from this run's branch and commit, and every
+      # file it adds, changes, removes or renames (both names of a rename) is under data/. Anything else fails the job
+      # loudly and leaves the PR unmerged. The merge is pinned to the checked head commit (`sha`), so a push to the
+      # branch after the check makes the merge fail instead of merging unchecked files. Squash keeps main's history
+      # one commit per day, as before. A PR opened by GITHUB_TOKEN starts no other workflow (none listens anyway).
+      - name: Open and merge the data pull request
+        if: steps.commit.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.commit.outputs.branch }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          TITLE: ${{ steps.commit.outputs.title }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          run_url="$GITHUB_SERVER_URL/$repo/actions/runs/$GITHUB_RUN_ID"
+          body="Refreshed records data from $run_url. Opened and merged by the Daily update workflow after it checked that this pull request changes nothing outside data/."
+          num=$(gh api -X POST "repos/$repo/pulls" -f base=main -f head="$BRANCH" -f title="$TITLE" -f body="$body" --jq .number)
+          if ! [[ "$num" =~ ^[0-9]+$ ]]; then echo "::error::could not open the data pull request."; exit 1; fi
+          echo "Opened pull request #$num ($BRANCH)."
+          got=$(gh api "repos/$repo/pulls/$num" --jq '[.state, .base.ref, .head.ref, .head.sha, .head.repo.full_name, (.changed_files | tostring)] | join(" ")')
+          read -r state base head head_sha head_repo changed <<< "$got" || true
+          if [ "$state $base $head $head_sha $head_repo" != "open main $BRANCH $SHA $repo" ]; then
+            echo "::error::pull request #$num is not this run's open data PR into main ($got). Not merged; do not merge it."; exit 1
+          fi
+          # The files API lists at most 3000 files: a bigger PR cannot be checked, so it is refused, never merged.
+          if ! [[ "$changed" =~ ^[0-9]+$ ]] || [ "$changed" -gt 3000 ]; then
+            echo "::error::pull request #$num changes '$changed' files, more than can be checked. Not merged."; exit 1
+          fi
+          files=$(gh api --paginate "repos/$repo/pulls/$num/files?per_page=100" --jq '.[] | [.filename, (.previous_filename // "data/")] | @tsv')
+          listed=0
+          bad=0
+          while IFS=$'\t' read -r name prev; do
+            [ -n "$name$prev" ] || continue
+            listed=$((listed + 1))
+            case "$name" in data/?*) ;; *) echo "::error::pull request #$num changes $name (outside data/)."; bad=1 ;; esac
+            case "$prev" in data/*) ;; *) echo "::error::pull request #$num renames $prev (outside data/)."; bad=1 ;; esac
+          done <<< "$files"
+          if [ "$listed" != "$changed" ]; then
+            echo "::error::pull request #$num lists $listed files but changes $changed. Not merged."; exit 1
+          fi
+          if [ "$bad" != 0 ]; then
+            echo "::error::pull request #$num touches files outside data/. Not merged; do not merge it."; exit 1
+          fi
+          echo "Pull request #$num changes $changed file(s), all under data/."
+          # GitHub may still be computing the PR's mergeability just after it opened: try a few times, then fail.
+          merged=""
+          for try in 1 2 3 4 5 6; do
+            merged=$(gh api -X PUT "repos/$repo/pulls/$num/merge" -f merge_method=squash -f sha="$SHA" \
+                       -f commit_title="$TITLE" -f commit_message="$run_url" --jq .merged) || merged=""
+            if [ "$merged" = true ]; then break; fi
+            echo "Merge attempt $try did not merge."
+            if [ "$try" != 6 ]; then sleep 10; fi
+          done
+          if [ "$merged" != true ]; then
+            echo "::error::pull request #$num could not be merged. The data is not on main."; exit 1
+          fi
+          echo "Merged pull request #$num into main."
+          gh api -X DELETE "repos/$repo/git/refs/heads/$BRANCH" --silent \
+            || echo "::warning::could not delete the merged branch $BRANCH (harmless; delete it by hand)."
 
       - name: Open an issue on failure
         if: failure()
@@ -700,7 +788,7 @@ jobs:
         run: |
           title="Daily update failed"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
-          body="The push job failed (data not committed to main): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The last deployed site is unchanged."
+          body="The push job failed (data not committed to main): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. If it opened a data/ pull request, that PR is left unmerged: close it unmerged (the next run commits fresh data). The last deployed site is unchanged."
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
           else
@@ -802,11 +890,15 @@ jobs:
             exit 2
           fi
 
-      # main-protect/actions-bypass-reopens-M1, main-protect/pr-check-last-commit-only: the main ruleset lets GitHub
-      # Actions push main directly (for the push job's data/ commit), so a workflow on any branch could put changed
-      # sender code, config or workflows on main without a pull request. Refuse unless EVERY commit on this commit's
+      # main-protect/actions-bypass-reopens-M1, main-protect/pr-check-last-commit-only: if main can be pushed without
+      # a pull request (the ruleset off, or a bypass put back on it), a workflow on any branch could put changed
+      # sender code, config or workflows on main. Refuse unless EVERY commit on this commit's
       # first-parent line (main's own commits: no commit of a merged-in branch counts) after MAIN_PR_BASELINE that
-      # touches anything outside data/ is the merge or squash commit of a merged pull request into main.
+      # touches anything outside data/ is the merge or squash commit of a merged pull request into main, merged by
+      # a person (merged_by.type User). main-protect/bot-merged-code: GITHUB_TOKEN may open and merge PRs (the push
+      # job's data/ PR), so a workflow on any branch could merge a PR that changes code; only data/-only PRs, which
+      # this check skips, may be merged by a bot. A fast-forward push that GitHub reports as a PR's merge
+      # (main-protect/ff-push-marks-pr-merged) by the Actions bot is refused by the same test.
       # Checking only the newest such commit would let any later PR launder an earlier direct push.
       # main-protect/pr-check-path-scope: the pathspec is the whole tree but data/ (the push job's daily commits), not
       # just sender/, config/site.yml and .github/: a root *.py, a sitegen/ module or any other file is code a later
@@ -845,14 +937,19 @@ jobs:
           fi
           for sha in $shas; do
             if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::unexpected git log output. Nothing sent."; exit 2; fi
-            n=$(SHA="$sha" gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
-                  '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length')
-            if [ "$n" != 1 ]; then
+            num=$(SHA="$sha" gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
+                  '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA) | .number | tostring] | join(" ")')
+            if ! [[ "$num" =~ ^[0-9]+$ ]]; then
               echo "::error::$sha (a change outside data/ on main after MAIN_PR_BASELINE) is not the merge of a pull request into main. Nothing sent."
               exit 2
             fi
+            by=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$num" --jq '.merged_by.type // ""')
+            if [ "$by" != User ]; then
+              echo "::error::$sha (a change outside data/ on main after MAIN_PR_BASELINE) was merged by pull request #$num but not by a person ('$by'). Nothing sent."
+              exit 2
+            fi
           done
-          echo "Every change outside data/ on main after $base was merged by pull request: $(echo "$shas" | wc -l) commit(s)."
+          echo "Every change outside data/ on main after $base was merged by a person's pull request: $(echo "$shas" | wc -l) commit(s)."
 
       - name: Set up Python (standard library only, no pip step)
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0

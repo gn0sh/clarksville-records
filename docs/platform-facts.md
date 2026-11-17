@@ -271,3 +271,20 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   day>` answered 200 with all 4 of that day's emails, so the filter keeps the day's rows. Whether it leaves older
   rows out is unproven (there were none). The sender asks for emails created since yesterday; ignored, the listing
   is the whole history (still correct, bounded by the adapter's page limit).
+
+## GitHub repository settings (checked 2026-11-17 by `gh api` from the team's session, signed in with admin rights)
+- `main` has **no ruleset and no branch protection** yet: `repos/gn0sh/clarksville-records/rulesets` is `[]`,
+  `rules/branches/main` is `[]`, `branches/main` says `protected: false` (runbook `docs/ops/morning-note.md` 2.0 not
+  done yet).
+- The repository is public and allows squash, merge-commit and rebase merges; `delete_branch_on_merge` and
+  `allow_auto_merge` are off (so the daily `push` job deletes its own `data/` branch after merging).
+- Not readable from the team's session: the Actions settings (`actions/permissions/workflow`, so whether **Allow
+  GitHub Actions to create and approve pull requests** is on) and the environments list (both refused by the
+  session's proxy).
+- From `github/docs` search snippets (the docs site itself was unreachable): the **Allow GitHub Actions to create
+  and approve pull requests** setting is used "to configure whether `GITHUB_TOKEN` can create and approve pull
+  requests"; events caused by `GITHUB_TOKEN` "will not create a new workflow run" (newer docs: a PR it opens creates
+  `pull_request` runs in an approval-required state; this repository has no `pull_request` workflow).
+- **Unverified:** that `GITHUB_TOKEN` can squash-merge its own PR under the 0-approval "pull request required"
+  ruleset with no bypass, and that the REST field `can_approve_pull_request_reviews` is that same box. The check
+  run in runbook 2.0 settles both.
