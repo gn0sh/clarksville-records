@@ -93,7 +93,7 @@ def test_nothing_is_taken_out_of_the_page(html):
     assert doors == 4 and len(re.findall(r'<li class="door [^>]*>\s*<h3>[^<]+</h3>\s*<p>[^<]+</p>', html)) == doors
     money = html[html.index('<li class="door door-money">'):]
     money = money[:money.index("</ul>")]
-    assert money.count('<span class="chip chip-coming">Coming</span>') == 1 and money.count('#card-') == 5, money
+    assert money.count('<span class="chip chip-coming">Coming</span>') == 1 and money.count('#card-') == 4, money   # City budget is built now (a link row), so not coming
     sec = re.search(r'<section class="bodies".*?</section>', html, re.S).group(0)
     assert '<details class="bodies-fold" id="bodies-fold" open>' in sec           # built open: no script, no fold
     assert f'<summary>{config.SITE["switch"]["overview"]["fold"]}</summary>' in sec
@@ -183,9 +183,10 @@ def test_phone_and_wide_in_a_browser(site):
         assert m["doors"] == m["doorTitles"] == 4 and len(m["doorLinks"]) >= 7, (name, m)
         # the Coming chip is the small mono label now (uppercase by CSS; the markup still says "Coming"), and the
         # browser's rendered text follows the CSS (onceover/labels/small-caps-vs-mono)
-        assert m["comingText"] == ("COMING Clarksville: City budget, Finance Committee, Audit Committee. "
+        # the city budget card is not `coming` (config/site.yml): it is a door link when built, never named here
+        assert m["comingText"] == ("COMING Clarksville: Finance Committee, Audit Committee. "
                                    "Montgomery County: Budget Committee. School board: Budget."), (name, m)
-        assert len(m["comingLinks"]) == 5, (name, m)
+        assert len(m["comingLinks"]) == 4, (name, m)
         assert min(m["doorLinks"]) >= 44 and m["moreLink"] >= 44, (name, m)     # tap targets
         assert m["searchName"] == "Search by street, name, topic or item number.", (name, m)
 
