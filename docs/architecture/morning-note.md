@@ -244,7 +244,10 @@ no subscriber data, so it is safe as a build artifact in a public repository.
 Body (`render.py`): the site name and date, then per picked list its config label and the entries placed under it: body name
 and meeting (config `morning_note.text.meeting_line`, "{body}, {date} {meeting}": "Montgomery County Commission, November
 9, 2026 formal meeting"; the body alone for an entry with no meeting), `recorded`, the verbatim title, a link to the site page (`alerts.site_url` + `href`) and the source link; then
-`unplaced_text` when set; then one config line saying why the reader got this. Rules:
+`unplaced_text` when set; then one config line saying why the reader got this; the HTML edition then closes with the
+site footer's gnoshcodes credit (`common.CREDIT_LINE`, note/credit-logo, Brian 2026-11-17: the hook wordmark PNG at
+`https://daylight.gnoshcodes.com/static/brand/gnoshcodes-hook-light.png`, 160x32, alt "gnoshcodes", "A gnoshcodes
+project."), the one image `deliver.body_ok` accepts, as that exact line. Rules:
 - every title and URL is HTML-escaped, and `{{`, `{%` and a leading `---` are neutralised, because the body goes
   through the provider's own template and Markdown step (a record's title is untrusted text);
 - links are only `site_url` pages and `source.url` values that pass `build._is_https_uri`; anything else drops the link;

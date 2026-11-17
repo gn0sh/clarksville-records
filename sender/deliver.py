@@ -45,7 +45,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import unicodedata
 from html import unescape
 
-from .common import (ADDRESS, DATE_RE, KEY_RE, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
+from .common import (ADDRESS, CREDIT_LINE, DATE_RE, KEY_RE, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
                      exact_url_ok, link_ok, read_tags, signature, subject_line)
 from .settings import Settings
 
@@ -184,7 +184,10 @@ _HREF_OF = re.compile(r'<a href="([^"]*)">')
 def _line_ok(line: str, hosts, urls=()) -> bool:
     """One line of the body as render writes it: one of its forms, only its references, every link to one of
     `hosts` or exactly one of `urls`, and no text a mail client could link (common.ADDRESS) once the references
-    are read."""
+    are read. The footer credit (common.CREDIT_LINE, note/credit-logo) is the one line with an image, accepted
+    exactly as render writes it: any other <img>, or that image with another URL, size or alt, is refused."""
+    if line == CREDIT_LINE:
+        return True
     if not _LINE.fullmatch(line) or "  " in line:
         return False
     if any(int(n) not in REFS for n in re.findall(r"&#([0-9]+);", line)):

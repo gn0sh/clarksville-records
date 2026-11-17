@@ -1271,6 +1271,44 @@ def test_a_body_is_held_to_the_exact_lines_render_writes(plan, body):
         deliver.check_plan(bad, s.link_hosts)
 
 
+IMG = common.CREDIT_IMAGE
+OTHER_IMAGES = [
+    common.CREDIT_LINE.replace(IMG, IMG.replace("https://", "http://")),
+    common.CREDIT_LINE.replace(IMG, IMG.replace("daylight.gnoshcodes.com", "records.example.com")),
+    common.CREDIT_LINE.replace(IMG, IMG.replace("hook-light.png", "hook-dark.png")),
+    common.CREDIT_LINE.replace(IMG, IMG.replace(".png", ".svg")), common.CREDIT_LINE.replace(IMG, IMG + "?u=1"),
+    common.CREDIT_LINE.replace(IMG, "https://evil.example/t.gif"), common.CREDIT_LINE.replace('width="160"', 'width="1"'),
+    common.CREDIT_LINE.replace('alt="gnoshcodes"', 'alt=""'), common.CREDIT_LINE.replace('alt="gnoshcodes"', ""),
+    common.CREDIT_LINE.replace("<img ", '<img onerror="x" '), common.CREDIT_LINE.replace("</p>", " </p>"),
+    common.CREDIT_LINE.replace("A gnoshcodes project.", "Click here."),
+    f'<p>x <img src="{IMG}" alt="gnoshcodes" width="160" height="32"></p>', f'<li><img src="{IMG}"></li>',
+    f'<p><img src="{IMG}"></p>', f'<img src="{IMG}" alt="gnoshcodes" width="160" height="32">',
+]
+
+
+def test_the_footer_credit_is_the_one_image_a_body_may_carry(plan):
+    """note/credit-logo: the credit line exactly as render writes it passes, in the deliver check and the plan check
+    alike (plan.py runs the same body_ok)."""
+    s = settings()
+    assert common.CREDIT_LINE.count("<img ") == 1 and IMG.startswith("https://") and IMG.endswith(".png")
+    assert deliver.body_ok(_with(common.CREDIT_LINE), s.link_hosts)
+    assert deliver.body_ok(GOOD_BODY[:-1] + common.CREDIT_LINE + "\n", s.link_hosts) is False   # not on one line
+    good = copy.deepcopy(plan)
+    good["editions"][0]["body"] = _with(common.CREDIT_LINE)
+    deliver.check_plan(good, s.link_hosts, s.link_urls)
+    assert all(ed["body"].endswith(common.CREDIT_LINE + "\n") for ed in plan["editions"])     # every edition has it
+
+
+@pytest.mark.parametrize("line", OTHER_IMAGES)
+def test_any_other_image_is_refused_in_plan_and_deliver(plan, line):
+    s = settings()
+    assert not deliver.body_ok(_with(line), s.link_hosts, s.link_urls)
+    bad = copy.deepcopy(plan)
+    bad["editions"][0]["body"] = _with(line)
+    with pytest.raises(deliver.PlanInvalid, match="body"):
+        deliver.check_plan(bad, s.link_hosts, s.link_urls)
+
+
 @pytest.mark.parametrize("href, ok", [("https://tips.example.com/x", True), ("https://tips.example.com/other", False),
                                        ("https://tips.example.com/x?y=1", False), ("https://tips.example.com/x/", False),
                                        ("https://records.example.com/items/2026.html", True)])

@@ -68,6 +68,17 @@ ZWSP = "\u200b"
 # the only numeric references render writes: a markup character, a leading "-", "+" or space, the zero-width space
 REFS = frozenset({ord(c) for c in MARKUP} | {ord("-"), ord("+"), ord(" "), ord(ZWSP)})
 
+# note/credit-logo (Brian, 2026-11-17): the email's footer credit, as the site footer has it (base.html.j2
+# `gc-credit`): the gnoshcodes hook wordmark, the same alt text and wording. A PNG, because Gmail does not show SVG;
+# the 320x64 render of static/brand/gnoshcodes-hook-light.svg, shown at 160x32. The only image an email may carry:
+# render writes CREDIT_LINE exactly, and deliver.body_ok accepts it as a whole line and refuses any other <img>.
+# The URL is the site's own (alerts.site_url + CREDIT_PATH; a test keeps them equal).
+CREDIT_PATH = "static/brand/gnoshcodes-hook-light.png"
+CREDIT_IMAGE = "https://daylight.gnoshcodes.com/" + CREDIT_PATH
+CREDIT_ALT = "gnoshcodes"
+CREDIT_TEXT = "A gnoshcodes project."
+CREDIT_LINE = f'<p><img src="{CREDIT_IMAGE}" alt="{CREDIT_ALT}" width="160" height="32"> {CREDIT_TEXT}</p>'
+
 # plan-untrusted/body-unchecked: the hosts an email may link to (`morning_note.sender.link_hosts`: the site's host
 # and the collectors' source hosts), one rule for the plan stage, the deliver check and the build. The support link
 # is allowed as its one exact URL (top-level `support_url`), never its host: anyone can host a page there.

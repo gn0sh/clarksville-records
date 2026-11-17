@@ -20,7 +20,8 @@ from __future__ import annotations
 import re
 
 from .common import CUT, MAX_TITLE  # noqa: F401  common's since subject-unchecked, still importable from here
-from .common import DATE_RE, DOTS, MARKUP, ZWSP, clean, day_words, exact_url_ok, link_ok, parse_hosts, subject_line
+from .common import (CREDIT_LINE, DATE_RE, DOTS, MARKUP, ZWSP, clean, day_words, exact_url_ok, link_ok, parse_hosts,
+                     subject_line)
 
 TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
 _INERT = {ord(c): f"&#{ord(c)};" for c in MARKUP}       # common.MARKUP: every markup character
@@ -185,6 +186,7 @@ def body_html(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
     support = support_of(ctx, note)
     if support:
         out.append(f'<p>{inert(support[0])} <a href="{_attr(support[2])}">{inert(support[1])}</a></p>')
+    out.append(CREDIT_LINE)         # the site footer's gnoshcodes credit (note/credit-logo); HTML edition only
     return "\n".join(out) + "\n"
 
 
