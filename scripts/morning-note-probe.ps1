@@ -269,7 +269,7 @@ function Write-Results {
 
 # ------------------------------------------------------------------------------------------------ start
 Say 'Morning note probe: run it on the Daylight newsletter BEFORE anyone signs up (a second test newsletter needs a paid plan). It stops if the list holds anyone but your team addresses.'
-Say 'You will need: the newsletter's probe API key, two team email addresses you can open now, and about 12 minutes.'
+Say 'You will need: the probe API key, two team email addresses you can open now, and about 12 minutes.'
 $R['probe_version'] = 1
 $R['run_at_utc'] = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 
