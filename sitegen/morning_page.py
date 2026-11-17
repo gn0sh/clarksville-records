@@ -77,6 +77,7 @@ def privacy(cfg: dict | None = None) -> dict | None:
             "seats_sent": t["seats_sent"].format(**fill), "heading": t["method_heading"],
             "sent": t["method_sent"].format(**fill), "unsubscribe": t["method_unsubscribe"],
             "change": t["method_change"],                   # sender/tags-seat-change; depends on runbook check 4a
+            "logo": t["method_logo"],                       # note/credit-logo-privacy: the email's remote footer image
             "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note"}
 
 

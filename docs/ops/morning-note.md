@@ -9,8 +9,8 @@ and 5).
 ## How it runs (`.github/workflows/daily-update.yml`)
 - `gate` job, first, every run (T4.10.2; `docs/architecture/main-protect-invariant.md`, ADR 0009): step "Check every change outside data/ reached main by a reviewed pull request a person merged". On `main`, with `MAIN_PR_BASELINE` set, it refuses unless every commit on `main`'s first-parent line
   after the baseline that changes anything outside `data/` is the merge or squash commit of exactly one pull request
-  into `main`, merged by a person, with a person's review (Comment or Approve) of the PR's head commit before the
-  merge (step 2.0.3 does both); a merge commit's merged-in side must be that head. It outputs the run's commit and
+  into `main`, merged by a person, with a person's review (Comment or Approve; by the owner or a collaborator) of the
+  PR's head commit before the merge (step 2.0.3 does both); a merge commit's merged-in side must be that head. It outputs the run's commit and
   `verified`. `update` builds exactly that commit, `deploy` needs the gate's success, and `note` needs
   `verified == 'true'`. While the baseline is empty (phase 0) or on any branch other than `main`, it passes with
   `verified=false`: the site updates and deploys as before, and the note never runs. Read-only token, no secret;
@@ -76,8 +76,8 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      push (no bypass), and it makes every change to `main` show up as a pull request. The `gate` job adds a check
      on top, before anything is built, deployed or sent (step "Check every change outside data/ reached main by a reviewed pull request a person merged"): **every** commit on `main`'s first-parent
      line after the baseline `MAIN_PR_BASELINE` that touches anything outside `data/` must be the merge of exactly
-     one pull request into `main`, **merged by a person**, with **a person's review of the PR's head commit** posted
-     before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
+     one pull request into `main`, **merged by a person**, with **a person's review of the PR's head commit** (the owner's
+     or a collaborator's) posted before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
      workflow using `GITHUB_TOKEN`, which the setting below allows) is refused. The baseline is set once, the day
      the V1 probe passes (2.0.4, section 4 item 7); until then it is empty, the gate checks nothing and the note
      never runs. The team merged earlier work without pull requests; **from the baseline on, every change outside
@@ -124,15 +124,19 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       ```
       (Local scripts are allowed in Windows Settings > For developers; never add `-ExecutionPolicy Bypass`.)
       (macOS or Linux: `bash scripts/protect-main.sh`.) It (a) stops with "Main does not have the data pull request
-      change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly; (b) turns on **Allow
-      GitHub Actions to create and approve pull requests** (Settings > Actions > General > Workflow permissions);
-      (c) creates the ruleset from `scripts/main-ruleset.json` (no bypass), or, if a ruleset named `main: pull
-      request required` already exists, updates that one, which also removes any bypass it had (running it twice
-      never makes a second ruleset); (d) prints **OK: main is protected** (rules on main
+      change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly; (b) creates the ruleset
+      from `scripts/main-ruleset.json` (no bypass), or, if a ruleset named `main: pull request required` already
+      exists, updates that one, which also removes any bypass it had (running it twice never makes a second
+      ruleset); (c) then turns on **Allow GitHub Actions to create and approve pull requests** (Settings > Actions >
+      General > Workflow permissions) and prints **`R2 was off; main was <sha>`** (or `R2 already on`): send that
+      line to the team; they record it in `docs/platform-facts.md` "Main protection" as `R2 first on: <sha>`, the
+      start of the 4.7.1 window (L-b); (d) prints **OK: main is protected** (rules on main
       `deletion,non_fast_forward,pull_request`, `GitHub Actions may create pull requests: true`, `Auto-merge
       allowed: false`, and the ruleset `active, bypass none, required approvals 0`), or **NOT OK** with what it
       found: send that output to the team.
-   2. **Or by hand, in the browser** (only if the terminal is not an option):
+   2. **Or by hand, in the browser** (only if the terminal is not an option). Do 2 (the ruleset) first, then 1;
+      just before ticking the box in 1, open https://github.com/gn0sh/clarksville-records/commits/main and send the
+      team the first commit's full sha (the copy button), as `R2 was off; main was <sha>` (L-b):
       1. https://github.com/gn0sh/clarksville-records/settings/actions > **Workflow permissions** > tick **Allow
          GitHub Actions to create and approve pull requests** > **Save**.
       2. https://github.com/gn0sh/clarksville-records/settings/rules: if `main: pull request required` is listed,
@@ -185,17 +189,21 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       (bash: `bash scripts/v1-probe.sh`.) It may open a browser once to add the `workflow` scope to your GitHub CLI
       sign-in (it pushes two throwaway branches holding workflow files, `probe/v1-target` with an inert canary and
       `probe/v1-runner`, which starts a run that tries to merge the canary's pull request with `GITHUB_TOKEN`:
-      squash, merge, rebase). It takes about 3 minutes, cleans up after itself (closes the PR, deletes both
+      squash, merge, rebase, then GraphQL `mergePullRequest`). It takes about 3 minutes, cleans up after itself (closes the PR, deletes both
       branches), saves `Documents\v1-probe-results-<time>.txt`, and ends with one of:
-      - **PASS**: all three merges refused for the `workflows` permission, `main` unchanged, and the review's
-        `commit_id` kept. Send the output to the team; they record it in `docs/platform-facts.md` "Main protection"
+      - **PASS**: all four merges refused for the `workflows` permission (the message says "without `workflows`
+        permission"), `main` unchanged, and the review's `commit_id` kept. Send the output to the team; they record it in `docs/platform-facts.md` "Main protection"
         and set the baseline (section 4 item 7) the same day.
-      - **FAIL (V1 false)**: a merge went through. The script has already turned **Allow GitHub Actions to create
-        and approve pull requests** off (the daily data then stops saving: the safe state). Leave
+      - **FAIL (V1 false)**: the probe pull request merged, or `v1-canary.yml` is on `main`. The script has already turned **Allow GitHub Actions to create
+        and approve pull requests** off (workflows can no longer open pull requests, so the daily data stops
+        saving). That setting does not stop merging: a workflow can still merge a pull request that is already
+        open, so **close every open pull request into `main`** (https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain). Leave
         `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the output to the team; the inert canary is removed
         by a person's PR and the architect re-plans the data path.
-      - **INCONCLUSIVE**: refused for another reason, or the run did not start: send the output; the team fixes the
-        cause and you run it again.
+      - **INCONCLUSIVE**: refused for another reason, the run did not start or had not finished, the probe pull
+        request could not be read again after cleanup, `main` moved during the probe while
+        the probe pull request stayed unmerged (another merge in the window), or a read failed: the Actions setting
+        is left on. Send the output; the team fixes the cause and you run it again.
       `MORNING_NOTE_SEND` waits on PASS (section 4 item 6a).
    5. **`github-pages` deploys from `main` only (T4.10.5; Brian, one click; the live site keeps deploying).** The
       site deploys today from the `deploy` job on `main` (Pages source: GitHub Actions, since go-live 2026-11-13);
@@ -296,11 +304,47 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    everything up to here".
    1. `git fetch origin main`, then
       `git log --first-parent --format='%h %an %s' origin/main -- . ':(exclude)data/'` and read it: each
-      change outside `data/` was meant (the earlier ones were merged without pull requests). Then
-      `git rev-parse origin/main` prints the baseline sha.
+      change outside `data/` was meant (the earlier ones were merged without pull requests). `%an` is the commit's
+      author and cannot show a bot merge (main-protect L-3), so also list who merged each such commit in the window
+      that starts at `main`'s commit read seconds after 2.0.1 wrote the ruleset (architecture "Baseline window
+      check", L-b; from then on only merged pull requests reach `main`): `<R2-on sha>` is the
+      `R2 first on: <sha>` line in `docs/platform-facts.md` "Main protection" (from 2.0.1's
+      `R2 was off; main was <sha>`). If 2.0.1 said `R2 already on`, the start is unknown: stop, the architect picks
+      the window. Paste the whole output into the baseline PR:
+      ```bash
+      bash -s "<R2-on sha>" <<'WINDOW'
+      set -euo pipefail
+      start=$1; R=repos/gn0sh/clarksville-records
+      git fetch -q origin main
+      [[ "$start" =~ ^[0-9a-f]{40}$ ]] || { echo "STOP: the start '$start' is not a 40-hex sha"; exit 1; }
+      git merge-base --is-ancestor "$start" origin/main || { echo "STOP: $start is not an ancestor of origin/main"; exit 1; }
+      list=$(git log --first-parent --format=%H "$start..origin/main" -- . ':(exclude)data/')
+      n=0
+      for c in $list; do
+        pr=$(COMMIT=$c gh api "$R/commits/$c/pulls" --jq '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.COMMIT) | .number] | first // "none"') \
+          || { echo "STOP: could not read the pull requests of $c"; exit 1; }
+        t=none
+        if [ "$pr" != none ]; then
+          t=$(gh api "$R/pulls/$pr" --jq '.merged_by.type // "none"') || { echo "STOP: could not read pull request #$pr"; exit 1; }
+        fi
+        n=$((n + 1))
+        echo "$c PR #$pr merged_by.type=$t"
+        [ "$t" = User ] || { echo "STOP: $c was not merged by a person"; exit 1; }
+      done
+      echo "checked $n commits"
+      [ "$n" -gt 0 ] || { echo "STOP: no commit in the window (a wrong or placeholder start: the gate's own PR at least is in it)"; exit 1; }
+      WINDOW
+      ```
+      It must end `checked N commits` with N at least 1 and every line `merged_by.type=User`. **It stops on any
+      `Bot`** (a workflow merged code: treat it as an incident, `MAIN_PR_BASELINE` stays empty), on `none` (no
+      merged PR, which R1 should have made impossible), on any failed read, and on N = 0: a person reads why before
+      anything else. Then `git rev-parse origin/main` prints the baseline sha.
    2. A PR that changes only `MAIN_PR_BASELINE: ""` to `MAIN_PR_BASELINE: "<that sha>"` (and makes
       `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha), reviewed, merged with
-      `scripts/merge-reviewed.ps1` (2.0.3). That PR comes after the baseline, so the gate checks it too.
+      `scripts/merge-reviewed.ps1` (2.0.3). That PR comes after the baseline, so the gate checks it too. The same
+      PR makes an empty baseline on `main` a refusal instead of phase 0 (main-protect L-1: otherwise a later PR
+      resetting it to `""` reopens phase 0 silently); the exact change and tests are in `docs/tasks/morning-note.md`
+      T4.10.8.
    3. Check (the day it merges, and again before setting `MORNING_NOTE_SEND`): the next Daily update run's `gate`
       job logs "Every change outside data/ on main after <baseline> was merged by a person, reviewed at its head:
       <n> commit(s)." and `update`, `push` and `deploy` are green. Link that run.
@@ -401,12 +445,26 @@ the live site keeps its last deploy and the data waits for the next run. Open th
 - `MAIN_PR_BASELINE` is not a sha, not on `main`'s first-parent line, or no commit after it changes anything outside
   `data/`: the baseline PR was wrong. Fix it by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
 - A commit (its sha is in the log) is not the merge of exactly one PR into `main`; was merged by a bot or with no
-  `merged_by`; is a merge whose merged-in side is not the PR's head; or has no person's review of the PR's head
-  before the merge. Read that commit first (`git show <sha>`, and its PR page): who merged it, how, and what it
+  `merged_by`; is a merge whose merged-in side is not the PR's head; or has no review of the PR's head by the owner
+  or a collaborator before the merge. Read that commit first (`git show <sha>`, and its PR page): who merged it, how, and what it
   changed. A later pull request does **not** clear it: the gate refuses on every run until the baseline moves past
   it. If it was meant (for example a PR merged with the Merge button instead of 2.0.3): a person reads its whole
   diff, then a PR merged with `scripts/merge-reviewed.ps1` sets `MAIN_PR_BASELINE` to `main`'s commit at that time
   (as in section 4 item 7). If it was **not** meant (a workflow or someone merged code nobody reviewed): treat it
   as an incident; delete the variable `MORNING_NOTE_SEND`, and do not move the baseline until it is understood.
-- "could not read main's full history" or a GitHub API error: re-run the failed jobs once; if it repeats, tell the
-  team.
+- "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): <m>
+  of <n> entries fit." (it checks on every run on `main`, phase 0 included), after up to 20 lines
+  "not allowed in data/: <entry>" (mode, object and name; any byte outside plain ASCII shown as `?`). A symlink,
+  submodule, executable file, a name with a space, a leading dot or a non-ASCII byte, or any other name under
+  `data/` is never something the collector writes. Read the commit that added it (`git log --first-parent -- data/`
+  on `main`, then `git show <sha> --stat`) and treat it as an incident if nobody meant it; otherwise remove it by a
+  PR merged with `scripts/merge-reviewed.ps1`.
+- "data/ is not a folder in this commit (missing, a file or a link), or could not be read (I-data)." `data/` was
+  deleted, emptied or replaced by a file or link (a data PR merged from an empty refresh, or a hand edit). Restore it
+  from the last commit whose `data/` was good, by a PR merged with `scripts/merge-reviewed.ps1`:
+  `git fetch origin main`, `git log --first-parent --format='%h %s' origin/main -- data` and pick the newest commit
+  before the bad one (`<good>`); then on a new branch from `origin/main`: `git rm -r -q --cached data; rm -rf data;
+  git checkout <good> -- data`, commit "Restore data/ from <good>", open the PR, review it, merge it with 2.0.3. The
+  next run collects again on top of it. If the same thing repeats, treat it as an incident.
+- "could not read data/ in this commit's tree.", "could not check data/'s names.", "could not read main's full
+  history." or a GitHub API error: re-run the failed jobs once; if it repeats, tell the team.

@@ -60,11 +60,14 @@ jobs:
   # every run. It checks I-main for this run's commit S = github.sha: after MAIN_PR_BASELINE, every commit on S's
   # first-parent line that changes anything outside data/ is the merge or squash commit of exactly one pull request
   # into main, merged by a person (merged_by.type User), whose head at merge carries a person's review of that exact
-  # commit (COMMENTED or APPROVED, commit_id == head.sha, submitted no later than merged_at); a merge commit's second
-  # parent is that head. Every other job builds, deploys or sends only S: update checks out the gate's sha, deploy
+  # commit (by the owner or a collaborator, COMMENTED or APPROVED, commit_id == head.sha, submitted no later than
+  # merged_at); a merge commit's second parent is that head. On main, phase 0 included, data/ must meet I-data: only
+  # regular *.json, *.yml and changes.jsonl files with plain names (who merged a data-only commit is a residual).
+  # Every other job builds, deploys or sends only S: update checks out the gate's sha, deploy
   # needs the gate's success and note needs verified == 'true'. Outputs: sha (= S) and verified.
   # Why: the setting "Allow GitHub Actions to create and approve pull requests" (on for the push job's data PR) lets
-  # a workflow on any branch open and merge a PR to main with GITHUB_TOKEN. A code commit merged that way, or by a
+  # a workflow on any branch open a PR to main with GITHUB_TOKEN, and a workflow with contents: write can merge an open
+  # PR (that setting does not govern merging). A code commit merged that way, or by a
   # person without the reviewed-merge procedure (scripts/merge-reviewed.ps1, runbook 2.0.3), is refused here on every
   # later run until a person moves the baseline past it (fail closed; the gate-failed job opens one issue).
   # The check is inline, never a script in the repository: only .github/workflows/ is out of a bot merge's reach, if
@@ -107,6 +110,26 @@ jobs:
           if [ "$REF" != refs/heads/main ]; then
             echo "Not main ($REF): no history check; verified=false."; verdict false; exit 0
           fi
+          # I-data (docs/architecture/main-protect-invariant.md "I-data"; phase 0 too): data/ is a folder of regular
+          # files (mode 100644) with plain ASCII names ending .json or .yml, or named changes.jsonl. Passes only by
+          # counting entries that fit (matched == total >= 1), compared as bytes (LC_ALL=C, grep -a: under a UTF-8
+          # locale grep withholds a non-UTF-8 name as "binary file matches", S-1). NUL-separated records, so a name
+          # holding a newline stays one record and fails. Tree objects only: works on a blob:none partial clone.
+          # SHAPE is the same text in the push job's commit step (a test keeps them identical).
+          SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.(json|yml)|changes\\.jsonl)$'
+          if [ "$(git cat-file -t HEAD:data 2>/dev/null || true)" != tree ]; then
+            refuse "data/ is not a folder in this commit (missing, a file or a link), or could not be read (I-data)."
+          fi
+          listing="$RUNNER_TEMP/gate-data-tree"
+          if ! git ls-tree -r -z HEAD -- data > "$listing"; then refuse "could not read data/ in this commit's tree."; fi
+          total=$(LC_ALL=C tr -cd '\000' < "$listing" | wc -c)
+          matched=$(LC_ALL=C grep -zacE -- "$SHAPE" "$listing") || { [ $? = 1 ] || refuse "could not check data/'s names."; }
+          if ! [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] || [ "$total" -lt 1 ] || [ "$matched" != "$total" ]; then
+            # at most 20 refused entries, every byte outside 0x20-0x7E shown as ?: never a raw name in the log
+            LC_ALL=C grep -zavE -m 20 -- "$SHAPE" "$listing" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
+              | while IFS= read -r entry; do echo "::error::not allowed in data/: $entry"; done || true
+            refuse "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): ${matched:-?} of ${total:-?} entries fit."
+          fi
           base="${MAIN_PR_BASELINE:-}"
           if [ -z "$base" ]; then
             echo "::warning::MAIN_PR_BASELINE is not set (phase 0, runbook docs/ops/morning-note.md 4.7): main's history is not checked; the morning note cannot run."
@@ -140,9 +163,10 @@ jobs:
             if [ "${#parents[@]}" -lt 2 ] || [ "${#parents[@]}" -gt 3 ] || { [ "${#parents[@]}" = 3 ] && [ "${parents[2]}" != "$head" ]; }; then
               refuse "$what is a merge whose merged-in side is not pull request #$num's head $head."
             fi
-            # one line per matching review (the filter runs on each page); none: refused
+            # one line per matching review (the filter runs on each page); none: refused. M-1: the reviewer is the owner
+            # or a collaborator (the repo is public: any account can post a COMMENT review)
             reviews=$(HEAD_SHA="$head" MERGED_AT="$merged_at" gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$num/reviews?per_page=100" --jq \
-                      '.[] | select(.user.type == "User" and .commit_id == $ENV.HEAD_SHA and (.state == "COMMENTED" or .state == "APPROVED") and .submitted_at != null and .submitted_at <= $ENV.MERGED_AT) | .id | tostring')
+                      '.[] | select(.user.type == "User" and (.author_association == "OWNER" or .author_association == "COLLABORATOR") and .commit_id == $ENV.HEAD_SHA and (.state == "COMMENTED" or .state == "APPROVED") and .submitted_at != null and .submitted_at <= $ENV.MERGED_AT) | .id | tostring')
             if [ -z "$reviews" ]; then
               refuse "$what was merged by pull request #$num with no person's review of its head $head before the merge (merge with scripts/merge-reviewed.ps1, runbook 2.0.3)."
             fi
@@ -775,6 +799,8 @@ jobs:
           while IFS= read -r -d '' f; do
             echo "::error::file over 50 MB: $f"; bad=1
           done < <(find "$dir" -type f -size +50M -print0)
+          # I-data: an empty artifact would empty data/ on main, and the gate would refuse every later run
+          if [ -z "$(find "$dir" -type f -print -quit)" ]; then echo "::error::the refreshed data holds no file."; bad=1; fi
           [ "$bad" = 0 ]
 
       # main-protect/actions-bypass-reopens-M1 (security M1, note-key/writer-reach-whole-list): main takes changes by
@@ -814,6 +840,23 @@ jobs:
           outside=$(git diff --name-only "$main_sha" HEAD -- . ':(exclude)data/')
           if [ -n "$outside" ]; then
             echo "::error::the data commit changes files outside data/. Nothing pushed:"; echo "$outside"; exit 1
+          fi
+          # I-data on the commit about to be pushed, the gate's checks (1)-(4) with the identical SHAPE (a test keeps
+          # them equal): data/ is a tree of regular files (also catches an executable bit cp -a carried over) with
+          # plain names, counted as bytes. Otherwise the gate would refuse every run after this merge.
+          SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.(json|yml)|changes\\.jsonl)$'
+          if [ "$(git cat-file -t HEAD:data 2>/dev/null || true)" != tree ]; then
+            echo "::error::data/ is not a folder in the data commit (I-data). Nothing pushed."; exit 1
+          fi
+          listing="$RUNNER_TEMP/push-data-tree"
+          git ls-tree -r -z HEAD -- data > "$listing"
+          total=$(LC_ALL=C tr -cd '\000' < "$listing" | wc -c)
+          matched=$(LC_ALL=C grep -zacE -- "$SHAPE" "$listing") || [ $? = 1 ]
+          if ! [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] || [ "$total" -lt 1 ] || [ "$matched" != "$total" ]; then
+            LC_ALL=C grep -zavE -m 20 -- "$SHAPE" "$listing" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
+              | while IFS= read -r entry; do echo "::error::not allowed in data/: $entry"; done || true
+            echo "::error::data/ in the data commit does not meet I-data (${matched:-?} of ${total:-?} entries fit). Nothing pushed."
+            exit 1
           fi
           branch="data/$day-run$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           git push origin "HEAD:refs/heads/$branch"

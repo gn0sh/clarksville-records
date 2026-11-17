@@ -261,8 +261,8 @@ Owner: devops-engineer unless named. One branch for T4.10.2 to T4.10.4 and T4.10
 | T4.10.7 Security review (fresh, opus/high) | branch A committed | before branch A merges |
 | T4.10.8 Set `MAIN_PR_BASELINE` | .1 PASS, .5, branch A merged | last |
 
-- **T4.10.1 V1 probe.** Exactly the steps in the architecture "V1 probe" (canary, runner, three merge methods, the
-  `commit_id` check, cleanup). Done when: `docs/platform-facts.md` "Main protection" has the run link, the three
+- **T4.10.1 V1 probe.** Exactly the steps in the architecture "V1 probe" (canary, runner, four merge tries, the
+  `commit_id` check, cleanup). Done when: `docs/platform-facts.md` "Main protection" has the run link, the four
   refusal messages, the `commit_id` result and `main`'s sha before and after. If a merge goes through: the "V1 false"
   steps there, at once, then stop T4.10.8 and hand back to the architect.
 - **T4.10.2 Gate job.** New first job `gate` as in the architecture "The gate job" (steps 1-6, inline, outputs `sha`,
@@ -303,6 +303,18 @@ Owner: devops-engineer unless named. One branch for T4.10.2 to T4.10.4 and T4.10
   outside `data/`, take `origin/main`), one PR setting `MAIN_PR_BASELINE` and making
   `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha, merged with `merge-reviewed`. Done when: the next
   scheduled run's gate logs `verified=true` with a count, and `update`, `push`, `deploy` are green (link it).
+  - **L-1 (main-protect/baseline-reset-downgrade), in the same PR, not before** (the daily run must keep passing in
+    phase 0): in the gate step, an empty baseline on `main` refuses instead of passing. Replace
+    `if [ -z "$base" ]; then echo "::warning::MAIN_PR_BASELINE is not set (phase 0, ...)"; verdict false; exit 0; fi`
+    with `if [ -z "$base" ]; then refuse "MAIN_PR_BASELINE is empty on main (phase 0 ended at T4.10.8; a reset to
+    empty is refused, L-1)."; fi`. The not-main exit and the data/ shape check stay before it, unchanged. Tests in
+    `tests/test_workflow_lock.py`: `test_phase_0_and_other_refs_pass_unverified` drops the `("", "refs/heads/main")`
+    case (the three non-main cases stay, passing unverified); a new case gives an empty baseline on `main` exit 2,
+    no outputs and no PR read; `test_the_committed_baseline_is_unset_or_a_sha` accepts a 40-hex sha only (rename it
+    `test_the_committed_baseline_is_a_sha`). The runbook's phase 0 lines ("How it runs", 4.7, "When the note job
+    fails") change to say an empty baseline on `main` now fails the gate.
+  - **L-3 (main-protect/baseline-blesses-phase0):** the runbook 4.7.1 `merged_by.type` listing is pasted into this
+    PR; any `Bot` or `none` line stops the task.
 
 Order: .1, .5 and branch A (.2, .3, .4, .6) in parallel; .7 on branch A; merge A; .8 the same day .1 passes, to
 close phase 0. `MORNING_NOTE_SEND` waits on .1 PASS and .8 (runbook section 4).
