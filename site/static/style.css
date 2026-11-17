@@ -1447,6 +1447,9 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .hub-go .go { font-family: var(--font-head); font-weight: 800; font-size: 1.2rem; line-height: 1; }
 .hub-go a[data-ext] { display: inline-block; padding: 6px 0; }
 .hub-note { margin-top: 12px; }
+.hub-limits { margin: 12px 0 16px; }
+.hub-limits .sec-h { margin: 0 0 4px; }
+.hub-limits p { margin: 4px 0; }
 .bodies { margin: 28px 0 0; }
 .bodies-card p:last-child { margin-bottom: 0; }
 .bodies-card h3 a { display: inline-flex; align-items: center; min-height: 32px; }

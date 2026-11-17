@@ -83,10 +83,49 @@ def test_school_board_hub_replaces_the_coming_page(built):
     assert f'<h1>{pg["title"]}</h1>' in main                      # no Coming tag on the h1
     assert 'data-card="meetings"' in main and 'href="school-board/meetings/2024.html"' in main
     assert "What is planned" not in main
-    assert 'class="coming-note"' in main and config.SITE["school_board"]["url"] in main
+    # the "What we can show" note says where the minutes are, so the hub carries no separate minutes note
+    assert config.SITE["county_committees"]["minutes"]["school"] not in text(main) and 'data-limits="school"' in main
+    assert config.SITE["school_board"]["url"] in main
     nav = (out / "index.html").read_text(encoding="utf-8")
     nav = nav[nav.index('<nav id="site-nav"'):]
     assert f'{pg["slug"]}.html">{pg["nav_label"]}</a>' in nav     # the menu entry drops its Coming chip
+
+
+def test_school_board_hub_says_what_it_can_show_and_why_in_config_words(built):
+    """Brian 2026-11-16: the hub says plainly what is here (agendas, from the county), what is not (minutes, votes,
+    budget) and why (cmcss.net blocks automated visitors; this site respects that), with one plain link."""
+    out, _ = built
+    sb = config.SITE["school_board"]
+    lim = config.SITE["switch"]["bodies"]["school"]["limits"]
+    main = main_of(out / f"{sb['page']['slug']}.html")
+    note = main.split('data-limits="school">', 1)[1].split("</section>", 1)[0]
+    assert f'<h2 class="sec-h" id="limits-h">{lim["heading"]}</h2>' in note
+    assert text(note).replace(" .", ".") == (f'{lim["heading"]} {lim["shown"]} {lim["not_shown"]} {lim["why"]} '
+                                             f'{lim["link_lede"]} {sb["link_label"]} (opens in a new tab).')
+    assert re.findall(r'href="([^"]+)"', note) == [sb["url"]] and 'data-ext="school"' in note
+    # above the cards; each coming card agrees with it: the card names the school system's website, never "yet"
+    assert main.index('data-limits="school"') < main.index('class="hub-cards"')
+    cards = {c["key"]: c for c in config.SITE["switch"]["bodies"]["school"]["cards"]}
+    for key in ("votes", "budget"):
+        assert "school system website" in cards[key]["text"] and "yet" not in cards[key]["text"], key
+        assert cards[key]["text"] in text(main), key
+    assert "yet" not in config.SITE["county_committees"]["minutes"]["school"]
+    for w in ("agendas", "county"):
+        assert w in lim["shown"]
+    for w in ("minutes", "votes", "budget"):
+        assert w in lim["not_shown"]
+    # neutral: the reason is the site's own rule, said without judging the school system
+    assert "CMCSS" not in " ".join(lim[k] for k in ("shown", "not_shown", "why", "link_lede"))
+    assert not re.search(r"\b(refuse|hide|hides|hidden|secret|unfortunately|sadly|only)\b",
+                         " ".join(lim[k] for k in ("shown", "not_shown", "why")).lower())
+
+
+def test_the_limits_note_is_left_out_without_its_heading_or_lines():
+    from sitegen import bodies
+    assert bodies.limits(None) is None and bodies.limits({"heading": "H"}) is None
+    assert bodies.limits({"shown": "x"}) is None
+    one = bodies.limits({"heading": "H", "why": "W", "link_lede": "L", "link": {"from": "nowhere", "kind": "school"}})
+    assert one == {"heading": "H", "lines": ["W"], "link_lede": "", "link": None}
 
 
 def test_year_page_sections_lines_minutes_note_and_no_votes(built):

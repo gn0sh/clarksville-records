@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% from "_hub.html.j2" import hub_cards, body_head with context %}
+{% from "_hub.html.j2" import hub_cards, hub_limits, body_head with context %}
 {% from "_committee.html.j2" import body_years, older_note, minutes_note %}
 {# The school board's hub (school-board.html) or the county finance committees' index (sitegen/county_committees.py):
    the shared body header, the body's cards (the school board only), then each body's agendas by year, newest first.
@@ -8,9 +8,11 @@
 {% call body_head(hub | default(none), title, lede) %}
 {% if coverage %}Agendas, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span class="nowrap">{{ coverage.to | day_words }}</span>: {{ bodies | sum(attribute="n") }} agendas as the county posts them on its <a data-ext="committee" href="{{ record.url }}" target="_blank" rel="noopener noreferrer">{{ record.label }}<span class="sr-only"> (opens in a new tab)</span></a>.{% endif %}
 {% endcall %}
+{{ hub_limits(hub | default(none)) }}
 {{ hub_cards(hub | default(none), root) }}
 <p class="muted body-notes">{{ agenda_note }}</p>
-{{ minutes_note(minutes) }}
+{# the hub's "What we can show" note already says where the minutes are: not said twice on one page #}
+{% if not (hub is defined and hub and hub.limits) %}{{ minutes_note(minutes) }}{% endif %}
 {{ older_note(older) }}
 {% for b in bodies %}
 <section aria-labelledby="{{ b.key }}-h" id="{{ b.key }}">

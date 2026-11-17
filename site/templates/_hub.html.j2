@@ -41,6 +41,17 @@
 </section>
 {% endif %}
 {% endmacro %}
+{# A hub's "What we can show" note (bodies.limits): what this site shows of the body, what it does not and why, and
+   one plain link to the body's own site. Every word is config. #}
+{% macro hub_limits(hub, level=2) %}
+{% if hub and hub.limits %}{% set l = hub.limits %}
+<section class="note hub-limits" aria-labelledby="limits-h" data-limits="{{ hub.key }}">
+  <h{{ level }} class="sec-h" id="limits-h">{{ l.heading }}</h{{ level }}>
+  <p>{{ l.lines | join(" ") }}</p>
+  {% if l.link %}<p>{{ l.link_lede }} <a data-ext="{{ l.link.kind }}" href="{{ l.link.url }}" target="_blank" rel="noopener noreferrer">{{ l.link.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>{% endif %}
+</section>
+{% endif %}
+{% endmacro %}
 {# The home page's overview: every body, what is on this site and what is coming. With `overview.fold` set, the cards
    sit in a <details> that is built open: wide screens hide its summary (style.css), so nothing can close it; on a
    phone static/landing.js closes it when the page loads, so the list is one line until asked for (without the script

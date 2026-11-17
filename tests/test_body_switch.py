@@ -321,7 +321,8 @@ def test_rows_carry_their_body_for_the_filter(site, html):
 
 def test_finance_note_text_and_links():
     note = bodies.finance_note()
-    assert note["text"] == "These are the Montgomery County budget books. The school board budget is coming."
+    assert note["text"] == ("These are the Montgomery County budget books. "
+                            "The school board budget is not shown on this site.")
     assert [x["url"] for x in note["links"]] == [config.SITE["school_board"]["url"]]
     assert "cmcss.net" in note["links"][0]["url"] and note["sibling"] is None
     # each body's budget index links the other's when it is built (finance-contracts 10), in the same words
@@ -331,7 +332,8 @@ def test_finance_note_text_and_links():
                                  "label": "City budget", "href": "city/finance/index.html"}
     assert city["sibling"] == {"lede": "The Montgomery County budget books have their own pages:",
                                "label": "County budget", "href": "finance/index.html"}
-    assert city["text"] == "These are the City of Clarksville budget books. The school board budget is coming."
+    assert city["text"] == ("These are the City of Clarksville budget books. "
+                            "The school board budget is not shown on this site.")
     assert city["links"] == county["links"]
     tpl = (ROOT / "site" / "templates" / "fin_index.html.j2").read_text(encoding="utf-8")
     assert tpl.index("body_note.text") < tpl.index("coverage_sentence")     # the first line under the h1
@@ -346,7 +348,7 @@ def test_finance_page_shows_the_note_first_and_the_county_hub_links_finance(tmp_
     first = re.search(r"</h1>\s*<p[^>]*>(.*?)</p>", main, re.S)
     assert 'class="note body-note"' in first.group(0)
     assert plain(first.group(1)).startswith("These are the Montgomery County budget books. The school board budget "
-                                            "is coming. ")
+                                            "is not shown on this site. ")
     assert "City budget" not in first.group(1)          # this fixture build has no city budget pages to link
     assert f'<a data-ext="school" href="{config.SITE["school_board"]["url"]}"' in first.group(1)
     assert main.count(f'<div data-body="{config.SITE["county_key"]}">') == 1

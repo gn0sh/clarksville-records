@@ -133,7 +133,7 @@ def build(site: dict, councils=(), rpc=None, cmx=None, committees=()) -> dict | 
                               "href": hrefs[key][c["key"]], "go": c.get("go") or c["title"], "link": None})
         hubs[key] = {"key": key, "label": b["label"], "href": home[key], "kicker": b.get("kicker"),
                      "title": b.get("title"), "lede": b.get("lede"), "note": b.get("note"), "cards": cards,
-                     "about": b.get("about"),
+                     "about": b.get("about"), "limits": limits(b.get("limits"), rpc),
                      "present": [c["title"] for c in cards if not c["coming"]],
                      "coming": [c["title"] for c in cards if c["coming"]]}
         options.append({"key": key, "label": b["label"], "short": b.get("short"), "href": home[key],
@@ -141,6 +141,19 @@ def build(site: dict, councils=(), rpc=None, cmx=None, committees=()) -> dict | 
     return {"label": cfg["label"], "options": options, "hubs": hubs,
             "overview": cfg.get("overview") or {},
             "current": {o["href"]: o["key"] for o in options}}
+
+
+def limits(spec: dict | None, rpc=None) -> dict | None:
+    """A hub's "What we can show" note (config `switch.bodies.<key>.limits`): {heading, lines, link_lede, link}, or None
+    without a heading or a line. `lines`: the shown, not_shown and why sentences that are set, in that order."""
+    if not spec or not spec.get("heading"):
+        return None
+    lines = [spec[k] for k in ("shown", "not_shown", "why") if spec.get(k)]
+    if not lines:
+        return None
+    link = official_link(spec.get("link"), rpc)
+    return {"heading": spec["heading"], "lines": lines, "link_lede": (spec.get("link_lede") or "") if link else "",
+            "link": link}
 
 
 def finance_note(rpc=None, key: str = "finance_note", sibling: str | None = None) -> dict | None:
