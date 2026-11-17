@@ -2838,7 +2838,9 @@ if a[1].startswith("repos/o/r/pulls?state=open"):
 if a[1] == "repos/o/r/pulls/77" and a[-1] == ".head.sha":
     print("h" * 40); sys.exit(0)
 if a[1] == "repos/o/r/pulls/77" and a[-1] == ".node_id":
-    print("PR_node"); sys.exit(0)
+    if os.environ.get("NODE") == "FAIL":
+        sys.exit(1)
+    print(os.environ.get("NODE", "PR_node")); sys.exit(0)
 method = "graphql" if a[1] == "graphql" else next(x.split("=", 1)[1] for x in a if x.startswith("merge_method="))
 if os.environ.get("MERGE_OK") == method:
     print('{"merged": true}'); sys.exit(0)
@@ -2871,6 +2873,25 @@ def test_the_v1_probe_step_tries_every_merge_under_bash_e(tmp_path, ok):
         assert ln.split()[2] == want and (want == "exit=0" or "without `workflows` permission" in ln), ln
     merged = [ln for ln in r.stdout.splitlines() if ln.startswith("V1-MERGED ")]
     assert merged == ([f"V1-MERGED {ok}"] if ok else [])
+
+
+@pytest.mark.parametrize("node", ["FAIL", ""])
+def test_the_v1_probe_step_says_when_it_cannot_read_the_node_id(tmp_path, node):
+    """v1-probe/node-read-under-e: a failed or empty node_id read prints V1-ERROR before the step exits, and no
+    GraphQL merge is tried."""
+    step = yaml.safe_load((ROOT / "scripts" / "v1-probe" / "v1-probe.yml").read_text(encoding="utf-8"))
+    run = next(iter(step["jobs"].values()))["steps"][0]["run"]
+    bindir, calls = tmp_path / "bin", tmp_path / "calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_STEP_GH)
+    (bindir / "gh").chmod(0o755)
+    (tmp_path / "step.sh").write_text(run)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "GH_TOKEN": "t",
+           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": "", "NODE": node}
+    r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 1 and r.stdout.splitlines()[-1] == "V1-ERROR: could not read node_id", r.stdout
+    assert [ln.split()[1] for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")] == ["squash", "merge", "rebase"]
+    assert not any(c.startswith("api graphql") for c in calls.read_text().splitlines())
 
 
 def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
