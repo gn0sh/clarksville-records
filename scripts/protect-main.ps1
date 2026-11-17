@@ -1,10 +1,12 @@
 # Protect main: create the "main: pull request required" ruleset, or update it if it already exists
 # (docs/ops/morning-note.md, step 2.0.1). Safe to run more than once: it never makes a second ruleset.
-# The ruleset has NO bypass: the daily update reaches main by its own pull request (the push job), so after writing
-# the ruleset (R1) this reads "Allow GitHub Actions to create and approve pull requests" (R2, Settings > Actions >
-# General) and main's sha, then turns R2 on, printing "R2 was off; main was <sha>" or "R2 already on": record that
-# line in docs/platform-facts.md "Main protection" (the start of the runbook 4.7.1 window, L-b). It stops before
-# changing anything if main's workflow does not open data pull requests yet.
+# The ruleset has NO bypass: the daily update reaches main by its own pull request (the push job). This reads main's
+# sha BEFORE writing the ruleset (R1) and prints "Main before the ruleset: <sha>"; after R1 it reads "Allow GitHub
+# Actions to create and approve pull requests" (R2, Settings > Actions > General) and turns it on, printing "R2 was
+# off; main was <sha>" (that same pre-R1 sha) or "R2 already on": record those lines in docs/platform-facts.md
+# "Main protection" (the start of the runbook 4.7.1 window, L-b). If this needed more than one run, the window
+# starts at the sha the FIRST run printed. It stops before changing anything if main's workflow does not open data
+# pull requests yet or main cannot be read.
 #
 # Needs: GitHub CLI (winget install GitHub.cli), signed in as the repository owner: gh auth login
 # Run (PowerShell, in the repository folder):
@@ -36,6 +38,14 @@ if ($LASTEXITCODE -ne 0 -or $wf -notmatch 'Open and merge the data pull request'
     exit 1
 }
 
+# main-protect/window-start-gap: main's sha is read BEFORE R1 is written, so no commit can land on main between the
+# window start and R1 (a direct push in that gap would be inside the window and caught by the 4.7.1 check).
+$mainSha = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
+if ($mainSha -notmatch '^[0-9a-f]{40}$') {
+    Write-Host 'Could not read the main commit. Nothing was changed. Run this again; send this output to the team if it repeats.'; exit 1
+}
+Write-Host "Main before the ruleset: $mainSha"
+
 $ids = @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0) { Write-Host 'Could not list the rulesets (signed in as the owner?).'; exit 1 }
 
@@ -46,23 +56,20 @@ if ($ids.Count -eq 0) {
 } else {
     foreach ($id in $ids) {
         Write-Host "Ruleset $id already exists: updating it."
+        Write-Host "Not the first run: the window starts at the first run's 'Main before the ruleset' sha."
         gh api -X PUT "repos/$repo/rulesets/$id" --input $body --silent
         if ($LASTEXITCODE -ne 0) { Write-Host "Updating ruleset $id failed (see the message above). The ruleset may be unchanged. Send this output to the team."; exit 1 }
     }
 }
 
 # R1 first, then R2 (L-b): with R1 on nobody pushes main directly, so from now on main changes only by a merged
-# pull request, and main's sha read seconds after R1 is written is where the window of runbook 4.7.1 starts. R2
+# pull request, and main's sha read just before R1 was written is where the window of runbook 4.7.1 starts. R2
 # governs creating and approving pull requests, not merging them, so the start does not rely on R2 being off. Then the push job's
 # GITHUB_TOKEN may open and merge its data pull request.
 $r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
 if ($r2 -eq 'true') {
     Write-Host 'R2 already on'
 } elseif ($r2 -eq 'false') {
-    $mainSha = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
-    if ($mainSha -notmatch '^[0-9a-f]{40}$') {
-        Write-Host 'Could not read the main commit, so Allow GitHub Actions to create and approve pull requests was NOT turned on (the ruleset is written). Run this again; send this output to the team if it repeats.'; exit 1
-    }
     gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true --silent
     if ($LASTEXITCODE -ne 0) { Write-Host 'Turning on "Allow GitHub Actions to create and approve pull requests" failed (see above); the ruleset is written. Send this output to the team.'; exit 1 }
     Write-Host "R2 was off; main was $mainSha"

@@ -40,7 +40,9 @@ function TurnR2Off {
     gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
     if ($LASTEXITCODE -eq 0) { Log 'Turned off: workflows can no longer open pull requests, so the daily update stops saving data.' }
     else { Log 'Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now.' }
+    Log 'First, now: turn off GitHub Actions (Settings > Actions > General > Disable actions); this stops the daily data update until the architect re-plans. The repository is public, so anyone can open a pull request at any time.'
     Log 'This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain'
+    Log "Then delete each closed pull request's head branch (a closed one whose branch still exists can be reopened and merged)."
     Log 'Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team.'
 }
 $verdict = ''
@@ -109,10 +111,18 @@ try {
         $status = (gh run view $run --repo $repo --json status --jq '.status' 2>$null) -join ''
         $statusShown = if ($status) { $status } else { 'unread' }
         Log "Probe run status: $statusShown"
-        $lines = @(gh run view $run --repo $repo --log 2>$null | ForEach-Object {
+        # v1-probe/log-raw-to-console: the run's log is untrusted text; drop ANSI colour codes, then control
+        # characters, before any of it is matched or printed.
+        $logText = @(gh run view $run --repo $repo --log 2>$null | ForEach-Object {
+            ($_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
+        $lines = @($logText | ForEach-Object {
             if ($_ -match 'V1-(RESULT|MERGED) (squash|merge|rebase|graphql).*') { $Matches[0] } })
+        # v1-probe/node-read-under-e: the run's own V1-ERROR lines reach Brian too (not the step's echo text the log shows).
+        $errors = @($logText | Where-Object { $_ -notmatch 'echo "V1-ERROR' } | ForEach-Object {
+            if ($_ -match 'V1-ERROR: .*') { $Matches[0] } })
         $mainAfter = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
         foreach ($l in $lines) { Log $l }
+        foreach ($l in $errors) { Log $l }
         Log "main after: $mainAfter"
         # The verdict comes from the probe PR and the canary file, not from main's sha (any other merge moves main).
         $prMerged = (gh api "repos/$repo/pulls/$($script:num)" --jq '.merged' 2>$null) -join ''

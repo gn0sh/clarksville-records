@@ -43,7 +43,9 @@ jobs:
           # text, which the log also shows, never matches the probe script's result pattern.
           if [ -z "$merged" ]; then
             method=graphql
-            node=$(gh api "repos/$repo/pulls/$num" --jq '.node_id')
+            # v1-probe/node-read-under-e: under bash -e a failed read would end the step with no V1 line; say why.
+            node=$(gh api "repos/$repo/pulls/$num" --jq '.node_id') || node=""
+            if [ -z "$node" ]; then echo "V1-ERROR: could not read node_id"; exit 1; fi
             q='mutation($id: ID!, $oid: GitObjectID!) { mergePullRequest(input: {pullRequestId: $id, expectedHeadOid: $oid, mergeMethod: SQUASH}) { pullRequest { merged } } }'
             code=0
             out=$(gh api graphql -f query="$q" -f id="$node" -f oid="$head" 2>&1) || code=$?

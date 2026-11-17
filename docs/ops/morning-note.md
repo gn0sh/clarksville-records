@@ -124,19 +124,24 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       ```
       (Local scripts are allowed in Windows Settings > For developers; never add `-ExecutionPolicy Bypass`.)
       (macOS or Linux: `bash scripts/protect-main.sh`.) It (a) stops with "Main does not have the data pull request
-      change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly; (b) creates the ruleset
+      change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly; (b) reads `main`'s commit
+      before touching anything and prints **`Main before the ruleset: <sha>`** (it stops, changing nothing, if
+      that read fails); then creates the ruleset
       from `scripts/main-ruleset.json` (no bypass), or, if a ruleset named `main: pull request required` already
       exists, updates that one, which also removes any bypass it had (running it twice never makes a second
       ruleset); (c) then turns on **Allow GitHub Actions to create and approve pull requests** (Settings > Actions >
-      General > Workflow permissions) and prints **`R2 was off; main was <sha>`** (or `R2 already on`): send that
-      line to the team; they record it in `docs/platform-facts.md` "Main protection" as `R2 first on: <sha>`, the
-      start of the 4.7.1 window (L-b); (d) prints **OK: main is protected** (rules on main
+      General > Workflow permissions) and prints **`R2 was off; main was <sha>`** (or `R2 already on`), where
+      `<sha>` is the one read in (b), before the ruleset was written: send both lines to the team; they record it
+      in `docs/platform-facts.md` "Main protection" as `R2 first on: <sha>`, the start of the 4.7.1 window (L-b).
+      If it needed more than one run, send every run's output: the start is the `Main before the ruleset` sha of
+      the **first** run (main-protect/window-start-gap); (d) prints **OK: main is protected** (rules on main
       `deletion,non_fast_forward,pull_request`, `GitHub Actions may create pull requests: true`, `Auto-merge
       allowed: false`, and the ruleset `active, bypass none, required approvals 0`), or **NOT OK** with what it
       found: send that output to the team.
-   2. **Or by hand, in the browser** (only if the terminal is not an option). Do 2 (the ruleset) first, then 1;
-      just before ticking the box in 1, open https://github.com/gn0sh/clarksville-records/commits/main and send the
-      team the first commit's full sha (the copy button), as `R2 was off; main was <sha>` (L-b):
+   2. **Or by hand, in the browser** (only if the terminal is not an option). First, before 2, open
+      https://github.com/gn0sh/clarksville-records/commits/main and send the team the first commit's full sha (the
+      copy button), as `R2 was off; main was <sha>` (L-b; main-protect/window-start-gap: read before the ruleset is
+      written). Then do 2 (the ruleset), then 1:
       1. https://github.com/gn0sh/clarksville-records/settings/actions > **Workflow permissions** > tick **Allow
          GitHub Actions to create and approve pull requests** > **Save**.
       2. https://github.com/gn0sh/clarksville-records/settings/rules: if `main: pull request required` is listed,
@@ -196,8 +201,13 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         and set the baseline (section 4 item 7) the same day.
       - **FAIL (V1 false)**: the probe pull request merged, or `v1-canary.yml` is on `main`. The script has already turned **Allow GitHub Actions to create
         and approve pull requests** off (workflows can no longer open pull requests, so the daily data stops
-        saving). That setting does not stop merging: a workflow can still merge a pull request that is already
-        open, so **close every open pull request into `main`** (https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain). Leave
+        saving). **First, turn off GitHub Actions** (Settings > Actions > General > **Disable actions**); this
+        stops the daily data update until the architect re-plans (v1-probe/v1-fail-containment-incomplete and
+        v1-fail-containment-order: the repository is public, so anyone can open a pull request at any time). The
+        R2 setting does not stop merging: a workflow can still merge a pull request that is already open, so then
+        **close every open pull request into `main`** (https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain),
+        then **delete each closed pull request's head branch** (a closed one whose branch still exists can be
+        reopened and merged). Leave
         `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the output to the team; the inert canary is removed
         by a person's PR and the architect re-plans the data path.
       - **INCONCLUSIVE**: refused for another reason, the run did not start or had not finished, the probe pull
@@ -306,11 +316,13 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       `git log --first-parent --format='%h %an %s' origin/main -- . ':(exclude)data/'` and read it: each
       change outside `data/` was meant (the earlier ones were merged without pull requests). `%an` is the commit's
       author and cannot show a bot merge (main-protect L-3), so also list who merged each such commit in the window
-      that starts at `main`'s commit read seconds after 2.0.1 wrote the ruleset (architecture "Baseline window
+      that starts at `main`'s commit read just before 2.0.1 wrote the ruleset (architecture "Baseline window
       check", L-b; from then on only merged pull requests reach `main`): `<R2-on sha>` is the
       `R2 first on: <sha>` line in `docs/platform-facts.md` "Main protection" (from 2.0.1's
-      `R2 was off; main was <sha>`). If 2.0.1 said `R2 already on`, the start is unknown: stop, the architect picks
-      the window. Paste the whole output into the baseline PR:
+      `R2 was off; main was <sha>`). If 2.0.1 needed more than one run, the window starts at `main`'s sha before
+      the **first** run (that run's `Main before the ruleset: <sha>`), not at a later run's
+      (main-protect/window-start-gap). If 2.0.1's first run said `R2 already on`, the start is unknown: stop, the
+      architect picks the window. Paste the whole output into the baseline PR:
       ```bash
       bash -s "<R2-on sha>" <<'WINDOW'
       set -euo pipefail

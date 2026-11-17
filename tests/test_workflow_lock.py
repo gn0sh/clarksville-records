@@ -2403,15 +2403,24 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     assert "bypass none, required approvals 0" in r.stdout and "GitHub Actions may create pull requests: true" in r.stdout
     assert "Auto-merge allowed: false" in r.stdout
     lines = calls.read_text().splitlines()
-    # L-b: R1 (the ruleset) first; then R2's state and main's sha are read; then R2 goes on, and the line naming
-    # main's sha (the start of the runbook 4.7.1 window) is printed
+    # main-protect/window-start-gap: main's sha is read (and printed) BEFORE R1 (the ruleset) is written; L-b: R1
+    # before R2's state is read; then R2 goes on, and the line naming that pre-R1 sha (the start of the runbook
+    # 4.7.1 window) is printed
     setting = [i for i, c in enumerate(lines) if "-X PUT" in c and "actions/permissions/workflow" in c]
     writes = [i for i, c in enumerate(lines) if ("-X PUT" in c or "-X POST" in c) and "/rulesets" in c]
     read_r2 = next(i for i, c in enumerate(lines) if "actions/permissions/workflow" in c and "-X" not in c)
-    read_main = next(i for i, c in enumerate(lines) if "/git/ref/heads/main" in c)
-    assert len(setting) == 1 and writes and max(writes) < read_r2 < read_main < setting[0]
+    read_main = [i for i, c in enumerate(lines) if "/git/ref/heads/main" in c]
+    assert len(read_main) == 1 and len(setting) == 1 and writes
+    assert read_main[0] < min(writes) and max(writes) < read_r2 < setting[0]
     assert "-F can_approve_pull_request_reviews=true" in lines[setting[0]]
+    assert f"Main before the ruleset: {'1' * 40}" in r.stdout
     assert f"R2 was off; main was {'1' * 40}" in r.stdout
+    assert r.stdout.index("Main before the ruleset") < r.stdout.index("R2 was off")
+    # main-protect/window-start-first-run: a ruleset already there means an earlier run; say whose sha starts it
+    not_first = "Not the first run: the window starts at the first run's 'Main before the ruleset' sha."
+    assert (not_first in r.stdout) == bool(existing)
+    if existing:
+        assert r.stdout.count(not_first) == len(existing.split())
     lines = [c for c in lines if "actions/permissions/workflow" not in c and "/git/ref/" not in c]
     posts = [c for c in lines if "-X POST" in c]
     puts = [c.split()[3] for c in lines if "-X PUT" in c]
@@ -2458,27 +2467,41 @@ def test_protect_main_needs_approvals_0_and_auto_merge_off(tmp_path, auto, appro
         assert "needs ADR 0009 changed" in r.stdout
 
 
-@pytest.mark.parametrize("r2,main_sha,code,says", [
-    ("true", None, 0, "R2 already on"),
-    ("false", "FAIL", 1, "was NOT turned on"),
-    ("false", "not-a-sha", 1, "was NOT turned on"),
-    ("FAIL", None, 1, "it was not changed"),
+@pytest.mark.parametrize("r2,code,says", [
+    ("true", 0, "R2 already on"),
+    ("FAIL", 1, "it was not changed"),
 ])
-def test_protect_main_reads_r2_and_main_before_turning_r2_on(tmp_path, r2, main_sha, code, says):
-    """L-b: R2 already on is said (the window start is then unknown); a failed read of R2 or of main's sha leaves R2
-    as it was, after the ruleset is written."""
+def test_protect_main_reads_r2_before_turning_r2_on(tmp_path, r2, code, says):
+    """L-b: R2 already on is said (the window start is then unknown); a failed read of R2 leaves R2 as it was,
+    after the ruleset is written."""
     bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
     bindir.mkdir()
     (bindir / "gh").write_text(_GH_STUB)
     (bindir / "gh").chmod(0o755)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
-           "MAIN_WF": TEXT, "R2": r2, **({"MAIN_SHA": main_sha} if main_sha else {})}
+           "MAIN_WF": TEXT, "R2": r2}
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
     assert r.returncode == code and says in r.stdout, r.stdout + r.stderr
     lines = calls.read_text().splitlines()
     assert not any("-X PUT" in c and "actions/permissions/workflow" in c for c in lines)
     assert any("-X PUT" in c and "/rulesets/42" in c for c in lines)
-    assert "R2 was off" not in r.stdout
+    assert "R2 was off" not in r.stdout and f"Main before the ruleset: {'1' * 40}" in r.stdout
+
+
+@pytest.mark.parametrize("main_sha", ["FAIL", "not-a-sha", ""])
+def test_protect_main_changes_nothing_when_main_cannot_be_read(tmp_path, main_sha):
+    """main-protect/window-start-gap: main's sha is read before R1 is written; if that read fails, nothing is
+    written (no ruleset, no R2) and no window line is printed."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT, "MAIN_SHA": main_sha}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 1 and "Could not read main's commit. Nothing was changed." in r.stdout, r.stdout
+    assert not any(" -X " in f" {c}" for c in calls.read_text().splitlines())
+    assert "Main before the ruleset" not in r.stdout and "R2 was off" not in r.stdout
 
 
 def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
@@ -2487,11 +2510,16 @@ def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
     assert 'echo "R2 already on"' in sh and 'echo "R2 was off; main was $main_sha"' in sh
     ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
     assert "Write-Host 'R2 already on'" in ps1 and 'Write-Host "R2 was off; main was $mainSha"' in ps1
-    assert "$mainSha = (gh api \"repos/$repo/git/ref/heads/main\" --jq '.object.sha') -join ''" in ps1
-    create = ps1.index('gh api -X POST "repos/$repo/rulesets" --input $body --silent')
+    assert ps1.count("$mainSha = (gh api \"repos/$repo/git/ref/heads/main\" --jq '.object.sha') -join ''") == 1
+    assert 'Write-Host "Main before the ruleset: $mainSha"' in ps1 and 'echo "Main before the ruleset: $main_sha"' in sh
+    assert ("Write-Host \"Not the first run: the window starts at the first run's 'Main before the ruleset' sha.\""
+            in ps1)
+    # main-protect/window-start-gap: main is read before the ruleset is written (POST or PUT), R2 after
     read_main = ps1.index('$mainSha = (gh api "repos/$repo/git/ref/heads/main"')
+    create = ps1.index('gh api -X POST "repos/$repo/rulesets" --input $body --silent')
+    update = ps1.index('gh api -X PUT "repos/$repo/rulesets/$id" --input $body --silent')
     turn_on = ps1.index('gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true')
-    assert create < read_main < turn_on
+    assert read_main < create < update < turn_on
 
 
 def test_protect_main_scripts_share_one_ruleset_body():
@@ -2817,7 +2845,9 @@ if a[1].startswith("repos/o/r/pulls?state=open"):
 if a[1] == "repos/o/r/pulls/77" and a[-1] == ".head.sha":
     print("h" * 40); sys.exit(0)
 if a[1] == "repos/o/r/pulls/77" and a[-1] == ".node_id":
-    print("PR_node"); sys.exit(0)
+    if os.environ.get("NODE") == "FAIL":
+        sys.exit(1)
+    print(os.environ.get("NODE", "PR_node")); sys.exit(0)
 method = "graphql" if a[1] == "graphql" else next(x.split("=", 1)[1] for x in a if x.startswith("merge_method="))
 if os.environ.get("MERGE_OK") == method:
     print('{"merged": true}'); sys.exit(0)
@@ -2852,14 +2882,92 @@ def test_the_v1_probe_step_tries_every_merge_under_bash_e(tmp_path, ok):
     assert merged == ([f"V1-MERGED {ok}"] if ok else [])
 
 
+@pytest.mark.parametrize("node", ["FAIL", ""])
+def test_the_v1_probe_step_says_when_it_cannot_read_the_node_id(tmp_path, node):
+    """v1-probe/node-read-under-e: a failed or empty node_id read prints V1-ERROR before the step exits, and no
+    GraphQL merge is tried."""
+    step = yaml.safe_load((ROOT / "scripts" / "v1-probe" / "v1-probe.yml").read_text(encoding="utf-8"))
+    run = next(iter(step["jobs"].values()))["steps"][0]["run"]
+    bindir, calls = tmp_path / "bin", tmp_path / "calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_STEP_GH)
+    (bindir / "gh").chmod(0o755)
+    (tmp_path / "step.sh").write_text(run)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "GH_TOKEN": "t",
+           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": "", "NODE": node}
+    r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 1 and r.stdout.splitlines()[-1] == "V1-ERROR: could not read node_id", r.stdout
+    assert [ln.split()[1] for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")] == ["squash", "merge", "rebase"]
+    assert not any(c.startswith("api graphql") for c in calls.read_text().splitlines())
+
+
 def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
     """R2 governs creating PRs, not merging (security main-protect/r2-does-not-gate-merge): FAIL also says to close
     every open pull request into main; sh and ps1 say it the same way."""
     r, made = _v1(tmp_path, _ALL_REFUSED, CANARY="on-main")
     assert r.returncode == 2 and "Close every open pull request into main now: https://github.com/gn0sh/" in r.stdout
+    # v1-probe/v1-fail-containment-incomplete: a closed PR whose branch exists can be reopened and merged
+    # Disable actions is required (public repo: anyone can open a PR); deleting closed PRs' branches is extra
+    # v1-fail-containment-order: Disable actions is the first manual step, before closing PRs and deleting branches
+    contain = ("First, now: turn off GitHub Actions (Settings > Actions > General > Disable actions); this stops the "
+               "daily data update until the architect re-plans.")
+    branch = "Then delete each closed pull request's head branch"
+    assert contain in r.stdout
+    out = r.stdout
+    assert out.index(contain) < out.index("Close every open pull request into main now") < out.index(branch)
     for name in ("v1-probe.sh", "v1-probe.ps1"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
         assert "This setting does not stop merging" in text and "safe state" not in text, name
+        assert contain in text and text.index(contain) < text.index("Close every open pull request") \
+            < text.index(branch), name
+    for doc in ("docs/ops/morning-note.md", "docs/architecture/main-protect-invariant.md"):
+        flat = " ".join((ROOT / doc).read_text(encoding="utf-8").split())
+        assert "head branch" in flat and "Disable actions" in flat and "v1-fail-containment-incomplete" in flat, doc
+        assert "stops the daily data update until the architect re-plans" in flat and ", or turn off" not in flat, doc
+        sec = flat[flat.index("(V1 false)"):]                 # the V1-false steps: Disable actions comes first
+        assert sec.index("Disable actions") < sec.index("close every open") < sec.index("head branch"), doc
+
+
+def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):
+    """v1-probe/node-read-under-e: a V1-ERROR line from the run reaches Brian's output; the step's own echo text,
+    which the log also shows, is not mistaken for one."""
+    log = (_SOURCE + 'probe\tTry\t2026-11-18T09:00:00Z if [ -z "$node" ]; then echo "V1-ERROR: could not read '
+           'node_id"; exit 1; fi\n' + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
+           + "probe\tTry\t2026-11-18T09:00:02Z V1-ERROR: could not read node_id\n")
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
+    assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not read node_id"]
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert "if ($_ -match 'V1-ERROR: .*')" in ps1 and "foreach ($l in $errors) { Log $l }" in ps1
+
+
+def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
+    """v1-probe/log-raw-to-console: colour codes and control characters in the run's log never reach the console or
+    the results file, and the V1 lines are still found after stripping."""
+    esc = "\x1b"
+    log = (_SOURCE + "".join(_REFUSED.format(m=m).replace("V1-RESULT", f"{esc}[36mV1-RESULT").replace("\n", "\r\n")
+                             for m in ("squash", "merge", "rebase"))
+           + f"probe\tTry\t2026-11-18T09:00:02Z {esc}[31mV1-ERROR: could not{esc}]0;title\x07 read node_id{esc}[0m\x08\n")
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
+    assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not]0;title read node_id"]
+    assert len([ln for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")]) == 3
+    saved = next(tmp_path.glob("v1-probe-results-*.txt")).read_text()
+    for text in (r.stdout, saved):
+        assert not re.search(r"[\x00-\x08\x0b-\x1f\x7f]", text), repr(text)
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert "-replace '[\\x00-\\x08\\x0B-\\x1F\\x7F]', ''" in ps1 and "-replace '\\x1b\\[" in ps1
+
+
+def test_v1_probe_ansi_strip_keeps_the_text_after_an_erase_code(tmp_path):
+    """v1-probe/log-raw-to-console: ESC[K right before a V1 line leaves the whole line (a sed bracket range that
+    swallowed letters turned `V1-MERGED squash` into `quash`), and a carriage return is dropped."""
+    esc = "\x1b"
+    log = (_SOURCE + _REFUSED.format(m="squash").replace("V1-RESULT squash exit=1", "V1-RESULT squash exit=0")
+           + f"probe\tTry\t2026-11-18T09:00:01Z {esc}[KV1-MERGED squash\r\n")
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
+    assert "V1-MERGED squash" in r.stdout.splitlines() and "\r" not in r.stdout and esc not in r.stdout
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):
