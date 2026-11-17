@@ -53,3 +53,15 @@ The earlier report's detail was lost with the old thread, so security re-derived
 - Info: GraphQL refusal text unverified (record from first run); author_association is read-time (fail closed on removal); raw names in `::error::` (strip control chars); pre-existing `-ExecutionPolicy Bypass` in scripts/morning-note-probe.cmd/.ps1:4.
 - Holds: M-1 jq, check placement, -z parsing, type refusals, failed reads, partial clone, probe verdicts, GraphQL step privileges, write-permission test.
 - Loop rule: 3rd main-protect hit -> architect restates the data/ shape invariant (incl. encoding) before the fix.
+
+## Code review r3-gate-fixes 0a70bbe..e3f0240 (opus/high): REQUEST CHANGES
+- must-fix v1-probe/step-exits-on-first-refusal: `scripts/v1-probe/v1-probe.yml:26,34,46` runs under GitHub's default `bash -e`, so the first refused merge ends the step before any `V1-RESULT` line: every real probe would be INCONCLUSIVE 0 of 4 (pre-existing since #26). Fix `set +e` or `|| code=$?`; test runs the step text under `bash -e` with a refusing gh stub, expects four lines.
+- should-fix runbook/gate-message-drift (`morning-note.md:452`): quote the gate's real messages; add the restore step for "data/ is not a folder".
+- should-fix note/credit-logo-privacy (`config/site.yml:206`): "can see" -> "may see" (Gmail proxy, Apple MPP).
+- nits: main-protect/window-start-rationale (stale row S1 text, ls-remote vs gh api, protect-main comment overclaims R2), tests/suite-time (3-locale matrix only for byte-sensitive cases), tests/text-lint-brittle (plain `in` checks).
+
+## Security r3-gate-fixes 0a70bbe..e3f0240 (opus/high, fresh): OK WITH FOLLOW-UPS
+- low main-protect/r2-does-not-gate-merge (needs verification): R2 governs creating/approving PRs, not merging; wording in invariant :115, protect-main sh:34/ps1:54, v1-probe FAIL text overclaims. V1 FAIL output should also say to close every open PR into main. Impact bounded by the gate's merged_by check once the baseline is set.
+- nit main-protect/runbook-refusal-text: same as code review's message drift; add a test that the runbook carries the exact strings.
+- Info: ps1 text-only (compared by hand, agrees); `%0A` only changes annotation display.
+- Holds: shape check under C/C.UTF-8/en_US.UTF-8 incl. embedded newline and \xff records, push job check, M-1 (live: #25-27 reviews show OWNER), GraphQL privileges, protect-main order, 4.7.1 block; new tests fail on 0a70bbe; two mutants caught.
