@@ -100,7 +100,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       gn0sh/clarksville-records; cd clarksville-records`; if you already have it, `git pull` in that folder. Then,
       in PowerShell in that folder, one line:
       ```
-      powershell -ExecutionPolicy Bypass -File scripts\protect-main.ps1
+      powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
       ```
       (macOS or Linux: `bash scripts/protect-main.sh`.) It (a) stops with "Main does not have the data pull request
       change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly; (b) turns on **Allow

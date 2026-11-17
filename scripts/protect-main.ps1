@@ -6,7 +6,7 @@
 #
 # Needs: GitHub CLI (winget install GitHub.cli), signed in as the repository owner: gh auth login
 # Run (PowerShell, in the repository folder):
-#   powershell -ExecutionPolicy Bypass -File scripts\protect-main.ps1
+#   powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
 # The rules (and the empty bypass list) are in scripts\main-ruleset.json.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): the name comes in through $ENV.
 
