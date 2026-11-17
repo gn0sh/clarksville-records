@@ -180,6 +180,42 @@
   (a source typo); 2026-03-05 prints "H AYWOOD" with a 3.3 pt gap.
 - Overlap with the Agenda Center: one meeting (2024-01-04 Regular Session; the Agenda Center has its agenda only, CivicClerk its minutes). CivicClerk also holds minutes for 2023 meetings the Agenda Center lacks (2023-11-02, 2023-12-07 at least; not collected, from_date is 2024-01-01).
 
+## CivicClerk, city Finance and Audit committees (verified 2026-11-16 by the collector's fetcher, 10 s apart; C1)
+- Same API, listing and file URLs as the council (`categoryName eq 'Finance Committee'` / `'Audit Committee'`,
+  15 events a page). From 2019-01-01: Finance 117 events (2019-04-04 to 2026-12-28; 105 with an agenda, 57 with
+  minutes), Audit 29 events (2019-01-17 to 2025-02-03; 23 with minutes). The survey's 49 Audit events include ones
+  before 2019 (not collected: from_date 2019-01-01). Some events carry an "Agenda Packet" file type (not fetched).
+- Finance minutes 2019-2026 and Audit minutes 2024 are text PDFs (6 sampled). Finance votes are voice votes ("A voice
+  vote was taken and the motion passed"), with a dissent printed now and then ("Councilman Henley voted "nay."",
+  "(Councilman Lovato was a no vote)"); Audit prints "The motion was approved unanimously." No AYE/NAY name list was
+  seen in the sample. Attendance by name: "Present: Streetman, ... Zacharias (arrived at 5:10 pm)", 2019 full names,
+  Audit "Audit Committee members present: ...". Audit headings carry U+200B after each number.
+- The 2026-05-26 Finance event's minutes (fileId 3197) are byte-identical to the 2025-05-27 event's (fileId 2590,
+  sha256 d5277eb0...): a mis-attached file, printing "May 27, 2025".
+- Event names may print another date than the event (2020-04-27 "Audit Committee Agenda 4-24-20", 2021-05-25
+  "... May 24, 2021"), and the Finance category holds other bodies' budget reviews (2024-05-07 "Public Safety
+  Committee FY25 Budget Review", "Gas & Water Committee FY25 Budget Review Mtg", 2024-05-10 Parks & Recreation).
+- Video: 61 events carry only bare `stream/CLARKSVILLETN/<uuid>.mp4` paths (no public URL): none kept.
+
+## County Committee Agendas page: school board and county finance committees (verified 2026-11-16 by the collector's fetcher, 10 s apart)
+- https://montgomerytn.gov/code/webshare/commission-committees-agendas.php, one HTML page (47 KB): `<dl><dt>Folder</dt>
+  <dd><ul><li><a href=...>` per body; the Regional Planning Commission's `<dd>` nests three empty sub-folders before its
+  one link. Links are relative paths with spaces (`/storage/departments/mayor/calendar-files/School System/...`).
+  robots.txt: allow all, no crawl-delay (10 s kept). Current calendar year only (2026 on 2026-11-16).
+- Collected folders and counts: School System 21 (Study Session + Formal Board, 2026-01-13 to 2026-11-17), Budget
+  Committee 12 (to 2026-11-18, one SPECIAL CALLED), Budget Hearings 10 (2026-04-09 to 05-12; 05-05 at 9AM and 1PM),
+  Audit 1, Committee on Investment 2, Purchasing 3 (one "(rescheduled)"), Delinquent Tax Sales and Release 1. All 50
+  are text PDFs of 1 page (45) or 2 pages (5), 57 to 238 KB; every printed date matched the file name.
+- File-name dates seen across the page: MM-DD-YY, MM-DD-YYYY, M-D-YYYY, YYYY-MM-DD, MMDDYY, YYMMDD, "01 08 2026",
+  "5-19- 26", "November 12, 2026"; one name has no day ("Sports Authority Liaison - September 2026", not collected).
+- Budget Committee agendas print County Commission resolution numbers (26-2-1 ...) and county zoning cases
+  (CZ-22-2025, with the applicants' names). School board formal agendas print a "Point of Pride Awards" list naming
+  students and staff, presenters' names on study-session items, and a right-hand "Policy Reference" column (GP-5,
+  EL-3, presenters' surnames). No school board item text is stored, only the count of lines
+  (docs/architecture/agenda-withhold-invariant.md).
+- No minutes and no votes for any of these bodies on montgomerytn.gov. CMCSS minutes: cmcss.net (Cloudflare challenge,
+  not collected). 2025 agendas: d6.mcgtn.org (blocked by this environment's network policy; not fetched).
+
 ## City ward map (verified 2026-11-10; traced for the landing's ward lookup)
 - Source: RPC "City Council Wards" 36x36 poster, https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/ClarksvilleCityWardsPoster.pdf (listed on https://www.cmcrpc.com/maps/, "Updated February 25, 2026"; Last-Modified 2026-02-25). Fetched once with the collector's PoliteFetcher (robots.txt, then the PDF, crawl-delay 10 obeyed; 2 requests) by `tools/fetch_map.py`; bytes in the Store, listed in `data/maps/manifest.json` (sha256 742f2c13...). Not used: APSU/county ArcGIS (needs written permission).
 - The poster is an ArcGIS Pro vector export in Tennessee State Plane, north up (no rotation, x/y scale ratio 1.00005, 9.83 m per pt). Each ward is one filled ring per part (16 parts, outline colour 0/0.149/0.451), each fill colour repeated once in the legend beside "N - <member>". Ward numbers are read two ways that must agree: the legend's leading number per colour, and the large printed ward number inside each fill. Member names are never read or stored.

@@ -254,8 +254,9 @@ def test_guard_other_sources_still_publish(county, tmp_path, capsys):
     assert county["site_facts"] == merged and county["export_facts"] == merged and merged == committed()
     assert "--body" in capsys.readouterr().out                       # the issue it would open (D1)
     code, outputs, _ = collect(tmp_path, county=M.KEPT, run_log=json.dumps({"rpc": {"exit": 0}}))
+    # the county guard firing raises no other source's warning: county committees and city books stay "ok"
     assert code == 0 and outputs == {"city": "0", "county": "0", "kept": "yes", "allowed": "no", "rpc": "ok",
-                                     "city_kept": "no"}
+                                     "city_kept": "no", "county_committees": "ok", "city_books": "ok"}
     assert STEPS["Upload refreshed data"]["if"].startswith("success() && ")
 
 

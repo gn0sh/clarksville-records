@@ -1,0 +1,71 @@
+{
+ "@odata.context": "https://clarksvilletn.api.civicclerk.com/v1/$metadata#Events",
+ "value": [
+  {
+   "id": 734,
+   "eventName": "Finance Committee Agenda 4-4-19",
+   "startDateTime": "2019-04-04T16:30:00Z",
+   "categoryName": "Finance Committee",
+   "categoryId": 27,
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "fileId": 996,
+     "name": "136a-Finance Agenda 4-4-19",
+     "publishOn": "2023-03-02T12:31:22.737Z"
+    },
+    {
+     "type": "Minutes",
+     "fileId": 997,
+     "name": "136m-Finance Minutes 4-4-19",
+     "publishOn": "2023-03-02T12:31:22.87Z"
+    }
+   ],
+   "mediaSourcePathMp4": "",
+   "hasMedia": false,
+   "isDeleted": false
+  },
+  {
+   "id": 730,
+   "eventName": "Finance Committee Agenda 4-23-19",
+   "startDateTime": "2019-04-23T16:30:00Z",
+   "categoryName": "Finance Committee",
+   "categoryId": 27,
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "fileId": 989,
+     "name": "159a-Finance Agenda 4-23-19",
+     "publishOn": "2023-03-02T12:30:55.573Z"
+    },
+    {
+     "type": "Minutes",
+     "fileId": 990,
+     "name": "159m-Finance Minutes 4-23-19",
+     "publishOn": "2023-03-02T12:30:55.657Z"
+    }
+   ],
+   "mediaSourcePathMp4": "",
+   "hasMedia": false,
+   "isDeleted": false
+  },
+  {
+   "id": 735,
+   "eventName": "Finance Committee Agenda 5-15-19",
+   "startDateTime": "2019-05-15T16:30:00Z",
+   "categoryName": "Finance Committee",
+   "categoryId": 27,
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "fileId": 998,
+     "name": "171a-Finance Agenda 5-15-19",
+     "publishOn": "2023-03-02T12:31:29.85Z"
+    }
+   ],
+   "mediaSourcePathMp4": "",
+   "hasMedia": false,
+   "isDeleted": false
+  }
+ ]
+}

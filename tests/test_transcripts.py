@@ -491,6 +491,9 @@ def test_member_pages_list_call_ons_verbatim_and_alike(built):
     out, result, cfg, sub = built
     smith = (out / "city" / "members" / "city-wanda-smith.html").read_text(encoding="utf-8")
     assert "Called on in meetings (transcript)" in smith
+    # collapsed, last, closed (onceover/official/transcripts-on-demand): one line until opened, no section heading
+    assert '<details class="call-ons-more">' in smith and 'id="called-on-h"' not in smith
+    assert smith.index('<details class="call-ons-more">') > smith.index('id="history-h"')
     assert "Transcript text after the chair called on Wanda Smith:" in smith
     video = next(m for m in sub["meetings"] if m["id"] == MEETING)["video_url"]
     assert f'href="{video}#t=4"' in smith

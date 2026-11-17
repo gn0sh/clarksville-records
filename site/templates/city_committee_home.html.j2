@@ -1,0 +1,31 @@
+{% extends "base.html.j2" %}
+{% from "_city_committee.html.j2" import cm_docs %}
+{% from "_hub.html.j2" import body_head with context %}
+{# A city committee's home (sitegen/committees.py home): every listed meeting, newest first, by year, with its
+   documents. Each meeting's attendance and motions are on its year page. #}
+{% block main %}
+{% set h = {"key": "city", "kicker": kicker} %}
+{% set lede %}Records of the {{ kicker }} {{ body }}, each linked to the city's own document.{% endset %}
+{% call body_head(h, body, lede, freshness=freshness | default([]), freshness_note=freshness_note | default("")) %}
+{% if coverage %}Meetings, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span class="nowrap">{{ coverage.to | day_words }}</span>: {{ n_meetings - n_upcoming }} meetings{% if n_upcoming %} and {{ n_upcoming }} upcoming{% endif %}, {{ n_docs }} documents collected{% if fetched_to %} (latest fetched {{ fetched_to }}){% endif %}, minutes read for {{ n_minutes_read }} {{ "meeting" if n_minutes_read == 1 else "meetings" }}.{% endif %}
+{% endcall %}
+<p class="muted body-notes">Each meeting lists its agenda and minutes as the city's portal posts them.{% if n_no_minutes %} {{ n_no_minutes }} {{ "meeting has" if n_no_minutes == 1 else "meetings have" }} no minutes posted.{% endif %} {% if motions_held %}{{ n_motions }} motions are read from the minutes. Their votes are being checked against the minutes, so each motion shows its words as printed, "Not confirmed" and a link to its page of the minutes, where the vote is printed.{% else %}{{ n_motions }} motions are read from the minutes ({{ n_motions_confirmed }} confirmed): who moved and seconded each and the outcome, as printed. A voice vote is shown as "Voice vote (not recorded by name)" with its outcome and the members present; no member's vote is shown unless the minutes print it.{% endif %} Item words that may name a private person are not shown; they are in the minutes.</p>
+<nav aria-label="Meetings by year" class="year-nav">
+  <ul class="inline-list">
+    {% for y in years %}<li><a href="{{ y.href }}">{{ y.year }}</a></li>{% endfor %}
+  </ul>
+</nav>
+{% for y in years %}
+<section aria-labelledby="y{{ y.year }}-h">
+  <h2 id="y{{ y.year }}-h"><a href="{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.meetings | length }} {{ "meeting" if y.meetings | length == 1 else "meetings" }})</span></h2>
+  {% for m in y.meetings %}
+  <div class="item" id="{{ m.id }}">
+    <p class="item-num"><span class="nowrap">{{ m.date | day_words }}</span></p>
+    <h3 class="item-h"><a href="{{ root }}{{ m.href }}">{{ body }}</a>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}{% if m.upcoming %} <span class="chip chip-status">Upcoming</span>{% endif %}</h3>
+    <p class="muted">Listed as: {{ m.printed }}.{% if m.motions %} {{ m.motions | length }} {{ "motion" if m.motions | length == 1 else "motions" }} in the minutes.{% endif %}</p>
+    {{ cm_docs(m) }}
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}
+{% endblock %}

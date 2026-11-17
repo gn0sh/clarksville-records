@@ -93,8 +93,8 @@ def test_confirmed_rate_is_computed_from_the_facts(about_site, city_facts):  # n
     tail = " are confirmed against the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source."
     # every body's line in the same words (site-polish/about-rate-unlabelled), in alphabetical order of body
     assert rates == {
-        "Clarksville City Council": f"{n:,} of {len(rcs):,} Clarksville City Council roll calls ({100 * n / len(rcs):.1f}%)" + tail,
-        "Montgomery County Commission": f"{cn:,} of {ct:,} Montgomery County Commission roll calls ({100 * cn / ct:.1f}%)" + tail}
+        "Clarksville City Council": f"{n:,} of {len(rcs):,} Clarksville City Council votes ({100 * n / len(rcs):.1f}%)" + tail,
+        "Montgomery County Commission": f"{cn:,} of {ct:,} Montgomery County Commission votes ({100 * cn / ct:.1f}%)" + tail}
     assert list(rates) == sorted(rates)
 
 

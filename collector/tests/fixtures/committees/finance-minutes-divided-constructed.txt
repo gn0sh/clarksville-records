@@ -1,0 +1,30 @@
+CONSTRUCTED TEST FIXTURE: not a real record. Shaped like the city Finance minutes; names are made up.
+                                             City of Clarksville
+                                           Finance Committee
+                                           October 23, 2023 at 4:30 PM
+                                                      City Hall
+
+                                         MINUTES
+
+1.   Call to Order
+      The meeting was called to order at 4:30 pm by Chair Dana Dunn.
+2.   Attendance
+      Present: Ashby, Birch, Cole, Dunn, Ellis (arrived at 4:41 pm)
+      Absent: None
+3.   City Council Action Required
+     A.   ORDINANCE 99-2023-24 (First Reading) An Ordinance used only as a test fixture
+
+                 Councilman Ashby made a motion to approve ORDINANCE 99-2023-24
+                 (First Reading). Councilman Birch seconded the motion.
+                 AYE: Ashby, Birch, Dunn, Ellis
+                 NAY: Cole
+                 The motion passed.
+     B.   RESOLUTION 98-2023-24 A Resolution used only as a test fixture
+
+                 Councilman Cole made a motion to approve RESOLUTION 98-2023-24.
+                 Councilman Ellis seconded the motion.
+                 AYE: Cole, Ellis, Jones
+                 NAY: Ashby, Birch, Dunn
+                 The motion failed.
+4.   Adjournment
+      The meeting adjourned at 5:02 pm.

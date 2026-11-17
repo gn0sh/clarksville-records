@@ -132,10 +132,15 @@ def build_budget(store, cfg: FinanceConfig, sources: dict, problems: list, meta_
             problems.append(f"book {spec.id}: {src['text_layer']} source {src['id']}, not read (scan-values)")
             continue
         read = fin_budget.read_book(book_words(pdf, spec.first_page, spec.last_page), spec, cfg.budget)
-        books.append({"id": spec.id, "title": spec.title, "edition": spec.edition, "fiscal_year": spec.fiscal_year,
-                      "source_id": src["id"], "pages_read": read.pages_read, "columns": read.columns})
+        book = {"id": spec.id, "title": spec.title, "edition": spec.edition, "fiscal_year": spec.fiscal_year,
+                "source_id": src["id"], "pages_read": read.pages_read, "columns": read.columns}
+        if cfg.budget.amount_unit != "dollars":
+            book["amount_unit"] = cfg.budget.amount_unit
+        if read.report_dates:
+            book["report_dates"] = read.report_dates
+        books.append(book)
         lines += fin_budget.to_records(read, cfg.budget)
-    fin_checks.reconcile(lines)
+    fin_checks.reconcile(lines, cfg.budget.run_totals)
     fin_checks.edition_compare(lines)
     return sorted(books, key=lambda b: b["id"]), sorted(lines, key=lambda x: x["id"])
 

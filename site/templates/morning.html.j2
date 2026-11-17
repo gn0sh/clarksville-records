@@ -11,7 +11,7 @@
 {% if lede %}<p class="lede">{{ lede }}</p>{% endif %}
 <div class="mn-preview-page" id="mn-day" data-date="{{ day.date }}">
   {{ picker(note, false) }}
-  <p class="small mn-mine" hidden>{{ text.preview_mine }}</p>
+  <p class="small mn-mine" hidden>{{ text.preview_mine }}{% if site.analytics %} The one exception is the anonymous visit count described on the <a href="{{ root }}method.html#visits">Method page</a>, which never includes your lists.{% endif %}</p>
   <p class="mn-hint" data-hint="seats" hidden>{{ text.seats_hint }} <a href="{{ root }}index.html">{{ text.seats_link }}</a></p>
   <ol class="mn-entries">
     {% for e in entries %}

@@ -18,11 +18,16 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   index       officials.html lists every official in the facts exactly once; "surname" sections alphabetical by
               surname, "seat" (Current) sections by district number, then other seats (AC1.1, design 6A.3)
   layout      every official page has the same headings and the same distinct column-header sets (AC1.5, N1)
-  provenance  derived seat dates are worded as seen in roll calls; no term wording, no inferred cutover date;
+  provenance  derived seat dates are worded as seen in vote records; no term wording, no inferred cutover date;
               the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
   official-numbers  each official page's numbers agree with themselves: one value per data-n key, parts add up to
               their whole, legends and Totals repeat the sentences (site-polish/official-totals-consistent)
+  vote-list   each official's vote list (<page folder>/<id>/votes*.html) holds exactly the rows recounted here from
+              the facts: one per vote recorded for them by name in a verified roll call, plus "Absent" for a verified
+              roll call at a meeting whose verified attendance lists them absent, each sourced to that page; filter
+              counts equal the rows, the official page's links and bar; the left-out number is the page's
+              rc_voted_nc; the same headings, columns and filter options on every list (onceover/votes/member-yes-no-list)
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
               official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
               the document, never linked), the operator lines (footer, About) and on the official's own page
@@ -31,7 +36,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               and none is the old favicon; the footer credit is the hook (gnoshcodes.com)
   brand/no-old-daylight-colors  no built file carries Daylight's old blue #2B4BA5 or old orange #EF5E35, as hex,
               hex with alpha or rgb()/rgba() (the palette is the gnoshcodes navy #0F1F3D and orange #D2561B)
-  external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
+  external    no third-party scripts, styles, images or fonts (N6); the visitor counter (ADR 0008) only while config
+              analytics.code is set, on every page or none, as static/count.js with exactly that code's /count
+              address, and then connect-src is exactly its origin (else 'none'); the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
               (only beside the address box) one sha256 hash and exactly geocoder_url
@@ -42,6 +49,13 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   dates/no-raw-utc-day  every fetch day a page, the search index or a feed entry shows is the site_timezone day of
               its source's manifest instant (config/site.yml fetch_manifests), or is labelled "(UTC day)" when the
               source has none (docs/architecture/local-dates.md)
+  committee-motions  (a build with the city committees, config city_committees) from committees.json alone: every
+              committee motion block is a recorded motion; one shown confirmed is confirmed in the record and no
+              hold_motions is on; one not confirmed shows no mover, seconder, vote or outcome; a voice vote never
+              shows members voting aye and reads "Voice vote (not recorded by name): passed."; every text and name shown (motion and attendance blocks) passes the
+              committee words rule, restated from committee-words.yml; a motion whose words the record withholds
+              shows the fixed note and no item or words "as printed"; each committee has pages; exactly one block
+              per motion in the record
   rpc-cases   (a build with the Regional Planning Commission) every "CASE NUMBER:" and numbered case line an agenda prints was read as a case
               (the completeness check of collector/rpc_agenda.py: a missed case is never silent)
   rpc-motions (a build with the Regional Planning Commission) docs/architecture/rpc-motion-invariant.md, from rpc.json
@@ -60,6 +74,12 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               that is not confirmed in rpc.json, or of any motion while hold_motions is on or motion_rules is not
               current, carries confirmed false, no outcome or tally and none of the motion's names; no vote entry
               of the RPC's body_key has any other id; a pages build with config morning_note set has morning/*.json
+  county-committees  (a build with the school board's or county finance committees' agendas) every meeting in the
+              agendas file has its section (#<id>) on its body's year page, each section carries the dashed COMING
+              minutes note and no vote words (moved, seconded, voted, outcome, passed, failed, unanimous); every
+              agenda line shown is a line the file holds; no school board meeting holds a title or an entry in the
+              agendas file, and no school board page shows an agenda line (privacy-withhold: count only); the
+              school board's hub is built exactly when its agendas are
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -90,12 +110,14 @@ import csv
 import hashlib
 import html
 import json
+import collections
 from collections import defaultdict
 import os
 import re
 import subprocess
 import sys
 import tempfile
+import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -205,7 +227,9 @@ def councils(facts: dict) -> list[dict]:
     out = []
     for loc in _site_cfg().get("councils") or []:
         c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
+        fin_path = (ROOT / c["facts"]).parent / "finance.json"   # the body's budget books (city/finance/)
         out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"]),
+                    "finance": load_facts(fin_path) if fin_path.is_file() else None,
                     "held_sentences": c.get("held_sentences"),
                     "transcripts_dir": (ROOT / c["facts"]).parent / "transcripts"})
     return out
@@ -556,6 +580,317 @@ def check_rpc_morning(site: Path, rpc: dict | None, note_expected: bool = False)
                       + ("; hold_motions on" if on_hold else ""))
 
 
+# committee-motions (sitegen/committees.py), restated here from committees.json and the configs alone
+CM_BLOCK = re.compile(r'<div class="cm-motion(?P<nc> nc)?" id="(?P<id>[^"]+)" data-motion="[^"]+">(?P<body>.*?)\n</div>',
+                      re.S)
+CM_NC_WORDS = ("Moved by", "seconded by", "Outcome", "Voted nay", "Voted aye", "Voice vote", "Recorded vote")
+# A confirmed voice vote's outcome, in the same words on every page (Brian's rule, 2026-11-16)
+CM_VOICE_VOTE = re.compile(r'<strong class="label">Voice vote \(not recorded by name\):</strong> (passed|failed)\.')
+CM_ATT_BLOCK = re.compile(r'<div class="zoning cm-attendance" id="(?P<id>[^"]+)">(?P<body>.*?)\n</div>', re.S)
+
+
+def committee_facts(facts: dict) -> dict | None:
+    """The city committees a real build shows (config/site.yml `city_committees:` and its committees.json), with
+    `_cfg` (that block) and `_held` (committees.yml or the record's hold_motions: anything but false is on), or None
+    (a fixture build, no block, or no committees.json yet)."""
+    import yaml
+    cfg = _site_cfg().get("city_committees")
+    if facts.get("fixture") or not cfg:
+        return None
+    loc = ROOT / "config" / "localities" / cfg["locality"]
+    p = ROOT / "data" / "localities" / cfg["locality"] / "committees" / "committees.json"
+    if not p.is_file():
+        return None
+    rec = json.loads(p.read_text(encoding="utf-8"))
+    yml = yaml.safe_load((loc / "committees.yml").read_text(encoding="utf-8")) or {}
+    held = yml.get("hold_motions", True) is not False or rec.get("hold_motions", True) is not False
+    return {**rec, "_cfg": cfg, "_held": held, "_listing": p.parent / "listing.json", "_manifest": p.parent / "manifest.json"}
+
+
+def committee_sources(cm: dict | None) -> list[dict]:
+    """Every document the committees' meetings list, as a source row (id, url, sha256, pages): a collected one with
+    the page count its minutes were read with, one not collected yet (linked whole, never with #page) by its url."""
+    out = []
+    for m in (cm or {}).get("meetings", []):
+        for d in m["documents"]:
+            out.append({"id": d.get("source_id") or d["url"], "url": d["url"], "sha256": d.get("sha256"),
+                        "pages": d.get("pages"), "fetched_at": d.get("fetched_at")})
+    return out
+
+
+def committee_scopes(cm: dict | None) -> list[tuple[str, dict]]:
+    """[(folder prefix, {sources})] of each configured committee's pages: its own meetings' collected documents."""
+    if not cm:
+        return []
+    out = []
+    for p in cm["_cfg"]["pages"]:
+        mine = {**cm, "meetings": [m for m in cm["meetings"] if m["committee"] == p["committee"]]}
+        out.append((p["folder"] + "/", {"sources": [s for s in committee_sources(mine) if s.get("sha256")]}))
+    return out
+
+
+# The committee words rule (docs/architecture/committee-words-invariant.md), restated here from
+# config/localities/<locality>/committee-words.yml alone: collector/committee_words.py is not imported, so a bug there
+# is not copied here. The invariant: every capitalised or single-letter token shown is on the roster, in `words`, or
+# inside a `phrase`; nothing else. This restatement is STRICTER than the collector's gate: a "," is a strict mark too
+# (the word after it must be in `words` or an allowed span), and it is run over every string field of committees.json,
+# listing.json and the manifest labels, not only over what the pages show. No rule for legislation: an ordinance
+# passes the same rule as any other text. A printed name is shown only when it is on the roster.
+CM_WORDS_NOTE = "Item words not shown (may name a private person); see the minutes"
+CM_MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
+CM_PREPS = frozenset("to for of with by from".split())
+CM_ARTICLES = frozenset("a an the".split())
+CM_ROMAN = frozenset("i ii iii iv v vi vii viii ix x xi xii".split())
+CM_ROMAN_AFTER = frozenset("title chapter phase part".split())
+CM_ITEM_NUMBER = re.compile(r"^(?:XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\.(?=\s)")    # "IV. ADOPTION": upper case only
+CM_LETTER = r"[^\W\d_]"
+# two single letters with spaces or periods, or one or two other non-letter non-digit characters, between ("J. Q.",
+# "J/Q", "J-P")
+CM_SINGLES = re.compile(rf"(?<!{CM_LETTER})(?<!['’]){CM_LETTER}(?:[\s.]+|[^\w]{{1,2}}|_{{1,2}}){CM_LETTER}"
+                        rf"(?!{CM_LETTER})(?!['’]{CM_LETTER})")
+# An initial before a name, restated differently from the gate (committees-privacy/lone-initial): any capital lone
+# letter with a period ("A. Smith" too), or any other than A and I without one, then up to three characters that are
+# not letters, digits or an allowed span, then a capitalised word that is not an allowed span (the roster, a phrase, a
+# date). No exception for a Roman numeral. Plus a deny-list: a capitalised word that is a common US surname or given
+# name (qa/common-us-names.txt) and not inside an allowed span fails, whatever committee-words.yml says.
+CM_INITIAL = re.compile(rf"(?<![\w'’])(?P<i>[^\W\d_])(?![\w'’])(?P<sep>(?:[^\w\x00]|_){{1,3}})(?P<w>{CM_LETTER}+)")
+CM_NAMES_PATH = Path(__file__).resolve().parent / "common-us-names.txt"
+CM_ODD = frozenset("Cf Mn Mc Me Co Cn Cs".split())     # format, combining, private-use, unassigned, surrogate
+
+
+class CmWords:
+    def __init__(self, path: Path):
+        y = yaml.safe_load(path.read_text(encoding="utf-8"))
+        sp = lambda t: " ".join(unicodedata.normalize("NFKC", str(t)).split()).casefold()   # noqa: E731
+        self.words = {sp(w) for w in y["words"]}
+        self.common_names = {n.casefold() for line in CM_NAMES_PATH.read_text(encoding="utf-8").splitlines()
+                             if not line.startswith("#") for n in line.split()}
+        self.lower_only = {sp(w) for w in y.get("lowercase_only") or []}
+        names = [sp(n) for o in y["officials"] for n in [o["name"], *(o.get("aliases") or [])]]
+        self.surnames = {sp(o["surname"]) for o in y["officials"]}
+        self.full = set(names)
+        alt = lambda xs: "|".join(re.escape(x).replace(r"\ ", r"\s+")   # noqa: E731
+                                  for x in sorted(set(xs), key=len, reverse=True))
+        sur = alt(self.surnames)
+        date = (rf"(?:{CM_MONTHS})\.?\s+\d{{1,2}}(?:st|nd|rd|th)?(?!\d)|(?:{CM_MONTHS}),?\s+\d{{4}}|"
+                rf"(?:{CM_MONTHS})(?=(?:\s+[A-Za-z]+){{0,2}}\s+(?:meeting|mtg)\b)")
+        spans = [alt(names), rf"(?:{alt(sp(t) for t in y['titles'])})\.?\s+(?:{alt(names)}|{sur})",
+                 rf"(?:AYES?|NAYS?)\s*:\s*(?:{sur})(?:\s*(?:,|\band\b)\s*(?:{sur}))*", date]
+        if y.get("phrases"):
+            spans.append(alt(sp(p) for p in y["phrases"]))
+        self.spans = re.compile(rf"(?i)(?<!{CM_LETTER})(?:" + "|".join(f"(?:{x})" for x in spans)
+                                + rf")(?:['’]s)?(?!{CM_LETTER})")
+
+    @staticmethod
+    def _odd(text: str) -> bool:
+        return any(unicodedata.category(c) in CM_ODD for c in unicodedata.normalize("NFKC", text))
+
+    def _masked(self, text: str) -> str:
+        t = " ".join(unicodedata.normalize("NFKC", text).split())
+        return self.spans.sub(" \x00 ", CM_ITEM_NUMBER.sub("\x00", t))
+
+    def _first_bad(self, toks: list[str]) -> str | None:
+        want = False          # the next word is in a strict place (after a preposition or a mark)
+        article = False
+        prev = None
+        for t in toks:
+            if t in ":,–—-":
+                want, article, prev = True, False, None        # every mark is strict here, "," too
+                continue
+            w = re.sub(r"['’]s$", "", t).casefold()
+            if want and w in CM_ARTICLES:
+                article, prev = True, w
+                continue
+            if t == "\x00" or w in self.words or (w in CM_ROMAN and prev in CM_ROMAN_AFTER):
+                good = True
+            elif want:
+                good = article and t.islower() and w in self.lower_only
+            elif t.islower():
+                good = w in self.lower_only or len(w) == 1
+            else:
+                good = len(w) == 1
+            if not good:
+                return t
+            want, article, prev = t != "\x00" and w in CM_PREPS, False, (None if t == "\x00" else w)
+        return None
+
+    def words_ok(self, text: str) -> bool:
+        if not text.strip():
+            return True
+        if self._odd(text):
+            return False
+        m = self._masked(text)
+        if CM_SINGLES.search(m):
+            return False
+        for x in CM_INITIAL.finditer(m):
+            if x["i"].isupper() and x["w"][:1].isupper() and (x["i"] not in "AI" or "." in x["sep"]):
+                return False
+        toks = re.findall(rf"\x00|{CM_LETTER}+(?:['’]{CM_LETTER}+)*|[:,–—]|(?<=\s)-(?=\s)", m)
+        if any(t[:1].isupper() and re.sub(r"['’]s$", "", t).casefold() in self.common_names for t in toks):
+            return False
+        return self._first_bad(toks) is None
+
+    def name_ok(self, printed: str) -> bool:
+        if self._odd(printed):
+            return False
+        n = " ".join(unicodedata.normalize("NFKC", printed).split())
+        return n.casefold() in self.surnames or bool(self.spans.fullmatch(n))
+
+
+# Every string field of committees.json (and of the committed listing.json and manifest labels) by kind: a name field
+# must be a roster name; a field of fixed values must hold one of them; an id, date, url or hash must have its shape;
+# EVERY OTHER string, whatever its key (a new field too), must pass the words rule.
+CM_NAME_KEYS = frozenset("mover_printed seconder_printed mover seconder ayes_printed nays_printed".split())
+CM_REASON_CODES = frozenset("""words-not-read outcome-not-read seconder-not-read mover-not-one-member
+    seconder-not-one-member vote-name-not-one-member vote-list-not-read vote-name-twice mover-is-seconder
+    minutes-date-not-printed minutes-date-differs attendance-not-read attendance-name-not-read other
+    name-not-on-roster""".split())
+CM_FIXED = {"kind": {"agenda", "minutes"}, "outcome": {"passed", "failed"},
+            "method": {"voice vote", "unanimous", "roll call", "stated"}, "reasons": CM_REASON_CODES,
+            "words_withheld": {"section", "subject_printed", "motion_printed", "outcome_printed"},
+            "words_note": {CM_WORDS_NOTE}, "attendance_withheld": {"name-not-on-roster"}, "source": {"civicclerk"},
+            "content_type": {"application/pdf"}, "words_replaced": {"title", "agenda_name", "minutes_name"}}
+CM_SHAPES = {
+    "id": r"\d{4}-\d{2}-\d{2}-[a-z]+(?:-\d+)?(?:-motion-\d+)?", "meeting_id": r"\d{4}-\d{2}-\d{2}-[a-z]+(?:-\d+)?",
+    "committee": r"[a-z]+", "slug": r"[a-z]+", "locality": r"[a-z]+(?:-[a-z]+)*", "source_id": r"src-[0-9a-f]{12}",
+    "sha256": r"[0-9a-f]{64}", "date": r"\d{4}-\d{2}-\d{2}", "minutes_printed_date": r"\d{4}-\d{2}-\d{2}",
+    "title_date": r"\d{4}-\d{2}-\d{2}", "meeting_date": r"\d{4}-\d{2}-\d{2}", "fetched_at": r"\d{4}-\d{2}-\d{2}",
+    "first_fetched_at": r"\d{4}-\d{2}-\d{2}T[\d:+.-]+", "last_modified": r"[A-Za-z]{3}, \d{2} [A-Za-z]{3} \d{4} [\d:]+ GMT",
+    "etag": r'(?:W/)?"[\w.-]*"', "agenda_id": r"cc-\d+",
+    "url": r"https://[^\s]+", "agenda_url": r"https://[^\s]+", "minutes_url": r"https://[^\s]+",
+    "video_url": r"https://[^\s]+", "item": r"[A-Z]|\d{1,3}"}
+
+
+def cm_string_problems(rec, cw: "CmWords", where: str, shapes: dict | None = None) -> list[str]:
+    """Every string anywhere in `rec` (keys starting with "_" are QA's own and skipped), checked by its key (above;
+    `shapes` overrides a key's shape for another file, e.g. the listing's committee `kind`). An attendance `name` is a
+    name; any other `name` (a document's) is words. Problems name the field's path, never its text (it may be a
+    name)."""
+    out: list[str] = []
+    shapes = {**CM_SHAPES, **(shapes or {})}
+
+    def walk(o, path: str, key: str) -> None:
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if not str(k).startswith("_"):
+                    walk(v, f"{path}.{k}", k)
+        elif isinstance(o, list):
+            for i, v in enumerate(o):
+                walk(v, f"{path}[{i}]", key)
+        elif isinstance(o, str):
+            if key in CM_NAME_KEYS or (key == "name" and ".attendance." in path):
+                ok = cw.name_ok(o)
+            elif key in shapes:
+                ok = bool(re.fullmatch(shapes[key], o))
+            elif key in CM_FIXED:
+                ok = o in CM_FIXED[key]
+            else:
+                ok = cw.words_ok(o)
+            if not ok:
+                out.append(f"{where}{path}: a string the committee words rule does not allow")
+    walk(rec, "", "")
+    return out
+
+
+CM_SPAN = re.compile(r"(?P<pre>[^<>]{0,40})<span data-item-title>(?P<t>.*?)</span>", re.S)
+
+
+def _cm_spans(body: str) -> list[tuple[str, str]]:
+    """[(kind, text)] of each data-item-title span of a committee block: names (mover, seconder, a vote list,
+    attendance), or words."""
+    out = []
+    for m in CM_SPAN.finditer(body):
+        pre, t = m["pre"], html.unescape(m["t"])
+        if pre.endswith(("Moved by ", "seconded by ")):
+            out.append(("name", t))
+        elif pre.endswith(("(as printed): ", "Present: ", "Absent: ")):
+            out += [("name", re.sub(r"\s*\([^)]*\)$", "", n)) for n in t.split(", ") if n != "none"]
+            out += [("words", x) for n in t.split(", ") for x in re.findall(r"\(([^)]*)\)$", n)]
+        else:
+            out.append(("words", t))
+    return out
+
+
+def check_committee_motions(site: Path, pages: dict[str, "Page"], cm: dict | None) -> tuple[list[str], str]:
+    """Every committee motion block (class cm-motion) against committees.json: (a) its motion is in the record; (b) a
+    block shown confirmed is confirmed in the record, while no hold is on; (c) a block not confirmed carries no
+    mover, seconder, vote or outcome; (d) a confirmed voice vote names no member as voting aye (never per-member
+    votes) and shows "Voice vote (not recorded by name): <outcome>." once; (e) the words rule, restated (CmWords): every name shown is on the roster and every text shown passes
+    the rule, in motion and attendance blocks alike; a motion whose words are withheld shows the fixed note and no
+    item or words "as printed"; (f) every configured committee has pages; (g) the pages carry exactly one block per
+    motion in the record."""
+    if not cm:
+        return [], "no committee facts"
+    cw = CmWords(cm.get("_words") or ROOT / "config" / "localities" / cm["_cfg"]["locality"] / "committee-words.yml")
+    by_id = {x["id"]: x for x in cm["motions"]}
+    problems, seen, shown, texts = [], 0, 0, 0
+    # (h) every string field of the record, the committed listing and the manifest labels, not only what is shown
+    problems += cm_string_problems(cm, cw, "committees.json")
+    fields = 1
+    for k, keep in (("_listing", None), ("_manifest", {"label", "kind", "meeting_date", "url", "sha256"})):
+        if cm.get(k) and Path(cm[k]).is_file():
+            rows = json.loads(Path(cm[k]).read_text(encoding="utf-8"))
+            rows = [{f: r[f] for f in (keep or r) if f in r} for r in rows]
+            problems += cm_string_problems(rows, cw, Path(cm[k]).name, {"kind": r"[a-z]+"} if k == "_listing" else None)
+            fields += 1
+        elif k in cm:
+            problems.append(f"{k[1:]}.json of the committees is missing, so its strings are not checked")
+    for p in cm["_cfg"]["pages"]:
+        if not any(rel.startswith(p["folder"] + "/") for rel in pages):
+            problems.append(f"no pages under {p['folder']}/ for the configured committee {p['committee']!r}")
+    for rel in sorted(pages):
+        text = (site / rel).read_text(encoding="utf-8")
+        if 'class="cm-motion' not in text and "cm-attendance" not in text:
+            continue
+        for a in CM_ATT_BLOCK.finditer(text):
+            for kind, t in _cm_spans(a["body"]):
+                texts += 1
+                if not (cw.name_ok(t) if kind == "name" else cw.words_ok(t)):
+                    problems.append(f"{rel}#{a['id']}: attendance shows {kind} not on the allow-list")
+        for b in CM_BLOCK.finditer(text):
+            seen += 1
+            mid, body, nc = b["id"], b["body"], bool(b["nc"])
+            mv = by_id.get(mid)
+            if mv is None:
+                problems.append(f"{rel}#{mid}: motion not in committees.json")
+                continue
+            for kind, t in _cm_spans(body):
+                texts += 1
+                if not (cw.name_ok(t) if kind == "name" else cw.words_ok(t)):
+                    problems.append(f"{rel}#{mid}: shows {kind} that the committee words rule does not allow")
+            withheld = set(mv.get("words_withheld") or []) & {"section", "subject_printed", "motion_printed"}
+            if withheld:
+                if CM_WORDS_NOTE not in html.unescape(body):
+                    problems.append(f"{rel}#{mid}: words withheld in committees.json, but no note on the page")
+                if "subject_printed" in withheld and 'class="motion-item"' in body:
+                    problems.append(f"{rel}#{mid}: shows an item whose words committees.json withholds")
+                if "motion_printed" in withheld and "</strong>, as printed:" in body:
+                    problems.append(f"{rel}#{mid}: shows motion words that committees.json withholds")
+            if nc:
+                bad = [w for w in CM_NC_WORDS if w in body]
+                if bad:
+                    problems.append(f"{rel}#{mid}: not confirmed, but shows {', '.join(bad)}")
+                continue
+            shown += 1
+            if cm["_held"]:
+                problems.append(f"{rel}#{mid}: shown confirmed while hold_motions is on")
+            elif not mv["confirmed"]:
+                problems.append(f"{rel}#{mid}: shown confirmed, but not confirmed in committees.json")
+            if (mv.get("vote") or {}).get("method") == "voice vote":
+                if "Voted aye" in body:
+                    problems.append(f"{rel}#{mid}: a voice vote shown with members voting aye")
+                said = CM_VOICE_VOTE.findall(body)
+                if said != [mv["vote"]["outcome"]]:
+                    problems.append(f"{rel}#{mid}: a voice vote not shown once as \"Voice vote (not recorded by "
+                                    f"name): {mv['vote']['outcome']}.\"")
+    blocks = len(cm["motions"])
+    if seen != blocks:      # every motion shown once, so none is left out of the checks above (or shown twice)
+        problems.append(f"{seen} committee motion blocks on the pages, {blocks} motions in committees.json")
+    return problems, (f"{seen} committee motion blocks ({blocks} motions in committees.json), {shown} shown confirmed; "
+                      f"{texts} shown texts and names, and every string of {fields} committee data files, pass the "
+                      "committee words rule")
+
+
 def rpc_allowed(rpc: dict | None) -> set[str]:
     """The RPC's record page and every listed link we did not collect (shown with data-ext="listed")."""
     if not rpc:
@@ -603,6 +938,83 @@ def county_agendas(facts: dict) -> dict | None:
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+def county_committees(facts: dict) -> dict | None:
+    """The school board's and county finance committees' agendas a real build shows (config/site.yml
+    `county_committees.agendas` names the collector config, which names the file), or None (a fixture build, no
+    block, no file yet). Their PDFs are sources like the minutes; the county's listing page is a record link."""
+    cc = _site_cfg().get("county_committees") or {}
+    if facts.get("fixture") or not cc.get("agendas"):
+        return None
+    c = yaml.safe_load((ROOT / cc["agendas"]).read_text(encoding="utf-8")) or {}
+    p = ROOT / c["facts"]
+    if not p.is_file():
+        return None
+    return {**json.loads(p.read_text(encoding="utf-8")), "_site": cc}
+
+
+# words that would put a vote on a committee or school board agenda page (these bodies have no minutes on the site)
+CMX_VOTE_WORDS = re.compile(r"\b(moved by|seconded|voted|outcome|passed|failed|unanimous(?:ly)?|roll call)\b", re.I)
+# the only keys a school board meeting may have in agendas.json (no title, no item text: the count of lines only)
+CMX_SCHOOL_KEYS = {"id", "body", "date", "time", "kind", "printed", "notes", "cancelled", "url", "on_page", "source_id",
+                   "title", "date_printed", "lines", "entries"}
+CMX_SECTION = re.compile(r'<section class="council-meeting committee-meeting" id="(?P<id>[^"]+)"[^>]*>(?P<body>.*?)</section>',
+                         re.S)
+
+
+def check_county_committees(site: Path, pages: dict[str, "Page"], cmx: dict | None) -> tuple[list[str], str]:
+    if not cmx:
+        return [], "no county committee agendas in this build"
+    cc = cmx["_site"]
+    fin = cc["finance"]["slug"]
+    sb = ((_site_cfg().get("school_board") or {}).get("page") or {}).get("slug")
+    groups = {b["key"]: b["group"] for b in cmx["bodies"]}
+    problems, seen = [], 0
+    for m in cmx["meetings"]:
+        y = m["date"][:4]
+        rel = f"{sb}/meetings/{y}.html" if groups[m["body"]] == "school" else f"{fin}/{m['body']}/{y}.html"
+        f = site / rel
+        if not f.is_file():
+            problems.append(f"{m['body']}/{m['id']}: no page {rel}")
+            continue
+        raw = f.read_text(encoding="utf-8")
+        sec = next((x for x in CMX_SECTION.finditer(raw) if x.group("id") == m["id"]), None)
+        if sec is None:
+            problems.append(f"{rel}#{m['id']}: no section for the meeting")
+            continue
+        seen += 1
+        body = sec.group("body")
+        if 'class="coming-note"' not in body:
+            problems.append(f"{rel}#{m['id']}: no COMING minutes note")
+        text = re.sub(r"<[^>]+>", " ", body)
+        allowed = " ".join(e["text"] for e in m.get("entries", [])) + " " + (m.get("title") or "") + " " + m["printed"]
+        for w in {x.group(0).lower() for x in CMX_VOTE_WORDS.finditer(html.unescape(text))}:
+            if w not in allowed.lower():
+                problems.append(f"{rel}#{m['id']}: says {w!r}, which the agenda does not print")
+        shown = [html.unescape(x) for x in re.findall(r"<span data-item-title>(.*?)</span>", body, re.S)]
+        mine = {e["text"] for e in m.get("entries", [])} | {m.get("title") or ""}
+        for t in shown:
+            if t not in mine:
+                problems.append(f"{rel}#{m['id']}: shows {t[:60]!r}, not a line of the agenda file")
+        if groups[m["body"]] == "school":
+            # privacy-withhold (docs/architecture/agenda-withhold-invariant.md): no school board item text at all,
+            # in the file or on the page; only the listing label, date, PDF link and the count of lines
+            extra = set(m) - CMX_SCHOOL_KEYS
+            if m.get("entries") or m.get("title") or extra:
+                problems.append(f"{rel}#{m['id']}: agendas.json holds school board agenda text "
+                                f"({'entries' if m.get('entries') else 'title' if m.get('title') else sorted(extra)})")
+            if shown or "agenda-lines" in body or 'class="day-item' in body:
+                problems.append(f"{rel}#{m['id']}: the page shows school board agenda text")
+    school = [m for m in cmx["meetings"] if groups[m["body"]] == "school"]
+    if school and sb:
+        hub = site / f"{sb}.html"
+        if not hub.is_file() or 'chip-coming">Coming</span></h1>' in hub.read_text(encoding="utf-8"):
+            problems.append(f"{sb}.html: the school board's agendas are built, but its page is not their hub")
+        for f in [hub, *sorted((site / sb).rglob("*.html"))]:
+            if f.is_file() and "data-item-title" in f.read_text(encoding="utf-8"):
+                problems.append(f"{f.relative_to(site)}: shows school board agenda text")
+    return problems, f"{seen} of {len(cmx['meetings'])} meetings shown with the minutes note and no vote words"
+
+
 def default_inputs(facts: dict) -> tuple[Path | None, Path | None]:
     """(roster, map) files the build read: the fixture's for a fixture facts file, else the locality's."""
     if facts.get("fixture"):
@@ -645,6 +1057,18 @@ def corrections_log_urls(path: Path | None = None) -> set[str]:
             and r["source_url"].startswith("https://")} if isinstance(rows, list) else set()
 
 
+def books_not_read_urls(cfg: dict) -> set[str]:
+    """finance.yml `budget.books_not_read` URLs of each council's locality (linked from its budget index only)."""
+    import yaml
+    out = set()
+    for loc in cfg.get("councils") or []:
+        p = ROOT / "config" / "localities" / loc / "finance.yml"
+        if p.is_file():
+            budget = (yaml.safe_load(p.read_text(encoding="utf-8")) or {}).get("budget") or {}
+            out |= {b["url"] for b in budget.get("books_not_read") or [] if str(b.get("url", "")).startswith("https://")}
+    return out
+
+
 def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | None,
                      corrections_path: Path | None = None) -> set[str]:
     """Exact URLs (qa-weakened/ext-link-any-host): config/site.yml links, the map's source_url, every roster row's
@@ -657,15 +1081,20 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
     out |= {b["url"] for b in (cfg.get("unofficial") or {}).get("bodies") or []}   # About's "official sites" list
     if (cfg.get("school_board") or {}).get("url"):
         out.add(cfg["school_board"]["url"])          # the day page's "coming" school board link
+    if (cfg.get("city_committees") or {}).get("url"):
+        out.add(cfg["city_committees"]["url"])       # the city committees' record line and their cards' coming link
     out |= {x["url"] for x in (cfg.get("committees") or {}).get("links") or []   # the committees' "coming" links
             if isinstance(x, dict) and x.get("url")}
     out |= {v["url"] for v in (cfg.get("video") or {}).values()   # the "Watch" links (sitegen/watch.py)
             if isinstance(v, dict) and isinstance(v.get("url"), str) and v["url"].startswith("https://")}
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
+    out |= books_not_read_urls(cfg)                  # a city budget book fetched and linked, not read
     if cfg.get("operator_url"):
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes LLC" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
+    if ((cfg.get("analytics") or {}).get("code")):
+        out.add(GOATCOUNTER_PRIVACY)                 # About's and Method's visitor-counting line (ADR 0008)
     mn = cfg.get("morning_note") or {}
     if mn.get("enabled") is True and mn.get("privacy_url"):
         out.add(mn["privacy_url"])                   # the sign-up form's and the Method page's privacy policy link
@@ -692,6 +1121,7 @@ class Page(HTMLParser):
         self._stack, self._fact_depth, self._fact_buf = [], None, None
         self.json_blocks: dict[str, list[str]] = defaultdict(list)   # <script type="application/json" id=...> text
         self.csp: list[str] = []      # every <meta http-equiv="Content-Security-Policy"> content
+        self.counters: list[tuple[str, str]] = []   # (script src, data-goatcounter) of each visitor-counter tag
         self._json_id = None
 
     def handle_endtag(self, tag):
@@ -731,6 +1161,8 @@ class Page(HTMLParser):
             self.fact_ids.append(a["data-fact-id"])
         if tag == "script" and a.get("src"):
             self.resources.append((tag, a["src"]))
+        if tag == "script" and ("data-goatcounter" in a or COUNT_JS.search(a.get("src") or "")):
+            self.counters.append((a.get("src") or "", a.get("data-goatcounter") or ""))
         if tag == "script" and (a.get("type") or "").strip().lower() == "application/json" and a.get("id"):
             self._json_id = a["id"]
             self.json_blocks[a["id"]].append("")
@@ -1015,8 +1447,18 @@ def finance_fact_ids(fin: dict | None) -> set[str]:
         if s["bid_tab"]:
             ids |= {f"{s['id']}/bidder/{b['printed_order']}" for b in s["bid_tab"]["bidders"]}
     for x in (fin or {}).get("budget_lines", []):
-        ids |= {x["id"], f"fund/{x['fund_no']}"}
+        ids |= {x["id"], f"fund/{_fund_key(x)}"}
     return ids
+
+
+def _fund_key(x: dict) -> str:
+    """Restated from sitegen/budget_views.fund_key: the printed fund number, else the printed name as a slug (the
+    city books print no number), else the report-run totals' page."""
+    if x["fund_no"] is not None:
+        return x["fund_no"]
+    if x["fund_name"]:
+        return re.sub(r"[^a-z0-9]+", "-", x["fund_name"].casefold()).strip("-")
+    return "report-totals"
 
 
 def held_sentence(rc: dict, sentences: dict) -> str:
@@ -1204,7 +1646,7 @@ def check_layout(site: Path, facts: dict, folder: str = "officials") -> tuple[li
 # ---------------------------------------------------------------- provenance (derived vs stated)
 # Restated from the architecture's invariant `provenance`, not imported from sitegen.
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls", "seen in attendance lists",
+DATE_PHRASES = ("seen in vote records", "shown as vacant in vote records", "vote records", "seen in attendance lists",
                 "shown as vacant in attendance lists", "attendance lists",
                 # a record that starts at a configured seating (council.yml evidence.configured, sitegen/council.py
                 # CONFIGURED_EVIDENCE): the cited minutes that record it (site-checks/provenance-claunch-seat-text)
@@ -1325,7 +1767,7 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
         for t in p.out:
             texts += 1
             for d in dates_worded(t):
-                problems.append(f"{rel}: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
+                problems.append(f"{rel}: seat text dates {d} without 'seen in vote records' wording: {t[:90]!r}")
     idx_file = site / "static" / "search-index.js"
     if idx_file.is_file():
         raw = idx_file.read_text(encoding="utf-8")
@@ -1338,7 +1780,7 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
         for t in seat_strings:
             texts += 1
             for d in dates_worded(t):
-                problems.append(f"static/search-index.js: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
+                problems.append(f"static/search-index.js: seat text dates {d} without 'seen in vote records' wording: {t[:90]!r}")
     problems += cutover_problems(facts, roster, eff)
     return problems, f"{texts} seat texts checked; lines split key {eff} immaterial"
 
@@ -1411,11 +1853,11 @@ def official_number_problems(text: str) -> list[str]:
     else:
         eq("Totals: absent", int(m.group(1)), n["absent"])
         eq("Totals: meetings", int(m.group(2)), n["meetings_listed"])
-    m = re.search(r"Roll call votes, \S+ to \S+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
-                  r"(?:(\d+) votes? in not confirmed\* roll calls|(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\*)",
+    m = re.search(r"Votes, \S+ to \S+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
+                  r"(?:(\d+) votes? not confirmed\*, see each page|(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\*)",
                   plain)
     if not m:
-        out.append("no 'Roll call votes' totals sentence")
+        out.append("no 'Votes, D to D:' totals sentence")
     else:
         g = [int(x) if x is not None else None for x in m.groups()]
         for k, v in zip(VOTE_KEYS, g[:4]):
@@ -1433,6 +1875,119 @@ def check_official_numbers(site: Path, facts: dict, folder: str = "officials") -
         n += 1
         problems += [f"{folder}/{o['id']}.html: {p}" for p in official_number_problems(f.read_text(encoding="utf-8"))]
     return problems, f"{n} official pages under {folder}/ agree with themselves"
+
+
+# ---------------------------------------------------------------- vote list (onceover/votes/member-yes-no-list)
+# Restated from the rule, not imported from sitegen: a row is a vote the minutes record for the person by name in a
+# verified roll call, or, for a verified roll call where none is recorded for them, "Absent" when the meeting's
+# attendance is extracted and verified and lists them absent (sourced to that attendance page). Nothing else.
+VL_ROW = re.compile(r'<tr data-vote="([a-z]*)" data-date="(\d{4}-\d{2}-\d{2})">(.*?)(?=\n<tr|\n</tbody>)', re.S)
+VL_SRC = re.compile(r'<a href="([^"]+)" target="_blank"[^>]*>p\.&nbsp;(\d+)')
+VL_KEYS = ("yes", "no", "abstain", "other", "absent")
+VL_OMITTED = "is on the full site; this preview leaves those pages out."
+
+
+def _vl_expected(facts: dict, oid: str) -> collections.Counter:
+    def ok(x):
+        return x["verification"]["status"] == "verified"
+    meetings = {m["id"]: m for m in facts["meetings"]}
+    urls = {s["id"]: s["url"] for s in facts["sources"]}
+    absent = {}
+    for m in facts["meetings"]:
+        if m["attendance_status"] == "extracted" and ok(m):
+            pages = [a["page"] for a in m["attendance"] if a["official_id"] == oid and a["status"] == "absent"]
+            if pages:
+                absent[m["id"]] = pages[0]
+    out = collections.Counter()
+    for rc in facts["roll_calls"]:
+        if not ok(rc):
+            continue
+        m = meetings[rc["meeting_id"]]
+        mine = [v for v in rc["votes"] if v["official_id"] == oid]
+        for v in mine:
+            out[(m["date"], v["value"], urls[rc["source_id"]], rc["page"])] += 1
+        if not mine and m["id"] in absent:
+            out[(m["date"], "absent", urls[m["source_id"]], absent[m["id"]])] += 1
+    return out
+
+
+def _vl_skeleton(page: str) -> tuple:
+    main = page[page.find("<main"):page.find("</main>")]
+    return (tuple(re.findall(r"<h[1-3]\b", main)), tuple(re.findall(r"<th[^>]*>(.*?)</th>", main)),
+            tuple(re.findall(r'<input type="radio" name="vote" value="([a-z]*)"', main)))
+
+
+def check_vote_lists(site: Path, facts: dict, folder: str = "officials",
+                     target: str = "pages") -> tuple[list[str], str]:
+    problems, n_lists, n_rows, omitted = [], 0, 0, 0
+    skeletons: dict[tuple, str] = {}
+    for o in facts["officials"]:
+        oid = o["id"]
+        page_f = site / folder / f"{oid}.html"
+        if not page_f.is_file():
+            continue
+        official = page_f.read_text(encoding="utf-8")
+        parts = sorted((site / folder / oid).glob("votes*.html"),
+                       key=lambda p: int(re.sub(r"\D", "", p.stem) or 1))
+        parts = [p for p in parts if re.fullmatch(r"votes(?:-\d+)?", p.stem)]
+        rel = f"{folder}/{oid}"
+        if not parts:
+            if VL_OMITTED in official and target == "preview":
+                omitted += 1
+            elif VL_OMITTED in official:
+                problems.append(f"{rel}.html: the vote list is left out, which only the preview target may do "
+                                f"(this is the {target} target)")
+            else:
+                problems.append(f"{rel}.html: no vote list page and no line saying it is left out")
+            continue
+        n_lists += 1
+        got = collections.Counter()
+        for p in parts:
+            page = p.read_text(encoding="utf-8")
+            rows = VL_ROW.findall(page)
+            n_rows += len(rows)
+            body_html = page[page.find("<tbody"):page.find("</tbody>")]
+            n_tr = len(re.findall(r"<tr\b", body_html))
+            n_empty = len(re.findall(r'<tr class="empty"><td[^>]*>No confirmed votes', body_html))
+            if n_tr != len(rows) + n_empty:
+                problems.append(f"{rel}/{p.name}: {n_tr} <tr> rows in the table body but {len(rows)} parsed vote rows "
+                                f"plus {n_empty} 'No confirmed votes' rows; a row the check cannot read still shows")
+            here = collections.Counter(k for k, _, _ in rows)
+            for k, d, body in rows:
+                m = VL_SRC.search(body)
+                if k not in VL_KEYS or not m:
+                    problems.append(f"{rel}/{p.name}: a {k!r} row of {d} without a known vote or a source page link")
+                    continue
+                got[(d, k, html.unescape(m.group(1)).split("#page=")[0], int(m.group(2)))] += 1
+            filt = dict((k, int(n)) for k, n in re.findall(r'name="vote" value="([a-z]*)"(?: checked)?> [^(<]+\((\d+)\)', page))
+            if filt.get("") != len(rows) or any(filt.get(k) != here[k] for k in VL_KEYS):
+                problems.append(f"{rel}/{p.name}: filter counts {filt} are not the page's rows {dict(here)}")
+            left = re.search(r'class="muted vote-list-left"><span data-n="rc_voted_nc">(\d+)</span>', page)
+            mine = re.search(r'data-n="rc_voted_nc">(\d+)<', official)
+            if not left or not mine or left.group(1) != mine.group(1):
+                problems.append(f"{rel}/{p.name}: left-out votes cast {left and left.group(1)} != the official page's "
+                                f"rc_voted_nc {mine and mine.group(1)}")
+            sk = _vl_skeleton(page)
+            skeletons.setdefault(sk, f"{rel}/{p.name}")
+        want = _vl_expected(facts, oid)
+        if got != want:
+            extra, missing = got - want, want - got
+            problems.append(f"{rel}: vote list rows differ from the facts: {sum(extra.values())} extra "
+                            f"{list(extra)[:2]}, {sum(missing.values())} missing {list(missing)[:2]}")
+        total = collections.Counter(k for _, k, _, _ in got.elements())
+        links = dict((k, int(n)) for k, n in re.findall(r'votes\.html\?vote=([a-z]+)">[^(<]+\((\d+)\)', official))
+        allx = re.search(r'votes\.html">All \((\d+)\)', official)
+        bar = dict((k, int(n)) for k, n in re.findall(r'data-n="vote-([a-z]+)">(\d+)<', official))
+        for k in VL_KEYS:
+            if links.get(k) != total[k] or bar.get(k) != total[k]:
+                problems.append(f"{rel}.html: {k} link {links.get(k)} / bar {bar.get(k)} != list rows {total[k]}")
+        if not allx or int(allx.group(1)) != sum(total.values()):
+            problems.append(f"{rel}.html: the All link does not count the {sum(total.values())} rows")
+    if len(skeletons) > 1:
+        problems.append(f"vote lists under {folder}/ differ in headings, columns or filter options: "
+                        + ", ".join(skeletons.values()))
+    return problems, (f"{n_lists} vote lists under {folder}/, {n_rows} rows recounted from the facts"
+                      + (f"; {omitted} left out (preview)" if omitted else ""))
 
 
 class NameLinks(HTMLParser):
@@ -1632,6 +2187,9 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
 ADDRESS_JS = re.compile(r"(^|/)static/address\.js$")
 CSP_FIXED = {"default-src": ["'self'"], "connect-src": ["'none'"], "object-src": ["'none'"], "base-uri": ["'none'"],
              "frame-src": ["'self'"], "img-src": ["'self'", "data:"], "form-action": ["'self'"]}
+GOATCOUNTER_PRIVACY = "https://www.goatcounter.com/help/privacy"   # restated from sitegen/analytics.py PRIVACY_URL
+COUNT_JS = re.compile(r"(^|/)static/count\.js$")
+GOATCOUNTER_CODE = re.compile(r"[a-z0-9][a-z0-9-]{1,48}[a-z0-9]")   # restated from sitegen/analytics.py CODE
 HASH_SRC = re.compile(r"'sha256-[A-Za-z0-9+/]{43}='")
 
 
@@ -1669,6 +2227,24 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     if site is None:
         return problems
     want = (cfg or {}).get("geocoder_url") or None
+    # Visitor counting (ADR 0008): off while config analytics.code is empty, and then no page may load static/count.js,
+    # name a counter or open connect-src. On, either every page loads static/count.js with exactly
+    # https://<code>.goatcounter.com/count and connect-src is exactly that origin, or (a preview/fixture build) none does.
+    code = ((cfg or {}).get("analytics") or {}).get("code") or ""
+    counter = f"https://{code}.goatcounter.com" if code and GOATCOUNTER_CODE.fullmatch(code) else None
+    if code and counter is None:
+        problems.append(f"config analytics.code {code!r} is not a GoatCounter site code")
+    counted = {rel for rel, pg in pages.items() if pg.counters}
+    if counted and counted != set(pages):
+        problems.append(f"visitor counter on {len(counted)} of {len(pages)} pages (want all or none), e.g. "
+                        f"{sorted(set(pages) - counted)[0]}")
+    for rel, pg in pages.items():
+        if pg.counters and counter is None:
+            problems.append(f"{rel}: loads a visitor counter while config analytics.code is empty")
+        for src, end in pg.counters:
+            if not COUNT_JS.search(src) or (counter and end != counter + "/count") or len(pg.counters) != 1:
+                problems.append(f"{rel}: visitor counter tag {src!r} {end!r} is not the one static/count.js with "
+                                f"{(counter or '') + '/count'!r}")
     for rel, pg in pages.items():
         blocks = pg.json_blocks.get("addr-config", [])
         loads = any(t == "script" and ADDRESS_JS.search(src) for t, src in pg.resources)
@@ -1694,6 +2270,8 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             continue
         pol = parse_csp(pg.csp[0])
         for k, v in CSP_FIXED.items():
+            if k == "connect-src" and pg.counters and counter:
+                v = [counter]
             if k == "form-action" and note_action and rel == NOTE_PAGE:
                 u = urlsplit(note_action)
                 v = [*v, f"{u.scheme}://{u.netloc}"]
@@ -2019,7 +2597,7 @@ def check_freshness_dates(site: Path, pages: dict[str, Page]) -> tuple[list[str]
 
 def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bool, county: dict | None = None,
                       councils_: list[dict] | tuple = (), rpc: dict | None = None,
-                      other_sources=()) -> tuple[list[str], str]:
+                      other_sources=(), committees_: list | tuple = ()) -> tuple[list[str], str]:
     """dates/no-raw-utc-day: (1) each per-document fetch day on a page ("fetched D", "Fetched D.", "at fetch (D)")
     is the site_timezone day of a manifest instant of a source linked just before it (the links since the previous
     fetch day, else the previous fetch day's links: a Details list after its links), or is labelled "(UTC day)"
@@ -2029,7 +2607,8 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     `rpc`'s), and the footer's "Data as of" on every page the latest of every file's (county, councils, RPC and
     `other_sources`: a list of source lists, the county agendas and finance); a day after
     "collected", "added", "downloaded" or "retrieved" is a fetch day as in (1), or after "meeting " a meeting date of
-    the page's facts; (3) the same for the search index's s.f beside s.u and (4) each feed entry's summary "fetched D"
+    the page's facts (the city committees' pages, `committees_` [(folder prefix, {sources})], by their own sources,
+    "latest fetched" too); (3) the same for the search index's s.f beside s.u and (4) each feed entry's summary "fetched D"
     beside its related link."""
     import xml.etree.ElementTree as ET
     county = county or {}
@@ -2040,6 +2619,8 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     rpc_slug = ((rpc or {}).get("_cfg") or {}).get("slug")
     if rpc_slug:   # the RPC's own pages date their footer by its sources (site-polish/rpc-subtitle: Rpc.site_for)
         scopes.append((rpc_slug + "/", rpc))
+    scopes += list(committees_)
+    own_latest = {id(f) for _, f in committees_}     # a committee page's "latest fetched" is its own sources' latest
     spans = {id(f): _fetch_span(f.get("sources") or [], rows) for _, f in scopes + [("", county)]}
     site_span = _site_span([*spans.values(), rpc_span, *(_fetch_span(list(s), rows) for s in other_sources)])
     problems: list[str] = []
@@ -2056,7 +2637,7 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
             n += 1
             labelled_n += bool(m["utc"])
             if m["kind"].lower() in FETCH_AGGREGATE:
-                why = _aggregate_ok(m, spans[id(own)], rpc_span, site_span)
+                why = _aggregate_ok(m, spans[id(own)], spans[id(own)] if id(own) in own_latest else rpc_span, site_span)
                 if why:
                     problems.append(f"{rel}: {why}")
                 continue
@@ -2239,6 +2820,8 @@ def page_type(rel: str) -> str | None:
     for c in _council_slugs():
         if head == c:
             parts = rel.split("/")
+            if len(parts) == 3 and parts[1] == "finance":   # the city's budget books (city/finance/)
+                return "finance_index" if parts[2] == "index.html" else "fund"
             return "council_home" if len(parts) == 2 else {"members": "council_member", "meetings": "council_meetings",
                                                             "items": "council_items", "transcripts": "council_transcript"}.get(parts[1])
     return {"officials": "official", "meetings": "meeting", "items": "items", "districts": "district",
@@ -2634,7 +3217,7 @@ def _rate_problems(text: str | None, body: str, rcs: list[dict], href: str) -> t
     plain = html.unescape(re.sub(r"<[^>]+>", "", text or ""))
     if text is None:
         return [f"about.html: no confirmed rate for {body}"], f"{body} {want} {pct}"
-    if not plain.startswith(f"{want} {body} roll calls {pct} are confirmed"):
+    if not plain.startswith(f"{want} {body} votes {pct} are confirmed"):
         return [f"about.html: {body} rate reads {plain[:80]!r}, the facts give {want} {pct}"], f"{body} {want} {pct}"
     if f'href="{href}"' not in text:
         return [f"about.html: {body} rate does not link the body's pages"], f"{body} {want} {pct}"
@@ -2646,7 +3229,7 @@ OPERATOR_PAGES = ("about.html", "who-runs-this.html")
 
 def check_about(site: Path, cs: list[dict], cfg: dict, county: dict | None = None) -> tuple[list[str], str]:
     """about.html and who-runs-this.html against the facts (Brian 2026-11-11): (a) every body's confirmed rate, the
-    county's (`county`: its facts) and each built council's, reads "<n> of <total> <body> roll calls (<pct>%) are
+    county's (`county`: its facts) and each built council's, reads "<n> of <total> <body> votes (<pct>%) are
     confirmed" and links the body's pages, restated here from the facts (verification status "verified"), so the page
     can never drift from the record and every body's line is labelled the same way; (b) with config operator_person set
     and that official in a built council, one operator line on each of About and Who runs this, the same on both, that
@@ -2939,18 +3522,33 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     missing = [c["slug"] for c in councils(facts) if c not in cs]
     rpc = rpc_facts(facts)
     agendas = county_agendas(facts)
+    city_fin = [c["finance"] for c in cs if c.get("finance")]
+    # a link to a city budget book is a known source like the county's (check_sources reads finance sources)
+    fin_all = None if finance is None and not city_fin else {
+        **(finance or {}), "sources": [*(finance or {}).get("sources", []), *(s for f in city_fin for s in f["sources"])],
+        "documents": (finance or {}).get("documents", [])}
+    cmf = committee_facts(facts)
+    cmx = county_committees(facts)
     all_sources = {"sources": [*facts["sources"], *(s for c in cs for s in c["facts"]["sources"]),
                                *(rpc or {}).get("sources", []),   # an RPC DOCX has no page count: linked whole only
-                               *(agendas or {}).get("sources", [])]}
+                               *(agendas or {}).get("sources", []), *committee_sources(cmf),
+                               *(cmx or {}).get("sources", [])]}
     videos = {m["video_url"] for c in cs for m in c["facts"]["meetings"] if m.get("video_url")}
     cal_urls, cal_problems = calendar_agenda_urls(facts)
     problems, note = check_sources(site, pages, all_sources, store_extra,
                                    allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc) | cal_urls
-                                   | ({agendas["index_url"]} if agendas else set()), finance, videos)
+                                   | ({agendas["index_url"]} if agendas else set())
+                                   | ({cmx["listing_url"]} | {m["url"] for m in cmx["meetings"] if not m.get("source_id")}
+                                      if cmx else set()), fin_all, videos)
     if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
         problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")
     problems += cal_problems
     rep.add("sources", problems + [f"no pages under {m}/ for the configured council" for m in missing], note)
+    if cmf is not None:
+        problems, note = check_committee_motions(site, pages, cmf)
+        rep.add("committee-motions", problems, note)
+    problems, note = check_county_committees(site, pages, cmx)
+    rep.add("county-committees", problems, note)
     if rpc is not None:
         problems, note = check_rpc_cases(rpc)
         rep.add("rpc-cases", problems, note)
@@ -2968,7 +3566,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     for c in cs:
         mine = {rel: pg for rel, pg in pages.items() if rel.startswith(c["prefix"])}
         problems += check_unverified(site, mine, c["facts"], internal, official_prefix=c["prefix"] + "members/",
-                                     export=False, held_sentences=c.get("held_sentences"))
+                                     export=False, held_sentences=c.get("held_sentences"), fin=c.get("finance"))
     rep.add("unverified", problems, ("internal build" if internal else "public build") + "".join(f"; {c['slug']}/ against its own facts" for c in cs))
     fact_ids = {o["id"] for o in facts["officials"]}
     roster_only = tuple(sorted({r["official_id"] for r in read_roster(seats_path) if r.get("official_id")} - fact_ids))
@@ -2989,6 +3587,11 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         p2, n2 = check_official_numbers(site, c["facts"], c["prefix"] + "members")
         problems, note = problems + p2, f"{note}; {n2}"
     rep.add("official-numbers", problems, note)
+    problems, note = check_vote_lists(site, facts, target=target)
+    for c in cs:
+        p2, n2 = check_vote_lists(site, c["facts"], c["prefix"] + "members", target=target)
+        problems, note = problems + p2, f"{note}; {n2}"
+    rep.add("vote-list", problems, note)
     problems, note = check_provenance(site, pages, facts, read_roster(seats_path), cfg)
     rep.add("provenance", problems, note)
     problems, note = check_name_links(site, facts, read_roster(seats_path), cs)
@@ -3008,7 +3611,11 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc,
                                        # the agendas a build shows: those with a page count (sitegen/county_agendas.py)
                                        other_sources=[[s for s in (agendas or {}).get("sources") or [] if s.get("pages")],
-                                                      (finance or {}).get("sources") or []])
+                                                      (finance or {}).get("sources") or [],
+                                                      [s for s in committee_sources(cmf) if s.get("sha256")],
+                                                      (cmx or {}).get("sources") or [],
+                                                      *((f.get("sources") or []) for f in city_fin)],
+                                       committees_=committee_scopes(cmf))
     rep.add("dates/no-raw-utc-day", problems, note)
     problems, note = check_freshness_dates(site, pages)
     rep.add("dates/freshness-linked", problems, note)

@@ -1,0 +1,100 @@
+# City of Clarksville budget books (books only: no purchasing archive here). collector/fin_config.load_books checks
+# this file with the same rules as config/localities/montgomery-tn/finance.yml `budget` (architecture
+# docs/architecture/finance-contracts.md A2, "City budget books"). Run:
+#   python -m collector fin-books {fetch,build} --locality clarksville-tn
+# Source page: https://www.clarksvilletn.gov/966/Fiscal-Year-Budget-Reports (robots.txt allows; Crawl-delay 10).
+# Layouts checked on all four books (docs/research/city-budget-layout-2026-11-16.md). Only the line-item report
+# "NEXT YEAR / CURRENT YEAR BUDGET ANALYSIS" (Tyler Munis) is read; signed-ordinance scans and every other report
+# are linked, never read.
+
+scan_producers: ['KONICA MINOLTA', '^KM_', 'bizhub', 'Paper Capture', 'ScanSnap', 'RICOH', 'Xerox', 'Canon iR',
+                 'HP Digital Sending', 'SHARP MX', 'Kyocera', 'TASKalfa', 'Lexmark', 'OCR']
+
+budget:
+  # pages: the analysis report's first and last page in that book (a page is read only when its title line matches).
+  books:
+    - id: fy2024-adopted
+      title: "Fiscal Year 2024 Budget"
+      edition: adopted
+      fiscal_year: 2024
+      url: https://www.clarksvilletn.gov/DocumentCenter/View/8991
+      pages: [50, 156]
+    - id: fy2026-final
+      title: "Fiscal Year 2026 Budget (Final Submission)"
+      edition: final submission
+      fiscal_year: 2026
+      url: https://www.clarksvilletn.gov/DocumentCenter/View/11398
+      pages: [33, 138]
+    - id: fy2027-presented
+      # "2027 Budget - Combined 5/29/2026" on the city's page; the adopted FY2027 budget came in July 2026 and it is not
+      # confirmed which version this file is, so it is labelled as presented. Its budget-year column is "2027 Mayor".
+      title: "Fiscal Year 2027 Budget, as presented 5/29/2026"
+      edition: as presented 5/29/2026
+      fiscal_year: 2027
+      url: https://www.clarksvilletn.gov/DocumentCenter/View/15550
+      pages: [9, 434]
+  # Books fetched and linked but not read (fin_books lists them in the run report). The FY2025 analysis report
+  # (pp. 43-133) is printed in Type 3 fonts with no Unicode map: its text layer is a cipher, so no value is read.
+  books_not_read:
+    - id: fy2025-adopted
+      title: "Fiscal Year 2025 Budget"
+      fiscal_year: 2025
+      url: https://www.clarksvilletn.gov/DocumentCenter/View/11392
+      reason: "line-item pages have no usable text layer (Type 3 fonts without a Unicode map)"
+  # One report holds revenue and expense: each row's statement comes from its account code (rows.statement_by_code).
+  page_titles:
+    revenue: "NEXT YEAR / CURRENT YEAR BUDGET ANALYSIS"
+  # Amounts print cents ("-1,404.28", ".00"); revenue prints negative, as the book does. Cells carry `cents`.
+  amount_unit: cents
+  # The header's first line holds the years only; the fund name is printed at the left of its second line.
+  header_year_lines: true
+  fund_from_header: true
+  # "2nd Readin" ends 4.8 pt before "COMMENT" (closer than the phrase gap): COMMENT starts its own band.
+  header_split_before: ["COMMENT"]
+  kind_words:
+    - [REVISED, amended]
+    - [ORIG, adopted]
+    - [ACTUAL, actual]
+    - [PROJECTION, projected]
+    - [Readin, adopted]       # "2nd Readin": the amount at the ordinance's second reading
+    - [Mayor, proposed]       # FY2027 as presented: the Mayor's proposed budget
+  ignore_words: ["COMMENT"]
+  # Tokens a derived (ignored) band may hold: the blank comment rule printed on every row.
+  ignore_tokens: ['^_+$']
+  header_words: ["BUD", "2nd"]
+  year: '\b(20\d{2})\b'
+  # Monospace amounts of 100 M and more touch ("-183,187,308.58-197,098,013.00"): split back by character width.
+  split_glued_amounts: true
+  rows:
+    # The fund line is the header's left phrase (fund_from_header); the books print no fund number on these pages.
+    fund_line: '^(?P<name>.+)$'
+    # Org code at the start of every coded row and section heading (100310, 10411001); dropped from a row's label
+    # when it repeats its section heading's org.
+    org_code: '^\d{6,8}$'
+    account_code: '^\d{4,5}$'
+    # Revenue objects are 3xxxx, expense objects 4xxx.
+    statement_by_code:
+      revenue: '^3\d{4}$'
+      expenditure: '^4\d{3}$'
+    subtotal_labels: {}
+    total: '^TOTAL '
+    # A total whose label is "TOTAL " + the fund name (cut to the label width) right after a section total is the
+    # fund's total, net of revenue and expense, over the fund's rows in this report run.
+    fund_totals: []
+    fund_total_by_name: true
+    # Report-run totals, over every fund of the run (statement net = revenue and expense together).
+    run_totals:
+      TOTAL REVENUE: revenue
+      TOTAL EXPENSE: expenditure
+      GRAND TOTAL: net
+    run_end: '^\*\* END OF REPORT'
+    scope_break_after: []
+    # The page foot's report date only (book.report_dates: the year-in-progress ACTUAL column runs to it); the time,
+    # page number, login and program id are never stored.
+    report_date: '^Report generated: (?P<date>[0-9]{2}/[0-9]{2}/[0-9]{4}) '
+    # The page foot (date, page number, login, program id): never read as a row.
+    footer: '^(Report generated: .*|User: .*|Program ID: .*)$'
+  tags:
+    transfer: {codes: [], headings: []}
+    non_revenue: {codes: [], headings: []}
+  fund_balance_labels: []

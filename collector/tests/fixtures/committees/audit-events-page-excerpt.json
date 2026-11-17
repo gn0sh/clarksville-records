@@ -1,0 +1,101 @@
+{
+ "@odata.context": "https://clarksvilletn.api.civicclerk.com/v1/$metadata#Events",
+ "value": [
+  {
+   "id": 144,
+   "eventName": "Audit Committee ",
+   "startDateTime": "2019-01-17T15:00:00Z",
+   "categoryName": "Audit Committee",
+   "categoryId": 44,
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "fileId": 118,
+     "name": "166a-01172019",
+     "publishOn": "2023-03-02T11:52:28.003Z"
+    },
+    {
+     "type": "Agenda Packet",
+     "fileId": 119,
+     "name": "166p-01172019plus",
+     "publishOn": "2023-03-02T11:52:28.117Z"
+    },
+    {
+     "type": "Minutes",
+     "fileId": 120,
+     "name": "166m-011719 Audit Mtg Minutes appd",
+     "publishOn": "2023-03-02T11:52:28.177Z"
+    }
+   ],
+   "mediaSourcePathMp4": "",
+   "hasMedia": false,
+   "isDeleted": false
+  },
+  {
+   "id": 158,
+   "eventName": "Audit Committee Agenda 3-12-20 MEETING CANCELLED",
+   "startDateTime": "2020-03-12T15:00:00Z",
+   "categoryName": "Audit Committee",
+   "categoryId": 44,
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "fileId": 145,
+     "name": "389a-Audit Agenda 3-12-20",
+     "publishOn": "2023-03-02T11:52:41.427Z"
+    }
+   ],
+   "mediaSourcePathMp4": "",
+   "hasMedia": false,
+   "isDeleted": false
+  },
+  {
+   "id": 159,
+   "eventName": "Audit Committee Agenda 3-31-20",
+   "startDateTime": "2020-03-31T15:00:00Z",
+   "categoryName": "Audit Committee",
+   "categoryId": 44,
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "fileId": 146,
+     "name": "405a-Audit Agenda 3-31-20",
+     "publishOn": "2023-03-02T11:52:42.377Z"
+    },
+    {
+     "type": "Minutes",
+     "fileId": 147,
+     "name": "405m-Audit Minutes 3-31-20",
+     "publishOn": "2023-03-02T11:52:42.433Z"
+    }
+   ],
+   "mediaSourcePathMp4": "stream/CLARKSVILLETN/bcc24d36-fe4c-4b4c-80f2-edfae57a0877.mp4",
+   "hasMedia": true,
+   "isDeleted": false
+  },
+  {
+   "id": 161,
+   "eventName": "Audit Committee Agenda 4-24-20",
+   "startDateTime": "2020-04-27T15:00:00Z",
+   "categoryName": "Audit Committee",
+   "categoryId": 44,
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "fileId": 150,
+     "name": "422a-April 27 2020 Audit Committee Agenda",
+     "publishOn": "2023-03-02T11:52:44.41Z"
+    },
+    {
+     "type": "Minutes",
+     "fileId": 151,
+     "name": "422m-Audit Minutes 4-27-20",
+     "publishOn": "2023-03-02T11:52:44.517Z"
+    }
+   ],
+   "mediaSourcePathMp4": "",
+   "hasMedia": false,
+   "isDeleted": false
+  }
+ ]
+}

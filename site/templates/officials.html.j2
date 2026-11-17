@@ -4,7 +4,7 @@
 {% block main %}
 <h1>Officials</h1>
 {% if seats_loaded %}
-<p class="lede">Members of the {{ site.cfg.county_body }} seen in the latest roll calls collected, by district number. Then everyone who served previously, by surname. Choose a name to see that person's recorded votes, attendance, motions and seconds.</p>
+<p class="lede">Members of the {{ site.cfg.county_body }} seen in the votes of the latest meeting collected, by district number. Then everyone who served previously, by surname. Choose a name to see that person's recorded votes, attendance, motions and seconds.</p>
 {% for s in sections %}
 <h2 class="section-h" id="{{ s.key }}-h">{{ s.heading }}{% if s.key != "current" %} ({{ s.cards | length }}){% endif %}</h2>
 <details class="officials-section" id="{{ s.key }}" data-order="{{ s.order }}"{% if s.key == "current" %} open{% endif %}>

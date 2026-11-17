@@ -14,7 +14,7 @@
       <span class="card-name-line"><a class="card-name" href="{{ root }}{{ o.href }}">{{ o.name }}</a>{% if o.seat %}<span class="seat">, {{ o.seat }}</span>{% endif %}</span>
       <span class="card-title">{{ o.title }}</span>
       <span class="card-line">Present at {{ o.present }} of {{ o.listed }} {{ "meeting" if o.listed == 1 else "meetings" }} with attendance shown</span>
-      <span class="card-line">Recorded vote on {{ o.rc_voted }} confirmed and {{ o.rc_voted_nc }} not confirmed* roll {{ "call" if o.rc_voted + o.rc_voted_nc == 1 else "calls" }}</span>
+      <span class="card-line">Votes recorded: {{ o.rc_voted }} confirmed, {{ o.rc_voted_nc }} not confirmed*</span>
       {% endif %}
     </div>
   </li>

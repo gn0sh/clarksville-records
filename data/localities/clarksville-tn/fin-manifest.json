@@ -1,0 +1,50 @@
+[
+  {
+    "bytes": 10160389,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T16:30:24+00:00",
+    "kind": "budget_book",
+    "label": "Fiscal Year 2025 Budget",
+    "last_modified": null,
+    "meeting_date": null,
+    "sha256": "d6ce661d57d0bdc6cb70d4141347f91503613ee4cea222e7c9d783f49c175fa7",
+    "url": "https://www.clarksvilletn.gov/DocumentCenter/View/11392"
+  },
+  {
+    "bytes": 10508193,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T16:30:43+00:00",
+    "kind": "budget_book",
+    "label": "Fiscal Year 2026 Budget (Final Submission)",
+    "last_modified": null,
+    "meeting_date": null,
+    "sha256": "f0374281b4817f3bc2a705725860ecbc369fab2af378b607f5d33ddfcad9bd7f",
+    "url": "https://www.clarksvilletn.gov/DocumentCenter/View/11398"
+  },
+  {
+    "bytes": 19101894,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T16:31:04+00:00",
+    "kind": "budget_book",
+    "label": "Fiscal Year 2027 Budget, as presented 5/29/2026",
+    "last_modified": null,
+    "meeting_date": null,
+    "sha256": "738ca3e830d680770574602d75a9f0526bda97ca7135ce49c655caf644adf064",
+    "url": "https://www.clarksvilletn.gov/DocumentCenter/View/15550"
+  },
+  {
+    "bytes": 21493296,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-16T16:30:04+00:00",
+    "kind": "budget_book",
+    "label": "Fiscal Year 2024 Budget",
+    "last_modified": null,
+    "meeting_date": null,
+    "sha256": "7b0eac1a94cdb92fe1071a659f909f44fe1d5fe5962e442d7f76e510a3efea03",
+    "url": "https://www.clarksvilletn.gov/DocumentCenter/View/8991"
+  }
+]

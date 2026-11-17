@@ -30,7 +30,7 @@ def real_map_site(tmp_path_factory):
 def real_site(tmp_path_factory):
     """The real data on the real map, for the one-screen fit (a fixture build carries the FIXTURE banner)."""
     out = tmp_path_factory.mktemp("real") / "build" / "site"
-    build(ROOT / "data" / "facts.json", out)
+    build(ROOT / "data" / "facts.json", out, target="pages")   # the real site is over the preview's file cap
     return out
 
 
@@ -69,14 +69,16 @@ def test_box_settings_come_from_config_and_georef(real_map_site):
     d = json.loads(REAL_DISTRICTS.read_text(encoding="utf-8"))
     wards = d["wards"]
     # the traced lines travel as data (no map is drawn): every district and ward path, each with its page
+    # (a fixture build without a roster: no holder for any seat, and no basis line; the real build names them)
     assert cfg.pop("districts") == [{"number": x["number"], "path": x["path"],
-                                     "href": f"districts/{int(x['number']):02d}.html"}
+                                     "href": f"districts/{int(x['number']):02d}.html", "holder": None}
                                     for x in sorted(d["districts"], key=lambda x: x["number"])]
+    assert cfg.pop("district_basis") is None and cfg.pop("ward_basis") is None
     got_wards = cfg.pop("wards")
     assert [(w["number"], w["path"]) for w in got_wards] == [(w["number"], w["path"])
                                                              for w in sorted(wards["wards"], key=lambda w: w["number"])]
     # a fixture build has no council pages, so no ward links (the browser run checks them on the real build)
-    assert all(w["href"] is None for w in got_wards), [w["href"] for w in got_wards]
+    assert all(w["href"] is None and w["holder"] is None for w in got_wards), [w["href"] for w in got_wards]
     assert cfg == {"georef": {"projection": G["projection"], "affine": G["affine"],
                               "boundary_margin_m": G["boundary_margin_m"]},
                    "geocoder": config.SITE["geocoder_url"], "geocoder_short": "Census",
@@ -402,6 +404,11 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     env = dict(os.environ)
     if "NODE_PATH" not in env:
         env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip()
+    HOLDERS = json.loads(re.search(r'<script type="application/json" id="addr-config">(.*?)</script>',
+                                   (real_site / "index.html").read_text(encoding="utf-8"), re.S).group(1))
+    HOLDERS = {"district": {d["number"]: d["holder"] for d in HOLDERS["districts"] if d.get("holder")},
+               "ward": {w["number"]: w["holder"] for w in HOLDERS.get("wards", []) if w.get("holder")},
+               "district_basis": HOLDERS["district_basis"], "ward_basis": HOLDERS.get("ward_basis")}
     res = subprocess.run(["node", str(ROOT / "tests" / "address_browser.js"), str(real_site / "index.html"), str(f)],
                          capture_output=True, text=True, timeout=300, env=env)
     assert res.returncode == 0, res.stderr
@@ -423,6 +430,11 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     both = census + "District 5 and Ward 6."                 # the combined lookup: the real map holds the wards
     assert c["district"]["text"].startswith(both) and c["district"]["href"] == "districts/05.html"
     assert c["district"]["hrefs"][1].endswith("#seat-ward-6")             # the ward's seat on the council page
+    # who holds each seat found, linked to their page, as the landing list shows them (names-not-districts)
+    d5, w6 = HOLDERS["district"][5], HOLDERS["ward"][6]
+    assert f"District 5: {d5['name']}. Ward 6: {w6['name']}." in c["district"]["text"], c["district"]["text"]
+    assert c["district"]["hrefs"][2:] == [h for h in (d5["href"], w6["href"]) if h]
+    assert HOLDERS["district_basis"] in c["district"]["text"] and HOLDERS["ward_basis"] in c["district"]["text"]
     assert "Census match: 1 TEST ST" in c["district"]["text"]
     assert c["twosame"]["text"].startswith(both)
     assert c["reachout"]["text"].startswith(both) and not c["reachout"]["pwned"]
@@ -432,11 +444,14 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     assert c["near"]["href"] == config.SITE["district_lookup_url"]
     assert c["wardnear"]["text"].startswith(census + "District 4. It is near a ward line. Check with the Election "
                                             "Commission or look it up on GoVoteTN to be sure.")
-    assert c["wardnear"]["hrefs"] == ["districts/04.html", config.SITE["district_lookup_url"]]
+    d4 = HOLDERS["district"][4]
+    assert f"District 4: {d4['name']}." in c["wardnear"]["text"]
+    assert c["wardnear"]["hrefs"] == ["districts/04.html", config.SITE["district_lookup_url"]] + [d4["href"]] * bool(d4["href"])
     assert c["outsidecity"]["text"].startswith(census + "District 6. It is outside the City of Clarksville wards on the "
                                           "Regional Planning Commission's map of 2026-02-25. Annexations since then are "
                                           "not on it. Check with the Election Commission or look it up on GoVoteTN.")
-    assert c["outsidecity"]["hrefs"] == ["districts/06.html", config.SITE["district_lookup_url"]]
+    d6 = HOLDERS["district"][6]
+    assert c["outsidecity"]["hrefs"] == ["districts/06.html", config.SITE["district_lookup_url"]] + [d6["href"]] * bool(d6["href"])
     assert c["outside"]["text"].startswith("This address is outside Montgomery County.")
     assert c["spoof"]["text"].startswith("This address is outside Montgomery County.")   # the page's own message ignored
     ambiguous = "More than one address matched. Add the city and ZIP, or check GoVoteTN."
@@ -501,3 +516,22 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         # the bare cases run at 375px: the privacy line's phone variant is the one shown (innerText, visible text only)
         assert v["privacy"].startswith("Sent to the U.S. Census Bureau's geocoder. This site doesn't store it."), \
             (k, v["privacy"])
+
+
+def test_settings_name_each_seats_holder_as_the_landing_list_does(real_site):
+    """onceover/address/names-not-districts: the answer names who holds each seat it finds; the settings carry, for
+    every district and ward, the landing list's own holder (name and page, or its fixed words) and its basis line."""
+    html = (real_site / "index.html").read_text(encoding="utf-8")
+    cfg = addr_config(html)
+    landing = {int(m.group(1)): (m.group(3) or m.group(4)) for m in re.finditer(
+        r'<li data-district="(\d+)">.*?<span class="d-holder">(<a href="([^"]+)">[^<]*</a>|([^<]*))</span>', html)}
+    for d in cfg["districts"]:
+        h = d["holder"]
+        assert h and h["name"], d["number"]
+        assert (h["href"] or h["name"]) == landing[d["number"]], d["number"]
+    assert cfg["district_basis"] and cfg["district_basis"] in html
+    for w in cfg.get("wards", []):
+        assert w["holder"] and w["holder"]["name"], w["number"]
+        assert w["holder"]["href"] is None or w["holder"]["href"].startswith("city/members/")
+    if cfg.get("wards"):
+        assert cfg["ward_basis"] and cfg["ward_basis"] in html
