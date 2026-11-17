@@ -9,6 +9,41 @@ PLAN_SCHEMA = "morning-send/1"
 NOTE_SCHEMA = "morning-note/1"                             # sitegen.morning.SCHEMA (a test keeps them equal)
 LIST_KEYS = ("zoning", "seats", "budget", "contracts")     # sitegen.morning.LIST_KEYS (a test keeps them equal)
 MODES = ("stamp", "ids")
+# The sign-up form's Buttondown tags (platform-facts "Morning note provider", 2026-11-16: on the free plan a new
+# sign-up carrying metadata__ fields was refused, so the form posts tags; metadata holds only the sender's stamp).
+# One fixed name per list and per seat, all under "note-", so the sender can tell its own tags from any other:
+# "note-zoning", "note-district-5", "note-ward-3". The form writes them (sitegen/morning_page.py), the deliver stage
+# reads them (deliver.recipient); every other tag is ignored.
+TAG_PREFIX = "note-"
+TAG_FIELD = "tag"                                          # the embed form's field name for a tag
+_SEAT_TAG = re.compile(r"note-(district|ward)-([1-9][0-9]{0,3})")
+
+
+def list_tag(key: str) -> str:
+    """"zoning" -> "note-zoning". ValueError for a key that is not one of LIST_KEYS."""
+    if key not in LIST_KEYS:
+        raise ValueError(f"not a list key: {key!r}")
+    return TAG_PREFIX + key
+
+
+def seat_tag_prefix(seat: str) -> str:
+    """"district" -> "note-district-" (the form's script appends the stored number)."""
+    if seat not in ("district", "ward"):
+        raise ValueError(f"not a seat: {seat!r}")
+    return f"{TAG_PREFIX}{seat}-"
+
+
+def read_tags(tags) -> tuple[tuple, list, list]:
+    """A subscriber's tag names -> (list keys in LIST_KEYS order, district numbers, ward numbers). Only the names
+    list_tag and seat_tag_prefix write count; every other tag, and every value that is not text, is ignored."""
+    got = {t for t in tags if isinstance(t, str)} if isinstance(tags, (list, tuple)) else set()
+    lists = tuple(k for k in LIST_KEYS if TAG_PREFIX + k in got)
+    seats = {"district": [], "ward": []}
+    for t in sorted(got):
+        m = _SEAT_TAG.fullmatch(t)
+        if m:
+            seats[m.group(1)].append(int(m.group(2)))
+    return lists, seats["district"], seats["ward"]
 KEY_RE = re.compile(r"[0-9a-f]{12}")
 # [0-9], never \d: in Python \d matches the digits of every script (Arabic-Indic, Devanagari, ...)
 DATE_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")

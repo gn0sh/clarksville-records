@@ -208,7 +208,16 @@ def test_an_editions_entries_and_order_equal_the_preview_pages(msite, lists, dis
         assert key is None
         return
     body = next(e["body"] for e in p["editions"] if e["key"] == key)
-    assert [n.all_text() for n in parse(body).walk() if n.tag == "strong"] == shown
+    got = [n.all_text() for n in parse(body).walk() if n.tag == "strong"]
+    # the same entries as the page; the email groups them under the list that selected each (plan.placed), keeping
+    # the page's order within a list
+    assert sorted(got) == sorted(shown)
+    by_id = {e["id"]: e for e in note["entries"]}
+    assert got == [by_id[i]["title"] for i, _ in plan_mod.placed(note, lists, seats)]
+    under = dict(plan_mod.placed(note, lists, seats))
+    for k in morning.LIST_KEYS:
+        assert [t for t in got if t in {by_id[i]["title"] for i, x in under.items() if x == k}] == \
+            [t for t in shown if t in {by_id[i]["title"] for i, x in under.items() if x == k}]
 
 
 def test_at_least_one_preview_comparison_has_entries(msite):  # noqa: F811

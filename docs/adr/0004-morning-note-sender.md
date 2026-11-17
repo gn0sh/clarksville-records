@@ -21,6 +21,12 @@ Actions logs are public. Sending, the account, the key and any cost are hard sto
    if that record cannot be read, nothing is sent.
 5. Delivery mode (`stamp`: per-day metadata value plus a filtered, scheduled email; or `ids`: send-draft to subscriber
    ids) is chosen by a probe on a test newsletter, because the public docs do not settle it.
+   **Amended 2026-11-17 after the probe (run on the live newsletter, free plan):** `stamp`. `send-draft` only sends a
+   preview to the account owner, so `ids` cannot work. The free plan refused `metadata__` fields on a new form
+   sign-up, so a subscriber's lists and seats are Buttondown **tags** posted by the form (`note-<list>`,
+   `note-district-<n>`, `note-ward-<n>`), and subscriber metadata holds only the sender's stamp, written as the whole
+   object. Brian (2026-11-16): no canary week (`canary_only: false`), no paid plan. Details and the security notes:
+   architecture "Switch-on: tags, and the security notes".
 
 ## Alternatives considered
 - **A fixed set of segment emails** (per list, per district, per ward). Strongest case: the sender never reads a

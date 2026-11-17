@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from conftest import shipped_with
 from sitegen import config
 from sender import common, deliver, plan as plan_mod, render, settings as settings_mod
 from test_morning import D, inputs  # noqa: F401
@@ -40,14 +41,16 @@ def settings(**kw) -> settings_mod.Settings:
 
 
 def sub(n: int, lists=("budget",), district=None, ward=None, type_="regular", **meta) -> dict:
-    """A made-up subscriber as a provider would return one, with the fields the sender must never keep."""
-    md = {"lists": list(lists), **meta}
+    """A made-up subscriber as a provider would return one, with the fields the sender must never keep. The lists
+    and seats are the form's tags (common.list_tag, seat_tag_prefix); `meta` is other metadata, and a tag the
+    sender did not define ("vip") rides along to show it is ignored."""
+    tags = [common.list_tag(k) for k in lists] + ["vip"]
     if district is not None:
-        md["district"] = district
+        tags.append(f"{common.seat_tag_prefix('district')}{district}")
     if ward is not None:
-        md["ward"] = ward
-    return {"id": f"sub-{n:04d}-secret", "email_address": f"person{n}@example.com", "type": type_, "metadata": md,
-            "ip_address": "192.0.2.10", "notes": "made-up fixture person"}
+        tags.append(f"{common.seat_tag_prefix('ward')}{ward}")
+    return {"id": f"sub-{n:04d}-secret", "email_address": f"person{n}@example.com", "type": type_, "tags": tags,
+            "metadata": dict(meta), "ip_address": "192.0.2.10", "notes": "made-up fixture person"}
 
 
 class Fake(deliver.Provider):
@@ -171,14 +174,14 @@ def test_live_with_send_false_makes_no_provider_call(plan):
         assert (res.code, res.status, res.editions) == (0, "no-send", 0) and fake.calls == []
 
 
-def test_a_disabled_config_sends_nothing_even_with_a_send_true_plan(plan):
+def test_a_disabled_config_sends_nothing_even_with_a_send_true_plan(plan, tmp_path):
     fake = Fake(people(plan))
     res, text = go(plan, fake, s=settings(enabled=False))
     assert (res.code, res.status, res.editions, res.recipients) == (0, "disabled", 0, 0) and fake.calls == []
     assert "emails created 0; recipients in total 0" in text
-    shipped = settings_mod.load(ROOT / "config" / "site.yml")           # the repository as it is: off
-    shipped = dataclasses.replace(shipped, link_hosts=settings().link_hosts)   # (the made-up site's links)
-    assert shipped.enabled is False and go(plan, fake, s=shipped)[0].status == "disabled" and fake.calls == []
+    off = settings_mod.load(shipped_with(tmp_path, enabled=False))     # the shipped file with the switch off
+    off = dataclasses.replace(off, link_hosts=settings().link_hosts, canary_only=False)   # (the made-up site's links)
+    assert off.enabled is False and go(plan, fake, s=off)[0].status == "disabled" and fake.calls == []
 
 
 def test_live_without_a_provider_sends_nothing(plan):
@@ -365,20 +368,20 @@ def test_stamp_sends_one_scheduled_email_per_edition_to_exactly_its_people(plan)
     assert not fake.sent_drafts and len(set(fake.keys)) == len(fake.keys) == 7        # 4 stamps + 3 emails
 
 
-def test_stamp_rereads_each_subscriber_just_before_the_write_and_keeps_their_changes(plan):
-    """L2: the write replaces the whole metadata object, so it is built from a fresh read of that subscriber, not
-    from the listing: a change made since (a new key, a new seat) survives. Someone whose shape or type changed is
-    not stamped (they get nothing today) and is not counted."""
+def test_stamp_rereads_each_subscriber_just_before_the_write(plan):
+    """L2: each subscriber is read again just before the write, not trusted from the listing. Someone whose shape
+    (tags) or type changed since is not stamped (they get nothing today) and is not counted; a change outside our
+    tags keeps them in."""
     def change(subs):
-        subs["sub-0004-secret"]["metadata"]["favourite"] = "green"                 # same shape: kept
-        subs["sub-0002-secret"]["metadata"]["lists"] = ["contracts"]               # another shape: skipped
+        subs["sub-0004-secret"]["tags"].append("another-tag")                     # same shape: kept
+        subs["sub-0004-secret"]["metadata"]["favourite"] = "green"
+        subs["sub-0002-secret"]["tags"] = ["note-contracts"]                      # another shape: skipped
         subs["sub-0003-secret"]["type"] = "unsubscribed"                           # left: skipped
     fake = Fake(people(plan))
     fake.after_listing = change
     res, _ = go(plan, fake)
     assert (res.status, res.editions, res.recipients) == ("sent", 2, 2)
-    assert fake.subs["sub-0004-secret"]["metadata"]["favourite"] == "green"
-    assert fake.subs["sub-0004-secret"]["metadata"]["note_edition"] == stamp(key_for(plan, ["budget", "contracts"]))
+    assert fake.subs["sub-0004-secret"]["metadata"] == {"note_edition": stamp(key_for(plan, ["budget", "contracts"]))}
     assert "note_edition" not in fake.subs["sub-0002-secret"]["metadata"]
     assert "note_edition" not in fake.subs["sub-0003-secret"]["metadata"]
     assert sorted(sorted(fake.audience(p)) for p in fake.created) == [["sub-0001-secret"], ["sub-0004-secret"]]
@@ -392,14 +395,18 @@ def test_a_failed_reread_stops_before_the_write(plan):
     assert "subscriber re-read" in text and SECRET_BODY not in text
 
 
-def test_stamp_writes_the_whole_metadata_back_and_touches_nobody_else(plan):
+def test_stamp_write_replaces_the_metadata_with_the_stamp_alone_and_touches_nobody_else(plan):
+    """sender/stamp-write-replaces: the provider's PATCH replaces the whole object (T4.0 probe), and the lists and
+    seats are tags, so the write is exactly {"note_edition": <stamp>}. A key the public form wrote (a forged
+    note_edition, "canary") is dropped by it; the tags are never written."""
     before = {s["id"]: copy.deepcopy(s) for s in people(plan)}
+    before["sub-0001-secret"]["metadata"].update(note_edition=f"{DAY}.{'0' * 12}.{'0' * 16}", canary="yes")
     fake = Fake(before.values())
     go(plan, fake)
     four = fake.subs["sub-0004-secret"]
-    assert four["metadata"] == {**before["sub-0004-secret"]["metadata"],
-                                "note_edition": stamp(key_for(plan, ['budget', 'contracts']))}
-    assert four["metadata"]["favourite"] == "blue" and four["metadata"]["ward"] == 3
+    assert four["metadata"] == {"note_edition": stamp(key_for(plan, ['budget', 'contracts']))}
+    assert four["tags"] == before["sub-0004-secret"]["tags"] and "note-ward-3" in four["tags"]
+    assert fake.subs["sub-0001-secret"]["metadata"] == {"note_edition": stamp(key_for(plan, ["budget"]))}
     for sid in ("sub-0005-secret", "sub-0006-secret", "sub-0007-secret"):
         assert fake.subs[sid] == before[sid]                           # unconfirmed, unsubscribed, no list: untouched
     for sid, s in fake.subs.items():                                   # only metadata ever changes
@@ -500,7 +507,7 @@ def test_only_regular_subscribers_are_recipients(plan, type_):
     assert "note_edition" not in fake.subs["sub-0001-secret"]["metadata"]
 
 
-def test_canary_only_reaches_only_the_ids_the_environment_names(plan):
+def test_canary_only_reaches_only_the_ids_the_environment_names(plan, tmp_path):
     """audience/canary-self-set: a subscriber writes their own metadata through the public form, so a canary is
     named only by MORNING_NOTE_CANARY_IDS (the note job's environment), never by metadata."""
     rows = [sub(1, ["budget"]), sub(2, ["budget"]), sub(3, ["contracts"], canary="1"),
@@ -509,7 +516,9 @@ def test_canary_only_reaches_only_the_ids_the_environment_names(plan):
     res, _ = go(plan, fake, s=settings(canary_only=True), canary_ids=frozenset({"sub-0002-secret", "sub-0005-secret"}))
     assert (res.editions, res.recipients) == (1, 1)
     assert [fake.audience(p) for p in fake.created] == [{"sub-0002-secret"}]
-    assert settings_mod.load(ROOT / "config" / "site.yml").canary_only is True      # the shipped default
+    # the deliver job's reader honours the switch both ways (Brian, 2026-11-16: the shipped value is false)
+    assert settings_mod.load(shipped_with(tmp_path, canary_only=True)).canary_only is True
+    assert settings_mod.load(shipped_with(tmp_path, canary_only=False)).canary_only is False
 
 
 @pytest.mark.parametrize("ids", [None, frozenset()])
@@ -557,40 +566,56 @@ def test_the_cli_reads_the_canary_list_from_the_environment(monkeypatch):
     assert cli._canary_from_env() is None
 
 
-@pytest.mark.parametrize("meta, expect", [
-    ({"lists": ["budget"], "district": "7; drop"}, "budget|-|-"),
-    ({"lists": ["budget"], "district": "7"}, "budget|7|-"),
-    ({"lists": ["budget"], "district": 22, "ward": 13}, "budget|-|-"),          # one past the counts
-    ({"lists": ["budget"], "district": 21, "ward": 12}, "budget|21|12"),
-    ({"lists": ["budget"], "district": 0, "ward": -1}, "budget|-|-"),
-    ({"lists": ["budget"], "district": True, "ward": 7.0}, "budget|-|-"),
-    ({"lists": ["budget"], "district": "07", "ward": " 3"}, "budget|-|-"),
-    ({"lists": ["budget"], "district": {"$ne": 1}, "ward": ["3"]}, "budget|-|-"),
-    ({"lists": ["zoning", "x"]}, "zoning|-|-"),
-    ({"lists": ["x", "*", "budget,zoning"]}, None),
-    ({"lists": "budget, zoning"}, "budget,zoning|-|-"),
-    ({"lists": ["budget"] * 5000}, None),
-    ({"lists": "budget," * 5000}, None),
-    ({"lists": {"budget": True}}, None), ({"lists": None}, None), ({}, None)])
-def test_hostile_metadata_is_ignored_not_passed_on(plan, meta, expect):
-    """The public form takes any text for district, ward and lists. Whatever arrives, the sender works only with a
-    known list key and a whole number in range; the rest is treated as not set."""
+@pytest.mark.parametrize("tags, expect", [
+    (["note-budget", "note-district-7; drop"], "budget|-|-"),
+    (["note-budget", "note-district-7"], "budget|7|-"),
+    (["note-budget", "note-district-22", "note-ward-13"], "budget|-|-"),          # one past the counts
+    (["note-budget", "note-district-21", "note-ward-12"], "budget|21|12"),
+    (["note-budget", "note-district-0", "note-ward--1"], "budget|-|-"),
+    (["note-budget", "note-district-07", "note-ward- 3", "note-ward-3 "], "budget|-|-"),
+    (["note-budget", "note-district-5", "note-district-7"], "budget|-|-"),       # two districts: neither counts
+    (["note-budget", "note-ward-3", "note-ward-3"], "budget|-|3"),               # the same tag twice is one tag
+    (["note-budget", "district-5", "ward-3", "5", "Note-district-5"], "budget|-|-"),
+    (["note-zoning", "x", "vip", "zoning"], "zoning|-|-"),
+    (["zoning", "budget", "Note-Budget", " note-budget", "note-budget,note-zoning", "note-*"], None),
+    (["note-budget"] + [f"note-district-{n}" for n in range(1, 17)], None),      # more than a picker can post
+    ([1, None, {"name": "note-budget"}, ["note-budget"]], None),
+    ("note-budget", None), ({"note-budget": True}, None), (None, None), ([], None)])
+def test_hostile_tags_are_ignored_not_passed_on(plan, tags, expect):
+    """sender/tags-untrusted: the public form can add any tag, to any existing address. Whatever arrives, the sender
+    works only with its own tag names, a known list key and one whole number in range per seat; the rest is
+    treated as not set."""
     s = settings()
-    r = deliver.recipient({"id": "sub-0001-secret", "type": "regular", "metadata": meta}, s)
+    r = deliver.recipient({"id": "sub-0001-secret", "type": "regular", "tags": tags, "metadata": {}}, s)
     got = common.signature(r.lists, r.district, r.ward) if r.lists else None
     assert got == expect
-    fake = Fake([{"id": "sub-0001-secret", "type": "regular", "metadata": meta, "email_address": "person1@example.com"}])
+    fake = Fake([{"id": "sub-0001-secret", "type": "regular", "tags": tags, "metadata": {},
+                  "email_address": "person1@example.com"}])
     go(plan, fake)
     for p in fake.created:
         assert p["filters"]["filters"][0]["value"] == stamp(plan['signatures'][expect])
     assert bool(fake.created) == (expect in plan["signatures"])
 
 
+@pytest.mark.parametrize("meta", [{"lists": ["budget"]}, {"lists": "budget", "district": 7, "ward": 3},
+                                  {"note-budget": True}, {"tags": ["note-budget"]}, {"canary": "yes"}])
+def test_metadata_never_names_an_audience(plan, meta):
+    """The form can write metadata on an existing subscriber (T4.0 probe), so lists and seats are read from tags
+    only: metadata alone puts nobody on a list, and next to our tags it changes nothing."""
+    s = settings()
+    assert deliver.recipient({"id": "a", "type": "regular", "metadata": meta}, s).lists == ()
+    r = deliver.recipient({"id": "a", "type": "regular", "tags": ["note-contracts"], "metadata": meta}, s)
+    assert common.signature(r.lists, r.district, r.ward) == "contracts|-|-"
+    fake = Fake([{"id": "sub-0001-secret", "type": "regular", "metadata": meta}])
+    res, _ = go(plan, fake)
+    assert (res.status, res.editions) == ("sent", 0) and fake.created == [] and "set_metadata" not in fake.calls
+
+
 def test_a_subscriber_row_that_is_not_a_record_is_skipped(plan):
     s = settings()
     for raw in (None, "x", [], {"type": "regular"}, {"type": "regular", "id": 7}, {"type": "regular", "id": ""}):
         assert deliver.recipient(raw, s) is None
-    assert deliver.recipient({"type": "regular", "id": "a", "metadata": "x"}, s).lists == ()
+    assert deliver.recipient({"type": "regular", "id": "a", "metadata": "x", "tags": "x"}, s).lists == ()
 
 
 def test_the_stamp_is_unguessable_from_the_public_note_and_stable_across_runs():
@@ -704,7 +729,7 @@ def test_an_unknown_time_zone_is_a_clean_error(plan, zone):
 def test_the_address_is_dropped_at_the_boundary(plan):
     r = deliver.recipient(sub(1, ["budget"], district=7), settings())
     assert "example.com" not in repr(dataclasses.asdict(r)) and "sub-0001" not in repr(r)
-    assert sorted(f.name for f in dataclasses.fields(r)) == ["district", "id", "lists", "metadata", "ward"]
+    assert sorted(f.name for f in dataclasses.fields(r)) == ["district", "id", "lists", "ward"]
 
 
 def test_over_max_recipients_sends_nothing(plan):
@@ -975,6 +1000,9 @@ def test_no_address_id_or_response_body_reaches_the_output(plan, capsys, mode, f
 
 # ------------------------------------------------------------------ the job that holds the key installs nothing
 def test_deliver_imports_with_sitegen_yaml_and_jinja2_blocked():
+    import yaml
+    shipped = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))["morning_note"]["sender"]
+    want = (shipped["enabled"], shipped["mode"], shipped["canary_only"])     # what PyYAML reads from the same file
     # ci/tests-assume-py313: on Python 3.12 `import pathlib` itself loads urllib.parse (3.13 does not), so the network
     # modules count only when loaded after it; urllib.request and urllib.error are checked by exact name.
     code = (
@@ -989,7 +1017,7 @@ def test_deliver_imports_with_sitegen_yaml_and_jinja2_blocked():
         "import sender.deliver, sender.settings, sender.common\n"
         "from sender.__main__ import main\n"
         "s = sender.settings.load('config/site.yml')\n"
-        "assert s.enabled is False and s.mode == 'stamp'\n"
+        f"assert (s.enabled, s.mode, s.canary_only) == {want!r}, (s.enabled, s.mode, s.canary_only)\n"
         "new = set(sys.modules) - before\n"
         "bad = sorted(m for m in sys.modules if m.split('.')[0] in ('sitegen', 'yaml', 'jinja2'))\n"
         "bad += sorted(m for m in new if m.split('.')[0] in ('socket', 'ssl', 'http', 'urllib'))\n"
@@ -1022,7 +1050,8 @@ def test_fixture_subscribers_are_all_at_example_com():
     src = Path(__file__).read_text(encoding="utf-8")
     import re
     assert set(re.findall(r"[A-Za-z0-9._+-]+@([A-Za-z0-9-]+\.[a-z]{2,})", src)) == {"example.com"}
-    assert config.SITE["morning_note"]["sender"]["enabled"] is False
+    # no test here reaches a provider whatever the shipped switches say: every live run gets a Fake or None
+    assert not re.search(r"(?m)^\s*(?:from sender import .*\bbuttondown\b|import sender\.buttondown)", src)
 
 
 # ------------------------------------------------------------------ plan-untrusted/body-unchecked
@@ -1144,7 +1173,6 @@ def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # no
     the isolated `python -I -S -c` launch imports everything check_plan and describe need, reads the staged config
     and exits 0 with the dry-run line. A missing module or a wrong path in the launch fails here, not on the
     first morning."""
-    import re
     import shutil
 
     from test_workflow_lock import PY_ENV, _commit_all, _note_steps, _stage
@@ -1153,10 +1181,10 @@ def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # no
     for f in (ROOT / "sender").glob("*.py"):
         shutil.copy(f, work / "sender" / f.name)
     (work / "config").mkdir()
-    text = (ROOT / "config" / "site.yml").read_text(encoding="utf-8")
-    text, n = re.subn(r'(?m)^(    link_hosts: ")', rf"\g<1>{TEST_HOSTS},", text, count=1)   # the fixture's hosts
-    assert n == 1
-    (work / "config" / "site.yml").write_text(text, encoding="utf-8")
+    # the shipped file with the sender switched off (this test is the disabled path) and the fixture's hosts
+    off = shipped_with(tmp_path, enabled=False, hosts=TEST_HOSTS)
+    assert settings_mod.load(off).enabled is False
+    (work / "config" / "site.yml").write_text(off.read_text(encoding="utf-8"), encoding="utf-8")
     _commit_all(work)
     runner = tmp_path / "runner"
     runner.mkdir()

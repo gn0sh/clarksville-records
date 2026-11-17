@@ -126,13 +126,14 @@ def support_of(ctx: dict, note: dict) -> tuple[str, str, str] | None:
     return line, ctx["support_label"], url
 
 
-def sections(note: dict, entries: list[dict]) -> list[tuple[str, list[dict]]]:
-    """[(list label, entries)] in the note's own order. An entry stands once, under the first of its lists (the
-    key the note is sorted by), so an edition reads the same for every subscriber who shares it."""
+def sections(note: dict, entries: list[dict], under: dict | None = None) -> list[tuple[str, list[dict]]]:
+    """[(list label, entries)] in the given order. An entry stands once, under `under[id]` (plan.placed: the first
+    of its lists the reader picked and that selected it), else under the first of its lists (the key the note is
+    sorted by). The edition key covers both, so an edition reads the same for every subscriber who shares it."""
     labels = {x["key"]: x["label"] for x in note["lists"]}
     out: list[tuple[str, list[dict]]] = []
     for e in entries:
-        label = labels.get(e["lists"][0], "")
+        label = labels.get(under[e["id"]] if under else e["lists"][0], "")
         if not out or out[-1][0] != label:
             out.append((label, []))
         out[-1][1].append(e)
@@ -143,11 +144,11 @@ def _source_words(ctx: dict, page) -> str:
     return ctx["source_label"] + (f", {ctx['page_label']} {page}" if page else "")
 
 
-def body_html(ctx: dict, note: dict, entries: list[dict]) -> str:
+def body_html(ctx: dict, note: dict, entries: list[dict], under: dict | None = None) -> str:
     """The HTML body. No blank line and no indented line, so a Markdown step sees one HTML block and nothing else."""
     out = [f"<h1>{inert(ctx['site_name'])}</h1>", f"<p>{inert(day_words(note['date']))}</p>",
            f"<p>{inert(ctx['email_line'])}</p>"]
-    for label, rows in sections(note, entries):
+    for label, rows in sections(note, entries, under):
         out += [f"<h2>{inert(label)}</h2>", "<ul>"]
         for e in rows:
             page_url = site_link(ctx["site_url"], e.get("href"), ctx.get("link_hosts", ()))
@@ -166,10 +167,10 @@ def body_html(ctx: dict, note: dict, entries: list[dict]) -> str:
     return "\n".join(out) + "\n"
 
 
-def body_text(ctx: dict, note: dict, entries: list[dict]) -> str:
+def body_text(ctx: dict, note: dict, entries: list[dict], under: dict | None = None) -> str:
     """The same edition as plain text, for a person reading the dry run. It is not what is sent."""
     out = [clean(ctx["site_name"]), day_words(note["date"]), clean(ctx["email_line"]), ""]
-    for label, rows in sections(note, entries):
+    for label, rows in sections(note, entries, under):
         out += [clean(label), ""]
         for e in rows:
             page_url = site_link(ctx["site_url"], e.get("href"), ctx.get("link_hosts", ()))

@@ -52,6 +52,7 @@ PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_h
              "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": (),
              "vote_on_label": ()}
 FORM_FIELD_KEYS = ("email", "lists", "district", "ward")
+TAG_FIELD = "tag"           # sender.common.TAG_FIELD (a test keeps them equal): the form posts lists and seats as tags
 _HTTPS = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\s\"'<>`\\]*)?")
 
 
@@ -150,6 +151,12 @@ def problems(cfg: dict) -> list[str]:
     if not isinstance(ff, dict) or sorted(ff) != sorted(FORM_FIELD_KEYS) or \
             not all(isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_-]+", v) for v in ff.values()):
         out.append(f"morning_note.form_fields must map {', '.join(FORM_FIELD_KEYS)} to plain field names")
+    elif any(ff[k] != TAG_FIELD for k in ("lists", "district", "ward")) or ff["email"] == TAG_FIELD or \
+            ff["email"].lower().startswith("metadata"):
+        # platform-facts "Morning note provider" (2026-11-16): the free plan refused a new sign-up that carried
+        # metadata__ fields, and the sender reads lists and seats from tags only (sender/common.py read_tags)
+        out.append(f"morning_note.form_fields: lists, district and ward must each be {TAG_FIELD!r} (Buttondown "
+                   f"tags, which the sender reads), and email a plain field that is neither {TAG_FIELD!r} nor metadata")
     return out + sender_problems(cfg)
 
 

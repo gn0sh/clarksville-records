@@ -15,6 +15,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
+from sender.common import list_tag, seat_tag_prefix
+
 from . import config, morning
 
 PAGE = "morning/index.html"
@@ -104,7 +106,8 @@ def _feeds_for(key: str, feeds: list[dict], cfg: dict) -> list[dict]:
 
 def _lists(feeds: list[dict], cfg: dict) -> list[dict]:
     m = settings(cfg)
-    return [{"key": x["key"], "label": x["label"], "checked": x["key"] in DEFAULT_PICKS,
+    # `tag`: what the enabled form posts for the list (a Buttondown tag the sender reads, sender/common.py)
+    return [{"key": x["key"], "label": x["label"], "checked": x["key"] in DEFAULT_PICKS, "tag": list_tag(x["key"]),
              "feeds": _feeds_for(x["key"], feeds, cfg), "needs_seats": x["key"] in ("zoning", "seats")}
             for x in m["lists"]]
 
@@ -117,6 +120,7 @@ def _section(feeds: list[dict], cfg: dict, preview: bool = False) -> dict:
     on_ = enabled(cfg)
     return {"lists": _lists(feeds, cfg), "text": m["page"], "enabled": on_,
             "action": m["form_action"] if on_ else "", "fields": fields if on_ else {},
+            "seat_tags": {s: seat_tag_prefix(s) for s in ("district", "ward")} if on_ else {},
             "sent_line": m["page"]["sent_line"].format(provider=m.get("provider") or "") if on_ else "",
             "privacy_url": m.get("privacy_url") if on_ else "",
             "preview": PAGE if preview else ""}

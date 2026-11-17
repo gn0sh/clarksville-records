@@ -18,7 +18,7 @@ import threading
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, parse
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, note_off, parse
 from qa import site_checks
 from sitegen import config, morning, morning_page, views
 from sitegen.build import build
@@ -64,7 +64,7 @@ def _build(out, monkeypatch, cfg=None, seat_feeds=False, note=None, **kw):
 def site(tmp_path_factory):
     mp = pytest.MonkeyPatch()
     out = tmp_path_factory.mktemp("morning") / "site"
-    pages = _build(out, mp, seat_feeds=True)
+    pages = _build(out, mp, cfg=note_off(config.SITE), seat_feeds=True)   # the off state, whatever is shipped
     mp.undo()
     return out, pages
 
@@ -114,7 +114,7 @@ def test_csp_unchanged_when_disabled(site):
     _, pages = site
     for rel, html in pages.items():
         assert CSP_META.findall(html) == [views.csp().replace("'", "&#39;")], rel
-    assert morning_page.form_origin() is None
+    assert morning_page.form_origin(note_off(config.SITE)) is None
 
 
 def test_nav_morning_note_links_the_section_on_every_page(site):
@@ -454,15 +454,19 @@ def _words(html):
     return " ".join(parse(_main(html)).all_text().split())
 
 
-def test_committed_config_is_the_canary_week():
-    """Runbook section 4 item 4: the form and the sender are on, but the sender mails only the canary ids."""
+def test_committed_config_is_the_switch_on():
+    """Runbook section 4 item 4: the form and the sender are on. Brian, 2026-11-16: no canary week, so the sender
+    mails every confirmed subscriber (canary_only false). The form posts Buttondown tags only, never metadata__
+    fields (platform-facts "Morning note provider"), to the live newsletter the T4.0 probe used."""
     mn = config.SITE["morning_note"]
     assert mn["enabled"] is True and mn["provider"] == "Buttondown"
-    assert mn["form_action"].startswith("https://buttondown.com/api/emails/embed-subscribe/")
-    assert "LIVEUSER" not in mn["form_action"], "fill in the live newsletter username from the probe results"
+    assert mn["form_action"] == "https://buttondown.com/api/emails/embed-subscribe/daylight"
+    assert mn["form_fields"] == {"email": "email", "lists": "tag", "district": "tag", "ward": "tag"}
     assert mn["privacy_url"].startswith("https://buttondown.com/")
-    assert mn["sender"]["enabled"] is True and mn["sender"]["canary_only"] is True
+    assert mn["sender"]["enabled"] is True and mn["sender"]["canary_only"] is False and mn["sender"]["mode"] == "stamp"
     assert "daylight.gnoshcodes.com" in mn["sender"]["link_hosts"].split(",")
+    assert config.SITE["alerts"]["site_url"] == "https://daylight.gnoshcodes.com/"
+    assert morning_page.form_origin() == "https://buttondown.com" and morning_page.privacy() is not None
 
 
 def test_disabled_build_keeps_the_never_sent_sentences_and_has_no_note_paragraph(site):
@@ -560,8 +564,14 @@ def test_enabled_form_shows_a_visible_seats_box_and_keeps_the_seat_fields_off_wi
     ff = cfg["morning_note"]["form_fields"]
     nodes = list(parse(note).walk())
     for k in ("district", "ward"):       # without the script the two fields stay disabled and empty: never posted
-        inp = next(n for n in nodes if n.attrs.get("name") == ff[k])
+        inp = next(n for n in nodes if n.attrs.get("data-seat-field") == k)
+        assert inp.attrs["name"] == ff[k] == "tag" and inp.attrs["data-tag-prefix"] == f"note-{k}-"
         assert inp.attrs["type"] == "hidden" and inp.attrs["value"] == "" and "disabled" in inp.attrs
+    # each list box posts its list's tag; no field of the form is a metadata__ field (the free plan refuses them)
+    boxes = [n for n in nodes if n.attrs.get("type") == "checkbox" and n.attrs.get("name")]
+    assert [(n.attrs["name"], n.attrs["value"], n.attrs["data-key"]) for n in boxes] == \
+        [("tag", f"note-{x['key']}", x["key"]) for x in cfg["morning_note"]["lists"]]
+    assert not [n for n in nodes if (n.attrs.get("name") or "").lower().startswith("metadata")]
     box = next(n for n in nodes if n.attrs.get("id") == "note-seats")
     assert box.attrs["type"] == "checkbox" and "checked" in box.attrs
     assert "name" not in box.attrs and "hidden" not in box.attrs      # a real, visible box that is never posted itself
@@ -762,29 +772,38 @@ def test_seat_consent_in_a_browser(enabled_site):
     assert r.returncode == 0, r.stderr
     out = json.loads(r.stdout)
     ff = cfg["morning_note"]["form_fields"]
-    seat_names = {ff["district"], ff["ward"]}
+    assert ff["lists"] == ff["district"] == ff["ward"] == "tag"
 
     def seat_posts(x):
-        return sorted(e for e in x["posted"] if e[0] in seat_names or e[0] not in (ff["email"], ff["lists"]))
+        """Every posted entry that is not the email or a list tag: a seat tag, or anything unexpected."""
+        lists = {f"note-{k}" for k in LISTS}
+        return sorted(e for e in x["posted"] if not (e[0] == ff["email"] or (e[0] == "tag" and e[1] in lists)))
+
+    def T(seat, n):
+        return [ff[seat], f"note-{seat}-{n}"]
 
     off = [[ff["district"], "", True], [ff["ward"], "", True]]
+    # the two default picks post their list tags, and nothing posts a metadata__ field
+    assert [e for e in out["both"]["posted"] if e[0] == "tag" and not e[1].startswith(("note-district-", "note-ward-"))] \
+        == [["tag", "note-zoning"], ["tag", "note-seats"]]
+    assert not [e for k in out if isinstance(out[k], dict) for e in out[k].get("posted", []) if e[0].startswith("metadata")]
     assert out["noSeats"]["row"] is False and seat_posts(out["noSeats"]) == [] and out["noSeats"]["fields"] == off
     both = out["both"]
     assert both["row"] is True and both["ticked"] is True and both["words"] == "District 5, Ward 3"
     assert both["label"] == f"{cfg['morning_note']['page']['seats_include']} District 5, Ward 3"
-    assert seat_posts(both) == sorted([[ff["district"], "5"], [ff["ward"], "3"]])
+    assert seat_posts(both) == sorted([T("district", 5), T("ward", 3)])
     assert out["box"][0] >= 16 and out["box"][1] >= 16                     # a visible box, not a hidden one
     for k in ("unticked", "stillOff"):                                     # unticked: nothing seat-related is posted
         assert out[k]["ticked"] is False and seat_posts(out[k]) == [] and out[k]["fields"] == off, (k, out[k])
         assert out[k]["row"] is True and out[k]["words"] == "District 5, Ward 3"   # still shown, so it can be re-ticked
-    assert seat_posts(out["reticked"]) == sorted([[ff["district"], "5"], [ff["ward"], "3"]])
+    assert seat_posts(out["reticked"]) == sorted([T("district", 5), T("ward", 3)])
     # unticked without a change event: stale until the page is shown or the form is submitted, then nothing is posted
     assert out["restoredStale"]["ticked"] is False and seat_posts(out["restoredStale"]) != []
     for k in ("restoredShown", "atSubmit"):
         assert out[k]["ticked"] is False and seat_posts(out[k]) == [] and out[k]["fields"] == off, (k, out[k])
     d = out["districtOnly"]
-    assert d["words"] == "District 7" and seat_posts(d) == [[ff["district"], "7"]]
-    assert d["fields"] == [[ff["district"], "7", False], [ff["ward"], "", True]]
+    assert d["words"] == "District 7" and seat_posts(d) == [T("district", 7)]
+    assert d["fields"] == [T("district", 7) + [False], [ff["ward"], "", True]]
     assert out["sw"] <= 360 and not out["foreign"]
     assert out["nojs"] == {"row": False, "fields": off}                    # no script: never enabled, never posted
 

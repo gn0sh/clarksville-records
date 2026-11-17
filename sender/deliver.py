@@ -15,10 +15,11 @@ Order of work, each check stopping before the first write:
  4. day claim, read from the provider's own emails (`metadata.note_date`, `note_sha256`): a day claimed by another
     plan sends nothing; the same plan continues with the editions not yet created; a listing that fails sends
     nothing and fails the run (fail closed).
- 5. recipients: confirmed (`type == "regular"`) subscribers only, each reduced at once to Recipient; the address
-    and every other field stop there. With `canary_only`, only the subscriber ids listed in the note job's
-    environment (`MORNING_NOTE_CANARY_IDS`); with no list, nobody and no provider call. Never subscriber metadata:
-    a subscriber writes their own through the public form.
+ 5. recipients: confirmed (`type == "regular"`) subscribers only, each reduced at once to Recipient (id, and the
+    lists and seats its "note-" tags name); the address, every other tag and the metadata stop there. With
+    `canary_only`, only the subscriber ids listed in the note job's environment (`MORNING_NOTE_CANARY_IDS`); with
+    no list, nobody and no provider call. Never subscriber metadata or tags for that: a subscriber writes both
+    through the public form.
  6. per edition, in key order, by `mode` (`stamp` or `ids`). The email the provider says it stored must echo the
     status, claim metadata and filter that were sent (`ids`: no filter), or it is taken back to a draft and the run
     fails before anything else is sent (audience/provider-echo).
@@ -40,8 +41,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import unicodedata
 from html import unescape
 
-from .common import (ADDRESS, DATE_RE, KEY_RE, LIST_KEYS, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
-                     exact_url_ok, link_ok, signature, subject_line)
+from .common import (ADDRESS, DATE_RE, KEY_RE, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
+                     exact_url_ok, link_ok, read_tags, signature, subject_line)
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -49,7 +50,7 @@ PUBLISH_MARGIN = timedelta(minutes=5)   # a stamp email is scheduled at least th
 MISSED_EXIT = 3            # "missed" (past latest_send): its own non-zero code, so the job fails and opens the issue
 TRIES = 3                  # a rate-limited call is tried this many times, then the run stops
 MAX_WAIT = 120              # seconds: the longest Retry-After that is obeyed in one wait
-MAX_LIST_VALUES = 16        # a subscriber's `lists` with more values than this is not a picker's output: ignored
+MAX_LIST_VALUES = 16        # more of our tags (lists and seats) on one subscriber: not a picker's output, ignored
 MAX_BODY = 500_000
 MAX_SUBJECT = 300
 STAMP_FIELD = "subscriber.metadata.note_edition"
@@ -57,7 +58,6 @@ STAMP_FIELD = "subscriber.metadata.note_edition"
 # secret, so nobody can compute a stamp from the public note (audience/stamp-self-set-race)
 STAMP_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9a-f]{12}\.[0-9a-f]{16}")
 _SHA_RE = re.compile(r"[0-9a-f]{64}")
-_NUMBER = re.compile(r"[1-9][0-9]{0,3}")
 # audience/canary-self-set: the canary list lives in the note job's environment (a `morning-note` environment
 # secret), never in the repository and never in subscriber metadata, which subscribers write themselves.
 CANARY_ENV = "MORNING_NOTE_CANARY_IDS"
@@ -143,15 +143,14 @@ class Provider:
 
 @dataclass(frozen=True)
 class Recipient:
-    """All that is kept of a subscriber. `metadata` is the provider's own object, kept only so `stamp` mode can
-    write it back whole; the address is not in it and is never read."""
+    """All that is kept of a subscriber: the id and the shape its tags name. The address, the other tags and the
+    metadata are not kept (a `stamp` write replaces the metadata with the stamp alone, so it never needs them)."""
     id: str
     lists: tuple
     district: int | None
     ward: int | None
-    metadata: dict
 
-    def __repr__(self) -> str:      # never the id or the metadata, should one ever reach a traceback
+    def __repr__(self) -> str:      # never the id or the shape, should one ever reach a traceback
         return "Recipient(...)"
 
 
@@ -276,41 +275,31 @@ def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------ recipients
-def _number(value, most: int) -> int | None:
-    """A district or ward as a subscriber's metadata may hold it: a whole number from 1 to `most`, as a number or
-    as its plain digits. Anything else (the public form takes any text) is treated as not set."""
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value if 1 <= value <= most else None
-    if isinstance(value, str) and _NUMBER.fullmatch(value) and 1 <= int(value) <= most:
-        return int(value)
-    return None
-
-
-def _lists(value) -> tuple:
-    if isinstance(value, str):
-        value = value.split(",") if len(value) <= 200 else []
-    if not isinstance(value, (list, tuple)) or len(value) > MAX_LIST_VALUES:
-        return ()
-    got = {v.strip() for v in value if isinstance(v, str)}
-    return tuple(k for k in LIST_KEYS if k in got)
+def _one_seat(values: list, most: int) -> int | None:
+    """The seat a subscriber's tags name: exactly one in-range number, else not set. Two district (or ward) tags are
+    not a picker's output (anyone can add a tag to an existing address through the public form), so neither
+    counts: the person then gets less zoning, never someone else's (sender/tags-ambiguous-seat)."""
+    got = {v for v in values if 1 <= v <= most}
+    return next(iter(got)) if len(got) == 1 and len(values) == 1 else None
 
 
 def recipient(raw, settings: Settings) -> Recipient | None:
     """One subscriber as the provider returned it, reduced to what the sender may know: None unless it is a
-    confirmed (`type == "regular"`) subscriber with an id. The address and every field but the id and metadata are
-    dropped here. Unknown list keys and out-of-range seats are ignored, never passed on."""
+    confirmed (`type == "regular"`) subscriber with an id. The address and every field but the id and the tags
+    are dropped here. Lists, district and ward come from the sender's own tags (common.read_tags: "note-zoning",
+    "note-district-5"); every other tag is ignored, and metadata is never read for an audience (the public form
+    can write it; only held_stamps reads its note_edition). More than MAX_LIST_VALUES of our tags: not a picker's
+    output, so no lists. Out-of-range or repeated seats: not set."""
     if not isinstance(raw, dict) or raw.get("type") != "regular":
         return None
     sid = raw.get("id")
     if not isinstance(sid, str) or not sid:
         return None
-    meta = raw.get("metadata")
-    meta = dict(meta) if isinstance(meta, dict) else {}
-    return Recipient(id=sid, lists=_lists(meta.get("lists")),
-                     district=_number(meta.get("district"), settings.district_count),
-                     ward=_number(meta.get("ward"), settings.ward_count), metadata=meta)
+    lists, districts, wards = read_tags(raw.get("tags"))
+    if len(lists) + len(districts) + len(wards) > MAX_LIST_VALUES:
+        lists, districts, wards = (), [], []
+    return Recipient(id=sid, lists=lists, district=_one_seat(districts, settings.district_count),
+                     ward=_one_seat(wards, settings.ward_count))
 
 
 # ------------------------------------------------------------------------------------------------ provider calls
@@ -572,10 +561,11 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             meta = {"note_date": day, "note_edition": edition_id, "note_sha256": plan["note_sha256"]}
             payload = {"subject": ed["subject"], "body": ed["body"], "archival_mode": "disabled", "metadata": meta}
             if settings.mode == "stamp":
-                # L2: the write replaces the whole metadata object (until the T4.0 probe shows the provider merges
-                # it, then only note_edition is sent), so it is built from a fresh read of that one subscriber just
-                # before the write: a change made since the listing survives. Someone whose type or shape changed
-                # since is not stamped and gets nothing today.
+                # The T4.0 probe (2026-11-16) showed a metadata PATCH replaces the whole object, and the lists and
+                # seats now live in tags, so the write is exactly {"note_edition": <stamp>}: any other key (one the
+                # public form wrote, a forged note_edition, an old stamp) is dropped by it (sender/stamp-write-
+                # replaces). Each subscriber is read again just before the write (L2): someone whose type or tags
+                # changed since the listing is not stamped and gets nothing today.
                 stamped = []
                 for r in to:
                     step = "subscriber re-read"
@@ -584,7 +574,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                             signature(fresh.lists, fresh.district, fresh.ward) != signature(r.lists, r.district, r.ward):
                         continue
                     step = "subscriber stamp"
-                    _call(sleep, provider.set_metadata, r.id, {**fresh.metadata, "note_edition": meta["note_edition"]},
+                    _call(sleep, provider.set_metadata, r.id, {"note_edition": meta["note_edition"]},
                           idempotency_key(day, key, f"stamp/{r.id}"))
                     stamped.append(r)
                 if not stamped:

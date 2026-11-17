@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, rpc_config_unheld
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, note_off, rpc_config_unheld
 from sitegen import config, fin_views, morning, views
 from sitegen.build import BuildError, build, site_url_problems
 from test_rpc_pages import rpc_facts
@@ -398,14 +398,19 @@ def test_fixture_build_without_manifests_writes_no_note(built):
 
 # ------------------------------------------------------------------ the provider seam
 def seam(**kw):
-    cfg = copy.deepcopy(config.SITE)
+    """morning.problems() of the shipped config with the note off (conftest.note_off), then `kw`."""
+    cfg = note_off(config.SITE)
     cfg["morning_note"].update(kw)
     return morning.problems(cfg)
 
 
-def test_config_as_shipped_is_off_and_clean():
-    assert config.SITE["morning_note"]["enabled"] is False and not config.SITE["morning_note"]["form_action"]
-    assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []
+def test_config_as_shipped_and_switched_off_is_clean():
+    """The shipped config (switched on: test_morning_page.test_committed_config_is_the_switch_on) and the same config
+    switched off are both clean."""
+    off = note_off(config.SITE)
+    assert off["morning_note"]["enabled"] is False and not off["morning_note"]["form_action"]
+    for cfg in (config.SITE, off):
+        assert morning.problems(cfg) == [] and site_url_problems(cfg) == []
 
 
 def test_enabled_needs_https_form_action_and_privacy_url():
@@ -422,7 +427,7 @@ def test_form_action_refused_while_disabled_and_shape_checks():
     assert seam(enabled="yes")
     assert seam(cutoff="7am") and seam(keep_days=0) and seam(lists=[{"key": "everything", "label": "X"}])
     assert seam(form_fields={"email": "email"})
-    cfg = copy.deepcopy(config.SITE)
+    cfg = note_off(config.SITE)
     cfg["morning_note"]["form_action"] = "https://example.org/subscribe"
     assert any("morning_note" in p for p in site_url_problems(cfg))
 
