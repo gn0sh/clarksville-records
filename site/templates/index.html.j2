@@ -1,6 +1,6 @@
 {% extends "base.html.j2" %}
 {% from "_feed_links.html.j2" import feed_links %}
-{% from "_hub.html.j2" import overview, coming_tag %}
+{% from "_hub.html.j2" import overview, coming_tag, not_collected_tag %}
 {% from "_freshness.html.j2" import freshness as fresh with context %}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block sky %}
@@ -77,6 +77,10 @@
          cards (sitegen/views.py door_coming) #}
       {% if d.get("coming") %}
       <p class="door-coming">{{ coming_tag() }}{% for g in d.coming %} <span class="door-coming-body">{{ g.body }}:</span> {% for lk in g.links %}<a href="{{ root }}{{ lk.href }}">{{ lk.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.{% endfor %}</p>
+      {% endif %}
+      {# what this site does not collect, because its source does not allow it, under its own tag (never "Coming") #}
+      {% if d.get("not_collected") %}
+      <p class="door-coming door-uncollected">{{ not_collected_tag(d.not_collected_tag) }}{% for g in d.not_collected %} <span class="door-coming-body">{{ g.body }}:</span> {% for lk in g.links %}<a href="{{ root }}{{ lk.href }}">{{ lk.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.{% endfor %}</p>
       {% endif %}
       <ul>
         {% for lk in d.links %}

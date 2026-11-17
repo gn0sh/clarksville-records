@@ -231,8 +231,12 @@ def test_school_board_hub_is_all_coming_with_the_configured_link(html):
     cards = hub_cards(page)
     assert list(cards) == ["meetings", "votes", "budget"]
     sb = config.SITE["school_board"]
-    for card in cards.values():
-        assert '<span class="chip chip-coming">Coming</span>' in card
+    tag = config.SITE["switch"]["not_collected_tag"]
+    for key, card in cards.items():
+        # votes and budget are not collected, under their own tag (Brian 2026-11-16); the meetings card is coming
+        want = (f'<span class="chip chip-uncollected">{tag}</span>' if key in ("votes", "budget")
+                else '<span class="chip chip-coming">Coming</span>')
+        assert want in card and ("chip-coming" in card) == (key == "meetings"), key
         link = f'<a data-ext="school" href="{sb["url"]}" target="_blank" rel="noopener noreferrer">{sb["link_label"]}'
         assert link in card
         assert '<a href="' not in card
@@ -270,6 +274,13 @@ def test_home_overview_lists_each_body_with_the_same_coming_items(site, html):
         coming = [plain(re.search(r"<h\d>(.*?)<span", c, re.S).group(1)) for c in hub_cards(html[rel]).values()
                   if "chip-coming" in c]
         assert coming and f"Coming: {', '.join(coming)}." in plain(card)
+        uncollected = [plain(re.search(r"<h\d>(.*?)<span", c, re.S).group(1)) for c in hub_cards(html[rel]).values()
+                       if "chip-uncollected" in c]
+        if uncollected:
+            assert f"Not collected: {', '.join(uncollected)}." in plain(card)
+        else:
+            assert "Not collected" not in plain(card)
+        assert uncollected == (["Votes", "Budget"] if key == "school" else []), key
     # owner, 2026-11-13: the county's and the city's coming lines are worded the same way (each committee by its name)
     county, city = (plain(re.search(rf'<li class="bodies-card" data-hub="{k}">(.*?)</li>', sec, re.S).group(1))
                     for k in ("county", "city"))

@@ -26,6 +26,7 @@
 <section aria-labelledby="note-sent-h">
   <h2 id="note-sent-h">{{ site.morning_note.heading }}</h2>
   <p>{{ site.morning_note.sent }} {{ site.morning_note.unsubscribe }}</p>
+  <p>{{ site.morning_note.logo }}</p>
   <p><a data-ext="provider" href="{{ site.morning_note.privacy_url }}" rel="noopener noreferrer">{{ site.morning_note.provider }}: {{ site.morning_note.privacy_label }}</a>. <a href="{{ root }}{{ site.morning_note.signup_href }}">{{ site.morning_note.signup_link }}</a>.</p>
 </section>
 {% endif %}

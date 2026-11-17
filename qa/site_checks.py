@@ -2174,7 +2174,10 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
             continue
         for card in re.findall(r'<li class="hub-card is-coming"[^>]*>(.*?)</li>', hub.group(1), re.S):
             n_coming += 1
-            if '<span class="chip chip-coming">Coming</span>' not in card:
+            # a not-collected card (config not_collected_tag, Brian 2026-11-16) carries its own tag instead
+            nc_tag = f'<span class="chip chip-uncollected">{html.escape(sw.get("not_collected_tag") or "")}</span>'
+            if '<span class="chip chip-coming">Coming</span>' not in card and not (
+                    sw.get("not_collected_tag") and nc_tag in card):
                 problems.append(f"{rel}: a coming card has no Coming tag")
             if not re.search(r'<a data-ext="[a-z]+" href="https://[^"]+"', card):
                 problems.append(f"{rel}: a coming card links no official page")

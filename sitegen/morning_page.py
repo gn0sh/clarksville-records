@@ -73,7 +73,7 @@ def privacy(cfg: dict | None = None) -> dict | None:
     fill = {"provider": provider, "box": t["seats_include"].strip().rstrip(":").strip()}
     return {"provider": provider, "privacy_url": m["privacy_url"], "privacy_label": t["privacy_label"],
             "seats_sent": t["seats_sent"].format(**fill), "heading": t["method_heading"],
-            "sent": t["method_sent"].format(**fill), "unsubscribe": t["method_unsubscribe"],
+            "sent": t["method_sent"].format(**fill), "unsubscribe": t["method_unsubscribe"], "logo": t["method_logo"],
             "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note"}
 
 

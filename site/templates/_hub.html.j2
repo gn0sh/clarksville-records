@@ -4,6 +4,8 @@
 {% from "_freshness.html.j2" import freshness as fresh with context %}
 {% from "_macros.html.j2" import watch_link %}
 {% macro coming_tag() %}<span class="chip chip-coming">Coming</span>{% endmacro %}
+{# a record this site does not collect (config switch.not_collected_tag): its own word, never "Coming" #}
+{% macro not_collected_tag(word) %}<span class="chip chip-uncollected">{{ word }}</span>{% endmacro %}
 {% macro hub_kicker(hub) %}{% if hub and hub.kicker %}<p class="hub-kicker">{{ hub.kicker }}</p>{% endif %}{% endmacro %}
 {# One header for every body's landing page (owner, 2026-11-14: "make it one header"): the county's hub, the City
    Council's home, the RPC's home and the school board's "coming" page. Always the same rows in the same order, a row
@@ -26,10 +28,10 @@
   <h{{ level }} class="sec-h" id="hub-h">Sections</h{{ level }}>
   <ul class="hub-cards">
     {% for c in hub.cards %}
-    <li class="hub-card{% if c.coming %} is-coming{% endif %}" data-card="{{ c.key }}" id="card-{{ c.key }}">
-      <h{{ level + 1 }}>{{ c.title }}{% if c.coming %} {{ coming_tag() }}{% endif %}</h{{ level + 1 }}>
+    <li class="hub-card{% if c.coming or c.not_collected %} is-coming{% endif %}" data-card="{{ c.key }}" id="card-{{ c.key }}">
+      <h{{ level + 1 }}>{{ c.title }}{% if c.not_collected %} {{ not_collected_tag(c.tag) }}{% elif c.coming %} {{ coming_tag() }}{% endif %}</h{{ level + 1 }}>
       <p>{{ c.text }}</p>
-      {% if c.coming %}
+      {% if c.coming or c.not_collected %}
       {% if c.link %}<p class="hub-go">Official source: <a data-ext="{{ c.link.kind }}" href="{{ c.link.url }}" target="_blank" rel="noopener noreferrer">{{ c.link.label }}<span class="sr-only"> (opens in a new tab)</span></a></p>{% endif %}
       {% else %}
       <p class="hub-go"><a href="{{ root }}{{ c.href }}"><span>{{ c.go }}</span><span class="sr-only">, {{ hub.label }}</span><span class="go" aria-hidden="true">&rsaquo;</span></a></p>
@@ -70,6 +72,7 @@
       {% if h.about %}<p>{{ h.about }}</p>{% endif %}
       {% if h.present %}<p><span class="bodies-k">{{ sw.overview.present }}</span> {{ h.present | join(", ") }}.</p>{% endif %}
       {% if h.coming %}<p class="bodies-coming"><span class="bodies-k">{{ sw.overview.coming }}</span> {{ h.coming | join(", ") }}.</p>{% endif %}
+      {% if h.not_collected %}<p class="bodies-coming bodies-uncollected"><span class="bodies-k">{{ sw.overview.not_collected }}</span> {{ h.not_collected | join(", ") }}.</p>{% endif %}
     </li>
     {% endfor %}
   </ul>

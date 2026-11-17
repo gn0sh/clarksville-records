@@ -117,28 +117,33 @@ def build(site: dict, councils=(), rpc=None, cmx=None, committees=()) -> dict | 
             if c.get("coming") and c.get("built") and hrefs.get(key, {}).get(c["key"]):
                 # a coming card whose page this build makes (`built`: its text once collected) is shown present
                 c = {**c, **c["built"], "coming": False}
-            if c.get("coming"):
+            if c.get("coming") or c.get("not_collected"):
                 if key == "rpc" and c["key"] == "votes" and votes_shown:
                     continue      # the hold is lifted: the card no longer applies
-                cards.append({"key": c["key"], "title": c["title"], "text": c["text"], "coming": True, "href": None,
+                # `not_collected`: dashed and linked like a coming card, tagged `not_collected_tag`, never named as
+                # coming (Brian 2026-11-16)
+                nc = bool(c.get("not_collected"))
+                cards.append({"key": c["key"], "title": c["title"], "text": c["text"], "coming": not nc,
+                              "not_collected": nc, "tag": cfg.get("not_collected_tag") if nc else None, "href": None,
                               "link": official_link(c.get("link"), rpc),
-                              "door": c.get("door")})   # the landing door that names it as coming (views.door_coming)
+                              "door": c.get("door")})   # the landing door that names it (views.door_coming)
             elif hrefs.get(key, {}).get(c["key"]):
                 text = c["text"]
                 if "{books}" in text:          # the city budget card: the books read, from the data (no year list here)
                     if not site.get("city_budget_books"):
                         continue
                     text = text.format(books=site["city_budget_books"])
-                cards.append({"key": c["key"], "title": c["title"], "text": text, "coming": False,
+                cards.append({"key": c["key"], "title": c["title"], "text": text, "coming": False, "not_collected": False,
                               "href": hrefs[key][c["key"]], "go": c.get("go") or c["title"], "link": None})
         hubs[key] = {"key": key, "label": b["label"], "href": home[key], "kicker": b.get("kicker"),
                      "title": b.get("title"), "lede": b.get("lede"), "note": b.get("note"), "cards": cards,
                      "about": b.get("about"), "limits": limits(b.get("limits"), rpc),
-                     "present": [c["title"] for c in cards if not c["coming"]],
-                     "coming": [c["title"] for c in cards if c["coming"]]}
+                     "present": [c["title"] for c in cards if not c["coming"] and not c.get("not_collected")],
+                     "coming": [c["title"] for c in cards if c["coming"]],
+                     "not_collected": [c["title"] for c in cards if c.get("not_collected")]}
         options.append({"key": key, "label": b["label"], "short": b.get("short"), "href": home[key],
-                        "coming": bool(cards) and all(c["coming"] for c in cards)})
-    return {"label": cfg["label"], "options": options, "hubs": hubs,
+                        "coming": bool(cards) and all(c["coming"] or c.get("not_collected") for c in cards)})
+    return {"label": cfg["label"], "options": options, "hubs": hubs, "not_collected_tag": cfg.get("not_collected_tag"),
             "overview": cfg.get("overview") or {},
             "current": {o["href"]: o["key"] for o in options}}
 

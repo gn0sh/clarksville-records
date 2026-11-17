@@ -134,6 +134,13 @@ def test_year_page_sections_lines_minutes_note_and_no_votes(built):
     secs = re.findall(r'<section class="council-meeting committee-meeting" id="([^"]+)"', main)
     assert secs == ["2024-11-12-study", "2024-11-26-formal"]
     assert main.count('class="coming-note"') == 2
+    # the school board's minutes are not collected: their own tag, never "Coming" (Brian 2026-11-16); the county
+    # finance committees' minutes line keeps "Coming"
+    tag = config.SITE["switch"]["not_collected_tag"]
+    assert main.count(f'<p class="coming-note"><span class="chip chip-uncollected">{tag}</span> Minutes:') == 2
+    assert "chip-coming" not in main
+    fin_main = main_of(out / "county-committees" / "budget-committee" / "2024.html")
+    assert '<p class="coming-note"><span class="chip chip-coming">Coming</span> Minutes:' in fin_main
     assert "This agenda has 3 lines." in main and "This agenda has 1 line." in main
     assert config.SITE["county_committees"]["no_text"] in main       # says why the items are not shown
     assert "data-item-title" not in main and "agenda p." not in main and "heading" not in main

@@ -496,6 +496,8 @@ def test_enabled_build_says_what_is_sent_on_the_landing_and_method_pages(enabled
     text = " ".join(parse(sec).all_text().split())
     assert f"<h2 id=\"note-sent-h\">{t['method_heading']}</h2>" in sec
     assert t["method_sent"].format(provider="Example Mail", box=box) in text and t["method_unsubscribe"] in text
+    # the email's footer logo is loaded from this site, so its host sees the reader's IP address and the time
+    assert t["method_logo"] in text and "IP address" in t["method_logo"] and "GitHub Pages" in t["method_logo"]
     assert f'"{box}"' in text and "{box}" not in text
     for word in ("email address", "lists", "district and ward", "Example Mail", "unsubscribe"):
         assert word in text, word

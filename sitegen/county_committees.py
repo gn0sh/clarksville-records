@@ -141,7 +141,9 @@ class Committees:
         link = official_link((self.cfg.get("minutes_links") or {}).get(g))
         if link is None:      # the county's own page, where the agendas are posted and no minutes are
             link = {"url": self.data["listing_url"], "label": self.data["record_label"], "kind": "committee"}
-        return {"text": self.cfg["minutes"][g], "link": link}
+        tag = (config.SITE.get("switch") or {}).get("not_collected_tag") \
+            if g in (self.cfg.get("minutes_not_collected") or []) else None
+        return {"text": self.cfg["minutes"][g], "link": link, "tag": tag}
 
     def shows_text(self, key: str) -> bool:
         return (self.cfg.get("text_bodies") or {}).get(key, False)

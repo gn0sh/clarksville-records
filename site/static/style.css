@@ -543,7 +543,7 @@ dialog.drawer::backdrop { background: rgb(0 0 0 / .4); }
 .nav-group { font-weight: 600; }
 .nav-years { list-style: none; margin: 0 0 6px; padding: 0 0 0 10px; display: flex; flex-wrap: wrap; gap: 4px; }
 .nav-years a { display: inline-block; padding: 6px 10px; min-height: 36px; color: var(--fg); border: 1px solid var(--border); border-radius: 999px; text-decoration: none; font-variant-numeric: tabular-nums; font-size: var(--t-sm); }
-.chip-coming { font-family: var(--font-mono); font-size: var(--t-eyebrow); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; border-color: var(--mark-soft); background: transparent; color: var(--muted); padding: 0 8px; }
+.chip-coming, .chip-uncollected { font-family: var(--font-mono); font-size: var(--t-eyebrow); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; border-color: var(--mark-soft); background: transparent; color: var(--muted); padding: 0 8px; }
 .site-nav { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--border); }
 .site-nav-h { font-size: var(--t-md); margin: 0; padding: 0; border: 0; }
 /* In the footer the list is a tight grid (about 5 across on a desktop, 2 on a phone); the year group takes one full
@@ -557,7 +557,7 @@ dialog.drawer::backdrop { background: rgb(0 0 0 / .4); }
 .site-footer .nav-group { font-size: var(--t-xs); color: var(--muted); }
 .site-footer .nav-years { margin: 0; padding: 0; gap: 2px 4px; }
 .site-footer .nav-years a { padding: 0 8px; min-height: 24px; line-height: 22px; box-sizing: border-box; font-size: var(--t-xs); }
-.site-footer .chip-coming { line-height: 1.3; padding: 0 6px; }
+.site-footer .chip-coming, .site-footer .chip-uncollected { line-height: 1.3; padding: 0 6px; }
 @media (pointer: coarse) {
   .site-footer .nav-list > li > a, .site-footer .nav-list > li > .nav-group { min-height: 28px; }
   .site-footer .nav-years { gap: 4px; }
@@ -657,7 +657,7 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .door .door-coming a { display: inline; min-height: 0; padding: 0; font-weight: 400; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .door .door-coming a:hover { text-decoration-thickness: 2px; }
 .door .door-coming-body { font-weight: 600; color: var(--fg); }
-.door .door-coming .chip-coming { margin-right: 2px; line-height: 1.3; padding: 0 6px; }
+.door .door-coming .chip-coming, .door .door-coming .chip-uncollected { margin-right: 2px; line-height: 1.3; padding: 0 6px; }
 @media (pointer: coarse) { .door .door-coming a { display: inline-block; box-sizing: border-box; min-height: 44px; padding: 12px 0; } }
 .hub-card:target { outline: 3px solid var(--focus); outline-offset: 2px; }
 /* the meetings: two short lists of rows, each one link to its day on today.html */
