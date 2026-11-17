@@ -2945,7 +2945,7 @@ def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
     """v1-probe/log-raw-to-console: colour codes and control characters in the run's log never reach the console or
     the results file, and the V1 lines are still found after stripping."""
     esc = "\x1b"
-    log = (_SOURCE + "".join(_REFUSED.format(m=m).replace("V1-RESULT", f"{esc}[36mV1-RESULT")
+    log = (_SOURCE + "".join(_REFUSED.format(m=m).replace("V1-RESULT", f"{esc}[36mV1-RESULT").replace("\n", "\r\n")
                              for m in ("squash", "merge", "rebase"))
            + f"probe\tTry\t2026-11-18T09:00:02Z {esc}[31mV1-ERROR: could not{esc}]0;title\x07 read node_id{esc}[0m\x08\n")
     r, made = _v1(tmp_path, log)
@@ -2957,6 +2957,17 @@ def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
         assert not re.search(r"[\x00-\x08\x0b-\x1f\x7f]", text), repr(text)
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
     assert "-replace '[\\x00-\\x08\\x0B-\\x1F\\x7F]', ''" in ps1 and "-replace '\\x1b\\[" in ps1
+
+
+def test_v1_probe_ansi_strip_keeps_the_text_after_an_erase_code(tmp_path):
+    """v1-probe/log-raw-to-console: ESC[K right before a V1 line leaves the whole line (a sed bracket range that
+    swallowed letters turned `V1-MERGED squash` into `quash`), and a carriage return is dropped."""
+    esc = "\x1b"
+    log = (_SOURCE + _REFUSED.format(m="squash").replace("V1-RESULT squash exit=1", "V1-RESULT squash exit=0")
+           + f"probe\tTry\t2026-11-18T09:00:01Z {esc}[KV1-MERGED squash\r\n")
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
+    assert "V1-MERGED squash" in r.stdout.splitlines() and "\r" not in r.stdout and esc not in r.stdout
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):

@@ -110,8 +110,8 @@ status=$(gh run view "$run" --repo "$repo" --json status --jq '.status' 2>/dev/n
 log "Probe run status: ${status:-unread}"
 # v1-probe/log-raw-to-console: the run's log is untrusted text; drop ANSI colour codes, then control characters,
 # before any of it is matched or printed.
-log_text=$(gh run view "$run" --repo "$repo" --log 2>/dev/null | sed -E $'s/\x1b\\[[0-9;?]*[ -\\/]*[@-~]//g' \
-           | tr -d '\000-\010\016-\037\177' || true)
+log_text=$(gh run view "$run" --repo "$repo" --log 2>/dev/null | sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' \
+           | tr -d '\000-\010\013-\037\177' || true)
 lines=$(grep -oE "V1-(RESULT|MERGED) (squash|merge|rebase|graphql).*" <<< "$log_text" || true)
 # v1-probe/node-read-under-e: the run's own V1-ERROR lines reach Brian too (not the step's echo text the log shows).
 errors=$(grep -v 'echo "V1-ERROR' <<< "$log_text" | grep -oE "V1-ERROR: .*" || true)
