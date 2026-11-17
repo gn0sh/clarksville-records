@@ -55,4 +55,9 @@ def test_powershell_51_compatible():
 
 def test_cmd_wrapper():
     assert b"\r\n" in CMD
-    assert b'"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0morning-note-probe.ps1"' in CMD
+    assert b'"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -File "%~dp0morning-note-probe.ps1"' in CMD
+    # Brian's rule: never -ExecutionPolicy Bypass (his PC runs local scripts under RemoteSigned); no Unblock-File
+    # in the scripts, only a note that a downloaded copy may need Unblock in the file's Properties
+    for text in (CMD.decode("utf-8"), PS1):
+        assert "Bypass" not in text and "Unblock-File" not in text
+        assert "Unblock" in text
