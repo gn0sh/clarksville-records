@@ -5,12 +5,18 @@ python -m collector city {fetch,build,run}     (City Council, Agenda Center and 
                                                2 a listing not read, 3 the G4 skew gate, 5 a host or robots.txt refused)
 python -m collector rpc {fetch,build,run}      (Regional Planning Commission: collector/rpc.py)
 python -m collector committees {fetch,build,run}   (city Finance and Audit committees: collector/committees.py)
+python -m collector county-committees {fetch,build,run,daily}   (school board and county finance committee agendas:
+                                               collector/county_committees.py)
 python -m collector transcripts import <dir>   (meeting video transcripts: collector/transcripts.py)
 run: discover -> fetch new (polite), and refetch any manifest minutes whose bytes the store lacks -> parse ->
 resolve names -> verify -> shrink guard -> data/facts.json -> finance fetch and
 build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> county agendas (county_agenda.run_step:
 the agenda page, new agenda PDFs, data/county-agendas/agendas.json) -> Regional Planning Commission (rpc.run_step:
-the listing page, new documents, data/localities/cmc-rpc/rpc.json; all or nothing) -> sitegen -> export ->
+the listing page, new documents, data/localities/cmc-rpc/rpc.json; all or nothing) -> school board and county
+committee agendas (county_committees.run_step: the county's Committee Agendas page, new agenda PDFs,
+data/localities/montgomery-tn/committee-agendas/agendas.json; all or nothing, never changes the exit code; its outcome
+is in build/run-log.json `county_committees`) -> city budget books (fin_books.run_step: new books only, built offline
+into data/localities/<id>/finance.json; a warning at most) -> sitegen -> export ->
 build/report.json, build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure
 (votes gates, or finance parity 'review needed'), 7 (KEPT, a warning) when the shrink guard kept a source document's
 meetings as committed, or a correction lowered a document's verified count; everything else is published. The RPC
@@ -133,10 +139,26 @@ def run_finance(store: Store, log: dict, offline: bool, **kw) -> int:
     return run_step(store, log, offline, **kw)
 
 
+def run_city_books(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> None:
+    """The city's budget books (collector/fin_books.py run_step): fetch only new books, build offline daily into
+    data/localities/<id>/finance.json. A warning at most: it never changes the run's exit code."""
+    from .fin_books import run_step
+    run_step(log, offline, fetcher=fetcher)
+
+
 def run_agendas(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> None:
     """County Commission agendas (collector/county_agenda.py): its own manifest and data/county-agendas/agendas.json."""
     from .county_agenda import run_step
     run_step(log, offline, fetcher=fetcher)
+
+
+def run_county_committees(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> int:
+    """School board and county finance committee agendas (collector/county_committees.py run_step): its own manifest,
+    listing and agendas.json, all or nothing, its own code in build/run-log.json `county_committees`. It never adds to
+    log['failures'] and never raises: a refusal by the county's page leaves its files as committed, and the site is
+    built from them."""
+    from .county_committees import run_step
+    return run_step(log, offline, fetcher=fetcher)
 
 
 RPC_FAILED, RPC_FILLING = 5, 6       # `run` exit codes for the RPC step alone (everything else ok)
@@ -457,6 +479,8 @@ def cmd_run(args) -> int:
     county_trips += limits.tripped(agendas_since)
     rpc_code = run_rpc(log, args.offline, fetcher=fetcher,      # before the site build, which reads rpc.json
                        allow_shrink=allow)
+    run_county_committees(log, args.offline, fetcher=fetcher)   # before the site build, which reads its agendas.json
+    run_city_books(log, args.offline, fetcher=fetcher)          # before the site build, which reads them
     site = BUILD / "site"
     try:
         from sitegen.build import build as site_build, write_publish_manifest
@@ -464,11 +488,14 @@ def cmd_run(args) -> int:
         print("collector: sitegen is not installed in this checkout; skipping the site step", flush=True)
         site_build = None
     from .export import export_site
-    log["warnings"] = []
+    from .fin_books import warnings as city_books_warnings
+    log["warnings"] = city_books_warnings(log)                       # a city books build kept or stopped (exit 2)
     if site_build:
         res = site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
-        log["warnings"] = list((res or {}).get("warnings") or [])   # e.g. seats.yml older than the facts (M1)
-    export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)
+        log["warnings"] += list((res or {}).get("warnings") or [])  # e.g. seats.yml older than the facts (M1)
+    res = res if site_build else None
+    if res is None or res.get("export", True):   # a preview over its cap was built without the export: add none
+        export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)
     if site_build:
         write_publish_manifest(site)
     log["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -515,6 +542,9 @@ def main(argv=None) -> int:
     if argv[:1] == ["committees"]:
         from .committees import main as committees_main
         return committees_main(argv[1:])
+    if argv[:1] == ["county-committees"]:
+        from .county_committees import main as cc_main
+        return cc_main(argv[1:])
     if argv[:1] == ["transcripts"]:
         from .transcripts import main as tx_main
         return tx_main(argv[1:])

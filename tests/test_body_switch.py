@@ -129,7 +129,7 @@ def test_county_hub_page(html):
     assert 'href="meetings.html"' in cards["meetings"] and re.search(r'href="votes/\d{4}\.html"', cards["votes"])
     bc = cards["budget-committee"]
     assert '<span class="chip chip-coming">Coming</span>' in bc
-    link = config.SITE["committees"]["links"][1]
+    link = config.SITE["committees"]["links"][0]
     assert f'<a data-ext="committee" href="{link["url"]}" target="_blank" rel="noopener noreferrer">{link["label"]}' in bc
 
 
@@ -193,15 +193,16 @@ def test_a_present_card_is_shown_only_when_its_page_is_built(site, html):
 
 def test_city_and_rpc_homes_are_their_hubs(site, html):
     city = hub_cards(html[f"{cfg_slug(site)}/index.html"])
-    assert {"meetings", "votes", "finance", "finance-committee", "audit-committee"} <= set(city)
+    assert {"meetings", "votes", "finance-committee", "audit-committee"} <= set(city)
     assert "is-coming" not in city["meetings"] and "#meetings-h" in city["meetings"]
-    for key in ("finance", "finance-committee", "audit-committee"):
+    for key in ("finance-committee", "audit-committee"):
         assert '<span class="chip chip-coming">Coming</span>' in city[key]
-    assert f'href="{config.SITE["unofficial"]["bodies"][0]["url"]}"' in city["finance"]
+    # the city budget card is a present card, shown only when city/finance/ is built (as the county's Finance card);
+    # this fixture build has no city budget books (test_city_budget_pages builds them)
+    assert ("finance" in city) == (site / cfg_slug(site) / "finance" / "index.html").is_file()
     for key in ("finance-committee", "audit-committee"):          # one card per committee, as the county's has
-        assert f'href="{config.SITE["committees"]["links"][0]["url"]}"' in city[key]
-    # the landing's "City budget" link opens this card
-    assert '<li class="hub-card is-coming" data-card="finance" id="card-finance">' in html[f"{cfg_slug(site)}/index.html"]
+        # coming while this build makes no committee pages (tests/test_committee_pages.py: present once it does)
+        assert f'href="{config.SITE["city_committees"]["url"]}"' in city[key]
     assert '<p class="hub-kicker">City government</p>' in html[f"{cfg_slug(site)}/index.html"]
     rpc_page = html["rpc/index.html"]
     rpc = hub_cards(rpc_page)
@@ -216,7 +217,7 @@ def test_city_and_rpc_homes_are_their_hubs(site, html):
 def test_rpc_votes_card_is_coming_only_while_no_vote_is_shown(html, tmp_path, rpc_cfg, monkeypatch):  # noqa: F811
     votes = hub_cards(html["rpc/index.html"])["votes"]          # this build shows no RPC vote
     assert '<span class="chip chip-coming">Coming</span>' in votes
-    assert "Votes return after the minutes reader passes a fresh check." in plain(votes)
+    assert "Votes are being checked against the minutes again and are not shown for now." in plain(votes)
     assert f'<a data-ext="record" href="{rpc_cfg["record_url"]}"' in votes
     from sitegen import rpc as rpc_mod
     monkeypatch.setattr(rpc_mod.Rpc, "votes_shown", property(lambda self: True))
@@ -273,7 +274,7 @@ def test_home_overview_lists_each_body_with_the_same_coming_items(site, html):
     county, city = (plain(re.search(rf'<li class="bodies-card" data-hub="{k}">(.*?)</li>', sec, re.S).group(1))
                     for k in ("county", "city"))
     assert county.endswith("Coming: Budget Committee.")
-    assert city.endswith("Coming: City budget, Finance Committee, Audit Committee.")
+    assert city.endswith("Coming: Finance Committee, Audit Committee.")   # the city budget card is a present card
 
 
 def test_home_has_the_line_slot_first_in_the_page(html):
@@ -320,10 +321,18 @@ def test_rows_carry_their_body_for_the_filter(site, html):
 
 def test_finance_note_text_and_links():
     note = bodies.finance_note()
-    assert note["text"] == "County budget only so far. City and school board budgets are coming."
-    assert [x["url"] for x in note["links"]] == [config.SITE["unofficial"]["bodies"][0]["url"],
-                                                  config.SITE["school_board"]["url"]]
-    assert note["links"][0]["url"] == "https://www.clarksvilletn.gov/" and "cmcss.net" in note["links"][1]["url"]
+    assert note["text"] == "These are the Montgomery County budget books. The school board budget is coming."
+    assert [x["url"] for x in note["links"]] == [config.SITE["school_board"]["url"]]
+    assert "cmcss.net" in note["links"][0]["url"] and note["sibling"] is None
+    # each body's budget index links the other's when it is built (finance-contracts 10), in the same words
+    county = bodies.finance_note(sibling="city/finance/index.html")
+    city = bodies.finance_note(key="city_finance_note", sibling="finance/index.html")
+    assert county["sibling"] == {"lede": "The City of Clarksville budget books have their own pages:",
+                                 "label": "City budget", "href": "city/finance/index.html"}
+    assert city["sibling"] == {"lede": "The Montgomery County budget books have their own pages:",
+                               "label": "County budget", "href": "finance/index.html"}
+    assert city["text"] == "These are the City of Clarksville budget books. The school board budget is coming."
+    assert city["links"] == county["links"]
     tpl = (ROOT / "site" / "templates" / "fin_index.html.j2").read_text(encoding="utf-8")
     assert tpl.index("body_note.text") < tpl.index("coverage_sentence")     # the first line under the h1
 
@@ -336,8 +345,9 @@ def test_finance_page_shows_the_note_first_and_the_county_hub_links_finance(tmp_
     main = main_of(pages["finance/index.html"])
     first = re.search(r"</h1>\s*<p[^>]*>(.*?)</p>", main, re.S)
     assert 'class="note body-note"' in first.group(0)
-    assert plain(first.group(1)).startswith("County budget only so far. City and school board budgets are coming. ")
-    assert f'<a data-ext="body" href="{config.SITE["unofficial"]["bodies"][0]["url"]}"' in first.group(1)
+    assert plain(first.group(1)).startswith("These are the Montgomery County budget books. The school board budget "
+                                            "is coming. ")
+    assert "City budget" not in first.group(1)          # this fixture build has no city budget pages to link
     assert f'<a data-ext="school" href="{config.SITE["school_board"]["url"]}"' in first.group(1)
     assert main.count(f'<div data-body="{config.SITE["county_key"]}">') == 1
     assert main.index("body-note") < main.index("data-body=")           # the note itself is never hidden
@@ -370,10 +380,11 @@ def test_method_page_lists_both_storage_keys(html):
     assert keys == {"cr-your-seats", "cr-body"}
 
 
-def test_every_switch_target_has_the_sky_sun_and_no_other_page_does(site, html):
+def test_every_switch_target_has_the_full_sky_sun_and_every_other_page_the_small_one(site, html):
     """Owner, 2026-11-12: the sun at the top showed only on All. Every option's own page now has the landing's sky sun
     (decorative, set by static/sky.js from the viewer's clock, at midday by CSS without it); the date line stays on
-    the home page; inner pages keep the plain header."""
+    the home page. Owner, 2026-11-14 (onceover/header/sun-on-every-page): every other page has the same sun, small
+    (the header's class sky-small), so no page is left with a plain header."""
     sun = '<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>'
     _, opts = switch_of(html["index.html"])
     targets = {SC.resolve("index.html", href) for href, _, _, _ in opts}
@@ -382,9 +393,10 @@ def test_every_switch_target_has_the_sky_sun_and_no_other_page_does(site, html):
         depth = "../" * rel.count("/")
         on = rel in targets
         header = page[page.index('<header class="site-header'):page.index("</header>")]
-        assert (sun in header) == on and header.count('id="sky-sun"') == (1 if on else 0), rel
+        assert sun in header and page.count('id="sky-sun"') == 1, rel
         assert ('<header class="site-header has-sky">' in page) == on, rel
-        assert (f'<script src="{depth}static/sky.js" defer></script>' in page) == on, rel
+        assert ('<header class="site-header has-sky sky-small">' in page) == (not on), rel
+        assert page.count(f'<script src="{depth}static/sky.js" defer></script>') == 1, rel
         assert ('id="sky-hero"' in page) == (rel == "index.html"), rel
     # without the date line a body page keeps its text clear of the sun: the brand column stops short of it (wide
     # screens), and on a phone a sliver shows in a strip under the kicker
@@ -393,6 +405,11 @@ def test_every_switch_target_has_the_sky_sun_and_no_other_page_does(site, html):
     phone = phone[:phone.index("\n}\n")]
     assert ".has-sky:not(:has(#sky-hero)) .sky-sun { --sun-max: .15; }" in phone
     assert ".has-sky:not(:has(#sky-hero)) .masthead { padding-bottom:" in phone
+    # the small sun is a size, not another element: one wide-screen rule, and on a phone the body pages' sliver
+    small = CSS[CSS.index("@media (min-width: 700px) {\n  .sky-small .sky-sun {"):]
+    small = small[:small.index("\n}\n")]
+    assert "--sun-size: clamp(64px, 8vw, 104px)" in small and ".has-sky.sky-small { --sun-room:" in small
+    assert ".sky-small" not in CSS.replace(small, "")
 
 
 def test_sky_js_reads_no_home_only_data():

@@ -25,7 +25,7 @@ def test_a_moved_row_of_a_held_roll_call_names_the_roll_call_not_the_motion(page
     found = rows(pages, f"{MO}/moved")
     assert found
     for rel, row in found:
-        assert "Outcome not confirmed: the roll call on this motion is held." in row, rel
+        assert "Outcome not confirmed: the vote on this motion is held." in row, rel
         assert "Who moved and seconded it is confirmed." in row, rel
         assert "Not confirmed: this page was hard to read." not in row, rel     # the roll call's own note
         assert 'class="fact nc"' not in row, rel                               # the row itself is not marked held
@@ -49,7 +49,7 @@ def test_site_check_fails_a_moved_row_that_carries_the_roll_calls_note(tmp_path,
                                            internal=False, export=False)
         return [p for p in out if f"{MO}/moved" in p and "as if the motion were held" in p]
     assert problems("Not confirmed: this page was hard to read.")
-    assert not problems("Outcome not confirmed: the roll call on this motion is held. This page was hard to read.")
+    assert not problems("Outcome not confirmed: the vote on this motion is held. This page was hard to read.")
 
 
 def test_a_motion_without_a_seconder_says_who_moved_it_only(tmp_path, facts):

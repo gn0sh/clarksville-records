@@ -92,6 +92,7 @@ class BudgetRules:
     fund_total_by_name: bool = False     # "TOTAL <fund name, cut>" right after a section total is the fund total
     run_totals: dict = field(default_factory=dict)   # exact label -> revenue | expenditure | net (report-run totals)
     run_end: re.Pattern | None = None    # the line that ends a report run (its totals' scope)
+    report_date: re.Pattern | None = None   # the page foot's report date, group "date" (book.report_dates)
     books_not_read: tuple = ()           # ({id, title, fiscal_year, url, reason}, ...): fetched and linked only
 
 
@@ -213,7 +214,17 @@ def parse_budget(budget: dict) -> BudgetRules:
         statement_by_code=tuple((k, _cs_regex(v, f"budget.rows.statement_by_code.{k}")) for k, v in by_code.items()),
         fund_total_by_name=_flag(rows, "fund_total_by_name"), run_totals=dict(run_totals),
         run_end=_cs_regex(rows["run_end"], "budget.rows.run_end") if "run_end" in rows else None,
+        report_date=_report_date(rows),
         books_not_read=tuple(not_read))
+
+
+def _report_date(rows: dict) -> re.Pattern | None:
+    if "report_date" not in rows:
+        return None
+    rx = _cs_regex(rows["report_date"], "budget.rows.report_date")
+    if "date" not in rx.groupindex:
+        raise FinanceConfigError("finance.yml: budget.rows.report_date needs a (?P<date>...) group")
+    return rx
 
 
 def _flag(cfg: dict, key: str) -> bool:

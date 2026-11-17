@@ -44,8 +44,8 @@ Three addresses, for example `brian+probe1@gnoshcodes.com`, `brian+probe2@gnoshc
 `brian+probe3@gnoshcodes.com` (if your mail ignores the `+...` part, use any three team addresses you can read).
 12. Download both files into your **Downloads** folder: open each link, click the **Download raw file** button
     (the down-arrow icon at the top right of the file).
-    - https://github.com/gn0sh/clarksville-records/blob/<REVIEWED_SHA>/scripts/morning-note-probe.cmd
-    - https://github.com/gn0sh/clarksville-records/blob/<REVIEWED_SHA>/scripts/morning-note-probe.ps1
+    - https://github.com/gn0sh/clarksville-records/blob/49a45fe2f5d2b73a1870ba7d6a6b074ad7f5248a/scripts/morning-note-probe.cmd
+    - https://github.com/gn0sh/clarksville-records/blob/49a45fe2f5d2b73a1870ba7d6a6b074ad7f5248a/scripts/morning-note-probe.ps1
 13. In **Downloads**, double-click **morning-note-probe.cmd**. If Windows shows "Windows protected your PC", click
     **More info** > **Run anyway**. When it asks for the key: copy the key from the Buttondown page (step 11), click
     the black window, press **Ctrl+V**, then **Enter** (nothing shows; that is right). Then type what it asks: the

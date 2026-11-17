@@ -57,7 +57,7 @@ def _browser_ok():
 @pytest.fixture(scope="module")
 def served_site(tmp_path_factory):
     out = tmp_path_factory.mktemp("csp") / "build" / "site"
-    build(ROOT / "data" / "facts.json", out)
+    build(ROOT / "data" / "facts.json", out, target="pages")   # the real site is over the preview's file cap
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(out))
     handler.log_message = lambda *a: None
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)

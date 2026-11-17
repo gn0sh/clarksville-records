@@ -46,7 +46,7 @@
       </fieldset>
       <fieldset id="vote-set" aria-describedby="vote-hint">
         <legend>How they voted</legend>
-        <p class="hint" id="vote-hint">Choose an official first. Confirmed roll calls only.</p>
+        <p class="hint" id="vote-hint">Choose an official first. Confirmed votes only.</p>
         <label><input type="radio" name="vote" value="" checked> Any</label>
         <label><input type="radio" name="vote" value="yes"> Yes</label>
         <label><input type="radio" name="vote" value="no"> No</label>
@@ -55,7 +55,7 @@
       </fieldset>
       <fieldset>
         <legend>Outcome</legend>
-        <p class="hint">Confirmed roll calls only.</p>
+        <p class="hint">Confirmed votes only.</p>
         <label><input type="checkbox" name="outcome" value="passed"> Passed</label>
         <label><input type="checkbox" name="outcome" value="failed"> Failed</label>
         <label><input type="checkbox" name="outcome" value="other"> Other</label>
@@ -66,8 +66,10 @@
       <div class="results-bar">
         <label for="order">Order</label>
         <select id="order" name="order"><option value="">Relevance</option><option value="new">Newest first</option><option value="old">Oldest first</option></select>
-        <button type="button" id="clear">Clear all filters</button>
-        <button type="button" id="copy">Copy link to this search</button>
+        {# onceover/search/controls-before-results: hidden until there is something to clear or to copy
+           (static/search.js update): Clear with a filter on, Copy with a query or a filter. #}
+        <button type="button" id="clear" hidden>Clear all filters</button>
+        <button type="button" id="copy" hidden>Copy link to this search</button>
         <span id="copied" role="status" class="muted"></span>
       </div>
       <ul id="chips" class="chips" aria-label="Active filters"></ul>

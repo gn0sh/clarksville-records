@@ -146,6 +146,12 @@
         155,
         156
       ],
+      "report_dates": [
+        {
+          "as_printed": "06/28/2023",
+          "page": 50
+        }
+      ],
       "source_id": "src-7b0eac1a94cd",
       "title": "Fiscal Year 2024 Budget"
     },
@@ -293,6 +299,12 @@
         136,
         137,
         138
+      ],
+      "report_dates": [
+        {
+          "as_printed": "07/08/2025",
+          "page": 33
+        }
       ],
       "source_id": "src-f0374281b481",
       "title": "Fiscal Year 2026 Budget (Final Submission)"
@@ -449,6 +461,12 @@
         429,
         431,
         434
+      ],
+      "report_dates": [
+        {
+          "as_printed": "05/29/2026",
+          "page": 9
+        }
       ],
       "source_id": "src-738ca3e830d6",
       "title": "Fiscal Year 2027 Budget, as presented 5/29/2026"

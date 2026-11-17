@@ -38,7 +38,7 @@ Meetings, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span c
     <li><a href="{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.n }} {{ "meeting" if y.n == 1 else "meetings" }})</span></li>
     {% endfor %}
   </ul>
-  <p class="muted">{{ glance.rc_confirmed }} roll calls confirmed and {{ glance.rc_unconfirmed }} not confirmed*. A roll call that is not confirmed shows no vote values; each links to its page of the minutes.</p>
+  <p class="muted">{{ glance.rc_confirmed }} votes confirmed and {{ glance.rc_unconfirmed }} not confirmed*. A vote that is not confirmed shows no member's vote; each links to its page of the minutes.</p>
 </section>
 
 <section aria-labelledby="items-h">

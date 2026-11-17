@@ -104,7 +104,7 @@ def read(book_id: str, pages, mutate=None):
         words = mutate(words)
     r = fin_budget.read_book(words, BOOK[book_id], RULES)
     lines = fin_budget.to_records(r, RULES)
-    counts = fin_checks.reconcile(lines)
+    counts = fin_checks.reconcile(lines, RULES.run_totals)
     return r, {x["id"]: x for x in lines}, counts
 
 
@@ -166,6 +166,21 @@ def test_page_foot_and_end_of_report_are_never_stored():
         assert word not in text
 
 
+def test_report_date_is_read_from_the_page_foot_once_per_date():
+    """book.report_dates (finance-contracts 10): the foot's date only, first page that prints it; no time or login."""
+    r, _, _ = read("fy2026-final", [111, 112, 113])
+    assert r.report_dates == [{"as_printed": "07/08/2025", "page": 111}]
+    r, _, _ = read("fy2027-presented", [378, 379])
+    assert r.report_dates == [{"as_printed": "05/29/2026", "page": 378}]
+
+
+def test_no_report_date_rule_reads_no_date():
+    import dataclasses
+    rules = dataclasses.replace(RULES, report_date=None)
+    r = fin_budget.read_book(words_of("fy2026-final", [111]), BOOK["fy2026-final"], rules)
+    assert r.report_dates == []
+
+
 def test_touching_amounts_are_split_by_character_width_fy2027_p17():
     _, lines, _ = read("fy2027-presented", [17])
     for label in ("TOTAL General Fund", "TOTAL REVENUE", "GRAND TOTAL"):
@@ -196,6 +211,18 @@ def test_split_glued_leaves_other_words_alone():
     parts = fin_budget.split_glued(Word(1, 0.0, 120.0, 0, 10, "REVENUE-1.00-22.00"), "cents")
     assert [p.text for p in parts] == ["REVENUE", "-1.00", "-22.00"]
     assert [round(p.x1, 3) for p in parts] == [round(7 * 120 / 18, 3), round(12 * 120 / 18, 3), 120.0]
+
+
+def test_split_glued_starts_where_the_value_bands_start():
+    # "024.00" ends at x 94.9, left of the value bands (x 100): it stays in the label (budget-reconcile/glued-split)
+    w = Word(1, 0.0, 138.0, 0, 10, "FUND2024.00-5.00")       # 16 chars, ~8.6 pt each; "-5.00" ends at 138
+    cw = 138.0 / 16
+    parts = fin_budget.split_glued(w, "cents", value_x0=100.0)
+    assert [p.text for p in parts] == ["FUND2024.00", "-5.00"]
+    assert round(parts[0].x1, 3) == round(11 * cw, 3)
+    assert [p.text for p in fin_budget.split_glued(w, "cents")] == ["FUND2", "024.00", "-5.00"]   # no band: cut
+    assert fin_budget.split_glued(Word(1, 0, 60, 0, 10, "AB-1.00-2.00"), "cents", value_x0=100.0)[0].text == \
+        "AB-1.00-2.00"                                         # every piece left of the bands: left as it is
 
 
 def test_project_subtotals_inside_an_org_section_fy2027_self_insurance():
@@ -242,13 +269,49 @@ def test_a_header_without_a_fund_name_fails_the_book():
         read("fy2026-final", [138], mutate=drop)
 
 
-def test_empty_scope_of_zeros_is_exact_and_of_values_is_not():
+def test_empty_scope_of_zeros_is_exact_only_for_a_report_run_total():
     cell = {"header_as_printed": "x", "fiscal_year": 2027, "kind": "actual", "as_printed": ".00", "dollars": None,
             "cents": 0}
     zero = {"cells": [cell], "held": None}
-    assert fin_checks.check_total(zero, [])["state"] == "exact"
+    assert fin_checks.check_total(zero, [], run_total=True)["state"] == "exact"
+    assert fin_checks.check_total(zero, [])["state"] == "does_not_add_up"        # any other total of nothing
     assert fin_checks.check_total({"cells": [dict(cell, cents=5, as_printed=".05")], "held": None},
-                                  [])["state"] == "does_not_add_up"
+                                  [], run_total=True)["state"] == "does_not_add_up"
+
+
+def test_reconcile_marks_only_configured_run_totals_as_run_totals():
+    cell = {"header_as_printed": "x", "fiscal_year": 2027, "kind": "actual", "as_printed": ".00", "dollars": None,
+            "cents": 0}
+
+    def total(label, code=None):
+        return {"id": label, "row_role": "total", "account_code": code, "label_as_printed": label,
+                "scope_line_ids": [], "cells": [dict(cell)], "held": None}
+    lines = [total("TOTAL REVENUE"), total("TOTAL Some Fund"), total("TOTAL REVENUE", code="4310")]
+    fin_checks.reconcile(lines, RULES.run_totals)
+    assert [x["check"]["state"] for x in lines] == ["exact", "does_not_add_up", "does_not_add_up"]
+
+
+def _cents_cell(cents_value, printed):
+    return {"header_as_printed": "x", "fiscal_year": 2027, "kind": "actual", "as_printed": printed, "dollars": None,
+            "cents": cents_value}
+
+
+def test_a_cents_book_allows_no_rounding_slip():
+    # budget-reconcile/rounding-bound-in-cents: a book printed to the cent rounds nothing
+    scope = [{"cells": [_cents_cell(100, "1.00")], "held": None}, {"cells": [_cents_cell(200, "2.00")], "held": None}]
+    off = fin_checks.check_total({"cells": [_cents_cell(301, "3.01")], "held": None}, scope)
+    assert off["state"] == "does_not_add_up"
+    assert off["per_cell"] == [{"printed": 301, "sum": 300, "diff": 1}]
+    assert fin_checks.check_total({"cells": [_cents_cell(300, "3.00")], "held": None}, scope)["state"] == "exact"
+    assert fin_checks.rounding_bound(2, cents=True) == 0
+
+
+def test_a_dollars_book_keeps_its_rounding_bound():
+    def cell(d):
+        return {"header_as_printed": "x", "fiscal_year": 2027, "kind": "actual", "as_printed": str(d), "dollars": d}
+    scope = [{"cells": [cell(1)], "held": None}, {"cells": [cell(2)], "held": None}]
+    assert fin_checks.check_total({"cells": [cell(4)], "held": None}, scope)["state"] == "within_rounding"
+    assert fin_checks.rounding_bound(2) == 1
 
 
 def test_editions_compare_on_cents():
@@ -298,14 +361,85 @@ def test_fin_books_build_writes_a_valid_city_file(tmp_path, monkeypatch):
     assert [b["id"] for b in report["books_not_read"]] == ["fy2025-adopted"]
 
 
+def test_schema_requires_cents_on_every_cell_of_a_cents_file(tmp_path, monkeypatch):
+    store, by_sha = fake_store(tmp_path)
+    monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
+                                                                              "creator": None})
+    fin, _ = fin_books.build(store, fin_config.load_books(CITY), book_words=lambda pdf, first, last: by_sha[pdf.stem])
+    from collector.fin_run import validate
+    assert validate(fin) == []
+    del fin["budget_lines"][0]["cells"][0]["cents"]
+    assert any("'cents' is a required property" in e for e in validate(fin))
+
+
+def _city_meta(monkeypatch):
+    monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
+                                                                              "creator": None})
+
+
+def test_daily_build_keeps_the_committed_file_when_a_book_file_changed(tmp_path, monkeypatch):
+    # city-books/daily-overwrite-unguarded: the city replaced a book's file; a person reviews the new reading first
+    store, by_sha = fake_store(tmp_path)
+    _city_meta(monkeypatch)
+    cfg = fin_config.load_books(CITY)
+    out, rep = tmp_path / "finance.json", tmp_path / "report.json"
+
+    def words(pdf, first, last):
+        return by_sha[pdf.stem]
+    assert fin_books.cmd_build(store, cfg, out, rep, keep_committed=True, book_words=words) == 0    # nothing yet
+    committed = out.read_bytes()
+    assert fin_books.cmd_build(store, cfg, out, rep, keep_committed=True, book_words=words) == 0    # same reading
+    spec = BOOK["fy2024-adopted"]
+    store.now = lambda: "2026-11-17T00:00:00+00:00"                                 # a later file at the same URL
+    e, st = store.put(spec.url, b"%PDF-1.7 city replaced", {}, {"kind": "budget_book", "label": spec.title})
+    store.save()
+    by_sha[e["sha256"]] = words_of("fy2024-adopted", [50])
+    code = fin_books.cmd_build(store, cfg, out, rep, keep_committed=True, book_words=words)
+    assert code == fin_books.KEPT and out.read_bytes() == committed
+    kept = json.loads(rep.read_text())["kept"]
+    assert len(kept) == 1 and kept[0].startswith("book fy2024-adopted: source sha256 ")
+    assert fin_books.cmd_build(store, cfg, out, rep, book_words=words) == 0      # by hand: the new reading is written
+    assert out.read_bytes() != committed
+
+
+def _stats_file(books):
+    """A finance.json shape with, per book id: (sha, lines, held, does-not-add-up)."""
+    fin = {"sources": [], "books": [], "budget_lines": []}
+    for book_id, (sha, n, held, bad) in books.items():
+        fin["sources"].append({"id": f"src-{sha[:12]}", "sha256": sha})
+        fin["books"].append({"id": book_id, "source_id": f"src-{sha[:12]}"})
+        for i in range(n):
+            fin["budget_lines"].append({"book_id": book_id, "held": "column-align" if i < held else None,
+                                        "check": {"state": "does_not_add_up"} if i < bad else None})
+    return fin
+
+
+@pytest.mark.parametrize("new,why", [
+    ({"a": ("1" * 64, 5, 0, 0)}, []),
+    ({"a": ("1" * 64, 6, 0, 0), "b": ("2" * 64, 3, 0, 0)}, []),                     # more lines, a new clean book
+    ({"a": ("1" * 64, 4, 0, 0)}, ["book a: 4 lines, committed 5"]),
+    ({"a": ("1" * 64, 5, 1, 0)}, ["book a: 1 held lines, committed 0"]),
+    ({"a": ("1" * 64, 5, 0, 1)}, ["book a: 1 does not add up lines, committed 0"]),
+    ({"a": ("1" * 64, 5, 0, 0), "b": ("2" * 64, 3, 0, 1)}, ["book b: 1 does not add up lines, committed 0"]),
+    ({"b": ("2" * 64, 9, 0, 0)}, ["book a: in the committed file, not in the new build"]),
+    ({"a": ("3" * 64, 5, 0, 0)}, ["book a: source sha256 333333333333 differs from the committed 111111111111"]),
+])
+def test_worse_than_committed(new, why):
+    assert fin_books.worse_than_committed(_stats_file(new), _stats_file({"a": ("1" * 64, 5, 0, 0)})) == why
+
+
 def test_fin_books_build_writes_nothing_when_a_book_is_missing(tmp_path, monkeypatch):
     store, by_sha = fake_store(tmp_path, skip=("fy2026-final",))
     monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
                                                                               "creator": None})
     out = tmp_path / "finance.json"
-    code = fin_books.cmd_build(store, fin_config.load_books(CITY), out, tmp_path / "r.json",
+    rep = tmp_path / "r.json"
+    rep.write_text('{"reconcile": "an earlier build"}')
+    code = fin_books.cmd_build(store, fin_config.load_books(CITY), out, rep,
                                book_words=lambda pdf, first, last: by_sha[pdf.stem])
     assert code == 2 and not out.exists()
+    report = json.loads(rep.read_text())                       # budget/exit2-stale-report: this build's reason
+    assert "reconcile" not in report and any("fy2026-final" in g for g in report["stopped"]["guard"])
 
 
 def test_fetch_asks_the_polite_fetcher_for_every_book(tmp_path):
@@ -324,3 +458,72 @@ def test_fetch_asks_the_polite_fetcher_for_every_book(tmp_path):
     assert len(seen) == 4 and all(u.startswith("https://www.clarksvilletn.gov/") for u in seen)
     again = fin_books.cmd_fetch(store, fin_config.load_books(CITY), fetcher=Fetcher(), progress=lambda *a, **k: None)
     assert len(seen) == 4 and set(again["books"].values()) == {"cached"}     # a stored book is not asked for again
+
+
+# ------------------------------------------------------------------ the daily run's step (collector run)
+def _root(tmp_path):
+    import shutil
+    d = tmp_path / "config" / "localities" / "clarksville-tn"
+    d.mkdir(parents=True)
+    shutil.copy(CITY, d / "finance.yml")
+    return tmp_path
+
+
+def test_run_step_offline_with_no_stored_books_writes_nothing_and_never_raises(tmp_path, monkeypatch):
+    from collector import fin_books
+    monkeypatch.setenv("RECORDS_STORE", str(tmp_path / "store"))
+    root = _root(tmp_path)
+    log = {}
+    out = fin_books.run_step(log, offline=True, root=root, progress=lambda *a, **k: None)
+    assert out["clarksville-tn"]["fetch"] is None                 # offline: no request at all
+    assert out["clarksville-tn"]["build"] == 2                    # book missing from the store: guard, nothing written
+    assert not (root / "data" / "localities" / "clarksville-tn" / "finance.json").exists()
+    assert log["city_books"] is out
+    w = fin_books.warnings(log)                                   # exit 2 is a warning in the run log
+    assert len(w) == 1 and "exit 2" in w[0] and "committed finance.json is kept" in w[0]
+
+
+def test_run_step_keeps_a_worse_build_and_warns(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    fin = root / "data" / "localities" / "clarksville-tn" / "finance.json"
+    fin.parent.mkdir(parents=True)
+    fin.write_text("{}")
+
+    def fake_build(store, cfg, finance_path, report_path, keep_committed=False, **kw):
+        assert keep_committed                                     # the daily run always guards the committed file
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps({"kept": ["book fy2024-adopted: 1 held lines, committed 0"]}))
+        return fin_books.KEPT
+    monkeypatch.setattr(fin_books, "cmd_build", fake_build)
+    log, said = {}, []
+    out = fin_books.run_step(log, offline=True, root=root, progress=lambda *a, **k: said.append(a[0]))
+    assert out["clarksville-tn"]["build"] == fin_books.KEPT and fin.read_text() == "{}"
+    assert fin_books.warnings(log) == ["city books clarksville-tn: the new build reads worse than the committed "
+                                       "finance.json, which is kept: book fy2024-adopted: 1 held lines, committed 0"]
+    assert any(s.startswith("collector: WARNING city books clarksville-tn") for s in said)
+
+
+def test_run_step_online_fetches_only_books_not_stored_and_survives_a_block(tmp_path, monkeypatch):
+    from collector import fin_books
+    from collector.fetch import HostBlocked
+    monkeypatch.setenv("RECORDS_STORE", str(tmp_path / "store"))
+    root = _root(tmp_path)
+    asked = []
+
+    class Blocked:
+        extra_denied = ()
+        log = []
+
+        def get(self, url):
+            asked.append(url)
+            raise HostBlocked("blocked")
+
+    out = fin_books.run_step({}, offline=False, fetcher=Blocked(), root=root, progress=lambda *a, **k: None)
+    res = out["clarksville-tn"]
+    assert len(asked) == 1 and res["fetch"]["stopped"]            # the first refusal ends the host's requests
+    assert res["build"] == 2 and "error" not in res
+
+
+def test_localities_lists_books_only_configs():
+    from collector import fin_books
+    assert fin_books.localities() == ["clarksville-tn"]

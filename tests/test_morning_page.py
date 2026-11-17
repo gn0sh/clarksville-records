@@ -54,7 +54,7 @@ def _build(out, monkeypatch, cfg=None, seat_feeds=False, note=None, **kw):
     if seat_feeds:
         orig = morning_page.alerts_context
         monkeypatch.setattr(morning_page, "alerts_context",
-                            lambda feeds, cfg=None, preview=False: orig(feeds + SEAT_FEEDS, cfg, preview))
+                            lambda feeds, cfg=None, preview=False, **k: orig(feeds + SEAT_FEEDS, cfg, preview, **k))
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
           **{"morning_manifests": [], "target": "pages", **kw})
     return {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8") for p in out.rglob("*.html")}
@@ -650,6 +650,9 @@ const base = process.argv[1];
     const r = {};
     // no seats stored: the hint shows, both body feeds and the all-zoning feed show
     await p.goto(base + 'alerts.html#note');
+    // until email starts the card is small: the picker and the feeds sit in one closed toggle (onceover/alerts/card-before-launch)
+    r.closed = await p.evaluate(() => { const d = document.querySelector('#note details.mn-more'); const s = d.querySelector('summary').getBoundingClientRect(); return !d.open && s.height >= 44; });
+    await p.focus('#note details.mn-more > summary'); await p.keyboard.press('Enter');   // by keyboard, as the pills are next
     r.legend = await p.evaluate(() => { const l = document.querySelector('#note legend'); const b = l.getBoundingClientRect(); return b.width > 0 && b.height > 0 && getComputedStyle(l).visibility === 'visible'; });
     r.noSeats = await visible(p, '#note .mn-lists > li:not([hidden]) li:not([hidden]) > a');
     r.lists0 = await p.evaluate(() => [...document.querySelectorAll('#note .mn-lists > li')].filter(l => !l.hidden).map(l => l.dataset.list));
@@ -663,7 +666,7 @@ const base = process.argv[1];
     r.sw1 = await p.evaluate(() => document.documentElement.scrollWidth);
     // seats stored (as seats.js keeps them): the per-seat feeds replace the all-zoning one, the council feed hides
     await p.evaluate(() => localStorage.setItem('cr-your-seats', JSON.stringify({ district: 7, ward: null })));
-    await p.goto(base + 'alerts.html'); await p.reload(); await p.check('#n-zoning');
+    await p.goto(base + 'alerts.html'); await p.reload(); await p.click('#note details.mn-more > summary'); await p.check('#n-zoning');
     r.withSeats = await visible(p, '#note .mn-lists > li:not([hidden]) li:not([hidden]) > a');
     // preview page, filtered by the fragment and the stored seat
     await p.goto(base + 'morning/index.html#lists=zoning');
@@ -678,7 +681,7 @@ const base = process.argv[1];
   const ctx = await b.newContext({ viewport: { width: 360, height: 760 }, javaScriptEnabled: false }); const p = await ctx.newPage();
   await p.goto(base + 'morning/index.html');
   out.nojs = [(await visible(p, '.mn-entry .mn-title')).length, await p.evaluate(() => getComputedStyle(document.querySelector('.mn-picker')).display), await p.evaluate(() => document.documentElement.scrollWidth)];
-  await p.goto(base + 'alerts.html');
+  await p.goto(base + 'alerts.html'); await p.click('#note details.mn-more > summary');   // the toggle is native: it opens without script
   out.nojsAlerts = [(await visible(p, '#note .mn-lists > li')).length, await p.evaluate(() => document.documentElement.scrollWidth)];
   console.log(JSON.stringify(out)); await b.close();
 })();
@@ -797,6 +800,7 @@ def test_note_and_preview_in_a_browser(served):
     titles = {e["id"].split("/")[2]: e["title"] for e in DAY["entries"]}
     for w in ("360", "1280"):
         x = out[w]
+        assert x["closed"], (w, x)
         assert x["legend"], (w, x)
         assert x["lists0"] == ["zoning", "seats"], (w, x)                       # the two default picks
         assert x["noSeats"] == ["feeds/topic-rezoning.xml", "feeds/county-meetings.xml"], (w, x)

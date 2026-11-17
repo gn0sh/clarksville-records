@@ -1,6 +1,6 @@
 # Morning note: the T4.0 provider probe (docs/ops/morning-note.md section 3; docs/tasks/morning-note.md T4.0, T4.4).
 #
-# Brian runs this once, on his Windows PC, against the TEST Buttondown newsletter only, with team addresses only.
+# Brian runs this once, on his Windows PC, against the Daylight newsletter before anyone signs up (Brian 2026-11-16: a second newsletter is paid), with team addresses only.
 # Double-click scripts\morning-note-probe.cmd (or: powershell -NoProfile -ExecutionPolicy Bypass -File morning-note-probe.ps1).
 #
 # What it does: asks for the test newsletter's API key without showing it, makes the calls the sender makes
@@ -187,14 +187,22 @@ function Find-Subscriber([string]$address) {
 }
 
 function Ensure-Subscriber([string]$address, [string]$which) {
-    $r = Bd 'POST' '/subscribers' @{ email_address = $address; type = 'regular' } '' 'POST /subscribers'
-    $R["create_subscriber_$which"] = "HTTP $($r.Status)"
-    if (($r.Status -eq 400 -or $r.Status -eq 422) -and ($r.Text -match '(?i)email_address') -and ($r.Text -notmatch '(?i)already|exist')) {
-        $r = Bd 'POST' '/subscribers' @{ email = $address; type = 'regular' } '' 'POST /subscribers (email field)'
-        $R["create_subscriber_$which"] += " then HTTP $($r.Status) with field 'email'"
+    $resp = Bd 'POST' '/subscribers' @{ email_address = $address; type = 'regular' } '' 'POST /subscribers'
+    $R["create_subscriber_$which"] = "HTTP $($resp.Status)"
+    if (($resp.Status -eq 400 -or $resp.Status -eq 422) -and ($resp.Text -match '(?i)email_address') -and ($resp.Text -notmatch '(?i)already|exist')) {
+        $resp = Bd 'POST' '/subscribers' @{ email = $address; type = 'regular' } '' 'POST /subscribers (email field)'
+        $R["create_subscriber_$which"] += " then HTTP $($resp.Status) with field 'email'"
+    }
+    if ($resp.Status -eq 400 -or $resp.Status -eq 422) {
+        # Buttondown may refuse type 'regular' (skipping double opt-in) on this plan: record why, then create it the
+        # normal way; Buttondown sends a confirm email and the step below waits for the click.
+        $R["create_subscriber_${which}_refusal"] = Clean $resp.Text
+        $resp = Bd 'POST' '/subscribers' @{ email_address = $address } '' 'POST /subscribers (no type)'
+        $R["create_subscriber_$which"] += " then HTTP $($resp.Status) without type"
+        if (-not ($resp.Status -eq 200 -or $resp.Status -eq 201)) { $R["create_subscriber_${which}_refusal_2"] = Clean $resp.Text }
     }
     $row = $null
-    if (($r.Status -eq 200 -or $r.Status -eq 201) -and (Has $r.Data 'id')) { $row = $r.Data } else { $row = Find-Subscriber $address }
+    if (($resp.Status -eq 200 -or $resp.Status -eq 201) -and (Has $resp.Data 'id')) { $row = $resp.Data } else { $row = Find-Subscriber $address }
     if ($null -eq $row) { return $null }
     Note-Id $row.id
     if ((Has $row 'type') -and $row.type -ne 'regular') {
@@ -268,12 +276,12 @@ function Write-Results {
 }
 
 # ------------------------------------------------------------------------------------------------ start
-Say 'Morning note probe: TEST newsletter only. Use the test newsletter''s key; the probe stops if the list holds anyone but your team addresses.'
-Say 'You will need: the TEST newsletter API key, two team email addresses you can open now, and about 12 minutes.'
+Say 'Morning note probe: run it on the Daylight newsletter BEFORE anyone signs up (a second test newsletter needs a paid plan). It stops if the list holds anyone but your team addresses.'
+Say 'You will need: the probe API key, two team email addresses you can open now, and about 12 minutes.'
 $R['probe_version'] = 1
 $R['run_at_utc'] = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 
-$sec = Read-Host -AsSecureString 'Paste the TEST newsletter API key (nothing will show as you paste), then press Enter'
+$sec = Read-Host -AsSecureString 'Paste the probe API key (nothing will show as you paste), then press Enter'
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
 try { $script:key = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
 $script:key = $script:key.Trim()
@@ -281,9 +289,9 @@ $Secrets.Add($script:key) | Out-Null
 
 $addrA = (Read-Host 'First team address (gets ONE email, "probe 4")').Trim()
 $addrB = (Read-Host 'Second team address (gets ONE email, "probe 1")').Trim()
-$addrC = (Read-Host 'Third team address that is NOT signed up to the test newsletter (for the sign-up form test; stamp mode needs it)').Trim()
-$testUser = (Read-Host 'The TEST newsletter username (the name after buttondown.com/ for the test newsletter)').Trim()
-$liveUser = (Read-Host 'The LIVE newsletter username (the name after buttondown.com/ for Daylight)').Trim()
+$addrC = (Read-Host 'Third team address that is NOT signed up to the newsletter (for the sign-up form test; stamp mode needs it)').Trim()
+$liveUser = (Read-Host 'The Daylight newsletter username (the name after buttondown.com/)').Trim()
+$testUser = $liveUser   # one newsletter: the probe runs on Daylight while it has no subscribers (Brian, 2026-11-16)
 foreach ($x in @($addrA, $addrB, $addrC)) { if ($x) { $Secrets.Add($x) | Out-Null } }
 $R['live_username'] = $liveUser        # public: it goes in the site's sign-up form address (form_action)
 $EmailRe = '^[^@\s]+@[^@\s]+\.[^@\s]+$'
@@ -303,7 +311,7 @@ try {
     $R['T4.4-13 key printable ASCII, no space, 32+ bytes'] = $(if ($k -match '^[\x21-\x7E]{32,}$') { 'yes' } elseif ($k -match '^[\x21-\x7E]+$') { "no: printable but only $($k.Length) characters" } else { 'no: has spaces or other characters' })
     $first = Bd 'GET' '/emails' $null '' 'GET /emails'
     $R['key_works'] = $(if ($first.Status -eq 200) { 'yes' } else { "no: HTTP $($first.Status)" })
-    if ($first.Status -eq 401 -or $first.Status -eq 403) { throw 'The key was refused. Check you copied the TEST newsletter key, then run again.' }
+    if ($first.Status -eq 401 -or $first.Status -eq 403) { throw 'The key was refused. Check you copied the probe key, then run again.' }
     $tags = Bd 'GET' '/tags' $null '' 'GET /tags'
     $nl = Bd 'GET' '/newsletters' $null '' 'GET /newsletters'
     $R['scoped_key_refuses_other_areas'] = "GET /tags HTTP $($tags.Status); GET /newsletters HTTP $($nl.Status) (401/403 = refused, as wanted)"
@@ -320,7 +328,7 @@ try {
     }
     if ($others -gt 0) {
         $R['newsletter_guard'] = "stopped: $others subscriber(s) other than the typed team addresses"
-        throw "This newsletter has $others subscriber(s) besides your team addresses. Is this the TEST newsletter's key? Nothing was changed."
+        throw "This newsletter has $others subscriber(s) besides your team addresses. Real people may have signed up, so the probe will not run here. Nothing was changed."
     }
     $R['newsletter_guard'] = 'passed: only team addresses on the list'
 
@@ -544,6 +552,6 @@ try {
     } else {
         Write-Host 'Neither sending mode passed. Do NOT make the live key yet; the team will read the results and tell you what is next.' -ForegroundColor Yellow
     }
-    Write-Host 'Now delete the TEST key: test newsletter > Settings > API > delete the key you made for this probe.'
+    Write-Host 'Now delete the probe key: API (left menu) > delete the key named probe. Then delete your team test addresses under Subscribers.'
     [void](Read-Host 'Press Enter to close')
 }

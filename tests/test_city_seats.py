@@ -91,11 +91,11 @@ def test_the_mayor_is_carried_on_by_name_until_the_next_mayor_starts():
     rows, latest = council.holder_rows(wards, facts, CFG)
     got = sorted((r["official_id"], r["start"], r["end"], r["evidence"], r.get("seen_evidence")) for r in rows)
     assert latest == "2020-06-01"
-    assert got == [("m1", "2020-01-01", "2020-04-01", "attendance lists", "roll calls"),
-                   ("m2", "2020-05-01", None, "attendance lists", "roll calls")]
+    assert got == [("m1", "2020-01-01", "2020-04-01", "attendance lists", "vote records"),
+                   ("m2", "2020-05-01", None, "attendance lists", "vote records")]
     s = _seats(rows, latest)
     m2 = s.current_of_seat("city-mayor")
-    assert s.dates_text(m2).startswith("seen in roll calls on 2020-05-01; listed by name in attendance")
+    assert s.dates_text(m2).startswith("seen in vote records on 2020-05-01; listed by name in attendance")
 
 
 def test_an_unresolved_name_is_never_placed_and_its_seat_says_so():
@@ -199,7 +199,7 @@ def test_a_new_county_meeting_never_dates_an_open_row_past_its_last_page():
         if r["current"] and r["dates"] == "observed":
             assert text.endswith(f"to {read}, the latest meeting read for seats")
             assert ix.seats.on(r["official_id"], "2099-01-01") is None     # the new meeting is not read for seats
-    assert views.observed_basis(ix) == f"Current: in the roll calls of the latest meeting read for seats, {read}"
+    assert views.observed_basis(ix) == f"Current: in the vote records of the latest meeting read for seats, {read}"
 
 
 # ---------------------------------------------------------------- review of 0589765 (request changes)
@@ -660,7 +660,7 @@ def test_an_open_record_seen_after_l_is_dated_to_where_it_was_seen():
     rows, latest = council.holder_rows(wards, facts, CFG)
     s = _seats(rows, latest)
     m = s.current_of_seat("city-mayor")
-    assert s.dates_text(m) == "seen in roll calls on 2020-09-01"            # one day reads "on D"
+    assert s.dates_text(m) == "seen in vote records on 2020-09-01"            # one day reads "on D"
 
 
 def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_source(real_city):

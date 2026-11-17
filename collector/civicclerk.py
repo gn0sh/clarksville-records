@@ -286,8 +286,11 @@ def parse_events(page: dict, cfg: CivicClerkConfig, kind_of, also: dict | None =
                 continue
         start, title, eid = e.get("startDateTime") or "", (e.get("eventName") or "").strip(), e.get("id")
         if len(start) < 10 or not title or not isinstance(eid, int):
-            problems.append({"event": eid, "problem": "event without a date, name or id",
-                             "snippet": json.dumps({k: e.get(k) for k in ("id", "eventName", "startDateTime")})})
+            # which fields are missing, never the event's name (the report is printed to the public Actions log;
+            # committees-privacy/log-snippet)
+            problems.append({"event": eid if isinstance(eid, int) else None, "problem": "event without a date, name or id",
+                             "missing": [k for k, v in (("id", isinstance(eid, int)), ("eventName", bool(title)),
+                                                        ("startDateTime", len(start) >= 10)) if not v]})
             continue
         if start[:10] < cfg.from_date:
             continue

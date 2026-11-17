@@ -196,6 +196,37 @@
     }
   }
 
+  /* Who holds each seat the answer found (onceover/address/names-not-districts): "District 5: <name>. Ward 6: <name>."
+     with each name linked to its page, as the landing list shows it (or its fixed words), then that list's own basis
+     line(s) in small text. The same words for every official; every string is text, never markup. */
+  function holderOf(list, n) {
+    var s = (list || []).filter(function (x) { return x.number === n; })[0];
+    return s && s.holder && s.holder.name ? s.holder : null;
+  }
+  function holders(district, ward) {
+    var seats = [], bases = [];
+    var d = district === null ? null : holderOf(cfg.districts, district);
+    var w = ward === null ? null : holderOf(cfg.wards, ward);
+    if (d) { seats.push([cfg.district_label + " " + district, d]); if (cfg.district_basis) { bases.push(cfg.district_basis); } }
+    if (w) { seats.push([cfg.ward_label + " " + ward, w]); if (cfg.ward_basis) { bases.push(cfg.ward_basis); } }
+    if (!seats.length) { return []; }
+    var span = document.createElement("span");
+    span.className = "addr-holders";
+    seats.forEach(function (x) {
+      span.appendChild(text(x[0] + ": "));
+      span.appendChild(x[1].href ? link(x[1].href, x[1].name) : text(x[1].name));
+      span.appendChild(text(". "));
+    });
+    var out = [" ", span];
+    if (bases.length) {
+      var b = document.createElement("span");
+      b.className = "addr-basis";
+      b.textContent = bases.join(". ") + ".";
+      out.push(b);
+    }
+    return out;
+  }
+
   function wardLink(n) {
     var s = wardShapes.filter(function (x) { return x.number === n; })[0];
     var label = cfg.ward_label + " " + n;
@@ -231,10 +262,11 @@
       var label = cfg.district_label + " " + r.district;
       var where = s ? link(s.href, label) : label;
       if (w && w.kind === "ward") {
-        say(["The " + cfg.geocoder_short + " places this address in ", where, " and ", wardLink(w.ward), "."],
-            r.matched);
+        say(["The " + cfg.geocoder_short + " places this address in ", where, " and ", wardLink(w.ward), "."]
+            .concat(holders(r.district, w.ward)), r.matched);
       } else {
-        say(["The " + cfg.geocoder_short + " places this address in ", where, "."].concat(wardTail(w)), r.matched);
+        say(["The " + cfg.geocoder_short + " places this address in ", where, "."].concat(wardTail(w))
+            .concat(holders(r.district, null)), r.matched);
       }
       keep(r);
     } else if (r.kind === "near") {
