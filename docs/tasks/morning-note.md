@@ -323,3 +323,9 @@ close phase 0. `MORNING_NOTE_SEND` waits on .1 PASS and .8 (runbook section 4).
 T4.1 + T4.2 + T4.3 + T4.6 in parallel now (T4.6 touches only templates and `morning_note.page`; T4.3 owns the rest of
 the `morning_note` block). Then T4.4, then T4.5 and T4.7, then T4.8. T4.0 whenever the account exists; nothing before
 it needs the account. Turning it on: precondition list in the architecture, then Brian's three switches.
+
+### Follow-ups for the baseline PR (T4.10.8), from the 2026-11-17 fix-round reviews
+Land these with or before T4.10.8 (none blocks the V1 probe; all fail safe today):
+- v1-probe/v1-fail-containment-incomplete: V1 FAIL text (sh, ps1, runbook 2.0.4, invariant V1-false steps) also says delete each closed PR's head branch, or turn off Actions until the architect re-plans.
+- v1-probe/node-read-under-e: `v1-probe.yml` node_id read prints `V1-ERROR: could not read node_id` before exiting.
+- main-protect/window-start-gap and window-start-rationale: protect-main reads main's sha before writing R1; if protect-main needed more than one run, the window starts at main's sha before the first run, or the architect picks it.

@@ -65,3 +65,8 @@ The earlier report's detail was lost with the old thread, so security re-derived
 - nit main-protect/runbook-refusal-text: same as code review's message drift; add a test that the runbook carries the exact strings.
 - Info: ps1 text-only (compared by hand, agrees); `%0A` only changes annotation display.
 - Holds: shape check under C/C.UTF-8/en_US.UTF-8 incl. embedded newline and \xff records, push job check, M-1 (live: #25-27 reviews show OWNER), GraphQL privileges, protect-main order, 4.7.1 block; new tests fail on 0a70bbe; two mutants caught.
+
+## Fix round 3f0456e..2054262 (fresh code + security review, opus/high)
+- Code review: APPROVE WITH NITS. All earlier findings fixed; new bash -e test fails 3 of 4 cases on the old step. Nits: main-protect/window-start-rationale (if protect-main needs more than one run, the window starts at main's sha before the first run, or the architect picks it); v1-probe/node-read-under-e (log a V1-ERROR if the node_id read fails; fails safe as INCONCLUSIVE today).
+- Security: OK WITH FOLLOW-UPS, nothing critical/high/medium. Low main-protect/v1-fail-containment-incomplete (needs verification): after a V1 FAIL a workflow could reopen a closed PR whose head branch still exists; FAIL text should also say delete each closed PR's head branch, or disable Actions until the re-plan. Nits: node-read-under-e; main-protect/window-start-gap (read main's sha before writing R1).
+- Manager decision: merge now. The low/nit items above go into the baseline PR (T4.10.8), which must land before any send, and are listed under "Follow-ups for the baseline PR" in docs/tasks/morning-note.md.
