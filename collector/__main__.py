@@ -493,7 +493,9 @@ def cmd_run(args) -> int:
     if site_build:
         res = site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
         log["warnings"] += list((res or {}).get("warnings") or [])  # e.g. seats.yml older than the facts (M1)
-    export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)
+    res = res if site_build else None
+    if res is None or res.get("export", True):   # a preview over its cap was built without the export: add none
+        export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)
     if site_build:
         write_publish_manifest(site)
     log["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")

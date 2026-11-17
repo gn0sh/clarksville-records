@@ -56,7 +56,7 @@ def fetch_not_read(f, store: Store, cfg: fin_config.BooksConfig, log: dict, prog
             log["stopped"] = f"{type(e).__name__} at {b['url']}: {e}"
             return
         except (HostRefused, RobotsDisallowed, FetchFailed) as e:
-            log["failures"].append({"stage": f"book {b['id']}", "error": f"{type(e).__name__}: {e}"})
+            log["failures"].append({"stage": f"book {b['id']}", "error": f"{type(e).__name__}: " + repr(str(e))[:300]})
     store.save()
 
 
@@ -224,7 +224,7 @@ def run_step(log: dict, offline: bool, fetcher: PoliteFetcher | None = None, roo
                 res["warning"] = (f"city books {loc}: the new build reads worse than the committed finance.json, "
                                   f"which is kept: " + "; ".join(rep.get("kept", [])))
         except Exception as e:   # noqa: BLE001 - one locality's books must never stop the daily run
-            res["error"] = f"{type(e).__name__}: {e}"
+            res["error"] = f"{type(e).__name__}: " + repr(str(e))[:300]   # one line: no workflow commands on stdout (budget/exception-text-in-issue)
             res["warning"] = f"city books {loc}: {res['error']}; the committed finance.json is kept"
         if res.get("warning"):
             progress(f"collector: WARNING {res['warning']}", flush=True)
