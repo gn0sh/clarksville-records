@@ -9,8 +9,8 @@ and 5).
 ## How it runs (`.github/workflows/daily-update.yml`)
 - `gate` job, first, every run (T4.10.2; `docs/architecture/main-protect-invariant.md`, ADR 0009): step "Check every change outside data/ reached main by a reviewed pull request a person merged". On `main`, with `MAIN_PR_BASELINE` set, it refuses unless every commit on `main`'s first-parent line
   after the baseline that changes anything outside `data/` is the merge or squash commit of exactly one pull request
-  into `main`, merged by a person, with a person's review (Comment or Approve) of the PR's head commit before the
-  merge (step 2.0.3 does both); a merge commit's merged-in side must be that head. It outputs the run's commit and
+  into `main`, merged by a person, with a person's review (Comment or Approve; by the owner or a collaborator) of the
+  PR's head commit before the merge (step 2.0.3 does both); a merge commit's merged-in side must be that head. It outputs the run's commit and
   `verified`. `update` builds exactly that commit, `deploy` needs the gate's success, and `note` needs
   `verified == 'true'`. While the baseline is empty (phase 0) or on any branch other than `main`, it passes with
   `verified=false`: the site updates and deploys as before, and the note never runs. Read-only token, no secret;
@@ -76,8 +76,8 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      push (no bypass), and it makes every change to `main` show up as a pull request. The `gate` job adds a check
      on top, before anything is built, deployed or sent (step "Check every change outside data/ reached main by a reviewed pull request a person merged"): **every** commit on `main`'s first-parent
      line after the baseline `MAIN_PR_BASELINE` that touches anything outside `data/` must be the merge of exactly
-     one pull request into `main`, **merged by a person**, with **a person's review of the PR's head commit** posted
-     before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
+     one pull request into `main`, **merged by a person**, with **a person's review of the PR's head commit** (the owner's
+     or a collaborator's) posted before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
      workflow using `GITHUB_TOKEN`, which the setting below allows) is refused. The baseline is set once, the day
      the V1 probe passes (2.0.4, section 4 item 7); until then it is empty, the gate checks nothing and the note
      never runs. The team merged earlier work without pull requests; **from the baseline on, every change outside
@@ -401,12 +401,16 @@ the live site keeps its last deploy and the data waits for the next run. Open th
 - `MAIN_PR_BASELINE` is not a sha, not on `main`'s first-parent line, or no commit after it changes anything outside
   `data/`: the baseline PR was wrong. Fix it by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
 - A commit (its sha is in the log) is not the merge of exactly one PR into `main`; was merged by a bot or with no
-  `merged_by`; is a merge whose merged-in side is not the PR's head; or has no person's review of the PR's head
-  before the merge. Read that commit first (`git show <sha>`, and its PR page): who merged it, how, and what it
+  `merged_by`; is a merge whose merged-in side is not the PR's head; or has no review of the PR's head by the owner
+  or a collaborator before the merge. Read that commit first (`git show <sha>`, and its PR page): who merged it, how, and what it
   changed. A later pull request does **not** clear it: the gate refuses on every run until the baseline moves past
   it. If it was meant (for example a PR merged with the Merge button instead of 2.0.3): a person reads its whole
   diff, then a PR merged with `scripts/merge-reviewed.ps1` sets `MAIN_PR_BASELINE` to `main`'s commit at that time
   (as in section 4 item 7). If it was **not** meant (a workflow or someone merged code nobody reviewed): treat it
   as an incident; delete the variable `MORNING_NOTE_SEND`, and do not move the baseline until it is understood.
-- "could not read main's full history" or a GitHub API error: re-run the failed jobs once; if it repeats, tell the
-  team.
+- "data/ holds something other than regular *.json, *.yml or changes.jsonl files" (M-2; it checks on every run on
+  `main`, phase 0 included): the log names each entry. A symlink, submodule, executable file or any other name under
+  `data/` is never something the collector writes. Read the commit that added it (`git log -- data/<name>`) and treat
+  it as an incident if nobody meant it; otherwise remove it by a PR merged with `scripts/merge-reviewed.ps1`.
+- "could not read main's full history", "could not read data/ in this commit's tree" or a GitHub API error: re-run
+  the failed jobs once; if it repeats, tell the team.

@@ -240,9 +240,15 @@ def test_push_validates_the_artifact_before_staging():
 
 
 def test_tracked_data_files_fit_the_allowlist():
-    import subprocess
-    files = subprocess.run(["git", "ls-files", "data"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
-    assert files and all(f.endswith((".json", ".yml")) or f.endswith("/changes.jsonl") for f in files)
+    """Names and modes: every tracked file under data/ is a regular non-executable file (100644; never a symlink
+    120000, an executable 100755 or a submodule 160000), named as the gate's shape check allows."""
+    out = subprocess.run(["git", "ls-files", "-s", "-z", "--", "data"], cwd=ROOT, capture_output=True, text=True,
+                         check=True).stdout
+    entries = [e.split("\t", 1) for e in out.split("\0") if e]
+    assert entries
+    for meta, f in entries:
+        assert meta.split()[0] == "100644", (meta, f)
+        assert f.endswith((".json", ".yml")) or f.endswith("/changes.jsonl"), f
 
 
 def _validate(folder: Path, tmp_path: Path) -> subprocess.CompletedProcess:
@@ -606,6 +612,34 @@ def test_every_job_states_its_own_permissions(path):
     for name, job in wf["jobs"].items():
         assert isinstance(job.get("permissions"), dict), f"{path.name}: job {name} has no explicit permissions"
         assert "write-all" not in str(job["permissions"])
+
+
+def _grants_write(perms) -> bool:
+    """contents: write or pull-requests: write, by name or by write-all. No permissions key at all counts as a grant:
+    the token then has the repository's default, which may be write."""
+    if perms is None:
+        return True
+    if isinstance(perms, str):
+        return perms == "write-all"
+    return perms.get("contents") == "write" or perms.get("pull-requests") == "write"
+
+
+def test_only_the_push_job_can_write_contents_or_pull_requests():
+    """M-2 (architect, 2026-11-17): a data-only PR merged by any workflow is never checked by the gate, so across every
+    workflow only daily-update.yml's push job may hold contents: write or pull-requests: write. Reopen ADR 0009's
+    residual if another job needs them."""
+    assert WORKFLOWS
+    writers = []
+    for path in WORKFLOWS:
+        wf = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if "permissions" in wf and _grants_write(wf["permissions"]):
+            writers.append((path.name, "(top level)"))
+        for name, job in wf["jobs"].items():
+            if _grants_write(job.get("permissions", wf.get("permissions"))):
+                writers.append((path.name, name))
+    assert writers == [("daily-update.yml", "push")], writers
+    assert _grants_write(None) and _grants_write("write-all") and _grants_write({"pull-requests": "write"})
+    assert not _grants_write({}) and not _grants_write("read-all") and not _grants_write({"issues": "write"})
 
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
@@ -1201,7 +1235,8 @@ PR_JQ = ('[.[] | select(.merged_at != null and .base.ref == "main" and .merge_co
          '| tostring] | join(" ")')
 # the PR found: who merged it, its head and merge time (only the single-PR endpoint has merged_by)
 PULL_JQ = '[(.merged_by.type // "none"), (.head.sha // "none"), (.merged_at // "none")] | join(" ")'
-REVIEW_JQ = ('.[] | select(.user.type == "User" and .commit_id == $ENV.HEAD_SHA and (.state == "COMMENTED" or '
+REVIEW_JQ = ('.[] | select(.user.type == "User" and (.author_association == "OWNER" or .author_association == '
+             '"COLLABORATOR") and .commit_id == $ENV.HEAD_SHA and (.state == "COMMENTED" or '
              '.state == "APPROVED") and .submitted_at != null and .submitted_at <= $ENV.MERGED_AT) | .id | tostring')
 MERGED_AT = "2026-11-11T00:00:00Z"
 # note-job/pr-check-test-gap: the stub evaluates the step's own --jq filters with jq (gh uses gojq), so the cases
@@ -1260,8 +1295,10 @@ HEAD = "HEAD"          # in a review's commit_id or a PR's head: the PR's own he
 _REVIEW_IDS = itertools.count(500)
 
 
-def _review(commit=HEAD, state="COMMENTED", user="User", at="2026-11-10T23:00:00Z"):
-    return {"id": next(_REVIEW_IDS), "user": {"type": user}, "commit_id": commit, "state": state, "submitted_at": at}
+def _review(commit=HEAD, state="COMMENTED", user="User", at="2026-11-10T23:00:00Z", assoc="OWNER"):
+    """A review as GitHub returns it; `assoc` is author_association (OWNER, COLLABORATOR, CONTRIBUTOR, NONE...)."""
+    return {"id": next(_REVIEW_IDS), "user": {"type": user}, "commit_id": commit, "state": state, "submitted_at": at,
+            "author_association": assoc}
 
 
 def _pr(sha, merged=True, base="main", by="User", head=None, reviews=None):
@@ -1448,6 +1485,20 @@ PR_CASES = {
                                 {"A": [_pr("A")], "P": [_pr("P", reviews=[_review(user="Bot"),
                                                                           _review(state="APPROVED", at=MERGED_AT)])]},
                                 True, ["P", "A"]),
+    # M-1 main-protect/review-by-any-account: the repo is public, so any account can post a COMMENT review at the
+    # head; only the owner's or a collaborator's review counts
+    "review-by-outsider": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                           {"A": [_pr("A")], "X": [_pr("X", reviews=[_review(assoc="NONE")])]}, False, ["X"]),
+    "review-by-contributor": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                              {"A": [_pr("A")], "X": [_pr("X", reviews=[_review(assoc="CONTRIBUTOR"),
+                                                                        _review(assoc="MEMBER")])]}, False, ["X"]),
+    "review-by-collaborator": ([("commit", "A", _ALL), ("commit", "P", SENDER)],
+                               {"A": [_pr("A")], "P": [_pr("P", reviews=[_review(assoc="NONE"),
+                                                                         _review(assoc="COLLABORATOR")])]},
+                               True, ["P", "A"]),
+    "review-by-owner": ([("commit", "A", _ALL), ("commit", "P", SENDER)],
+                        {"A": [_pr("A")], "P": [_pr("P", reviews=[_review(assoc="OWNER", state="APPROVED")])]},
+                        True, ["P", "A"]),
 }
 
 
@@ -1516,6 +1567,133 @@ def test_the_gate_refuses_a_checkout_that_is_not_the_runs_commit(tmp_path):
         assert r.returncode == 2 and out.read_text() == "", sha
 
 
+# M-2 (architect, 2026-11-17): the gate's shape check on data/. Entries are (mode, path); written straight into the
+# index, so the mode is exact (120000 symlink, 160000 submodule, 100755 executable) whatever the file system allows.
+MANIFEST = ("100644", "data/manifest.json")
+SHAPE_OK = {
+    "json-yml-and-change-logs": [MANIFEST, ("100644", "data/a/b.yml"), ("100644", "data/changes.jsonl"),
+                                 ("100644", "data/localities/c/changes.jsonl"), ("100644", "data/localities/c/m.json")],
+    # outside data/: not the shape check's (a code change; the history check reads its PR)
+    "outside-data-is-not-shape-checked": [MANIFEST, ("100755", "database.sh"), ("120000", "data.json")],
+}
+SHAPE_BAD = {
+    "symlink": [MANIFEST, ("120000", "data/x.json")],
+    "symlinked-change-log": [MANIFEST, ("120000", "data/changes.jsonl")],
+    "submodule": [MANIFEST, ("160000", "data/sub")],
+    "submodule-named-json": [MANIFEST, ("160000", "data/x.json")],
+    "executable": [MANIFEST, ("100755", "data/x.json")],
+    "html": [MANIFEST, ("100644", "data/x.html")],
+    "other-jsonl": [MANIFEST, ("100644", "data/x.jsonl")],
+    "xchanges-jsonl": [MANIFEST, ("100644", "data/xchanges.jsonl")],
+    "script": [MANIFEST, ("100644", "data/run.sh")],
+    "json-then-suffix": [MANIFEST, ("100644", "data/x.json.sh")],
+    "gitattributes": [MANIFEST, ("100644", "data/.gitattributes")],
+    # a name holding a newline that forges a good-looking second line: the first line (real mode, own name) refuses
+    "newline-forged-name": [MANIFEST, ("100644", "data/run.sh\n100644 blob " + "a" * 40 + "\tdata/y.json")],
+    "newline-symlink": [MANIFEST, ("120000", "data/l\n100644 blob " + "a" * 40 + "\tdata/y.json")],
+    "data-is-a-symlink": [("120000", "data")],
+    "data-is-a-submodule": [("160000", "data")],
+}
+
+
+def _shape_origin(tmp_path, entries):
+    """A bare origin whose main has one commit: sender/x.py plus `entries`. Returns (origin, tip sha)."""
+    origin, src = tmp_path / "origin.git", tmp_path / "src"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(origin, "config", "uploadpack.allowFilter", "true")
+    _git(tmp_path, "init", "-q", str(src))
+    (src / "sender").mkdir()
+    (src / "sender" / "x.py").write_text("x = 1\n")
+    _git(src, "add", "-A")
+    for mode, path in entries:
+        if mode == "160000":
+            obj = "c" * 40                                      # a gitlink names a commit that need not exist here
+        else:
+            content = "/etc/passwd" if mode == "120000" else "{}\n"
+            obj = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=src, input=content, text=True,
+                                 capture_output=True, check=True).stdout.strip()
+        subprocess.run(["git", "update-index", "--add", "-z", "--index-info"], cwd=src, check=True,
+                       input=f"{mode} {obj}\t{path}\0", text=True, capture_output=True)
+    _git(src, "commit", "-q", "-m", "c")
+    _git(src, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
+    return origin, _git(src, "rev-parse", "HEAD")
+
+
+def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main"):
+    """The gate step in `work`, with a gh that only records that it was called (the shape check never needs it)."""
+    bindir, calls, out = tmp_path / "bin", tmp_path / "gh-calls", tmp_path / "github-output"
+    bindir.mkdir(exist_ok=True)
+    (bindir / "gh").write_text(f"#!/bin/sh\necho \"$*\" >> '{calls}'\nexit 1\n")
+    (bindir / "gh").chmod(0o755)
+    out.write_text("")
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
+           "SHA": tip, "REF": ref, "GITHUB_OUTPUT": str(out), "MAIN_PR_BASELINE": baseline}
+    r = subprocess.run(["bash", "-c", _gate_steps()[GATE_STEP]["run"]], cwd=work, env=env, capture_output=True,
+                       text=True)
+    outputs = dict(ln.split("=", 1) for ln in out.read_text().splitlines() if "=" in ln)
+    return r, outputs, calls.exists()
+
+
+def _shape_check(tmp_path, entries, **kw):
+    origin, tip = _shape_origin(tmp_path, entries)
+    work = tmp_path / "work"
+    _git(tmp_path, "clone", "-q", "--depth=1", f"file://{origin}", str(work))    # as actions/checkout does
+    assert _git(work, "rev-parse", "HEAD") == tip
+    return (tip, *_run_gate(work, tmp_path, tip, **kw))
+
+
+@pytest.mark.parametrize("case", list(SHAPE_OK))
+def test_the_gate_accepts_data_that_is_only_regular_json_yml_and_change_logs(tmp_path, case):
+    tip, r, out, called = _shape_check(tmp_path, SHAPE_OK[case])
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert out == {"sha": tip, "verified": "false"} and not called          # phase 0 on main: passes, unverified
+
+
+@pytest.mark.parametrize("case", list(SHAPE_BAD))
+def test_the_gate_refuses_any_other_shape_under_data(tmp_path, case):
+    """Phase 0 on main: refused before the baseline check, so no build, deploy or note, and no PR read."""
+    _, r, out, called = _shape_check(tmp_path, SHAPE_BAD[case])
+    assert r.returncode == 2 and out == {} and not called, r.stdout + r.stderr
+    assert "data/ holds something other than regular" in r.stdout
+
+
+def test_the_shape_check_runs_before_the_baseline_and_after_the_not_main_exit(tmp_path):
+    """With a baseline set, a bad shape refuses before any history fetch or PR read; on another branch the gate exits
+    unverified first (that run cannot push, deploy or send)."""
+    (tmp_path / "a").mkdir()
+    tip, r, out, called = _shape_check(tmp_path / "a", SHAPE_BAD["symlink"], baseline="b" * 40)
+    assert r.returncode == 2 and not called and "data/ holds something other than regular" in r.stdout
+    (tmp_path / "b").mkdir()
+    tip, r, out, called = _shape_check(tmp_path / "b", SHAPE_BAD["symlink"], ref="refs/heads/feature")
+    assert r.returncode == 0 and out == {"sha": tip, "verified": "false"} and not called
+    run = _gate_steps()[GATE_STEP]["run"]
+    assert run.index("refs/heads/main") < run.index("git ls-tree -r -z HEAD -- data") < run.index("MAIN_PR_BASELINE")
+
+
+def _missing_blobs(work) -> int:
+    out = _git(work, "rev-list", "--objects", "--all", "--missing=print")      # --missing=print never fetches
+    return sum(1 for ln in out.splitlines() if ln.startswith("?"))
+
+
+@pytest.mark.parametrize("entries,ok", [(SHAPE_OK["json-yml-and-change-logs"], True), (SHAPE_BAD["symlink"], False),
+                                        (SHAPE_BAD["executable"], False)])
+def test_the_shape_check_reads_no_blob_on_a_blob_none_partial_clone(tmp_path, entries, ok):
+    """The architect's check: `git ls-tree -r` reads tree objects only. On a --filter=blob:none clone with no checkout
+    (no file contents at all) and its promisor remote made unreachable, the gate gives the same verdict, and every
+    blob is still missing afterwards, so it fetched none (a lazy fetch would have failed on the dead remote)."""
+    origin, tip = _shape_origin(tmp_path, entries)
+    work = tmp_path / "work"
+    _git(tmp_path, "clone", "-q", "--filter=blob:none", "--no-checkout", f"file://{origin}", str(work))
+    assert _git(work, "config", "--get", "remote.origin.partialclonefilter") == "blob:none"
+    before = _missing_blobs(work)
+    assert before >= 2                                       # sender/x.py and every data/ blob are not here
+    _git(work, "remote", "set-url", "origin", f"file://{tmp_path / 'gone.git'}")
+    r, out, called = _run_gate(work, tmp_path, tip)
+    assert (r.returncode == 0) == ok and r.returncode in (0, 2), r.stdout + r.stderr
+    assert "gone.git" not in r.stderr and "fetch" not in r.stderr.lower(), r.stderr
+    assert _missing_blobs(work) == before and not called
+
+
 def test_the_committed_baseline_is_unset_or_a_sha():
     """Until T4.10.8 MAIN_PR_BASELINE is empty (phase 0: the note job never runs); then a sha (runbook 4.7)."""
     env = _gate_steps()[GATE_STEP]["env"]
@@ -1554,7 +1732,10 @@ def test_the_gate_jq_filters_with_real_jq():
                           ([_review(commit=h, state="DISMISSED")], 0), ([_review(commit=h, state="PENDING")], 0),
                           ([_review(commit=h, at="2026-11-12T00:00:00Z")], 0), ([{**_review(commit=h),
                                                                                   "submitted_at": None}], 0),
-                          ([], 0), ([_review(commit=h), _review(commit=h, state="APPROVED")], 2)):
+                          ([], 0), ([_review(commit=h), _review(commit=h, state="APPROVED")], 2),
+                          ([_review(commit=h, assoc="NONE")], 0), ([_review(commit=h, assoc="CONTRIBUTOR")], 0),
+                          ([_review(commit=h, assoc="MEMBER")], 0), ([{**_review(commit=h), "author_association": None}], 0),
+                          ([_review(commit=h, assoc="COLLABORATOR")], 1), ([_review(commit=h, assoc="OWNER")], 1)):
         r = subprocess.run(["jq", "-r", REVIEW_JQ], input=json.dumps(reviews), capture_output=True, text=True,
                            check=True, env=renv)
         assert len(r.stdout.split()) == want, reviews
@@ -1600,7 +1781,7 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     assert "git diff --quiet HEAD FETCH_HEAD -- sender/ config/site.yml .github/;" in _note_steps()[STALE_STEP]["run"]
 
 
-GATE_COMMANDS = {"git", "grep", "gh", "wc", "verdict", "refuse"}
+GATE_COMMANDS = {"git", "grep", "gh", "wc", "tr", "verdict", "refuse"}
 
 
 def test_the_gate_runs_no_file_from_the_checkout():
