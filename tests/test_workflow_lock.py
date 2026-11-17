@@ -2878,9 +2878,18 @@ def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
     every open pull request into main; sh and ps1 say it the same way."""
     r, made = _v1(tmp_path, _ALL_REFUSED, CANARY="on-main")
     assert r.returncode == 2 and "Close every open pull request into main now: https://github.com/gn0sh/" in r.stdout
+    # v1-probe/v1-fail-containment-incomplete: a closed PR whose branch exists can be reopened and merged
+    contain = ("Then delete each closed pull request's head branch (a closed pull request whose branch still exists "
+               "can be reopened and merged), or turn off GitHub Actions for the repository (Settings > Actions > "
+               "General > Disable actions) until the architect re-plans.")
+    assert contain in r.stdout
     for name in ("v1-probe.sh", "v1-probe.ps1"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
         assert "This setting does not stop merging" in text and "safe state" not in text, name
+        assert contain in text, name
+    for doc in ("docs/ops/morning-note.md", "docs/architecture/main-protect-invariant.md"):
+        flat = " ".join((ROOT / doc).read_text(encoding="utf-8").split())
+        assert "head branch" in flat and "Disable actions" in flat and "v1-fail-containment-incomplete" in flat, doc
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):

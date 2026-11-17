@@ -84,6 +84,7 @@ turn_r2_off() {
     && log "Turned off: workflows can no longer open pull requests, so the daily update stops saving data." \
     || log "Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now."
   log "This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain"
+  log "Then delete each closed pull request's head branch (a closed pull request whose branch still exists can be reopened and merged), or turn off GitHub Actions for the repository (Settings > Actions > General > Disable actions) until the architect re-plans."
   log "Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team."
 }
 # v1-probe/verdict-race (L-c): a PASS or INCONCLUSIVE is final only after cleanup closed the probe pull request and

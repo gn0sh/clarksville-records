@@ -202,7 +202,10 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       - **FAIL (V1 false)**: the probe pull request merged, or `v1-canary.yml` is on `main`. The script has already turned **Allow GitHub Actions to create
         and approve pull requests** off (workflows can no longer open pull requests, so the daily data stops
         saving). That setting does not stop merging: a workflow can still merge a pull request that is already
-        open, so **close every open pull request into `main`** (https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain). Leave
+        open, so **close every open pull request into `main`** (https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain),
+        then **delete each closed pull request's head branch** (a closed pull request whose branch still exists
+        can be reopened and merged), or turn off GitHub Actions for the repository (Settings > Actions > General >
+        **Disable actions**) until the architect re-plans (v1-probe/v1-fail-containment-incomplete). Leave
         `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the output to the team; the inert canary is removed
         by a person's PR and the architect re-plans the data path.
       - **INCONCLUSIVE**: refused for another reason, the run did not start or had not finished, the probe pull

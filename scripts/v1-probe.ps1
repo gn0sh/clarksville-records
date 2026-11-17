@@ -41,6 +41,7 @@ function TurnR2Off {
     if ($LASTEXITCODE -eq 0) { Log 'Turned off: workflows can no longer open pull requests, so the daily update stops saving data.' }
     else { Log 'Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now.' }
     Log 'This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain'
+    Log "Then delete each closed pull request's head branch (a closed pull request whose branch still exists can be reopened and merged), or turn off GitHub Actions for the repository (Settings > Actions > General > Disable actions) until the architect re-plans."
     Log 'Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team.'
 }
 $verdict = ''
