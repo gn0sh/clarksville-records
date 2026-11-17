@@ -178,8 +178,52 @@ def test_opted_in_offline_run_never_rebuilds_the_repo_site(sandbox, monkeypatch,
     assert (own / "build" / "publish-files.json").is_file()
 
 
+_SITE_BUILDS: dict = {}     # input digest -> (cached output folder, build() result), for the whole test session
+
+
+def _digest_of_inputs(facts_path, kw) -> str:
+    """Everything the site build is handed: the facts file's bytes, and each keyword (a path to a file that exists
+    by that file's bytes, anything else by its repr). The same digest is the same build, to the byte."""
+    h = hashlib.sha256(Path(facts_path).read_bytes())
+    for k in sorted(kw):
+        v = kw[k]
+        h.update(k.encode())
+        h.update(Path(v).read_bytes() if isinstance(v, Path) and v.is_file() else repr(v).encode())
+    return h.hexdigest()
+
+
+def _memoised_site_build(real, cache_dir: Path):
+    """The real sitegen build, run once per distinct input in the session and copied to each later caller's folder.
+    The run tests here check the collector's flow and exit codes around the build, not the site, which
+    the sitegen tests build and check themselves; the same real build over the same
+    inputs gives the same files, so a second and third identical build only costs a minute each."""
+    import shutil
+
+    def build(facts_path, out_dir, **kw):
+        key = _digest_of_inputs(facts_path, kw)
+        if key not in _SITE_BUILDS:
+            cached = cache_dir / key[:16]
+            res = real(facts_path, cached, **kw)
+            _SITE_BUILDS[key] = (cached, res)
+        cached, res = _SITE_BUILDS[key]
+        if Path(out_dir).exists():
+            shutil.rmtree(out_dir)
+        shutil.copytree(cached, out_dir)
+        return res
+    return build
+
+
 @pytest.fixture
-def sandbox(tmp_path, monkeypatch):
+def sandbox(tmp_path, tmp_path_factory, monkeypatch):
+    # These tests run the real site build over the committed facts. The "pages" target builds it once; the default
+    # "preview" target is over its 500-file cap on the real data, so the build is repeated up to five times with
+    # pages left out (sitegen/build.py), which made every test here ~5x slower. The preview fallback is covered by
+    # tests/test_city_budget_pages.py and tests/test_morning.py (preview cap steps).
+    import sitegen.build
+    from sitegen import config
+    monkeypatch.setattr(config, "DEFAULT_TARGET", "pages")
+    monkeypatch.setattr(sitegen.build, "build", _memoised_site_build(sitegen.build.build,
+                                                                     tmp_path_factory.getbasetemp() / "site-builds"))
     monkeypatch.setattr(M, "FACTS", tmp_path / "facts.json")
     monkeypatch.setattr(M, "BUILD", tmp_path / "build")
     monkeypatch.setattr(M, "MANIFEST", tmp_path / "manifest.json")

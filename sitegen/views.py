@@ -108,6 +108,9 @@ def motion_type_label(text: str) -> str:
     return config.UNVERIFIED_MOTION_DEFAULT
 
 
+_OUTCOME_MEMO: list = [None, {}]
+
+
 def outcome_kind_label(text: str | None) -> str | None:
     """What a roll call voted on ("Amendment", "Resolution, as amended", ...), derived from the outcome clause by the
     fixed full-match patterns in config.OUTCOME_KINDS. None unless a pattern matches exactly. Never returns any part
@@ -115,10 +118,19 @@ def outcome_kind_label(text: str | None) -> str | None:
     if not text:
         return None
     t = " ".join(text.split()).lstrip("\u201c\u201d\" ")
-    for pattern, label in config.OUTCOME_KINDS:
+    kinds = config.OUTCOME_KINDS
+    if _OUTCOME_MEMO[0] is not kinds:             # a pure function of (text, patterns): memoised per pattern list
+        _OUTCOME_MEMO[:] = [kinds, {}]
+    memo = _OUTCOME_MEMO[1]
+    if t in memo:
+        return memo[t]
+    label = None
+    for pattern, lab in kinds:
         if re.fullmatch(pattern, t, re.I):
-            return label
-    return None
+            label = lab
+            break
+    memo[t] = label
+    return label
 
 
 class Index:
@@ -849,30 +861,58 @@ def official(official_id: str, facts) -> dict:
 VOTE_LIST_KEYS = (("yes", "Yes"), ("no", "No"), ("abstain", "Abstain"), ("other", "Other"), ("absent", "Absent"))
 
 
+def _vote_list_index(ix: Index) -> dict:
+    """What vote_list_rows needs from the whole facts file, built once per Index instead of once per official: the
+    confirmed roll calls in facts order with their meetings, who voted in which, and who the shown attendance lists
+    absent at which meeting (first absent entry's page). The same rules as the per-official scan it replaces."""
+    vl = ix.__dict__.get("_vote_list_index")
+    if vl is not None:
+        return vl
+    rcs, voted, rcs_of_meeting = [], {}, {}
+    for rc in ix.facts["roll_calls"]:
+        if not is_verified(rc):
+            continue
+        i = len(rcs)
+        rcs.append((rc, ix.meetings[rc["meeting_id"]]))
+        rcs_of_meeting.setdefault(rc["meeting_id"], []).append(i)
+        for v in rc["votes"]:
+            voted.setdefault(v["official_id"], set()).add(i)
+    absent, absent_meetings = {}, {}
+    for m in ix.facts["meetings"]:
+        if not attendance_shown(m):
+            continue
+        for a in m["attendance"]:
+            if a["status"] == "absent" and (m["id"], a["official_id"]) not in absent:
+                absent[(m["id"], a["official_id"])] = a["page"]
+                absent_meetings.setdefault(a["official_id"], []).append(m["id"])
+    vl = {"rcs": rcs, "voted": voted, "rcs_of_meeting": rcs_of_meeting, "absent": absent,
+          "absent_meetings": absent_meetings}
+    ix.__dict__["_vote_list_index"] = vl
+    return vl
+
+
 def vote_list_rows(ix: Index, official_id: str) -> list[dict]:
     """One row per confirmed vote of this official, newest first, in minutes order within a meeting: each vote the
     minutes record for them by name (Yes, No, Abstain, Other), and each vote taken at a meeting whose shown attendance
     lists them absent ("Absent", sourced to the attendance page). Only confirmed roll calls, the same set and rule as
     official_counts' confirmed side, so the list's counts are the vote bar's. A vote that names no one (a voice vote,
     an outcome only) is not a roll call in the facts and never becomes a row: nobody's Yes is inferred."""
-    absent_at: dict[str, int] = {}   # meeting id -> the page of the attendance entry listing them absent
-    present_at: set[str] = set()
-    for m in ix.facts["meetings"]:
-        if not attendance_shown(m):
-            continue
-        entries = [a for a in m["attendance"] if a["official_id"] == official_id]
-        if any(a["status"] == "absent" for a in entries):
-            absent_at[m["id"]] = next(a["page"] for a in entries if a["status"] == "absent")
-        elif entries:
-            present_at.add(m["id"])
+    vl = _vote_list_index(ix)
+    wanted = vl["voted"].get(official_id, set())
+    absent_at = {}   # meeting id -> the page of the attendance entry listing them absent
+    for mid in vl["absent_meetings"].get(official_id, ()):
+        absent_at[mid] = vl["absent"][(mid, official_id)]
+    candidates = set(wanted)
+    for mid in absent_at:
+        candidates.update(vl["rcs_of_meeting"].get(mid, ()))
     rows = []
-    for rc in ix.facts["roll_calls"]:
-        if not is_verified(rc):
+    for i in sorted(candidates):                  # the verified roll calls in facts order, only those that make a row
+        rc, m = vl["rcs"][i]
+        mine = [v for v in rc["votes"] if v["official_id"] == official_id]
+        if not mine and m["id"] not in absent_at:
             continue
-        m = ix.meetings[rc["meeting_id"]]
         base = {"date": m["date"], "meeting_href": ix.meeting_href(m["id"], rc["id"]), "item": ix.item_ref(rc["item_id"]),
                 "vote_on": outcome_kind_label(rc.get("outcome_text")), "pos": ix.position(rc)}
-        mine = [v for v in rc["votes"] if v["official_id"] == official_id]
         for v in mine:
             rows.append({**base, "key": v["value"], "label": vote_label(v["value"], v["raw_value"]),
                          "src": ix.src(rc["source_id"], rc["page"]), "fact_id": f"{rc['id']}/{official_id}"})

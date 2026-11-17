@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
 import posixpath
 import re
@@ -46,7 +47,17 @@ def _validator(schema_path: Path) -> Draft202012Validator:
     return Draft202012Validator(schema, format_checker=FORMAT_CHECKER)
 
 
+_SCHEMA_MEMO: dict = {}   # (schema, document) content digest -> the error lines: one validation per distinct file
+
+
 def _schema_errors(validator: Draft202012Validator, doc) -> list[str]:
+    key = hashlib.sha256(json.dumps([validator.schema, doc], separators=(",", ":"), default=str).encode()).hexdigest()
+    if key not in _SCHEMA_MEMO:
+        _SCHEMA_MEMO[key] = _schema_errors_uncached(validator, doc)
+    return list(_SCHEMA_MEMO[key])
+
+
+def _schema_errors_uncached(validator: Draft202012Validator, doc) -> list[str]:
     errors = sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path))
 
     def message(e) -> str:
