@@ -30,7 +30,7 @@ def real_map_site(tmp_path_factory):
 def real_site(tmp_path_factory):
     """The real data on the real map, for the one-screen fit (a fixture build carries the FIXTURE banner)."""
     out = tmp_path_factory.mktemp("real") / "build" / "site"
-    build(ROOT / "data" / "facts.json", out)
+    build(ROOT / "data" / "facts.json", out, target="pages")   # the real site is over the preview's file cap
     return out
 
 

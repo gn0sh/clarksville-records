@@ -144,7 +144,7 @@ REAL = Path(__file__).resolve().parent.parent / "data" / "facts.json"
 def real_public(tmp_path_factory):
     """The committed data/facts.json, built without --internal and exported the public way: {path: text}."""
     out = tmp_path_factory.mktemp("real") / "build" / "site"
-    build(REAL, out, internal=False)
+    build(REAL, out, internal=False, target="pages")   # the public host; the real site is over the preview's file cap
     export(json.loads(REAL.read_text(encoding="utf-8")), out)
     files = {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8")
              for p in out.rglob("*") if p.is_file() and p.suffix in (".html", ".csv", ".json", ".js", ".txt")}
