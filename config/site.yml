@@ -514,7 +514,7 @@ switch:
         shown: "Shown here: the board's meeting agendas, taken from the county's website."
         not_shown: "Not shown: the board's minutes, recorded votes and budget."
         why: "The school system's website blocks automated collection, and this site respects that."
-        link_lede: "Find them on the school system's own website:"
+        link_lede: "Find them on the official site:"
         link: {from: school_board, kind: school}
       cards:
         - key: meetings
