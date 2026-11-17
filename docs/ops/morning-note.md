@@ -7,13 +7,14 @@ team creates no account, key, secret, variable or environment; every step marked
 and 5).
 
 ## How it runs (`.github/workflows/daily-update.yml`)
-- `gate` job, first, every run (T4.10.2; `docs/architecture/main-protect-invariant.md`, ADR 0009): step "Check every change outside data/ reached main by a reviewed pull request a person merged". On `main`, with `MAIN_PR_BASELINE` set, it refuses unless every commit on `main`'s first-parent line
+- `gate` job, first, every run (T4.10.2; `docs/architecture/main-protect-invariant.md`, ADR 0009): step "Check every change outside data/ reached main by a reviewed pull request a person merged". On `main` it refuses unless every commit on `main`'s first-parent line
   after the baseline that changes anything outside `data/` is the merge or squash commit of exactly one pull request
   into `main`, merged by a person, with a person's review (Comment or Approve; by the owner or a collaborator) of the
   PR's head commit before the merge (step 2.0.3 does both); a merge commit's merged-in side must be that head. It outputs the run's commit and
   `verified`. `update` builds exactly that commit, `deploy` needs the gate's success, and `note` needs
-  `verified == 'true'`. While the baseline is empty (phase 0) or on any branch other than `main`, it passes with
-  `verified=false`: the site updates and deploys as before, and the note never runs. Read-only token, no secret;
+  `verified == 'true'`. On any branch other than `main` it passes with `verified=false`: the site updates and
+  deploys as before, and the note never runs. On `main` an empty `MAIN_PR_BASELINE` now fails the gate (phase 0
+  ended at T4.10.8; main-protect L-1), so a reset to `""` stops the build, deploy and note instead of passing. Read-only token, no secret;
   it runs no file from the repository. A refusal opens one issue **"Daily update: main history check failed"**
   (job `gate-failed`) and stops the build, deploy and note: "When the gate fails" below.
 - `update` job, step "Plan the morning note (dry run, no network)": `python -m sender plan --rehearse` every day,
@@ -308,8 +309,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only).** Set by the team the day
    the V1 probe passes (not at note go-live), after 2.0.5 and the gate's pull request merged; at note go-live this
    item is only the check in 7.3. It is in `.github/workflows/daily-update.yml`, the `env:` of the `gate` job's step
-   "Check every change outside data/ reached main by a reviewed pull request a person merged", and is empty until then (phase 0: the gate checks nothing and passes with `verified=false`, so the note
-   job never runs). Set to a commit that is not a 40-hex sha on `main`'s first-parent line, the gate fails every
+   "Check every change outside data/ reached main by a reviewed pull request a person merged". It was empty until
+   then (phase 0: the gate checked nothing and passed with `verified=false`, so the note job never ran); since
+   T4.10.8 an empty baseline on `main` fails the gate (main-protect L-1). Set to a commit that is not a 40-hex sha on `main`'s first-parent line, the gate fails every
    run. The gate checks every change outside `data/` after the baseline; the baseline stands for "a person checked
    everything up to here".
    1. `git fetch origin main`, then
@@ -352,7 +354,8 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       merged PR, which R1 should have made impossible), on any failed read, and on N = 0: a person reads why before
       anything else. Then `git rev-parse origin/main` prints the baseline sha.
    2. A PR that changes only `MAIN_PR_BASELINE: ""` to `MAIN_PR_BASELINE: "<that sha>"` (and makes
-      `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha), reviewed, merged with
+      `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha, renamed
+      `test_the_committed_baseline_is_a_sha`), reviewed, merged with
       `scripts/merge-reviewed.ps1` (2.0.3). That PR comes after the baseline, so the gate checks it too. The same
       PR makes an empty baseline on `main` a refusal instead of phase 0 (main-protect L-1: otherwise a later PR
       resetting it to `""` reopens phase 0 silently); the exact change and tests are in `docs/tasks/morning-note.md`
@@ -448,12 +451,17 @@ or "Check the plan" means the plan from the update job was missing or did not pa
 "Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
 re-run, or a change to `sender/`, `config/site.yml` or the workflow file merged during the run (see "Rules for
 manual runs and re-runs"): nothing was sent.
-A note job skipped with the gate green but `verified` false means phase 0 (`MAIN_PR_BASELINE` empty) or a run not
-on `main`: nothing to fix until section 4 item 7.
+A note job skipped with the gate green but `verified` false means a run not on `main`: nothing to fix. On `main`
+an empty `MAIN_PR_BASELINE` no longer passes (phase 0 ended at T4.10.8, L-1): the gate fails, see "When the gate
+fails".
 
 ## When the gate fails
 The issue "Daily update: main history check failed" opens (or gets a comment). Nothing was built, deployed or sent;
 the live site keeps its last deploy and the data waits for the next run. Open the run's `gate` job log; it says one of:
+- "MAIN_PR_BASELINE is empty on main" (main-protect L-1): a PR reset the baseline to `""`. Phase 0 ended at
+  T4.10.8, so an empty baseline on `main` fails the gate. Read the PR that emptied it (`git log -p --first-parent
+  -- .github/workflows/daily-update.yml` on `main`); restore the sha by a PR merged with `scripts/merge-reviewed.ps1`
+  (2.0.3), or treat it as an incident if nobody meant it.
 - `MAIN_PR_BASELINE` is not a sha, not on `main`'s first-parent line, or no commit after it changes anything outside
   `data/`: the baseline PR was wrong. Fix it by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
 - A commit (its sha is in the log) is not the merge of exactly one PR into `main`; was merged by a bot or with no
@@ -465,7 +473,7 @@ the live site keeps its last deploy and the data waits for the next run. Open th
   (as in section 4 item 7). If it was **not** meant (a workflow or someone merged code nobody reviewed): treat it
   as an incident; delete the variable `MORNING_NOTE_SEND`, and do not move the baseline until it is understood.
 - "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): <m>
-  of <n> entries fit." (it checks on every run on `main`, phase 0 included), after up to 20 lines
+  of <n> entries fit." (it checks on every run on `main`, before the baseline), after up to 20 lines
   "not allowed in data/: <entry>" (mode, object and name; any byte outside plain ASCII shown as `?`). A symlink,
   submodule, executable file, a name with a space, a leading dot or a non-ASCII byte, or any other name under
   `data/` is never something the collector writes. Read the commit that added it (`git log --first-parent -- data/`

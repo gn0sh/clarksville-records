@@ -73,8 +73,9 @@ jobs:
   # The check is inline, never a script in the repository: only .github/workflows/ is out of a bot merge's reach, if
   # the V1 probe (runbook 2.0.4) shows GitHub refuses GITHUB_TOKEN a workflow change by merge too. The checkout gives
   # git the history; no file from it is run (test: the gate's commands are allowlisted).
-  # Phase 0 (MAIN_PR_BASELINE empty) or a run on a branch other than main: verified=false and success, so update,
-  # push and deploy run as before and note never runs. MAIN_PR_BASELINE is main's commit when the baseline PR merged
+  # A run on a branch other than main: verified=false and success, so update, push and deploy run as before and note
+  # never runs. On main an empty MAIN_PR_BASELINE is refused (phase 0 ended at T4.10.8; a reset to empty would
+  # reopen it silently, L-1). MAIN_PR_BASELINE is main's commit when the baseline PR merged
   # (runbook 4.7, T4.10.8): history up to it was read by a person. Changing it is a change to .github/, so the PR that
   # sets it is after the baseline and is checked too. Cost: 3 API calls per code commit after the baseline.
   gate:
@@ -99,7 +100,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
           REF: ${{ github.ref }}
-          MAIN_PR_BASELINE: ""   # T4.10.8: set to main's commit sha by a reviewed PR (runbook 4.7); empty = phase 0
+          MAIN_PR_BASELINE: ""   # T4.10.8: main's commit sha, set by a reviewed PR (runbook 4.7); empty on main = refused (L-1)
         run: |
           set -euo pipefail
           verdict() { echo "sha=$SHA" >> "$GITHUB_OUTPUT"; echo "verified=$1" >> "$GITHUB_OUTPUT"; }
@@ -131,10 +132,7 @@ jobs:
             refuse "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): ${matched:-?} of ${total:-?} entries fit."
           fi
           base="${MAIN_PR_BASELINE:-}"
-          if [ -z "$base" ]; then
-            echo "::warning::MAIN_PR_BASELINE is not set (phase 0, runbook docs/ops/morning-note.md 4.7): main's history is not checked; the morning note cannot run."
-            verdict false; exit 0
-          fi
+          if [ -z "$base" ]; then refuse "MAIN_PR_BASELINE is empty on main (phase 0 ended at T4.10.8; a reset to empty is refused, L-1)."; fi
           if ! [[ "$base" =~ ^[0-9a-f]{40}$ ]]; then refuse "MAIN_PR_BASELINE is not a 40-hex commit sha."; fi
           deepen=()
           if [ "$(git rev-parse --is-shallow-repository)" = true ]; then deepen=(--unshallow); fi
@@ -974,8 +972,7 @@ jobs:
     # the manual rebuild-only run (collect = false: nothing to commit; the runbook's rollback path), which still
     # deploys. !cancelled() is there because a job whose `needs` include a skipped job is itself skipped unless its
     # `if` calls a status function; every job result is then tested by name, so this only ever narrows the lock.
-    # main-protect M-A: and the gate succeeded (on main with a baseline, success means verified; in phase 0 it
-    # passes with verified=false, so the site deploys as before).
+    # main-protect M-A: and the gate succeeded (on main, success means verified: an empty baseline is refused, L-1).
     if: >-
       vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
       && !cancelled() && needs.gate.result == 'success' && needs.update.result == 'success'

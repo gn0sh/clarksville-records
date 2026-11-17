@@ -1584,14 +1584,22 @@ def test_the_gate_fails_closed_with_an_invalid_baseline(tmp_path, baseline):
     assert code == 2 and calls == [] and out == {}
 
 
-@pytest.mark.parametrize("baseline,ref", [("", "refs/heads/main"), ("BASE", "refs/heads/feature"),
-                                          ("", "refs/heads/feature"), ("not-a-sha", "refs/tags/v1")])
+@pytest.mark.parametrize("baseline,ref", [("BASE", "refs/heads/feature"), ("", "refs/heads/feature"),
+                                          ("not-a-sha", "refs/tags/v1")])
 def test_phase_0_and_other_refs_pass_unverified(tmp_path, baseline, ref):
-    """An empty baseline (phase 0) on main, or any run not on main: verified=false with success, no PR read, so
-    update, push and deploy run as before and the note job never runs."""
+    """Any run not on main: verified=false with success, no PR read, so update, push and deploy run as before and the
+    note job never runs (phase 0 on main ended at T4.10.8, L-1)."""
     ops = [("commit", "A", _ALL), ("commit", "X", SENDER)]                    # X would be refused if checked
     code, calls, shas, out = _pr_check(tmp_path, ops, {}, baseline=baseline, ref=ref)
     assert code == 0 and calls == [] and out == {"sha": shas["X"], "verified": "false"}
+
+
+def test_an_empty_baseline_on_main_is_refused(tmp_path):
+    """main-protect L-1: an empty MAIN_PR_BASELINE on main refuses (exit 2, no outputs, no PR read), so a later PR
+    resetting it to "" cannot silently reopen phase 0."""
+    ops = [("commit", "A", _ALL), ("commit", "X", SENDER)]
+    code, calls, _, out = _pr_check(tmp_path, ops, {}, baseline="", ref="refs/heads/main")
+    assert code == 2 and calls == [] and out == {}
 
 
 def test_the_gate_refuses_a_checkout_that_is_not_the_runs_commit(tmp_path):
@@ -1748,6 +1756,15 @@ def _shape_check(tmp_path, entries, **kw):
     return (tip, *_run_gate(work, tmp_path, tip, **kw))
 
 
+L1_REFUSAL = b"MAIN_PR_BASELINE is empty on main"
+
+
+def _passed_shape_then_refused_empty_baseline(r, out, called):
+    """data/ met I-data, so the gate reached the baseline check, where an empty baseline on main refuses (L-1)."""
+    assert r.returncode == 2 and out == {} and not called, r.stdout + r.stderr
+    assert L1_REFUSAL in r.stdout and b"(I-data)" not in r.stdout, r.stdout
+
+
 def _error_lines_are_printable(stdout: bytes):
     for ln in stdout.split(b"\n"):
         if ln.startswith(b"::error::"):
@@ -1758,8 +1775,7 @@ def _error_lines_are_printable(stdout: bytes):
 @pytest.mark.parametrize("case", list(SHAPE_OK))
 def test_the_gate_accepts_data_that_meets_i_data(tmp_path, case, loc):
     tip, r, out, called = _shape_check(tmp_path, SHAPE_OK[case], env_over=LOCALES[loc])
-    assert r.returncode == 0, r.stdout + r.stderr
-    assert out == {"sha": tip, "verified": "false"} and not called          # phase 0 on main: passes, unverified
+    _passed_shape_then_refused_empty_baseline(r, out, called)
 
 
 @pytest.mark.parametrize("loc", ["C.UTF-8", "C"])
@@ -1767,16 +1783,16 @@ def test_the_gate_accepts_todays_data_tree(tmp_path, loc):
     """The repository's own committed data/ (HEAD), as the daily run sees it."""
     tip = _git(ROOT, "rev-parse", "HEAD")
     r, out, called = _run_gate(ROOT, tmp_path, tip, env_over=LOCALES[loc])
-    assert r.returncode == 0 and out == {"sha": tip, "verified": "false"}, r.stdout + r.stderr
+    _passed_shape_then_refused_empty_baseline(r, out, called)
 
 
 @pytest.mark.parametrize("case,loc", BAD_LOCALE_CASES, ids=[f"{c}-{loc}" for c, loc in BAD_LOCALE_CASES])
 def test_the_gate_refuses_anything_else_under_data(tmp_path, case, loc):
-    """Phase 0 on main: refused before the baseline check, so no build, deploy or note, and no PR read; whatever the
+    """Refused before the baseline check, so no build, deploy or note, and no PR read; whatever the
     locale (S-1); the log's ::error:: lines carry only printable ASCII, never a raw name."""
     _, r, out, called = _shape_check(tmp_path, SHAPE_BAD[case], env_over=LOCALES[loc])
     assert r.returncode == 2 and out == {} and not called, r.stdout + r.stderr
-    assert b"(I-data)" in r.stdout
+    assert b"(I-data)" in r.stdout and L1_REFUSAL not in r.stdout
     _error_lines_are_printable(r.stdout)
 
 
@@ -1842,15 +1858,17 @@ def test_the_shape_check_reads_no_blob_on_a_blob_none_partial_clone(tmp_path, en
     assert before >= 2                                       # sender/x.py and every data/ blob are not here
     _git(work, "remote", "set-url", "origin", f"file://{tmp_path / 'gone.git'}")
     r, out, called = _run_gate(work, tmp_path, tip)
-    assert (r.returncode == 0) == ok and r.returncode in (0, 2), r.stdout + r.stderr
+    assert r.returncode == 2 and (L1_REFUSAL in r.stdout) == ok and (b"(I-data)" in r.stdout) != ok, r.stdout + r.stderr
     assert b"gone.git" not in r.stderr and b"fetch" not in r.stderr.lower(), r.stderr
     assert _missing_blobs(work) == before and not called
 
 
-def test_the_committed_baseline_is_unset_or_a_sha():
-    """Until T4.10.8 MAIN_PR_BASELINE is empty (phase 0: the note job never runs); then a sha (runbook 4.7)."""
+# DRAFT (T4.10.8): fails until the baseline PR sets MAIN_PR_BASELINE in daily-update.yml to main's 40-hex sha
+# (runbook 4.7.1). That one-line edit to the workflow is all that is left; do not skip or xfail this test.
+def test_the_committed_baseline_is_a_sha():
+    """Since T4.10.8 MAIN_PR_BASELINE is main's commit sha (runbook 4.7); empty on main is refused (L-1)."""
     env = _gate_steps()[GATE_STEP]["env"]
-    assert env["MAIN_PR_BASELINE"] == "" or re.fullmatch(r"[0-9a-f]{40}", env["MAIN_PR_BASELINE"])
+    assert re.fullmatch(r"[0-9a-f]{40}", env["MAIN_PR_BASELINE"]), env["MAIN_PR_BASELINE"]
     assert not any("MAIN_PR_BASELINE" in s.get("run", "") for j, job in WF["jobs"].items() if j != "gate"
                    for s in job["steps"])
     runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
