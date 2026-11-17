@@ -291,3 +291,15 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
 - **Unverified:** that `GITHUB_TOKEN` can squash-merge its own PR under the 0-approval "pull request required"
   ruleset with no bypass, and that the REST field `can_approve_pull_request_reviews` is that same box. The check
   run in runbook 2.0 settles both.
+- **How the live site deploys (checked 2026-11-17 for T4.10.5):** the `deploy` job of `daily-update.yml`, on `main`
+  only, publishes with `actions/deploy-pages` into environment `github-pages`; Pages source is **GitHub Actions**
+  since go-live (2026-11-13, `docs/status.md`), custom domain `daylight.gnoshcodes.com`. Branch `gh-pages` still
+  exists (last commit 90ded2e, 2026-11-13, "Preview: build of main 0b01310") but is no longer served. The
+  `github-pages` environment's deployment branch list could not be read (the session's proxy refuses
+  `environments/` and `pages`), so whether `gh-pages` is still allowed is unverified. Removing `gh-pages` from that
+  list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
+
+## Main protection (V1 probe, T4.10.1)
+- Not run yet. When it runs (runbook 2.0.4): the run link, the three merge answers, the review `commit_id` result,
+  and `main`'s sha before and after go here.
+- `github-pages` deployment branches after runbook 2.0.5: not checked yet.

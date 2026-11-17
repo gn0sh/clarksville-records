@@ -521,7 +521,7 @@ def test_allow_shrink_leaves_a_trace(county, tmp_path):
     assert WF["jobs"]["update"]["outputs"]["allowed"] == "${{ steps.collect.outputs.allowed }}"
     calls, body = issue_step(tmp_path, KEPT_ISSUE, open_issue="17", run_log=run_log)
     assert calls[1].startswith("issue comment 17") and body.startswith("allow_shrink: a manual run") and BOOK in body
-    commit = next(s for s in WF["jobs"]["push"]["steps"] if s.get("name") == "Commit refreshed data to main")
+    commit = next(s for s in WF["jobs"]["push"]["steps"] if s.get("name") == "Commit refreshed data to a data branch")
     assert commit["env"]["ALLOWED"] == "${{ needs.update.outputs.allowed }}" and "${{" not in commit["run"]
     msg = commit["run"].split('msg="$msg; ', 1)[1].split('"', 1)[0]
     assert msg.startswith("allow_shrink:") and 'if [ "$ALLOWED" = yes ]' in commit["run"]

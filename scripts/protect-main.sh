@@ -40,18 +40,27 @@ echo "Rules on main: $rules"
 prs=$(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews')
 echo "GitHub Actions may create pull requests: $prs"
 [ "$prs" = true ] || ok=0
+# main-protect L-D: auto-merge merges whatever head a branch has later, unreviewed; it stays off.
+auto=$(gh api "repos/$repo" --jq '.allow_auto_merge')
+echo "Auto-merge allowed: $auto"
+[ "$auto" = false ] || { echo "Auto-merge must be off: Settings > General > Pull Requests > untick Allow auto-merge."; ok=0; }
 for id in $(gh api "repos/$repo/rulesets" --jq "$find"); do
   enf=$(gh api "repos/$repo/rulesets/$id" --jq '.enforcement')
   actors=$(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id] | @tsv' \
            | tr '\t' ':' | paste -sd, -)
+  # main-protect L-E: approvals stay 0. With GitHub Actions allowed to approve pull requests, a workflow's approval
+  # would count toward any number above 0; the gate counts a person's merge and review instead (ADR 0009).
+  appr=$(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters.required_approving_review_count // empty' \
+         | paste -sd, -)
   found=1
-  echo "Ruleset $id: $enf, bypass ${actors:-none}"
+  echo "Ruleset $id: $enf, bypass ${actors:-none}, required approvals ${appr:-none}"
   [ "$enf" = active ] && [ -z "$actors" ] || ok=0
+  [ "$appr" = 0 ] || { echo "Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow's approval would count)."; ok=0; }
 done
 [ "$found" = 1 ] || { echo "No ruleset named 'main: pull request required' found after writing it."; ok=0; }
 if [ "$ok" = 1 ]; then
   echo "OK: main is protected. Next: Actions > Daily update > Run workflow (the check run of step 2.0)."
 else
-  echo "NOT OK: expected rules deletion,non_fast_forward,pull_request, active, no bypass, and Actions may create pull requests."
+  echo "NOT OK: expected rules deletion,non_fast_forward,pull_request, active, no bypass, required approvals 0, auto-merge off, and Actions may create pull requests."
   exit 1
 fi
