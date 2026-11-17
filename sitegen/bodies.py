@@ -166,8 +166,10 @@ SITE_SECTIONS = {"finance/": "finance/index.html", "contracts/": "contracts/inde
 HOME = "index.html"
 
 
-def crumbs(site: dict, rel: str, councils=(), rpc=None, cmx=None) -> list[dict]:
-    """[{label, href}] for the page at `rel`, outermost first; [] on the home page and on a body's landing page."""
+def crumbs(site: dict, rel: str, councils=(), rpc=None, cmx=None, committees=()) -> list[dict]:
+    """[{label, href}] for the page at `rel`, outermost first; [] on the home page and on a body's landing page.
+    `committees`: the city's committees (sitegen/committees.py): their pages sit under the city, a year page under
+    its committee's home."""
     sw = site.get("switch") or {}
     if rel == "index.html" or rel in (sw.get("current") or {}):
         return []
@@ -189,6 +191,12 @@ def crumbs(site: dict, rel: str, councils=(), rpc=None, cmx=None) -> list[dict]:
             return out
     if rpc is not None and rel.startswith(f"{rpc.slug}/"):
         return hub("rpc")
+    for cm in committees:
+        if rel.startswith(f"{cm.slug}/"):
+            out = hub("city")
+            if rel != cm.home_href():
+                out.append({"label": cm.label, "href": cm.home_href()})
+            return out
     if cmx is not None:       # school board agendas: the school board's page; county finance committees: the county's
         if cmx.school_slug and rel.startswith(f"{cmx.school_slug}/"):
             return hub("school")

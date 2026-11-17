@@ -3,7 +3,6 @@
 {# A city committee's meetings in one year (sitegen/committees.py meetings_year), oldest first. One section per
    meeting (#<meeting id>): its documents, the attendance and the motions as the minutes print them. #}
 {% block main %}
-<p class="kicker-line"><a href="{{ root }}{{ home_href }}">{{ kicker }} {{ body }}</a></p>
 <h1>Meetings in {{ year }}</h1>
 <p class="lede">{{ kicker }} {{ body }}. Each meeting shows its documents and, where the minutes are posted, the attendance and motions as printed, each with a link to its page of the minutes.</p>
 <nav aria-label="Meetings by year" class="year-nav">
@@ -35,7 +34,7 @@
   {% elif m.other_date %}
   <p class="muted">The minutes listed for this meeting print the date {{ m.other_date }}. They are linked as the city lists them; nothing read from them is shown here.</p>
   {% elif m.minutes_unread %}
-  <p class="muted">The minutes were not read here (no text layer, or not collected yet); the PDF is the record.</p>
+  <p class="muted">The minutes are not shown here: they are a scanned image with no readable text, or not collected yet. Open the PDF; it is the record.</p>
   {% endif %}
   {{ cm_attendance(m) }}
   {% if m.motions %}
