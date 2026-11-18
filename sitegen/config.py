@@ -1,26 +1,45 @@
-"""Site-wide constants. The operator name is read from here for the footer and the About page (spec G1)."""
+"""Site-wide constants. The operator name is read from here for the footer and the About page (spec G1).
+
+The settings are those of one city, read once at import (ADR 0012 decision 1): DAYLIGHT_CITY names it (default
+clarksville-tn; `python -m sitegen --city` sets it before importing this module), and cities.registry loads it.
+Clarksville keeps its legacy settings file, read exactly as before; a new city's settings are registry.site_settings.
+A process builds one city: to build another, start a new process."""
 import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
 import yaml
 
+from cities import brand as _brand
+from cities import registry as _registry
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "schema" / "facts.schema.json"
 CHANGES_SCHEMA_PATH = REPO_ROOT / "schema" / "changes.schema.json"
 FINANCE_SCHEMA_PATH = REPO_ROOT / "schema" / "finance.schema.json"
 TEMPLATE_DIR = REPO_ROOT / "site" / "templates"
-# County Commission agendas posted before their minutes (collector/county_agenda.py; sitegen/county_agendas.py)
-COUNTY_AGENDAS = REPO_ROOT / "data" / "county-agendas" / "agendas.json"
 STATIC_DIR = REPO_ROOT / "site" / "static"
+
+# The city this process builds (ADR 0012 decision 1). sitegen/__main__.py sets DAYLIGHT_CITY from --city.
+DEFAULT_CITY = _registry.LOCAL_READER_CITY          # clarksville-tn, the live city
+CITY = os.environ.get("DAYLIGHT_CITY") or DEFAULT_CITY
+_CITY = _registry.load_city(CITY)
 
 # Locality and branding text (config/site.yml): body and place names, purpose line, footer support link, seat
 # labels, item type rule and the "coming" pages. Templates take these from `site.cfg`, never as literals.
 CONFIG_DIR = REPO_ROOT / "config"
-SITE_CONFIG_PATH = CONFIG_DIR / "site.yml"
-SITE = yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
-LOCALITY = SITE["locality"]
-COUNTY_AGENDAS_TEXT = SITE["county_agendas"]       # the agenda-only meetings' copy (config/site.yml county_agendas)
+LEGACY_SETTINGS = bool(_CITY.get("settings"))
+if LEGACY_SETTINGS:        # Clarksville: its legacy settings file, exactly as read before (not the merged dict)
+    SITE_CONFIG_PATH = REPO_ROOT / _CITY["settings"]
+    SITE = yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
+else:                            # a new city: shared keys, its site file, city.yml fields, the brand
+    SITE_CONFIG_PATH = REPO_ROOT / _CITY["site_file"] if _CITY.get("site_file") else None
+    SITE = _registry.site_settings(_CITY, _brand.load_brand(CONFIG_DIR / "brand.yml"))
+LOCALITY = SITE.get("locality")                    # the county's locality folder; None for a city-only site
+COUNTY_AGENDAS_TEXT = SITE.get("county_agendas")   # the agenda-only meetings' copy (config/site.yml county_agendas)
+# County Commission agendas posted before their minutes (collector/county_agenda.py; sitegen/county_agendas.py).
+# None for a city without county agendas (ADR 0012 decision 3).
+COUNTY_AGENDAS = REPO_ROOT / "data" / "county-agendas" / "agendas.json" if COUNTY_AGENDAS_TEXT is not None else None
 # Launch-time override (docs/ops/launch-runbook.md): the daily-update workflow sets RECORDS_SITE_URL so feeds carry
 # absolute links to the public site without editing alerts.site_url in config/site.yml. Unset: the file's value.
 if os.environ.get("RECORDS_SITE_URL"):
@@ -29,9 +48,13 @@ if os.environ.get("RECORDS_SITE_URL"):
 # shows no seat labels, one officials list, and the district list without a map.
 # The roster lives with its locality (config/localities/<locality>/seats.yml); the older top-level config/seats.yml
 # is read only while that file does not exist.
-_LOCALITY_SEATS = CONFIG_DIR / "localities" / LOCALITY / "seats.yml"
-SEATS_PATH = _LOCALITY_SEATS if _LOCALITY_SEATS.is_file() else CONFIG_DIR / "seats.yml"
-DISTRICTS_PATH = CONFIG_DIR / "localities" / LOCALITY / "districts.json"
+# A city-only site (no `locality`) has neither: both None.
+if LOCALITY:
+    _LOCALITY_SEATS = CONFIG_DIR / "localities" / LOCALITY / "seats.yml"
+    SEATS_PATH = _LOCALITY_SEATS if _LOCALITY_SEATS.is_file() else CONFIG_DIR / "seats.yml"
+    DISTRICTS_PATH = CONFIG_DIR / "localities" / LOCALITY / "districts.json"
+else:
+    SEATS_PATH = DISTRICTS_PATH = None
 
 SITE_NAME = SITE["site_name"]
 
@@ -62,9 +85,9 @@ FIN_TEXT_PATH = CONFIG_DIR / "finance_text.yml"
 FIN_TEXT = yaml.safe_load(FIN_TEXT_PATH.read_text(encoding="utf-8"))
 # The capital projects page shows this fund (architecture finance-contracts 7: finance.yml `capital_fund`). The
 # FIXTURE finance file has its own made-up capital fund.
-FIN_LOCALITY_PATH = CONFIG_DIR / "localities" / LOCALITY / "finance.yml"
+FIN_LOCALITY_PATH = CONFIG_DIR / "localities" / LOCALITY / "finance.yml" if LOCALITY else None
 CAPITAL_FUND = str(yaml.safe_load(FIN_LOCALITY_PATH.read_text(encoding="utf-8"))["capital_fund"]) \
-    if FIN_LOCALITY_PATH.is_file() else None
+    if FIN_LOCALITY_PATH is not None and FIN_LOCALITY_PATH.is_file() else None
 FIXTURE_CAPITAL_FUND = "951"
 
 # CEO decision G1 (2026-11-07): every page names the operator. The CEO supplies the real text; a public build
@@ -97,6 +120,25 @@ EVENT_TYPE_LABELS = {
     "other": "Other",
 }
 OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}
+
+# The site's primary body (ADR 0012 decision 1): the one the top-level pages are built for. Clarksville's is the
+# County Commission, filled from today's keys so every word is the same; a city-only site's is its `primary:` block.
+PRIMARY_KEYS = ("key", "name", "label", "meeting_title_body", "record", "kind_labels", "held_sentences", "seats")
+
+
+def _primary(site: dict) -> dict:
+    p = site.get("primary")
+    if p is None:                # Clarksville: the county, from the keys the pages read today
+        return {"key": site["county_key"], "name": site["county_body"], "label": site["meeting_title_body"],
+                "meeting_title_body": site["meeting_title_body"],
+                "record": (site.get("official_records") or {}).get("county"), "kind_labels": KIND_LABELS,
+                "held_sentences": None, "seats": "districts"}
+    return {"key": p["key"], "name": p["name"], "label": p["label"], "meeting_title_body": p["label"],
+            "record": p.get("record"), "kind_labels": p.get("kind_labels") or KIND_LABELS,
+            "held_sentences": p.get("held_sentences"), "seats": p["seats"]}
+
+
+PRIMARY = _primary(SITE)
 
 # Brain Trust round 2 (docs/reviews/brain-trust-round2.md); False confirmed by the CEO, 2026-11-07 (link only).
 # False: an unconfirmed roll call

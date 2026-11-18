@@ -30,7 +30,9 @@ Facts this design rests on, verified or not (none of them changes the data model
 ### 1. `--city <slug>` picks the settings, through the registry; Clarksville is the default and its build is unchanged
 - `python -m sitegen --city <slug>` (default `clarksville-tn`). With `--city`, `--facts` defaults to
   `data/localities/<slug>/facts.json` and `--out` to `build/<slug>/site`. Without `--city`, the CLI behaves as today
-  (`--facts` and `--out` required), so the daily workflow's command line does not change.
+  (`--facts` and `--out` required), so the daily workflow's command line does not change. *(T3 build note:
+  the defaults apply to a new city only. `--city clarksville-tn` still requires both, because its county facts are
+  `data/facts.json`, not `data/localities/clarksville-tn/facts.json`, which is the council's.)*
 - `sitegen/config.py` reads settings once, at import, as now. It gets the slug from `DAYLIGHT_CITY` (default
   `clarksville-tn`). `sitegen/__main__.py` parses `--city` before it imports `config` or `build` and sets the
   variable; if both are set and differ, it exits 2. `config.CITY` records the slug, and `build()` refuses to run
@@ -48,7 +50,8 @@ Facts this design rests on, verified or not (none of them changes the data model
     `video_label`. Mixed keys are split by path. For example, `unofficial.bodies` and
     `item_types` (the rezoning prefixes `CZ-` are the county's) come from the city's own file. `tests/test_cities.py`
     fails if a shared path holds a Clarksville, Montgomery, CMCSS or RPC literal. One copy, no drift, and no edit to
-    `config/site.yml`.
+    `config/site.yml`. *(T2 build note: a city's site file, or its `site:` block, that sets a shared path, a brand
+    key or a `city.yml` field (`site_timezone`, `today_place`, `live`, ...) fails, naming the key.)*
 - `config.PRIMARY`, one normalised dict that names the site's primary body: `key`, `name`, `label`,
   `meeting_title_body`, `record`, `kind_labels`, `held_sentences`, `seats` (`districts` | `wards` | `at_large`).
   For Clarksville it is filled from today's keys (`county_key`, `county_body`, `meeting_title_body`, ...). Those
