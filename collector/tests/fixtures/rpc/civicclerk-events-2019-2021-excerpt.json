@@ -1,0 +1,161 @@
+{
+ "@odata.context": "https://clarksvilletn.api.civicclerk.com/v1/$metadata#Events",
+ "value": [
+  {
+   "id": 1149,
+   "eventName": "Regional Planning Commission Agenda 4-24-19",
+   "startDateTime": "2019-04-24T14:00:00Z",
+   "categoryName": "Regional Planning Commission",
+   "categoryId": 38,
+   "isDeleted": false,
+   "hasMedia": false,
+   "mediaSourcePathMp4": "",
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "name": "151a-RPC Agenda 4-24-19",
+     "fileId": 1619,
+     "publishOn": "2023-03-02T13:32:03.063Z"
+    },
+    {
+     "type": "Minutes",
+     "name": "151m-RPC Minutes 4-24-19",
+     "fileId": 1620,
+     "publishOn": "2023-03-02T13:32:03.13Z"
+    }
+   ]
+  },
+  {
+   "id": 1160,
+   "eventName": "Regional Planning Commission Agenda 9-25-19",
+   "startDateTime": "2019-09-25T14:00:00Z",
+   "categoryName": "Regional Planning Commission",
+   "categoryId": 38,
+   "isDeleted": false,
+   "hasMedia": false,
+   "mediaSourcePathMp4": "",
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "name": "258a-RPC Agenda 9-25-19",
+     "fileId": 1641,
+     "publishOn": "2023-03-02T13:34:08.293Z"
+    }
+   ]
+  },
+  {
+   "id": 1164,
+   "eventName": "Regional Planning Commission Minutes 9-25-19",
+   "startDateTime": "2019-09-25T14:00:00Z",
+   "categoryName": "Regional Planning Commission",
+   "categoryId": 38,
+   "isDeleted": false,
+   "hasMedia": false,
+   "mediaSourcePathMp4": "",
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "name": "297a-RPC Minutes 9-25-19",
+     "fileId": 1647,
+     "publishOn": "2023-03-02T13:34:52.08Z"
+    }
+   ]
+  },
+  {
+   "id": 1121,
+   "eventName": "Regional Planning Commission 3-25-20 CANCELLED",
+   "startDateTime": "2020-03-25T14:00:00Z",
+   "categoryName": "Regional Planning Commission",
+   "categoryId": 38,
+   "isDeleted": false,
+   "hasMedia": false,
+   "mediaSourcePathMp4": "",
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "name": "394a-RPC March Meeting Postponement",
+     "fileId": 1575,
+     "publishOn": "2023-03-02T13:26:52.617Z"
+    }
+   ]
+  },
+  {
+   "id": 1115,
+   "eventName": "Common Design Review Board Agenda - December 14, 2020",
+   "startDateTime": "2020-12-14T14:00:00Z",
+   "categoryName": "Regional Planning Commission",
+   "categoryId": 38,
+   "isDeleted": false,
+   "hasMedia": false,
+   "mediaSourcePathMp4": "",
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "name": "672a-Agenda (12-14-2020) Common Design Review",
+     "fileId": 1569,
+     "publishOn": "2023-03-02T13:25:51.123Z"
+    }
+   ]
+  },
+  {
+   "id": 1118,
+   "eventName": "Metropolitan Planning Organization Agenda - June 4, 2021",
+   "startDateTime": "2021-06-04T14:00:00Z",
+   "categoryName": "Regional Planning Commission",
+   "categoryId": 38,
+   "isDeleted": false,
+   "hasMedia": false,
+   "mediaSourcePathMp4": "",
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "name": "833a-MPO Agenda 6-4-21",
+     "fileId": 1572,
+     "publishOn": "2023-03-02T13:26:22.213Z"
+    }
+   ]
+  },
+  {
+   "id": 1167,
+   "eventName": "Regional Planning Zoning Review Notice - September 24, 2021",
+   "startDateTime": "2021-09-24T14:00:00Z",
+   "categoryName": "Regional Planning Commission",
+   "categoryId": 38,
+   "isDeleted": false,
+   "hasMedia": false,
+   "mediaSourcePathMp4": "",
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "name": "961a-RPC LTR 9-28-2021",
+     "fileId": 1650,
+     "publishOn": "2023-03-02T13:35:24.093Z"
+    }
+   ]
+  },
+  {
+   "id": 1131,
+   "eventName": "Regional Planning Commission Agenda - January 25, 2022",
+   "startDateTime": "2022-01-25T14:00:00Z",
+   "categoryName": "Regional Planning Commission",
+   "categoryId": 38,
+   "isDeleted": false,
+   "hasMedia": false,
+   "mediaSourcePathMp4": "",
+   "publishedFiles": [
+    {
+     "type": "Agenda",
+     "name": "1063a-RPC AGENDA 1-25-2022 (2)",
+     "fileId": 1588,
+     "publishOn": "2023-03-02T13:28:37.213Z"
+    },
+    {
+     "type": "Minutes",
+     "name": "1063m-RPC MTG MIN 1-25-2022 (2)",
+     "fileId": 1589,
+     "publishOn": "2023-03-02T13:28:37.28Z"
+    }
+   ]
+  }
+ ]
+}

@@ -892,11 +892,15 @@ def check_committee_motions(site: Path, pages: dict[str, "Page"], cm: dict | Non
 
 
 def rpc_allowed(rpc: dict | None) -> set[str]:
-    """The RPC's record page and every listed link we did not collect (shown with data-ext="listed")."""
+    """The RPC's record page, every listed link we did not collect (shown with data-ext="listed") and the other page
+    its meetings are listed on, from rpc.yml (RPC-3: `civicclerk.listing_url`, the city's CivicClerk portal), never
+    from the facts file the pages were built from."""
     if not rpc:
         return set()
+    portal = str(((rpc["_cfg"].get("civicclerk") or {}).get("listing_url")) or "")
     return {rpc["_cfg"]["record_url"]} | {d["url"] for m in rpc["meetings"] for d in m["documents"]
-                                          if not d["fetched"] and d["url"].startswith("https://")}
+                                          if not d["fetched"] and d["url"].startswith("https://")} | \
+        ({portal} if portal.startswith("https://") else set())
 
 
 def calendar_agenda_urls(facts: dict) -> tuple[set[str], list[str]]:
