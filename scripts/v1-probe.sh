@@ -69,8 +69,18 @@ for id in $owner_rules; do
     refuse_rerun "ruleset $id lets '$bypass' bypass it (only the admin role in pull request mode, RepositoryRole:5:pull_request, may)"
   fi
 done
-codeowners=$(gh api -H 'Accept: application/vnd.github.raw' "repos/$repo/contents/.github/CODEOWNERS?ref=main" 2>/dev/null) \
-  || refuse_rerun "could not read .github/CODEOWNERS on main"
+co_file=$(mktemp)
+gh api -H 'Accept: application/vnd.github.raw' "repos/$repo/contents/.github/CODEOWNERS?ref=main" > "$co_file" 2>/dev/null \
+  || { rm -f "$co_file"; refuse_rerun "could not read .github/CODEOWNERS on main"; }
+# main-protect/codeowners-normalize-unicode-space: only printable ASCII, CR and LF (a no-break or zero-width space, a
+# tab or a NUL could read differently to GitHub than to the normalising below), checked on the raw bytes
+co_bad=$(LC_ALL=C tr -d '\r\n\040-\176' < "$co_file" | wc -c | tr -d ' ')
+# a CR counts only right before an LF (main-protect/ps1-codeowners-not-raw-bytes: a lone CR reads differently)
+co_cr=$(LC_ALL=C sed 's/\r$//' "$co_file" | LC_ALL=C tr -cd '\r' | wc -c | tr -d ' ')
+if [ "$(tail -c1 "$co_file" | od -An -tx1 | tr -d ' \n')" = 0d ]; then co_cr=$((co_cr + 1)); fi
+co_bad=$((co_bad + co_cr))
+codeowners=$(cat "$co_file"); rm -f "$co_file"
+[ "$co_bad" = 0 ] || refuse_rerun ".github/CODEOWNERS on main has $co_bad byte(s) outside printable ASCII (or a CR not before an LF)"
 # its rules: comments and blank lines dropped, runs of spaces or tabs made one space, ends trimmed
 co_rules=$(printf '%s\n' "$codeowners" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' \
            | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' | paste -sd'|' - || true)
@@ -81,9 +91,23 @@ esac
 owner_errors=$(gh api "repos/$repo/codeowners/errors?ref=main" --jq '.errors | length' 2>/dev/null) \
   || refuse_rerun "could not read GitHub's CODEOWNERS errors"
 if [ "$owner_errors" != 0 ]; then refuse_rerun "GitHub lists '$owner_errors' error(s) in .github/CODEOWNERS"; fi
+scope_added=""
+# v1-probe/workflow-scope-left-on: give back the workflow scope this run added (a browser may open). Nothing Brian
+# runs later needs it: merge-reviewed is run by the team from its own session. It is registered on EXIT right after
+# the refresh, so every exit gives it back, and it runs last: after the verdict and any R2 switch-off.
+give_back_scope() {
+  if [ -n "$scope_added" ]; then
+    scope_added=""
+    echo "Removing the workflow scope this probe added to your GitHub CLI sign-in (a browser may open)."
+    gh auth refresh -h github.com --remove-scopes workflow || echo "Could not remove it: run gh auth refresh -h github.com --remove-scopes workflow"
+  fi
+}
 if ! gh auth status 2>&1 | grep -q "workflow"; then
   echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
-  gh auth refresh -h github.com -s workflow
+  gh auth refresh -h github.com -s workflow \
+    || { echo "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
+  scope_added=yes
+  trap give_back_scope EXIT
 fi
 data_prs=$(gh pr list --repo "$repo" --state merged --app github-actions --search "head:data/" --json number --jq 'length')
 if ! [[ "$data_prs" =~ ^[0-9]+$ ]] || [ "$data_prs" -lt 1 ]; then
@@ -96,13 +120,13 @@ main_before=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true
 log "V1 probe $(date -u +%FT%TZ). main before: $main_before"
 if ! [[ "$main_before" =~ ^[0-9a-f]{40}$ ]]; then log "INCONCLUSIVE: could not read main. Nothing was changed."; exit 1; fi
 for b in "$target" "$target_n" "$target_h" "$runner"; do api_quiet -X DELETE "repos/$repo/git/refs/heads/$b"; done   # leftovers
-nums=()
+nums=(); h1_hit=""
 cleanup() {   # every probe pull request closed, every probe branch deleted
   local n b
   for n in "${nums[@]}"; do api_quiet -X PATCH "repos/$repo/pulls/$n" -f state=closed; done
   for b in "$target" "$target_n" "$target_h" "$runner"; do api_quiet -X DELETE "repos/$repo/git/refs/heads/$b"; done
 }
-trap cleanup EXIT
+trap 'cleanup; give_back_scope' EXIT
 setup_failed() { log "INCONCLUSIVE: could not set up the probe branches or pull requests (see the messages above). Send this output to the team."; exit 1; }
 open_pr() {   # $1 branch, $2 target name: opens its pull request into main, prints the number
   gh api -X POST "repos/$repo/pulls" -f head="$1" -f base=main -f title="V1 probe $2 (do not merge)" \
@@ -117,7 +141,7 @@ gh api -X POST "repos/$repo/git/refs" -f ref="refs/heads/$target" -f sha="$main_
 read -r c1 blob <<< "$(gh api -X PUT "repos/$repo/contents/$file_w" -f message="V1 probe: inert canary workflow" \
   -f content="$canary" -f branch="$target" --jq '[.commit.sha, .content.sha] | @tsv')"
 c2=$(gh api -X PUT "repos/$repo/contents/$file_w" -f message="V1 probe: second commit" \
-  -f content="$canary2" -f sha="$blob" -f branch="$target" --jq '.commit.sha')
+  -f content="$canary2" -f sha="$blob" -f branch="$target" --jq '.commit.sha') || setup_failed
 num=$(open_pr "$target" W) || setup_failed
 nums+=("$num")
 # N (M2): one non-workflow file outside data/
@@ -140,22 +164,26 @@ for n in "${nums[@]}"; do [[ "$n" =~ ^[0-9]+$ ]] || setup_failed; done
 [[ "$c1" =~ ^[0-9a-f]{40}$ && "$c2" =~ ^[0-9a-f]{40}$ ]] || setup_failed
 log "Probe pull requests: W #$num (commits $c1 older, $c2 head), N #$num_n, H1 #$num_h"
 kept=$(gh api -X POST "repos/$repo/pulls/$num/reviews" -f commit_id="$c1" -f event=COMMENT \
-  -f body="V1 probe step 4: a review pinned to the older commit." --jq '.commit_id')
+  -f body="V1 probe step 4: a review pinned to the older commit." --jq '.commit_id') || kept=""   # review_ok=no
 if [ "$kept" = "$c1" ]; then review_ok=yes; else review_ok=no; fi
 log "Step 4, review commit_id: asked $c1, GitHub kept $kept ($review_ok)"
 
-gh api -X POST "repos/$repo/git/refs" -f ref="refs/heads/$runner" -f sha="$main_before" --silent
+gh api -X POST "repos/$repo/git/refs" -f ref="refs/heads/$runner" -f sha="$main_before" --silent || setup_failed
 r=$(gh api -X PUT "repos/$repo/contents/.github/workflows/v1-probe.yml" -f message="V1 probe: runner workflow" \
-  -f content="$probe" -f branch="$runner" --jq '.commit.sha')
+  -f content="$probe" -f branch="$runner" --jq '.commit.sha') || setup_failed
 run=""
 for _ in $(seq 1 18); do
   run=$(R="$r" gh run list --repo "$repo" --branch "$runner" --event push --json databaseId,headSha \
-        --jq '[.[] | select(.headSha == $ENV.R)][0].databaseId // empty')
+        --jq '[.[] | select(.headSha == $ENV.R)][0].databaseId // empty') || run=""   # tried again
   if [ -n "$run" ]; then break; fi
   sleep 10
 done
 turn_r2_off() {
   log "FAIL (V1' false): GITHUB_TOKEN merged a probe pull request into main. Turning off 'Allow GitHub Actions to create and approve pull requests' now."
+  if [ -n "$h1_hit" ]; then   # v1-probe/h1-fail-recovery-incomplete: say this first
+    log "FIRST: main has lost .github/CODEOWNERS (the H1 rename merged), so the code-owner rule now binds nothing."
+    log "FIRST: restore .github/CODEOWNERS and delete data/v1-probe-CODEOWNERS in one pull request a person merges with scripts/merge-reviewed.sh (the team opens it), then wait for the team: scripts/protect-main.sh turns R2 back on, so run it only after the team says so."
+  fi
   gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
     && log "Turned off: workflows can no longer open pull requests, so the daily update stops saving data." \
     || log "Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now."
@@ -166,13 +194,16 @@ turn_r2_off() {
 # v1-probe/verdict-race (L-c): a PASS or INCONCLUSIVE is final only after cleanup closed every probe pull request and
 # a fresh read still shows each unmerged; a merge that landed meanwhile turns it into FAIL.
 finish() {   # $1: 0 (PASS) or 1 (INCONCLUSIVE); $2: the verdict line
-  trap - EXIT
+  trap give_back_scope EXIT   # cleanup runs now; the scope goes back after the verdict line
   cleanup
   local again n unread=""
   for n in "${nums[@]}"; do
     again=$(gh api "repos/$repo/pulls/$n" --jq '.merged' 2>/dev/null || true)
     log "Probe pull request #$n merged, read again after cleanup: ${again:-unread}"
-    if [ "$again" = true ]; then turn_r2_off; exit 2; fi
+    if [ "$again" = true ]; then
+      if [ "$n" = "$num_h" ]; then h1_hit=yes; fi
+      turn_r2_off; exit 2
+    fi
     [ "$again" = false ] || unread=yes
   done
   if [ "$1" = 0 ] && [ -n "$unread" ]; then
@@ -203,6 +234,7 @@ for n in "${nums[@]}"; do
   m=$(gh api "repos/$repo/pulls/$n" --jq '.merged' 2>/dev/null || true)
   log "Probe pull request #$n merged: ${m:-unread}"
   if [ "$m" = true ]; then any_merged=yes; else not_merged+=("$n"); fi
+  if [ "$m" = true ] && [ "$n" = "$num_h" ]; then h1_hit=yes; fi
   [ "$m" = false ] || all_unmerged=""
 done
 on_main=""; all_absent=yes
@@ -215,9 +247,11 @@ for f in "$file_w" "$file_n" "$file_h"; do
   fi
   log "$f on main: $state"
   if [ "$state" = on-main ]; then on_main=yes; fi
+  if [ "$state" = on-main ] && [ "$f" = "$file_h" ]; then h1_hit=yes; fi
   [ "$state" = absent ] || all_absent=""
 done
 
+if grep -qE "^V1-MERGED H1 " <<< "$lines"; then h1_hit=yes; fi
 if grep -qE "^V1-MERGED (W|N|H1) " <<< "$lines" || [ -n "$any_merged" ] || [ -n "$on_main" ]; then
   turn_r2_off
   nums=("${not_merged[@]}")   # a merged pull request is not closed again

@@ -2531,6 +2531,14 @@ def test_protect_main_refuses_before_main_opens_data_prs_and_flags_a_bypass(tmp_
     ({"CO_TEXT": ""}, "(it has: ). Nothing was changed."),
     ({"CO_TEXT": "* @gn0sh\n/data/\n/.github/ @someone\n"}, "(it has: * @gn0sh|/data/|/.github/ @someone)."),
     ({"CO_TEXT": "* @GN0SH\n/data/\n"}, "(it has: * @GN0SH|/data/)."),
+    # main-protect/codeowners-normalize-unicode-space: printable ASCII, CR and LF only, checked before normalising
+    ({"CO_TEXT": "*\u00a0@gn0sh\n/data/\n"}, "has 2 byte(s) outside printable ASCII (or a CR not before an LF). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n/data/\u200b\n"}, "has 3 byte(s) outside printable ASCII (or a CR not before an LF). Nothing was changed."),
+    ({"CO_TEXT": "*\t@gn0sh\n/data/\n"}, "has 1 byte(s) outside printable ASCII (or a CR not before an LF). Nothing was changed."),
+    ({"CO_TEXT": "# \u00e9\n* @gn0sh\n/data/\n"}, "outside printable ASCII"),       # even in a comment
+    ({"CO_TEXT": "* @gn0sh\r/data/\n"}, "has 1 byte(s) outside printable ASCII (or a CR not before an LF)"),
+    ({"CO_TEXT": "* @gn0sh\n/data/\r"}, "has 1 byte(s) outside printable ASCII (or a CR not before an LF)"),
+    ({"CO_TEXT": "\ufeff* @gn0sh\n/data/\n"}, "has 3 byte(s) outside printable ASCII"),        # a BOM
 ])
 def test_protect_main_changes_nothing_without_a_clean_codeowners_on_main(tmp_path, over, says):
     """ADR 0010 / T4.11.2: R1' binds only through .github/CODEOWNERS on main. If it is missing, its rules are not
@@ -2556,7 +2564,7 @@ def test_protect_main_accepts_the_committed_codeowners_with_crlf(tmp_path):
     (bindir / "gh").write_text(_GH_STUB)
     (bindir / "gh").chmod(0o755)
     text = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
-    for co in (text, text.replace("\n", "\r\n"), text.replace("* @gn0sh", "*\t @gn0sh  ")):
+    for co in (text, text.replace("\n", "\r\n"), text.replace("* @gn0sh", "*   @gn0sh  ")):
         env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
                "MAIN_WF": TEXT, "CO_TEXT": co}
         r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True,
@@ -2591,7 +2599,7 @@ def test_protect_main_ps1_has_the_r1_prime_checks():
     ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
     sh = (ROOT / "scripts" / "protect-main.sh").read_text(encoding="utf-8")
     for text in (ps1, sh):
-        for part in ('"repos/$repo/contents/.github/CODEOWNERS?ref=main" -H \'Accept: application/vnd.github.raw\'',
+        for part in ('"repos/$repo/contents/.github/CODEOWNERS?ref=main"',
                      '"repos/$repo/codeowners/errors?ref=main" --jq \'.errors | length\'',
                      "--jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv'",
                      "--jq '.rules[].parameters | select(. != null) | .require_code_owner_review'",
@@ -2634,7 +2642,10 @@ def test_codeowners_parsing_is_identical_in_protect_main_and_the_probe():
         assert a == b and len(a) == 2, (ext, a, b)
         assert ("$codeowners" in a[0]) if ps1 else ('"$codeowners"' in a[0]), a
         for text in (pm, probe):
-            assert "contents/.github/CODEOWNERS?ref=main" in text and "Accept: application/vnd.github.raw" in text
+            assert "contents/.github/CODEOWNERS?ref=main" in text
+            # .sh reads the raw file; .ps1 the API's base64 content, decoded to bytes (ps1-codeowners-not-raw-bytes)
+            assert ("[Convert]::FromBase64String($coB64)" in text and "--jq '.content'" in text) if ps1 \
+                else "Accept: application/vnd.github.raw" in text
 
 
 def test_the_ruleset_rollback_is_one_piped_line_from_a_reachable_commit():
@@ -2910,7 +2921,7 @@ def test_the_v1_probe_scripts_agree():
         assert "-X" not in text[text.index("rules/branches/main"):guard_end], name
     assert "run scripts/protect-main.sh first" in sh and "run scripts\\protect-main.ps1 first" in ps1
     # FAIL never from main's sha alone: the FAIL condition names only the merge answers, the PR and the canary
-    fail_sh = next(ln for ln in sh.splitlines() if "^V1-MERGED" in ln and ln.startswith("if "))
+    fail_sh = next(ln for ln in sh.splitlines() if "^V1-MERGED (W|N|H1)" in ln and ln.startswith("if "))
     fail_ps1 = next(ln for ln in ps1.splitlines() if "$merged -gt 0" in ln)
     for ln in (fail_sh, fail_ps1):
         assert "main_after" not in ln and "mainAfter" not in ln, ln
@@ -2929,7 +2940,11 @@ def count(name):
     open(p, "w").write(str(n + 1))
     return n
 if a[:2] == ["auth", "status"]:
-    print("Token scopes: 'gist', 'read:org', 'repo', 'workflow'"); sys.exit(0)
+    print(os.environ.get("AUTH_SCOPES", "Token scopes: 'gist', 'read:org', 'repo', 'workflow'")); sys.exit(0)
+if a[:2] == ["auth", "refresh"]:
+    sys.exit(0)
+if os.environ.get("FAIL_CALL") and os.environ["FAIL_CALL"] in " ".join(a):      # one call answers like a gh error
+    sys.stderr.write("gh: Server Error (HTTP 502)\\n"); sys.exit(1)
 if a[:2] == ["pr", "list"]:
     print(os.environ.get("DATA_PRS", "1")); sys.exit(0)
 if a[:2] == ["run", "list"]:
@@ -3093,11 +3108,15 @@ _RULE = '{"type": "pull_request", "ruleset_id": %d, "parameters": {"require_code
     {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}, '
                '{"actor_id": 1, "actor_type": "DeployKey", "bypass_mode": "always"}]'},
     {"BYPASS": "null"},                                                             # no bypass list: fail closed
+    {"CODEOWNERS": "*\u00a0@gn0sh\n/data/\n"},                                   # no-break space
+    {"CODEOWNERS": "* @gn0sh\u200b\n"},                                           # zero-width space
+    {"CODEOWNERS": "*\t@gn0sh\n"},                                                # tab
+    {"CODEOWNERS": "* @gn0sh\r/data/\n"},                                         # lone CR
 ], ids=["rule-off", "no-pr-rule", "rules-read-fails", "one-ruleset-evaluate", "ruleset-disabled", "ruleset-read-fails",
         "no-codeowners", "codeowners-no-owner", "codeowners-other-owner", "codeowners-errors", "errors-read-fails",
         "codeowners-github-override", "codeowners-unowned-all", "codeowners-wrong-order", "codeowners-two-owners",
         "codeowners-case", "codeowners-empty", "bypass-always", "bypass-actions-app", "bypass-write-role",
-        "bypass-extra-actor", "bypass-unread"])
+        "bypass-extra-actor", "bypass-unread", "codeowners-nbsp", "codeowners-zwsp", "codeowners-tab", "codeowners-lone-cr"])
 def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extra):
     """v1-probe/rerun-after-fail (ADR 0010): after the 2026-11-18 FAIL a new run would merge the canary into main
     again, so the script stops, changing nothing, unless R1' really binds: the code-owner rule on main, every ruleset
@@ -3112,7 +3131,7 @@ def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extr
 @pytest.mark.parametrize("extra", [
     {},
     {"CODEOWNERS": "* @gn0sh\n"},
-    {"CODEOWNERS": "# ADR 0010\r\n\r\n*\t  @gn0sh  \r\n/data/\r\n"},
+    {"CODEOWNERS": "# ADR 0010\r\n\r\n*    @gn0sh  \r\n/data/\r\n"},
     {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]'},
 ], ids=["committed", "no-data-line", "crlf-and-spacing", "admin-pr-bypass"])
 def test_v1_probe_guard_allows_only_the_r1_prime_shapes(tmp_path, extra):
@@ -3126,8 +3145,8 @@ def test_v1_probe_guard_runs_before_the_auth_refresh():
     `gh auth refresh`, and the .ps1 compares case-sensitively."""
     for name in ("v1-probe.sh", "v1-probe.ps1"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
-        assert text.index("codeowners/errors?ref=main") < text.index("gh auth refresh -h github.com"), name
-        assert text.index("rules/branches/main") < text.index("gh auth refresh -h github.com"), name
+        assert text.index("codeowners/errors?ref=main") < text.index("gh auth refresh -h github.com -s workflow"), name
+        assert text.index("rules/branches/main") < text.index("gh auth refresh -h github.com -s workflow"), name
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
     assert "$coRules -cne '* @gn0sh' -and $coRules -cne '* @gn0sh|/data/'" in ps1
     assert "$bypass -cne 'RepositoryRole:5:pull_request'" in ps1 and "$enforcement -cne 'active'" in ps1
@@ -3400,7 +3419,7 @@ def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
     assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not read node_id"]
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
-    assert "if ($_ -match 'V1-ERROR: .*')" in ps1 and "foreach ($l in $errors) { Log $l }" in ps1
+    assert "if ($_ -cmatch 'V1-ERROR: .*')" in ps1 and "foreach ($l in $errors) { Log $l }" in ps1
 
 
 def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
@@ -3429,6 +3448,148 @@ def test_v1_probe_ansi_strip_keeps_the_text_after_an_erase_code(tmp_path):
     r, made = _v1(tmp_path, log)
     assert r.returncode == 2 and "FAIL (V1' false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
     assert "V1-MERGED W squash" in r.stdout.splitlines() and "\r" not in r.stdout and esc not in r.stdout
+
+
+@pytest.mark.parametrize("extra", [
+    {"PR_MERGED_H1": "true"},
+    {"CANARY_H1": "on-main"},
+    {"PR_MERGED_AFTER_H1": "true"},
+], ids=["h1-merged", "h1-file-on-main", "h1-merged-after-cleanup"])
+def test_v1_probe_fail_on_h1_says_first_that_main_lost_codeowners(tmp_path, extra):
+    """v1-probe/h1-fail-recovery-incomplete: if the H1 rename merged, main has no CODEOWNERS and the rule binds
+    nothing, so the FAIL output says that first, then how to restore it, then to re-run protect-main."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, **extra)
+    assert r.returncode == 2 and _turned_off(made), r.stdout + r.stderr
+    lost = "FIRST: main has lost .github/CODEOWNERS (the H1 rename merged)"
+    fix = ("FIRST: restore .github/CODEOWNERS and delete data/v1-probe-CODEOWNERS in one pull request a person merges "
+           "with scripts/merge-reviewed.sh")
+    out = r.stdout
+    assert out.index("FAIL (V1' false)") < out.index(lost) < out.index(fix) < out.index("Turned off: workflows")
+    # v1-probe/h1-recovery-reenables-r2: never "re-run protect-main" on its own (it turns R2 back on)
+    assert ("then wait for the team: scripts/protect-main.sh turns R2 back on, so run it only after the team says "
+            "so.") in out and "protect-main.sh again" not in out
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert lost in ps1 and fix.replace("scripts/merge-reviewed.sh", "scripts\\merge-reviewed.ps1") in ps1 and "then wait for the team: scripts\\protect-main.ps1 turns R2 back on" in ps1
+    for name in ("v1-probe.sh", "v1-probe.ps1"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert text.index("FAIL (V1' false)") < text.index(lost) < text.index("Turned off: workflows"), name
+    flat = " ".join((ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8").split())
+    fail = flat[flat.index("- **FAIL**: a probe pull request merged"):flat.index("- **INCONCLUSIVE**: a squash try")]
+    assert fail.index("main has lost `.github/CODEOWNERS`") < fail.index("R2")
+    assert "Do not run `scripts\\protect-main.ps1` on your own: it turns R2 back on" in fail
+    assert "again (2.0.1)" not in fail
+
+
+def test_v1_probe_fail_on_w_only_does_not_talk_about_codeowners(tmp_path):
+    r, made = _v1(tmp_path, _ALL_REFUSED, CANARY="on-main")
+    assert r.returncode == 2 and "lost .github/CODEOWNERS" not in r.stdout
+
+
+@pytest.mark.parametrize("call", ["refs/heads/probe/v1-runner", "contents/.github/workflows/v1-probe.yml",
+                                  "message=V1 probe: second commit", "refs/heads/probe/v1-target-h1",
+                                  "git/trees", "head=probe/v1-target-n"])
+def test_v1_probe_a_failed_setup_call_always_says_inconclusive(tmp_path, call):
+    """v1-probe/sh-ps1-exit-parity: under set -e an unguarded failing call ended the script with no verdict line;
+    every setup call now ends in the INCONCLUSIVE line, and cleanup still runs."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, FAIL_CALL=call)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "INCONCLUSIVE: could not set up the probe branches or pull requests" in r.stdout, r.stdout
+    assert any(c[:3] == ["api", "-X", "DELETE"] and c[3].endswith("heads/probe/v1-runner") for c in made[-12:])
+
+
+def test_v1_probe_failed_review_or_run_list_reads_do_not_end_the_script(tmp_path):
+    r, made = _v1(tmp_path, _ALL_REFUSED, FAIL_CALL="event=COMMENT")
+    assert r.returncode == 1 and "GitHub kept  (no)" in r.stdout and "review commit_id kept: no" in r.stdout, r.stdout
+    sh = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
+    assert "databaseId // empty') || run=\"\"" in sh
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    runner_ref = ps1.index('gh api -X POST "repos/$repo/git/refs" -f ref=refs/heads/$runner')
+    assert ps1[runner_ref:].split("\n")[1].strip() == "if ($LASTEXITCODE -ne 0) { SetupFailed }"
+    assert "$reviewOk = if ($kept -ceq $c1)" in ps1 and "if ($_ -cmatch 'V1-ERROR: .*')" in ps1
+
+
+@pytest.mark.parametrize("scopes,removed", [("Token scopes: 'repo'", True),
+                                            ("Token scopes: 'gist', 'repo', 'workflow'", False)])
+def test_v1_probe_gives_back_the_workflow_scope_it_added(tmp_path, scopes, removed):
+    """v1-probe/workflow-scope-left-on: the scope is removed at cleanup only if this run added it (merge-reviewed is
+    run by the team from its own session, so nothing Brian runs later needs it)."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, AUTH_SCOPES=scopes)
+    assert r.returncode == 0, r.stdout + r.stderr
+    refresh = [c for c in made if c[:2] == ["auth", "refresh"]]
+    want = [["auth", "refresh", "-h", "github.com", "-s", "workflow"],
+            ["auth", "refresh", "-h", "github.com", "--remove-scopes", "workflow"]] if removed else []
+    assert refresh == want, refresh
+    if removed:
+        closed = max(i for i, c in enumerate(made) if "state=closed" in c)
+        reread = max(i for i, c in enumerate(made) if c[-2:] == ["--jq", ".merged"])
+        assert made.index(want[1]) > max(closed, reread) and made.index(want[1]) == len(made) - 1
+        out = r.stdout
+        assert out.index("PASS (V1')") < out.index("Removing the workflow scope this probe added")
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert "gh auth refresh -h github.com --remove-scopes workflow" in ps1 and "$script:scopeAdded = $true" in ps1
+
+
+@pytest.mark.parametrize("extra,code,first", [
+    ({"CANARY": "on-main"}, 2, "Turned off: workflows can no longer open pull requests"),       # FAIL: after R2 off
+    ({"DATA_PRS": "0"}, 1, "No daily data pull request merged by GitHub Actions yet"),          # early exit
+    ({"FAIL_CALL": "refs/heads/probe/v1-runner"}, 1, "INCONCLUSIVE: could not set up"),         # setup failure
+    ({"MAIN_BEFORE": "EMPTY"}, 1, "INCONCLUSIVE: could not read main"),
+], ids=["fail", "no-data-pr", "setup-failed", "main-unread"])
+def test_v1_probe_gives_the_scope_back_on_every_exit_and_last(tmp_path, extra, code, first):
+    """v1-probe/workflow-scope-left-on, scope-removal-before-verdict: registered right after the refresh, so every
+    exit after it gives the scope back, and only after the verdict or R2 line."""
+    extra = dict(extra)
+    data_prs = extra.pop("DATA_PRS", "1")
+    r, made = _v1(tmp_path, _ALL_REFUSED, data_prs=data_prs, AUTH_SCOPES="Token scopes: 'repo'", **extra)
+    assert r.returncode == code, r.stdout + r.stderr
+    remove = ["auth", "refresh", "-h", "github.com", "--remove-scopes", "workflow"]
+    assert made.count(remove) == 1 and made[-1] == remove, made[-3:]
+    assert r.stdout.index(first) < r.stdout.index("Removing the workflow scope this probe added")
+
+
+def test_v1_probe_ps1_scope_and_runner_checks():
+    """v1-probe/sh-ps1-exit-parity: the .ps1 sets scopeAdded only after a refresh that worked, checks the runner PUT,
+    and gives the scope back in the outer finally (after the verdict), not in Cleanup."""
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    refresh = ps1.index("gh auth refresh -h github.com -s workflow")
+    after = ps1[refresh:].split("\n")
+    assert after[1].strip().startswith("if ($LASTEXITCODE -ne 0) { Write-Host 'Could not add the workflow scope")
+    assert after[2].strip() == "$script:scopeAdded = $true" and after[4].startswith("try {")
+    assert ps1.rstrip().endswith("} finally {\n    GiveBackScope\n}")
+    assert ps1.index('Write-Host "Saved to $results"') < ps1.rindex("GiveBackScope")
+    cleanup = _block(ps1, "function Cleanup {", "\n}")
+    assert "remove-scopes" not in cleanup
+    put = ps1.index('gh api -X PUT "repos/$repo/contents/.github/workflows/v1-probe.yml"')
+    assert ps1[put:].split("\n")[2].strip() == "if ($LASTEXITCODE -ne 0 -or $r -cnotmatch '^[0-9a-f]{40}$') { SetupFailed }"
+    sh = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
+    assert "trap give_back_scope EXIT" in sh and "trap 'cleanup; give_back_scope' EXIT" in sh
+    runbook = " ".join((ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8").split())
+    assert "a browser may open a second time then" in runbook
+
+
+def _block(text, first, last):
+    i = text.index(first)
+    return text[i:text.index(last, i) + len(last)]
+
+
+def test_codeowners_byte_check_is_the_same_in_all_four_scripts():
+    """main-protect/codeowners-normalize-unicode-space, ps1-codeowners-not-raw-bytes: the byte check is identical in
+    the two .sh and in the two .ps1 files and comes before the normalising; the .ps1 checks the decoded bytes (0x20 to
+    0x7E or LF, CR only right before LF), the .sh also counts a lone CR."""
+    for ext, first, last in (("sh", "co_bad=$(LC_ALL=C tr", "co_bad=$((co_bad + co_cr))"),
+                             ("ps1", "$coBad = 0", '$codeowners = @([Text.Encoding]::ASCII.GetString($coBytes) -split "`n")')):
+        blocks = []
+        for name in ("protect-main", "v1-probe"):
+            text = (ROOT / "scripts" / f"{name}.{ext}").read_text(encoding="utf-8")
+            blocks.append(_block(text, first, last))
+            parse = "$coRules = (" if ext == "ps1" else "co_rules=$("
+            assert text.index(first) < text.index(parse), (name, ext)
+        assert blocks[0] == blocks[1], ext
+    ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
+    for part in ("($byte -ge 0x20 -and $byte -le 0x7E) -or $byte -eq 0x0A",
+                 "$byte -eq 0x0D -and $i + 1 -lt $coBytes.Length -and $coBytes[$i + 1] -eq 0x0A",
+                 "try { $coBytes = [Convert]::FromBase64String($coB64) } catch { $coBytes = $null }"):
+        assert part in ps1, part
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):

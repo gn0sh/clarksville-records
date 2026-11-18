@@ -44,9 +44,28 @@ if ($LASTEXITCODE -ne 0 -or $wf -notmatch 'Open and merge the data pull request'
 # ADR 0010 (R1'): code-owner review binds only through .github/CODEOWNERS on main; without it, or with a line GitHub
 # could not read, a workflow's merge of a non-data pull request would need no review at all.
 # Its rules (comments and blank lines aside) must be exactly "* @gn0sh" then "/data/" (no owner: data/ unowned).
-$codeowners = @(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2> $null)
-if ($LASTEXITCODE -ne 0) {
+$coB64 = (gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" --jq '.content' 2> $null) -join ''
+$coRead = $LASTEXITCODE
+$coBytes = $null
+if ($coRead -eq 0) { try { $coBytes = [Convert]::FromBase64String($coB64) } catch { $coBytes = $null } }
+if ($coRead -ne 0 -or $null -eq $coBytes) {
     Write-Host 'Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again.'
+    exit 1
+}
+# main-protect/codeowners-normalize-unicode-space: only printable ASCII, CR and LF (a no-break or zero-width space, a
+# tab or a NUL could read differently to GitHub than to the normalising below)
+# (the raw bytes, from the API's base64 content: no BOM or line-end decoding by PowerShell on the way; a CR counts only
+# right before an LF, main-protect/ps1-codeowners-not-raw-bytes)
+$coBad = 0
+for ($i = 0; $i -lt $coBytes.Length; $i++) {
+    $byte = $coBytes[$i]
+    if (($byte -ge 0x20 -and $byte -le 0x7E) -or $byte -eq 0x0A) { continue }
+    if ($byte -eq 0x0D -and $i + 1 -lt $coBytes.Length -and $coBytes[$i + 1] -eq 0x0A) { continue }
+    $coBad++
+}
+$codeowners = @([Text.Encoding]::ASCII.GetString($coBytes) -split "`n")
+if ($coBad -ne 0) {
+    Write-Host "Main's .github/CODEOWNERS has $coBad byte(s) outside printable ASCII (or a CR not before an LF). Nothing was changed. Send this output to the team."
     exit 1
 }
 # (the same reading as scripts\v1-probe.ps1: runs of spaces or tabs made one space, ends trimmed; a later line would
