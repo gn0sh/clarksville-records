@@ -1,166 +1,263 @@
-# Protect main: create the "main: pull request required" ruleset, or update it if it already exists
-# (docs/ops/morning-note.md, step 2.0.1). Safe to run more than once: it never makes a second ruleset.
-# The ruleset is R1' (ADR 0010): code-owner review (.github/CODEOWNERS owns everything outside data/), squash only,
-# and one bypass, the Repository admin role for pull requests only, so nobody pushes main. The daily update reaches
-# main by its own data-only pull request (the push job). It stops, changing nothing, if .github/CODEOWNERS is not on
-# main or GitHub lists an error in it. This reads main's
-# sha BEFORE writing the ruleset (R1) and prints "Main before the ruleset: <sha>"; after R1 it reads "Allow GitHub
-# Actions to create and approve pull requests" (R2, Settings > Actions > General) and turns it on, printing "R2 was
-# off; main was <sha>" (that same pre-R1 sha) or "R2 already on": record those lines in docs/platform-facts.md
-# "Main protection" (the start of the runbook 4.7.1 window, L-b). If this needed more than one run, the window
-# starts at the sha the FIRST run printed. It stops before changing anything if main's workflow does not open data
-# pull requests yet or main cannot be read.
+# Protect main (ADR 0011 decisions 5-6; docs/tasks/data-off-main.md D1; consumer rows R1, R-D, R2, S1). Brian runs
+# this one; scripts/protect-main.sh is its tested bash twin (same writes, same checks, same lines). Brian's PC only:
+# every ruleset and settings write is his (U3-0 = no), and the team proxy refuses several of the reads below, so it
+# refuses to run in a cloud session or CI.
 #
-# Needs: GitHub CLI (winget install GitHub.cli), signed in as the repository owner: gh auth login
+# Writes (each ruleset is created, or updated if one of that name exists; never a second one):
+#   R1''  scripts\main-ruleset.json         main: 2 approvals, last-push approval, no code-owner review, squash only,
+#                                           bypass = the admin role in pull_request mode
+#   R-D   scripts\records-data-ruleset.json records-data: no deletion, no force push, no bypass
+#   R-T   scripts\main-tag-ruleset.json     a tag named main: no creating, updating or deleting it (finding F2)
+#   R2    "Allow GitHub Actions to create and approve pull requests" turned OFF (load-bearing for R1'')
+# Then it reads everything back. OK only if: each ruleset reads back equal to its file, main's rules are deletion,
+# non_fast_forward and one pull_request rule with 2 approvals and no code-owner review, R2 is off, auto-merge is off,
+# gn0sh is the only writer (no other collaborator or pending invitation with write or more, no App installed on
+# gn0sh's account with contents or administration write that reaches this repository, no deploy key with write:
+# finding F1), and both environments (github-pages, morning-note) allow exactly one custom policy, main, of type
+# branch (F2). Any refused or failed read is NOT OK, never skipped (the review's "settings drift").
+# Run it after any settings change and right before MAIN_PR_BASELINE is set; it must print OK.
+# Prints "Main before the rulesets: <sha>" first (main read before any write). Exit 0 OK, 1 refused or NOT OK.
+#
+# Needs: GitHub CLI (winget install GitHub.cli), signed in as gn0sh: gh auth login
 # Run (PowerShell, in the repository folder):
 #   powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
-# The rules (and the one bypass) are in scripts\main-ruleset.json.
-# No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): the name comes in through $ENV.
-
+#   -Check: no writes, only the checks (for a settings-drift re-check, or a dry look before the cutover).
+# No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
+param([switch]$Check)
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
 $repo = 'gn0sh/clarksville-records'
-$body = Join-Path $PSScriptRoot 'main-ruleset.json'
-$env:RULESET_NAME = 'main: pull request required'
-$find = '.[] | select(.name == $ENV.RULESET_NAME) | .id'
-
+$owner = 'gn0sh'
+$env:PM_OWNER = $owner
+$env:PM_REPO = $repo
+$env:PM_PR = 'pull_request'
+$env:PM_WRITE = 'write'
+$env:PM_READ = 'read'
+$env:PM_TRIAGE = 'triage'
+$utf8 = New-Object Text.UTF8Encoding $false
+foreach ($v in @('CLAUDE_CODE_REMOTE', 'GITHUB_ACTIONS', 'CI')) {
+    if ([Environment]::GetEnvironmentVariable($v)) {
+        Write-Host "REFUSED: $v is set. protect-main runs only from Brian's PC (ruleset and settings writes are his). Nothing was changed."
+        exit 1
+    }
+}
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     Write-Host 'GitHub CLI not found. Install it (winget install GitHub.cli), run gh auth login, then run this again.'
     exit 1
 }
 gh auth status *> $null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host 'Not signed in. Run gh auth login (as the repository owner), then run this again.'
-    exit 1
+if ($LASTEXITCODE -ne 0) { Write-Host "Not signed in: run gh auth login (as $owner). Nothing was changed."; exit 1 }
+
+# The one whitelist (the same as scripts\u3-toggle.ps1): every comparison goes through it.
+function Wl($o) {
+    $actors = @(foreach ($a in $o.bypass_actors) {
+        [ordered]@{ actor_id = $a.actor_id; actor_type = $a.actor_type; bypass_mode = $a.bypass_mode } })
+    $actors = @($actors | Sort-Object -Property @{ Expression = { [string]$_.actor_type } }, @{ Expression = { [int64]$_.actor_id } }, @{ Expression = { [string]$_.bypass_mode } })
+    $rules = @(foreach ($x in $o.rules) {
+        if ($null -eq $x.parameters) { [ordered]@{ type = $x.type } }
+        else { [ordered]@{ type = $x.type; parameters = $x.parameters } } })
+    $rules = @($rules | Sort-Object -Property @{ Expression = { [string]$_.type } })
+    return [ordered]@{ name = $o.name; target = $o.target; enforcement = $o.enforcement; conditions = $o.conditions;
+                       bypass_actors = $actors; rules = $rules }
+}
+# A canonical text of a value (keys sorted), for exact comparisons.
+function Canon($v) {
+    if ($null -eq $v) { return 'null' }
+    if ($v -is [bool]) { if ($v) { return 'true' } else { return 'false' } }
+    if ($v -is [string]) { return '"' + $v.Replace('\', '\\').Replace('"', '\"') + '"' }
+    if ($v -is [System.Collections.IDictionary]) {
+        $keys = @(@($v.Keys | ForEach-Object { [string]$_ }) | Sort-Object -CaseSensitive)
+        return '{' + (@(foreach ($k in $keys) { (Canon $k) + ':' + (Canon $v[$k]) }) -join ',') + '}'
+    }
+    if ($v -is [System.Management.Automation.PSCustomObject]) {
+        $keys = @(@($v.PSObject.Properties | ForEach-Object { $_.Name }) | Sort-Object -CaseSensitive)
+        return '{' + (@(foreach ($k in $keys) { (Canon $k) + ':' + (Canon $v.$k) }) -join ',') + '}'
+    }
+    if ($v -is [System.Collections.IEnumerable]) { return '[' + (@(foreach ($x in $v) { Canon $x }) -join ',') + ']' }
+    return [string]$v
+}
+function CanonRs($o) { return (Canon (Wl $o)) }
+# read-only or unknown fields inside a rule or bypass actor (the whitelist would hide them in a comparison)
+function Extras($o) {
+    $bad = @()
+    foreach ($x in $o.rules) { foreach ($p in $x.PSObject.Properties) {
+        if ($p.Name -cne 'type' -and $p.Name -cne 'parameters') { $bad += ('rules.' + $p.Name) } } }
+    foreach ($a in $o.bypass_actors) { foreach ($p in $a.PSObject.Properties) {
+        if (@('actor_id', 'actor_type', 'bypass_mode') -cnotcontains $p.Name) { $bad += ('bypass_actors.' + $p.Name) } } }
+    return ($bad -join ',')
+}
+function ReadJsonFile($path) {
+    try { return ([IO.File]::ReadAllText($path, $utf8) | ConvertFrom-Json) } catch { return $null }
 }
 
-# Without the bypass, a push job that still pushes main directly would fail every day: refuse until main's workflow
-# opens its data pull request.
-$wf = (gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" -H 'Accept: application/vnd.github.raw') -join "`n"
-if ($LASTEXITCODE -ne 0 -or $wf -notmatch 'Open and merge the data pull request') {
-    Write-Host 'Main does not have the data pull request change yet. Nothing was changed. Merge that pull request first, then run this again.'
+$sets = @(@('R1''''', 'main-ruleset.json'), @('R-D', 'records-data-ruleset.json'), @('R-T', 'main-tag-ruleset.json'))
+foreach ($s in $sets) {
+    $o = ReadJsonFile (Join-Path $PSScriptRoot $s[1])
+    if ($null -eq $o -or [string]::IsNullOrEmpty([string]$o.name)) { Write-Host "Could not read scripts\$($s[1]). Nothing was changed."; exit 1 }
+}
+function Stop-Run($why) {
+    Write-Host $why
+    Write-Host 'NOT OK: stopped before the checks. Run this again; send this output to the team if it repeats.'
     exit 1
+}
+# the ids of the rulesets with this file's name (any target); $null if the list could not be read
+function IdsOf($file) {
+    $env:PM_NAME = [string](ReadJsonFile $file).name
+    $ids = @(gh api --paginate "repos/$repo/rulesets?per_page=100" --jq '.[] | select(.name == $ENV.PM_NAME) | .id' | Where-Object { $_ })
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ,$ids
 }
 
-# ADR 0010 (R1'): code-owner review binds only through .github/CODEOWNERS on main; without it, or with a line GitHub
-# could not read, a workflow's merge of a non-data pull request would need no review at all.
-# Its rules (comments and blank lines aside) must be exactly "* @gn0sh" then "/data/" (no owner: data/ unowned).
-$coB64 = (gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" --jq '.content' 2> $null) -join ''
-$coRead = $LASTEXITCODE
-$coBytes = $null
-if ($coRead -eq 0) { try { $coBytes = [Convert]::FromBase64String($coB64) } catch { $coBytes = $null } }
-if ($coRead -ne 0 -or $null -eq $coBytes) {
-    Write-Host 'Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again.'
-    exit 1
-}
-# main-protect/codeowners-normalize-unicode-space: only printable ASCII, CR and LF (a no-break or zero-width space, a
-# tab or a NUL could read differently to GitHub than to the normalising below)
-# (the raw bytes, from the API's base64 content: no BOM or line-end decoding by PowerShell on the way; a CR counts only
-# right before an LF, main-protect/ps1-codeowners-not-raw-bytes)
-$coBad = 0
-for ($i = 0; $i -lt $coBytes.Length; $i++) {
-    $byte = $coBytes[$i]
-    if (($byte -ge 0x20 -and $byte -le 0x7E) -or $byte -eq 0x0A) { continue }
-    if ($byte -eq 0x0D -and $i + 1 -lt $coBytes.Length -and $coBytes[$i + 1] -eq 0x0A) { continue }
-    $coBad++
-}
-$codeowners = @([Text.Encoding]::ASCII.GetString($coBytes) -split "`n")
-if ($coBad -ne 0) {
-    Write-Host "Main's .github/CODEOWNERS has $coBad byte(s) outside printable ASCII (or a CR not before an LF). Nothing was changed. Send this output to the team."
-    exit 1
-}
-# (the same reading as scripts\v1-probe.ps1: runs of spaces or tabs made one space, ends trimmed; a later line would
-# override an earlier one, so nothing else is allowed. Comparisons here are case-sensitive: -cne, -cnotmatch.)
-$coRules = (@($codeowners | ForEach-Object { $_ -split "`n" } | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } |
-              Where-Object { $_ -cnotmatch '^(#|$)' })) -join '|'
-if ($coRules -cne '* @gn0sh|/data/') {
-    Write-Host "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: $coRules). Nothing was changed. Send this output to the team."
-    exit 1
-}
-$coErrors = (gh api "repos/$repo/codeowners/errors?ref=main" --jq '.errors | length') -join ''
-if ($LASTEXITCODE -ne 0 -or $coErrors -cne '0') {
-    Write-Host "GitHub lists errors in main's .github/CODEOWNERS ('$coErrors'). Nothing was changed. Send this output to the team."
-    exit 1
-}
-
-# main-protect/window-start-gap: main's sha is read BEFORE R1 is written, so no commit can land on main between the
-# window start and R1 (a direct push in that gap would be inside the window and caught by the 4.7.1 check).
-$mainSha = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
-if ($mainSha -notmatch '^[0-9a-f]{40}$') {
-    Write-Host 'Could not read the main commit. Nothing was changed. Run this again; send this output to the team if it repeats.'; exit 1
-}
-Write-Host "Main before the ruleset: $mainSha"
-
-$ids = @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })
-if ($LASTEXITCODE -ne 0) { Write-Host 'Could not list the rulesets (signed in as the owner?).'; exit 1 }
-
-if ($ids.Count -eq 0) {
-    Write-Host 'No ruleset yet: creating it.'
-    gh api -X POST "repos/$repo/rulesets" --input $body --silent
-    if ($LASTEXITCODE -ne 0) { Write-Host 'Creating the ruleset failed (see the message above). Nothing was changed. Send this output to the team.'; exit 1 }
+# ---------------------------------------------------------------------------------------------- writes
+if ($Check) {
+    Write-Host 'CHECK ONLY: nothing is written; the checks below read the live settings.'
 } else {
-    foreach ($id in $ids) {
-        Write-Host "Ruleset $id already exists: updating it."
-        Write-Host "Not the first run: the window starts at the first run's 'Main before the ruleset' sha."
-        gh api -X PUT "repos/$repo/rulesets/$id" --input $body --silent
-        if ($LASTEXITCODE -ne 0) { Write-Host "Updating ruleset $id failed (see the message above). The ruleset may be unchanged. Send this output to the team."; exit 1 }
+    # main is read before anything is written, so the printed sha is where main stood when protection began.
+    $mainSha = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
+    if ($LASTEXITCODE -ne 0 -or $mainSha -cnotmatch '^[0-9a-f]{40}$') {
+        Write-Host "Could not read main's commit. Nothing was changed. Run this again; send this output to the team if it repeats."; exit 1
+    }
+    Write-Host "Main before the rulesets: $mainSha"
+    foreach ($s in $sets) {
+        $label = $s[0]; $file = Join-Path $PSScriptRoot $s[1]
+        $ids = IdsOf $file
+        if ($null -eq $ids) { Stop-Run "Could not list the rulesets (signed in as ${owner}?). $label was not written." }
+        if ($ids.Count -eq 0) {
+            Write-Host "${label}: no ruleset yet, creating it from scripts\$($s[1])."
+            gh api -X POST "repos/$repo/rulesets" --input $file --silent
+            if ($LASTEXITCODE -ne 0) { Stop-Run "Creating $label failed (see the message above)." }
+        } else {
+            foreach ($id in $ids) {
+                Write-Host "${label}: ruleset $id exists, updating it from scripts\$($s[1])."
+                gh api -X PUT "repos/$repo/rulesets/$id" --input $file --silent
+                if ($LASTEXITCODE -ne 0) { Stop-Run "Updating $label (ruleset $id) failed (see the message above); it may be unchanged." }
+            }
+        }
+    }
+    $r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
+    if ($LASTEXITCODE -ne 0) { $r2 = '' }
+    if ($r2 -ceq 'false') {
+        Write-Host 'R2 already off'
+    } elseif ($r2 -ceq 'true') {
+        gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
+        if ($LASTEXITCODE -ne 0) { Stop-Run "Turning off 'Allow GitHub Actions to create and approve pull requests' (R2) failed (see above); the rulesets are written." }
+        Write-Host 'R2 was on: turned off'
+    } else {
+        Stop-Run "Could not read 'Allow GitHub Actions to create and approve pull requests' (R2) ('$r2'); it was not changed (the rulesets are written)."
     }
 }
 
-# R1 first, then R2 (L-b): with R1 on nobody pushes main directly, so from now on main changes only by a merged
-# pull request, and main's sha read just before R1 was written is where the window of runbook 4.7.1 starts. R2
-# governs creating and approving pull requests, not merging them, so the start does not rely on R2 being off. Then the push job's
-# GITHUB_TOKEN may open and merge its data pull request.
-$r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
-if ($r2 -eq 'true') {
-    Write-Host 'R2 already on'
-} elseif ($r2 -eq 'false') {
-    gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true --silent
-    if ($LASTEXITCODE -ne 0) { Write-Host 'Turning on "Allow GitHub Actions to create and approve pull requests" failed (see above); the ruleset is written. Send this output to the team.'; exit 1 }
-    Write-Host "R2 was off; main was $mainSha"
-} else {
-    Write-Host "Could not read Allow GitHub Actions to create and approve pull requests ('$r2'); it was not changed (the ruleset is written). Send this output to the team."; exit 1
+# ---------------------------------------------------------------------------------------------- checks
+$script:problems = 0
+function Problem($why) { Write-Host "  NOT OK: $why"; $script:problems++ }
+function Unread($what) { Problem "could not read $what (a refused or failed read counts as NOT OK)" }
+# every line of a gh read, or $null if the read failed (a refused read is never an empty answer)
+function Lines([string]$path, [string]$jq, [switch]$Paginate) {
+    if ($Paginate) { $out = @(gh api --paginate $path --jq $jq | Where-Object { $_ -ne '' }) }
+    else { $out = @(gh api $path --jq $jq | Where-Object { $_ -ne '' }) }
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ,$out
+}
+function SameAs($live, $expected, $label) {
+    $x = Extras $live
+    if ($x) { Write-Host "  The ruleset has fields this script does not write: $x"; return $false }
+    $a = CanonRs $live
+    $b = CanonRs $expected
+    if ($a -ceq $b) { return $true }
+    Write-Host "  It differs from ${label}:"
+    Write-Host "    expected: $b"
+    Write-Host "    live:     $a"
+    return $false
+}
+foreach ($s in $sets) {
+    $label = $s[0]; $file = Join-Path $PSScriptRoot $s[1]
+    $ids = IdsOf $file
+    if ($null -eq $ids) { Unread 'the rulesets'; continue }
+    if ($ids.Count -ne 1) { Problem "${label}: $($ids.Count) rulesets named '$((ReadJsonFile $file).name)', expected exactly 1"; continue }
+    $id = $ids[0]
+    $raw = (gh api "repos/$repo/rulesets/$id" 2> $null) -join "`n"
+    $live = $null
+    if ($LASTEXITCODE -eq 0) { try { $live = $raw | ConvertFrom-Json } catch { $live = $null } }
+    if ($null -eq $live -or $null -eq $live.id) { Unread "ruleset $id ($label)"; continue }
+    if (SameAs $live (ReadJsonFile $file) $s[1]) { Write-Host "${label}: ruleset $id matches scripts\$($s[1])" }
+    else { Problem "${label}: ruleset $id does not match scripts\$($s[1])" }
 }
 
-# The checks of step 2.0.
-$rules = (@(gh api "repos/$repo/rules/branches/main" --jq '.[].type') | Sort-Object -Unique) -join ','
-$ok = $rules -eq 'deletion,non_fast_forward,pull_request'
-Write-Host "Rules on main: $rules"
-$prs = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
-Write-Host "GitHub Actions may create pull requests: $prs"
-if ($prs -ne 'true') { $ok = $false }
-# main-protect L-D: auto-merge merges whatever head a branch has later, unreviewed; it stays off.
+$rules = Lines "repos/$repo/rules/branches/main" '.[].type'
+if ($null -eq $rules) { Unread 'the rules on main' } else {
+    $rules = (@($rules | Sort-Object -Unique)) -join ','
+    Write-Host "Rules on main: $rules"
+    if ($rules -cne 'deletion,non_fast_forward,pull_request') { Problem "main's rules must be deletion,non_fast_forward,pull_request" }
+}
+# every pull_request rule on main, from any ruleset: exactly one, 2 approvals, no code-owner review (CODEOWNERS is gone)
+$prr = Lines "repos/$repo/rules/branches/main" '.[] | select(.type == $ENV.PM_PR) | [(.parameters.required_approving_review_count|tostring), (.parameters.require_code_owner_review|tostring)] | @tsv'
+if ($null -eq $prr) { Unread "main's pull_request rules" } else {
+    Write-Host ('Pull request rules on main (approvals, code-owner review): ' + ((@($prr | ForEach-Object { $_ -replace "`t", ' ' })) -join ';'))
+    if ($prr.Count -ne 1 -or $prr[0] -cne "2`tfalse") { Problem 'main needs exactly one pull_request rule, with 2 approvals and no code-owner review' }
+}
+
+$r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
+if ($LASTEXITCODE -ne 0) { $r2 = 'unread' }
+Write-Host "GitHub Actions may create and approve pull requests (R2): $r2"
+if ($r2 -ceq 'true') { Problem 'R2 is on: with R2 on, gn0sh plus the bot can approve a pull request (ADR 0011 decision 6)' }
+elseif ($r2 -cne 'false') { Unread 'R2 (actions/permissions/workflow)' }
 $auto = (gh api "repos/$repo" --jq '.allow_auto_merge') -join ''
+if ($LASTEXITCODE -ne 0) { $auto = 'unread' }
 Write-Host "Auto-merge allowed: $auto"
-if ($auto -ne 'false') { Write-Host 'Auto-merge must be off: Settings > General > Pull Requests > untick Allow auto-merge.'; $ok = $false }
-$found = @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })
-if ($found.Count -eq 0) { Write-Host 'No ruleset named main: pull request required found after writing it.'; $ok = $false }
-foreach ($id in $found) {
-    $enf = (gh api "repos/$repo/rulesets/$id" --jq '.enforcement') -join ''
-    $actors = (@(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv') |
-               ForEach-Object { $_ -replace "`t", ':' }) -join ','
-    # ADR 0010 (R1'): code-owner review on, squash only. jq's // would turn false into empty, so select() instead.
-    $owner = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .require_code_owner_review')) -join ','
-    $methods = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .allowed_merge_methods[]?')) -join ','
-    # M3 main-protect/stale-owner-approval: gn0sh can approve a pull request a bot opened; a push after that approval
-    # must dismiss it, so a later commit never rides on an owner's approval of an earlier head.
-    $stale = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push')) -join ','
-    # main-protect L-E: approvals stay 0 (a workflow's approval would count toward any number above 0; ADR 0009).
-    $appr = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters.required_approving_review_count // empty')) -join ','
-    $shown = if ($actors) { $actors } else { 'none' }
-    Write-Host "Ruleset ${id}: $enf, bypass $shown, required approvals $appr"
-    Write-Host "Code-owner review: $owner, merge methods: $methods, dismiss stale reviews: $stale"
-    if ($enf -cne 'active') { $ok = $false }
-    # ADR 0010: exactly one bypass, the Repository admin role (id 5), for pull requests only (nobody pushes main).
-    if ($actors -cne 'RepositoryRole:5:pull_request') { Write-Host 'The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).'; $ok = $false }
-    if ($owner -cne 'true') { Write-Host 'Code-owner review must be on (ADR 0010).'; $ok = $false }
-    if ($methods -cne 'squash') { Write-Host 'Squash must be the only merge method (ADR 0010).'; $ok = $false }
-    if ($stale -cne 'true') { Write-Host 'Dismiss stale approvals on push must be on (ADR 0010, M3).'; $ok = $false }
-    if ($appr -ne '0') { Write-Host 'Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow approval would count).'; $ok = $false }
+if ($auto -ceq 'true') { Problem 'auto-merge must be off: Settings > General > Pull Requests > untick Allow auto-merge' }
+elseif ($auto -cne 'false') { Unread 'the repository settings (allow_auto_merge)' }
+
+# finding F1: gn0sh the only writer
+$w = Lines "repos/$repo/collaborators?affiliation=all&per_page=100" '.[] | select(.permissions.admin or .permissions.maintain or .permissions.push) | .login' -Paginate
+if ($null -eq $w) { Unread 'the collaborators' } else {
+    $w = (@($w | Sort-Object -Unique)) -join ','
+    Write-Host ('Collaborators with write or more: ' + $(if ($w) { $w } else { 'none' }))
+    if ($w -cne $owner) { Problem "the collaborators with write or more must be exactly $owner" }
 }
-if ($ok) {
-    Write-Host 'OK: main is protected. Next: Actions > Daily update > Run workflow (the check run of step 2.0).'
-} else {
-    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request, active, bypass RepositoryRole:5:pull_request only, required approvals 0, code-owner review on, squash only, dismiss stale reviews on, auto-merge off, and Actions may create pull requests.'
-    Write-Host 'Send this output to the team.'
-    exit 1
+$inv = Lines "repos/$repo/invitations?per_page=100" '.[] | select(.permissions != $ENV.PM_READ and .permissions != $ENV.PM_TRIAGE) | [(.invitee.login // (.id|tostring)), .permissions] | @tsv' -Paginate
+if ($null -eq $inv) { Unread 'the pending invitations' } else {
+    $inv = (@($inv | ForEach-Object { $_ -replace "`t", ':' })) -join ','
+    Write-Host ('Pending invitations with write or more: ' + $(if ($inv) { $inv } else { 'none' }))
+    if ($inv) { Problem "a pending invitation with write or more: $inv" }
 }
+$inst = Lines "user/installations?per_page=100" '.installations[] | select(.account.login == $ENV.PM_OWNER and (.permissions.contents == $ENV.PM_WRITE or .permissions.administration == $ENV.PM_WRITE)) | [(.id|tostring), .app_slug, .repository_selection] | @tsv' -Paginate
+if ($null -eq $inst) { Unread 'the installed Apps (user/installations)' } else {
+    $apps = @()
+    foreach ($line in $inst) {
+        $f = $line -split "`t"
+        if ($f[2] -ceq 'all') { $apps += $f[1]; continue }
+        $r = Lines "user/installations/$($f[0])/repositories?per_page=100" '.repositories[].full_name' -Paginate
+        if ($null -eq $r) { Unread "the repositories of the installed App $($f[1])" }
+        elseif (@($r) -ccontains $repo) { $apps += $f[1] }
+    }
+    $apps = $apps -join ','
+    Write-Host ('Installed Apps with contents or administration write on this repository: ' + $(if ($apps) { $apps } else { 'none' }))
+    if ($apps) { Problem "an installed App can write this repository: $apps" }
+}
+$keys = Lines "repos/$repo/keys?per_page=100" '.[] | select(.read_only != true) | [(.id|tostring), .title] | @tsv' -Paginate
+if ($null -eq $keys) { Unread 'the deploy keys' } else {
+    $keys = (@($keys | ForEach-Object { $_ -replace "`t", ':' })) -join ','
+    Write-Host ('Deploy keys with write: ' + $(if ($keys) { $keys } else { 'none' }))
+    if ($keys) { Problem "a deploy key with write: $keys" }
+}
+
+# finding F2: each environment deploys from main only, by a branch-type policy (a tag named main is not main)
+foreach ($envName in @('github-pages', 'morning-note')) {
+    $pol = Lines "repos/$repo/environments/$envName" '.deployment_branch_policy | [(.protected_branches|tostring), (.custom_branch_policies|tostring)] | @tsv'
+    if ($null -eq $pol) { Unread "environment $envName" } else {
+        Write-Host ("Environment $envName (protected branches, custom policies): " + ((@($pol) -join ';') -replace "`t", ' '))
+        if ($pol.Count -ne 1 -or $pol[0] -cne "false`ttrue") { Problem "environment $envName must use custom deployment policies only (not protected branches, not all)" }
+    }
+    $bp = Lines "repos/$repo/environments/$envName/deployment-branch-policies?per_page=100" '.branch_policies[] | [.name, (.type|tostring)] | @tsv' -Paginate
+    if ($null -eq $bp) { Unread "environment $envName's deployment policies" } else {
+        $shown = (@($bp | ForEach-Object { $_ -replace "`t", ':' })) -join ','
+        Write-Host ("Environment $envName policies: " + $(if ($shown) { $shown } else { 'none' }))
+        if ($bp.Count -ne 1 -or $bp[0] -cne "main`tbranch") { Problem "environment $envName must allow exactly main, of type branch" }
+    }
+}
+
+if ($script:problems -eq 0) {
+    Write-Host "OK: main is protected (R1'', R-D, R-T as written, R2 off, auto-merge off, $owner the only writer, both environments main only)."
+    exit 0
+}
+Write-Host "NOT OK: $($script:problems) problem(s) above. Run this from Brian's PC, signed in as $owner. Send this output to the team."
+exit 1
