@@ -233,7 +233,9 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       `probe/v1-runner`, which starts a run that, for each target, posts a `GITHUB_TOKEN` approval and then tries to
       merge it: squash, merge, rebase, then GraphQL `mergePullRequest`. It takes about 3 minutes, cleans up after
       itself (closes every probe pull request, deletes all four branches), saves
-      `Documents\v1-probe-results-<time>.txt`, and ends with one of:
+      `Documents\v1-probe-results-<time>.txt`, and ends with one of the verdicts below. If it added the
+      `workflow` scope, it removes it again at the very end, after the verdict: a browser may open a second time
+      then (approve it; if that fails it prints the one command to run).
       - **PASS (V1')**: for W, N and H1, the bot's approval was posted and did not count: REST squash and GraphQL
         squash were both refused with a message naming code-owner review, merge and rebase were refused ("method
         refused": squash only); `main` unchanged, every probe pull request unmerged after cleanup, no probe file
@@ -246,7 +248,8 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         `data/v1-probe-CODEOWNERS` is on `main`, the output says first: main has lost `.github/CODEOWNERS`**, so
         the code-owner rule binds nothing. The first fix is one pull request that restores `.github/CODEOWNERS`
         and deletes `data/v1-probe-CODEOWNERS`, merged by a person with `scripts/merge-reviewed.ps1` (2.0.3; the
-        team opens it); then run `scripts\protect-main.ps1` again (2.0.1). In every FAIL the script has already
+        team opens it); then wait for the team. Do not run `scripts\protect-main.ps1` on your own: it turns R2 back on,
+        so run it only after the team says so (v1-probe/h1-recovery-reenables-r2). In every FAIL the script has already
         turned R2 off (the daily data stops saving). Leave `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the
         output to the team; what merged is removed by a person's PR, and the fallback "data off `main`" goes to a
         Brain Trust (ADR 0010). Actions stays on and open pull requests stay open: only a writer can start a

@@ -32,9 +32,13 @@ gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: applicatio
 # main-protect/codeowners-normalize-unicode-space: only printable ASCII, CR and LF (a no-break or zero-width space, a
 # tab or a NUL could read differently to GitHub than to the normalising below), checked on the raw bytes
 co_bad=$(LC_ALL=C tr -d '\r\n\040-\176' < "$co_file" | wc -c | tr -d ' ')
+# a CR counts only right before an LF (main-protect/ps1-codeowners-not-raw-bytes: a lone CR reads differently)
+co_cr=$(LC_ALL=C sed 's/\r$//' "$co_file" | LC_ALL=C tr -cd '\r' | wc -c | tr -d ' ')
+if [ "$(tail -c1 "$co_file" | od -An -tx1 | tr -d ' \n')" = 0d ]; then co_cr=$((co_cr + 1)); fi
+co_bad=$((co_bad + co_cr))
 codeowners=$(cat "$co_file"); rm -f "$co_file"
 if [ "$co_bad" != 0 ]; then
-  echo "Main's .github/CODEOWNERS has $co_bad byte(s) outside printable ASCII. Nothing was changed. Send this output to the team."; exit 1
+  echo "Main's .github/CODEOWNERS has $co_bad byte(s) outside printable ASCII (or a CR not before an LF). Nothing was changed. Send this output to the team."; exit 1
 fi
 # (the same reading as scripts/v1-probe.sh: runs of spaces or tabs made one space, ends trimmed; a later line would
 # override an earlier one, so nothing else is allowed: v1-probe/rerun-after-fail-codeowners-override)
