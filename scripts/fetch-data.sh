@@ -32,8 +32,12 @@ top_mode=$(git ls-tree "$d" data | cut -d' ' -f1)
 if [ "$top_mode" != 040000 ]; then
   echo "records-data $d has data as mode $top_mode, not a folder (040000). Nothing was changed. Send this output to the team."; exit 1
 fi
-links=$(git ls-tree -r "$d" -- data | awk -F'\t' '$1 ~ /^(120000|160000) / { print $2 }' | head -n 5 | paste -sd, -)
-if [ -n "$links" ]; then
+# decide on the count of matching lines, never on the names derived from them (fail closed)
+tree=$(git ls-tree -r "$d" -- data) \
+  || { echo "Could not list records-data $d. Nothing was changed. Send this output to the team."; exit 1; }
+nbad=$(printf '%s\n' "$tree" | grep -cE '^(120000|160000) ')
+if [ "$nbad" != 0 ]; then
+  links=$(printf '%s\n' "$tree" | grep -E '^(120000|160000) ' | cut -f2- | head -n 5 | paste -sd, -)
   echo "records-data $d holds a symlink or submodule under data/ ($links). Nothing was changed. Send this output to the team."; exit 1
 fi
 want=$(git ls-tree -r --name-only "$d" -- data | wc -l | tr -d ' ')

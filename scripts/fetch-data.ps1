@@ -41,8 +41,12 @@ $topMode = ((@(git ls-tree $d data)) -join '').Split(' ')[0]
 if ($topMode -cne '040000') {
     Write-Host "records-data $d has data as mode $topMode, not a folder (040000). Nothing was changed. Send this output to the team."; exit 1
 }
-$links = (@(git ls-tree -r $d -- data) | Where-Object { $_ -cmatch '^(120000|160000) ' } | ForEach-Object { $_.Split("`t", 2)[1] } | Select-Object -First 5) -join ','
-if ($links) {
+# decide on the count of matching lines, never on the names derived from them (fail closed)
+$tree = @(git ls-tree -r $d -- data)
+if ($LASTEXITCODE -ne 0) { Write-Host "Could not list records-data $d. Nothing was changed. Send this output to the team."; exit 1 }
+$m = @($tree | Where-Object { $_ -cmatch '^(120000|160000) ' })
+if ($m.Count -gt 0) {
+    $links = (@($m | Select-Object -First 5) | ForEach-Object { ($_ -split "`t", 2)[-1] }) -join ','
     Write-Host "records-data $d holds a symlink or submodule under data/ ($links). Nothing was changed. Send this output to the team."; exit 1
 }
 $want = @(git ls-tree -r --name-only $d -- data).Count

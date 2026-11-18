@@ -261,7 +261,8 @@ def test_fetch_data_ps1_checks_modes_like_the_sh():
     ps1 = PS1.read_text(encoding="utf-8")
     assert "$topMode = ((@(git ls-tree $d data)) -join '').Split(' ')[0]" in ps1
     assert "if ($topMode -cne '040000') {" in ps1
-    assert "@(git ls-tree -r $d -- data) | Where-Object { $_ -cmatch '^(120000|160000) ' }" in ps1
+    assert "$tree = @(git ls-tree -r $d -- data)" in ps1
+    assert "$m = @($tree | Where-Object { $_ -cmatch '^(120000|160000) ' })" in ps1
     arch = ps1.index("git archive --format")
     assert ps1.index("$topMode") < arch and ps1.index("$links") < arch
     assert "if (Test-Path -LiteralPath $previous) {" in ps1
@@ -293,3 +294,19 @@ def test_fetch_data_sh_checks_previous_is_gone_before_the_move():
     sh = SH.read_text(encoding="utf-8")
     assert '  if [ -e "$work/previous" ] || [ -L "$work/previous" ]; then' in sh
     assert sh.index('[ -L "$work/previous" ]') < sh.index('mv data "$work/previous"')
+
+
+def test_fetch_data_decides_on_the_count_not_the_derived_names():
+    """Fail closed: the symlink/submodule refusal turns on how many ls-tree lines match, so a name extraction that
+    throws or comes out empty (PowerShell under ErrorActionPreference Continue) can't let a symlink through; a failed
+    listing is refused too."""
+    ps1, sh = PS1.read_text(encoding="utf-8"), SH.read_text(encoding="utf-8")
+    i = ps1.index("$tree = @(git ls-tree -r $d -- data)")
+    block = ps1[i:ps1.index("\n}\n", i) + 3]
+    assert "if ($LASTEXITCODE -ne 0) { Write-Host \"Could not list records-data $d." in block
+    assert "if ($m.Count -gt 0) {" in block and "if ($links)" not in ps1
+    assert block.index("if ($m.Count -gt 0) {") < block.index("$links =") < block.index("exit 1\n}")
+    assert 'tree=$(git ls-tree -r "$d" -- data) \\\n  || { echo "Could not list records-data $d.' in sh
+    assert 'if [ "$nbad" != 0 ]; then' in sh and '[ -n "$links" ]' not in sh
+    for text in (ps1, sh):
+        assert "Could not list records-data $d. Nothing was changed. Send this output to the team." in text
