@@ -16,8 +16,8 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 SH = ROOT / "scripts" / "u3-toggle.sh"
 PS1 = ROOT / "scripts" / "u3-toggle.ps1"
-R1P = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
-R1PP = json.loads((ROOT / "scripts" / "main-ruleset-r1pp.json").read_text(encoding="utf-8"))
+R1P = json.loads((ROOT / "scripts" / "main-ruleset-r1p.json").read_text(encoding="utf-8"))
+R1PP = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
 REPO = "gn0sh/clarksville-records"
 RID = 27502319
 MAIN0 = "0" * 40
@@ -211,7 +211,7 @@ def _assert_restored(r, made, verdict):
 
 def test_r1pp_json_is_adr_0011_decision_5_and_otherwise_r1_prime():
     adr = (ROOT / "docs" / "adr" / "0011-data-off-main.md").read_text(encoding="utf-8")
-    d5 = adr[adr.index("5. **Ruleset R1'' on `main`:**"):adr.index("6. **R2 off")]
+    d5 = adr[adr.index("5. **Ruleset R1'' on `main`:**"):adr.index("\n6. ")]   # 6 may carry an amendment note
     for s in ("`required_approving_review_count: 2`", "`dismiss_stale_reviews_on_push: true`",
               "`require_last_push_approval: true`", "`require_code_owner_review: false`", "squash only",
               "bypass Repository admin role", "`pull_request` mode"):
@@ -227,12 +227,12 @@ def test_r1pp_json_is_adr_0011_decision_5_and_otherwise_r1_prime():
     assert set(pr) == set(prime) and {k for k in pr if pr[k] != prime[k]} == changed
     strip = lambda o: {**o, "rules": [x for x in o["rules"] if x["type"] != "pull_request"]}
     assert strip(R1PP) == strip(R1P)
-    for p in ("main-ruleset.json", "main-ruleset-r1pp.json"):   # BOM-less ASCII, read by both scripts
+    for p in ("main-ruleset-r1p.json", "main-ruleset.json"):   # BOM-less ASCII, read by both scripts
         raw = (ROOT / "scripts" / p).read_bytes()
         assert raw[:1] == b"{" and all(b < 0x80 for b in raw), p
     for script in (SH, PS1):
         text = script.read_text(encoding="utf-8")
-        assert "main-ruleset-r1pp.json" in text and "main-ruleset.json" in text, script.name
+        assert "main-ruleset.json" in text and "main-ruleset-r1p.json" in text, script.name
 
 
 # ---------------------------------------------------------------------------------------------- the whitelist
@@ -662,11 +662,11 @@ def test_refused_unless_r1pp_is_pinned_to_adr_0011(tmp_path, change):
     """v1-probe/u3-r1pp-pin: the preflight itself checks R1'' = R1' plus exactly the three decision-5 values."""
     sdir = tmp_path / "scripts"
     sdir.mkdir()
-    for name in ("u3-toggle.sh", "main-ruleset.json", "merge-reviewed.sh"):
+    for name in ("u3-toggle.sh", "main-ruleset-r1p.json", "merge-reviewed.sh"):
         shutil.copy(ROOT / "scripts" / name, sdir / name)
     rs = json.loads(json.dumps(R1PP))
     change([x for x in rs["rules"] if x["type"] == "pull_request"][0]["parameters"])
-    (sdir / "main-ruleset-r1pp.json").write_text(json.dumps(rs))
+    (sdir / "main-ruleset.json").write_text(json.dumps(rs))
     r, made = _run(tmp_path, ["--pr", "60"], script=sdir / "u3-toggle.sh")
     _refused(r, made, "is not R1' with only ADR 0011 decision 5's three changes")
 
