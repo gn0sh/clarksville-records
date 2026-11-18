@@ -13,6 +13,7 @@ import subprocess
 
 import pytest
 
+from collector import data_shape
 from qa import pii_scan
 
 ADDRESS = "418 Example Court"
@@ -259,6 +260,39 @@ def test_config_transcripts_are_scanned_as_tracked_files(tmp_path):
     out = io.StringIO()
     assert pii_scan.scan(raw, None, root=repo, out=out) == 1
     assert "HIT tracked:config/localities/x/transcripts/m.json:1" in out.getvalue()
+
+
+def test_an_unstaged_config_transcript_is_scanned(tmp_path):
+    """Review nit data-off-main/leak-scan-misses-unstaged-config: a new config transcript not yet `git add`ed is
+    scanned; a git-ignored file is not."""
+    repo = _git_repo(tmp_path / "repo", {".gitignore": "ignored/\n"})
+    new = repo / "config/localities/x/transcripts/new.json"
+    new.parent.mkdir(parents=True)
+    new.write_text(json.dumps({"segments": [[0, 1, f"at {ADDRESS}"]]}), encoding="utf-8")
+    (repo / "ignored").mkdir()
+    (repo / "ignored/n.md").write_text(f"{ADDRESS}\n", encoding="utf-8")
+    listed = subprocess.run(["git", "-C", str(repo), "ls-files"], capture_output=True, text=True, check=True).stdout
+    assert "new.json" not in listed
+    out = io.StringIO()
+    assert pii_scan.scan(_raw(tmp_path / "outside" / "raw", RAW_LINES), None, root=repo, out=out) == 1
+    text = out.getvalue()
+    assert "HIT tracked:config/localities/x/transcripts/new.json:1" in text and "ignored/" not in text
+
+
+@pytest.mark.parametrize("rel,executable", [("data/x/Maps/rpc.json", False), ("data/x/Transcripts/rpc.json", False),
+                                            ("data/rpc.json", True)])
+def test_a_data_file_outside_the_shape_never_clears_a_needle(tmp_path, rel, executable):
+    """Review nit data-off-main/public-clear-from-untracked: only data/ files whose listing entry passes data_shape
+    clear a needle as PUBLIC; a stray file (a maps/ or transcripts/ folder in any case, an executable) is a HIT."""
+    repo = _git_repo(tmp_path / "repo", {"a.md": "nothing\n"},
+                     data={rel: json.dumps({"cases": [{"location": "1100 Sample Road"}]})})
+    if executable:
+        (repo / rel).chmod(0o755)
+    assert data_shape.problems(data_shape.disk_listing(repo / "data"))
+    out = io.StringIO()
+    assert pii_scan.scan(_raw(tmp_path / "outside" / "raw", RAW_LINES), None, root=repo, out=out) == 1
+    text = out.getvalue()
+    assert f"HIT data:{rel}:1" in text and "PUBLIC data:" not in text
 
 
 def test_the_cache_list_matches_gitignore():
