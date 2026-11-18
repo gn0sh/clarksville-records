@@ -9,15 +9,15 @@
 #                                                         PUTs R1' itself (no change) and restores; try Ctrl+C in it
 #   .\scripts\u3-toggle.ps1 -Pr <P>                        Brian's path: opens the window, waits for main to move
 #   .\scripts\u3-toggle.ps1 -Pr <P> -Merge -Report <R>     team path: runs scripts\merge-reviewed.ps1 <P> <head> <R>
-#   .\scripts\u3-toggle.ps1 -Restore [-From <backup json>] PUTs scripts\main-ruleset.json (R1'), or that backup
+#   .\scripts\u3-toggle.ps1 -Restore [-From <backup json>] PUTs scripts\main-ruleset-r1p.json (R1'), or that backup
 #   .\scripts\u3-toggle.ps1 -Noop                          U3-0: PUTs the live ruleset back unchanged, reads it back
 #   .\scripts\u3-toggle.ps1 -ShowBody <json>               prints the PUT body built from a file; no GitHub call
 #
 # Steps (it stops at the first failure):
 #   1. Preflight, read-only: refuses (nothing changed) from 07:30 to 10:30 UTC (a 30-minute run started then could
 #      reach the daily run's 08:00-10:30), while a daily-update run is not completed, unless
-#      scripts\main-ruleset-r1pp.json is R1' with only the three ADR 0011 decision 5 changes, unless ruleset 27502319
-#      equals R1' (scripts\main-ruleset.json) on every written field, unless PR P is open into main, authored by
+#      scripts\main-ruleset.json is R1' with only the three ADR 0011 decision 5 changes, unless ruleset 27502319
+#      equals R1' (scripts\main-ruleset-r1p.json) on every written field, unless PR P is open into main, authored by
 #      gn0sh, from a branch of this repository, not a draft, mergeable and docs-only, and unless
 #      current_user_can_bypass is pull_requests_only or always. Saves the live ruleset to Documents and prints
 #      "BACKUP <file>".
@@ -28,7 +28,7 @@
 #      rule-suite reads included, ends 20 minutes after it opened.
 #   4. Reads PR P (merged, merged_by, merge_commit_sha), the ruleset again (still R1''?) and the rule suite whose
 #      after_sha is the merge commit.
-#   5. Restores the backup held in memory (equal to scripts\main-ruleset.json; that file if the backup is unusable),
+#   5. Restores the backup held in memory (equal to scripts\main-ruleset-r1p.json; that file if the backup is unusable),
 #      reads it back, prints "RESTORED <utc>", then one line:
 #      "U3 VERDICT <PASS|FAIL-U3|FAIL-RULE|INCONCLUSIVE> rule-suite <id|none>: <detail>".
 # PASS: the suite's result is bypass and its one pull_request evaluation (ruleset 27502319, enforcement active) is
@@ -58,8 +58,8 @@ Remove-TypeData System.Array -ErrorAction SilentlyContinue
 $repo = 'gn0sh/clarksville-records'
 $owner = 'gn0sh'
 $rid = '27502319'
-$r1p = Join-Path $PSScriptRoot 'main-ruleset.json'
-$r1pp = Join-Path $PSScriptRoot 'main-ruleset-r1pp.json'
+$r1p = Join-Path $PSScriptRoot 'main-ruleset-r1p.json'
+$r1pp = Join-Path $PSScriptRoot 'main-ruleset.json'
 $env:U3_OWNER = $owner
 $env:U3_RULE = 'pull_request'
 $env:U3_RID = $rid
@@ -171,9 +171,9 @@ function RestoreFrom($src, $label) {   # $src: a parsed ruleset object
         }
     }
     if ($script:backup) {
-        Write-Host "RESTORE FAILED: ruleset $rid may still be R1''. BACKUP $($script:backup). Run: .\scripts\u3-toggle.ps1 -Restore -From '$($script:backup)' (or .\scripts\protect-main.ps1). Send this output to the team."
+        Write-Host "RESTORE FAILED: ruleset $rid may still be R1''. BACKUP $($script:backup). Run: .\scripts\u3-toggle.ps1 -Restore -From '$($script:backup)'. Send this output to the team."
     } else {
-        Write-Host "RESTORE FAILED: ruleset $rid may not be R1'. Run: .\scripts\u3-toggle.ps1 -Restore (or .\scripts\protect-main.ps1). Send this output to the team."
+        Write-Host "RESTORE FAILED: ruleset $rid may not be R1'. Run: .\scripts\u3-toggle.ps1 -Restore. Send this output to the team."
     }
 }
 # ADR 0011 decision 5 pinned: R1'' is R1' except these three pull_request parameters, which take these values.
@@ -228,7 +228,7 @@ if ($Noop) {
     if ($r -ceq 'ok') { Write-Host ('NOOP OK ' + (Utc) + ": ruleset $rid written with its own body and read back unchanged."); exit 0 }
     if ($r -ceq 'body') { Write-Host 'NOOP REFUSED: could not build the body. Nothing was changed.'; exit 1 }
     if ($r -ceq 'put') { Write-Host ('NOOP REFUSED ' + (Utc) + ": GitHub did not accept the PUT (see gh's message and HTTP status above). Nothing was changed."); exit 1 }
-    Write-Host ('NOOP CHANGED ' + (Utc) + ": ruleset $rid did not read back as it was. Run: .\scripts\protect-main.ps1. Send this output to the team.")
+    Write-Host ('NOOP CHANGED ' + (Utc) + ": ruleset $rid did not read back as it was. Run: .\scripts\u3-toggle.ps1 -Restore. Send this output to the team.")
     exit 3
 }
 
@@ -243,7 +243,7 @@ $hm = $now.Hour * 100 + $now.Minute
 if ($hm -ge 730 -and $hm -le 1030) {
     Refuse ('it is ' + $now.ToString('HH:mm') + " UTC: a run started from 07:30 to 10:30 could reach the daily run's window (08:00-10:30); run it later")
 }
-if (-not (PinOk)) { Refuse "scripts/main-ruleset-r1pp.json is not R1' with only ADR 0011 decision 5's three changes (2 approvals, last-push approval, no code-owner review)" }
+if (-not (PinOk)) { Refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (2 approvals, last-push approval, no code-owner review)" }
 $runs = @(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?per_page=30" --jq '.workflow_runs[].status')
 if ($LASTEXITCODE -ne 0) { Refuse 'could not read the daily-update runs' }
 $busy = @($runs | Where-Object { $_ -and $_ -cne 'completed' })
@@ -254,7 +254,7 @@ $bypass = [string]$live.current_user_can_bypass
 if ($bypass -cne 'pull_requests_only' -and $bypass -cne 'always') {
     Refuse "current_user_can_bypass is '$bypass', not pull_requests_only or always"
 }
-if (-not (SameAs $live (ReadJsonFile $r1p) 'scripts\main-ruleset.json')) { Refuse "ruleset $rid is not R1' (scripts\main-ruleset.json)" }
+if (-not (SameAs $live (ReadJsonFile $r1p) 'scripts\main-ruleset-r1p.json')) { Refuse "ruleset $rid is not R1' (scripts\main-ruleset-r1p.json)" }
 # every field goes through tostring, so none is empty and a tab-split never shifts the fields
 $f = @()
 for ($i = 1; $i -le 4; $i++) {
@@ -396,7 +396,7 @@ function RunWindow {
     if ($cur -cne $mergeSha) { $script:why = "main is at $cur, not PR #$Pr's merge commit $mergeSha (another actor)"; return }
     $win = ReadLive
     if ($null -eq $win) { $script:why = "ruleset $rid could not be read at the end of the window"; return }
-    if (-not (SameAs $win (ReadJsonFile $r1pp) 'scripts\main-ruleset-r1pp.json')) { $script:why = "ruleset $rid did not read R1'' at the end of the window"; return }
+    if (-not (SameAs $win (ReadJsonFile $r1pp) 'scripts\main-ruleset.json')) { $script:why = "ruleset $rid did not read R1'' at the end of the window"; return }
     $env:U3_AFTER = $mergeSha
     for ($i = 1; $i -le 8; $i++) {
         $ids = @(gh api "repos/$repo/rulesets/rule-suites?ref=main&time_period=hour&per_page=100" --jq '.[] | select(.after_sha == $ENV.U3_AFTER) | .id' 2> $null)
@@ -427,7 +427,7 @@ function RunWindow {
 function CloseWindow {
     $src = $script:backupObj
     $label = 'the backup'
-    if ($null -eq $src -or (CanonRs $src) -cne (CanonRs (ReadJsonFile $r1p))) { $src = ReadJsonFile $r1p; $label = 'scripts\main-ruleset.json' }
+    if ($null -eq $src -or (CanonRs $src) -cne (CanonRs (ReadJsonFile $r1p))) { $src = ReadJsonFile $r1p; $label = 'scripts\main-ruleset-r1p.json' }
     Write-Host "Closing the window: restoring R1' ($label; do not press Ctrl+C again). BACKUP $($script:backup)"
     RestoreFrom $src $label
     if ($Rehearse) {

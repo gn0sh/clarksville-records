@@ -21,9 +21,9 @@ Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and 
 `u3-toggle --pr <P>` runs these steps in order and stops at the first failure.
 1. **Preflight**, read-only. It refuses if any of these is true:
    - the UTC time is 07:30-10:30 (a run lasts at most 30 minutes, so it can't reach 08:00-10:30);
-   - `scripts/main-ruleset-r1pp.json` isn't R1' with only decision 5's three `pull_request` changes;
+   - `scripts/main-ruleset.json` isn't R1' with only decision 5's three `pull_request` changes;
    - a `daily-update` run is queued or in progress;
-   - the live ruleset 27502319 doesn't match R1' (`scripts/main-ruleset.json`) on every field `protect-main`
+   - the live ruleset 27502319 doesn't match R1' (`scripts/main-ruleset-r1p.json`) on every field `protect-main`
      checks;
    - PR P isn't open, authored by gn0sh, from a branch in this repository, and docs-only (every file under
      `docs/`);
@@ -56,8 +56,8 @@ Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and 
 
 ## Abort
 - At any time, press Ctrl+C (Brian) or stop the step (team). The `finally`/`trap` restores R1' and verifies it.
-- If the restore fails, run `u3-toggle --restore`, which PUTs `scripts/main-ruleset.json` (R1') through the same
-  builder, or run `scripts/protect-main`. The backup at the printed `BACKUP` path is the exact pre-U3 body.
+- If the restore fails, run `u3-toggle --restore`, which PUTs `scripts/main-ruleset-r1p.json` (R1') through the same
+  builder (`scripts/protect-main` writes R1'' since D1, so it is no fallback here). The backup at the printed `BACKUP` path is the exact pre-U3 body.
 - If neither can run, `main` stays on R1'': the 09:07 data PR's merge fails loudly, the data stays on its
   `data/<date>` branch and the site skips one refresh. Team merges need the bypass. Nothing is lost. Restore it
   before the next run.
