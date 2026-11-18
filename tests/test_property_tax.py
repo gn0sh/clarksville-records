@@ -252,12 +252,18 @@ def test_page_shows_rate_rows_and_table(page, county):
     assert f'<h2 id="proptax-h">{T["heading"]}</h2>' in sec
     txt = text_of(sec)
     assert "$2.10 per $100 of assessed value" in txt
+    # no "Total tax rate" row in the chart (owner, 2026-11-18: $2.10 is the number people know as the rate, and a
+    # 100-cent total conflicts with the chart's purpose); the resolution's total stays in the sources table only
+    chart = sec[:sec.index('<details class="dollar-src"')]
+    assert "drow-total" not in chart and T["total_row"] not in text_of(chart)
+    assert not re.search(r"100\.0\s*(¢|&cent;)", chart)
+    assert txt.count("$2.10 per $100 of assessed value") == 2   # the lede and the rate line, nowhere else
     assert "as printed in the Fiscal Year 2027 Approved Budget" in txt and "as adopted" not in txt
     assert txt.count("This shows property tax only; funds can also get money from other sources, not shown here.") == 1
     assert "state and federal" not in txt
     segs = re.findall(r'<span class="dseg[^"]*" style="--n: ([\d.]+)"', sec)
     assert segs == [r["cents"] for r in d["rows"]]
-    assert "53.8&cent;" in sec and "100.0&cent;" in sec
+    assert "53.8&cent;" in sec and "100.0&cent;" not in sec
     items = re.findall(r'<li class="drow" style="--n: ([\d.]+)">\s*<span class="drow-name">(.*?)</span>\s*'
                        r'<span class="drow-c">', sec, re.S)
     assert [text_of(n).strip().split(" How the")[0] for _, n in items] == PLAIN
