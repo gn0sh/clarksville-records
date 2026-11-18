@@ -1,0 +1,451 @@
+{
+ "about": "City of Clarksville FY2025 budget book (DocumentCenter/View/11392), pages 43-133: each Type 3 glyph drawing (key: sha256 of its CharProc content stream), the character it prints and its advance in em (measured in the book). Arial Bold O and G are drawn only as the first glyph of \"OF\" and \"GE\" in the page title, which the file places with a 1 em width less Tc 0.2223, so they keep width 1 and the next glyph sits where the page prints it; Arial Bold F is never drawn alone and takes Arial Bold's width (0.611). Labelled by hand from the drawings and checked by outline size and by every printed total: docs/research/city-budget-fy2025-glyphs-2026-11-18.md. Read by collector/type3_decode.py.",
+ "glyphs": {
+  "00c069857d1e87844327ee5bf0300878e21123773996aae7a28568730e24703b": {
+   "advance": 0.6025,
+   "char": "U",
+   "face": "Lucida Console"
+  },
+  "0247d34972604676cf0748a275657a8151841b3401bf29bc4b7343207c17052e": {
+   "advance": 1.0,
+   "char": "O",
+   "face": "Arial Bold"
+  },
+  "056cf65727ef32cf1e395ed8dab680282f4d1fbc0f4288ae42198c125b11a9aa": {
+   "advance": 0.6025,
+   "char": "1",
+   "face": "Lucida Console"
+  },
+  "060c6d029516ce7156b9456d3656f4008e3e4c44f730f74a41d19273c7c91cab": {
+   "advance": 0.7226,
+   "char": "N",
+   "face": "Arial Bold"
+  },
+  "0a673549ebf9fbc1dcc415972b3048aa452d984e6bf1113b892a1ba8794765f9": {
+   "advance": 0.6025,
+   "char": "E",
+   "face": "Lucida Console"
+  },
+  "0abe5bfed85acf1a779012be52e8a6b4fba7a640759f504f76ccaaeb73dbf6b8": {
+   "advance": 0.6025,
+   "char": "I",
+   "face": "Lucida Console"
+  },
+  "10bb79d72d800b0c17e54061a68cc803e298fa33b048a6ba74034d015f32400d": {
+   "advance": 1.0,
+   "char": "G",
+   "face": "Arial Bold"
+  },
+  "15ded972994f366c6f8e9804f85859996eed13307f8dbdc4d073edc3eefc8164": {
+   "advance": 0.6025,
+   "char": ".",
+   "face": "Lucida Console"
+  },
+  "1628a8a0a8e905c39139905bd80692db735f11283a869859bd8cdcb01d44e098": {
+   "advance": 0.6025,
+   "char": "8",
+   "face": "Lucida Console"
+  },
+  "16734500309de04994203cc7febb3ac9131722a6b79d7a2e46cf02dc7eb953d4": {
+   "advance": 0.6025,
+   "char": "7",
+   "face": "Lucida Console"
+  },
+  "1976b858fc9da64607f81d261840442d6ad9c3642e6b2fd9a58945fbab28cf79": {
+   "advance": 0.7226,
+   "char": "A",
+   "face": "Arial Bold"
+  },
+  "1d7b029fd6dbc6ab9abb37b9b826aadec2fd56d630c2e59c7848f0088ee774ef": {
+   "advance": 0.6025,
+   "char": "5",
+   "face": "Lucida Console"
+  },
+  "20184718541be07385739e7005e07aef18558cf39f1e5e20033c27b8ca68e869": {
+   "advance": 0.6025,
+   "char": "i",
+   "face": "Lucida Console"
+  },
+  "21e7f6733ca9832b28fb83716d8619b18a51c491d6ce472c6dffcab50dc889f9": {
+   "advance": 0.7227,
+   "char": "R",
+   "face": "Arial Bold"
+  },
+  "23a4dea391f2e80f1158c19ce7893f861c2fcf2638d8e5fc793c7afa2e2856f7": {
+   "advance": 0.6025,
+   "char": "0",
+   "face": "Lucida Console"
+  },
+  "261c347e2192dea207353e6d5d1817500d2f920524a9c9aa954453d15f118977": {
+   "advance": 0.6025,
+   "char": "O",
+   "face": "Lucida Console"
+  },
+  "299eccedfc0ca15346a342a6db3305e79973a3748da3926bcffe517cb551cfc8": {
+   "advance": 0.6025,
+   "char": "e",
+   "face": "Lucida Console"
+  },
+  "2adf5ee4ee37556fb937ee442d96d04f602ebacee15b4e5222de46036d5982c4": {
+   "advance": 0.6025,
+   "char": "3",
+   "face": "Lucida Console"
+  },
+  "2cff18f66514a5cb57b9361b6bb90ea2ededa48efdda5ce471e76ff2496b74f4": {
+   "advance": 0.6025,
+   "char": "p",
+   "face": "Lucida Console"
+  },
+  "2e056b161f6719746b702b04118a8efa47de8b5b959bbb2a7256333a07cb829f": {
+   "advance": 0.6025,
+   "char": "M",
+   "face": "Lucida Console"
+  },
+  "331b1937a4543122cbd74ca894ffbd7efcc4b31e4c6574a3b5a5cd0c1d60448e": {
+   "advance": 0.6025,
+   "char": "q",
+   "face": "Lucida Console"
+  },
+  "34d2b14c94e4a9bda9e156a1b5362fbce92fcd289a99e451411d5b64b2952245": {
+   "advance": 0.6668,
+   "char": "S",
+   "face": "Arial Bold"
+  },
+  "3b90aa0046d664e89f3275b6c3f61843ffbf3ceecb810116fb3f4598aba93b89": {
+   "advance": 0.6667,
+   "char": "V",
+   "face": "Arial Bold"
+  },
+  "3f560cbed782767614f7b1126b6d67e3586636acde563ec9b9eddb5d2b6df34b": {
+   "advance": 0.6025,
+   "char": "R",
+   "face": "Lucida Console"
+  },
+  "421ba2fef62a40b742f4d8f87d495e39d5b06e791d665823b962da9618bc255d": {
+   "advance": 0.6026,
+   "char": "J",
+   "face": "Lucida Console"
+  },
+  "42d7398cfc3ebc42c910cdf0b8fe26a43c81f60aab324c5cc7c091e82a5e20b0": {
+   "advance": 0.6107,
+   "char": "T",
+   "face": "Arial Bold"
+  },
+  "444401e85141f0444a530c06132a84760d17858f08ce1883d66b89329e9d92f1": {
+   "advance": 0.7227,
+   "char": "C",
+   "face": "Arial Bold"
+  },
+  "4548877efd3134736204abbbab4f1227847a3d89ac0596486f490504ad7234fe": {
+   "advance": 0.6025,
+   "char": "x",
+   "face": "Lucida Console"
+  },
+  "487e3793a3ab2c273f1829565df10159854b91d193481490a7dbc47a7f8d90c2": {
+   "advance": 0.7227,
+   "char": "B",
+   "face": "Arial Bold"
+  },
+  "48b76fa581b70b0e9330fc2e1b03d7bc6dacdf2e00a90afb0cbd649702a00a76": {
+   "advance": 0.6025,
+   "char": "C",
+   "face": "Lucida Console"
+  },
+  "49eefce38cb084eaf21159f0527b7241f8a7d2e18b66dec8dc4af49283ee1559": {
+   "advance": 0.6025,
+   "char": "G",
+   "face": "Lucida Console"
+  },
+  "4cfe7490a3a3a87baa1bbee896ce3bdc875bf9dd3b3a2487c48614b4f06ac6d8": {
+   "advance": 0.6026,
+   "char": "V",
+   "face": "Lucida Console"
+  },
+  "59e9708da5c99bc6df62f6744a2faa583b330f51aa80b70cd882a5c4701bbef2": {
+   "advance": 0.6025,
+   "char": "n",
+   "face": "Lucida Console"
+  },
+  "5cea26a089d6106228705ea3bdbd108c28b25b708dbda2fd68e125b398d5f668": {
+   "advance": 0.6026,
+   "char": "m",
+   "face": "Lucida Console"
+  },
+  "5d641dfee080fc249fe266114e25cb89b98b75e8904681292a2c8aef3acb7c44": {
+   "advance": 0.6025,
+   "char": "F",
+   "face": "Lucida Console"
+  },
+  "65a52f42dc4b216390c8fcbde0251eb75f999f2894305236303ee6537e0b873d": {
+   "advance": 0.6107,
+   "char": "F",
+   "face": "Arial Bold"
+  },
+  "66fc4f12f3275bd258e266b42eaf1c39a5ad9cc40aacabbbc2e709e3eb309acb": {
+   "advance": 0.6025,
+   "char": "-",
+   "face": "Lucida Console"
+  },
+  "674d446dbf28c63fa264f8c417d34bb2384a0e048814c7f82e598298e244021e": {
+   "advance": 0.6025,
+   "char": "'",
+   "face": "Lucida Console"
+  },
+  "6a46c888fd47d34307bd8ba41b04e105f2caa4d291c77f0679da475ede9e629a": {
+   "advance": 0.6025,
+   "char": "H",
+   "face": "Lucida Console"
+  },
+  "6a8405899c5a887ab3776ffa0ce9e1d71ece428c12deb52981f5b748a4e193ba": {
+   "advance": 0.6025,
+   "char": "/",
+   "face": "Lucida Console"
+  },
+  "7844888738401ac5488ddc620b1f3c1d3fe3f8be9cf2b467f52dba5cde8a787f": {
+   "advance": 0.6667,
+   "char": "Y",
+   "face": "Arial Bold"
+  },
+  "7993b3e58c7cea08f9bee73d080dad78f79018034e015a2963245d84f2f26dc8": {
+   "advance": 0.6025,
+   "char": "P",
+   "face": "Lucida Console"
+  },
+  "7aa2ce14a718e0ec041a25488316d0a890eeaf7320e85bf21dfc9aca0c8f0b80": {
+   "advance": 0.6025,
+   "char": "b",
+   "face": "Lucida Console"
+  },
+  "849de289813ec0ea3ccc278a42c818fa4270b1ff17f19a478deea3a7b8939016": {
+   "advance": 0.6025,
+   "char": "9",
+   "face": "Lucida Console"
+  },
+  "85df6b8ae4f80dedb818ee95f2602fa34954e3617cc25e777992daccb5ffd137": {
+   "advance": 0.6025,
+   "char": "*",
+   "face": "Lucida Console"
+  },
+  "865b8ee4464e9f31ff2c2929c4fdfab4586826647ea3199e23844a6d3280a96a": {
+   "advance": 0.6025,
+   "char": "L",
+   "face": "Lucida Console"
+  },
+  "86b60a19287f7980b548603f0fe840b29ae77672f67a92f8c8ca17ab6f8150c2": {
+   "advance": 0.6026,
+   "char": "r",
+   "face": "Lucida Console"
+  },
+  "8986874de74ac171a08734deffde78df33b2738ed85fedbd044a75f682109ab5": {
+   "advance": 0.6025,
+   "char": "%",
+   "face": "Lucida Console"
+  },
+  "89ba858b077ceefb6c53e3a9feb1d2157dc245be5bc239e8df02b86a8b5692bc": {
+   "advance": 0.6026,
+   "char": "c",
+   "face": "Lucida Console"
+  },
+  "8a39363165b098ea36b43ea4d4cb72c867816e8a032b71b4d5ab180e831eda08": {
+   "advance": 0.6026,
+   "char": "T",
+   "face": "Lucida Console"
+  },
+  "8c77974bdbff71266c2614646f0992df7e9c251a74cb50600443f95774efa292": {
+   "advance": 0.6026,
+   "char": "h",
+   "face": "Lucida Console"
+  },
+  "8dc785c17a1902068b86e7af369a92a7b570723c55a08efb30084bd43539a253": {
+   "advance": 0.6026,
+   "char": ",",
+   "face": "Lucida Console"
+  },
+  "9146cf7016476f4a2a99814363442f608eb0b9a92d0dbb79e7b432a36d95e41f": {
+   "advance": 0.6025,
+   "char": "2",
+   "face": "Lucida Console"
+  },
+  "916760182715902027efdb706c4fa66cba3c778d1daa8b06053e16103446edc8": {
+   "advance": 0.6025,
+   "char": "u",
+   "face": "Lucida Console"
+  },
+  "92370f57d5edd2e6ada6066ddbac188597ef04e09da8d7bde81e5cd9d26951c3": {
+   "advance": 0.6026,
+   "char": ":",
+   "face": "Lucida Console"
+  },
+  "9393cfd1685cf0efd80721cce6f21a01a343624e47a5adef6da853becce9ee56": {
+   "advance": 0.7227,
+   "char": "D",
+   "face": "Arial Bold"
+  },
+  "981bfb1f7e4ab5cbc446fd5b6bd5a9fa54c66a6ec7d5b008906383a719059820": {
+   "advance": 0.6025,
+   "char": "g",
+   "face": "Lucida Console"
+  },
+  "99c153076de8c4212e166a0dbc3f12f1fbeaed9745361b60c775f3920f2b6ee7": {
+   "advance": 0.6025,
+   "char": "W",
+   "face": "Lucida Console"
+  },
+  "9a32ba912158d94219675374c1af84a556f918809b42725475e93aa2d2e604dd": {
+   "advance": 0.2776,
+   "char": "/",
+   "face": "Arial Bold"
+  },
+  "a5fed334dec386af172779452a4777ef7ed37a7c450837c7690b07db198e929b": {
+   "advance": 0.6026,
+   "char": "N",
+   "face": "Lucida Console"
+  },
+  "a6fef54c41be06fe2a53a0a7aefbf5d5d3080454e7fcbcda53f21583d95325b1": {
+   "advance": 0.6025,
+   "char": "w",
+   "face": "Lucida Console"
+  },
+  "a77532f17f24cf350c387b3486adf29b43c2f4c9f6b9cdb6af0391be54a10837": {
+   "advance": 0.6025,
+   "char": "s",
+   "face": "Lucida Console"
+  },
+  "a81507a62b840e84b713a9f45b22dd62c3c4aefe377a38cec0b82d4370c743d0": {
+   "advance": 0.6025,
+   "char": " ",
+   "face": "space"
+  },
+  "a8a0ffa230a41ae3d11e75da033dc51ddcc975e53c51dacfc79fdb0f61a118c6": {
+   "advance": 0.6666,
+   "char": "E",
+   "face": "Arial Bold"
+  },
+  "b2543e8df59f8384086ff1dc9d573dda04361eb18aea5e8d8a16e14caaa2d1af": {
+   "advance": 0.6025,
+   "char": "o",
+   "face": "Lucida Console"
+  },
+  "b5b245f8c34e3a129272e845e7044e4a05b9f559a9f146f8cb1872beb1b2f695": {
+   "advance": 0.7227,
+   "char": "K",
+   "face": "Arial Bold"
+  },
+  "bc508c9ba683e6aed16675cf6eb42b9ebde6aa939b98b55f3200a6662575bd77": {
+   "advance": 0.6025,
+   "char": "z",
+   "face": "Lucida Console"
+  },
+  "beb0a063656bc9bcd07f20a3b0271c4bee59355e5f5f49a9fb7842bb88309517": {
+   "advance": 0.7226,
+   "char": "U",
+   "face": "Arial Bold"
+  },
+  "bef0b1185556bf5ebfdbd58a3a1d511ec8c16b98d2ff4448b5390f971cdd436e": {
+   "advance": 0.6025,
+   "char": "D",
+   "face": "Lucida Console"
+  },
+  "c6be8e422bca00a26a0c8e3a09e0364a58579433d95084283b158ef9c1519e4d": {
+   "advance": 0.6107,
+   "char": "L",
+   "face": "Arial Bold"
+  },
+  "c7eb3868c42e335e26bb18538cfe3c8c707c39a96536545531ac112ef28c78fd": {
+   "advance": 0.6025,
+   "char": "B",
+   "face": "Lucida Console"
+  },
+  "c8907701878a749442be1b26999a9edc832c5e6804e95ba1afa67b1a6af685fe": {
+   "advance": 0.6025,
+   "char": "a",
+   "face": "Lucida Console"
+  },
+  "ca3266d967e7e5e1c487fb39b2528b2d3a0aaf755da9f97afa7d2ad0034473aa": {
+   "advance": 0.6025,
+   "char": "A",
+   "face": "Lucida Console"
+  },
+  "cd9411143b3ca6d7bcbdb525fe6350ab8a90d714c73859c6fd07658eba08b9fd": {
+   "advance": 0.6025,
+   "char": "v",
+   "face": "Lucida Console"
+  },
+  "d8fba8196b23fa310f6f5777485f518c2449f79f9fabfc9784e78a6b62000639": {
+   "advance": 0.6025,
+   "char": "t",
+   "face": "Lucida Console"
+  },
+  "daabc112dced509899eaad84f0e8c97fee9d2a67370418b7a0ee3fa8edac0646": {
+   "advance": 0.6026,
+   "char": "k",
+   "face": "Lucida Console"
+  },
+  "dae6df4fe4619be02909b8282898c1a848c3a522de5b988df6d0606d29999e39": {
+   "advance": 0.6025,
+   "char": "d",
+   "face": "Lucida Console"
+  },
+  "dc6d721591ea0672d426aedf64268dc049617af1c9890213fa17e32fd7c862ab": {
+   "advance": 0.6025,
+   "char": "l",
+   "face": "Lucida Console"
+  },
+  "e31173e06f08cda3e19fd8e9106f75f8ef1fb44b7677b6f5668738445dc9733a": {
+   "advance": 0.6666,
+   "char": "X",
+   "face": "Arial Bold"
+  },
+  "e581e7c2088dae056d4153615afdd39420268cb159e47a254e5081b99c5a0fa0": {
+   "advance": 0.6025,
+   "char": "4",
+   "face": "Lucida Console"
+  },
+  "e5ef41e461e072ac6b3c1aa155c7dc57c446903cf1d77cc3e15df28f47b658b2": {
+   "advance": 0.6025,
+   "char": "6",
+   "face": "Lucida Console"
+  },
+  "e7c5e8368a7f3c6a06b178da4cdd804f4029c8a23131543c952dbf1514cdad9c": {
+   "advance": 0.6025,
+   "char": "_",
+   "face": "Lucida Console"
+  },
+  "e9b3c2362f8baa56d574bff218015e1d9f1439665254a82770569922ba612b59": {
+   "advance": 0.2777,
+   "char": "I",
+   "face": "Arial Bold"
+  },
+  "eb0609578e1cba2c59bcd34050e9dd152a67cf57cf2aa1182bd47ba0a5ba4ba5": {
+   "advance": 0.6025,
+   "char": "y",
+   "face": "Lucida Console"
+  },
+  "ee383ad897df5d35aa6362a4ca153608646d0052a06d6db18a2033b17bdcad47": {
+   "advance": 0.6025,
+   "char": "S",
+   "face": "Lucida Console"
+  },
+  "f7a148597df61d778093f25b398fac426ac6d3d0180d99c77c08ecf2849093b1": {
+   "advance": 0.6025,
+   "char": "&",
+   "face": "Lucida Console"
+  },
+  "f982a9aaeef034d77bb0a499494f66afdd277729d24115940513a6a234d22c47": {
+   "advance": 0.6026,
+   "char": "f",
+   "face": "Lucida Console"
+  },
+  "fc5e457180bcaca63ec427a38b30521860e3f967e5a715c361e26873f7db238b": {
+   "advance": 0.6025,
+   "char": "j",
+   "face": "Lucida Console"
+  },
+  "fc96276cf8813f850381e6dc7c2ee632f12bd8d456549ec193d61af62ea0c468": {
+   "advance": 0.6025,
+   "char": "Z",
+   "face": "Lucida Console"
+  }
+ },
+ "source_sha256": "d6ce661d57d0bdc6cb70d4141347f91503613ee4cea222e7c9d783f49c175fa7"
+}

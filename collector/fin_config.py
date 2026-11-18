@@ -6,6 +6,7 @@ Every finance adapter reads its URLs, labels and word lists from here, so the co
 """
 from __future__ import annotations
 
+import json
 import re
 import urllib.parse
 from dataclasses import dataclass, field
@@ -59,6 +60,12 @@ class BookSpec:
     first_page: int
     last_page: int
     kind_overrides: tuple = ()   # ((header as printed, kind), ...): this book's own meaning of a header
+    # A book printed in Type 3 fonts with no Unicode map: its glyph table (repo-relative path), read through
+    # collector/type3_decode.py; such a book is kept only if every printed total adds up exactly (fin_facts).
+    glyph_map: str | None = None
+    # This book's own `rows.fund_line` (the city FY2025 book prints "1100 General Fund" where the others print
+    # "General Fund"): a regex with (?P<name>); no (?P<no>) group keeps fund_no null as in the locality's other books.
+    fund_line: re.Pattern | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +97,8 @@ class BudgetRules:
     org_code: re.Pattern | None = None   # leading org code of rows and headings
     statement_by_code: tuple = ()        # ((statement, compiled code regex), ...): a row's statement by its code
     fund_total_by_name: bool = False     # "TOTAL <fund name, cut>" right after a section total is the fund total
+    org_section_totals: bool = False     # a codeless row with amounts that prints its section's org and name is
+    #                                      the section total (the city FY2025 book prints "100310 Taxes", no TOTAL)
     run_totals: dict = field(default_factory=dict)   # exact label -> revenue | expenditure | net (report-run totals)
     run_end: re.Pattern | None = None    # the line that ends a report run (its totals' scope)
     report_date: re.Pattern | None = None   # the page foot's report date, group "date" (book.report_dates)
@@ -128,7 +137,7 @@ def parse_budget(budget: dict) -> BudgetRules:
         if not isinstance(over, dict) or not all(isinstance(k, str) and k.strip() and v in KINDS for k, v in over.items()):
             raise FinanceConfigError(f"finance.yml: {where}kind_overrides must map headers as printed to one of {KINDS}")
         books.append(BookSpec(b["id"], b["title"], b["edition"], b["fiscal_year"], b["url"], pages[0], pages[1],
-                              tuple(sorted(over.items()))))
+                              tuple(sorted(over.items())), _glyph_map(b, where), _book_fund_line(b, where)))
     if len({b.id for b in books}) != len(books):
         raise FinanceConfigError("finance.yml: budget.books ids repeat")
     titles = _need(budget, "page_titles", dict, w)
@@ -212,10 +221,54 @@ def parse_budget(budget: dict) -> BudgetRules:
         split_glued_amounts=_flag(budget, "split_glued_amounts"),
         org_code=_cs_regex(rows["org_code"], "budget.rows.org_code") if "org_code" in rows else None,
         statement_by_code=tuple((k, _cs_regex(v, f"budget.rows.statement_by_code.{k}")) for k, v in by_code.items()),
-        fund_total_by_name=_flag(rows, "fund_total_by_name"), run_totals=dict(run_totals),
+        fund_total_by_name=_flag(rows, "fund_total_by_name"), org_section_totals=_org_totals(rows),
+        run_totals=dict(run_totals),
         run_end=_cs_regex(rows["run_end"], "budget.rows.run_end") if "run_end" in rows else None,
         report_date=_report_date(rows),
         books_not_read=tuple(not_read))
+
+
+def _book_fund_line(book: dict, where: str) -> re.Pattern | None:
+    if "fund_line" not in book:
+        return None
+    rx = _cs_regex(book["fund_line"], f"{where}fund_line")
+    if "name" not in rx.groupindex:
+        raise FinanceConfigError(f"finance.yml: {where}fund_line needs a (?P<name>) group")
+    return rx
+
+
+def _org_totals(rows: dict) -> bool:
+    on = _flag(rows, "org_section_totals")
+    if on and "org_code" not in rows:
+        raise FinanceConfigError("finance.yml: budget.rows.org_section_totals needs budget.rows.org_code")
+    return on
+
+
+GLYPH_SHA = re.compile(r"[0-9a-f]{64}")
+
+
+def _glyph_map(book: dict, where: str) -> str | None:
+    """A book's `glyph_map`: a repo-relative path to a JSON table {"glyphs": {<sha256 of a Type 3 glyph drawing>:
+    {"char": one character, "advance": em, 0 < advance <= 2}}}, checked here so a bad table fails the load."""
+    rel = book.get("glyph_map")
+    if rel is None:
+        return None
+    path = ROOT / rel if isinstance(rel, str) and rel.strip() and not Path(rel).is_absolute() else None
+    if path is None or ROOT.resolve() not in path.resolve().parents or not path.is_file():
+        raise FinanceConfigError(f"finance.yml: {where}glyph_map must name a table file in the repo, not {rel!r}")
+    try:
+        glyphs = json.loads(path.read_text(encoding="utf-8"))["glyphs"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise FinanceConfigError(f"finance.yml: {where}glyph_map {rel}: not a glyph table ({e!r})") from None
+    ok = isinstance(glyphs, dict) and glyphs and all(
+        isinstance(k, str) and GLYPH_SHA.fullmatch(k) and isinstance(v, dict) and {"char", "advance"} <= set(v)
+        and isinstance(v["char"], str) and len(v["char"]) == 1 and v["char"].isprintable()
+        and isinstance(v["advance"], (int, float)) and not isinstance(v["advance"], bool) and 0 < v["advance"] <= 2
+        for k, v in glyphs.items())
+    if not ok:
+        raise FinanceConfigError(f"finance.yml: {where}glyph_map {rel}: every entry must be <sha256>: {{char: one "
+                                 f"printable character, advance: 0 < em <= 2}}")
+    return rel
 
 
 def _report_date(rows: dict) -> re.Pattern | None:

@@ -37,6 +37,7 @@ board's operating budget, so its section, fund and grand totals print the same a
 1. FY2025 book not read: its line-item pages use Type 3 fonts with no Unicode map (pdftotext gives a cipher). Its
    FY2025 budget is still printed in the FY2026 book's `2025 ORIG BUD` / `2025 REVISED BUD` columns. Options: leave
    link only (recommended), or a glyph map checked cell by cell against the FY2026 book, or OCR.
+   **Resolved 2026-11-18:** read through a glyph map, 130 of 130 totals exact: `city-budget-fy2025-glyphs-2026-11-18.md`.
 2. FY2027 file is labelled "as presented 5/29/2026" (kind `proposed`, column "2027 Mayor"); not confirmed whether the
    city later replaced it with the adopted book.
 3. "ACTUAL" columns of the year in progress are as of the report date (FY2024 book: 06/28/2023; FY2026: 07/08/2025):

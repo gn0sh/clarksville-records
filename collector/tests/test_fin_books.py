@@ -18,8 +18,11 @@ def raw():
 def test_city_config_loads(raw):
     cfg = fin_config.load_books(CITY)
     b = cfg.budget
-    assert [x.id for x in b.books] == ["fy2024-adopted", "fy2026-final", "fy2027-presented"]
-    assert [x["id"] for x in b.books_not_read] == ["fy2025-adopted"]
+    assert [x.id for x in b.books] == ["fy2024-adopted", "fy2025-adopted", "fy2026-final", "fy2027-presented"]
+    assert b.books_not_read == ()
+    assert [x.id for x in b.books if x.glyph_map] == ["fy2025-adopted"]       # read through its glyph table
+    assert [x.id for x in b.books if x.fund_line] == ["fy2025-adopted"]       # "1100 General Fund"
+    assert b.org_section_totals
     assert all(x.url.startswith("https://www.clarksvilletn.gov/DocumentCenter/View/") for x in b.books)
     assert b.amount_unit == "cents" and b.fund_from_header and b.header_year_lines
     assert dict(b.kind_words)["Mayor"] == "proposed"
@@ -73,8 +76,50 @@ def test_fund_number_group_optional_only_with_fund_from_header(raw):
 
 def test_not_read_book_cannot_also_be_read(raw):
     cfg = copy.deepcopy(raw)
-    cfg["budget"]["books_not_read"][0]["id"] = "fy2024-adopted"
+    cfg["budget"]["books_not_read"] = [{"id": "fy2024-adopted", "title": "x", "fiscal_year": 2024,
+                                        "url": "https://www.clarksvilletn.gov/DocumentCenter/View/1", "reason": "x"}]
     with pytest.raises(FinanceConfigError, match="both read and not read"):
+        fin_config.parse_books(cfg)
+
+
+@pytest.mark.parametrize("value,match", [
+    ("config/localities/clarksville-tn/no-such-table.json", "glyph_map must name a table file in the repo"),
+    ("/etc/passwd", "glyph_map must name a table file in the repo"),
+    ("../outside.json", "glyph_map must name a table file in the repo"),
+    ("config/localities/clarksville-tn/finance.yml", "not a glyph table"),
+])
+def test_a_bad_glyph_map_fails_the_load(raw, value, match):
+    cfg = copy.deepcopy(raw)
+    cfg["budget"]["books"][1]["glyph_map"] = value
+    with pytest.raises(FinanceConfigError, match=match):
+        fin_config.parse_books(cfg)
+
+
+def test_a_glyph_table_entry_must_be_one_character_and_an_advance(raw, tmp_path, monkeypatch):
+    table = tmp_path / "t.json"
+    monkeypatch.setattr(fin_config, "ROOT", tmp_path)
+    cfg = copy.deepcopy(raw)
+    cfg["budget"]["books"][1]["glyph_map"] = "t.json"
+    for glyphs in ({"a" * 64: {"char": "AB", "advance": 0.6}}, {"a" * 64: {"char": "A", "advance": 0}},
+                   {"A" * 64: {"char": "A", "advance": 0.6}}, {"a" * 64: {"char": "\n", "advance": 0.6}}, {}):
+        table.write_text(json.dumps({"glyphs": glyphs}))
+        with pytest.raises(FinanceConfigError, match="glyph_map"):
+            fin_config.parse_books(cfg)
+    table.write_text(json.dumps({"glyphs": {"a" * 64: {"char": "A", "advance": 0.6}}}))
+    assert fin_config.parse_books(cfg).budget.books[1].glyph_map == "t.json"
+
+
+def test_a_book_fund_line_needs_a_name_group(raw):
+    cfg = copy.deepcopy(raw)
+    cfg["budget"]["books"][1]["fund_line"] = r"^\d{4} .+$"
+    with pytest.raises(FinanceConfigError, match="fund_line needs a"):
+        fin_config.parse_books(cfg)
+
+
+def test_org_section_totals_need_an_org_code(raw):
+    cfg = copy.deepcopy(raw)
+    del cfg["budget"]["rows"]["org_code"]
+    with pytest.raises(FinanceConfigError, match="org_section_totals needs"):
         fin_config.parse_books(cfg)
 
 
@@ -326,13 +371,151 @@ def test_editions_compare_on_cents():
     assert fin_checks.edition_compare([a, b]) == []
 
 
+# ------------------------------------------------------------------ FY2025: the glyph-decoded book's layout
+# Fixtures fy2025_p<page>.bbox.html: `pdftotext -bbox` of collector/type3_decode.py's copy of the book (the staff
+# login and name replaced, as above). This book prints a section total as "<org> <name>" (no TOTAL), the fund number
+# before the fund name, and starts a fund mid-page after the last fund's total.
+def drop(page: int, y0: float, y1: float):
+    """A mutate for read(): leave out the words of `page` whose centre lies between y0 and y1 (rows that continue a
+    section, or open a fund, on a page the fixtures do not hold)."""
+    return lambda ws: [w for w in ws if not (w.page == page and y0 < w.yc < y1)]
+
+
+def test_fy2025_section_total_prints_its_org_and_name_and_adds_up():
+    _, lines, _ = read("fy2025-adopted", [114, 115])
+    t = by_label(lines, "10492003 Museum")
+    assert (t["row_role"], t["account_code"], t["heading_as_printed"]) == ("total", None, "10492003 Museum")
+    assert t["check"]["state"] == "exact" and [lines[i]["account_code"] for i in t["scope_line_ids"]] == ["4868"]
+    assert cents(t) == [101334000, 103980000, 103980000, 103980000, 0, 103980000]
+    assert by_label(lines, "10491004 Transit Syste")["check"]["state"] == "exact"
+
+
+def test_fy2025_a_fund_that_starts_mid_page_takes_the_next_page_header_fund():
+    _, lines, _ = read("fy2025-adopted", [114, 115, 116], mutate=drop(116, 385, 560))   # fund 1222's rows
+    gf = by_label(lines, "TOTAL 1100 General Fund")
+    assert (gf["fund_name"], gf["fund_no"], gf["statement"]) == ("General Fund", None, "net")
+    drug = by_label(lines, "TOTAL 1221 Drug Enforcement")
+    assert drug["fund_name"] == "Drug Enforcement" and drug["check"]["state"] == "exact"
+    gf_row = int(gf["id"].rsplit("/r", 1)[1])
+    after = [x for x in lines.values() if x["page"] == 114 and int(x["id"].rsplit("/r", 1)[1]) > gf_row]
+    assert len(after) == 4 and all(x["fund_name"] == "Drug Enforcement" for x in after)
+    assert {x["id"] for x in after} <= set(drug["scope_line_ids"])
+    assert after[0]["heading_as_printed"] == "28420001 Drug Enforcement-Salaries"     # carried to p115
+    sect = by_label(lines, "28420001 Drug Enforcem")
+    assert sect["row_role"] == "total" and sect["check"]["state"] == "exact"
+    assert all(x["fund_no"] is None for x in lines.values())
+
+
+def test_fy2025_rows_after_the_last_fund_total_with_no_header_after_them_fail_the_book():
+    with pytest.raises(BookLayoutError, match="rows after the last fund total"):
+        read("fy2025-adopted", [116])
+
+
+def test_fy2025_a_fund_that_opens_and_closes_on_one_page_is_named_by_its_total():
+    _, lines, _ = read("fy2025-adopted", [129], mutate=drop(129, 125, 220))   # rows of a section begun on p. 128
+    dental = by_label(lines, "TOTAL 2210 Dental Fund")
+    assert dental["check"]["state"] == "exact" and dental["fund_name"] == "Dental Fund"
+    assert {lines[i]["fund_name"] for i in dental["scope_line_ids"]} == {"Dental Fund"}
+    assert by_label(lines, "TOTAL 2101 Parking Commissio")["fund_name"] == "Parking Commission"   # page header
+
+
+def test_fy2025_a_page_that_starts_mid_section_and_ends_after_a_fund_total_fails_alone():
+    with pytest.raises(BookLayoutError, match="rows after the last fund total"):
+        read("fy2025-adopted", [114])
+
+
+def test_fy2025_a_cut_fund_name_is_completed_from_a_header_of_another_book():
+    words = drop(133, 125, 148)(words_of("fy2025-adopted", [133]))       # rows of a section begun on p. 132
+    r25 = fin_budget.read_book(words, BOOK["fy2025-adopted"], RULES)
+    veh = next(pl for pl in r25.lines if pl.label == "TOTAL 2240 Vehicle Replaceme")
+    assert veh.fund_name == "Vehicle Replaceme" and veh.fund_from_total            # as cut on the page
+    fin_budget.complete_cut_fund_names([r25])
+    assert veh.fund_name == "Vehicle Replaceme" and veh.fund_name_from is None    # no full name read: kept
+    assert all("fund_name_from" not in x for x in fin_budget.to_records(r25, RULES))
+    r26 = fin_budget.read_book(words_of("fy2026-final", [138]), BOOK["fy2026-final"], RULES)
+    fin_budget.complete_cut_fund_names([r25, r26])
+    assert veh.fund_name == "Vehicle Replacement Fund" and veh.label == "TOTAL 2240 Vehicle Replaceme"
+    # provenance/fund-name-cross-book: every completed line says which book the name came from and how it is printed
+    marked = [x for x in fin_budget.to_records(r25, RULES) if x["fund_name"] == "Vehicle Replacement Fund"]
+    assert marked and all(x["fund_name_from"] == {"book_id": "fy2026-final", "printed": "Vehicle Replaceme"}
+                          for x in marked)
+    assert all("fund_name_from" not in x for x in fin_budget.to_records(r26, RULES))
+    lines = {x["id"]: x for x in fin_budget.to_records(r25, RULES)}
+    fin_checks.reconcile(list(lines.values()), RULES.run_totals)
+    v = by_label(lines, "TOTAL 2240 Vehicle Replaceme")
+    assert v["check"]["state"] == "exact" and {lines[i]["fund_name"] for i in v["scope_line_ids"]} == \
+        {"Vehicle Replacement Fund"}
+    grand = by_label(lines, "GRAND TOTAL")
+    assert (grand["fund_name"], grand["statement"]) == (None, "net")
+    text = " ".join(x["label_as_printed"] for x in lines.values())
+    assert "END OF REPORT" not in text and "Staff" not in text
+
+
+def _gate_line(i, state=None, held=None, scope=(1,), cents=100):
+    """Line r<i>; a total (state set) sums the lines r<n> for n in scope."""
+    return {"id": f"b/p1/r{i}", "book_id": "b", "held": held, "cells": [{"cents": cents, "dollars": None}],
+            "check": {"state": state, "per_cell": []} if state else None,
+            "scope_line_ids": [f"b/p1/r{n}" for n in scope] if state else None}
+
+
+@pytest.mark.parametrize("lines,ok", [
+    ([_gate_line(1), _gate_line(2, "exact")], True),
+    ([_gate_line(1), _gate_line(2, "does_not_add_up")], False),
+    ([_gate_line(1), _gate_line(2, "not_checked")], False),
+    ([_gate_line(1, held="column-align"), _gate_line(2, "exact")], False),
+    ([_gate_line(1)], False),                                       # no printed total: nothing proves the reading
+    ([_gate_line(1), _gate_line(3), _gate_line(2, "exact")], False),   # r3 has an amount no exact total sums
+    ([_gate_line(1), _gate_line(3, cents=0), _gate_line(2, "exact")], True),   # a line of zeros proves nothing
+    ([_gate_line(1), _gate_line(3), _gate_line(2, "exact"), _gate_line(4, "exact", scope=(3,))], True),
+])
+def test_a_glyph_decoded_book_is_kept_only_when_every_total_is_exact(lines, ok):
+    problems = fin_facts.glyph_book_problems("b", lines)
+    assert (problems == []) is ok
+    assert all("(glyph-decode)" in p and p.startswith("book b: ") for p in problems)
+
+
+def test_glyph_decode_problems_stop_the_build():
+    from collector.fin_run import GUARD_KEYS
+    assert fin_facts.GLYPH_KEY in GUARD_KEYS
+
+
+def test_the_committed_glyph_table_has_one_drawing_per_amount_character():
+    """glyph-table/no-invariant-test: every character an amount is made of (0-9 . , -) has exactly one drawing, in
+    the face the amounts print in, and no face has two drawings for one character (an edit that maps a second
+    drawing to a digit, or a digit's drawing to another digit, fails here before any book is read)."""
+    import collections
+    spec = next(b for b in fin_config.load_books(CITY).budget.books if b.glyph_map)
+    glyphs = json.loads((fin_config.ROOT / spec.glyph_map).read_text(encoding="utf-8"))["glyphs"]
+    pairs = collections.Counter((g["face"], g["char"]) for g in glyphs.values())
+    assert [p for p, n in pairs.items() if n > 1] == []
+    amount_chars = set("0123456789.,-")
+    drawn = collections.Counter(g["char"] for g in glyphs.values() if g["char"] in amount_chars)
+    assert drawn == {c: 1 for c in amount_chars}
+    assert {g["face"] for g in glyphs.values() if g["char"] in amount_chars} == {"Lucida Console"}
+
+
 # ------------------------------------------------------------------ fin-books build on a fake store
-def fake_store(tmp_path, skip=()):
+def three_books():
+    """The city config without the glyph-mapped FY2025 book (its fake bytes cannot be decoded; it has tests below)."""
+    import dataclasses
+    cfg = fin_config.load_books(CITY)
+    return dataclasses.replace(cfg, budget=dataclasses.replace(
+        cfg.budget, books=tuple(b for b in cfg.budget.books if not b.glyph_map)))
+
+
+def fake_store(tmp_path, skip=(), extra=None):
+    """The three text-layer books (and `extra` {book id: words}) as fake files; -> (store, {sha256: words})."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
     store = Store(tmp_path / "fin-manifest.json", root=tmp_path / "store", now=lambda: "2026-11-16T00:00:00+00:00")
     pages = {"fy2024-adopted": [50], "fy2026-final": [138], "fy2027-presented": [378, 379]}
-    by_sha = {}
+    by_sha, extra = {}, extra or {}
     for spec in RULES.books:
-        if spec.id in skip:
+        if spec.id in extra:
+            e, _ = store.put(spec.url, b"%PDF-1.7 city " + spec.id.encode(), {}, {"kind": "budget_book",
+                                                                                 "label": spec.title})
+            by_sha[e["sha256"]] = extra[spec.id]
+            continue
+        if spec.id in skip or spec.glyph_map:
             continue
         e, _ = store.put(spec.url, b"%PDF-1.7 city " + spec.id.encode(), {}, {"kind": "budget_book",
                                                                              "label": spec.title})
@@ -345,7 +528,7 @@ def test_fin_books_build_writes_a_valid_city_file(tmp_path, monkeypatch):
     store, by_sha = fake_store(tmp_path)
     monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
                                                                               "creator": "Fixture Writer"})
-    cfg = fin_config.load_books(CITY)
+    cfg = three_books()
     out, rep = tmp_path / "finance.json", tmp_path / "report.json"
     code = fin_books.cmd_build(store, cfg, out, rep, book_words=lambda pdf, first, last: by_sha[pdf.stem])
     assert code == 0
@@ -358,14 +541,14 @@ def test_fin_books_build_writes_a_valid_city_file(tmp_path, monkeypatch):
     report = json.loads(rep.read_text())
     assert report["budget"]["fy2027-presented"]["reconcile"]["exact"] == 11
     assert report["budget"]["fy2026-final"]["funds"] == ["Vehicle Replacement Fund"]
-    assert [b["id"] for b in report["books_not_read"]] == ["fy2025-adopted"]
+    assert report["books_not_read"] == []
 
 
 def test_schema_requires_cents_on_every_cell_of_a_cents_file(tmp_path, monkeypatch):
     store, by_sha = fake_store(tmp_path)
     monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
                                                                               "creator": None})
-    fin, _ = fin_books.build(store, fin_config.load_books(CITY), book_words=lambda pdf, first, last: by_sha[pdf.stem])
+    fin, _ = fin_books.build(store, three_books(), book_words=lambda pdf, first, last: by_sha[pdf.stem])
     from collector.fin_run import validate
     assert validate(fin) == []
     del fin["budget_lines"][0]["cells"][0]["cents"]
@@ -381,7 +564,7 @@ def test_daily_build_keeps_the_committed_file_when_a_book_file_changed(tmp_path,
     # city-books/daily-overwrite-unguarded: the city replaced a book's file; a person reviews the new reading first
     store, by_sha = fake_store(tmp_path)
     _city_meta(monkeypatch)
-    cfg = fin_config.load_books(CITY)
+    cfg = three_books()
     out, rep = tmp_path / "finance.json", tmp_path / "report.json"
 
     def words(pdf, first, last):
@@ -435,11 +618,42 @@ def test_fin_books_build_writes_nothing_when_a_book_is_missing(tmp_path, monkeyp
     out = tmp_path / "finance.json"
     rep = tmp_path / "r.json"
     rep.write_text('{"reconcile": "an earlier build"}')
-    code = fin_books.cmd_build(store, fin_config.load_books(CITY), out, rep,
+    code = fin_books.cmd_build(store, three_books(), out, rep,
                                book_words=lambda pdf, first, last: by_sha[pdf.stem])
     assert code == 2 and not out.exists()
     report = json.loads(rep.read_text())                       # budget/exit2-stale-report: this build's reason
     assert "reconcile" not in report and any("fy2026-final" in g for g in report["stopped"]["guard"])
+
+
+def test_the_glyph_decoded_book_is_written_only_when_every_total_is_exact(tmp_path, monkeypatch):
+    _city_meta(monkeypatch)
+    seen = []
+
+    def decoded(pdf, spec, book_words, problems):          # stands in for the decoder process (test_type3_decode)
+        seen.append(spec.id)
+        return book_words(pdf, spec.first_page, spec.last_page)
+    monkeypatch.setattr(fin_facts, "glyph_words", decoded)
+    import dataclasses
+    cfg = fin_config.load_books(CITY)
+    out, rep = tmp_path / "finance.json", tmp_path / "report.json"
+    # a book whose every total is exact (stand-in words: one whole report run of the FY2026 book, numbered as a page
+    # of this book; its header prints no fund number, so the book's own fund_line is set aside here)
+    stand_in = dataclasses.replace(cfg, budget=dataclasses.replace(cfg.budget, books=tuple(
+        dataclasses.replace(b, fund_line=None) if b.glyph_map else b for b in cfg.budget.books)))
+    store, by_sha = fake_store(tmp_path / "a", extra={"fy2025-adopted": page_words("city/fy2026_p138", 100)})
+    assert fin_books.cmd_build(store, stand_in, out, rep, book_words=lambda pdf, f, la: by_sha[pdf.stem]) == 0
+    assert seen == ["fy2025-adopted"]
+    fin = json.loads(out.read_text())
+    assert "fy2025-adopted" in [b["id"] for b in fin["books"]]
+    # the real FY2025 pages 114-116: the General Fund total's rows start on p. 43, so it is not exact: nothing written
+    out.unlink()
+    real = drop(116, 385, 560)(words_of("fy2025-adopted", [114, 115, 116]))
+    store, by_sha = fake_store(tmp_path / "b", extra={"fy2025-adopted": real})
+    assert fin_books.cmd_build(store, cfg, out, rep, book_words=lambda pdf, f, la: by_sha[pdf.stem]) == 2
+    assert not out.exists()
+    guard = json.loads(rep.read_text())["stopped"]["guard"]
+    assert len(guard) == 1 and guard[0].startswith("book fy2025-adopted: read through its glyph table") \
+        and guard[0].endswith("(glyph-decode)")
 
 
 def test_fetch_asks_the_polite_fetcher_for_every_book(tmp_path):
