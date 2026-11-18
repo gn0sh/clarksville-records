@@ -63,9 +63,14 @@ def test_cz_01_2024_applicant_is_null_on_the_real_minutes(use_ocr):
 
 
 def test_cz_01_2024_applicant_is_null_in_the_committed_facts():
-    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
-    it = next(i for i in facts["items"] if i["number"] == "CZ-01-2024")
-    assert it["zoning"]["applicant"] is None
+    """A guard on what this run publishes (real-data-tests/ live-invariant): the misread applicant of CZ-01-2024 is
+    never published, however the facts grow. The pinned county facts hold the item, so the live check is never
+    vacuous by accident of the snapshot."""
+    import pinned_data
+    for facts in (json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8")), pinned_data.county_facts()):
+        items = [i for i in facts["items"] if i["number"] == "CZ-01-2024"]
+        assert all(i["zoning"]["applicant"] is None for i in items)
+    assert items                                                  # the pinned facts (last in the loop) hold it
 
 
 # ------------------------------------------------------------------ 2. same engine never corroborates

@@ -261,8 +261,8 @@ def site(tmp_path_factory):
     sub = subset(facts, ("2019-01-03-regular", MEETING))
     d = tmp_path_factory.mktemp("city")
     (d / "facts.json").write_text(json.dumps(sub), encoding="utf-8")
-    city = ROOT / "data" / "localities" / "clarksville-tn"
-    wards = [w for w in json.loads((city / "wards.json").read_text()) if w["meeting_id"] in ("2019-01-03-regular", MEETING)]
+    from test_transcripts import city_wards      # the pinned city data (real-data-tests/), as city_facts()
+    wards = [w for w in city_wards() if w["meeting_id"] in ("2019-01-03-regular", MEETING)]
     (d / "wards.json").write_text(json.dumps(wards), encoding="utf-8")
     m = next(x for x in sub["meetings"] if x["id"] == MEETING)
     write_raw(d / "raw", raw_transcript(m, SEGMENTS + ADDRESS_LINES))
@@ -365,8 +365,10 @@ def test_site_check_passes_and_catches_a_leak(site, tmp_path):
     assert not any("omitted" in x for x in problems)
     # (b) a committed transcript that is not masked at rest: a raw line, and an address split over two lines
     # a line that is also a string of the committed source data (an item title read aloud) is not a needle
-    title = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))["items"][0]["title"]
-    assert len(" ".join(title.split())) >= site_checks.NEEDLE_MIN
+    # any committed item title long enough to be a needle (real-data-tests/: never "the first item", which a new
+    # county meeting may change)
+    title = next(i["title"] for i in json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))["items"]
+                 if len(" ".join((i.get("title") or "").split())) >= site_checks.NEEDLE_MIN)
     titled = _cs_with(cs, tmp_path, [[0, 1, " ".join(title.split())]])
     (copy / "data" / "extra.json").write_text(json.dumps({"t": title}), encoding="utf-8")
     js.write_text(js.read_text(encoding="utf-8").split("\n// ")[0], encoding="utf-8")

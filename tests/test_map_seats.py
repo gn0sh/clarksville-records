@@ -134,7 +134,11 @@ def test_rows_never_span_the_2022_lines(rows):
 
 
 def test_committed_seats_pass_the_seat_check(rows):
-    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    """seats.yml against the county facts pinned at pinned_data.PINNED_COMMIT (real-data-tests/): a new county
+    meeting (a new member voting) makes seats.yml stale until a person re-derives it, which the build and site checks
+    report as a WARNING; it must not fail the daily update."""
+    import pinned_data
+    facts = pinned_data.county_facts()
     roster = yaml.safe_load((LOCALITY / "roster-current.yml").read_text(encoding="utf-8"))
     assert seat_check.check(facts, rows, roster) == []
 
@@ -142,8 +146,10 @@ def test_committed_seats_pass_the_seat_check(rows):
 def test_committed_seats_pass_the_seat_check_after_one_new_meeting(rows):
     """M1 pipeline/seats-stale-on-new-county-meeting, on the committed data: the latest meeting repeated a month
     later (the same voters, roll calls not read for seats). The check still passes; the site words every open row to
-    the meeting its last page shows, never to the new one (test_city_seats.py covers the wording)."""
-    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    the meeting its last page shows, never to the new one (test_city_seats.py covers the wording). On the pinned
+    county facts (real-data-tests/)."""
+    import pinned_data
+    facts = pinned_data.county_facts()
     roster = yaml.safe_load((LOCALITY / "roster-current.yml").read_text(encoding="utf-8"))
     latest = max(m["date"] for m in facts["meetings"])
     new = {"id": "2099-01-01-formal", "date": "2099-01-01"}

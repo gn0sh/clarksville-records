@@ -12,6 +12,7 @@ from qa import site_checks
 from sitegen import config, council, views
 from sitegen.seats import Seats, stamp_seen, load_rows
 
+import pinned_data
 from conftest import ROOT
 
 CITY = ROOT / "data" / "localities" / "clarksville-tn"
@@ -112,17 +113,27 @@ def test_an_unresolved_name_is_never_placed_and_its_seat_says_so():
 
 # ---------------------------------------------------------------- the committed city data
 
+# real-data-tests/ (docs/architecture/real-data-tests-invariant.md): `live_city` is data/ as this run collected it,
+# for the tests of what holds however the records grow; `real_city` is the city data pinned at
+# pinned_data.PINNED_COMMIT, for every test that names a date, a member, a count or a wording of the real records.
+
 @pytest.fixture(scope="module")
-def real_city():
+def live_city():
     facts = json.loads((CITY / "facts.json").read_text(encoding="utf-8"))
     wards = json.loads((CITY / "wards.json").read_text(encoding="utf-8"))
     return facts, wards, council.load({**CFG}, facts, wards)
 
 
-def test_every_member_in_the_latest_attendance_list_holds_their_last_printed_ward(real_city):
+@pytest.fixture(scope="module")
+def real_city():
+    facts, wards = pinned_data.city()
+    return facts, wards, council.load({**CFG}, facts, wards)
+
+
+def test_every_member_in_the_latest_attendance_list_holds_their_last_printed_ward(live_city):
     """QA finding 1: all 12 wards read "Current member not yet recorded" while the 2026 lists name the members."""
-    facts, wards, cix = real_city
-    expected = site_checks.expected_ward_holders(wards)
+    facts, wards, cix = live_city
+    expected = site_checks.expected_ward_holders(wards, facts)
     assert len(expected) >= 10
     seats = {s["seat"]: s for s in council.seat_list(cix)}
     for ward, oid in expected.items():
@@ -131,16 +142,16 @@ def test_every_member_in_the_latest_attendance_list_holds_their_last_printed_war
         assert cix.seats.is_current(oid)
 
 
-def test_the_latest_minutes_read_is_the_latest_attendance_list(real_city):
+def test_the_latest_minutes_read_is_the_latest_attendance_list(live_city):
     """H3: the basis said "the latest minutes read, 2026-02-05" while later minutes were read."""
-    facts, wards, cix = real_city
+    facts, wards, cix = live_city
     read = max(m["date"] for m in facts["meetings"] if m["minutes_status"] == "read" and m.get("attendance"))
     assert cix.seats.latest == read == max(w["date"] for w in wards)
     assert views.observed_basis(cix).endswith(f"{CFG['latest_words']}, {read}")
 
 
-def test_no_one_listed_at_the_latest_minutes_is_served_previously(real_city):
-    facts, wards, cix = real_city
+def test_no_one_listed_at_the_latest_minutes_is_served_previously(live_city):
+    facts, wards, cix = live_city
     latest = max(w["date"] for w in wards)
     listed = {w["official_id"] for w in wards if w["date"] == latest}
     page = views.officials_page(cix)
@@ -148,12 +159,12 @@ def test_no_one_listed_at_the_latest_minutes_is_served_previously(real_city):
     assert not listed & {c["id"] for c in previous["cards"]}
 
 
-def test_a_confirmed_vote_after_the_last_ward_print_carries_the_ward(real_city):
+def test_a_confirmed_vote_after_the_last_ward_print_carries_the_ward(live_city):
     """H3: the seat beside a confirmed 2026 vote read "seat not recorded"."""
-    facts, wards, cix = real_city
+    facts, wards, cix = live_city
     last_print = max(w["date"] for w in wards if w["ward"] is not None)
     dates = {m["id"]: m["date"] for m in facts["meetings"]}
-    expected = {oid: ward for ward, oid in site_checks.expected_ward_holders(wards).items()}
+    expected = {oid: ward for ward, oid in site_checks.expected_ward_holders(wards, facts).items()}
     n = 0
     for rc in facts["roll_calls"]:
         d = dates[rc["meeting_id"]]
@@ -165,10 +176,87 @@ def test_a_confirmed_vote_after_the_last_ward_print_carries_the_ward(real_city):
     assert n
 
 
+LIVE_TESTS = (test_every_member_in_the_latest_attendance_list_holds_their_last_printed_ward,
+              test_the_latest_minutes_read_is_the_latest_attendance_list,
+              test_no_one_listed_at_the_latest_minutes_is_served_previously,
+              test_a_confirmed_vote_after_the_last_ward_print_carries_the_ward)
+
+
+def _lists(facts) -> list:
+    return sorted((m for m in facts["meetings"] if m["minutes_status"] == "read" and m.get("attendance")),
+                  key=lambda m: m["date"])
+
+
+def _add_list(facts, wards, like, date, keep=lambda a: True, rename=None, roll_calls=True):
+    """`like`'s attendance list (and its wards rows, and its roll calls when `roll_calls`) again as a new meeting on
+    `date`: the members `keep` lets through, and `rename` = (official id, printed name) printed as a name the record
+    cannot place."""
+    facts, wards = json.loads(json.dumps(facts)), json.loads(json.dumps(wards))
+    mid = f"{date}-grown"
+    att = []
+    for a in like["attendance"]:
+        if not keep(a):
+            continue
+        if rename and a.get("official_id") == rename[0]:
+            a = {**a, "official_id": None, "raw_name": rename[1]}
+        att.append(a)
+    facts["meetings"].append({**like, "id": mid, "date": date, "attendance": att})
+    gone = {a["official_id"] for a in like["attendance"]} - {a["official_id"] for a in att}
+    wards += [{**w, "date": date, "meeting_id": mid} for w in wards
+              if w["meeting_id"] == like["id"] and w["official_id"] not in gone]
+    if roll_calls:
+        facts["roll_calls"] += [{**rc, "id": f"{rc['id']}-grown", "meeting_id": mid} for rc in facts["roll_calls"]
+                                if rc["meeting_id"] == like["id"]]
+    return facts, wards
+
+
+def _day_before(d: str) -> str:
+    import datetime
+    return (datetime.date.fromisoformat(d) - datetime.timedelta(days=1)).isoformat()
+
+
+def _later(facts, wards):
+    """The next meeting: the latest list again, with its roll calls."""
+    return _add_list(facts, wards, _lists(facts)[-1], "2099-01-07")
+
+
+def _earlier(facts, wards):
+    """Minutes posted late (hit 2: the 2026-07-02 list): the list before the latest again, dated the day before the
+    latest."""
+    ls = _lists(facts)
+    return _add_list(facts, wards, ls[-2], _day_before(ls[-1]["date"]), roll_calls=False)
+
+
+def _cut_off(facts, wards):
+    """A later list that leaves one member out (cut off, or absent and not listed): that member is held over."""
+    like = _lists(facts)[-1]
+    out = next(a["official_id"] for a in like["attendance"] if a.get("official_id"))
+    return _add_list(facts, wards, like, "2099-01-07", keep=lambda a: a.get("official_id") != out, roll_calls=False)
+
+
+def _unplaced(facts, wards):
+    """A later list that prints one member's name so the record cannot place it (as 2026-07-06 printed CLAULNCH)."""
+    like = _lists(facts)[-1]
+    oid = next(a["official_id"] for a in like["attendance"] if a.get("official_id"))
+    return _add_list(facts, wards, like, "2099-01-07", rename=(oid, "QQZ"), roll_calls=False)
+
+
+@pytest.mark.parametrize("grow", [_later, _earlier, lambda f, w: _earlier(*_later(f, w)), _cut_off, _unplaced],
+                         ids=["later", "earlier", "earlier-and-later", "cut-off", "unplaced"])
+def test_the_live_tests_hold_on_any_valid_growth(live_city, grow):
+    """real-data-tests/ I-live (docs/architecture/real-data-tests-invariant.md): every test above that reads data/ as
+    collected passes on what a daily update may legitimately add to it: a later list, an earlier one posted late,
+    both, a list that leaves a member out, and one that prints a name the record cannot place."""
+    facts, wards = grow(*live_city[:2])
+    grown = (facts, wards, council.load({**CFG}, facts, wards))
+    for test in LIVE_TESTS:
+        test(grown)
+
+
 # ---------------------------------------------------------------- county (M1)
 
 def _county_plus_one_meeting():
-    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    facts = pinned_data.county_facts()
     latest = max(m["date"] for m in facts["meetings"])
     ids = {m["id"] for m in facts["meetings"] if m["date"] == latest}
     new = {**next(m for m in facts["meetings"] if m["id"] in ids), "id": "2099-01-01-formal", "date": "2099-01-01"}
@@ -178,7 +266,7 @@ def _county_plus_one_meeting():
 
 
 def test_county_seats_are_unchanged_while_seats_yml_is_current():
-    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    facts = pinned_data.county_facts()
     rows = stamp_seen(load_rows(config.SEATS_PATH), facts)
     ix = views.Index(facts, rows)
     assert ix.seats.latest == ix.latest
@@ -608,7 +696,7 @@ def test_stale_seats_are_reported_by_the_site_check_and_the_seat_check(tmp_path,
     facts, read = _county_plus_one_meeting()
     roster = site_checks.read_roster(config.SEATS_PATH)
     assert site_checks.seats_fresh_note(facts, roster).startswith(f"WARNING: seats.yml is read to {read}")
-    current = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    current = pinned_data.county_facts()
     assert not site_checks.seats_fresh_note(current, roster).startswith("WARNING")
     p = tmp_path / "facts.json"
     p.write_text(json.dumps(facts), encoding="utf-8")
@@ -637,7 +725,7 @@ def test_stale_seats_go_into_the_build_result_for_the_run_log():
     facts, read = _county_plus_one_meeting()
     ix = views.Index(facts, stamp_seen(load_rows(config.SEATS_PATH), facts))
     assert [w for w in seat_warnings(ix) if f"seats.yml is read to {read}" in w]
-    current = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    current = pinned_data.county_facts()
     assert seat_warnings(views.Index(current, stamp_seen(load_rows(config.SEATS_PATH), current))) == []
     src = (ROOT / "collector" / "__main__.py").read_text(encoding="utf-8")
     assert 'log["warnings"]' in src
@@ -649,7 +737,7 @@ def test_county_seats_csv_dates_its_open_rows_with_their_source():
     import io
 
     from collector.export import seats_csv
-    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    facts = pinned_data.county_facts()
     rows = load_rows(config.SEATS_PATH)
     out = list(csv.DictReader(io.StringIO(seats_csv(rows, facts, {}))))
     for row, r in zip(out, rows):
