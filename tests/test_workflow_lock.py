@@ -691,7 +691,11 @@ def test_no_untrusted_triggers_and_no_echoed_credentials(path):
     text = path.read_text(encoding="utf-8")
     wf = yaml.safe_load(text)
     on = wf.get("on") or wf[True]
-    assert not set(on) & {"pull_request_target", "workflow_run", "pull_request", "issue_comment"}
+    # T2 (main-protect invariant, ADR 0010): no trigger that runs a workflow on an event someone without write
+    # access can cause (V1 is false, so such a run's write token could merge into main)
+    banned = {"pull_request_target", "workflow_run", "pull_request", "issue_comment", "issues"}
+    assert not set(on) & banned, sorted(set(on) & banned)
+    assert not [t for t in on if str(t).startswith(("discussion", "pull_request_review"))], list(on)
     assert _secret_uses(wf) == (ALLOWED_SECRETS if path.name == "daily-update.yml" else [])
     for line in text.splitlines():
         s = line.strip()
@@ -2358,8 +2362,23 @@ if path == "repos/gn0sh/clarksville-records/contents/.github/workflows/daily-upd
     assert a[-2:] == ["-H", "Accept: application/vnd.github.raw"], a
     print(os.environ["MAIN_WF"])
     sys.exit(0)
+if path == "repos/gn0sh/clarksville-records/contents/.github/CODEOWNERS?ref=main":
+    assert a[-2:] == ["-H", "Accept: application/vnd.github.raw"], a
+    if os.environ.get("CO_MISSING"):
+        sys.exit(1)                        # gh: HTTP 404
+    print(os.environ.get("CO_TEXT", "# ADR 0010\\n* @gn0sh\\n/data/\\n"), end="")
+    sys.exit(0)
 jq = a[a.index("--jq") + 1]
-if path.endswith("/actions/permissions/workflow"):
+if path == "repos/gn0sh/clarksville-records/codeowners/errors?ref=main":
+    assert jq == ".errors | length", jq
+    if os.environ.get("CO_ERRORS") == "FAIL":
+        sys.exit(1)
+    print(os.environ.get("CO_ERRORS", "0"))
+elif jq == ".rules[].parameters | select(. != null) | .require_code_owner_review":
+    print(os.environ.get("OWNER", "true"))
+elif jq == ".rules[].parameters | select(. != null) | .allowed_merge_methods[]?":
+    print(os.environ.get("METHODS", "squash"))
+elif path.endswith("/actions/permissions/workflow"):
     assert jq == ".can_approve_pull_request_reviews", jq
     r2 = "true" if os.path.exists(os.environ["GH_CALLS"] + ".r2on") else os.environ.get("R2", "false")
     if r2 == "FAIL":
@@ -2385,7 +2404,8 @@ elif path.endswith("/rules/branches/main"):
 elif jq == ".enforcement":
     print("active")
 else:
-    print(os.environ.get("BYPASS", ""), end="")      # the ruleset's bypass list: empty
+    assert jq == ".bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv", jq
+    print(os.environ.get("BYPASS", "RepositoryRole\\t5\\tpull_request\\n"), end="")   # R1': the admin role, PRs only
 '''
 
 
@@ -2400,7 +2420,9 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
            "MAIN_WF": TEXT}
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
     assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
-    assert "bypass none, required approvals 0" in r.stdout and "GitHub Actions may create pull requests: true" in r.stdout
+    assert "bypass RepositoryRole:5:pull_request, required approvals 0" in r.stdout
+    assert "Code-owner review: true, merge methods: squash" in r.stdout
+    assert "GitHub Actions may create pull requests: true" in r.stdout
     assert "Auto-merge allowed: false" in r.stdout
     lines = calls.read_text().splitlines()
     # main-protect/window-start-gap: main's sha is read (and printed) BEFORE R1 (the ruleset) is written; L-b: R1
@@ -2431,10 +2453,16 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     assert all("main-ruleset.json" in c for c in lines if " -X " in f" {c}")
 
 
-@pytest.mark.parametrize("bypass", ["", "Integration\t15368\n"])
+_R1P_BYPASS = "RepositoryRole\t5\tpull_request\n"
+
+
+@pytest.mark.parametrize("bypass", [_R1P_BYPASS, "", "Integration\t15368\talways\n", "RepositoryRole\t5\talways\n",
+                                    "RepositoryRole\t4\tpull_request\n",
+                                    _R1P_BYPASS + "Integration\t15368\tpull_request\n"])
 def test_protect_main_refuses_before_main_opens_data_prs_and_flags_a_bypass(tmp_path, bypass):
     """Without the bypass, the old push job (git push to main) would fail every day: the script changes nothing until
-    main's workflow has the data PR step. A ruleset that still lists a bypass is NOT OK."""
+    main's workflow has the data PR step. ADR 0010 (R1'): the bypass is exactly the admin role (5) in pull request
+    mode; none, another actor, an extra actor or mode "always" (a direct push to main) is NOT OK."""
     bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
     bindir.mkdir()
     (bindir / "gh").write_text(_GH_STUB)
@@ -2446,7 +2474,106 @@ def test_protect_main_refuses_before_main_opens_data_prs_and_flags_a_bypass(tmp_
     assert not any(" -X " in f" {c}" for c in calls.read_text().splitlines())
     env["MAIN_WF"] = TEXT
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
-    assert (r.returncode == 0) == (bypass == ""), r.stdout
+    assert (r.returncode == 0) == (bypass == _R1P_BYPASS), r.stdout
+    if bypass != _R1P_BYPASS:
+        assert "The bypass must be exactly the admin role in pull request mode" in r.stdout
+
+
+@pytest.mark.parametrize("over,says", [
+    ({"CO_MISSING": "1"}, "Main has no .github/CODEOWNERS yet. Nothing was changed."),
+    ({"CO_ERRORS": "2"}, "GitHub lists errors in main's .github/CODEOWNERS ('2'). Nothing was changed."),
+    ({"CO_ERRORS": "FAIL"}, "GitHub lists errors in main's .github/CODEOWNERS (''). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n"}, "(it has: * @gn0sh). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n/data/ @gn0sh\n"}, "(it has: * @gn0sh|/data/ @gn0sh). Nothing was changed."),
+    ({"CO_TEXT": "/data/\n* @gn0sh\n"}, "(it has: /data/|* @gn0sh). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n/data/\n* @someone\n"}, "Nothing was changed."),
+    ({"CO_TEXT": ""}, "(it has: ). Nothing was changed."),
+])
+def test_protect_main_changes_nothing_without_a_clean_codeowners_on_main(tmp_path, over, says):
+    """ADR 0010 / T4.11.2: R1' binds only through .github/CODEOWNERS on main. If it is missing, its rules are not
+    exactly '* @gn0sh' then '/data/' (order matters: the last match wins), GitHub reports an error in it, or the error
+    list cannot be read, the script stops before reading main or writing anything."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT, **over}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 1 and says in r.stdout, r.stdout + r.stderr
+    lines = calls.read_text().splitlines()
+    assert not any(" -X " in f" {c}" for c in lines)
+    assert not any("/git/ref/heads/main" in c for c in lines) and "Main before the ruleset" not in r.stdout
+
+
+def test_protect_main_accepts_the_committed_codeowners_with_crlf(tmp_path):
+    """The file as committed (comment line included) passes, also with Windows line ends."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    text = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+    for co in (text, text.replace("\n", "\r\n")):
+        env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+               "MAIN_WF": TEXT, "CO_TEXT": co}
+        r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True,
+                           text=True)
+        assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
+
+
+@pytest.mark.parametrize("owner,methods,ok,says", [
+    ("true", "squash", True, ""),
+    ("false", "squash", False, "Code-owner review must be on"),
+    ("", "squash", False, "Code-owner review must be on"),
+    ("true", "merge\nsquash\nrebase", False, "Squash must be the only merge method"),
+    ("true", "", False, "Squash must be the only merge method"),
+])
+def test_protect_main_needs_code_owner_review_and_squash_only(tmp_path, owner, methods, ok, says):
+    """ADR 0010 (R1'): the OK check reads code-owner review on and squash as the only merge method, else NOT OK."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT, "OWNER": owner, "METHODS": methods}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert (r.returncode == 0) == ok, r.stdout + r.stderr
+    assert says in r.stdout and (("OK: main is protected" in r.stdout) == ok)
+
+
+def test_protect_main_ps1_has_the_r1_prime_checks():
+    """No PowerShell here: the .ps1 twin of the CODEOWNERS refusals and the R1' OK checks, line by line."""
+    ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
+    sh = (ROOT / "scripts" / "protect-main.sh").read_text(encoding="utf-8")
+    for text in (ps1, sh):
+        for part in ('"repos/$repo/contents/.github/CODEOWNERS?ref=main" -H \'Accept: application/vnd.github.raw\'',
+                     '"repos/$repo/codeowners/errors?ref=main" --jq \'.errors | length\'',
+                     "--jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv'",
+                     "--jq '.rules[].parameters | select(. != null) | .require_code_owner_review'",
+                     "--jq '.rules[].parameters | select(. != null) | .allowed_merge_methods[]?'",
+                     "Main has no .github/CODEOWNERS yet. Nothing was changed.",
+                     "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: ",
+                     "The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).",
+                     "Code-owner review must be on (ADR 0010).", "Squash must be the only merge method (ADR 0010)."):
+            assert part in text, part
+    assert "$coRules -ne '* @gn0sh|/data/'" in ps1 and "'^\\s*(#|$)'" in ps1
+    assert "$actors -ne 'RepositoryRole:5:pull_request'" in ps1 and "$owner -ne 'true'" in ps1
+    assert "$methods -ne 'squash'" in ps1 and "$coErrors -ne '0'" in ps1
+    # the CODEOWNERS checks come before main is read and before anything is written
+    for text, read_main in ((ps1, '$mainSha = (gh api'), (sh, 'main_sha=$(gh api')):
+        assert text.index("CODEOWNERS?ref=main") < text.index("codeowners/errors") < text.index(read_main)
+        assert text.index(read_main) < text.index("-X POST")
+    assert "-ExecutionPolicy Bypass" not in ps1.replace("never -ExecutionPolicy Bypass", "")
+
+
+def test_codeowners_text_is_pinned():
+    """ADR 0010 decision 1: every path outside data/ is owned by gn0sh; /data/ has no owner (a pattern without owners
+    leaves those files unowned), so the push job's data-only pull request needs no review."""
+    text = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+    lines = text.splitlines()
+    assert text.endswith("\n") and len(lines) == 3
+    assert lines[0].startswith("#") and "ADR 0010" in lines[0]
+    assert lines[1:] == ["* @gn0sh", "/data/"]
 
 
 @pytest.mark.parametrize("auto,approvals,ok", [("false", "0", True), ("true", "0", False), ("false", "1", False),
@@ -2525,9 +2652,17 @@ def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
 def test_protect_main_scripts_share_one_ruleset_body():
     body = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
     assert body["name"] == "main: pull request required" and body["enforcement"] == "active"
-    assert body["bypass_actors"] == []          # main-protect/actions-bypass-reopens-M1: nobody pushes main directly
+    # ADR 0010 (R1'): one bypass, the Repository admin role (5), for pull requests only: nobody pushes main directly
+    # (main-protect/actions-bypass-reopens-M1), and a non-data PR merges only by a person's bypass merge
+    assert body["bypass_actors"] == [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
     pr_rule = [r for r in body["rules"] if r["type"] == "pull_request"]
     assert len(pr_rule) == 1 and pr_rule[0]["parameters"]["required_approving_review_count"] == 0     # L-E
+    # every other parameter as GitHub returned it on 2026-11-18 (ruleset 27502319)
+    assert pr_rule[0]["parameters"] == {
+        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": False, "required_reviewers": [],
+        "require_code_owner_review": True, "require_last_push_approval": False,
+        "required_review_thread_resolution": False, "require_extra_approval_for_unattributed_changes": True,
+        "allowed_merge_methods": ["squash"]}
     assert sorted(r["type"] for r in body["rules"]) == ["deletion", "non_fast_forward", "pull_request"]
     assert body["conditions"]["ref_name"]["include"] == ["~DEFAULT_BRANCH"]
     for name in ("protect-main.ps1", "protect-main.sh"):
