@@ -127,7 +127,7 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
 
 ### T8: Named footer lines
 - Files: `config/brand.yml` (`named_lines`), `cities/brand.py` (`LOCKED`, `LEGACY_DUPLICATES` for `drift`),
-  `sitegen/views.py` (`site_context`: `footer_line`, `support_line`), `site/templates/alerts.html.j2` (read
+  `cities/brand.py` (`merge` adds `footer_line`, `support_line`; no `views.py` change), `site/templates/base.html.j2`, `site/templates/alerts.html.j2` (reads
   `site.support_line`), `tests/test_brand.py`.
 - Tests: Clarksville's `footer_line` and `support_line` equal today's text exactly; Murfreesboro's read "Daylight
   Murfreesboro is provided as a free service by" and "Daylight Murfreesboro is free and always will be, ...";

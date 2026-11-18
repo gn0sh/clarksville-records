@@ -43,7 +43,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from .fetch import (ALLOWED_HOSTS, DENIED_HOSTS, FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused,
-                    RobotsDisallowed, host_matches)
+                    RobotsDisallowed, host_denied, host_matches)
 from .store import Store
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -114,7 +114,7 @@ def allowed_url(url: str) -> bool:
     parts = urllib.parse.urlsplit(url or "")
     host = parts.hostname or ""
     return (parts.scheme == "https" and bool(host) and host_matches(host, ALLOWED_HOSTS)
-            and not host_matches(host, DENIED_HOSTS))
+            and not host_denied(host, DENIED_HOSTS))
 
 
 def _skip(url: str, label: str, reason: str) -> dict:

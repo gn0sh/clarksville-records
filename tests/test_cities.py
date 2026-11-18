@@ -130,6 +130,42 @@ def test_a_city_that_sets_a_brand_key_fails_plainly(tmp_path, line):
         registry.load_city("testville-or", root)
 
 
+def test_named_lines_fill_the_place_only_when_a_city_sets_one():
+    b = brand.load_brand()
+    assert brand.named_lines(b, None) == {} and brand.named_lines(b, "") == {}
+    got = brand.named_lines(b, "Murfreesboro")
+    assert got["footer_line"] == "Daylight Murfreesboro is provided as a free service by"
+    assert got["support_line"] == ("Daylight Murfreesboro is free and always will be, but web hosting and sending "
+                                   "email cost money. If it is useful to you, please consider supporting the project.")
+    clarksville = registry.site_settings(registry.load_city("clarksville-tn"), b)
+    assert "footer_line" not in clarksville and clarksville["support_line"] == b["support_line"]
+
+
+def test_a_new_city_with_a_place_name_gets_named_lines_in_its_settings(tmp_path):
+    s = registry.site_settings(registry.load_city("testville-or", make_root(tmp_path)), brand.load_brand())
+    assert s["footer_line"] == "Daylight Testville is provided as a free service by"
+    assert s["support_line"].startswith("Daylight Testville is free and always will be,")
+
+
+@pytest.mark.parametrize("line", ["named_lines: {footer: Other words}\n", "named_lines: Other words\n",
+                                  "site:\n  named_lines: {support: Other words}\n"])
+def test_a_city_that_sets_named_lines_fails_plainly(tmp_path, line):
+    root = make_root(tmp_path, READY_CITY + line)
+    with pytest.raises(CityError, match="named_lines.*shared brand setting"):
+        registry.load_city("testville-or", root)
+
+
+@pytest.mark.parametrize("old,new,match", [
+    ('footer: "{site_name} {place} is', 'footer: "{site_name} is', "named_lines.footer must contain"),
+    ("{site_name} {place} is free", "{site_name} {place} {other} is free", "named_lines.support may use only"),
+])
+def test_brand_file_refuses_a_bad_named_line(tmp_path, old, new, match):
+    p = tmp_path / "brand.yml"
+    p.write_text((ROOT / "config" / "brand.yml").read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
+    with pytest.raises(CityError, match=match):
+        brand.load_brand(p)
+
+
 def test_merged_settings_carry_the_brand_and_the_city():
     b = brand.load_brand()
     clarksville = registry.load_city("clarksville-tn")
@@ -172,6 +208,18 @@ def test_denied_hosts_are_never_allowed_for_any_city(tmp_path):
     for city in registry.load_all() + [registry.load_city("testville-or", make_root(tmp_path))]:
         for d in fetch.DENIED_HOSTS:
             assert not registry.may_fetch(city, d) and not registry.may_fetch(city, "www." + d), (city["slug"], d)
+
+
+def test_a_trailing_dot_host_is_never_allowed_but_a_denied_one_still_matches(tmp_path):
+    """fetch-host/trailing-dot-denied: the dot-strip widens the denied side only."""
+    clarksville = registry.load_city("clarksville-tn")
+    assert registry.may_fetch(clarksville, "montgomerytn.gov") and registry.may_fetch(clarksville, "www.montgomerytn.gov")
+    assert not registry.may_fetch(clarksville, "montgomerytn.gov.") and not registry.may_fetch(clarksville, "WWW.MONTGOMERYTN.GOV.:443")
+    for city in registry.load_all() + [registry.load_city("testville-or", make_root(tmp_path))]:
+        for host in registry.allowed_hosts(city):
+            assert registry.may_fetch(city, host) and not registry.may_fetch(city, host + "."), (city["slug"], host)
+        for d in fetch.DENIED_HOSTS:
+            assert not registry.may_fetch(city, d + ".") and not registry.may_fetch(city, "www." + d + "."), d
 
 
 @pytest.mark.parametrize("host", ["cityofclarksville.com", "www.cityofclarksville.com", "dev2.montgomerytn.gov"])

@@ -14,11 +14,18 @@ DENIED_HOSTS = ("cityofclarksville.com", "dev2.montgomerytn.gov")
 
 
 def host_matches(host: str, names) -> bool:
-    """True when `host` (a port is ignored) is one of `names` or a subdomain of one. The one host rule: the fetcher's
-    allowlist and denied list use it, and so does any adapter that filters links before asking the fetcher. One
-    trailing dot (the DNS root, "cityofclarksville.com.") is the same host (fetch-host/trailing-dot-denied)."""
-    host = _no_root_dot(host.lower().split(":")[0])
-    return any(host == n or host.endswith("." + n) for n in map(_no_root_dot, names))
+    """True when `host` (a port is ignored) is one of `names` or a subdomain of one. The one host rule for every
+    ALLOW check: the fetcher's allowlist, the city registry and any adapter that filters links before asking the
+    fetcher. Exact: a trailing dot ("montgomerytn.gov.") is not a listed name, so it never matches an allowlist
+    (fetch-host/trailing-dot-denied). Denied lists use host_denied."""
+    host = host.lower().split(":")[0]
+    return any(host == n or host.endswith("." + n) for n in names)
+
+
+def host_denied(host: str, names) -> bool:
+    """host_matches for a DENIED list: one trailing dot (the DNS root, "cityofclarksville.com.") is the same host, so
+    it can't dodge the list. Only this side widens; an allow check never does (fetch-host/trailing-dot-denied)."""
+    return host_matches(_no_root_dot(host.lower().split(":")[0]), map(_no_root_dot, names))
 
 
 def _no_root_dot(name: str) -> str:
