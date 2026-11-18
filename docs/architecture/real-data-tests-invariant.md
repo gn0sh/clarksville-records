@@ -60,8 +60,9 @@ fail on growth, with the snapshot keeping the specific check: `test_cz_01_2024_a
 call-ons on pinned only), and the transcript-privacy needle (any item title long enough, not `items[0]`).
 
 **Enforced in the suite, not only here.** `tests/test_city_seats.py::test_the_live_tests_hold_on_any_valid_growth`
-runs every live seat test on five kinds of growth of the live data (a later list; an earlier list posted late, as
-hit 2; both; a later list leaving a member out; a later list printing a name the record cannot place), as
+runs every live seat test on eight kinds of growth of the live data, covering I-live 1-3 (a later list; an earlier
+list posted late, as hit 2; both; a later list leaving a member out; a later list printing a name the record cannot
+place; three new members; a later list that prints wards again; new members then printed wards), as
 `test_city_verify_data.py::test_a_new_council_meeting_in_the_live_facts_fails_none_of_these_tests` already does for
 its module. A new live seat test is added to `LIVE_TESTS` and so proven against growth on every run.
 
@@ -71,9 +72,11 @@ Only by a deliberate pull request: check out the commit whose data the pinned te
 same PR. Never re-pin to make a daily update pass.
 
 ### Residual risks
-- **Privacy scrub.** The snapshot holds published records only (what `data/` publishes), but `qa/pii_scan.py` cannot
-  read gzip. A scrub of `data/` (e.g. `tools/scrub_rpc_phones.py`) must re-pin the snapshot in the same PR. Mitigation:
-  the snapshot holds no RPC file and no transcript (the two sources the privacy work masks).
+- **Privacy scrub.** The snapshot holds published records only (what `data/` publishes). `qa/pii_scan.py` reads
+  tracked `*.json.gz` by decompressing it (review finding privacy/pii-scan-gzip-blind; an unreadable one is refused,
+  never skipped), so a leaked span in the snapshot is a hit like any other. A scrub of `data/` (e.g.
+  `tools/scrub_rpc_phones.py`) must still re-pin the snapshot in the same PR. The snapshot holds no RPC file and no
+  transcript (the two sources the privacy work masks).
 - **Pinned tests no longer see a regression that only today's data shows.** That is the I-live tests' job, and the
   site checks' (`qa/site_checks.py`, run in the update job before the tests).
 - **A test added later that reads `data/`.** The consumer list below is the review checklist: a reviewer classifies
@@ -97,8 +100,10 @@ scope and passed the growth run below unchanged.
 
 | module | consumer (fixture, helper or test) | reads | class |
 |---|---|---|---|
-| test_city_seats.py | `live_city` → the 4 tests of the latest list, ward carry-on, Served previously, latest minutes read | city facts, wards | L |
-| test_city_seats.py | `test_the_live_tests_hold_on_any_valid_growth` (new: runs those 4 on 5 kinds of growth) | city facts, wards | L |
+| test_city_seats.py | `live_city` → the 4 tests of the latest list, ward carry-on, Served previously, latest minutes read (non-vacuity derived from the data: a holder is required only where a latest-list member has a ward print, a carried vote only where a verified roll call follows the last print) | city facts, wards | L |
+| test_city_seats.py | the same two rules' counts on `real_city`: 10 or more wards held, some vote carried | city facts, wards | P |
+| test_city_seats.py | `test_the_live_tests_hold_on_any_valid_growth` (runs those 4 on 8 kinds of growth) | city facts, wards | L |
+| test_city_seats.py | `test_every_district_has_a_holder_on_the_live_county_facts` (and with one more meeting) | county facts | L |
 | test_city_seats.py | `real_city` (pinned), `_at`, `_until`, `_cut`, `_next_list` → 9 city tests (McLaughlin 2026-02-05, Zacharias 2026-06-04, the 07-06 list as printed and corrected, seats CSV, site-check names, Ward 2 seating) | city facts, wards | P |
 | test_city_seats.py | `_county_plus_one_meeting` and 5 more county tests (seats.yml current, district page agrees, stale-seat warnings, seats CSV printed_last) | county facts | P |
 | test_council_pages.py | `city_facts`, `city_wards` (`pinned_subset()`: 5 historical meetings) → the council fixture site, also imported by test_about_owner, test_body_switch, test_trust_pages, test_mobile_front_lite, test_watch, test_your_seats (about 60 tests) | city facts, wards | P |
@@ -116,6 +121,7 @@ scope and passed the growth run below unchanged.
 | test_city_budget_pages.py | `pinned_pages`, `pinned_fin` → books listed (FY2027 as presented 5/29/2026, FY2025 linked only), FY2027 proposed, report-date columns, amounts and source page, the books phrase's wording | city finance, county and city facts | P |
 | test_budget_pages.py | `test_real_trustee_note_text` (line fy2027-approved/p47/r37) | county finance | P |
 | test_map_seats.py | `test_committed_seats_pass_the_seat_check`, `..._after_one_new_meeting` | county facts | P |
+| test_map_seats.py | `test_committed_seats_pass_the_seat_check_on_the_live_facts_they_are_read_to` (seat_check on the roll calls up to `read_to`; a later meeting with an unknown voter is outside it) | county facts | L |
 | test_independent_readings.py | `test_cz_01_2024_applicant_is_null_in_the_committed_facts` (rewritten: no CZ-01-2024 published with an applicant; the pin proves it is not vacuous) | county facts | L + P |
 | test_city_verify_data.py | `snapshot()` → counts, digests, D1, Claunch record | city facts at a605d25 | P (already) |
 | test_city_verify_data.py | `facts()`, `live_wards()` → Claunch configured once, every snapshot meeting and verified vote kept; its own growth self-test | city facts, wards | L |
@@ -131,9 +137,10 @@ scope and passed the growth run below unchanged.
 | test_topic_typing.py | every numbered ordinance and resolution typed | county and city facts | L |
 | test_committees_daily.py | the committees files are tracked JSON | git ls-files data/…/committees | L |
 
-Counts: 33 consumers: 19 L, 12 P (11 moved by this change, 1 already pinned), 2 split into a live rule and a pinned
-check (the call-on rule, CZ-01-2024). By tests: 15 in test_city_seats.py, 5 in test_city_budget_pages.py, 6 more named
+Counts: 36 consumers: 21 L, 13 P (12 moved by this change, 1 already pinned), 2 split into a live rule and a pinned
+check (the call-on rule, CZ-01-2024). By tests: 17 in test_city_seats.py, 5 in test_city_budget_pages.py, 6 more named
 tests, about 60 on the council fixture site and about 30 on the transcript fixtures now read the pinned snapshot.
+(Review of PR #34 added the derived non-vacuity, the two live guards and three growth cases.)
 
 ## Proof
 Run 2026-11-18 on a shared, loaded machine (CI runs the suite in about 15 minutes).
@@ -160,4 +167,7 @@ machine; the module passes alone on both trees (84 passed).
 ## Follow-up
 - `collector/tests/` reads `data/` in 13 modules (shrink guards, run, verify, finance, committees, one-vote,
   provenance). They passed every real daily run so far; classify them against I-live/I-pin the next time any of them is
-  touched, or at once on a hit there (owner: backend-engineer).
+  touched, or at once on a hit there (owner: backend-engineer). The code review of PR #34 judged them safe (the
+  writers rewrite `data/`) and flagged named records to derive or pin: `test_shrink_guard.py:26` (BOOK
+  src-7325525d58ca), `test_one_vote.py:245` (rc-90320418-p138-*), `test_city_shrink_guard.py:494/507`
+  (`2026-01-06-executive` must stay agenda-only, more than 100 agenda-only meetings: posting those minutes fails it).

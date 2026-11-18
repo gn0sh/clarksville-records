@@ -130,16 +130,31 @@ def real_city():
     return facts, wards, council.load({**CFG}, facts, wards)
 
 
-def test_every_member_in_the_latest_attendance_list_holds_their_last_printed_ward(live_city):
-    """QA finding 1: all 12 wards read "Current member not yet recorded" while the 2026 lists name the members."""
-    facts, wards, cix = live_city
+def _latest_holders(data) -> dict:
+    """Every member the latest list names and whose last prints agree on a ward holds it, current; returns them."""
+    facts, wards, cix = data
     expected = site_checks.expected_ward_holders(wards, facts)
-    assert len(expected) >= 10
     seats = {s["seat"]: s for s in council.seat_list(cix)}
     for ward, oid in expected.items():
         assert seats[f"ward-{ward}"]["holder"] is not None, ward
         assert seats[f"ward-{ward}"]["holder"]["href"] == cix.official_href(oid)
         assert cix.seats.is_current(oid)
+    return expected
+
+
+def test_every_member_in_the_latest_attendance_list_holds_their_last_printed_ward(live_city):
+    """QA finding 1: all 12 wards read "Current member not yet recorded" while the 2026 lists name the members.
+    real-data-tests/live-floor-count: on the live data the rule is never vacuous where the data says it applies (a
+    member of the latest list has a ward print); the count (10 or more) is checked on the pinned data."""
+    facts, wards, _ = live_city
+    expected = _latest_holders(live_city)
+    _, named, _ = site_checks.latest_listed(facts, wards)
+    if any(w["ward"] is not None and w["official_id"] in named for w in wards):
+        assert expected
+
+
+def test_the_pinned_latest_list_seats_ten_wards_or_more(real_city):
+    assert len(_latest_holders(real_city)) >= 10
 
 
 def test_the_latest_minutes_read_is_the_latest_attendance_list(live_city):
@@ -159,9 +174,10 @@ def test_no_one_listed_at_the_latest_minutes_is_served_previously(live_city):
     assert not listed & {c["id"] for c in previous["cards"]}
 
 
-def test_a_confirmed_vote_after_the_last_ward_print_carries_the_ward(live_city):
-    """H3: the seat beside a confirmed 2026 vote read "seat not recorded"."""
-    facts, wards, cix = live_city
+def _votes_after_print(data) -> tuple[int, bool]:
+    """(votes checked, whether any verified roll call is dated after the last ward print): every confirmed vote after
+    the last print by a member who holds a ward carries that ward."""
+    facts, wards, cix = data
     last_print = max(w["date"] for w in wards if w["ward"] is not None)
     dates = {m["id"]: m["date"] for m in facts["meetings"]}
     expected = {oid: ward for ward, oid in site_checks.expected_ward_holders(wards, facts).items()}
@@ -173,7 +189,21 @@ def test_a_confirmed_vote_after_the_last_ward_print_carries_the_ward(live_city):
                 if v.get("official_id") in expected:
                     n += 1
                     assert cix.seats.on(v["official_id"], d) == f"Ward {expected[v['official_id']]}"
-    assert n
+    after = any(dates[rc["meeting_id"]] > last_print and views.is_verified(rc) for rc in facts["roll_calls"])
+    return n, after
+
+
+def test_a_confirmed_vote_after_the_last_ward_print_carries_the_ward(live_city):
+    """H3: the seat beside a confirmed 2026 vote read "seat not recorded". real-data-tests/live-vote-after-print: on
+    the live data some vote is checked only when a verified roll call is dated after the last ward print (a later list
+    that prints wards moves the last print to it); on the pinned data, always."""
+    n, after = _votes_after_print(live_city)
+    if after:
+        assert n
+
+
+def test_a_confirmed_vote_after_the_last_ward_print_carries_the_ward_on_the_pinned_data(real_city):
+    assert _votes_after_print(real_city)[0]
 
 
 LIVE_TESTS = (test_every_member_in_the_latest_attendance_list_holds_their_last_printed_ward,
@@ -187,26 +217,50 @@ def _lists(facts) -> list:
                   key=lambda m: m["date"])
 
 
-def _add_list(facts, wards, like, date, keep=lambda a: True, rename=None, roll_calls=True):
+def _add_list(facts, wards, like, date, keep=lambda a: True, rename=None, roll_calls=True, replace=None,
+              print_wards=False):
     """`like`'s attendance list (and its wards rows, and its roll calls when `roll_calls`) again as a new meeting on
-    `date`: the members `keep` lets through, and `rename` = (official id, printed name) printed as a name the record
-    cannot place."""
+    `date`: the members `keep` lets through, `rename` = (official id, printed name) printed as a name the record
+    cannot place, `replace` = {official id: new member's id} new members in those places (added to the officials,
+    their votes too), and with `print_wards` the list printing each member's last printed ward."""
     facts, wards = json.loads(json.dumps(facts)), json.loads(json.dumps(wards))
+    replace = replace or {}
     mid = f"{date}-grown"
+    for old, new in replace.items():
+        o = next(o for o in facts["officials"] if o["id"] == old)
+        sur = new.rsplit("-", 1)[-1].capitalize()
+        facts["officials"].append({**{k: v for k, v in o.items() if k != "name_source"}, "id": new, "aliases": [],
+                                   "given": "Grown", "surname": sur, "name": f"Grown {sur}"})
     att = []
     for a in like["attendance"]:
         if not keep(a):
             continue
         if rename and a.get("official_id") == rename[0]:
             a = {**a, "official_id": None, "raw_name": rename[1]}
+        if a.get("official_id") in replace:
+            new = replace[a["official_id"]]
+            a = {**a, "official_id": new, "raw_name": new.rsplit("-", 1)[-1].upper()}
         att.append(a)
     facts["meetings"].append({**like, "id": mid, "date": date, "attendance": att})
-    gone = {a["official_id"] for a in like["attendance"]} - {a["official_id"] for a in att}
-    wards += [{**w, "date": date, "meeting_id": mid} for w in wards
-              if w["meeting_id"] == like["id"] and w["official_id"] not in gone]
+    gone = {a["official_id"] for a in like["attendance"]} - {a["official_id"] for a in att} - set(replace)
+    printed = {}
+    for w in sorted(wards, key=lambda w: w["date"]):
+        if w["ward"] is not None:
+            printed[w["official_id"]] = w["ward"]
+    for w in [w for w in wards if w["meeting_id"] == like["id"] and w["official_id"] not in gone]:
+        oid = replace.get(w["official_id"], w["official_id"])
+        row = {**w, "date": date, "meeting_id": mid, "official_id": oid}
+        if oid in replace.values():
+            row.update(raw_name=oid.rsplit("-", 1)[-1].upper(), ward=None)
+            row.pop("reads", None)
+        elif print_wards:
+            row["ward"] = printed.get(oid)
+        wards.append(row)
     if roll_calls:
-        facts["roll_calls"] += [{**rc, "id": f"{rc['id']}-grown", "meeting_id": mid} for rc in facts["roll_calls"]
-                                if rc["meeting_id"] == like["id"]]
+        facts["roll_calls"] += [{**rc, "id": f"{rc['id']}-grown", "meeting_id": mid,
+                                 "votes": [{**v, "official_id": replace.get(v.get("official_id"), v.get("official_id"))}
+                                           for v in rc["votes"]]}
+                                for rc in facts["roll_calls"] if rc["meeting_id"] == like["id"]]
     return facts, wards
 
 
@@ -241,12 +295,30 @@ def _unplaced(facts, wards):
     return _add_list(facts, wards, like, "2099-01-07", rename=(oid, "QQZ"), roll_calls=False)
 
 
-@pytest.mark.parametrize("grow", [_later, _earlier, lambda f, w: _earlier(*_later(f, w)), _cut_off, _unplaced],
-                         ids=["later", "earlier", "earlier-and-later", "cut-off", "unplaced"])
+def _new_members(facts, wards):
+    """A later list (with its roll calls) where three new members sit in the places of three members of the latest
+    list (an election): never printed in a ward, so no ward is expected of them."""
+    like = _lists(facts)[-1]
+    mayors = {o["id"] for o in facts["officials"] if o["title"] == "Mayor"}
+    olds = [a["official_id"] for a in like["attendance"] if a.get("official_id") and a["official_id"] not in mayors][:3]
+    return _add_list(facts, wards, like, "2099-01-07",
+                     replace={o: f"city-grown-new{i}" for i, o in enumerate(olds, 1)})
+
+
+def _prints_wards(facts, wards):
+    """A later list (with its roll calls) that prints each member's ward again, as the lists did before 2025-04."""
+    return _add_list(facts, wards, _lists(facts)[-1], "2099-01-08", print_wards=True)
+
+
+@pytest.mark.parametrize("grow", [_later, _earlier, lambda f, w: _earlier(*_later(f, w)), _cut_off, _unplaced,
+                                  _new_members, _prints_wards, lambda f, w: _prints_wards(*_new_members(f, w))],
+                         ids=["later", "earlier", "earlier-and-later", "cut-off", "unplaced", "new-members",
+                              "later-list-prints-wards", "new-members-then-printed-wards"])
 def test_the_live_tests_hold_on_any_valid_growth(live_city, grow):
     """real-data-tests/ I-live (docs/architecture/real-data-tests-invariant.md): every test above that reads data/ as
-    collected passes on what a daily update may legitimately add to it: a later list, an earlier one posted late,
-    both, a list that leaves a member out, and one that prints a name the record cannot place."""
+    collected passes on what a daily update may legitimately add to it (I-live 1-3): a later list, an earlier one
+    posted late, both, a list that leaves a member out, one that prints a name the record cannot place, three new
+    members, and a later list that prints wards again."""
     facts, wards = grow(*live_city[:2])
     grown = (facts, wards, council.load({**CFG}, facts, wards))
     for test in LIVE_TESTS:
@@ -272,6 +344,21 @@ def test_county_seats_are_unchanged_while_seats_yml_is_current():
     assert ix.seats.latest == ix.latest
     assert all(r["current"] for r in ix.seats.records if r["end"] is None)
     assert sum(1 for d in views.district_rows(ix) if d["holder_href"]) == config.SITE["district_count"]
+
+
+def test_every_district_has_a_holder_on_the_live_county_facts():
+    """real-data-tests/live-guard-lost (I-live): on the county facts as this run collected them, and with one more
+    meeting after them, every district shows its holder (a meeting collected after seats.yml never empties one)."""
+    live = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    latest = max(m["date"] for m in live["meetings"])
+    ids = {m["id"] for m in live["meetings"] if m["date"] == latest}
+    new = {**next(m for m in live["meetings"] if m["id"] in ids), "id": "2099-01-01-formal", "date": "2099-01-01"}
+    grown = {**live, "meetings": [*live["meetings"], new], "roll_calls": [
+        *live["roll_calls"], *({**rc, "id": rc["id"] + "-new", "meeting_id": new["id"], "page": 9999}
+                               for rc in live["roll_calls"] if rc["meeting_id"] in ids)]}
+    for facts in (live, grown):
+        ix = views.Index(facts, stamp_seen(load_rows(config.SEATS_PATH), facts))
+        assert sum(1 for d in views.district_rows(ix) if d["holder_href"]) == config.SITE["district_count"]
 
 
 def test_a_new_county_meeting_never_dates_an_open_row_past_its_last_page():

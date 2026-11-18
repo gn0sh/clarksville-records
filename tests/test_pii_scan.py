@@ -162,3 +162,39 @@ def test_a_merged_span_holding_a_public_place_and_another_number_is_a_hit(tmp_pa
     assert code == 1 and "HIT tracked:notes.md:2" in text
     assert "PUBLIC tracked:office.md:1" in text and "(1 more public)" in text
     assert pii_scan.PUBLIC_PLACES[1] not in text.lower()
+
+
+def test_a_tracked_gzip_is_scanned_by_decompressing_it(tmp_path):
+    """privacy/pii-scan-gzip-blind: the pinned test data is gzip (tests/fixtures/real-data-*.json.gz); an address in a
+    tracked *.json.gz is a hit by path and line, never its text, and a clean one is scanned and counted."""
+    import gzip
+    repo, raw, _ = _setup(tmp_path, {"a.md": "nothing\n"})
+    fx = repo / "tests" / "fixtures"
+    fx.mkdir(parents=True)
+    (fx / "leak.json.gz").write_bytes(gzip.compress(
+        json.dumps({"x": 1}).encode() + b"\n" + json.dumps({"note": f"lives at {ADDRESS}"}).encode(), mtime=0))
+    (fx / "clean.json.gz").write_bytes(gzip.compress(b'{"title": "Zoning case"}', mtime=0))
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    out = io.StringIO()
+    assert pii_scan.scan(raw, None, root=repo, out=out) == 1
+    text = out.getvalue()
+    assert "HIT tracked:tests/fixtures/leak.json.gz:2" in text and "clean.json.gz" not in text
+    assert "418" not in text and "example court" not in text.lower()
+    assert "scanned 3 tracked files" in text                       # a.md and both gzip files
+
+
+def test_a_tracked_gzip_that_cannot_be_read_is_refused_not_skipped(tmp_path):
+    repo, raw, _ = _setup(tmp_path, {"a.md": "nothing\n"})
+    (repo / "bad.json.gz").write_bytes(b"not gzip at all")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    with pytest.raises(pii_scan.ScanError, match="bad.json.gz: not a readable gzip"):
+        pii_scan.scan(raw, None, root=repo, out=io.StringIO())
+
+
+def test_the_committed_pinned_data_is_readable_by_the_scan():
+    from conftest import ROOT
+    gz = sorted((ROOT / "tests" / "fixtures").glob("*.json.gz"))
+    assert gz
+    for p in gz:
+        body = pii_scan._read(p)
+        assert pii_scan._is_gzip(p) and body is not None and body.lstrip().startswith("{"), p.name

@@ -143,6 +143,30 @@ def test_committed_seats_pass_the_seat_check(rows):
     assert seat_check.check(facts, rows, roster) == []
 
 
+def _read_for_seats(facts: dict, rows) -> dict:
+    """The facts up to the meeting seats.yml is read to (seat_check.read_to): what seats.yml claims to cover."""
+    to = seat_check.read_to(facts, rows)
+    keep = {m["id"] for m in facts["meetings"] if m["date"] <= to}
+    return {**facts, "meetings": [m for m in facts["meetings"] if m["id"] in keep],
+            "roll_calls": [rc for rc in facts["roll_calls"] if rc["meeting_id"] in keep]}
+
+
+def test_committed_seats_pass_the_seat_check_on_the_live_facts_they_are_read_to(rows):
+    """real-data-tests/live-guard-lost (I-live): on the county facts as this run collected them, every vote up to the
+    meeting seats.yml is read to falls in exactly one seat, no seat's records overlap, and every open record is seen
+    there. A meeting collected after it is the stale-seats WARNING's case (site checks), never a failure here."""
+    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    roster = yaml.safe_load((LOCALITY / "roster-current.yml").read_text(encoding="utf-8"))
+    assert seat_check.check(_read_for_seats(facts, rows), rows, roster) == []
+    # and on growth: a later meeting with a voter seats.yml does not know is outside what it is read to
+    latest = max(m["date"] for m in facts["meetings"])
+    new = {**next(m for m in facts["meetings"] if m["date"] == latest), "id": "2099-01-01-formal", "date": "2099-01-01"}
+    rc = {**facts["roll_calls"][-1], "id": "rc-grown", "meeting_id": new["id"],
+          "votes": [{"official_id": "county-grown-new", "value": "yes"}]}
+    grown = {**facts, "meetings": [*facts["meetings"], new], "roll_calls": [*facts["roll_calls"], rc]}
+    assert seat_check.check(_read_for_seats(grown, rows), rows, roster) == []
+
+
 def test_committed_seats_pass_the_seat_check_after_one_new_meeting(rows):
     """M1 pipeline/seats-stale-on-new-county-meeting, on the committed data: the latest meeting repeated a month
     later (the same voters, roll calls not read for seats). The check still passes; the site words every open row to
