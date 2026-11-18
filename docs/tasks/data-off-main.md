@@ -182,7 +182,11 @@ with its readers), and the workflow re-enabled. Every step prints what it did, a
 command.
 Done when a stub-`gh` dry run walks every step in this order and the rollback, and tests show step 1 and
 `--rollback` refusing with each variable set and with a 403 on the variables read, and step 3 stopping on a seed
-that holds a `transcripts/` folder, `data/maps/` or a phone in an RPC location.
+that holds a `transcripts/` folder, `data/maps/` or a phone in an RPC location. Also (B1 review
+main-protect/data-test-breaks-at-cutover): step 7's run passes the update job's `python -m pytest -q -x` on S+D,
+where the tests that read collector output take it from the `data/` folder on disk, never `git ls-files` or
+`git ls-tree HEAD -- data` (`tests/test_data_shape.py::test_data_on_disk_holds_only_collector_output`,
+`tests/test_committees_daily.py`, `qa/pii_scan.py`); on a checkout with an empty `data/` they fail, not pass.
 
 ## S1: security review
 Fresh review of the B1-D3 milestone (B1b included) at one sha, against I-main'', I-prov, I-pub, I-in, T1-T8 and

@@ -131,7 +131,8 @@ def test_transcript_record_prefers_the_minutes_pdf_then_the_council_record():
 @pytest.fixture(scope="module")
 def tx_site(tmp_path_factory, city_dir):
     d, sub = city_dir
-    cfg = {**TX_CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json"}
+    cfg = {**TX_CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json",
+           "transcripts_path": d / "transcripts"}
     out = tmp_path_factory.mktemp("txsite") / "build" / "site"
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, councils=[cfg])
     return out, sub

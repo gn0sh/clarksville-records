@@ -22,6 +22,7 @@ from sitegen.build import build
 
 CITY = ROOT / "data" / "localities" / "clarksville-tn"
 CFG = config.load_council("clarksville-tn")
+TX_DIR = ROOT / "config" / "localities" / "clarksville-tn" / "transcripts"   # I-in: transcripts are config
 MEETING = "2026-02-05-regular"       # minutes read, attendance shown, video on CivicClerk
 HOSTILE = '<script>alert(1)</script> "quoted" & <b>bold</b> <a href="javascript:x">x</a>'
 
@@ -224,13 +225,13 @@ def test_import_removes_transcripts_that_no_longer_match(tmp_path):
 
 def test_committed_transcripts_match_their_meetings():
     facts = live_city_facts()
-    loaded = tx.load(CITY / "facts.json", facts)
+    loaded = tx.load(TX_DIR, facts)
     assert loaded, "at least one transcript is committed"
     by_id = {m["id"]: m for m in facts["meetings"]}
     for mid, t in loaded.items():
         assert t["video_url"] == by_id[mid]["video_url"]
     # every committed file passes the importer's own check, the event listing included
-    files = [p for p in (CITY / "transcripts").glob("*.json") if p.name != "index.json"]
+    files = [p for p in TX_DIR.glob("*.json") if p.name != "index.json"]
     assert len(files) == len(loaded) == 17
     for p in files:
         assert ctx.stale(json.loads(p.read_text(encoding="utf-8")), by_id, LISTING) is None, p.name
@@ -415,7 +416,7 @@ def test_every_resolved_call_on_is_on_the_meetings_own_shown_attendance(data):
     cix = council.load(CFG, facts, wards)
     m = cix.meetings[MEETING]
     t = {"meeting_id": MEETING, "video_url": m["video_url"], "segments": segs()}
-    cix.tx = tx.Transcripts(cix, {**tx.load(CITY / "facts.json", facts), MEETING: t})
+    cix.tx = tx.Transcripts(cix, {**tx.load(TX_DIR, facts), MEETING: t})
     for mid, calls in cix.tx.call_ons.items():
         meet = cix.meetings[mid]
         for d in calls:
@@ -457,7 +458,8 @@ def city_dir(tmp_path_factory):
 @pytest.fixture(scope="module")
 def built(tmp_path_factory, city_dir):
     d, sub = city_dir
-    cfg = {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json"}
+    cfg = {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json",
+           "transcripts_path": d / "transcripts"}
     out = tmp_path_factory.mktemp("site") / "build" / "site"
     result = build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, councils=[cfg])
     return out, result, cfg, sub

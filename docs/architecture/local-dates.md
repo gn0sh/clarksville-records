@@ -7,7 +7,8 @@ calendar day of the instant; stored timestamps stay UTC; meeting dates are civil
 
 - Each collector manifest row has `first_fetched_at`, a full UTC instant (`2026-11-10T04:38:00+00:00`), per
   (url, sha256). Manifests: `data/manifest.json` (county minutes, finance), `data/county-agendas/manifest.json`,
-  `data/localities/clarksville-tn/manifest.json`, `data/localities/cmc-rpc/manifest.json`, `data/maps/manifest.json`.
+  `data/localities/clarksville-tn/manifest.json`, `data/localities/cmc-rpc/manifest.json`, `config/maps/manifest.json`
+  (a reviewed input since B1b, I-in; the full list is `config/site.yml` `fetch_manifests`).
 - Each facts file's source record has `fetched_at` = `first_fetched_at[:10]`, the **UTC day** (collector/facts.py,
   city_build.py, county_agenda.py, rpc_agenda.py, fin_facts.py). A UTC day alone cannot be converted: a fetch at
   22:38 in Clarksville (04:38Z) is stored as the next day.

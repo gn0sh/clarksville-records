@@ -1,10 +1,11 @@
 """Out-of-repo leak scan (qa/pii_scan.py, privacy/transcript-private-addresses row 14).
 
 Rules under test: needles are the spans the masker would mask in raw transcripts read from a folder outside the
-repo; every tracked file (and an optional built site) is scanned case-insensitively with whitespace folded; the output
-names path:line and counts only, never the matched text; a --raw folder inside the repo is refused; nothing is
-written; a needle is public, not a hit, only as a whole token in a named public field (RPC case location, agenda item
-title) or as exactly a listed public building.
+repo; every tracked file outside data/, every file of the data/ tree on disk (not git's index: it is off main, ADR
+0011 row LS; an empty data/ is refused) and an optional built site are scanned case-insensitively with whitespace
+folded; the output names path:line and counts only, never the matched text; a --raw folder inside the repo is
+refused; nothing is written; a needle is public, not a hit, only as a whole token in a named public field (RPC case
+location, agenda item title) or as exactly a listed public building.
 All values are synthetic."""
 import io
 import json
@@ -18,14 +19,20 @@ ADDRESS = "418 Example Court"
 PHONE = "931-555-0142"
 
 
-def _git_repo(path, files: dict[str, str]):
+def _git_repo(path, files: dict[str, str], data: dict[str, str] | None = None):
+    """A repo with `files` tracked, plus `data` written to disk untracked (the fetched data/ tree; one clean
+    collector file when not given, since the scan refuses an empty data/)."""
     path.mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(path)], check=True)
+    for rel, text in {"data/facts.json": "{}\n", **(data or {})}.items():
+        (path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (path / rel).write_text(text, encoding="utf-8")
     for rel, text in files.items():
         p = path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
     subprocess.run(["git", "-C", str(path), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(path), "rm", "-q", "-r", "--cached", "--ignore-unmatch", "data"], check=True)
     return path
 
 
@@ -103,8 +110,8 @@ def test_source_data_and_public_places_are_public_not_hits(tmp_path):
     out = io.StringIO()
     code = pii_scan.scan(raw, None, root=repo, out=out)
     text = out.getvalue()
-    assert "PUBLIC tracked:data/rpc.json:1" in text and "PUBLIC tracked:fixtures/page.html:1" in text
-    assert "HIT tracked:data/t/transcripts/x.json:1" in text and code == 1    # a transcript file is never source data
+    assert "PUBLIC data:data/rpc.json:1" in text and "PUBLIC tracked:fixtures/page.html:1" in text
+    assert "HIT data:data/t/transcripts/x.json:1" in text and code == 1    # a transcript file is never source data
     assert "sample road" not in text.lower() and pii_scan.PUBLIC_PLACES[1] not in text.lower()
 
 
@@ -135,7 +142,7 @@ def test_raw_text_copied_into_a_data_file_is_a_hit_not_public(tmp_path):
     code, text = _scan_lines(tmp_path, files, RAW_LINES)
     assert code == 1
     for rel in ("data/notes.json", "data/rpc.json", "data/facts.json"):
-        assert f"HIT tracked:{rel}:1" in text, rel
+        assert f"HIT data:{rel}:1" in text, rel
     assert "1 more public" in text                      # the case location still clears its own needle
     assert "418" not in text and "example court" not in text.lower()
 
@@ -150,7 +157,7 @@ def test_a_public_location_clears_whole_tokens_only(tmp_path):
     code, text = _scan_lines(tmp_path, files, ["My address is 10 Sample Lane.", RAW_LINES[3]])
     assert code == 1 and "HIT tracked:notes.md:2" in text
     assert "0 text needles" not in text and "(1 more public)" in text   # the agenda title clears 1100 only
-    assert "PUBLIC tracked:data/county-agendas/agendas.json:1" in text
+    assert "PUBLIC data:data/county-agendas/agendas.json:1" in text
     assert "sample lane" not in text.lower() and "sample road" not in text.lower()
 
 
@@ -198,3 +205,64 @@ def test_the_committed_pinned_data_is_readable_by_the_scan():
     for p in gz:
         body = pii_scan._read(p)
         assert pii_scan._is_gzip(p) and body is not None and body.lstrip().startswith("{"), p.name
+
+
+# ------------------------------------------------------------- B1b row LS: data/ is read on disk, never from git's index
+
+def test_an_empty_data_tree_is_refused_not_passed(tmp_path):
+    """After the cutover git lists no data/: a scan of a checkout without fetched data must fail, not pass silently."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / "a.md").write_text("nothing\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    raw = _raw(tmp_path / "outside" / "raw", RAW_LINES)
+    with pytest.raises(pii_scan.ScanError, match="data/ holds no collector output"):
+        pii_scan.scan(raw, None, root=repo, out=io.StringIO())
+    (repo / "data" / "store").mkdir(parents=True)                       # only a cache: still empty
+    (repo / "data" / "store" / "x.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(pii_scan.ScanError, match="data/ holds no collector output"):
+        pii_scan.scan(raw, None, root=repo, out=io.StringIO())
+
+
+def test_a_needle_planted_in_a_fetched_data_file_is_found(tmp_path):
+    """A data/ file git does not track (filled by fetch-data from records-data) is scanned; the caches are not."""
+    data = {"data/localities/x/facts.json": json.dumps({"meetings": [{"note": f"lives at {ADDRESS}"}]}),
+            "data/text/abc.txt": f"public text layer {ADDRESS}\n"}
+    repo = _git_repo(tmp_path / "repo", {"a.md": "nothing\n"}, data=data)
+    raw = _raw(tmp_path / "outside" / "raw", RAW_LINES)
+    listed = subprocess.run(["git", "-C", str(repo), "ls-files"], capture_output=True, text=True, check=True).stdout
+    assert "data/" not in listed
+    out = io.StringIO()
+    assert pii_scan.scan(raw, None, root=repo, out=out) == 1
+    text = out.getvalue()
+    assert "HIT data:data/localities/x/facts.json:1" in text
+    assert "data/text/" not in text and "scanned 1 tracked files, 2 data files" in text
+    assert "418" not in text and "example court" not in text.lower()
+
+
+def test_a_tracked_data_file_is_scanned_once(tmp_path):
+    """Before the cutover data/ is still tracked: it is read from disk once, not again as a tracked file."""
+    repo = _git_repo(tmp_path / "repo", {"a.md": "nothing\n"}, data={"data/n.json": json.dumps({"n": ADDRESS})})
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    raw = _raw(tmp_path / "outside" / "raw", RAW_LINES)
+    out = io.StringIO()
+    assert pii_scan.scan(raw, None, root=repo, out=out) == 1
+    text = out.getvalue()
+    assert text.count("data/n.json") == 1 and "HIT data:data/n.json:1" in text and "1 hits in 1 files" in text
+
+
+def test_config_transcripts_are_scanned_as_tracked_files(tmp_path):
+    repo = _git_repo(tmp_path / "repo", {"config/localities/x/transcripts/m.json":
+                                         json.dumps({"segments": [[0, 1, f"at {ADDRESS}"]]})})
+    raw = _raw(tmp_path / "outside" / "raw", RAW_LINES)
+    out = io.StringIO()
+    assert pii_scan.scan(raw, None, root=repo, out=out) == 1
+    assert "HIT tracked:config/localities/x/transcripts/m.json:1" in out.getvalue()
+
+
+def test_the_cache_list_matches_gitignore():
+    from conftest import ROOT
+    ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    for c in pii_scan.DATA_CACHES:
+        assert f"data/{c}/" in ignored, c

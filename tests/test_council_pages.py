@@ -56,7 +56,8 @@ def cfg(tmp_path_factory, city_facts, city_wards):
     d = tmp_path_factory.mktemp("city")
     (d / "facts.json").write_text(json.dumps(city_facts), encoding="utf-8")
     (d / "wards.json").write_text(json.dumps(city_wards), encoding="utf-8")
-    return {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json"}
+    return {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json",
+            "transcripts_path": d / "transcripts"}
 
 
 @pytest.fixture(scope="module")

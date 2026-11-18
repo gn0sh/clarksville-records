@@ -9,13 +9,18 @@ build:  store -> data/localities/<id>/finance.json through fin_facts.build_budge
         fin_checks.reconcile and edition_compare): no solicitations, no documents; validated against
         schema/finance.schema.json. A book missing from the store or without a text layer writes nothing
         (fin_run.GUARD_KEYS). The run report goes to build/fin-books-<id>.json.
+
+The daily run keeps the stored finance.json when the new build reads worse (worse_than_committed). No person commits
+data/ (I-in, ADR 0011 decision 2a): a person reproduces the new reading locally (scripts/fetch-data, fetch, build;
+data/ is not committed), then fixes the reader by PR or lists the reviewed reading in config/fin-books-accepted.yml
+(collector/reviewed_lists.py); the next daily run writes it.
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from . import fin_checks, fin_config, limits
+from . import fin_checks, fin_config, limits, reviewed_lists
 from .fetch import PoliteFetcher
 from .store import Store
 
@@ -104,12 +109,31 @@ def book_stats(fin: dict) -> dict:
     return out
 
 
-def worse_than_committed(new: dict, old: dict) -> list[str]:
+def accepted_books(new: dict, old: dict, accepted, locality: str | None) -> set[str]:
+    """The books of the new build an entry of config/fin-books-accepted.yml accepts: the entry names this locality,
+    the book and the new build's source sha256 for it, and the stored book's sha256 differs from that one (once the
+    reading is stored the entry is spent). A sha256 that matches no new build accepts nothing."""
+    a, b = book_stats(old), book_stats(new)
+    out = set()
+    for e in accepted or ():
+        n = b.get(e["book_id"])
+        if (locality is not None and e["locality"] == locality and n is not None
+                and n["sha256"] == e["source_sha256"]
+                and (a.get(e["book_id"]) or {}).get("sha256") != e["source_sha256"]):
+            out.add(e["book_id"])
+    return out
+
+
+def worse_than_committed(new: dict, old: dict, accepted=(), locality: str | None = None) -> list[str]:
     """Why the daily build must not replace the committed finance.json (city-books/daily-overwrite-unguarded): a
     committed book dropped or read from a file whose sha256 differs from the committed source (the city replaced the
     file: a person reviews the new reading first), fewer lines, or more held or does-not-add-up lines (a book new to
-    the file counts from 0). [] = the new build may be written."""
+    the file counts from 0). [] = the new build may be written. `accepted` (config/fin-books-accepted.yml entries)
+    drops every reason of a book accepted_books names, for `locality` only."""
     a, b = book_stats(old), book_stats(new)
+    ok = accepted_books(new, old, accepted, locality)
+    a = {k: v for k, v in a.items() if k not in ok}
+    b = {k: v for k, v in b.items() if k not in ok}
     why = []
     for book_id, o in a.items():
         n = b.get(book_id)
@@ -130,7 +154,7 @@ def worse_than_committed(new: dict, old: dict) -> list[str]:
 
 
 def cmd_build(store: Store, cfg: fin_config.BooksConfig, finance_path: Path, report_path: Path,
-              keep_committed: bool = False, **kw) -> int:
+              keep_committed: bool = False, accepted=(), locality: str | None = None, **kw) -> int:
     """Exit 0 ok, 2 on schema or guard problems (finance.json not written; the report says why under `stopped`).
     With keep_committed (the daily run), KEPT when the
     new build reads worse than the committed finance.json (worse_than_committed): the committed file is kept and the
@@ -150,9 +174,11 @@ def cmd_build(store: Store, cfg: fin_config.BooksConfig, finance_path: Path, rep
         print(f"collector fin-books: {len(errors)} schema errors, {len(guard)} guard problems; nothing written")
         print(limits.summary("collector fin-books", since))
         return 2
-    kept = []
+    kept, took = [], set()
     if keep_committed and Path(finance_path).is_file():
-        kept = worse_than_committed(fin, json.loads(Path(finance_path).read_text(encoding="utf-8")))
+        old = json.loads(Path(finance_path).read_text(encoding="utf-8"))
+        kept = worse_than_committed(fin, old, accepted, locality)
+        took = accepted_books(fin, old, accepted, locality)
     changed = False if kept else write_if_changed(Path(finance_path), dumps(fin))
     summary = book_summary(fin)
     report = {"reconcile": fin_checks.reconcile_counts(fin["budget_lines"]), "budget": summary,
@@ -160,7 +186,11 @@ def cmd_build(store: Store, cfg: fin_config.BooksConfig, finance_path: Path, rep
               "books_not_read": list(cfg.budget.books_not_read), "problems": problems}
     if kept:
         report["kept"] = kept
+    if took:
+        report["accepted"] = sorted(took)      # config/fin-books-accepted.yml let these readings through
     write_if_changed(Path(report_path), dumps(report))
+    for book_id in sorted(took):
+        print(f"  accepted: book {book_id} (config/fin-books-accepted.yml)")
     if kept:
         for k in kept:
             print("  kept:", k)
@@ -207,6 +237,7 @@ def run_step(log: dict, offline: bool, fetcher: PoliteFetcher | None = None, roo
         out[loc] = res
         try:
             cfg = fin_config.load_books(p["config"])
+            accepted = reviewed_lists.load(reviewed_lists.FIN_BOOKS_ACCEPTED, root)   # invalid: error, file kept
             store = Store(manifest_path=p["manifest"])
             if not offline:
                 flog = cmd_fetch(store, cfg, fetcher, progress)
@@ -215,7 +246,8 @@ def run_step(log: dict, offline: bool, fetcher: PoliteFetcher | None = None, roo
                 if flog["stopped"]:
                     progress(f"collector: city books {loc}: fetch stopped ({flog['stopped']}); building from the store",
                              flush=True)
-            res["build"] = cmd_build(store, cfg, p["finance"], p["report"], keep_committed=True)
+            res["build"] = cmd_build(store, cfg, p["finance"], p["report"], keep_committed=True, accepted=accepted,
+                                     locality=loc)
             if res["build"] == 2:
                 res["warning"] = (f"city books {loc}: build stopped on schema or guard problems (exit 2); the "
                                   f"committed finance.json is kept, see {p['report'].name} and the run output")

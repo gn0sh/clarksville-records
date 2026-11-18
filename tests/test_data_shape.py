@@ -9,7 +9,7 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
-from collector import data_shape, facts, names
+from collector import data_shape, facts, names, reviewed_lists
 from qa import site_checks
 from sitegen import views
 
@@ -23,11 +23,43 @@ def _listing(*paths: bytes, head: bytes = BLOB) -> bytes:
     return b"".join(head + p + b"\0" for p in paths)
 
 
-def test_tracked_data_holds_only_collector_output():
-    """I-data'' on the committed tree: every `git ls-tree -r -z HEAD -- data` entry fits SHAPE'' and none is curated."""
-    out = subprocess.run(["git", "ls-tree", "-r", "-z", "HEAD", "--", "data"], cwd=ROOT, capture_output=True,
+def test_data_on_disk_holds_only_collector_output():
+    """I-data'' on the data/ folder this run reads (filled by scripts/fetch-data, or the update job's checkout of
+    records-data): every entry fits SHAPE'' and none is curated or config-owned. It reads the disk, not git's index of
+    main, so it keeps working once data/ leaves main at the cutover (B1 review main-protect/data-test-breaks-at-cutover),
+    and an empty data/ fails (problems() refuses it)."""
+    assert data_shape.problems(data_shape.disk_listing(ROOT / "data")) == []
+
+
+def test_disk_listing_matches_git(tmp_path):
+    """disk_listing gives the bytes `git ls-tree -r -z HEAD -- data` gives for the same files (mode, blob id, path,
+    order), caches left out, so the on-disk check is the gate's check."""
+    repo = tmp_path / "repo"
+    files = {"data/facts.json": b"{}\n", "data/localities/x/b.json": b"[1]", "data/localities/x/a.json": b"",
+             "data/changes.jsonl": b'{"a": 1}\n', "data/run.sh": b"#!/bin/sh\n"}
+    for rel, body in files.items():
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_bytes(body)
+    (repo / "data" / "run.sh").chmod(0o755)
+    (repo / "data" / "link.json").symlink_to("facts.json")
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.org", "commit", "-q",
+                    "-m", "x"], check=True)
+    git = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "-z", "HEAD", "--", "data"], capture_output=True,
                          check=True).stdout
-    assert data_shape.problems(out) == []
+    for cache in data_shape.DATA_CACHES:                   # untracked caches on disk are not in the listing
+        (repo / "data" / cache).mkdir()
+        (repo / "data" / cache / "x.pdf").write_bytes(b"%PDF")
+    assert data_shape.disk_listing(repo / "data") == git
+    found = data_shape.problems(git)
+    assert len(found) == 2 and found[0].endswith("?data/link.json") and found[1].endswith("?data/run.sh")
+    assert data_shape.disk_listing(tmp_path / "none") == b"" and data_shape.problems(b"") == ["data/ holds no file"]
+
+
+def test_the_cache_list_matches_gitignore():
+    ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert all(f"data/{c}/" in ignored for c in data_shape.DATA_CACHES)
 
 
 def test_shape_bash_line_is_what_bash_gives_grep():
@@ -38,8 +70,9 @@ def test_shape_bash_line_is_what_bash_gives_grep():
 
 
 @pytest.mark.parametrize("path", [b"data/facts.json", b"data/changes.jsonl", b"data/localities/clarksville-tn/wards.json",
-                                  b"data/localities/clarksville-tn/transcripts/2026-01-06-executive.json",
-                                  b"data/county-agendas/changes.jsonl", b"data/a_b/x-1.v2.json"])
+                                  b"data/localities/clarksville-tn/transcripts.json", b"data/mapsx/manifest.json",
+                                  b"data/localities/maps/manifest.json", b"data/county-agendas/changes.jsonl",
+                                  b"data/a_b/x-1.v2.json"])
 def test_collector_output_passes(path):
     assert data_shape.problems(_listing(path)) == []
 
@@ -63,6 +96,33 @@ def test_only_regular_files_pass(head):
 def test_curated_names_are_refused_at_any_depth(name, folder):
     found = data_shape.problems(_listing(b"data/facts.json", folder + name.encode()))
     assert len(found) == 1 and found[0].startswith("curated input in data/")
+
+
+@pytest.mark.parametrize("path,why", [
+    (b"data/maps/manifest.json", "map manifest in data/ (it belongs in config/maps/)"),
+    (b"data/maps/x/changes.jsonl", "map manifest in data/ (it belongs in config/maps/)"),
+    (b"data/localities/x/transcripts/a.json", "transcript in data/"),
+    (b"data/localities/clarksville-tn/transcripts/index.json", "transcript in data/"),
+    (b"data/transcripts/a.json", "transcript in data/"),
+    (b"data/a/transcripts/b/c.json", "transcript in data/")])
+def test_config_owned_inputs_are_refused_in_data(path, why):
+    """I-in (ADR 0011 decision 2a, rows MP, TR and T): the map manifest and the transcripts live in config/; D refuses
+    them at any depth, shown safely like the others."""
+    found = data_shape.problems(_listing(b"data/facts.json", path))
+    assert len(found) == 1 and found[0].startswith(why) and found[0].endswith(path.decode())
+
+
+@pytest.mark.parametrize("folder", [b"data/", b"data/localities/clarksville-tn/", b"data/a/b/c/"])
+def test_fin_books_accepted_is_refused_at_any_depth(folder):
+    assert "fin-books-accepted.yml" in data_shape.CURATED_NAMES
+    found = data_shape.problems(_listing(b"data/facts.json", folder + b"fin-books-accepted.yml"))
+    assert len(found) == 1 and found[0].startswith("curated input in data/")
+
+
+def test_a_config_owned_name_is_shown_without_raw_bytes():
+    found = data_shape.problems(_listing(b"data/localities/\x1b[2Jx/transcripts/a.json"))
+    assert len(found) == 1 and found[0].startswith("transcript in data/")
+    assert all(0x20 <= ord(c) <= 0x7E for c in found[0])
 
 
 def test_an_empty_data_tree_is_refused():
@@ -111,15 +171,16 @@ def test_curated_inputs_still_load():
 
 @pytest.fixture(scope="module")
 def pfc_validator():
-    schema = json.loads(PFC_SCHEMA.read_text(encoding="utf-8"))
-    Draft202012Validator.check_schema(schema)
-    return Draft202012Validator(schema)
+    """The schema as collector/reviewed_lists.py applies it: with the format checker (listed_on is a real day)."""
+    Draft202012Validator.check_schema(json.loads(PFC_SCHEMA.read_text(encoding="utf-8")))
+    return reviewed_lists.validator(reviewed_lists.PUBLISHED_FACT_CHANGES)
 
 
 def test_published_fact_changes_is_an_empty_valid_list(pfc_validator):
     data = yaml.safe_load(PFC.read_text(encoding="utf-8"))
     assert data == []
     assert list(pfc_validator.iter_errors(data)) == []
+    assert reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES) == []
 
 
 GOOD = {"fact_id": "rc-09962951-p101-0", "change": "changed", "listed_on": "2026-11-18",
@@ -136,7 +197,8 @@ def test_published_fact_change_entries_pass(pfc_validator, entry):
     {k: v for k, v in GOOD.items() if k != "fact_id"}, {k: v for k, v in GOOD.items() if k != "reason"},
     {k: v for k, v in GOOD.items() if k != "listed_on"}, {k: v for k, v in GOOD.items() if k != "change"},
     {**GOOD, "change": "added"}, {**GOOD, "fact_id": ""}, {**GOOD, "fact_id": "rc 1"}, {**GOOD, "reason": "  "},
-    {**GOOD, "listed_on": "18 Nov 2026"}, {**GOOD, "source_url": "http://example.org/x"},
+    {**GOOD, "listed_on": "18 Nov 2026"}, {**GOOD, "listed_on": "2026-02-30"}, {**GOOD, "listed_on": "2026-13-01"},
+    {**GOOD, "listed_on": "２０２６-11-18"}, {**GOOD, "source_url": "http://example.org/x"},
     {**GOOD, "allow_shrink": True}, "rc-09962951-p101-0"])
 def test_published_fact_change_entries_refused(pfc_validator, entry):
     assert list(pfc_validator.iter_errors([entry]))
@@ -144,3 +206,24 @@ def test_published_fact_change_entries_refused(pfc_validator, entry):
 
 def test_published_fact_changes_must_be_a_list(pfc_validator):
     assert list(pfc_validator.iter_errors({"changes": []}))
+
+
+def test_a_fact_listed_twice_is_refused(tmp_path):
+    """pfc-schema/duplicate-fact-id: one entry per fact; a second entry for the same fact_id (even with another change
+    or reason) is refused, and so is an unreal day, both naming the entry index, never a value."""
+    twice = [GOOD, {**GOOD, "change": "removed", "reason": "Another reason."}]
+    assert reviewed_lists.problems(reviewed_lists.PUBLISHED_FACT_CHANGES, twice) == [
+        "entry 1: lists the same fact_id as entry 0"]
+    assert reviewed_lists.problems(reviewed_lists.PUBLISHED_FACT_CHANGES,
+                                   [GOOD, {**GOOD, "fact_id": "rc-09962951-p101-1"}]) == []
+    f = tmp_path / "published-fact-changes.yml"
+    f.write_text(yaml.safe_dump(twice), encoding="utf-8")
+    with pytest.raises(reviewed_lists.ReviewedListError, match="entry 1: lists the same fact_id as entry 0"):
+        reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES, path=f)
+    f.write_text(yaml.safe_dump([{**GOOD, "listed_on": "2026-02-30"}]), encoding="utf-8")
+    with pytest.raises(reviewed_lists.ReviewedListError, match="entry 0/listed_on: format check failed") as e:
+        reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES, path=f)
+    assert "2026-02-30" not in str(e.value)
+    f.write_text("- fact_id: x\n  change: changed\n  listed_on: 2026-11-18\n  reason: r\n", encoding="utf-8")
+    with pytest.raises(reviewed_lists.ReviewedListError, match="listed_on: type check failed"):   # unquoted: a date
+        reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES, path=f)
