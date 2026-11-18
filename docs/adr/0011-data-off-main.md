@@ -5,7 +5,8 @@ ADR 0010 decisions 1 (CODEOWNERS), 2 (ruleset R1') and 5 (the V1' probe). ADR 00
 interim), 4 (canary removal, done by #52) and 6 (the gate stands) remain. Analysis, invariant and every consumer:
 `docs/architecture/v1-fail-2026-11-18.md`. Panel: `docs/reviews/brain-trust-data-off-main.md` (Fix First, 5-1).
 Tasks: `docs/tasks/data-off-main.md`. Amended 2026-11-18 for the PR #54 security review
-(`docs/reviews/pr54-security-review.md`, findings 1-8 and settings drift).
+(`docs/reviews/pr54-security-review.md`, findings 1-8 and settings drift). Amended 2026-11-18 (decision 2a) for the
+person-run writers B1 found (`docs/architecture/data-inventory.md`).
 
 ## Context
 The V1' probe (run 44354265953) FAILED. `GITHUB_TOKEN` squash-merged #49, which adds a workflow file, under
@@ -25,6 +26,30 @@ reviewer.
    `data/corrections-log.json` move to `config/`, reviewed like any code. `data/` keeps only what the collector
    writes. `SHAPE''` narrows to `*.json` and `changes.jsonl`, and the gate refuses the curated names in `D`. An
    inventory task confirms each remaining file's writer.
+2a. **No person writes `records-data`** (invariant I-in, `docs/architecture/v1-fail-2026-11-18.md` section 2). B1
+   found four person-run writers of `data/`. Under I-prov a person's new tree is refused, so each gets a reviewed
+   path through `config/` on `main` instead (task B1b):
+   - **Transcripts** (`collector/transcripts.py` `import` :274/:295 and `remask` :319/:322; 18 files, 2.5 MB) move
+     to `config/localities/<locality>/transcripts/`. A person runs `fetch-data`, then the import on the Whisper
+     output from Brian's PC (it reads the facts and event listing from the fetched `data/`), and opens a PR. The
+     importer masks before it writes, so the PR carries masked text only and raw text never reaches a branch. The
+     PR is the review point, including Brian's sample OK before any new batch goes live. `sitegen` and `qa` read
+     transcripts only from `config/`, with no fallback to `data/`.
+   - **Map manifest** (`tools/fetch_map.py` :25/:43) moves to `config/maps/manifest.json`. It is read at build
+     time through `config/site.yml` `fetch_manifests` (:17), so that entry changes too.
+   - **Kept city books** (`daily-update.yml` ~:581, `collector/fin_books.py` `worse_than_committed`): "a person
+     runs `fin-books build` and commits" ends. A person reproduces the reading locally (`fetch-data`, `fin-books
+     fetch`, `fin-books build`; `data/` is gitignored, so nothing is committed from it), then either fixes the
+     reader by PR or lists the reviewed reading in the new `config/fin-books-accepted.yml` (`locality`, `book_id`,
+     the new file's full `source_sha256`, `listed_on`, `reason`). The next daily run rebuilds. An entry lets the
+     build replace that book only while the stored book's sha256 differs from the listed one, so it is spent once
+     the new reading is on `records-data`.
+   - **`tools/scrub_rpc_phones.py`**: its rewrite mode is removed (`collector rpc build` already strips phones, so
+     the daily rebuild writes the same). `--check` stays, read-only, and the cutover runs it on the seed.
+   `CURATED_NAMES` gains `fin-books-accepted.yml`, and `collector/data_shape.py` also refuses any path under
+   `data/maps/` or a `transcripts/` folder in `D`. The seed leaves them out. Readers that list `data/` through
+   git (`qa/pii_scan.py` `tracked_files`, `tests/test_committees_daily.py:26`) read the fetched tree instead and
+   fail on an empty one.
 3. **Provenance** (change 2). After pushing, the push job attests the new tree listing (`git ls-tree -r -z D -- data`
    as a file) with `actions/attest-build-provenance`. The gate reads the `records-data` head once (`D`) and accepts
    it only if that listing verifies, or `D` is the seed (below). Verify:
@@ -73,6 +98,13 @@ reviewer.
   runs on `main` with both environments, so the site stays deployable by that path (Opponent; medium confidence).
   **This is the fallback if U3 fails.**
 - **Don't build; defer the note** (Skeptic): the site keeps T7 open, as above.
+- **Person-run writers (decision 2a):** (i) a dispatched "import" job that attests a person's input: the input
+  must be reviewed in the repository anyway, so it is `config/` with extra steps, and it puts `attestations: write`
+  on a second job. (ii) Keep transcripts in `data/` and let J2 carry them forward: no path to add, remask or remove
+  one. (iii) Commit the raw Whisper output and import it in the daily run: raw text holds unmasked addresses and
+  must never reach a public branch (`docs/status.md` 2026-11-12). (iv) City books "fix the reader by PR" only: a
+  replaced source file is a keep reason on its own, so a correct new reading would have no way in. (v) Drop the
+  keep guard: reopens city-books/daily-overwrite-unguarded. All rejected.
 - **Throwaway repository for U3:** needs Brian to create a repository and grant the team access to it, and it
   tests a different ruleset and token. Rejected in favour of the scripted live toggle.
 
@@ -93,9 +125,16 @@ reviewer.
   U3, the cutover's settings steps and any rollback. Those writes are blocked today by the session proxy's
   policy, not by the token's permissions; if that changes, the team-token anchor returns. Re-check U3-0 whenever
   the proxy allowlist changes.
+- Decision 2a: transcripts and the map manifest stay in `main`'s tree and grow it (about 140 KB per meeting, so
+  about 9 MB for the 65-meeting backlog; judgment, acceptable). They were already in `main`'s history, so nothing
+  new is published. A transcript PR is too long to read line by line: review checks the import log (counts,
+  matches, skips), provenance and the masking tests, not every line (judgment). A meeting that leaves the facts
+  makes a committed transcript stale and fails the build until a removal PR, as today, because the daily run has
+  never imported transcripts.
 - Local runs and preflight need `scripts/fetch-data`. The multi-city template inherits the two-branch setup through
   `protect-main`.
 - Cost: about 3-4 engineer days plus security review. Brian: one U3 session, then one cutover session.
 - Reversal: `scripts/cutover-data-off-main --rollback` refuses while `MORNING_NOTE_SEND` or `MAIN_PR_BASELINE` is
   set (finding 4: R2 on reopens the bot path), then re-applies R1' json, restores `data/` on `main` by a
-  reviewed PR from `records-data`'s head, and turns R2 on. The `records-data` branch is kept.
+  reviewed PR from `records-data`'s head (the moved transcripts and map manifest stay in `config/`, with readers
+  as the cutover PR left them), and turns R2 on. The `records-data` branch is kept.

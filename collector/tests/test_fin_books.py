@@ -741,3 +741,132 @@ def test_run_step_online_fetches_only_books_not_stored_and_survives_a_block(tmp_
 def test_localities_lists_books_only_configs():
     from collector import fin_books
     assert fin_books.localities() == ["clarksville-tn"]
+
+
+# ---------------------------------------------------- B1b row FB: config/fin-books-accepted.yml (I-in, ADR 0011 2a)
+
+def _entry(book_id="a", sha="3" * 64, locality="clarksville-tn", **over):
+    return {"locality": locality, "book_id": book_id, "source_sha256": sha, "listed_on": "2026-11-18",
+            "reason": "The new file was checked page by page.", **over}
+
+
+OLD_A = {"a": ("1" * 64, 5, 0, 0)}
+
+
+@pytest.mark.parametrize("new,accepted,why", [
+    # the city replaced book a's file, with fewer lines and a held line: the entry for the new file lets it through
+    ({"a": ("3" * 64, 4, 1, 0)}, [_entry()], []),
+    # no entry, or an entry for another sha256, another book or another locality: the reasons stand
+    ({"a": ("3" * 64, 4, 0, 0)}, [], ["book a: source sha256 333333333333 differs from the committed 111111111111",
+                                      "book a: 4 lines, committed 5"]),
+    ({"a": ("3" * 64, 5, 0, 0)}, [_entry(sha="4" * 64)],
+     ["book a: source sha256 333333333333 differs from the committed 111111111111"]),
+    ({"a": ("3" * 64, 5, 0, 0)}, [_entry(book_id="b")],
+     ["book a: source sha256 333333333333 differs from the committed 111111111111"]),
+    ({"a": ("3" * 64, 5, 0, 0)}, [_entry(locality="montgomery-tn")],
+     ["book a: source sha256 333333333333 differs from the committed 111111111111"]),
+    # a stale entry: the stored book already has the listed file, so it is spent and changes nothing
+    ({"a": ("1" * 64, 4, 0, 0)}, [_entry(sha="1" * 64)], ["book a: 4 lines, committed 5"]),
+    # an entry for book a never clears another book's reasons
+    ({"a": ("3" * 64, 5, 0, 0), "b": ("2" * 64, 3, 0, 1)}, [_entry()], ["book b: 1 does not add up lines, committed 0"]),
+    # a book dropped from the new build has no new sha256 to match
+    ({"b": ("2" * 64, 9, 0, 0)}, [_entry()], ["book a: in the committed file, not in the new build"]),
+])
+def test_worse_than_committed_with_accepted_readings(new, accepted, why):
+    assert fin_books.worse_than_committed(_stats_file(new), _stats_file(OLD_A), accepted, "clarksville-tn") == why
+
+
+def test_an_accepted_reading_needs_its_locality():
+    new = _stats_file({"a": ("3" * 64, 5, 0, 0)})
+    assert fin_books.worse_than_committed(new, _stats_file(OLD_A), [_entry()]) != []          # no locality: no entry
+
+
+def test_an_accepted_entry_lets_a_replaced_book_through_once(tmp_path, monkeypatch):
+    """The daily build keeps the stored file when the city replaces a book; an entry naming the new file's sha256 lets
+    that reading through on the next run, is spent once it is stored, and does not admit a later replacement."""
+    store, by_sha = fake_store(tmp_path)
+    _city_meta(monkeypatch)
+    cfg = three_books()
+    out, rep = tmp_path / "finance.json", tmp_path / "report.json"
+
+    def words(pdf, first, last):
+        return by_sha[pdf.stem]
+
+    def build(accepted):
+        return fin_books.cmd_build(store, cfg, out, rep, keep_committed=True, book_words=words, accepted=accepted,
+                                   locality="clarksville-tn")
+    assert build([]) == 0
+    committed = out.read_bytes()
+    spec = BOOK["fy2024-adopted"]
+    store.now = lambda: "2026-11-17T00:00:00+00:00"
+    e, _ = store.put(spec.url, b"%PDF-1.7 city replaced", {}, {"kind": "budget_book", "label": spec.title})
+    store.save()
+    by_sha[e["sha256"]] = words_of("fy2024-adopted", [50])
+    assert build([]) == fin_books.KEPT and out.read_bytes() == committed
+    other = [_entry("fy2026-final", e["sha256"]), _entry("fy2024-adopted", "0" * 64)]
+    assert build(other) == fin_books.KEPT and out.read_bytes() == committed          # another book, another file
+    entry = [_entry("fy2024-adopted", e["sha256"])]
+    assert build(entry) == 0 and out.read_bytes() != committed                       # through, once
+    assert json.loads(rep.read_text())["accepted"] == ["fy2024-adopted"]
+    stored = json.loads(out.read_text())
+    assert e["sha256"] in {s["sha256"] for s in stored["sources"]}
+    after = out.read_bytes()
+    assert build(entry) == 0 and out.read_bytes() == after                           # spent: nothing to accept
+    assert "accepted" not in json.loads(rep.read_text())
+    store.now = lambda: "2026-11-18T00:00:00+00:00"                                  # the city replaces it again
+    e2, _ = store.put(spec.url, b"%PDF-1.7 city replaced twice", {}, {"kind": "budget_book", "label": spec.title})
+    store.save()
+    by_sha[e2["sha256"]] = words_of("fy2024-adopted", [50])
+    assert build(entry) == fin_books.KEPT and out.read_bytes() == after              # the old entry admits nothing
+
+
+def test_run_step_reads_the_accepted_list_from_config(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    seen = {}
+
+    def fake_build(store, cfg, finance_path, report_path, keep_committed=False, accepted=(), locality=None, **kw):
+        seen.update(accepted=accepted, locality=locality)
+        return 0
+    monkeypatch.setattr(fin_books, "cmd_build", fake_build)
+    fin_books.run_step({}, offline=True, root=root, progress=lambda *a, **k: None)
+    assert seen == {"accepted": [], "locality": "clarksville-tn"}                    # no file: nothing accepted
+    (root / "config" / "fin-books-accepted.yml").write_text(yaml.safe_dump([_entry()]), encoding="utf-8")
+    fin_books.run_step({}, offline=True, root=root, progress=lambda *a, **k: None)
+    assert seen["accepted"] == [_entry()]
+    # an invalid list fails closed: no build, the stored file kept, a warning
+    (root / "config" / "fin-books-accepted.yml").write_text(yaml.safe_dump([_entry(), _entry()]), encoding="utf-8")
+    seen.clear()
+    log = {}
+    res = fin_books.run_step(log, offline=True, root=root, progress=lambda *a, **k: None)["clarksville-tn"]
+    assert seen == {} and res["build"] is None and "ReviewedListError" in res["error"]
+    assert fin_books.warnings(log)[0].endswith("the committed finance.json is kept")
+
+
+def test_committed_fin_books_accepted_is_a_valid_list():
+    from collector import reviewed_lists
+    from collector.fin_books import ROOT
+    p = ROOT / "config" / "fin-books-accepted.yml"
+    assert yaml.safe_load(p.read_text(encoding="utf-8")) == []
+    assert reviewed_lists.load(reviewed_lists.FIN_BOOKS_ACCEPTED) == []
+
+
+@pytest.mark.parametrize("entry,ok", [
+    (_entry(), True), (_entry(book_id="fy2024-adopted", locality="clarksville-tn"), True),
+    (_entry(sha="3" * 63), False), (_entry(sha="3" * 65), False), (_entry(sha="A" * 64), False),
+    (_entry(sha="3" * 12), False), (_entry(listed_on="2026-02-30"), False), (_entry(listed_on="18 Nov 2026"), False),
+    (_entry(reason=" "), False), (_entry(locality="Clarksville TN"), False), (_entry(book_id=""), False),
+    (_entry(allow_shrink=True), False), ({k: v for k, v in _entry().items() if k != "reason"}, False),
+    ({k: v for k, v in _entry().items() if k != "source_sha256"}, False),
+])
+def test_fin_books_accepted_schema(entry, ok):
+    from collector import reviewed_lists
+    assert (reviewed_lists.problems(reviewed_lists.FIN_BOOKS_ACCEPTED, [entry]) == []) is ok
+
+
+def test_fin_books_accepted_refuses_a_reading_listed_twice():
+    from collector import reviewed_lists
+    name = reviewed_lists.FIN_BOOKS_ACCEPTED
+    assert reviewed_lists.problems(name, [_entry(), _entry(reason="Again.")]) == [
+        "entry 1: lists the same locality, book_id, source_sha256 as entry 0"]
+    assert reviewed_lists.problems(name, [_entry(), _entry(sha="4" * 64)]) == []          # two readings of one book
+    assert reviewed_lists.problems(name, {"a": 1}) and reviewed_lists.problems(name, None)

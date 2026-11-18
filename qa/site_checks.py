@@ -231,7 +231,8 @@ def councils(facts: dict) -> list[dict]:
         out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"]), "locality": loc,
                     "finance": load_facts(fin_path) if fin_path.is_file() else None,
                     "held_sentences": c.get("held_sentences"),
-                    "transcripts_dir": (ROOT / c["facts"]).parent / "transcripts"})
+                    # a reviewed input under config/ (I-in), never data/: no fallback to a copy beside the facts
+                    "transcripts_dir": ROOT / "config" / "localities" / loc / "transcripts"})
     return out
 
 
@@ -3152,9 +3153,10 @@ def _unescape_js(body: str) -> str:
 
 
 def _source_text(transcript_dirs: list[Path]) -> str:
-    """Every string in the committed data outside the transcript folders (data/**/*.json), whitespace folded, one per
+    """Every string in the collector data outside the transcript folders (data/**/*.json), whitespace folded, one per
     line: text the site has from a source document, so a transcript line equal to it (an item title read aloud) is not
-    transcript-only text."""
+    transcript-only text. A transcripts/ folder under data/ is never source text (I-in: transcripts live in config/; a
+    copy left in data/ would otherwise clear every line of check (c))."""
     skip = {Path(d).resolve() for d in transcript_dirs if d}
     out: list[str] = []
 
@@ -3168,7 +3170,7 @@ def _source_text(transcript_dirs: list[Path]) -> str:
             for x in v:
                 walk(x)
     for f in sorted((ROOT / "data").rglob("*.json")):
-        if f.resolve().parent in skip:
+        if f.resolve().parent in skip or "transcripts" in f.relative_to(ROOT / "data").parts[:-1]:
             continue
         try:
             walk(json.loads(f.read_text(encoding="utf-8")))
@@ -3193,8 +3195,8 @@ def check_private_details(site: Path, cs: list[dict]) -> tuple[list[str], str]:
     """privacy/transcript-private-addresses (docs/architecture/city-council.md, "Private details in transcript text"):
     (a) every data-transcript text on every page (transcript lines and the call-on words and excerpts on member pages)
     passes the restated rule: no street address or phone number; (b) every committed transcript segment
-    (data/localities/<locality>/transcripts/*.json) passes it, line by line and joined (masked at rest); (c) no file
-    under data/ and not static/search-index.js carries any committed transcript line (at least NEEDLE_MIN characters)
+    (config/localities/<locality>/transcripts/*.json, I-in) passes it, line by line and joined (masked at rest);
+    (c) no file under data/ and not static/search-index.js carries any committed transcript line (at least NEEDLE_MIN characters)
     at all, and no placeholder: transcript text is shown only on transcript and member pages. The needles are the
     committed, masked lines (safe to hold), less any line that is also a string of the committed source data (an item
     title the clerk reads aloud is the item's own text, shown from the agenda). Problems name the file and line, never

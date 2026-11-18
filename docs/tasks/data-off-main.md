@@ -7,6 +7,8 @@ touching the workflow, rulesets or scripts is also reviewed by `security-enginee
 session, fresh review per milestone). Problem family `main-protect`. A third hit means the architect re-plans and
 the manager escalates. Amended 2026-11-18 for the PR #54 security review (`docs/reviews/pr54-security-review.md`):
 its findings are in the done-when of U3-1, B2-B4, D1, D3, V1 and W1, tagged `F<n>`; "drift" is its most serious item.
+Amended 2026-11-18 for B1's person-run writers (ADR 0011 decision 2a, invariant I-in, note rows TR, MP, FB, SC, LS):
+new task B1b; B4, D3, S1 and W1 gained items.
 
 | Task | Owner | Depends on | Parallel |
 |---|---|---|---|
@@ -15,14 +17,15 @@ its findings are in the done-when of U3-1, B2-B4, D1, D3, V1 and W1, tagged `F<n
 | U3-0 Can the team token write the ruleset? | manager | none | **done: no** (proxy 403) |
 | U3-1 `scripts/u3-toggle` + docs PR P | devops-engineer | U3-0 | now |
 | U3-2 Run the control | Brian (manager runs the merge) | U3-1, N1 | no |
-| B1 Data inventory and curated-input move | backend-engineer | U3 PASS | yes |
+| B1 Data inventory and curated-input move | backend-engineer | U3 PASS | **done** (branch `claude/data-off-main-b1`) |
+| B1b Person-run inputs to `config/` (I-in) | backend-engineer | B1 | yes, with B2/B3 and D1/D2 (no workflow edit) |
 | B2 Gate: D, I-data'', I-prov, I-main'' | backend-engineer | U3 PASS | yes (workflow file conflicts with B3/B4: one branch, sequential commits) |
 | B3 Push job: records-data + attestation | backend-engineer | U3 PASS | with B2 |
-| B4 Update job: S+D checkout, tripwire, build-info | backend-engineer | B1 | after B1 |
+| B4 Update job: S+D checkout, tripwire, build-info, city-books issue text | backend-engineer | B1, B1b | after B1b |
 | D1 `protect-main` R1'' + R-D + checks; `merge-reviewed` refusals | devops-engineer | U3 PASS | yes |
 | D2 `fetch-data`, preflight | devops-engineer | U3 PASS | yes |
-| D3 Cutover script (Operator's order) + rollback | devops-engineer | B1-B4, D1, D2 | no |
-| S1 Security review of B+D milestone | security-engineer | B1-B4, D1-D3 | no |
+| D3 Cutover script (Operator's order) + rollback | devops-engineer | B1, B1b, B2-B4, D1, D2 | no |
+| S1 Security review of B+D milestone | security-engineer | B1, B1b, B2-B4, D1-D3 | no |
 | C1 Cutover session | manager + Brian | S1, review approve | no, away from 09:07 |
 | V1 V1'' probe rewrite and run | devops-engineer | C1 | no |
 | W1 Docs: invariant doc, platform facts, runbook, ADR status | technical-writer (architect checks) | C1 (V1 for final status) | yes |
@@ -67,6 +70,34 @@ Done when: the verdict is recorded, with the rule-suite id and the restored rule
 Done when: the inventory table is in the PR, every reader uses `config/`, and tests pass with `data/` holding only
 collector output.
 
+## B1b: person-run inputs to `config/` (I-in; rows TR, MP, FB, SC, LS, T)
+No workflow edit (the issue text is B4's), so it runs beside B2/B3 on its own branch.
+- **Transcripts (TR):** `git mv` the folder to `config/localities/clarksville-tn/transcripts/`. `import` and
+  `remask` write there and read the facts and `civicclerk-listing.json` from `data/` (filled by `fetch-data`).
+  `sitegen/transcripts.py` `load`, `sitegen/build.py:549` and `qa/site_checks.py:234` read only the config folder,
+  with no fallback to `data/`. Update the module docstrings and the tests that name the old path.
+- **Map manifest (MP):** `git mv` to `config/maps/manifest.json`; `tools/fetch_map.py` default and
+  `config/site.yml:17` follow.
+- **City books (FB):** `config/fin-books-accepted.yml` (empty list) and `schema/fin-books-accepted.schema.json`
+  (`locality`, `book_id`, `source_sha256` as 64 hex, `listed_on`, `reason`). `worse_than_committed` drops a book's
+  keep reasons only when an entry names that locality and book and the new build's `source_sha256`, and the stored
+  book's sha256 differs from it.
+- **Scrub tool (SC):** remove the rewrite mode of `tools/scrub_rpc_phones.py`; keep `--check` (read-only).
+- **Shape (T):** `collector/data_shape.py`: `CURATED_NAMES` gains `fin-books-accepted.yml`, plus a refusal of any
+  entry under `data/maps/` or inside a `transcripts/` folder (shown safely, like the others). B2 copies it into the
+  workflow with the test that keeps the two equal.
+- **Git-listed readers (LS):** `qa/pii_scan.py` and `tests/test_committees_daily.py:26` read the `data/` tree on
+  disk, not `git ls-files`, and fail on an empty `data/`.
+
+Done when tests show: an import and a remask write only under `config/`; the build finds the transcripts with no
+`data/.../transcripts/` present, and a copy left in `data/` is not read; `fetch_map` writes only under
+`config/maps/` (stub fetcher); an accepted entry lets a replaced book through once, a stale entry (stored sha256
+equals the listed one) and an entry for another book change nothing; the scrub tool has no write path and
+`--check` exits 1 on a phone; `data_shape` refuses `data/maps/manifest.json`,
+`data/localities/x/transcripts/a.json` and `fin-books-accepted.yml` at any depth; the leak scan fails on an empty
+`data/` and finds a planted needle in a fetched `data/` file; the full suite passes. `git grep -n
+'data/maps\|/transcripts/\|scrub_rpc_phones'` output is in the PR, each hit explained.
+
 ## B2: gate (rows G, B)
 Read the `records-data` head once and output `data_sha`. Then:
 - I-data'' on `D`;
@@ -101,10 +132,14 @@ the listing bytes the push job attests equal the bytes the gate rebuilds (one sh
 - Write `build-info.json` (`S`, `D`, the listing digest) into the site.
 - Deploy needs `held != yes`; the note follows deploy. Drop any `data_sha` input.
 - `allow_shrink` never bypasses the tripwire (F7); only the reviewed list does.
+- City-books issue (row FB, `daily-update.yml:566-596`): the text drops "before it is committed" and names the
+  path: `fetch-data`, `fin-books fetch` and `fin-books build --locality <id>` locally, review
+  `build/fin-books-<id>.json`, then a reader fix by PR or an entry in `config/fin-books-accepted.yml` by PR; the
+  next daily run rebuilds. Fixed text only, as today (no run-log text in an expression).
 
 Done when tests show: a changed outcome holds; a removed roll call holds; a listed change passes; a new meeting
 passes; a fetch failure holds; the seed bootstrap passes; an `allow_shrink` run that drops a published roll call
-holds.
+holds; the city-books issue text names `config/fin-books-accepted.yml` and asks for no commit of `data/`.
 
 ## D1: `protect-main` and `merge-reviewed` (rows R1, R-D, R2, S1, S2)
 - `protect-main` writes R1'' (`scripts/main-ruleset.json`), R-D (`scripts/records-data-ruleset.json`) and R-T
@@ -130,8 +165,10 @@ Brian runs it from his PC (U3-0 = no). `main` is protected before the cutover me
 1. Refuse within 08:00-10:30 UTC, while a run is active, or while `MORNING_NOTE_SEND` is set (drift). A refused
    or failed read of `actions/variables` counts as set.
 2. Disable `daily-update`.
-3. Seed `records-data` from `main`'s `data/` minus the curated files, as one parentless commit, and check that its
-   digest equals the PR's `RECORDS_DATA_SEED_DIGEST`.
+3. Seed `records-data` from `main`'s `data/` minus the curated files and the moved person-run inputs
+   (`data/localities/*/transcripts/`, `data/maps/`; I-in), as one parentless commit. Stop unless its listing passes
+   `python -m collector.data_shape`, `python -m tools.scrub_rpc_phones --check` passes on it, and its digest equals
+   the PR's `RECORDS_DATA_SEED_DIGEST`.
 4. Run `protect-main` (R1'', R-D, R-T, R2 off) and stop unless it prints OK.
 5. Merge the cutover PR (B1-B4, D1, D2, CODEOWNERS deleted) with `merge-reviewed`, which must print `bypass`.
 6. Re-enable the workflow.
@@ -139,15 +176,21 @@ Brian runs it from his PC (U3-0 = no). `main` is protected before the cutover me
 8. Dispatch `collect=true` and check that `records-data` moved and is attested.
 
 `--rollback`: refuses while `MORNING_NOTE_SEND` or `MAIN_PR_BASELINE` is set (F4: R2 on reopens the bot path, so
-both are unset first, by Brian). A refused or failed variables read counts as set. Then R1' json back, R2 on, a reviewed PR restoring `data/` and the curated paths on
-`main`, and the workflow re-enabled. Every step prints what it did, and a failure stops with the exact `--rollback`
+both are unset first, by Brian). A refused or failed variables read counts as set. Then R1' json back, R2 on, a reviewed PR restoring `data/` on
+`main` from `records-data`'s head (every `config/` input, curated or person-run, stays where the cutover PR put it,
+with its readers), and the workflow re-enabled. Every step prints what it did, and a failure stops with the exact `--rollback`
 command.
 Done when a stub-`gh` dry run walks every step in this order and the rollback, and tests show step 1 and
-`--rollback` refusing with each variable set and with a 403 on the variables read.
+`--rollback` refusing with each variable set and with a 403 on the variables read, and step 3 stopping on a seed
+that holds a `transcripts/` folder, `data/maps/` or a phone in an RPC location. Also (B1 review
+main-protect/data-test-breaks-at-cutover): step 7's run passes the update job's `python -m pytest -q -x` on S+D,
+where the tests that read collector output take it from the `data/` folder on disk, never `git ls-files` or
+`git ls-tree HEAD -- data` (`tests/test_data_shape.py::test_data_on_disk_holds_only_collector_output`,
+`tests/test_committees_daily.py`, `qa/pii_scan.py`); on a checkout with an empty `data/` they fail, not pass.
 
 ## S1: security review
-Fresh review of the B1-D3 milestone at one sha, against I-main'', I-prov, I-pub, T1-T8 and the Brain Trust
-findings (Opponent: dispatch on scratch branches, T5, author refusal).
+Fresh review of the B1-D3 milestone (B1b included) at one sha, against I-main'', I-prov, I-pub, I-in, T1-T8 and
+the Brain Trust findings (Opponent: dispatch on scratch branches, T5, author refusal).
 Done when it approves, or its findings are fixed and re-reviewed by delta.
 
 ## C1: cutover session (hard stop 1: a production change)
@@ -165,7 +208,9 @@ PASS gates `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND`. Drift: Brian re-runs `pro
 Done when the PASS output and that OK are recorded in platform facts.
 
 ## W1: docs
-- `docs/architecture/main-protect-invariant.md`: I-main'', I-prov, I-pub, the consumer table from the note.
+- `docs/architecture/main-protect-invariant.md`: I-main'', I-prov, I-pub, I-in, the consumer table from the note.
+- Operator docs that tell a person to commit `data/` (transcripts import, `fetch_map`, `fin-books build`): name the
+  `config/` path and the PR instead (`git grep -n 'transcripts import\|fetch_map\|fin-books build' docs`).
 - `docs/platform-facts.md`: U1 false, the environment facts, U3-0 = no (proxy 403, 17:37 UTC), the U3 verdict.
   F2: replace the "`github-pages` deployment branches after runbook 2.0.5: not checked yet" line with the
   2026-11-18 PC read (both environments `main` only), plus the policy type once `protect-main` reads it.
@@ -177,5 +222,5 @@ Done when a review confirms that each doc says what the note says, no stronger.
 
 ## Suggested order
 1. Done: N1+N2, U3-0 (no). Now: U3-1, then U3-2 (Brian).
-2. On PASS: B1, B2+B3 (one branch) and D1, D2 in parallel; then B4; then D3; then S1.
+2. On PASS: B1 (done); now B1b, B2+B3 (one branch) and D1, D2 in parallel; then B4; then D3; then S1.
 3. Then C1 (a day, outside 08:00-10:30 UTC), V1, W1.

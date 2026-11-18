@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "clarksville-records/published-fact-changes/1.0",
   "title": "config/published-fact-changes.yml",
-  "description": "The reviewed list of published facts a deploy may change or remove (I-pub, ADR 0011 decision 4). The content tripwire holds any deploy that changes or drops a vote, roll call or outcome already on the live site unless it is listed here. Changed only by a person's reviewed pull request; allow_shrink never counts. An empty list means no published fact may change.",
+  "description": "The reviewed list of published facts a deploy may change or remove (I-pub, ADR 0011 decision 4). The content tripwire holds any deploy that changes or drops a vote, roll call or outcome already on the live site unless it is listed here. Changed only by a person's reviewed pull request; allow_shrink never counts. An empty list means no published fact may change. Each fact_id appears at most once, and listed_on must be a real day (collector/reviewed_lists.py applies both).",
   "type": "array",
   "items": {
     "type": "object",
@@ -22,7 +22,8 @@
       "listed_on": {
         "description": "The day the entry was added (YYYY-MM-DD).",
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+        "format": "date"
       },
       "reason": {
         "description": "Why the published fact may change, in plain words (e.g. the county corrected its minutes, a rollback).",

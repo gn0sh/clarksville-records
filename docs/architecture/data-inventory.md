@@ -29,10 +29,10 @@ by the daily run, except two person-run groups (transcripts, map manifest) that 
 | `data/localities/clarksville-tn/wards.json` | `collector/city_run.py:461` | collector output | Daily run; bot 1, gn0sh 1 (as the architecture note found). |
 | `data/localities/clarksville-tn/committees/{listing,committees,manifest}.json` | `collector/committees.py:278`, `:606`, `collector/store.py:146` via `:328` | collector output | Daily run (`committees run`); bot 1, gn0sh 1 each. |
 | `data/localities/clarksville-tn/fin-manifest.json`, `.../finance.json` | `collector/store.py:146` via `collector/fin_books.py:210`; `collector/fin_books.py:156` | collector output | Daily run (`run_city_books`, `collector/__main__.py:147`). When the build is kept, the issue asks a person to run `fin-books build` and commit (`daily-update.yml:581`): that person path ends at the cutover (see below). gn0sh 1-2. |
-| `data/localities/cmc-rpc/{listing,manifest,rpc.json}` | `collector/rpc.py:520`, `collector/store.py:146` via `:858`/`:900`, `collector/rpc.py:791`/`:916` | collector output | Daily run (county `run` RPC step); bot 1-3, gn0sh 1. Second writer: `tools/scrub_rpc_phones.py:48`, a one-off dev tool (rewrites `location` only). |
+| `data/localities/cmc-rpc/{listing,manifest,rpc.json}` | `collector/rpc.py:520`, `collector/store.py:146` via `:858`/`:900`, `collector/rpc.py:791`/`:916` | collector output | Daily run (county `run` RPC step); bot 1-3, gn0sh 1. Second writer was `tools/scrub_rpc_phones.py:48`, a one-off dev tool; B1b removed its rewrite mode (`--check` only, read-only). |
 | `data/localities/montgomery-tn/committee-agendas/{listing,agendas,manifest}.json` | `collector/county_committees.py:364`, `:467`/`:518`, `collector/store.py:146` via `:445`/`:508` | collector output | Daily run (county `run` committee step); gn0sh 1 each. |
-| `data/localities/clarksville-tn/transcripts/*.json` (17), `.../transcripts/index.json` | `collector/transcripts.py:274`, `:295` (import), `:319`, `:322` (remask) | **person-run tool output** | `python -m collector transcripts import <dir>` on Whisper output made outside the repo; the daily run never calls it (`daily-update.yml` has no `transcripts`). Only gn0sh commits (1 each). Fits SHAPE''; stays in `data/` in B1. |
-| `data/maps/manifest.json` | `collector/store.py:146` via `tools/fetch_map.py:43` (path :25) | **person-run tool output** | "Dev tool; nothing at build time runs it" (`tools/fetch_map.py:11`); no reader outside the tool. Only gn0sh commits (1). Fits SHAPE''; stays in `data/` in B1. |
+| `data/localities/clarksville-tn/transcripts/*.json` (17), `.../transcripts/index.json` | `collector/transcripts.py:274`, `:295` (import), `:319`, `:322` (remask) | **person-run tool output, moved to `config/localities/clarksville-tn/transcripts/` (B1b)** | `python -m collector transcripts import <dir>` on Whisper output made outside the repo; the daily run never calls it (`daily-update.yml` has no `transcripts`). Only gn0sh commits (1 each). B1b: the import and remask write under `config/`; `sitegen`, `qa` read only there; `data_shape` refuses a `transcripts/` folder in `data/`. |
+| `data/maps/manifest.json` | `collector/store.py:146` via `tools/fetch_map.py:43` (path :25) | **person-run tool output** | "Dev tool; nothing at build time runs it" (`tools/fetch_map.py:11`). Correction (architect, 2026-11-18): the build does read it, through `config/site.yml:17` `fetch_manifests` (`sitegen/localdates.py`, `sitegen/morning.py`, `qa/site_checks.py:2584`). Only gn0sh commits (1). **Moved to `config/maps/manifest.json` (B1b)**; `fetch_manifests` and the tool's default follow; `data_shape` refuses `data/maps/`. |
 
 Untracked under `data/` (gitignored caches, restored by the workflow, row K): `data/store/`, `data/text/`, `data/ocr/`,
 `data/raw/`.
@@ -41,7 +41,11 @@ No `sitegen/` or `qa/` module writes under `data/`: both only read it (sitegen w
 `qa/published_guard.py` fails any test session that changes `data/`.
 
 ## Open for B2 / the cutover
-1. **Person-run writers have no path to `records-data`.** Under I-prov a person's push of a new tree is refused
+1. **Decided** (architect, 2026-11-18: ADR 0011 decision 2a, invariant I-in, rows TR, MP, FB, SC, LS of
+   `docs/architecture/v1-fail-2026-11-18.md`, task B1b): transcripts and the map manifest move to `config/`; the
+   kept-city-books fallback becomes "fix the reader by PR, or list the reviewed reading in
+   `config/fin-books-accepted.yml`; the next run rebuilds"; the scrub tool keeps only `--check`. Original finding:
+   **Person-run writers have no path to `records-data`.** Under I-prov a person's push of a new tree is refused
    (only a J2-attested tree or the seed passes). Today three person paths write `data/`: `transcripts import`
    (and `remask`), `tools/fetch_map.py`, and the kept-city-books fallback (`fin-books build`, `daily-update.yml:581`),
    plus the one-off `tools/scrub_rpc_phones.py`. Recommended: treat transcripts and the map manifest as reviewed

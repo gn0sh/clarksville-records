@@ -5,18 +5,22 @@
 Reads the raw transcripts in --raw (the speech-recognition input, <date>_<event>.json with segments
 [{start, end, text}], or the committed form with segments [start, end, text]; any folder depth) and, optionally, raw
 RPC text layers (*.txt). It takes the spans collector/privacy.py would mask (and, in the text layers, every
-rpc_agenda.PHONE match), keeps them in memory only, and looks for each in every `git ls-files` file of the repo and
-in every file of --site, case-insensitively with whitespace folded (an address split over two lines of a file is
-found). It prints `path:line` and counts only, never the matched text, and writes no file.
+rpc_agenda.PHONE match), keeps them in memory only, and looks for each in every `git ls-files` file of the repo
+outside data/, in every file of the data/ tree on disk (collector output, filled by scripts/fetch-data or the daily
+run's checkout of records-data; not git's index, which holds no data/ once it is off main, ADR 0011 row LS; the
+uncommitted caches DATA_CACHES are left out), and in every file of --site, case-insensitively with whitespace folded
+(an address split over two lines of a file is found). Transcripts in config/ are tracked files. It prints
+`path:line` and counts only, never the matched text, and writes no file.
 
 A needle that is a bare number ("my address is 515" masks "515") would match everywhere, so a needle with no letters
 and under 8 characters carries up to three words of its raw context before it; a phone number is looked for by its
 digits with any of space, ".", "-", "(" or ")" between them. The --raw folder must be outside the repo (its needles
-must never be committed). Exit 0: no hits; 1: hits; 2: refused or unreadable.
+must never be committed). An empty data/ is refused (exit 2), so the scan never passes by reading no collector output.
+Exit 0: no hits; 1: hits; 2: refused or unreadable.
 
 The masker errs toward masking (an address read aloud from a zoning item, the council chambers' address), so a
 needle is "public", not a hit, only when it is (a) a whole-token match (word boundaries on both sides: house 10 is not
-cleared by house 110) inside one of the named public fields of the committed data outside the transcript folders,
+cleared by house 110) inside one of the named public fields of the collector data outside the transcript folders,
 PUBLIC_FIELDS (an RPC case's subject-property location, an agenda item's title: public case data the architecture keeps
 shown), or (b) exactly one of PUBLIC_PLACES, a government building (a merged span holding one and another number is a
 hit). It never clears a needle because the text is somewhere else in data/** (raw text copied into a data file would
@@ -38,7 +42,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from collector import privacy, rpc_agenda
+from collector import data_shape, privacy, rpc_agenda
 
 ROOT = Path(__file__).resolve().parent.parent
 TEXT_SUFFIXES = {".html", ".js", ".json", ".csv", ".xml", ".txt", ".ics", ".md", ".py", ".yml", ".yaml", ".j2",
@@ -53,6 +57,8 @@ PUBLIC_PLACES = ("106 public square", "350 pageant lane")
 # The only fields of data/**/*.json (outside the transcript folders) whose strings may clear a needle, as paths from the
 # document root: the RPC case's subject-property location and the agenda item titles (city facts, county agendas).
 PUBLIC_FIELDS = frozenset({".cases[].location", ".items[].title", ".meetings[].items[].title"})
+# The uncommitted collector caches under data/ (.gitignore), never part of records-data: one list (collector.data_shape).
+DATA_CACHES = data_shape.DATA_CACHES
 
 
 class ScanError(ValueError):
@@ -130,7 +136,7 @@ def needles(raw: Path) -> tuple[set[str], set[str], dict]:
 
 
 def public_text(root: Path = ROOT) -> list[str]:
-    """The strings of the PUBLIC_FIELDS of the committed source data outside the transcript folders, folded."""
+    """The strings of the PUBLIC_FIELDS of the data/ tree on disk outside any transcripts/ folder, folded."""
     out: list[str] = []
 
     def walk(v, path: str):
@@ -143,9 +149,9 @@ def public_text(root: Path = ROOT) -> list[str]:
         elif isinstance(v, list):
             for x in v:
                 walk(x, f"{path}[]")
-    for p in tracked_files(root):
+    for p in data_files(root):
         rel = p.relative_to(root).as_posix()
-        if rel.startswith("data/") and rel.endswith(".json") and "/transcripts/" not in rel:
+        if rel.endswith(".json") and "transcripts" not in Path(rel).parts[:-1]:
             try:
                 walk(json.loads(p.read_text(encoding="utf-8")), "")
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -212,8 +218,20 @@ def _read(p: Path) -> str | None:
 
 
 def tracked_files(root: Path = ROOT) -> list[Path]:
+    """Every `git ls-files` file outside data/ (data/ is read from disk: data_files)."""
     out = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True, check=True).stdout
-    return [Path(root) / p for p in out.decode("utf-8").split("\0") if p]
+    return [Path(root) / p for p in out.decode("utf-8").split("\0") if p and not p.startswith("data/")]
+
+
+def data_files(root: Path = ROOT) -> list[Path]:
+    """Every file of the data/ tree on disk, the caches (DATA_CACHES) left out, sorted. Raises ScanError when there is
+    none: after the cutover git lists no data/, so an empty folder would let the scan pass on no collector output."""
+    d = Path(root) / "data"
+    out = sorted(p for p in d.rglob("*") if p.is_file() and p.relative_to(d).parts[0] not in DATA_CACHES) \
+        if d.is_dir() else []
+    if not out:
+        raise ScanError("data/ holds no collector output: fill it from records-data first (scripts/fetch-data)")
+    return out
 
 
 def scan(raw: Path, site: Path | None = None, root: Path = ROOT, out=sys.stdout) -> int:
@@ -221,9 +239,10 @@ def scan(raw: Path, site: Path | None = None, root: Path = ROOT, out=sys.stdout)
     texts, phones, counts = needles(raw)
     if not counts["files"]:
         raise ScanError("--raw holds no transcript (*.json with segments) or text layer (*.txt)")
+    data = data_files(root)
     texts, public = split_public(texts, root)
     phone_rx = [_phone_rx(d) for d in sorted(phones)]
-    groups = [("tracked", Path(root), tracked_files(root))]
+    groups = [("tracked", Path(root), tracked_files(root)), ("data", Path(root), data)]
     if site is not None:
         if not Path(site).is_dir():
             raise ScanError("--site is not a folder")
@@ -251,7 +270,8 @@ def scan(raw: Path, site: Path | None = None, root: Path = ROOT, out=sys.stdout)
                 print(f"PUBLIC {label}:{rel}:{ln}", file=out)
         scanned[label] = n
     print(f"pii_scan: {len(texts)} text needles ({len(public)} more public) and {len(phones)} phone numbers from "
-          f"{counts['spans']} spans in {counts['files']} raw files; scanned {scanned.get('tracked', 0)} tracked files"
+          f"{counts['spans']} spans in {counts['files']} raw files; scanned {scanned.get('tracked', 0)} tracked files, "
+          f"{scanned.get('data', 0)} data files"
           + (f" and {scanned['site']} site files" if "site" in scanned else "")
           + f"; {total} hits in {hit_files} files; {pub_total} public matches", file=out)
     return 1 if total else 0

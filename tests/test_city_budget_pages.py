@@ -62,7 +62,8 @@ def pinned_pages(tmp_path_factory):
     city = pinned_data.city_dir(d)
     (d / "county").mkdir()
     (d / "county" / "facts.json").write_text(json.dumps(pinned_data.county_facts()), encoding="utf-8")
-    cfg = {**config.load_council("clarksville-tn"), "facts_path": city / "facts.json", "wards_path": city / "wards.json"}
+    cfg = {**config.load_council("clarksville-tn"), "facts_path": city / "facts.json", "wards_path": city / "wards.json",
+           "transcripts_path": city / "transcripts"}
     out = d / "site"
     res = build(d / "county" / "facts.json", out, target="pages", finance_path=None, councils=[cfg], rpc=None,
                 county_agendas=None, county_committees=None, city_committees=None, transcripts=False, export=False,

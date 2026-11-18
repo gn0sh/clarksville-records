@@ -164,7 +164,8 @@ def test_council_cards_show_votes_when_read_and_the_agenda_when_not(tmp_path):
     wards = [w for w in all_wards if w["meeting_id"] == read]
     (tmp_path / "facts.json").write_text(json.dumps(sub), encoding="utf-8")
     (tmp_path / "wards.json").write_text(json.dumps(wards), encoding="utf-8")
-    cfg = {**CFG, "facts_path": tmp_path / "facts.json", "wards_path": tmp_path / "wards.json"}
+    cfg = {**CFG, "facts_path": tmp_path / "facts.json", "wards_path": tmp_path / "wards.json",
+           "transcripts_path": tmp_path / "transcripts"}
     for when, mid in ((date(2019, 1, 3), read), (date.fromisoformat(agenda_only["date"]), agenda_only["id"])):
         out = tmp_path / f"site-{mid}"
         build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, councils=[cfg], today=when)

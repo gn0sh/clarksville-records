@@ -7,7 +7,8 @@ Input: JSON files named <YYYY-MM-DD>_<eventId>.json, made outside the repo by sp
 from the city's public meeting videos (docs/platform-facts.md, "Meeting video"). Each has event_id, event_name,
 start, video_url, model, model_version, created_at and segments [{start, end, text, words: [...]}].
 
-Output, under <the council's facts folder>/transcripts/ (data/localities/<locality>/transcripts/):
+Output, under the council's transcripts folder, config/localities/<locality>/transcripts/ (a reviewed input on main,
+invariant I-in, ADR 0011 decision 2a; never under data/, which holds collector output only and is not committed):
 - <meeting-id>.json: the provenance fields plus segments as [start, end, text] (word-level data dropped), one
   segment per line. Text is kept as the software wrote it, apart from whitespace runs folded to one space, control
   characters removed, and street addresses and phone numbers replaced by a placeholder (collector/privacy.py
@@ -31,6 +32,10 @@ When two inputs match one meeting, the later created_at (then the later file nam
 Every import also removes the transcript files already in the folder that no longer match a meeting of the facts file
 (the meeting is gone, its video_url changed, or its event_id differs in the facts or the listing), so the index
 never names a stale transcript.
+
+The facts file and the event listing are read from data/ (collector output: run scripts/fetch-data first, which fills
+data/ from records-data). The import writes only under config/: a new batch, a remask or a stale removal reaches the
+site as a reviewed pull request carrying masked text only (where Brian's sample OK sits).
 
 Deterministic and idempotent: the output depends only on the inputs and the facts file (no clock), files are
 rewritten only when their text changes, and running the same import twice changes nothing.
@@ -324,9 +329,10 @@ def remask(out_dir: Path) -> dict:
     return log
 
 
-def transcripts_dir(facts_path: Path) -> Path:
-    """Where a council's transcripts live: beside its facts file."""
-    return Path(facts_path).parent / "transcripts"
+def transcripts_dir(locality: str) -> Path:
+    """Where a council's transcripts live: config/localities/<locality>/transcripts/ (I-in), never data/."""
+    from sitegen.config import transcripts_path
+    return transcripts_path(locality)
 
 
 def main(argv=None) -> int:
@@ -342,11 +348,15 @@ def main(argv=None) -> int:
     from sitegen.config import load_council
     from .agenda_center import config_path, load_config
     if a.cmd == "remask":
-        folder = Path(a.dir) if a.dir else transcripts_dir(load_council(a.locality)["facts_path"])
+        folder = Path(a.dir) if a.dir else transcripts_dir(a.locality)
         log = remask(folder)
         print(json.dumps(log, indent=1, sort_keys=True))
         return 1 if log["refused"] else 0
     cfg = load_council(a.locality)
+    if not Path(cfg["facts_path"]).is_file():
+        print(f"transcripts: no facts file {cfg['facts_path']}: fill data/ from records-data first (scripts/fetch-data)",
+              file=sys.stderr)
+        return 1
     facts = json.loads(Path(cfg["facts_path"]).read_text(encoding="utf-8"))
     kind_of = load_config(config_path(a.locality)).kind_of
     if not Path(a.src).is_dir():
@@ -357,7 +367,7 @@ def main(argv=None) -> int:
     except TranscriptError as exc:
         print(f"transcripts: {exc}", file=sys.stderr)
         return 1
-    log = import_dir(Path(a.src), facts, transcripts_dir(cfg["facts_path"]), kind_of, listing)
+    log = import_dir(Path(a.src), facts, Path(cfg["transcripts_path"]), kind_of, listing)
     print(json.dumps(log, indent=1, sort_keys=True))
     return 0
 
