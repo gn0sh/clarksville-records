@@ -1945,8 +1945,9 @@ def test_the_window_check_runs_and_stops_where_it_must(tmp_path, case):
         assert "checked 2 commits" not in r.stdout
 
 
-@pytest.mark.parametrize("case", ["canary", "canary2", "other-file", "other-pr", "other-sha"])
-def test_the_window_check_lets_only_the_v1_probe_canary_merge_through(tmp_path, case):
+@pytest.mark.parametrize("slot", [1, 2])
+@pytest.mark.parametrize("case", ["canary", "other-file", "other-pr", "other-sha"])
+def test_the_window_check_lets_only_the_v1_probe_canary_merge_through(tmp_path, case, slot):
     """ADR 0010 / T4.11.4: 3ef440a (PR #40, the V1 probe's bot merge of .github/workflows/v1-canary.yml) is the one
     known Bot merge in the window. The block passes it only when the sha, the PR number and the file list all match;
     any other Bot merge still stops. The real sha is swapped for a local commit to run it."""
@@ -1972,18 +1973,21 @@ def test_the_window_check_lets_only_the_v1_probe_canary_merge_through(tmp_path, 
     bindir.mkdir()
     (bindir / "gh").write_text(_WINDOW_GH)
     (bindir / "gh").chmod(0o755)
-    other = "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40"
+    first = "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40"
     second = "known2=2b207042a53e4d11dadfee978b029392df63c376; known_pr2=49"
-    if case == "canary2":   # the second known merge is matched by its own sha and PR, not the first's
-        swapped = (other, f"known={'e' * 40}; known_pr=40", second, f"known2={known}; known_pr2={pr}")
-        script = script.replace(swapped[0], swapped[1], 1).replace(swapped[2], swapped[3], 1)
+    # Swap only the slot under test for the local commit; the other slot keeps a sha that matches nothing here, so
+    # a pass or a stop can only come from the slot under test (deleting that slot's check fails a case).
+    if slot == 1:
+        script = script.replace(first, f"known={known}; known_pr={pr}", 1)
     else:
-        script = script.replace(other, f"known={known}; known_pr={pr}")
+        script = script.replace(first, f"known={'e' * 40}; known_pr=40", 1)
+        script = script.replace(second, f"known2={known}; known_pr2={pr}", 1)
+    assert f"{known}; known_pr{'' if slot == 1 else '2'}={pr}" in script
     script = script.replace('"<R2-on sha>"', f'"{shas[0]}"', 1)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "TYPES": json.dumps(types),
            "GIT_CONFIG_GLOBAL": "/dev/null"}
     r = subprocess.run(["bash", "-c", script], cwd=work, env=env, capture_output=True, text=True)
-    if case in ("canary", "canary2"):
+    if case == "canary":
         assert r.returncode == 0 and r.stdout.splitlines()[-1] == "checked 2 commits", r.stdout + r.stderr
         assert f"KNOWN EXCEPTION: {shas[1]} is PR #{pr}" in r.stdout
     else:
