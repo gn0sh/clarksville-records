@@ -257,10 +257,13 @@ echo "If this window ever closes without a RESTORED line: gh api -X PUT repos/$r
 pr_state() {   # merged, merged_by, merge commit, head (each through tostring: never empty)
   gh api "repos/$repo/pulls/$pr" --jq '[(.merged|tostring), (.merged_by.login|tostring), (.merge_commit_sha|tostring), (.head.sha|tostring)] | @tsv'
 }
-refusal() {   # $1 text: FAIL-U3 only for HTTP 405 naming reviews or approvals, with P unmerged at the same head
-  local st merged by msha h
-  grep -q 'HTTP 405' <<< "$1" && grep -qiE 'review|approv' <<< "$1" \
+refusal() {   # $1 text: FAIL-U3 only for HTTP 405 naming "approving review", P unmerged at the same head, main unmoved
+  local st merged by msha h m
+  # v1-probe/u3-405-wording: "Base branch was modified. Review and try the merge again." is a 405 too
+  grep -q 'HTTP 405' <<< "$1" && grep -qi 'approving review' <<< "$1" \
     || { why="the merge failed without a ruleset refusal: $2"; return; }
+  m=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') || m=""
+  [ "$m" = "$main_before" ] || { why="the merge was refused but main is at ${m:-unread}, not $main_before"; return; }
   st=$(pr_state) || { why="the merge was refused but PR #$pr could not be read"; return; }
   IFS=$'\t' read -r merged by msha h <<< "$st" || true
   [ "$merged" = false ] || { why="the merge was refused but PR #$pr reads merged=$merged"; return; }

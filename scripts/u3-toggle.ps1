@@ -321,9 +321,12 @@ function ReadMain {
     if ($LASTEXITCODE -ne 0 -or $s -cnotmatch '^[0-9a-f]{40}$') { return '' }
     return $s
 }
-# FAIL-U3 only for HTTP 405 naming reviews or approvals, with P unmerged at the same head
+# FAIL-U3 only for HTTP 405 naming "approving review", P unmerged at the same head, main unmoved
 function Refusal($text, $shown) {
-    if (-not ($text -match 'HTTP 405' -and $text -match '(?i)review|approv')) { $script:why = "the merge failed without a ruleset refusal: $shown"; return }
+    # v1-probe/u3-405-wording: "Base branch was modified. Review and try the merge again." is a 405 too
+    if (-not ($text -match 'HTTP 405' -and $text -match '(?i)approving review')) { $script:why = "the merge failed without a ruleset refusal: $shown"; return }
+    $m = ReadMain
+    if ($m -cne $mainBefore) { $script:why = "the merge was refused but main is at $m, not $mainBefore"; return }
     if (-not (PrState)) { $script:why = "the merge was refused but PR #$Pr could not be read"; return }
     if ($script:prSt[0] -cne 'false') { $script:why = "the merge was refused but PR #$Pr reads merged=$($script:prSt[0])"; return }
     if ($script:prSt[3] -cne $head) { $script:why = "the merge was refused but PR #$Pr's head is now $($script:prSt[3]), not $head"; return }

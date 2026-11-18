@@ -50,7 +50,7 @@ Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and 
 | Verdict | Condition | Meaning, next step |
 |---|---|---|
 | **PASS** | P merged, `merged_by` gn0sh, the rule suite reads **suite `bypass`, `pull_request` `fail`** (evaluation of ruleset 27502319, enforcement `active`), the ruleset read during the window matched R1'', and restore verified | U3 holds. Build ADR 0011 (task list). Record it in `docs/platform-facts.md`. |
-| **FAIL-U3** | `merge-reviewed`'s merge refused with HTTP 405 naming reviews or approvals, P unmerged at the same head | The team can't merge under R1''. ADR 0011 is rejected; take the fallback (B plus a sender repository). P stays open. |
+| **FAIL-U3** | `merge-reviewed`'s merge refused with HTTP 405 naming "approving review", P unmerged at the same head, `main` unmoved | The team can't merge under R1''. ADR 0011 is rejected; take the fallback (B plus a sender repository). P stays open. |
 | **FAIL-RULE** | P merged and the `pull_request` evaluation reads `pass` (suite `bypass` or `pass`) | 2 required approvals don't bind for this merge, so R1'' guards nothing. Stop and re-plan (third hit: escalate per the loop limit). |
 | **INCONCLUSIVE** | No merge in the 20 minutes (rule-suite reads included), a read failed, `main` moved by another actor, the ruleset didn't match, or any other suite shape | Nothing learned. Re-run once at a later time with the same PR. |
 
@@ -66,10 +66,11 @@ Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and 
 ## Who runs it
 - U3-0 = **no**: the team's cloud session got a proxy 403 on the no-op ruleset PUT at 17:37 UTC 2026-11-18 (read-back
   unchanged). So Brian runs the script from his PC, and the manager runs the merge.
-- Brian gets one card: "U3 test today, about 20 minutes, any time outside 08:00-10:30 UTC? **yes** / no."
+- Brian gets one card: "U3 test today, about 20 minutes, any time outside 07:30-10:30 UTC (not 1:30-4:30 AM CT)? **yes** / no."
   His steps:
   1. In PowerShell in the repo folder, run `.\scripts\u3-toggle.ps1 -Pr <P> -Rehearse`, press Ctrl+C after
      `U3 REHEARSAL WINDOW OPEN`, and check he sees `RESTORED` and `U3 REHEARSAL DONE` (nothing changes).
   2. Run `.\scripts\u3-toggle.ps1 -Pr <P>`. He should see `U3 WINDOW OPEN`.
   3. Type `U3 go` in the thread.
-  4. Wait for `RESTORED` and the verdict line. Paste it in the thread.
+  4. Wait for `RESTORED` and the verdict line. Paste it in the thread. Keep the PC awake and don't close the
+     PowerShell window until you see RESTORED.

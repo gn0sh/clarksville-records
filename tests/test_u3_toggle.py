@@ -91,7 +91,9 @@ if path == R + "/pulls/%s/reviews" % st["pr_number"]:
 if path == R + "/pulls/%s/merge" % st["pr_number"]:
     if st.get("merge_refuse"):
         st["moved_on"] = True; save()
-        sys.stderr.write("gh: At least 2 approving reviews are required by reviewers with write access. (HTTP 405)\n")
+        if st.get("refuse_moves_main"):
+            st["main"] = "e" * 40; save()
+        sys.stderr.write(st.get("merge_msg", "gh: At least 2 approving reviews are required by reviewers with write access. (HTTP 405)") + "\n")
         sys.exit(1)
     st["moved_on"] = True
     st["pr"].update(merged=True, merged_by={"login": "gn0sh"}, merge_commit_sha=st["merge_sha"], state="closed")
@@ -364,6 +366,16 @@ def test_a_refusal_comment_reads_fail_u3_only_when_it_holds(tmp_path, comment, p
     assert why in _assert_restored(r, made, "INCONCLUSIVE")
 
 
+@pytest.mark.parametrize("over,why", [
+    ({"merge_msg": "gh: Base branch was modified. Review and try the merge again. (HTTP 405)"},
+     "without a ruleset refusal"),                                       # v1-probe/u3-405-wording
+    ({"refuse_moves_main": True}, "main is at " + "e" * 40),
+], ids=["base-modified-405", "main-moved"])
+def test_a_team_405_that_is_not_the_approval_rule_is_inconclusive(tmp_path, over, why):
+    r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], _state(merge_refuse=True, **over))
+    assert why in _assert_restored(r, made, "INCONCLUSIVE")
+
+
 def test_a_team_refusal_at_a_moved_head_is_inconclusive(tmp_path):
     st = _state(merge_refuse=True, head_after="f" * 40)
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], st)
@@ -588,7 +600,7 @@ def test_ps1_has_the_same_steps_lines_and_refusals():
               "BACKUP $($script:backup)", "[DateTime]::UtcNow.AddMinutes(20)", "[DateTime]::UtcNow -ge $deadline",
               "$hm -ge 730 -and $hm -le 1030", "if (-not (PinOk))", "$script:backupObj = $live",
               "$suiteResult -ceq 'bypass' -and $prEval -ceq 'fail'", "$prEnf -cne 'active'", "$ev.Count -ne 3",
-              "$script:prSt[3] -cne $head", "startswith($ENV.U3_REFUSED)", "$env:U3_REFUSED = 'U3 merge refused'",
+              "$script:prSt[3] -cne $head", "'(?i)approving review'", "$m -cne $mainBefore", "startswith($ENV.U3_REFUSED)", "$env:U3_REFUSED = 'U3 merge refused'",
               "'PASS'", "'FAIL-U3'", "'FAIL-RULE'", "'INCONCLUSIVE'", "NOOP OK", "NOOP REFUSED", "NOOP CHANGED",
               "Start-Sleep -Seconds 15", "$i -le 80", "$fails -ge 4",
               "-cne 'completed'", "'pull_requests_only'", "'always'", "StartsWith('docs/', [StringComparison]::Ordinal)",
