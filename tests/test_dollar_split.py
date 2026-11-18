@@ -281,10 +281,41 @@ def test_no_sum_or_amount_sort_in_dollar_split():
 # ---- the rendered pages ---------------------------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
-def pages(tmp_path_factory):
+def site_out(tmp_path_factory):
     out = tmp_path_factory.mktemp("dollar") / "site"
     build(ROOT / "data" / "facts.json", out, target="pages")
-    return {k: (out / k).read_text(encoding="utf-8") for k in ("finance/index.html", "city/finance/index.html")}
+    return out
+
+
+@pytest.fixture(scope="module")
+def pages(site_out):
+    return {k: (site_out / k).read_text(encoding="utf-8") for k in ("finance/index.html", "city/finance/index.html")}
+
+
+@pytest.mark.parametrize("rel,which,facts_path,locality", [
+    ("finance/index.html", "county", ROOT / "data" / "facts.json", "montgomery-tn"),
+    ("city/finance/index.html", "city", ROOT / "data" / "localities" / "clarksville-tn" / "facts.json",
+     "clarksville-tn")])
+def test_site_checks_know_every_dollar_fact_id(site_out, rel, which, facts_path, locality, request):
+    """qa.site_checks `unverified` (the deploy runs it): every data-fact-id on a page must be a known fact. The dollar
+    rows' ids come from sitegen/dollar_split.fact_ids, the split the page renders: the same set, row for row."""
+    from qa import site_checks
+    fin, d = request.getfixturevalue(which)
+    facts = json.loads(facts_path.read_text(encoding="utf-8"))
+    page = {rel: site_checks.parse(site_out / rel)}
+    on_page = {f for f in page[rel].fact_ids if f.startswith("dollar/")}
+    assert on_page == dollar_split.fact_ids(fin, locality) == {r["fact_id"] for r in d["rows"]} | {d["total_fact_id"]}
+    assert len(on_page) == len(d["rows"]) + 1
+    kw = {} if which == "county" else {"official_prefix": "city/members/", "export": False}
+
+    def dollar_problems(**more):
+        probs = site_checks.check_unverified(site_out, page, facts, internal=False, fin=fin, **kw, **more)
+        return [p for p in probs if "dollar/" in p]
+    assert dollar_problems(fin_locality=locality) == []
+    # the check is not weakened: without the body's dollar ids every row fails, and an unknown id still fails
+    assert len(dollar_problems()) == len(on_page)
+    page[rel].fact_ids.append(f"dollar/{d['book_id']}/no-such-department")
+    assert [p for p in dollar_problems(fin_locality=locality) if "no-such-department" in p]
 
 
 def section(page):

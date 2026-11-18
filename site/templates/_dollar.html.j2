@@ -73,11 +73,11 @@
       <td class="c-source cite" data-label="{{ t.col_source }}">{% if r.key == 'other' %}{{ t.other_sources }}{% else %}{{ fin_cites(r.srcs, root, r.fact_id) }}{% endif %}</td>
     </tr>
   {% endfor %}
-    <tr class="fact d-total" data-fact-id="dollar/{{ dollar.book_id }}/total">
+    <tr class="fact d-total" data-fact-id="{{ dollar.total_fact_id }}">
       <th scope="row" class="c-dept"><a href="{{ dollar.total_href }}">{{ t.total_row }}</a></th>
       <td class="num c-cents" data-label="{{ t.col_cents }}">{{ t.cents_many.format(n=dollar.total_cents) }}</td>
       <td class="num c-amt" data-label="{{ dollar.col_amount }}">{{ dollar.total }}</td>
-      <td class="c-source cite" data-label="{{ t.col_source }}">{{ fin_cites([dollar.total_src], root, "dollar/" ~ dollar.book_id ~ "/total") }}</td>
+      <td class="c-source cite" data-label="{{ t.col_source }}">{{ fin_cites([dollar.total_src], root, dollar.total_fact_id) }}</td>
     </tr>
   </tbody>
 </table>

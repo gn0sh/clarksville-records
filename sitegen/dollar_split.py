@@ -21,7 +21,7 @@ from collector.fin_checks import cents_of_dollar, parts_add_up, total_of
 
 from . import config
 from .budget_views import Budget, cents_text, dollars, fund_key
-from .fin_views import FinanceError
+from .fin_views import Finance, FinanceError
 
 T = config.FIN_TEXT["dollar"]
 GROUP_RULES = ("heading_prefix", "org_code")
@@ -226,7 +226,15 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
         "zero_heading": T["zero"].format(header=column, n=len(zero)),
         "col_amount": column, "kind": config.FIN_TEXT["budget"]["kinds"][first["kind"]],
         "caption": T["caption"].format(year=year), "t": T,
-        "book_id": book["id"], "fund": cfg["fund"], "value_total": total,
+        "book_id": book["id"], "fund": cfg["fund"], "value_total": total, "total_fact_id": f"dollar/{book['id']}/total",
     }
     return out
 
+
+def fact_ids(fin: dict | None, locality: str) -> set[str]:
+    """Every data-fact-id the general fund dollar puts on a body's Finance index (each row, Other and the total), from
+    the same split the page renders: qa/site_checks.py reads this so the two never drift."""
+    if not fin or not fin.get("budget_lines"):
+        return set()
+    d = split(Budget(Finance(fin, []), None), load(locality))
+    return set() if d is None else {r["fact_id"] for r in d["rows"]} | {d["total_fact_id"]}

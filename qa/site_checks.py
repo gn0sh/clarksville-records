@@ -228,7 +228,7 @@ def councils(facts: dict) -> list[dict]:
     for loc in _site_cfg().get("councils") or []:
         c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
         fin_path = (ROOT / c["facts"]).parent / "finance.json"   # the body's budget books (city/finance/)
-        out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"]),
+        out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"]), "locality": loc,
                     "finance": load_facts(fin_path) if fin_path.is_file() else None,
                     "held_sentences": c.get("held_sentences"),
                     "transcripts_dir": (ROOT / c["facts"]).parent / "transcripts"})
@@ -1437,10 +1437,13 @@ def shown_fact_ids(facts: dict) -> tuple[set[str], set[str]]:
     return shown, hidden
 
 
-def finance_fact_ids(fin: dict | None) -> set[str]:
+def finance_fact_ids(fin: dict | None, locality: str | None = None) -> set[str]:
     """Fact ids the finance pages may carry (sitegen/fin_views.py, budget_views.py): solicitation, its documents, its
-    bidders; each budget line by its line id, and each fund as fund/<fund_no>."""
-    ids: set[str] = set()
+    bidders; each budget line by its line id, and each fund as fund/<fund_no>. `locality`: the body whose finance file
+    this is; its general fund dollar's rows (dollar/<book>/<department>, .../other, .../total) come from
+    sitegen/dollar_split.fact_ids, the same split the Finance index renders."""
+    from sitegen import dollar_split
+    ids: set[str] = dollar_split.fact_ids(fin, locality) if locality and fin else set()
     for s in (fin or {}).get("solicitations", []):
         ids.add(s["id"])
         ids |= {f"{s['id']}/{d}" for d in s["document_ids"]}
@@ -1475,8 +1478,10 @@ def held_sentence(rc: dict, sentences: dict) -> str:
 
 def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: bool,
                      show_values: bool | None = None, fin: dict | None = None, official_prefix: str = "officials/",
-                     export: bool = True, held_sentences: dict | None = None) -> list[str]:
-    """`pages`: the pages built from `facts` (a council's pages are checked against the council's facts, with its
+                     export: bool = True, held_sentences: dict | None = None,
+                     fin_locality: str | None = None) -> list[str]:
+    """`fin_locality`: the body whose `fin` this is (its general fund dollar's fact ids, finance_fact_ids).
+    `pages`: the pages built from `facts` (a council's pages are checked against the council's facts, with its
     member pages under `official_prefix`); the token scan always covers every file. `export`: data/facts.json is
     this facts file's export. `held_sentences`: the council's sentence per held check (council.yml), so each held
     roll call must show its own."""
@@ -1514,7 +1519,7 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
     shown, hidden = shown_fact_ids(facts)
     on_official: set[str] = set()
     known = ({r["id"] for r in facts["roll_calls"]} | {m["id"] for m in facts["motions"]} | {e["id"] for e in facts["item_events"]}
-             | {m["id"] for m in facts["meetings"]}) | finance_fact_ids(fin)
+             | {m["id"] for m in facts["meetings"]}) | finance_fact_ids(fin, fin_locality)
     for rel, pg in pages.items():
         for fid in pg.fact_ids:
             if fid in hidden:
@@ -3588,11 +3593,12 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         problems, note = check_rpc_morning(site, rpc, cfg.get("morning_note") is not None and target != "preview")
         rep.add("rpc-morning", problems, note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
-    problems = check_unverified(site, county_pages, facts, internal, fin=finance)
+    problems = check_unverified(site, county_pages, facts, internal, fin=finance, fin_locality=cfg["locality"])
     for c in cs:
         mine = {rel: pg for rel, pg in pages.items() if rel.startswith(c["prefix"])}
         problems += check_unverified(site, mine, c["facts"], internal, official_prefix=c["prefix"] + "members/",
-                                     export=False, held_sentences=c.get("held_sentences"), fin=c.get("finance"))
+                                     export=False, held_sentences=c.get("held_sentences"), fin=c.get("finance"),
+                                     fin_locality=c["locality"])
     rep.add("unverified", problems, ("internal build" if internal else "public build") + "".join(f"; {c['slug']}/ against its own facts" for c in cs))
     fact_ids = {o["id"] for o in facts["officials"]}
     roster_only = tuple(sorted({r["official_id"] for r in read_roster(seats_path) if r.get("official_id")} - fact_ids))
