@@ -58,20 +58,19 @@ def test_one_page_per_fund_by_printed_name_and_one_for_the_report_totals(pages, 
         assert f'href="../../city/finance/{k}.html"' in idx
 
 
-def test_books_listed_with_report_date_and_fy2025_linked_only(pages, fin):
+def test_books_listed_with_report_date_and_all_four_read(pages, fin):
     idx = text_of(main_of(pages["city/finance/index.html"]))
     assert "Fiscal Year 2027 Budget, as presented 5/29/2026" in idx
     assert "Fiscal Year 2026 Budget (Final Submission)" in idx and "Fiscal Year 2024 Budget" in idx
+    assert [b["id"] for b in fin["books"]] == ["fy2024-adopted", "fy2025-adopted", "fy2026-final", "fy2027-presented"]
     for b in fin["books"]:
         d = b["report_dates"][0]
         src = next(s for s in fin["sources"] if s["id"] == b["source_id"])
         assert f'{src["url"]}#page={d["page"]}' in pages["city/finance/index.html"]
         assert f"Report date as printed: {d['as_printed']}" in idx
-    # FY2025: the official book, linked only; its figures are in the FY2026 book's columns, said plainly
-    assert 'href="https://www.clarksvilletn.gov/DocumentCenter/View/11392" data-ext="record"' in \
-        pages["city/finance/index.html"]
-    assert "Linked only, not read" in idx and "printed in the columns of the Fiscal Year 2026 Budget" in idx
-    assert "View/11392" not in "".join(v for k, v in city_pages(pages).items() if k != "city/finance/index.html")
+    # FY2025 is read through its glyph table (2026-11-18): listed like the others, no "linked only" note
+    assert "Fiscal Year 2025 Budget" in idx and "Report date as printed: 06/27/2024" in idx
+    assert "Linked only, not read" not in idx
 
 
 def test_fy2027_is_proposed_and_never_called_adopted(pages):
@@ -169,7 +168,8 @@ def test_hub_card_names_the_books_from_the_data_and_index_says_what_is_not_read(
     hub = pages["city/index.html"]
     card = text_of(re.search(r'<li class="hub-card" data-card="finance" id="card-finance">.*?</li>', hub, re.S).group(0))
     assert budget_views.books_phrase(fin["books"]) in card and "{books}" not in card
-    assert "FY2024 (adopted), FY2026 (final submission) and FY2027 (as presented 5/29/2026)" in card
+    assert ("FY2024 (adopted), FY2025 (adopted), FY2026 (final submission) and FY2027 (as presented 5/29/2026)"
+            in card)
     idx = main_of(pages["city/finance/index.html"])
     note = re.search(r'<p class="note" id="not-covered">.*?</p>', idx, re.S).group(0)
     nc = config.FIN_TEXT["budget_city"]["not_covered"]["text"]

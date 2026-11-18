@@ -118,7 +118,7 @@ def build_budget(store, cfg: FinanceConfig, sources: dict, problems: list, meta_
     """Budget books in the store -> (books, budget_lines with checks and edition marks) (tasks F10-F12). A book not
     in the store, or without a text layer, is reported in `problems` and not read; both are guard problems
     (fin_run.GUARD_KEYS), so the build writes nothing rather than drop a book's lines (provenance/book-missing)."""
-    books, lines = [], []
+    books, lines, glyph_read, reads = [], [], [], []
     for spec in cfg.budget.books:
         e = store.latest(spec.url)
         if not e or not store.has_bytes(e["sha256"]):
@@ -131,7 +131,14 @@ def build_budget(store, cfg: FinanceConfig, sources: dict, problems: list, meta_
         if src["text_layer"] != "text":
             problems.append(f"book {spec.id}: {src['text_layer']} source {src['id']}, not read (scan-values)")
             continue
-        read = fin_budget.read_book(book_words(pdf, spec.first_page, spec.last_page), spec, cfg.budget)
+        if spec.glyph_map:
+            words = glyph_words(pdf, spec, book_words, problems)
+            if words is None:
+                continue
+            glyph_read.append(spec.id)
+        else:
+            words = book_words(pdf, spec.first_page, spec.last_page)
+        read = fin_budget.read_book(words, spec, cfg.budget)
         book = {"id": spec.id, "title": spec.title, "edition": spec.edition, "fiscal_year": spec.fiscal_year,
                 "source_id": src["id"], "pages_read": read.pages_read, "columns": read.columns}
         if cfg.budget.amount_unit != "dollars":
@@ -139,10 +146,56 @@ def build_budget(store, cfg: FinanceConfig, sources: dict, problems: list, meta_
         if read.report_dates:
             book["report_dates"] = read.report_dates
         books.append(book)
+        reads.append(read)
+    fin_budget.complete_cut_fund_names(reads)
+    for read in reads:
         lines += fin_budget.to_records(read, cfg.budget)
     fin_checks.reconcile(lines, cfg.budget.run_totals)
+    for book_id in glyph_read:
+        problems += glyph_book_problems(book_id, lines)
     fin_checks.edition_compare(lines)
     return sorted(books, key=lambda b: b["id"]), sorted(lines, key=lambda x: x["id"])
+
+
+# Measured 2026-11-18: the FY2025 city book (10.2 MB, 215 pages; 91 pages, 91 fonts, 89 glyphs decoded) takes 1.3 s.
+DECODE_TIMEOUT = 120      # seconds (pipeline/parser-dos-untimed); a timeout means the book is not read
+DECODER = Path(__file__).resolve().parent / "type3_decode.py"
+GLYPH_KEY = "glyph-decode"   # a guard key (fin_run.GUARD_KEYS): the build writes nothing
+
+
+def glyph_words(pdf: Path, spec, book_words, problems: list) -> list | None:
+    """Words of a book printed in Type 3 fonts with no Unicode map: type3_decode writes a decoded copy (its own
+    process, under DECODE_TIMEOUT) and `book_words` reads that copy. None (and a guard problem) when a glyph is not in
+    the book's table or the decoder fails: no word of the book is read."""
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="type3-") as tmp:
+        out = Path(tmp) / "decoded.pdf"
+        try:
+            r = limits.run("fin_facts.DECODE_TIMEOUT",
+                           [sys.executable, "-I", str(DECODER), str(pdf), str(spec.first_page), str(spec.last_page),
+                            str(ROOT / spec.glyph_map), str(out)],
+                           file=pdf, capture_output=True, timeout=DECODE_TIMEOUT)
+        except (OSError, subprocess.SubprocessError) as ex:
+            problems.append(f"book {spec.id}: glyph decode failed ({type(ex).__name__}: {ex}), not read ({GLYPH_KEY})")
+            return None
+        if r.returncode != 0 or not out.is_file():
+            why = r.stderr.decode("utf-8", "replace").strip().splitlines()[-1:] or [f"exit {r.returncode}"]
+            problems.append(f"book {spec.id}: {why[0][:300]}, not read ({GLYPH_KEY})")
+            return None
+        return book_words(out, spec.first_page, spec.last_page)
+
+
+def glyph_book_problems(book_id: str, lines: list[dict]) -> list[str]:
+    """A book read through its glyph table is kept only when it reads exactly: at least one printed total, every
+    total `exact` to the cent, no held line. A wrong glyph in an amount breaks the totals it is in, so any other
+    outcome is a guard problem and nothing is written (no value from a doubtful reading is shown)."""
+    mine = [x for x in lines if x["book_id"] == book_id]
+    totals = [x for x in mine if x["check"]]
+    bad = sorted({x["id"] for x in totals if x["check"]["state"] != "exact"} | {x["id"] for x in mine if x["held"]})
+    if totals and not bad:
+        return []
+    return [f"book {book_id}: read through its glyph table, but {len(bad)} lines are held or totals not exact "
+            f"({len(totals)} totals): {', '.join(bad[:5]) or 'no total printed'}; not read ({GLYPH_KEY})"]
 
 
 def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache: Path | None = META_CACHE,

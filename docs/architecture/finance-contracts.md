@@ -200,8 +200,8 @@ The City of Clarksville books reuse adapter 3 and the checks above, with a books
 `data/localities/clarksville-tn/fin-manifest.json`; output `data/localities/clarksville-tn/finance.json` (same schema,
 `solicitations` and `documents` empty); run report `build/fin-books-clarksville-tn.json`. County files are untouched.
 Layout notes: `docs/research/city-budget-layout-2026-11-16.md`. Only the Munis line-item report ("NEXT YEAR / CURRENT
-YEAR BUDGET ANALYSIS") is read; the FY2025 book is fetched but not read (`books_not_read`: its line-item pages have no
-usable text layer).
+YEAR BUDGET ANALYSIS") is read. All four books are read (2026-11-18): the FY2025 book, whose pages have no usable text
+layer, through its glyph table (below); `books_not_read` is empty.
 
 Contract changes (all additive; county output keeps its exact bytes because the county config sets none of the new
 keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
@@ -232,3 +232,17 @@ keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
   time, page number and login are never stored). One entry per distinct date, `{as_printed, page}` (first page that
   prints it). Each city book prints one date. The pages show it next to the year-in-progress ACTUAL column (the ACTUAL
   column for the year before the book's budget year): "as of <date> (report date)". County books: absent.
+- **Glyph-decoded books** (added 2026-11-18, backend-engineer; evidence `docs/research/city-budget-fy2025-glyphs-2026-11-18.md`).
+  A book key `glyph_map` (repo-relative JSON table: sha256 of each Type 3 glyph drawing -> `{char, advance}`, checked
+  at config load) makes `fin_facts.glyph_words` run `collector/type3_decode.py` in its own process
+  (`fin_facts.DECODE_TIMEOUT` 120 s, measured 1.3 s) to write a decoded copy (ToUnicode, widths; never stored), then
+  read it with the usual `pdftotext -bbox` reader. Fail closed, guard key `glyph-decode` (fin_run.GUARD_KEYS: nothing
+  written, daily run keeps the committed file): a glyph not in the table, a decoder failure or timeout, or a book whose
+  printed totals are not all `exact` or that has a held line or no total. New dependency: pypdf (pinned, hashed).
+- FY2025 layout keys (no schema change): `rows.org_section_totals` (a codeless row with amounts that repeats its
+  section's org and names it is the section total; label kept as printed, "100310 Taxes"); a book's own `fund_line`
+  ("1100 General Fund": the name after the number; `fund_no` stays null so the four books group and compare by name).
+  With `fund_from_header`, rows after a fund total on the same page belong to the next page header's fund; a fund that
+  opens and closes on one page is named by its total label, and a name cut there ("Vehicle Replaceme") takes the one
+  header fund name of the books read that starts with it ("Vehicle Replacement Fund"); the label stays as printed.
+  Frontend: nothing new to read; FY2025 lines carry the same fields and fund names as the other city books.
