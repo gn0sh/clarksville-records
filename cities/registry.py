@@ -29,10 +29,12 @@ UNVERIFIED = "UNVERIFIED"
 ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 LOCAL_READER_CITY = "clarksville-tn"     # the one city the Clarksville-only readers (shared=False) may serve
 STATUSES = ("draft", "live")
-SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-([a-z]{2})$")       # <place>-<state>, e.g. salem-or
-STATE_RE = re.compile(r"^[A-Z]{2}$")
-HOST_RE = re.compile(r"^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$")
-DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)?daylight\.gnoshcodes\.com$")
+# Every pattern below is used with fullmatch: `$` alone also matches before a final newline (city-file/regex-dollar-
+# newline), so "Murfreesboro\n" would pass .match.
+SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*-([a-z]{2})")       # <place>-<state>, e.g. salem-or
+STATE_RE = re.compile(r"[A-Z]{2}")
+HOST_RE = re.compile(r"(?=.{1,253}\Z)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+")
+DOMAIN_RE = re.compile(r"(?:[a-z0-9-]+\.)?daylight\.gnoshcodes\.com")
 # Site settings a city sets (top level of city.yml) -> the config/site.yml key the site build reads.
 SITE_FIELDS = {"sky_place": "sky_place", "geocoder_places": "geocoder_places"}
 KEYS = {"slug", "name", "state", "timezone", "status", "domain", "settings", "platform_facts", "sources",
@@ -52,15 +54,21 @@ SHARED_SOURCE = "config/site.yml"
 # Settings a new city's site file may not set: they come from city.yml (one place) or from the status.
 FROM_CITY_FILE = ("site_timezone", "today_place", "sky_place", "geocoder_places", "district_lookup_url",
                   "district_lookup_label", "live")
-# The `primary:` block (ADR 0012 decision 2): the body a city-only site is built around.
-PRIMARY_KEYS = ("key", "name", "label", "record", "kind_labels", "held_sentences", "seats", "titles", "member_title",
-                "seat_basis")
+# The only settings a new city's site file (or `site:` block) may set, as dotted paths: what a city owns (ADR 0012
+# decision 2; city-file/unlocked-trust-keys). Anything else fails, naming the key, so a city file can't set a
+# trust key such as corrections.github_repo, analytics.code, a geocoder URL or alerts.site_url (from the domain).
+CITY_SITE_KEYS = ("place_name", "corrections_log", "primary", "unofficial.bodies", "item_types", "alerts.feed_id",
+                  "alerts.max_entries", "alerts.topics")
+# The `primary:` block (ADR 0012 decision 2): the body a city-only site is built around. (Not sitegen/config.py
+# PRIMARY_KEYS, the normalised dict the build reads.)
+PRIMARY_BLOCK_KEYS = ("key", "name", "label", "record", "kind_labels", "held_sentences", "seats", "titles",
+                      "member_title", "seat_basis")
 PRIMARY_REQUIRED = ("key", "name", "label", "seats")
 SEATS = ("districts", "wards", "at_large")
-BODY_KEY_RE = re.compile(r"^[a-z][a-z0-9-]*$")
-PLACE_NAME_RE = re.compile(r"^[A-Za-z](?:[A-Za-z .-]*[A-Za-z.])?$")    # letters, spaces, hyphens, periods
+BODY_KEY_RE = re.compile(r"[a-z][a-z0-9-]*")
+PLACE_NAME_RE = re.compile(r"[A-Za-z](?:[A-Za-z .'-]*[A-Za-z.])?")   # letters, spaces, hyphens, periods, apostrophes
 PLACE_NAME_MAX = 40
-TITLE_RE = re.compile(r"^[A-Za-z][A-Za-z -]*$")
+TITLE_RE = re.compile(r"[A-Za-z][A-Za-z -]*")
 
 
 def is_unverified(value) -> bool:
@@ -107,7 +115,7 @@ def load_city(slug: str, root: Path = ROOT, brand: dict | None = None) -> dict:
     city["settings_data"] = _settings(city, root, brand, where)
     city["sources"] = _sources(city, root, where)
     city["allowed_hosts"] = _hosts(city, where)
-    city["denied_hosts"] = tuple(DENIED_HOSTS) + tuple(str(h).lower() for h in city.get("denied_hosts") or ())
+    city["denied_hosts"] = _denied(city)
     city["launch"] = _launch(city.get("launch"), where)
     _check_go_ahead(city, where)
     _check_source_hosts(city, root, where)
@@ -155,10 +163,10 @@ def _check_identity(city: dict, slug: str, where: str) -> None:
         ["sources"] if city.get("sources") == [] else [])
     if missing:
         raise CityError(f"{where}: missing {', '.join(missing)}")
-    m = SLUG_RE.match(str(city["slug"]))
+    m = SLUG_RE.fullmatch(str(city["slug"]))
     if city["slug"] != slug or not m:
         raise CityError(f"{where}: slug must be the folder name, written <place>-<state> (e.g. salem-or)")
-    if not STATE_RE.match(str(city["state"])) or m.group(1) != str(city["state"]).lower():
+    if not STATE_RE.fullmatch(str(city["state"])) or m.group(1) != str(city["state"]).lower():
         raise CityError(f"{where}: state must be the two-letter code the slug ends with, in capitals")
     if city["status"] not in STATUSES:
         raise CityError(f"{where}: status must be one of {', '.join(STATUSES)}")
@@ -168,7 +176,7 @@ def _check_identity(city: dict, slug: str, where: str) -> None:
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise CityError(f"{where}: timezone {city['timezone']!r} is not an IANA zone (e.g. America/Chicago)") \
                 from exc
-    if not DOMAIN_RE.match(str(city["domain"])):
+    if not DOMAIN_RE.fullmatch(str(city["domain"])):
         raise CityError(f"{where}: domain must be daylight.gnoshcodes.com or <name>.daylight.gnoshcodes.com")
 
 
@@ -203,8 +211,9 @@ def _settings(city: dict, root: Path, brand: dict, where: str) -> dict:
     if not isinstance(block, dict):
         raise CityError(f"{where}: site is a mapping of site settings")
     _refuse_owned(block, f"{where} site")
+    _refuse_denied_links(block, _denied(city), f"{where} site")
     site = _deep_merge(site, block)
-    _check_site(site, root, where)
+    _check_site(site, city, root, where)
     site.update({"site_timezone": city["timezone"], "today_place": city["name"], "live": city["status"] == "live"})
     for k, sk in SITE_FIELDS.items():
         if k in city and not is_unverified(city[k]):
@@ -217,6 +226,7 @@ def _settings(city: dict, root: Path, brand: dict, where: str) -> dict:
     elif lookup and not (isinstance(lookup, dict) and isinstance(lookup.get("url"), str)
                          and lookup["url"].startswith("https://") and isinstance(lookup.get("label"), str)):
         raise CityError(f"{where}: district_lookup is {{url: https://..., label: ...}}")
+    _refuse_denied_links({"district_lookup": lookup}, _denied(city), where)
     if lookup:
         site["district_lookup_url"], site["district_lookup_label"] = lookup.get("url", ""), lookup.get("label", "")
     sky = city.get("sky_place")
@@ -296,16 +306,78 @@ def _refuse_owned(data: dict, where: str) -> None:
     if owned:
         raise CityError(f"{where}: {', '.join(owned)} come{'s' if len(owned) == 1 else ''} from city.yml (live from "
                         "its status); set them in one place")
+    other = _outside(data, CITY_SITE_KEYS)
+    if other:
+        raise CityError(f"{where}: {', '.join(other)} can't be set in a city's file: a city sets only "
+                        f"{', '.join(CITY_SITE_KEYS)} (cities/registry.py CITY_SITE_KEYS). Remove it.")
+
+
+def _outside(data: dict, allowed: tuple[str, ...], prefix: str = "") -> list[str]:
+    """The dotted keys of `data` that are not one of `allowed` and not inside one (city-file/unlocked-trust-keys)."""
+    out = []
+    for k, v in data.items():
+        path = f"{prefix}{k}"
+        if path in allowed:
+            continue
+        if isinstance(v, dict) and v:                    # name the leaf: corrections.github_repo, not corrections
+            out += _outside(v, allowed, path + ".")
+        else:
+            out.append(path)
+    return out
+
+
+def _denied(city: dict) -> tuple[str, ...]:
+    """The hosts this city may never ask or link: collector DENIED_HOSTS plus the city's own denied_hosts."""
+    return tuple(DENIED_HOSTS) + tuple(str(h).lower() for h in city.get("denied_hosts") or ())
+
+
+URL_IN_TEXT = re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^\s\"'<>`]+")
+
+
+def _refuse_denied_links(data, denied: tuple[str, ...], where: str, path: str = "") -> None:
+    """No URL a city's file sets (primary.record.url, primary.seat_basis.url, unofficial.bodies[].url, a URL inside
+    any text) may point at a denied host: a host we never collect from is never linked either
+    (city-only/denied-host-never-linked)."""
+    if isinstance(data, dict):
+        for k, v in data.items():
+            _refuse_denied_links(v, denied, where, f"{path}.{k}" if path else str(k))
+    elif isinstance(data, list):
+        for i, v in enumerate(data):
+            _refuse_denied_links(v, denied, where, f"{path}[{i}]")
+    elif isinstance(data, str):
+        for m in URL_IN_TEXT.finditer(data):
+            try:
+                host = urlsplit(m.group(0)).hostname or ""
+            except ValueError as exc:
+                raise CityError(f"{where}: {path} holds {m.group(0)!r}, which is not a valid URL") from exc
+            if host and host_matches(host, denied):
+                raise CityError(f"{where}: {path} links {host}, a denied host; it can never be asked or linked")
+
+
+def _city_path(rel, city: dict, root: Path, what: str, where: str) -> Path:
+    """`rel` (a repository path) when it lies inside config/cities/<slug>/ once resolved; no absolute path, no `..`
+    (city-file/path-outside-city-dir)."""
+    home = f"config/cities/{city['slug']}/"
+    if not (isinstance(rel, str) and rel.strip()):
+        raise CityError(f"{where}: {what} must be a path inside {home}")
+    p = Path(rel)
+    full = (root / p).resolve()
+    inside = full.is_relative_to(city_dir(city["slug"], root).resolve())
+    if p.is_absolute() or ".." in p.parts or "\\" in rel or not inside:
+        raise CityError(f"{where}: {what} {rel} must be a path inside {home} (no absolute path, no ..)")
+    return full
 
 
 def _site_file(city: dict, root: Path) -> dict:
-    rel = city["site_file"]
-    if not isinstance(rel, str) or not (root / rel).is_file():
-        raise CityError(f"{city['_path'].relative_to(root)}: site_file {rel} not found")
-    data = yaml.safe_load((root / rel).read_text(encoding="utf-8")) or {}
+    rel, where = city["site_file"], str(city["_path"].relative_to(root))
+    full = _city_path(rel, city, root, "site_file", where)
+    if not full.is_file():
+        raise CityError(f"{where}: site_file {rel} not found")
+    data = yaml.safe_load(full.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict):
         raise CityError(f"{rel}: must be a mapping")
     _refuse_owned(data, rel)
+    _refuse_denied_links(data, _denied(city), rel)
     return data
 
 
@@ -321,16 +393,17 @@ def _plain(value) -> bool:
     return isinstance(value, str) and bool(value.strip()) and not any(c in value for c in "<>&{}")
 
 
-def _check_site(site: dict, root: Path, where: str) -> None:
+def _check_site(site: dict, city: dict, root: Path, where: str) -> None:
     """The keys of ADR 0012 a new city's settings may carry: place_name, corrections_log and the primary block."""
     if "place_name" in site:
         name = site["place_name"]
-        if not (isinstance(name, str) and len(name) <= PLACE_NAME_MAX and PLACE_NAME_RE.match(name)):
-            raise CityError(f"{where}: place_name must be a plain name (letters, spaces, hyphens, periods), at most "
-                            f"{PLACE_NAME_MAX} characters")
+        if not (isinstance(name, str) and len(name) <= PLACE_NAME_MAX and PLACE_NAME_RE.fullmatch(name)):
+            raise CityError(f"{where}: place_name must be a plain name (letters, spaces, hyphens, periods, "
+                            f"apostrophes), at most {PLACE_NAME_MAX} characters")
     if "corrections_log" in site:
         log = site["corrections_log"]
-        if not (isinstance(log, str) and log.endswith(".json") and (root / log).is_file()):
+        full = _city_path(log, city, root, "corrections_log", where)
+        if not (log.endswith(".json") and full.is_file()):
             raise CityError(f"{where}: corrections_log {log} is not a JSON file in the repository")
     if "primary" in site:
         _check_primary(site["primary"], where)
@@ -339,14 +412,14 @@ def _check_site(site: dict, root: Path, where: str) -> None:
 def _check_primary(p, where: str) -> None:
     w = f"{where}: primary"
     if not isinstance(p, dict):
-        raise CityError(f"{w} is a mapping ({', '.join(PRIMARY_KEYS)})")
-    unknown = sorted(set(p) - set(PRIMARY_KEYS))
+        raise CityError(f"{w} is a mapping ({', '.join(PRIMARY_BLOCK_KEYS)})")
+    unknown = sorted(set(p) - set(PRIMARY_BLOCK_KEYS))
     if unknown:
-        raise CityError(f"{w}: unknown keys {', '.join(unknown)} (known: {', '.join(PRIMARY_KEYS)})")
+        raise CityError(f"{w}: unknown keys {', '.join(unknown)} (known: {', '.join(PRIMARY_BLOCK_KEYS)})")
     missing = [k for k in PRIMARY_REQUIRED if k not in p]
     if missing:
         raise CityError(f"{w}: missing {', '.join(missing)}")
-    if not (isinstance(p["key"], str) and BODY_KEY_RE.match(p["key"])):
+    if not (isinstance(p["key"], str) and BODY_KEY_RE.fullmatch(p["key"])):
         raise CityError(f"{w}.key must be a lowercase word (the search body key), e.g. council")
     for k in ("name", "label", "member_title"):
         if k in p and not _plain(p[k]):
@@ -374,7 +447,7 @@ def _check_primary(p, where: str) -> None:
             raise CityError(f"{w}.held_sentences must map checks (and `other`) to 'Not confirmed: ...' sentences")
     if "titles" in p:
         t = p["titles"]
-        if not (isinstance(t, list) and all(isinstance(x, str) and TITLE_RE.match(x) for x in t)):
+        if not (isinstance(t, list) and all(isinstance(x, str) and TITLE_RE.fullmatch(x) for x in t)):
             raise CityError(f"{w}.titles is a list of plain words (the printed titles, e.g. Mayor), never who holds "
                             "them")
 
@@ -415,10 +488,9 @@ def _hosts(city: dict, where: str) -> list[dict]:
         if not isinstance(h, dict) or not isinstance(h.get("host"), str):
             raise CityError(f"{where}: allowed_hosts[{i}] is {{host, robots, terms}}")
         host = h["host"].strip().lower()
-        if not HOST_RE.match(host):
+        if not HOST_RE.fullmatch(host):
             raise CityError(f"{where}: allowed_hosts[{i}] {host!r} is not a host name")
-        denied = tuple(DENIED_HOSTS) + tuple(str(d).lower() for d in city.get("denied_hosts") or ())
-        if host_matches(host, denied):
+        if host_matches(host, _denied(city)):
             raise CityError(f"{where}: {host} is a denied host and can never be allowed")
         for k in ("robots", "terms"):
             if not (isinstance(h.get(k), str) and h[k].strip()):

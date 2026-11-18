@@ -24,10 +24,10 @@ def _render(template: str, **values) -> str:
 
 def new_city(slug: str, name: str, state: str, portal: str, tz: str, root: Path = ROOT,
              today: date | None = None) -> list[Path]:
-    m = SLUG_RE.match(slug)
+    m = SLUG_RE.fullmatch(slug)
     if not m:
         raise CityError(f"slug {slug!r}: write it <place>-<state> in lowercase, e.g. salem-or")
-    if not STATE_RE.match(state) or m.group(1) != state.lower():
+    if not STATE_RE.fullmatch(state) or m.group(1) != state.lower():
         raise CityError(f"state {state!r}: the two-letter code in capitals, matching the slug's ending")
     if portal not in READERS:
         raise CityError(f"portal {portal!r} is unknown (known: {', '.join(sorted(READERS))})")

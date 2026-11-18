@@ -214,7 +214,9 @@ class PoliteFetcher:
         if host_matches(host, self.extra_denied):
             self.log.append({"event": "refused", "host": host, "detail": "denied by config"})
             raise HostRefused(f"{host}: denied by config (never collected)")
-        if not host_matches(host, self.allowed_hosts):
+        # A trailing dot matches the denied lists above (fetch-host/trailing-dot-denied) but never the allowlist: the
+        # fetcher asks only the names as listed, so its robots, delay and cap keys stay one per site, as before.
+        if host.endswith(".") or not host_matches(host, self.allowed_hosts):
             self.log.append({"event": "refused", "host": host, "detail": "not on allowlist"})
             raise HostRefused(f"{host}: not on the allowlist")
 

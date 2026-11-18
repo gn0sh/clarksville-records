@@ -14,6 +14,7 @@ import os
 import sys
 
 CITY_ENV = "DAYLIGHT_CITY"
+DEFAULT_CITY = "clarksville-tn"     # sitegen.config.DEFAULT_CITY, named here for errors before config loads (tested)
 
 
 def _pick_city(argv: list[str]) -> tuple[str | None, str | None]:
@@ -23,6 +24,8 @@ def _pick_city(argv: list[str]) -> tuple[str | None, str | None]:
     known, _ = pre.parse_known_args(argv)
     if known.city is None:
         return None, None
+    if not known.city.strip():
+        return None, "--city needs a city slug (config/cities/<slug>/), e.g. clarksville-tn"
     env = os.environ.get(CITY_ENV)
     if env and env != known.city:
         return None, f"--city {known.city} differs from {CITY_ENV}={env}; set one of them"
@@ -44,7 +47,7 @@ def main(argv=None) -> int:
     try:
         from . import config
     except CityError as exc:
-        print(f"sitegen: city {city or os.environ.get(CITY_ENV)}: {exc}", file=sys.stderr)
+        print(f"sitegen: city {city or os.environ.get(CITY_ENV) or DEFAULT_CITY}: {exc}", file=sys.stderr)
         return 2
     from .build import BuildError, build
 

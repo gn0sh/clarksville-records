@@ -503,6 +503,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
+    if target == "pages" and config.CITY_STATUS != "live":    # a draft city is never built for the public host
+        raise BuildError(f"{config.CITY} is {config.CITY_STATUS}, not live: a pages build is for a live city only "
+                         "(build it with --target preview)")
     facts_path, out = Path(facts_path), Path(out_dir)
     facts = load_facts(facts_path)
     fixture = bool(facts.get("fixture"))

@@ -580,6 +580,21 @@ def test_host_matches_is_the_public_host_rule():
     assert county_agenda.host_matches is fetch.host_matches and fin_run.host_matches is fetch.host_matches
 
 
+def test_a_trailing_dot_still_matches_a_denied_host():
+    # fetch-host/trailing-dot-denied: "cityofclarksville.com." is the same host as cityofclarksville.com
+    from collector import fetch
+    for host in ("cityofclarksville.com.", "www.cityofclarksville.com.", "CITYOFCLARKSVILLE.COM.:443"):
+        assert fetch.host_matches(host, fetch.DENIED_HOSTS), host
+    assert fetch.host_matches("h.example", ("h.example.",)) and not fetch.host_matches("h.example..", ("h.example",))
+    f, net, _ = make({})
+    with pytest.raises(HostRefused, match="denied in code"):
+        f.get("https://cityofclarksville.com./x.pdf")
+    assert f.log[-1]["detail"] == "denied host" and net.calls == []
+    with pytest.raises(HostRefused, match="not on the allowlist"):     # otherwise unchanged: never an allowed host
+        f.get("https://h.example./a.pdf")
+    assert net.calls == []
+
+
 class HeaderNet:
     """Records each request's conditional headers; `answers` is url -> list of (status, body, headers) in order."""
 

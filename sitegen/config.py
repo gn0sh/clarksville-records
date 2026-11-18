@@ -24,6 +24,7 @@ STATIC_DIR = REPO_ROOT / "site" / "static"
 DEFAULT_CITY = _registry.LOCAL_READER_CITY          # clarksville-tn, the live city
 CITY = os.environ.get("DAYLIGHT_CITY") or DEFAULT_CITY
 _CITY = _registry.load_city(CITY)
+CITY_STATUS = _CITY["status"]                       # draft | live: a pages build is for a live city only (build.py)
 
 # Locality and branding text (config/site.yml): body and place names, purpose line, footer support link, seat
 # labels, item type rule and the "coming" pages. Templates take these from `site.cfg`, never as literals.
@@ -35,7 +36,9 @@ if LEGACY_SETTINGS:        # Clarksville: its legacy settings file, exactly as r
 else:                            # a new city: shared keys, its site file, city.yml fields, the brand
     SITE_CONFIG_PATH = REPO_ROOT / _CITY["site_file"] if _CITY.get("site_file") else None
     SITE = _registry.site_settings(_CITY, _brand.load_brand(CONFIG_DIR / "brand.yml"))
-LOCALITY = SITE.get("locality")                    # the county's locality folder; None for a city-only site
+# The county's locality folder; None for a city-only site. Only the legacy file may name one: the registry refuses
+# `locality` in a city's file, and it is never read from one (city-file/path-outside-city-dir).
+LOCALITY = SITE.get("locality") if LEGACY_SETTINGS else None
 COUNTY_AGENDAS_TEXT = SITE.get("county_agendas")   # the agenda-only meetings' copy (config/site.yml county_agendas)
 # County Commission agendas posted before their minutes (collector/county_agenda.py; sitegen/county_agendas.py).
 # None for a city without county agendas (ADR 0012 decision 3).
