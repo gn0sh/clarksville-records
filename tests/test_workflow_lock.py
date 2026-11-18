@@ -2667,6 +2667,9 @@ def test_the_v1_probe_scripts_agree():
         assert "contents/.github/workflows/v1-canary.yml?ref=main" in s and "HTTP 404" in s
         assert "of 4" in s and "all four merges" in s and "is left on" in s
         assert "INCONCLUSIVE: could not read main. Nothing was changed." in s
+        # v1-probe/rerun-after-fail (ADR 0010): no new run until main's ruleset requires a code owner's review
+        assert "rules/branches/main" in s and ".parameters.require_code_owner_review // empty" in s
+        assert s.index("require_code_owner_review") < s.index(": > \"$results\"" if s is sh else "Set-Content -Path $results")
         assert "-ExecutionPolicy Bypass" not in s
         # L-c v1-probe/verdict-race: the run must be completed, and .merged is read again after cleanup
         assert "--json status --jq '.status'" in s and "had not finished" in s
@@ -2704,6 +2707,8 @@ if a[:2] == ["run", "view"] and "--json" in a:
 if a[:2] == ["run", "view"]:
     sys.stdout.write(open(os.environ["RUN_LOG"]).read()); sys.exit(0)
 path = [x for x in a if x.startswith("repos/")][0]
+if path.endswith("/rules/branches/main"):     # v1-probe/rerun-after-fail: R1' (code owner review) is on
+    print(os.environ.get("CODE_OWNER_RULE", "true")); sys.exit(0)
 if path.endswith("/git/ref/heads/main"):
     sha = os.environ.get("MAIN_BEFORE", "1" * 40) if count("main") == 0 else os.environ.get("MAIN_AFTER", "1" * 40)
     if sha == "EMPTY":
@@ -2763,6 +2768,16 @@ def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1", **extra):
 
 def _turned_off(made):
     return any("can_approve_pull_request_reviews=false" in c for c in made)
+
+
+@pytest.mark.parametrize("rule", ["", "false", "EMPTY"])
+def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, rule):
+    """v1-probe/rerun-after-fail (ADR 0010): after the 2026-11-18 FAIL a new run would merge the canary into main
+    again, so the script stops, changing nothing, unless main's ruleset requires a code owner's review."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, CODE_OWNER_RULE=rule)
+    assert r.returncode == 1 and "Stopped: main's ruleset does not require a code owner's review" in r.stdout
+    assert not any("-X" in c for c in made) and not any("POST" in c or "PUT" in c for c in made), made
+    assert not list(tmp_path.glob("v1-probe-results-*.txt"))
 
 
 def test_v1_probe_pass(tmp_path):

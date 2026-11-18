@@ -38,6 +38,15 @@ if ! [[ "$data_prs" =~ ^[0-9]+$ ]] || [ "$data_prs" -lt 1 ]; then
   echo "No daily data pull request merged by GitHub Actions yet: do the check run of runbook step 2.0 first. Nothing was changed."
   exit 1
 fi
+# v1-probe/rerun-after-fail (ADR 0010): the probe found FAIL on 2026-11-18 (GitHub let GITHUB_TOKEN merge a workflow
+# change into main). Turning "Allow GitHub Actions to create and approve pull requests" off does not stop merging, so
+# running the probe again would put the canary on main again. It runs only once main's ruleset requires a code
+# owner's review (R1', scripts/protect-main), which is what a new run tests.
+owners=$(gh api "repos/$repo/rules/branches/main" --jq '.[] | .parameters.require_code_owner_review // empty' 2>/dev/null || true)
+if ! grep -qx true <<< "$owners"; then
+  echo "Stopped: main's ruleset does not require a code owner's review yet (ADR 0010: run scripts/protect-main first). The probe found FAIL on 2026-11-18; running it now would merge the canary into main again. Nothing was changed."
+  exit 1
+fi
 
 : > "$results"
 main_before=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true)
