@@ -25,8 +25,8 @@ def test_daily_workflow_runs_the_committees_before_the_site_build_as_a_warning_o
         assert f"committees_exit={rc}" in r.stdout
     files = subprocess.run(["git", "ls-files", "data/localities/clarksville-tn/committees"], cwd=ROOT,
                            capture_output=True, text=True, check=True).stdout.split()
-    assert files and all(f.endswith(".json") for f in files)     # the push job's allowlist: *.json|*.yml|changes.jsonl
+    assert files and all(f.endswith(".json") for f in files)     # the push job's allowlist: *.json|changes.jsonl
     validate = {s.get("name"): s for s in wf["jobs"]["push"]["steps"]}["Validate refreshed data"]["run"]
-    assert "*.json|*.yml|*/changes.jsonl) ;;" in validate
+    assert "*.json|*/changes.jsonl) ;;" in validate
     assert "data/localities/clarksville-tn/committees/manifest.json" in (ROOT / "config" / "site.yml").read_text(
         encoding="utf-8")                                         # fetch days on the pages are site_timezone days

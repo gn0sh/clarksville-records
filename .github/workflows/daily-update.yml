@@ -8,10 +8,11 @@
 # update job : builds the gate's commit: collect politely, rebuild, check, upload the refreshed data/ and the site
 #              as artifacts. It parses
 #              untrusted downloaded PDFs, so it has read-only repo access and no persisted token. It never publishes.
-# push job   : commits the refreshed data/ (from the update job's artifact) to a data/<date> branch, opens a pull
-#              request to main and merges it with GITHUB_TOKEN, only when that PR touches nothing outside data/
-#              (main takes changes by pull request only: no bypass on the main ruleset). The only job with
-#              contents: write; it parses nothing.
+# push job   : commits the refreshed data/ (from the update job's artifact) as one commit on the gate's D, checks
+#              it against I-data'' with the gate's own helper, pushes it to records-data (fast-forward only: a
+#              concurrent push fails loudly), then attests its tree listing (actions/attest-build-provenance). It
+#              opens no pull request and never touches main. The only job with contents: write or attestations:
+#              write; id-token: write is held by it and deploy only. It parses nothing.
 # deploy job : publishes that artifact to GitHub Pages, only after the gate succeeded. LOCKED: it runs only when the
 #              repository variable
 #              RECORDS_DEPLOY_ENABLED is exactly 'true'. Setting that variable is the CEO's go-live step (hard stop 1).
@@ -815,23 +816,26 @@ jobs:
 
   push:
     needs: [gate, update]
-    # main only (pipeline/dispatch-non-main-ref): a manual run on another branch must never commit to main.
+    # main only (pipeline/dispatch-non-main-ref): a manual run on another branch must never move records-data.
     if: (github.event_name == 'schedule' || inputs.collect) && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # ADR 0011 (row J2): commits on the gate's D, pushes records-data (fast-forward only), then attests the listing.
+    # No pull-requests permission: no workflow opens or merges anything into main. The only job with
+    # attestations: write; id-token: write is held only here (to sign the attestation) and by deploy (deploy-pages).
     permissions:
-      contents: write        # push the data/<date> branch and merge its PR: the only job that can write to the repository
-      pull-requests: write   # open that pull request (needs Settings > Actions > General > "Allow GitHub Actions to
-                             # create and approve pull requests"; runbook docs/ops/morning-note.md 2.0)
+      contents: write        # push records-data: the only job that can write to the repository
+      id-token: write        # sign the listing's attestation (Sigstore certificate for daily-update.yml@refs/heads/main)
+      attestations: write    # store that attestation, which the gate's I-prov check reads
       issues: write          # open one issue when this job fails (pipeline/push-failure-silent)
     steps:
-      # The exact commit the update job built on, not whatever main is now: the data commit is made on it, then
-      # rebased onto main below, so a concurrent edit to data/ is a loud conflict, never a silent revert
-      # (pipeline/push-reverts-concurrent-data).
-      - name: Check out the commit the update job built on
+      # The gate's D (the records-data head the gate checked), not whatever records-data is now: the data commit is
+      # made on it, so a concurrent push to records-data is a non-fast-forward, refused by GitHub, and this job fails
+      # loudly instead of overwriting it (pipeline/push-reverts-concurrent-data). The tree is data/ only.
+      - name: Check out the records-data head the gate checked
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ needs.update.outputs.sha }}
+          ref: ${{ needs.gate.outputs.data_sha }}
 
       - name: Download refreshed data
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -840,9 +844,10 @@ jobs:
           path: ${{ runner.temp }}/records-data
 
       # The artifact came from the job that parses untrusted PDFs: treat it as input (pipeline/push-unvalidated-artifact).
-      # Allowed: regular files named *.json or *.yml, and the change logs the collector appends beside each manifest
-      # when a document changes (files named exactly changes.jsonl: pipeline/changes-jsonl-rejected). None over
-      # 50 MB, no symlinks. The files are only committed, never run or parsed here.
+      # Allowed: regular files named *.json, and the change logs the collector appends beside each manifest when a
+      # document changes (files named exactly changes.jsonl: pipeline/changes-jsonl-rejected). No .yml (SHAPE'': the
+      # curated files are code in config/). None over 50 MB, no symlinks. The files are only committed, never run or
+      # parsed here.
       - name: Validate refreshed data
         run: |
           set -eu
@@ -853,34 +858,74 @@ jobs:
           done < <(find "$dir" ! -type f ! -type d -print0)
           while IFS= read -r -d '' f; do
             case "$f" in
-              *.json|*.yml|*/changes.jsonl) ;;
+              *.json|*/changes.jsonl) ;;
               *) echo "::error::file type not allowed in data/: $f"; bad=1 ;;
             esac
           done < <(find "$dir" -type f -print0)
           while IFS= read -r -d '' f; do
             echo "::error::file over 50 MB: $f"; bad=1
           done < <(find "$dir" -type f -size +50M -print0)
-          # I-data: an empty artifact would empty data/ on main, and the gate would refuse every later run
+          # I-data'': an empty artifact would empty data/ on records-data, and the gate would refuse every later run
           if [ -z "$(find "$dir" -type f -print -quit)" ]; then echo "::error::the refreshed data holds no file."; bad=1; fi
           [ "$bad" = 0 ]
 
-      # main-protect/actions-bypass-reopens-M1 (security M1, note-key/writer-reach-whole-list): main takes changes by
-      # pull request only, with no bypass for GitHub Actions, so a workflow pushed on any branch can no longer push
-      # main directly. The data/ commit goes to its own branch instead, and the next step opens and merges its PR.
-      # The branch name carries the run id and attempt, so a manual run on the same day or a re-run never collides.
-      - name: Commit refreshed data to a data branch
+      # One commit on D with the refreshed data/, checked against I-data'' with the gate's own helper (a test keeps the
+      # two copies equal), then pushed to records-data: never forced, so a non-fast-forward fails the job. The listing
+      # it writes is the attestation's subject: the same bytes the gate rebuilds from the pushed head.
+      - name: Commit refreshed data on records-data
         id: commit
         env:
           ALLOWED: ${{ needs.update.outputs.allowed }}
+          D: ${{ needs.gate.outputs.data_sha }}
         run: |
           set -euo pipefail
-          # data/ in a fresh checkout holds only tracked files (the ignored caches are absent), so replacing it whole
-          # keeps deletions too. Only data/ is ever staged.
+          # ---- data-tree helper: the same text in the gate and the push job (a test keeps the two copies equal) ----
+          # I-data'' (ADR 0011; B1 owns the curated-file move to config/): the commit's tree is data/ only; data/ holds
+          # regular files (mode 100644) with plain ASCII names ending .json, or named changes.jsonl (SHAPE'', no .yml),
+          # at least one, and none of the curated names (CURATED, at any depth). Passes only by counting entries that
+          # fit (matched == total >= 1), compared as bytes (LC_ALL=C, grep -a: under a UTF-8 locale grep withholds a
+          # non-UTF-8 name as "binary file matches", S-1). NUL-separated records, so a name holding a newline stays
+          # one record and fails. Tree objects only: works on a blob:none partial clone. data_listing writes the bytes
+          # the push job attests and the gate verifies (I-prov). data_check sets $why when it returns 1.
+          SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.json|changes\\.jsonl)$'
+          CURATED=$'\tdata/([^/]*/)*(names\\.yml|procedural-titles\\.yml|corrections-log\\.json)$'
+          TOP=$'^040000 tree [0-9a-f]{40}\tdata$'
+          data_listing() { git ls-tree -r -z "$1" -- data; }
+          data_check() {
+            local n_top top_ok total matched curated
+            why="could not read the tree of $1."
+            git ls-tree -z "$1" > "$2.top" || return 1
+            n_top=$(LC_ALL=C tr -cd '\000' < "$2.top" | wc -c) || return 1
+            top_ok=$(LC_ALL=C grep -zacE -- "$TOP" "$2.top") || [ $? = 1 ] || return 1
+            why="data/ must be the only entry of the tree, and a folder (I-data''): $n_top entries, $top_ok of them data/."
+            [ "$n_top" = 1 ] && [ "$top_ok" = 1 ] || return 1
+            why="could not read data/ in the tree of $1."
+            data_listing "$1" > "$2" || return 1
+            total=$(LC_ALL=C tr -cd '\000' < "$2" | wc -c) || return 1
+            why="could not check data/'s names."
+            matched=$(LC_ALL=C grep -zacE -- "$SHAPE" "$2") || [ $? = 1 ] || return 1
+            curated=$(LC_ALL=C grep -zacE -- "$CURATED" "$2") || [ $? = 1 ] || return 1
+            if [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] && [ "$total" -ge 1 ] && [ "$matched" = "$total" ] \
+               && [ "$curated" = 0 ]; then
+              return 0
+            fi
+            # at most 20 refused entries of each kind, every byte outside 0x20-0x7E shown as ?: never a raw name in the log
+            LC_ALL=C grep -zavE -m 20 -- "$SHAPE" "$2" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
+              | while IFS= read -r entry; do echo "::error::not allowed in data/: $entry"; done || true
+            LC_ALL=C grep -zaE -m 20 -- "$CURATED" "$2" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
+              | while IFS= read -r entry; do echo "::error::curated, belongs in config/: $entry"; done || true
+            why="data/ must hold only regular files with plain names ending .json, or named changes.jsonl, and none of the curated files (I-data''): $matched of $total entries fit, $curated curated."
+            return 1; }
+          # ---- end of the data-tree helper ----
+          if ! [[ "$D" =~ ^[0-9a-f]{40}$ ]] || [ "$(git rev-parse HEAD)" != "$D" ]; then
+            echo "::error::the checkout is not the records-data head the gate checked. Nothing pushed."; exit 1
+          fi
+          # data/ in the checkout of D is the whole tree, so replacing it whole keeps deletions too. Only data/ is staged.
           rm -rf data
           cp -a "$RUNNER_TEMP/records-data" data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data
+          git add -A -- data
           if git diff --cached --quiet; then
             echo "No data changes."
             exit 0
@@ -890,126 +935,24 @@ jobs:
           if [ "$ALLOWED" = yes ]; then     # ci/allow-shrink-audit: the manual override is named in the history
             msg="$msg; allow_shrink: committed verified roll calls or meetings replaced by a manual run"
           fi
-          git commit -m "$msg"
-          # A concurrent change to data/ on main conflicts here and fails the job (the failure step opens the issue).
-          git pull --rebase origin main
-          main_sha=$(git rev-parse FETCH_HEAD)
-          # Before anything leaves the runner: exactly one commit on top of main, and it touches data/ only.
-          if [ "$(git rev-parse HEAD^)" != "$main_sha" ]; then
-            echo "::error::the data commit is not exactly one commit on top of main. Nothing pushed."; exit 1
+          git commit -q -m "$msg"
+          # Before anything leaves the runner: exactly one commit on D, and it meets I-data''.
+          if [ "$(git rev-parse HEAD^)" != "$D" ]; then
+            echo "::error::the data commit is not exactly one commit on the gate's records-data head. Nothing pushed."; exit 1
           fi
-          outside=$(git diff --name-only "$main_sha" HEAD -- . ':(exclude)data/')
-          if [ -n "$outside" ]; then
-            echo "::error::the data commit changes files outside data/. Nothing pushed:"; echo "$outside"; exit 1
-          fi
-          # I-data on the commit about to be pushed, the gate's checks (1)-(4) with the identical SHAPE (a test keeps
-          # them equal): data/ is a tree of regular files (also catches an executable bit cp -a carried over) with
-          # plain names, counted as bytes. Otherwise the gate would refuse every run after this merge.
-          SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.(json|yml)|changes\\.jsonl)$'
-          if [ "$(git cat-file -t HEAD:data 2>/dev/null || true)" != tree ]; then
-            echo "::error::data/ is not a folder in the data commit (I-data). Nothing pushed."; exit 1
-          fi
-          listing="$RUNNER_TEMP/push-data-tree"
-          git ls-tree -r -z HEAD -- data > "$listing"
-          total=$(LC_ALL=C tr -cd '\000' < "$listing" | wc -c)
-          matched=$(LC_ALL=C grep -zacE -- "$SHAPE" "$listing") || [ $? = 1 ]
-          if ! [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] || [ "$total" -lt 1 ] || [ "$matched" != "$total" ]; then
-            LC_ALL=C grep -zavE -m 20 -- "$SHAPE" "$listing" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
-              | while IFS= read -r entry; do echo "::error::not allowed in data/: $entry"; done || true
-            echo "::error::data/ in the data commit does not meet I-data (${matched:-?} of ${total:-?} entries fit). Nothing pushed."
-            exit 1
-          fi
-          branch="data/$day-run$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          git push origin "HEAD:refs/heads/$branch"
-          {
-            echo "branch=$branch"
-            echo "sha=$(git rev-parse HEAD)"
-            echo "main=$main_sha"
-            echo "title=$msg"
-          } >> "$GITHUB_OUTPUT"
+          listing="$RUNNER_TEMP/records-data-listing"
+          if ! data_check HEAD "$listing"; then echo "::error::$why Nothing pushed."; exit 1; fi
+          git push origin "HEAD:refs/heads/records-data"
+          { echo "pushed=yes"; echo "sha=$(git rev-parse HEAD)"; } >> "$GITHUB_OUTPUT"
 
-      # Opens the data pull request and merges it with GITHUB_TOKEN (0 required approvals under the ruleset), only
-      # after checking, on GitHub's own copy of the PR: open, into main, from this run's branch and commit, and every
-      # file it adds, changes, removes or renames (both names of a rename) is under data/. main-protect L-C: the PR's
-      # set of file names (both names of a rename) must be non-empty and equal the local
-      # `git diff --no-renames --name-only main..SHA` (rename detection may differ, the set of names does not); a
-      # PR whose list is still empty or different is re-read up to 5 times, 10 s apart. Anything else fails the job
-      # loudly and leaves the PR unmerged. The merge is pinned to the checked head commit (`sha`), so a push to the
-      # branch after the check makes the merge fail instead of merging unchecked files. Squash keeps main's history
-      # one commit per day, as before. A PR opened by GITHUB_TOKEN starts no other workflow (none listens anyway).
-      - name: Open and merge the data pull request
-        if: steps.commit.outputs.branch != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.commit.outputs.branch }}
-          SHA: ${{ steps.commit.outputs.sha }}
-          MAIN_SHA: ${{ steps.commit.outputs.main }}
-          TITLE: ${{ steps.commit.outputs.title }}
-        run: |
-          set -euo pipefail
-          repo="$GITHUB_REPOSITORY"
-          run_url="$GITHUB_SERVER_URL/$repo/actions/runs/$GITHUB_RUN_ID"
-          body="Refreshed records data from $run_url. Opened and merged by the Daily update workflow after it checked that this pull request changes nothing outside data/."
-          num=$(gh api -X POST "repos/$repo/pulls" -f base=main -f head="$BRANCH" -f title="$TITLE" -f body="$body" --jq .number)
-          if ! [[ "$num" =~ ^[0-9]+$ ]]; then echo "::error::could not open the data pull request."; exit 1; fi
-          echo "Opened pull request #$num ($BRANCH)."
-          got=$(gh api "repos/$repo/pulls/$num" --jq '[.state, .base.ref, .head.ref, .head.sha, .head.repo.full_name, (.changed_files | tostring)] | join(" ")')
-          read -r state base head head_sha head_repo changed <<< "$got" || true
-          if [ "$state $base $head $head_sha $head_repo" != "open main $BRANCH $SHA $repo" ]; then
-            echo "::error::pull request #$num is not this run's open data PR into main ($got). Not merged; do not merge it."; exit 1
-          fi
-          if ! [[ "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::no main commit from the commit step."; exit 1; fi
-          local_names=$(git diff --no-renames --name-only "$MAIN_SHA" "$SHA" | LC_ALL=C sort -u)
-          if [ -z "$local_names" ]; then echo "::error::the local data commit changes nothing. Not merged."; exit 1; fi
-          attempt=0
-          while :; do
-            attempt=$((attempt + 1))
-            changed=$(gh api "repos/$repo/pulls/$num" --jq '.changed_files | tostring')
-            # The files API lists at most 3000 files: a bigger PR cannot be checked, so it is refused, never merged.
-            if ! [[ "$changed" =~ ^[0-9]+$ ]] || [ "$changed" -gt 3000 ]; then
-              echo "::error::pull request #$num changes '$changed' files, more than can be checked. Not merged."; exit 1
-            fi
-            files=$(gh api --paginate "repos/$repo/pulls/$num/files?per_page=100" --jq '.[] | [.filename, (.previous_filename // "data/")] | @tsv')
-            listed=0
-            bad=0
-            names=""
-            while IFS=$'\t' read -r name prev; do
-              [ -n "$name$prev" ] || continue
-              listed=$((listed + 1))
-              case "$name" in data/?*) ;; *) echo "::error::pull request #$num changes $name (outside data/)."; bad=1 ;; esac
-              case "$prev" in data/*) ;; *) echo "::error::pull request #$num renames $prev (outside data/)."; bad=1 ;; esac
-              names+="$name"$'\n'
-              if [ "$prev" != data/ ]; then names+="$prev"$'\n'; fi
-            done <<< "$files"
-            if [ "$bad" != 0 ]; then
-              echo "::error::pull request #$num touches files outside data/. Not merged; do not merge it."; exit 1
-            fi
-            server_names=$(printf '%s' "$names" | LC_ALL=C sort -u)
-            if [ "$changed" != 0 ] && [ "$listed" = "$changed" ] && [ "$server_names" = "$local_names" ]; then break; fi
-            if [ "$attempt" -ge 5 ]; then
-              echo "::error::pull request #$num lists $listed of $changed file(s), and its file names are not exactly the local data commit's. Not merged."
-              diff <(echo "$local_names") <(echo "$server_names") || true
-              exit 1
-            fi
-            echo "Pull request #$num lists $listed of $changed file(s) so far: reading it again in 10 s."
-            sleep 10
-          done
-          echo "Pull request #$num changes $changed file(s), all under data/."
-          # GitHub may still be computing the PR's mergeability just after it opened: try a few times, then fail.
-          merged=""
-          for try in 1 2 3 4 5 6; do
-            merged=$(gh api -X PUT "repos/$repo/pulls/$num/merge" -f merge_method=squash -f sha="$SHA" \
-                       -f commit_title="$TITLE" -f commit_message="$run_url" --jq .merged) || merged=""
-            if [ "$merged" = true ]; then break; fi
-            echo "Merge attempt $try did not merge."
-            if [ "$try" != 6 ]; then sleep 10; fi
-          done
-          if [ "$merged" != true ]; then
-            echo "::error::pull request #$num could not be merged. The data is not on main."; exit 1
-          fi
-          echo "Merged pull request #$num into main."
-          gh api -X DELETE "repos/$repo/git/refs/heads/$BRANCH" --silent \
-            || echo "::warning::could not delete the merged branch $BRANCH (harmless; delete it by hand)."
+      # I-prov: the attestation binds the listing's sha256 to this workflow file at refs/heads/main on a GitHub-hosted
+      # runner. Pinned by sha (v3.2.0, the last release that generates the SLSA provenance predicate itself; its own
+      # actions are pinned by sha inside it).
+      - name: Attest the records-data listing
+        if: steps.commit.outputs.pushed == 'yes'
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-path: ${{ runner.temp }}/records-data-listing
 
       - name: Open an issue on failure
         if: failure()
@@ -1018,7 +961,7 @@ jobs:
         run: |
           title="Daily update failed"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
-          body="The push job failed (data not committed to main): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. If it opened a data/ pull request, that PR is left unmerged: close it unmerged (the next run commits fresh data). The last deployed site is unchanged."
+          body="The push job failed (data not on records-data, or not attested): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. If records-data moved during the run, the push was refused (non-fast-forward) and the next run collects again on top of it. If the push went through but the attestation step failed, the next run's gate refuses records-data until a person restores the last attested tree on it whole (runbook, rollback of records-data). The last deployed site is unchanged."
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
           else
@@ -1031,7 +974,7 @@ jobs:
     # Secrets and variables > Actions > Variables). Do not remove this condition. Hard stop 1.
     # Also main only (pipeline/dispatch-non-main-ref).
     # After the lock (pipeline/deploy-independent-of-push): update must have succeeded, and push must have succeeded
-    # too, so the site never goes live from data that is not on main. The one run where push is skipped by design is
+    # too, so the site never goes live from data that is not on records-data. The one run where push is skipped by design is
     # the manual rebuild-only run (collect = false: nothing to commit; the runbook's rollback path), which still
     # deploys. !cancelled() is there because a job whose `needs` include a skipped job is itself skipped unless its
     # `if` calls a status function; every job result is then tested by name, so this only ever narrows the lock.
