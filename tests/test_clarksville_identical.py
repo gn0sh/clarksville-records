@@ -16,6 +16,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -34,6 +35,22 @@ FIXTURE_DISTRICTS = ROOT / "site" / "fixtures" / "districts.sample.json"
 PINNED_OFF = dict(finance_path=None, rpc=None, county_agendas=None, county_committees=None, city_committees=None,
                   transcripts=False, export=False, morning_manifests=None, fetch_manifests=None, vote_lists=False,
                   general_fund_dollar=False)
+
+
+# Settings read from the environment that would change the bytes (city-only/clarksville-identical): the launch URL
+# override, the city, and the default target. Cleared for every build here, in-process and in the subprocess.
+CLEAN_ENV = ("RECORDS_SITE_URL", "DAYLIGHT_CITY", "RECORDS_BUILD_TARGET")
+
+
+@pytest.fixture(autouse=True)
+def clean_env(monkeypatch):
+    for k in CLEAN_ENV:
+        monkeypatch.delenv(k, raising=False)
+    # sitegen.config read them once, at import (maybe before this fixture ran): undo what they set there.
+    assert config.CITY == config.DEFAULT_CITY, f"sitegen.config was loaded for {config.CITY}; unset DAYLIGHT_CITY"
+    site = yaml.safe_load(config.SITE_CONFIG_PATH.read_text(encoding="utf-8"))
+    monkeypatch.setitem(config.SITE["alerts"], "site_url", site["alerts"]["site_url"])
+    monkeypatch.setattr(config, "DEFAULT_TARGET", "preview")
 
 
 def tree_digest(out: Path) -> str:
@@ -89,7 +106,8 @@ def test_city_flag_build_is_byte_identical(tmp_path):
     out = tmp_path / "site"
     cmd = [sys.executable, "-m", "sitegen", "--city", "clarksville-tn", "--facts", str(FIXTURE), "--out", str(out),
            "--target", "pages", "--seats", str(FIXTURE_SEATS), "--districts", str(FIXTURE_DISTRICTS)]
-    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, env={**os.environ, "RECORDS_TODAY": TODAY})
+    env = {**{k: v for k, v in os.environ.items() if k not in CLEAN_ENV}, "RECORDS_TODAY": TODAY}
+    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, env=env)
     assert r.returncode == 0, r.stderr
     assert tree_digest(out) == _expected()["fixture"]
 

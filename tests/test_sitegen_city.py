@@ -112,6 +112,26 @@ def test_clarksville_paths_are_unchanged():
     assert config.DISTRICTS_PATH == ROOT / "config" / "localities" / "montgomery-tn" / "districts.json"
     assert config.FIN_LOCALITY_PATH == ROOT / "config" / "localities" / "montgomery-tn" / "finance.yml"
     assert config.LOCALITY == "montgomery-tn" and [c["locality"] for c in config.COUNCILS] == ["clarksville-tn"]
+    site = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    assert config.CAPITAL_FUND == "171" and config.FIXTURE_CAPITAL_FUND == "951"     # finance.yml capital_fund
+    assert config.COUNTY_AGENDAS_TEXT == site["county_agendas"] is not None
+    assert config.CITY_STATUS == "live"
+
+
+def test_the_cli_names_the_default_city_and_refuses_an_empty_one():
+    from sitegen import __main__ as cli
+    assert cli.DEFAULT_CITY == config.DEFAULT_CITY == "clarksville-tn"
+    for flag in (["--city="], ["--city", ""], ["--city", " "]):
+        r = run(*flag, "--facts", str(FIXTURE), "--out", "unused")
+        assert r.returncode == 2 and "--city needs a city slug" in r.stderr, (flag, r.stderr)
+        assert "None" not in r.stderr and not (ROOT / "unused").exists()
+
+
+def test_a_pages_build_refuses_a_city_that_is_not_live(tmp_path):
+    out = tmp_path / "s"
+    r = run("--city", "murfreesboro-tn", "--facts", str(FIXTURE), "--out", str(out), "--target", "pages")
+    assert r.returncode == 1 and "murfreesboro-tn is draft, not live: a pages build is for a live city only" in r.stderr
+    assert not out.exists()
 
 
 def test_clarksville_by_environment_loads_the_same_settings():
