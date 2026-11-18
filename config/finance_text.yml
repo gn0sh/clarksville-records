@@ -144,6 +144,9 @@ budget:
   moved: "This total also adds lines listed under Transfers and available funds:"
   not_printed: not printed in this book
   not_in_book: "This fund is not in {book}."
+  # provenance/fund-name-cross-book (manager's decision, 2026-11-18): a fund name a book prints cut short is completed
+  # from another book only with this one fixed sentence on the fund page. {book}, {from_book}: "FY<year> (<edition>)".
+  fund_name_cut: "The {book} book prints this fund's name cut short, as \"{printed}\"; the full name is from the {from_book} book."
   empty_section: "No lines of this kind are read from this book for this fund."
   no_heading: Lines printed without a heading
   jump: Go to a heading

@@ -1,24 +1,26 @@
-/* Landing sky (docs/design/daylight, M1). Puts the sun where the viewer's own clock says it is: rising from the
-   horizon at 6 AM, highest at half past noon, down at 7 PM, below the horizon at night (a rough day, not an
-   almanac). Shows today's weekday and date in the site's zone. No network calls, no storage, nothing sent.
-   Without this script the sun stays at its CSS midday place and the date line stays hidden.
-   The moon (owner, 2026-11-14) is different: it is drawn where it really is at this instant over the site's place
-   (data-lat and data-lon on #sky-moon, from config sky_place): altitude, compass direction, phase and the tilt of
-   its bright edge, from a small almanac worked out below. Without this script there is no moon. Hidden while the
-   moon is below the horizon.
-   Exposes CRSky.altitude, render and the moon's pure functions for tests (module.exports under node). */
+/* The sky in every page's header (docs/design/daylight). It draws the sky over the site's place (data-lat and
+   data-lon on #sky-moon, from config sky_place) as it is at this instant, from a small almanac worked out below:
+     the sun   while it is above that place's horizon: low at sunrise and sunset, at the top of its arc at local noon;
+     the moon  only while the sun is down and the moon is up: its real height, compass direction, phase and the tilt
+               of its bright edge, and only its lit part (no dark disc; a new moon is nothing).
+   The two are never on the page together (owner, 2026-11-18): at night with no moon up the sky is empty.
+   It also shows today's weekday and date in the site's zone. No network calls, no storage, nothing sent.
+   A page with no place has no moon, and its sun follows the viewer's own clock (the rough day below).
+   Without this script the sun stays at its CSS midday place, and the date line and the moon stay hidden.
+   Exposes CRSky.altitude, sunAltitude, render and the moon's pure functions for tests (module.exports under node). */
 (function (root) {
   "use strict";
   var RISE = 6, SET = 19, NIGHT = -0.25;
 
-  /* Hours since midnight (0 to 24) -> altitude: 0 on the horizon, 1 at the top of the arc, NIGHT below it. */
+  /* The rough day, for a page with no place: rising at 6 AM, highest at half past noon, down at 7 PM.
+     Hours since midnight (0 to 24) -> altitude: 0 on the horizon, 1 at the top of the arc, NIGHT below it. */
   function altitude(hours) {
     if (typeof hours !== "number" || !isFinite(hours) || hours <= RISE || hours >= SET) { return NIGHT; }
     return Math.round(Math.sin((hours - RISE) / (SET - RISE) * Math.PI) * 1000) / 1000;
   }
 
 
-  /* ---- The moon over the site's place ----------------------------------------------------------------------
+  /* ---- The sun and the moon over the site's place -----------------------------------------------------------
      A low-precision almanac: the Astronomical Almanac's short series for the sun and the moon (the same family as
      Meeus ch. 25 and 47, cut to the largest terms). Checked against PyEphem in tests/test_moon.py: under 0.5
      degrees in altitude and direction and under 1% in the lit fraction through 2026. All angles in degrees. */
@@ -47,6 +49,25 @@
     var lon = turn(280.460 + 0.9856474 * d + 1.915 * sin(g) + 0.020 * sin(2 * g));
     var eq = equatorial(lon, 0, d);
     return { lon: lon, dist: (1.00014 - 0.01671 * cos(g) - 0.00014 * cos(2 * g)) * 23455, ra: eq.ra, dec: eq.dec };
+  }
+
+  /* The sun from a place on the ground (lat degrees north, lon degrees east) at an instant (a Date.now() value):
+       alt   degrees above the horizon (the disc's middle; no bending by the air)
+       noon  its height at that day's local noon, the top of its arc */
+  function sun(ms, lat, lon) {
+    var d = j2000(ms), s = sunPosition(ms);
+    var H = turn(280.46061837 + 360.98564736629 * d + lon) - s.ra;        /* hour angle: sidereal time minus RA */
+    return { alt: asin(sin(lat) * sin(s.dec) + cos(lat) * cos(s.dec) * cos(H)), noon: 90 - Math.abs(lat - s.dec) };
+  }
+
+  /* The drawn sun's altitude over a place: NIGHT while the sun is down, else 0 (on the horizon) to 1 (local noon).
+     Up means what an almanac's sunrise and sunset mean: the disc's top edge on the horizon, the air's bending
+     included, which is its middle 0.833 degrees under it. */
+  var SUN_UP = -0.833;
+  function sunAltitude(ms, lat, lon) {
+    var s = sun(ms, lat, lon);
+    if (!(s.alt > SUN_UP)) { return NIGHT; }
+    return Math.round(Math.max(0, Math.min(1, s.alt / Math.max(1, s.noon))) * 1000) / 1000;
   }
 
   /* The moon seen from the Earth's centre: ecliptic longitude and latitude, horizontal parallax (how far an
@@ -93,21 +114,29 @@
     return Math.round(Math.max(0, Math.min(1, (az - AZ_LEFT) / (AZ_RIGHT - AZ_LEFT))) * 1000) / 1000;
   }
 
-  /* The lit part of a disc of radius r about (0, 0), bright edge on the right, as an SVG path: the right half of the
-     circle, closed by the terminator, which is half an ellipse (the lit/dark line seen at an angle). */
+  /* The lit part of a disc of radius r about (0, 0), bright edge on the right, as an SVG path. Two edges that meet at
+     the disc's two poles, (0, -r) and (0, r):
+       the limb        the right half of the moon's own circle, radius r, whatever the phase;
+       the terminator  the lit/dark line: half an ellipse through the same two poles, r high and r * |1 - 2k| wide
+                       (r * |cos| of the phase angle). For a crescent it bows toward the limb (the half disc less
+                       the half ellipse), past half it bows away from it (the half disc plus the half ellipse), and
+                       at half it is a straight line from pole to pole, drawn as one.
+     So the outer edge is always part of one circle, and the drawn area is the lit fraction of the disc. */
   function moonPath(fraction, r) {
     r = r || 10;
     var k = Math.max(0, Math.min(1, fraction)), rx = Math.round(Math.abs(1 - 2 * k) * r * 100) / 100;
-    return "M0 " + (-r) + "A" + r + " " + r + " 0 0 1 0 " + r + "A" + rx + " " + r + " 0 0 " + (k > 0.5 ? 1 : 0) + " 0 " + (-r) + "Z";
+    var limb = "M0 " + (-r) + "A" + r + " " + r + " 0 0 1 0 " + r;
+    if (rx === 0) { return limb + "Z"; }                       /* half lit: the straight line back to the top pole */
+    return limb + "A" + rx + " " + r + " 0 0 " + (k > 0.5 ? 1 : 0) + " 0 " + (-r) + "Z";
   }
 
   /* ---- Where the moon may sit: open sky only (manager's design call, 2026-11-14) --------------------------------
-     The moon never covers the header's words or the drawn sun. Rectangles are {left, top, right, bottom} in pixels. */
+     The moon never covers the header's words. Rectangles are {left, top, right, bottom} in pixels. */
   function overlaps(a, b) { return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom; }
 
   /* The largest rectangle inside `band` that touches none of `blocks` and is at least `min` wide and high, or null.
      Its sides can only lie on the band's sides or a block's, so every such pair is tried (a dozen blocks at most).
-     Of two equal ones the one further right wins: the side of the band the sun uses. */
+     Of two equal ones the one further right wins: the side of the band the words leave open. */
   function freeRect(band, blocks, min) {
     var xs = [band.left, band.right], ys = [band.top, band.bottom], best = null, bestArea = 0;
     blocks.forEach(function (o) { xs.push(o.left, o.right); ys.push(o.top, o.bottom); });
@@ -135,26 +164,25 @@
              top: Math.floor(r.bottom - size - alt * (r.bottom - r.top - size)) };
   }
 
-  /* The moon's drawing inside #sky-moon, made once: the whole disc, faint (the dark part), and the lit part over it. */
+  /* The moon's drawing inside #sky-moon, made once: the lit part and nothing else. The unlit part of the disc is
+     not drawn (owner, 2026-11-18: "as it looks, not a whole moon with a shadow"). */
   var SVG = "http://www.w3.org/2000/svg";
   function moonDrawing(doc, el) {
     var lit = doc.getElementById("sky-moon-lit");
     if (lit) { return lit; }
-    var svg = doc.createElementNS(SVG, "svg"), disc = doc.createElementNS(SVG, "circle");
+    var svg = doc.createElementNS(SVG, "svg");
     lit = doc.createElementNS(SVG, "path");
     svg.setAttribute("viewBox", "-10.5 -10.5 21 21"); svg.setAttribute("focusable", "false");
-    disc.setAttribute("class", "moon-disc"); disc.setAttribute("r", "10");
     lit.setAttribute("class", "moon-lit"); lit.setAttribute("id", "sky-moon-lit");
-    svg.appendChild(disc); svg.appendChild(lit); el.appendChild(svg);
+    svg.appendChild(lit); el.appendChild(svg);
     return lit;
   }
 
   /* What the moon must keep clear of, in the sky band's own pixels: the header's words (each line's own extent, not
-     its full-width box) with `gap` around them, the Menu button's column, and the drawn sun (its disc from where it stands on or under the
-     horizon, worked out from its size and --sun-alt, so a sun still sliding into place is not measured mid-way) with
-     `sunPad` (the width of the ring to keep clear of). */
+     its full-width box) with `gap` around them, and the Menu button's column. The sun is not among them: the moon is
+     drawn only while the sun is down, and a sun that is down is not drawn. */
   var WORDS = "#nav-open, .site-header .site-name, .site-header .unofficial-tag, .site-header .kicker, #sky-hero .sky-day";
-  function skyBlocks(doc, frame, f, gap, sunAlt, sunPad) {
+  function skyBlocks(doc, f, gap) {
     var blocks = [], nodes = doc.querySelectorAll(WORDS), i, n, r, range;
     for (i = 0; i < nodes.length; i += 1) {
       n = nodes[i];
@@ -168,35 +196,25 @@
         blocks.push({ left: r.left - f.left - gap, top: r.top - f.top - gap, right: r.right - f.left + gap, bottom: r.bottom - f.top + gap });
       }
     }
-    var sun = doc.getElementById("sky-sun"), view = doc.defaultView || root;
-    /* by night the disc is under the horizon but its outer ring still shows a little above it, so the sun is a
-       block whatever its altitude: one that lies wholly under the band blocks nothing */
-    if (sun && sun.offsetWidth) {
-      var max = parseFloat(view.getComputedStyle(sun).getPropertyValue("--sun-max")) || 0.85;
-      blocks.push({ left: sun.offsetLeft - sunPad, top: f.height - sunAlt * max * sun.offsetWidth - sunPad,
-                    right: sun.offsetLeft + sun.offsetWidth + sunPad, bottom: f.height + sunPad });
-    }
     return blocks;
   }
 
-  /* Puts the drawn moon in the open sky, or hides it when the band has no room. Tried in turn: clear of the sun's
-     outer ring; of its inner ring; of its disc only (a phone's band is short); a smaller moon. */
-  var drawn = null;                       /* the last moon drawn: { x, alt, sunAlt }, kept for a resize */
+  /* Puts the drawn moon in the open sky, or hides it when the band has no room. Tried in turn: its own size, then a
+     smaller moon (a phone's band is short). */
+  var drawn = null;                       /* the last moon drawn: { x, alt }, kept for a resize */
   function placeMoon(doc) {
     var el = doc.getElementById("sky-moon");
     if (!el || !drawn) { return; }
     el.style.removeProperty("--moon-size");
     el.removeAttribute("hidden");
-    var frame = el.parentNode, f = frame.getBoundingClientRect(), size = el.offsetWidth;
-    var view = doc.defaultView || root, vw = (view.innerWidth || f.width) / 100;
-    var inner = Math.max(8, Math.min(22, 2 * vw)), outer = Math.max(18, Math.min(48, 4.5 * vw));   /* the sun's rings */
+    var f = el.parentNode.getBoundingClientRect(), size = el.offsetWidth;
     var band = { left: 8, top: 6, right: f.width - 8, bottom: f.height - 4 };
-    var small = Math.max(22, Math.round(size * 0.8)), tries = [[size, outer], [size, inner], [size, 1], [small, 1]], i, spot, gap;
-    for (i = 0; size && i < tries.length; i += 1) {
-      gap = Math.round(tries[i][0] * 0.14) + 1;                             /* the moon's own ring, and a little air */
-      spot = moonSpot(band, skyBlocks(doc, frame, f, gap, drawn.sunAlt, tries[i][1]), tries[i][0], drawn.x, drawn.alt);
+    var sizes = [size, Math.max(22, Math.round(size * 0.8))], i, spot, gap;
+    for (i = 0; size && i < sizes.length; i += 1) {
+      gap = Math.round(sizes[i] * 0.14) + 1;                                /* the moon's glow, and a little air */
+      spot = moonSpot(band, skyBlocks(doc, f, gap), sizes[i], drawn.x, drawn.alt);
       if (spot) {
-        if (tries[i][0] !== size) { el.style.setProperty("--moon-size", tries[i][0] + "px"); }
+        if (sizes[i] !== size) { el.style.setProperty("--moon-size", sizes[i] + "px"); }
         el.style.setProperty("--moon-left", spot.left + "px");
         el.style.setProperty("--moon-top", spot.top + "px");
         return;
@@ -205,38 +223,58 @@
     el.setAttribute("hidden", "");
   }
 
-  /* Draws the moon for this instant: its lit shape and tilt, then its place in the open sky. `sunAlt`: the drawn
-     sun's altitude (above 0 it is in the sky, so the moon is paler and keeps clear of it). Below the horizon, with no
-     place on the page, or on any error, the moon stays hidden. A sliver under 6% lit is drawn as 6%, so it shows. */
-  function renderMoon(doc, ms, sunAlt) {
+  /* The place whose sky is drawn: { lat, lon } from #sky-moon, or null when the page names none (or a bad one). */
+  function skyPlace(doc) {
+    var el = doc.getElementById("sky-moon");
+    if (!el) { return null; }
+    var lat = parseFloat(el.getAttribute("data-lat")), lon = parseFloat(el.getAttribute("data-lon"));
+    return isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat: lat, lon: lon } : null;
+  }
+
+  /* Draws the moon for this instant: its lit shape and tilt, then its place in the open sky. It stays hidden while
+     the sun is up (`sunUp`: never both), while the moon is below the horizon, at new moon (under NEW of the disc lit:
+     it cannot be seen in the real sky either), with no place on the page, and on any error. The shape is the real lit
+     fraction, never padded: a thin crescent is drawn thin. */
+  var NEW = 0.01;
+  function renderMoon(doc, ms, where, sunUp) {
     var el = doc.getElementById("sky-moon");
     if (!el) { return; }
-    var lat = parseFloat(el.getAttribute("data-lat")), lon = parseFloat(el.getAttribute("data-lon"));
-    var m = isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? moon(ms, lat, lon) : null;
-    if (!m || !(m.alt > 0) || !isFinite(m.az + m.fraction + m.limb)) { drawn = null; el.setAttribute("hidden", ""); return; }
+    var m = where && !sunUp ? moon(ms, where.lat, where.lon) : null;
+    if (!m || !(m.alt > 0) || !(m.fraction >= NEW) || !isFinite(m.az + m.fraction + m.limb)) {
+      drawn = null; el.setAttribute("hidden", ""); return;
+    }
     var lit = moonDrawing(doc, el);
-    lit.setAttribute("d", moonPath(Math.max(0.06, m.fraction)));
+    lit.setAttribute("d", moonPath(m.fraction));
     lit.setAttribute("transform", "rotate(" + Math.round(m.limb - 90) + ")");
-    if (sunAlt > 0) { el.setAttribute("data-day", ""); } else { el.removeAttribute("data-day"); }
-    drawn = { x: moonX(m.az), alt: Math.round(m.alt / 90 * 1000) / 1000, sunAlt: sunAlt };
+    drawn = { x: moonX(m.az), alt: Math.round(m.alt / 90 * 1000) / 1000 };
     placeMoon(doc);
   }
 
-  /* The sun by the viewer's clock, today's date in the site's zone, then the moon (it needs the date line in place
-     to keep clear of it). */
+  /* The whole sky for this instant: the sun (over the site's place; by the viewer's clock on a page with no place),
+     today's date in the site's zone, then the moon (it needs the date line in place to keep clear of it). The sun's
+     data-at says whether it is up or down; the stylesheet draws no sun that is down, and the moon is drawn only
+     then, so the two are never on the page together. */
   function render() {
     var doc = root.document || (typeof document !== "undefined" ? document : null);
     if (!doc) { return; }
-    var now = new Date();
-    var sun = doc.getElementById("sky-sun");
-    var sunAlt = altitude(now.getHours() + now.getMinutes() / 60);
-    if (sun) { sun.style.setProperty("--sun-alt", String(sunAlt)); }
+    var now = new Date(), ms = now.getTime(), where = null, moonEl;
+    try { where = skyPlace(doc); } catch (e) { /* no place: the viewer's clock */ }
+    var sunEl = doc.getElementById("sky-sun");
+    var sunAlt = where ? sunAltitude(ms, where.lat, where.lon) : altitude(now.getHours() + now.getMinutes() / 60);
+    var sunUp = sunAlt > NIGHT;
+    if (sunEl) {
+      sunEl.style.setProperty("--sun-alt", String(sunAlt));
+      sunEl.setAttribute("data-at", sunUp ? "up" : "down");
+    }
     renderDate(doc, now);
-    try { renderMoon(doc, now.getTime(), sunAlt); } catch (e) { /* no moon */ }
+    try { renderMoon(doc, ms, where, sunUp); } catch (e) {
+      moonEl = doc.getElementById("sky-moon");                 /* no moon */
+      if (moonEl) { moonEl.setAttribute("hidden", ""); }
+    }
   }
 
   /* Today's weekday and date in the site's zone (data-tz on the hero), so the "<weekday> in <place> <date>" line is true
-     for every viewer. The sun stays on the viewer's own clock. */
+     for every viewer. */
   function renderDate(doc, now) {
     var hero = doc.getElementById("sky-hero");
     var weekday = doc.getElementById("sky-weekday");
@@ -251,8 +289,8 @@
     } catch (e) { return; }
     hero.hidden = false;
   }
-  /* The timer, and a tab coming back into view: the whole sky again (sun, date line, moon), so the drawn sun, the
-     date and the moon that steers around that sun always agree in a tab left open. Nothing is drawn while hidden. */
+  /* The timer, and a tab coming back into view: the whole sky again (sun, date line, moon), so the sun, the date
+     and the moon always agree in a tab left open across a sunset or a sunrise. Nothing is drawn while hidden. */
   function tick() {
     var doc = root.document;
     if (!doc || doc.hidden) { return; }
@@ -263,7 +301,7 @@
     try { if (root.document) { placeMoon(root.document); } } catch (e) { /* the moon stays where it was */ }
   }
   var api = { altitude: altitude, render: render, RISE: RISE, SET: SET, NIGHT: NIGHT,
-              moon: moon, moonPosition: moonPosition, sunPosition: sunPosition, moonX: moonX, moonPath: moonPath,
+              sun: sun, sunAltitude: sunAltitude, SUN_UP: SUN_UP, NEW: NEW, moon: moon, moonPosition: moonPosition, sunPosition: sunPosition, moonX: moonX, moonPath: moonPath,
               freeRect: freeRect, moonSpot: moonSpot, renderMoon: renderMoon, tick: tick };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   root.CRSky = api;
@@ -271,7 +309,7 @@
   /* a page restored from the back/forward cache gets a fresh date and sun */
   if (root.addEventListener) { root.addEventListener("pageshow", function (ev) { if (ev && ev.persisted) { render(); } }); }
   if (root.document && root.document.getElementById("sky-moon")) {
-    /* the moon moves about a degree every four minutes, so the sky is redrawn every five while the page is open,
+    /* the sky turns about a degree every four minutes, so it is redrawn every five while the page is open,
        and at once when the tab is looked at again */
     if (root.setInterval) { root.setInterval(tick, 300000); }
     if (root.document.addEventListener) { root.document.addEventListener("visibilitychange", tick); }

@@ -1260,11 +1260,11 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 
 .official-record { margin: 1.4em 0 0.4em; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--t-sm); color: var(--muted); }
 
-/* ==== Daylight (docs/design/daylight, M1): the landing sky, Your seats, the footer ============================= */
+/* ==== Daylight (docs/design/daylight, M1): the sky (every page's header), Your seats, the footer ============== */
 /* The sun: a disc with two halo rings, anchored on the horizon (the band's bottom edge) at the right of the page
-   column. static/sky.js sets --sun-alt from the viewer's clock (0 on the horizon, 1 at the top of its arc, below 0 at
-   night); without the script it stays at .6. --sun-max keeps it clear of the name plate on a phone. Decorative only:
-   aria-hidden, behind the text, never under text that needs contrast. */
+   column. static/sky.js sets --sun-alt (0 on the horizon, 1 at the top of its arc) from where the sun really is over
+   the site's place; without the script it stays at .6. --sun-max keeps it clear of the name plate on a phone.
+   Decorative only: aria-hidden, behind the text, never under text that needs contrast. */
 .sky-sun-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .sky-sun {
   --sun-alt: .6; --sun-max: .85; --sun-size: clamp(76px, 15vw, 190px);
@@ -1275,39 +1275,28 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   transform: translateY(calc((1 - var(--sun-alt) * var(--sun-max)) * 100%));
 }
 @media (prefers-reduced-motion: no-preference) { .sky-sun { transition: transform 1.4s cubic-bezier(.2, .7, .2, 1); } }
-/* The moon: quiet, drawn by static/sky.js where it really is over the site's place. The script puts it in the open
-   sky only (--moon-left, --moon-top: its box inside the band), never over the header's words or the sun, so nothing
-   is ever read across it. About 28px on a phone, 40px wide; a soft ring like the sun's, cooler and fainter. The lit
-   part is --moon with a hairline --moon-edge; the dark part is a faint disc. Paler while the drawn sun is up. It
-   does not animate. Decorative only: aria-hidden in the markup. */
+/* The sun and the moon are never on the page together (owner, 2026-11-18). With the script, the sun is not drawn
+   until the script has said where it is (data-at), and not at all while it is below the horizon (data-at="down"):
+   no disc and no ring, so a night page shows the moon alone, or neither. */
+.js .sky-sun:not([data-at]), .sky-sun[data-at="down"] { visibility: hidden; }
+/* The moon: quiet, drawn by static/sky.js where it really is over the site's place, and only while the sun is down.
+   Only its lit part is drawn, as it looks in the sky: a crescent, a half, a gibbous shape or the full disc, turned
+   to the real bright edge; the unlit part is not drawn at all (no dark disc, no ring around the whole moon), and a
+   new moon is nothing. The script puts it in the open sky only (--moon-left, --moon-top: its box inside the band),
+   never over the header's words, so nothing is ever read across it. About 28px on a phone, 40px wide. The lit part
+   is --moon with a hairline --moon-edge and a soft glow that follows its shape. It does not animate. Decorative
+   only: aria-hidden in the markup. */
 .sky-moon-frame { position: absolute; inset: 0; pointer-events: none; }
 .sky-moon {
   --moon-size: clamp(28px, 3.1vw, 40px);
   position: absolute; display: block; left: var(--moon-left, 0); top: var(--moon-top, 0);
-  width: var(--moon-size); height: var(--moon-size); border-radius: 50%;
-  box-shadow: 0 0 0 calc(var(--moon-size) * .14) color-mix(in srgb, var(--moon-ring) 30%, transparent);
+  width: var(--moon-size); height: var(--moon-size);
 }
 .sky-moon[hidden] { display: none; }
-.sky-moon svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.sky-moon[data-day] { opacity: .8; }
-.moon-disc { fill: color-mix(in srgb, var(--moon-edge) 30%, transparent); stroke: var(--moon-edge); stroke-width: .5; stroke-opacity: .45; }
+.sky-moon svg { display: block; width: 100%; height: 100%; overflow: visible;
+  filter: drop-shadow(0 0 calc(var(--moon-size) * .1) color-mix(in srgb, var(--moon-ring) 45%, transparent)); }
 .moon-lit { fill: var(--moon); stroke: var(--moon-edge); stroke-width: .7; stroke-linejoin: round; }
 .has-sky .masthead { z-index: 1; }
-/* A body's landing page (a "Show records from" target other than All) has the sun but no date line under the name
-   plate, so the plate, tag and kicker stop short of the sun's column (its disc and inner ring): no text over the sun */
-.has-sky { --sun-room: calc(clamp(76px, 15vw, 190px) + clamp(8px, 2vw, 22px)); }
-.has-sky:not(:has(#sky-hero)) .brand { padding-right: var(--sun-room); }
-/* Every other page (sky-small, onceover/header/sun-on-every-page): the same sun, smaller and lower, so the header is
-   one family on every page and the page's own h1 stays the loudest thing. On a phone it is the body pages' sliver
-   (the rules below already cover every header without the date line). */
-@media (min-width: 700px) {
-  .sky-small .sky-sun {
-    --sun-size: clamp(64px, 8vw, 104px); --sun-max: .42;
-    box-shadow: 0 0 0 clamp(6px, 1vw, 12px) color-mix(in srgb, var(--halo) 55%, transparent),
-                0 0 0 clamp(14px, 2.2vw, 26px) color-mix(in srgb, var(--halo) 26%, transparent);
-  }
-  .has-sky.sky-small { --sun-room: calc(clamp(64px, 8vw, 104px) + clamp(6px, 1vw, 12px)); }
-}
 .sky-hero { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) 10px; }
 .sky-hero[hidden] { display: none; }
 /* with the script the date line keeps its space before it is filled (js-flag.js), so nothing jumps */
@@ -1321,11 +1310,6 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   .sky-sun { --sun-max: .5; }
   /* without the script there is no date line, so on a phone only a sliver of sun shows, clear of the name plate */
   html:not(.js) .has-sky:has(#sky-hero[hidden]) .sky-sun { --sun-max: .15; }
-  /* on a phone a body's landing page keeps the text full width: the same sliver as above, script or not, in a strip
-     under the kicker just tall enough for its disc and inner ring at the top of the arc */
-  .has-sky:not(:has(#sky-hero)) .sky-sun { --sun-max: .15; }
-  .has-sky:not(:has(#sky-hero)) .brand { padding-right: 0; }
-  .has-sky:not(:has(#sky-hero)) .masthead { padding-bottom: calc(.15 * clamp(76px, 15vw, 190px) + clamp(8px, 2vw, 22px)); }
   .sky-hero { padding-bottom: 6px; }
   .sky-date { font-size: 1.8rem; }
 }
@@ -1337,7 +1321,7 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   .js .sky-hero[hidden] .sky-day { min-height: clamp(2.34rem, 4.5vw, 3.06rem); }
 }
 
-/* Daylight M2: today's date on the landing opens the day page (today.html). Ink on the sky, a sun underline. */
+/* Daylight M2: today's date in the header opens the day page (today.html). Ink on the sky, a sun underline. */
 .sky-link { color: var(--fg); text-decoration: none; display: inline-flex; align-items: baseline; gap: 6px; }
 .sky-link:visited { color: var(--fg); }
 .sky-link .sky-date { text-decoration: underline; text-decoration-color: var(--sun); text-decoration-thickness: 3px; text-underline-offset: 5px; }
