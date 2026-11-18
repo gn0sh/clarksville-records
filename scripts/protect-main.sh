@@ -18,16 +18,27 @@
 # Run it after any settings change and right before MAIN_PR_BASELINE is set; it must print OK.
 # Prints "Main before the rulesets: <sha>" first (main read before any write). Exit 0 OK, 1 refused or NOT OK.
 # --check: no writes, only the checks (for a settings-drift re-check, or a dry look before the cutover).
-# Needs: gh signed in as gn0sh (gh auth login) and jq. Run: bash scripts/protect-main.sh [--check]
+# --apps: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App token: HTTP 403
+#   for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and passes the Apps
+#   that can write this repository (or none). Without --apps that check is NOT OK, never a silent pass. Only the Claude
+#   App ($allowed_app, through which the team pushes branches) may be listed: one App adds at most one approving
+#   identity, so 2 approvals stay out of reach with R2 off, and no App may hold Administration write (it could edit the
+#   rulesets). That no App can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must equal the files.
+# Needs: gh signed in as gn0sh (gh auth login) and jq. Run: bash scripts/protect-main.sh [--check] [--apps <names>|none]
 set -uo pipefail
 check=0
-case "${1:-}" in
-  "") ;;
-  --check) check=1 ;;
-  *) echo "Usage: bash scripts/protect-main.sh [--check]"; exit 1 ;;
-esac
+apps=""; apps_given=0
+usage="Usage: bash scripts/protect-main.sh [--check] [--apps <App names>|none]"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --check) check=1; shift ;;
+    --apps) [ "$#" -ge 2 ] || { echo "$usage"; exit 1; }; apps=$2; apps_given=1; shift 2 ;;
+    *) echo "$usage"; exit 1 ;;
+  esac
+done
 repo=gn0sh/clarksville-records
 owner=gn0sh
+allowed_app=claude
 here=$(cd "$(dirname "$0")" && pwd)
 export PM_OWNER=$owner PM_REPO=$repo PM_PR=pull_request PM_WRITE=write PM_READ=read PM_TRIAGE=triage
 for v in CLAUDE_CODE_REMOTE GITHUB_ACTIONS CI; do
@@ -160,20 +171,19 @@ if inv=$(gh api --paginate "repos/$repo/invitations?per_page=100" \
   echo "Pending invitations with write or more: ${inv:-none}"
   [ -z "$inv" ] || problem "a pending invitation with write or more: $inv"
 else unread "the pending invitations"; fi
-if inst=$(gh api --paginate "user/installations?per_page=100" \
-          --jq '.installations[] | select(.account.login == $ENV.PM_OWNER and (.permissions.contents == $ENV.PM_WRITE or .permissions.administration == $ENV.PM_WRITE)) | [(.id|tostring), .app_slug, .repository_selection] | @tsv'); then
-  apps=""
-  while IFS=$'\t' read -r iid slug sel; do
-    [ -n "$iid" ] || continue
-    if [ "$sel" = all ]; then apps="$apps,$slug"; continue; fi
-    if r=$(gh api --paginate "user/installations/$iid/repositories?per_page=100" --jq '.repositories[].full_name'); then
-      ! grep -qxF "$repo" <<< "$r" || apps="$apps,$slug"
-    else unread "the repositories of the installed App $slug"; fi
-  done <<< "$inst"
-  apps=${apps#,}
-  echo "Installed Apps with contents or administration write on this repository: ${apps:-none}"
-  [ -z "$apps" ] || problem "an installed App can write this repository: $apps"
-else unread "the installed Apps (user/installations)"; fi
+# installed Apps: confirmed by hand (--apps), never read (no read an OAuth token can make lists them)
+if [ "$apps_given" = 0 ]; then
+  echo "Installed Apps with write on this repository: not confirmed"
+  problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with --apps <their names from github.com/apps/<name>, comma-separated> or --apps none. Only $allowed_app may be listed, and only if its Administration permission is not Read and write"
+elif ! [[ "$apps" =~ ^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$ ]]; then
+  echo "Installed Apps with write on this repository: '$apps' (not a list of App names)"
+  problem "--apps takes App names from github.com/apps/<name>, comma-separated, or none"
+else
+  echo "Installed Apps with write on this repository: $apps (confirmed by hand by $owner on $(date -u +%Y-%m-%d), not read by this script; none with Administration write)"
+  if [ "$apps" != none ] && [ "$apps" != "$allowed_app" ]; then
+    problem "an installed App other than $allowed_app alone can write this repository ($apps): remove its access to clarksville-records, or the team amends ADR 0011 first"
+  fi
+fi
 if keys=$(gh api --paginate "repos/$repo/keys?per_page=100" --jq '.[] | select(.read_only != true) | [(.id|tostring), .title] | @tsv'); then
   keys=$(printf '%s\n' "$keys" | grep . | tr '\t' ':' | paste -sd, -)
   echo "Deploy keys with write: ${keys:-none}"

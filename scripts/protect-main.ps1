@@ -22,11 +22,20 @@
 # Run (PowerShell, in the repository folder):
 #   powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
 #   -Check: no writes, only the checks (for a settings-drift re-check, or a dry look before the cutover).
+#   -Apps <names>|none: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App
+#   token: HTTP 403 for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and
+#   passes the Apps that can write this repository (or none). Without -Apps that check is NOT OK, never a silent pass.
+#   Only the Claude App ($allowedApp, through which the team pushes branches) may be listed: one App adds at most one
+#   approving identity, so 2 approvals stay out of reach with R2 off, and no App may hold Administration write (it
+#   could edit the rulesets). That no App can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must
+#   equal the files.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
-param([switch]$Check)
+param([switch]$Check, [string]$Apps = '')
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
 $repo = 'gn0sh/clarksville-records'
 $owner = 'gn0sh'
+$allowedApp = 'claude'
+$appsGiven = $PSBoundParameters.ContainsKey('Apps')
 $env:PM_OWNER = $owner
 $env:PM_REPO = $repo
 $env:PM_PR = 'pull_request'
@@ -219,19 +228,19 @@ if ($null -eq $inv) { Unread 'the pending invitations' } else {
     Write-Host ('Pending invitations with write or more: ' + $(if ($inv) { $inv } else { 'none' }))
     if ($inv) { Problem "a pending invitation with write or more: $inv" }
 }
-$inst = Lines "user/installations?per_page=100" '.installations[] | select(.account.login == $ENV.PM_OWNER and (.permissions.contents == $ENV.PM_WRITE or .permissions.administration == $ENV.PM_WRITE)) | [(.id|tostring), .app_slug, .repository_selection] | @tsv' -Paginate
-if ($null -eq $inst) { Unread 'the installed Apps (user/installations)' } else {
-    $apps = @()
-    foreach ($line in $inst) {
-        $f = $line -split "`t"
-        if ($f[2] -ceq 'all') { $apps += $f[1]; continue }
-        $r = Lines "user/installations/$($f[0])/repositories?per_page=100" '.repositories[].full_name' -Paginate
-        if ($null -eq $r) { Unread "the repositories of the installed App $($f[1])" }
-        elseif (@($r) -ccontains $repo) { $apps += $f[1] }
+# installed Apps: confirmed by hand (-Apps), never read (no read an OAuth token can make lists them)
+if (-not $appsGiven) {
+    Write-Host 'Installed Apps with write on this repository: not confirmed'
+    Problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with -Apps <their names from github.com/apps/<name>, comma-separated> or -Apps none. Only $allowedApp may be listed, and only if its Administration permission is not Read and write"
+} elseif ($Apps -cnotmatch '^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$') {
+    Write-Host "Installed Apps with write on this repository: '$Apps' (not a list of App names)"
+    Problem '-Apps takes App names from github.com/apps/<name>, comma-separated, or none'
+} else {
+    $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+    Write-Host "Installed Apps with write on this repository: $Apps (confirmed by hand by $owner on $today, not read by this script; none with Administration write)"
+    if ($Apps -cne 'none' -and $Apps -cne $allowedApp) {
+        Problem "an installed App other than $allowedApp alone can write this repository ($Apps): remove its access to clarksville-records, or the team amends ADR 0011 first"
     }
-    $apps = $apps -join ','
-    Write-Host ('Installed Apps with contents or administration write on this repository: ' + $(if ($apps) { $apps } else { 'none' }))
-    if ($apps) { Problem "an installed App can write this repository: $apps" }
 }
 $keys = Lines "repos/$repo/keys?per_page=100" '.[] | select(.read_only != true) | [(.id|tostring), .title] | @tsv' -Paginate
 if ($null -eq $keys) { Unread 'the deploy keys' } else {
