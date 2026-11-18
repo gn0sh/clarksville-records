@@ -48,6 +48,12 @@ rule below is off unless its optional key is set, so a book without them is read
 - `rows.fund_total_by_name`: "TOTAL <fund name, cut>" right after a section total is the fund total (statement net,
   scope the fund's rows in this report run). `rows.run_totals` (label -> revenue | expenditure | net) scope the run's
   rows of that statement; `rows.run_end` ends a run (scopes restart).
+- The FY2025 book (read through its glyph table, collector/type3_decode.py): `rows.org_section_totals`: a codeless row
+  with amounts that repeats its section's org and names the section ("100310 Taxes") is the section total. A book's
+  own `fund_line` reads "1100 General Fund" as the name after the number. With `fund_from_header`, the rows after a
+  fund total on the same page open the next fund (fund None until the next page header names it; rows left with no
+  header after them fail the book), and a fund that opens and closes on one page is named by its total label
+  (fund_from_total; complete_cut_fund_names completes a cut name from the other books' headers).
 """
 from __future__ import annotations
 
@@ -106,6 +112,8 @@ class ParsedLine:
     cells: list                  # [{header_as_printed, fiscal_year, kind, as_printed, dollars}]
     scope_line_ids: list
     held: str | None
+    fund_from_total: bool = False  # a fund opened and closed on one page: its name is read from its total label
+    fund_name_from: dict | None = None  # {book_id, printed}: the cut name completed from another book's header
 
 
 @dataclass
@@ -396,6 +404,9 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
     unit = rules.amount_unit
     report_dates: list[dict] = []
     seen_dates: set[str] = set()
+    fund_closed = False                        # fund_from_header: a fund total was read on this page
+    after_total: list[ParsedLine] = []         # rows after it on the page: their fund is the next page header's
+    fund_rx = spec.fund_line or rules.fund_line
     for page in range(spec.first_page, spec.last_page + 1):
         plines = by_page.get(page, [])
         role, title_at = page_role(plines, rules)
@@ -405,13 +416,20 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
         labels: list[str] = []
         bands, header_idx = header_bands(plines, title_at, rules, where, overrides, labels)
         if rules.fund_from_header:
-            m = rules.fund_line.match(labels[0]) if len(labels) == 1 else None
+            m = fund_rx.match(labels[0]) if len(labels) == 1 else None
             if m is None:
                 raise BookLayoutError(f"{where}: the header names no one fund ({labels!r})")
             new = (m.groupdict().get("no"), m.group("name"))
-            if new != (fund_no, fund_name):
+            if fund_closed:
+                # the rows printed after the last fund's total, under the old page header, open this fund (the city
+                # FY2025 book starts a fund mid-page): its scopes are already fresh (the fund total reset them)
+                for pl in after_total:
+                    pl.fund_no, pl.fund_name = new
+                fund_no, fund_name = new
+            elif new != (fund_no, fund_name):
                 fund_no, fund_name = new
                 sc.reset_fund()
+            fund_closed, after_total = False, []
         pages_read.append(page)
         for b in bands:
             col = {"header_as_printed": b.header, "fiscal_year": b.fiscal_year, "kind": b.kind}
@@ -455,7 +473,7 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
                 if rules.run_end and rules.run_end.match(text.strip()):
                     sc.reset_run()                  # never stored (it names the staff member who ran the report)
                     continue
-                m = None if rules.fund_from_header else rules.fund_line.match(text)
+                m = None if rules.fund_from_header else fund_rx.match(text)
                 if m:
                     fund_no, fund_name = m.group("no"), m.group("name")
                     sc.reset_fund()
@@ -471,8 +489,26 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
             for pl in pending_fb:
                 pl.fund_no, pl.fund_name = fund_no, fund_name
             pending_fb = []
-            pl = _line(spec, page, r, role, fund_no, fund_name, sc, rules, bands, edges, label)
+            # after a fund total the page header no longer names the fund of the rows (fund None until known)
+            cur_no, cur_name = (None, None) if fund_closed else (fund_no, fund_name)
+            pl = _line(spec, page, r, role, cur_no, cur_name, sc, rules, bands, edges, label)
             out.append(pl)
+            if not rules.fund_from_header or pl.level == "run":
+                continue                            # a report-run total has no fund
+            if pl.level == "fund":
+                if fund_closed:                     # a fund that opens and closes on this page: named by its total
+                    rest = rules.total.sub("", pl.label, count=1)
+                    m = fund_rx.match(rest)
+                    new = (m.groupdict().get("no"), m.group("name")) if m else (None, rest)
+                    for x in after_total + [pl]:
+                        x.fund_no, x.fund_name = new
+                        x.fund_from_total = True
+                fund_closed, after_total = True, []
+            elif fund_closed:
+                after_total.append(pl)
+    if after_total:
+        raise BookLayoutError(f"{spec.id}: rows after the last fund total with no fund header after them "
+                              f"({after_total[0].id})")
     if pending_fb:
         raise BookLayoutError(f"{spec.id}: fund-balance rows with no statement page after them")
     unused = set(overrides) - {c["header_as_printed"] for c in columns}
@@ -484,12 +520,13 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
 def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules: BudgetRules, bands, edges,
           label) -> ParsedLine:
     code = None
-    words, org = r.label_words, []
+    words, org, same_org = r.label_words, [], False
     if rules.org_code and words and rules.org_code.fullmatch(words[0].text):
         head = (sc.section.heading or "").split()
         # the section heading prints the same org: not part of the label; another org (a book that starts mid-section)
         # stays in the label, before the name
-        org = [] if head and head[0] == words[0].text else [words[0]]
+        same_org = bool(head) and head[0] == words[0].text
+        org = [] if same_org else [words[0]]
         words = words[1:]
         label = " ".join(w.text for w in org + words)
     if words and rules.account_code.fullmatch(words[0].text):
@@ -502,6 +539,15 @@ def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules
         held = HELD_ALIGN
         null_amounts(cells)                    # held means no amounts (budget-reconcile/held-labelless-dollars)
     role, level, scope = "detail", None, []
+    if (rules.org_section_totals and same_org and code is None and sc.section.line_ids
+            and _names_section(label, sc.section.heading, rules)):
+        # "100310 Taxes" with amounts after the section's rows (the city FY2025 book prints no "TOTAL"): the section
+        # total, its label as printed (org included)
+        sect = sc.section
+        pl = ParsedLine(lid, page, sect.statement or statement, fund_no, fund_name, sect, None,
+                        " ".join(w.text for w in r.label_words), "total", "section", cells, list(sect.line_ids), held)
+        sc.open_section(None)
+        return pl
     if code is None and label in rules.run_totals:
         want = rules.run_totals[label]         # a report-run total: every fund of the run, one statement or net
         scope = [i for i, st in sc.run if want == NET or st == want]
@@ -514,8 +560,12 @@ def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules
     elif code is None and rules.total.match(label):
         role = "total"
         rest = rules.total.sub("", label, count=1)
-        by_name = (rules.fund_total_by_name and fund_name and rest and not sc.section.line_ids
-                   and fund_name.startswith(rest))
+        # fund_name None: a fund that opened after another fund's total on the same page (read_book), so no header
+        # names it yet; its total is the "TOTAL <name>" right after a section total
+        m = spec.fund_line.match(rest) if spec.fund_line else None
+        printed = m.group("name") if m else rest         # "TOTAL 1100 General Fund": the name after the number
+        by_name = (rules.fund_total_by_name and rest and not sc.section.line_ids
+                   and (fund_name is None or fund_name.startswith(printed)))
         if (not by_name and rules.org_code and sc.section.heading and sc.section.line_ids
                 and not _names_section(rest, sc.section.heading, rules)):
             # a project's total inside an org section ("TOTAL AUTO LIABILITY CLAIMS"): its rows since the project
@@ -528,6 +578,7 @@ def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules
             level, scope = "fund", list(sc.fund)
             if by_name:
                 statement = NET                # the fund's revenue (printed negative) and expense together
+                sc.fund = []                   # the rows after it belong to the next fund
             sc.open_section(None)
         else:
             level, scope = "section", list(sc.section.line_ids)
@@ -573,6 +624,27 @@ def _names_section(rest: str, heading: str, rules: BudgetRules) -> bool:
     return bool(rest) and " ".join(words).startswith(rest)
 
 
+def complete_cut_fund_names(reads: list[BookRead]) -> None:
+    """A fund named only by its total label (fund_from_total: it opened and closed on one page, and the label is cut
+    to the report's width, "TOTAL 2240 Vehicle Replaceme") takes the one fund name printed in a page header of the
+    books read in the same run that starts with it ("Vehicle Replacement Fund"), so its lines group with that fund's
+    in the other editions. No such name, or several: the name stays as cut. The total's own label is never changed.
+    A completed line records where the name came from (fund_name_from: the first book, in config order, whose header
+    prints it, and the name as this book prints it), and the fund page says so (provenance/fund-name-cross-book)."""
+    full = {}
+    for r in reads:
+        for pl in r.lines:
+            if pl.fund_name and not pl.fund_from_total:
+                full.setdefault(pl.fund_name, r.spec.id)
+    for r in reads:
+        for pl in r.lines:
+            if pl.fund_from_total and pl.fund_name not in full:
+                hits = sorted(n for n in full if n.startswith(pl.fund_name))
+                if len(hits) == 1:
+                    pl.fund_name_from = {"book_id": full[hits[0]], "printed": pl.fund_name}
+                    pl.fund_name = hits[0]
+
+
 def tags_for(pl: ParsedLine, rules: BudgetRules) -> list[str]:
     heading = (pl.section.heading if pl.section else None) or ""
     tags = []
@@ -596,5 +668,6 @@ def to_records(read: BookRead, rules: BudgetRules) -> list[dict]:
             "department": heading if pl.statement == "expenditure" else None,
             "account_code": pl.account_code, "label_as_printed": pl.label, "row_role": pl.row_role,
             "tags": tags_for(pl, rules), "cells": pl.cells, "page": pl.page,
-            "scope_line_ids": pl.scope_line_ids, "check": None, "edition_differs": [], "held": pl.held})
+            "scope_line_ids": pl.scope_line_ids, "check": None, "edition_differs": [], "held": pl.held,
+            **({"fund_name_from": pl.fund_name_from} if pl.fund_name_from else {})})
     return out
