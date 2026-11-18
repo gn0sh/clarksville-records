@@ -306,7 +306,7 @@ def load(site: dict | None, fixture: bool, today: date, facts_path: Path | None 
         return None
     cfg = {**cfg, "facts_path": p,
            "videos": video_settings(cfg.get("videos_spec"), bool(fixture), data.get("fixture_videos") if fixture else None)}
-    sb =((site or config.SITE).get("school_board") or {})
+    sb = ((site or config.SITE).get("school_board") or {})
     pg = sb.get("page") or {}
     cfg["school_label"] = pg.get("title") or sb.get("label") or "School board"
     return Committees(cfg, data, today, pg.get("slug"))

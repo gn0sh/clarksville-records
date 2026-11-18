@@ -535,7 +535,7 @@ switch:
         heading: What we can show
         shown: "Shown here: the board's meeting agendas, taken from the county's website, and links to the district's own meeting videos."
         not_shown: "Not shown: the board's minutes, recorded votes and budget."
-        why: "The school district blocks automated visitors to cmcss.net, and YouTube's terms do not allow copying videos. This site follows those rules: it shows the agendas the county posts and links each meeting to the district's own recording instead of transcribing it."
+        why: "The school district blocks automated visitors to cmcss.net, and YouTube's terms do not allow copying videos. This site follows those rules: it shows the agendas the county posts and links each meeting to the district's own recording when one is posted, or to the district's YouTube channel."
         link_lede: "Find them on the official site:"
         link: {from: school_board, kind: school}
       cards:

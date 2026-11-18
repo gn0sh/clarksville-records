@@ -28,7 +28,8 @@ import re
 import sys
 import urllib.parse
 import xml.etree.ElementTree as ET
-from datetime import date
+import xml.parsers.expat
+from datetime import date, datetime
 from pathlib import Path
 
 import yaml
@@ -50,6 +51,8 @@ WATCH = "https://www.youtube.com/watch?v={}"
 WHATS = ("meeting", "hearing", "budget-hearing")
 KEYS = ("locality", "body", "channel_name", "channel_id", "channel_url", "feed_url", "facts", "title_pattern", "what",
         "known")
+# a feed entry's <published> as YouTube prints it (2024-11-27T02:10:00+00:00); anything else is stored as ""
+PUBLISHED = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})")
 NS = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
 
 
@@ -122,13 +125,38 @@ def read_title(cfg: dict, title: str) -> tuple[str, str] | None:
     return (d, what) if what else None
 
 
+def no_dtd(body: bytes) -> None:
+    """FeedError when the body declares a DOCTYPE or an entity anywhere, in any encoding expat reads (a UTF-16 body,
+    a long leading comment): a first pass with expat's own handlers, before ElementTree parses it, so no DTD or entity
+    is ever expanded."""
+    def refuse(*_):
+        raise FeedError("the feed declares a DTD or an entity")
+    p = xml.parsers.expat.ParserCreate()
+    p.StartDoctypeDeclHandler = refuse
+    p.EntityDeclHandler = refuse
+    try:
+        p.Parse(body, True)
+    except xml.parsers.expat.ExpatError as e:
+        raise FeedError(f"not XML: {e}") from None
+
+
+def published(text: str | None) -> str:
+    """The entry's published time as printed when it is an ISO-8601 datetime, else "" (free feed text is never kept)."""
+    t = (text or "").strip()
+    if not PUBLISHED.fullmatch(t):
+        return ""
+    try:
+        datetime.fromisoformat(t.replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    return t
+
+
 def parse_feed(body: bytes, cfg: dict) -> list[dict]:
     """The feed's board-meeting entries: [{id, title, date, what, published}], in feed order. Entries of another
     channel, with a malformed id or with a title that does not fit the pattern are left out (their titles are never
     kept). FeedError when the body is not this channel's Atom feed."""
-    head = body[:4096].decode("utf-8", "replace").upper()
-    if "<!DOCTYPE" in head or "<!ENTITY" in head:      # no DTD or entity ever expanded
-        raise FeedError("the feed declares a DTD or an entity")
+    no_dtd(body)
     try:
         root = ET.fromstring(body)
     except ET.ParseError as e:
@@ -148,7 +176,7 @@ def parse_feed(body: bytes, cfg: dict) -> list[dict]:
         if got is None:
             continue
         out.append({"id": vid, "title": title, "date": got[0], "what": got[1],
-                    "published": (e.findtext("a:published", default="", namespaces=NS) or "").strip()[:40]})
+                    "published": published(e.findtext("a:published", default="", namespaces=NS))})
     return out
 
 
@@ -174,14 +202,26 @@ def by_date(cfg: dict, data: dict) -> tuple[dict[str, list[dict]], list[str]]:
     """{ISO date: [{id, url, what, source}]} from the feed's stored entries (titles re-read against the pattern, so a
     hand-edited file cannot link a title that does not fit) and the config's `known` list, and the problems: a known
     entry the feed disagrees with (the same id on another date or kind, or another id for the same date and kind)
-    is left out, and reported."""
+    is left out, and reported. Two feed entries of one date and kind: the one published last is kept, the other
+    reported."""
     problems, feed = [], []
     for v in data.get("videos") or []:
         got = read_title(cfg, v.get("title", ""))
         if not VIDEO_ID.fullmatch(str(v.get("id", ""))) or got is None or got != (v.get("date"), v.get("what")):
             problems.append(f"videos file: entry {v.get('id')!r} does not fit the title pattern or its date; not linked")
             continue
-        feed.append({"id": v["id"], "date": got[0], "what": got[1], "source": "feed"})
+        feed.append({"id": v["id"], "date": got[0], "what": got[1], "source": "feed",
+                     "published": published(v.get("published"))})
+    groups: dict[tuple, list[dict]] = {}
+    for v in feed:
+        groups.setdefault((v["date"], v["what"]), []).append(v)
+    feed = []
+    for vs in groups.values():                          # the one published last wins its (date, kind)
+        vs.sort(key=_published_key)
+        win = vs[-1]
+        problems += [f"videos file: {v['id']} and {win['id']} are both {win['what']} videos of {win['date']}; "
+                     f"{win['id']}, published last, is linked" for v in vs[:-1]]
+        feed.append({k: x for k, x in win.items() if k != "published"})
     fid = {v["id"]: v for v in feed}
     fkey = {(v["date"], v["what"]): v["id"] for v in feed}
     out = list(feed)
@@ -202,6 +242,13 @@ def by_date(cfg: dict, data: dict) -> tuple[dict[str, list[dict]], list[str]]:
     for v in sorted(out, key=lambda v: (v["date"], WHATS.index(v["what"]), v["id"])):
         res.setdefault(v["date"], []).append({**v, "url": WATCH.format(v["id"])})
     return res, problems
+
+
+def _published_key(v: dict) -> tuple:
+    """Order by published time (none first), then id, so the choice does not depend on the file's order."""
+    t = v.get("published") or ""
+    when = datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp() if t else float("-inf")
+    return (when, v["id"])
 
 
 # ------------------------------------------------------------------ the daily step
@@ -227,7 +274,12 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: dict | None = None, ro
                 status, body, _ = f.get(cfg["feed_url"])
             except RobotsDisallowed:
                 status, body = None, b""
-                out["status"] = "robots.txt disallows the feed; not requested, the data file is as committed"
+                rp = (getattr(f, "_robots", None) or {}).get(FEED_HOST)
+                if rp is not None and getattr(rp, "disallow_all", False):   # a 5xx or a refused redirect: unread
+                    out["status"] = ("robots.txt unreadable (treated as disallowing everything); the feed was not "
+                                     "requested, the data file is as committed")
+                else:
+                    out["status"] = "robots.txt disallows the feed; not requested, the data file is as committed"
                 code = 2
             except (HostBlocked, HostRefused, ProxyRefused, FetchFailed, RequestCapReached) as e:
                 status, body = None, b""

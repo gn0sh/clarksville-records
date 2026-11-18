@@ -80,6 +80,12 @@ def test_parse_feed_keeps_only_this_channels_board_titles():
 
 @pytest.mark.parametrize("body, why", [
     (b'<?xml version="1.0"?><!DOCTYPE feed [<!ENTITY x "y">]><feed xmlns="http://www.w3.org/2005/Atom"/>', "DTD"),
+    # the same declaration in UTF-16, and after a leading comment longer than 4 KB: refused all the same
+    ('<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE feed [<!ENTITY x "y">]><feed xmlns="http://www.w3.org/2005/Atom"/>'
+     .encode("utf-16"), "DTD"),
+    (b'<?xml version="1.0"?><!--' + b"x" * 5000 + b'--><!DOCTYPE feed [<!ENTITY x "y">]>'
+     b'<feed xmlns="http://www.w3.org/2005/Atom">&x;</feed>', "DTD"),
+    (b'<!DOCTYPE feed SYSTEM "https://evil.example/x.dtd"><feed xmlns="http://www.w3.org/2005/Atom"/>', "DTD"),
     (b"<html><body>consent</body></html>", "Atom"),
     (b"not xml", "XML"),
     (FEED.replace(b"<yt:channelId>UC7te1VFbkqSPY48oUiQB7mQ</yt:channelId>\n <title>CMCSS Focus",
@@ -88,6 +94,31 @@ def test_parse_feed_keeps_only_this_channels_board_titles():
 def test_a_body_that_is_not_the_feed_is_refused(body, why):
     with pytest.raises(sv.FeedError, match=why):
         sv.parse_feed(body, CFG)
+
+
+@pytest.mark.parametrize("text, want", [
+    ("2024-11-27T02:10:00+00:00", "2024-11-27T02:10:00+00:00"), ("2024-11-27T02:10:00.5Z", "2024-11-27T02:10:00.5Z"),
+    (" 2024-11-27T02:10:00-06:00 ", "2024-11-27T02:10:00-06:00"),
+    ("2024-11-27", ""), ("2024-13-27T02:10:00+00:00", ""), ("Jane Doe, 2024-11-27T02:10:00+00:00", ""), ("", ""),
+    (None, ""),
+])
+def test_published_is_kept_only_as_an_iso_datetime(text, want):
+    assert sv.published(text) == want
+    body = FEED.replace(b"<published>2024-11-27T02:10:00+00:00</published>",
+                        f"<published>{text or ''}</published>".encode())
+    assert sv.parse_feed(body, CFG)[0]["published"] == want
+
+
+def test_two_feed_videos_of_one_date_and_kind_keep_the_one_published_last():
+    entry = {"title": "CMCSS School Board Meeting 11-26-2024", "date": "2024-11-26", "what": "meeting"}
+    data = {"videos": [{**entry, "id": "LATERvid001", "published": "2024-11-28T00:00:00+00:00"},
+                       {**entry, "id": "EARLYvid002", "published": "2024-11-27T23:00:00-06:00"},   # 05:00Z, later
+                       {**entry, "id": "NOTIMEvid03", "published": "not a time"}]}
+    links, problems = sv.by_date({**CFG, "known": []}, data)
+    assert [v["id"] for v in links["2024-11-26"]] == ["EARLYvid002"]
+    assert len(problems) == 2 and all("EARLYvid002, published last, is linked" in p for p in problems)
+    links2, _ = sv.by_date({**CFG, "known": []}, {"videos": list(reversed(data["videos"]))})
+    assert links2 == links                                                   # not the file's order
 
 
 def test_merge_keeps_what_left_the_feed_and_the_feed_wins_by_id():
@@ -127,6 +158,17 @@ def test_robots_disallow_means_the_feed_is_never_requested_and_nothing_is_writte
     assert sv.run_step(log, False, fetcher=f, cfg=_cfg_in(tmp_path), root=tmp_path) == 2
     assert [u for u, _ in net.calls] == [ROBOTS]
     assert "robots.txt disallows" in log["school_videos"]["status"]
+    assert not (tmp_path / "videos.json").exists()
+
+
+@pytest.mark.parametrize("robots", [(503, b""), (302, b"", {"Location": "https://evil.example/robots.txt"})])
+def test_unreadable_robots_means_the_feed_is_never_requested(tmp_path, robots):
+    f, net = fetcher({ROBOTS: robots, CFG["feed_url"]: (200, FEED)})
+    log = {}
+    assert sv.run_step(log, False, fetcher=f, cfg=_cfg_in(tmp_path), root=tmp_path) == 2
+    assert CFG["feed_url"] not in [u for u, _ in net.calls]
+    assert "robots.txt unreadable" in log["school_videos"]["status"]
+    assert "disallows" not in log["school_videos"]["status"]
     assert not (tmp_path / "videos.json").exists()
 
 

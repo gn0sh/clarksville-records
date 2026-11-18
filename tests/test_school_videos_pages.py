@@ -67,6 +67,24 @@ def test_an_unmatched_meeting_links_the_channel(built):
         f'{v["channel_lede"]} {v["channel_label"]} (opens in a new tab) .')
 
 
+def test_two_board_meetings_on_one_date_link_the_channel(tmp_path):
+    """Which video is whose is not guessed: both meetings of 2024-11-26 link the channel, not FIXTUREvid1."""
+    path, data = agendas(tmp_path)
+    twin = next(m for m in data["meetings"] if m["id"] == "2024-11-26-formal")
+    data["meetings"].append({**twin, "id": "2024-11-26-study", "kind": "study", "source_id": None,
+                             "url": twin["url"].replace("formal", "study")})
+    data["fixture_videos"] = str(videos_file(tmp_path))
+    path.write_text(json.dumps(data), encoding="utf-8")
+    cmx = cmx_mod.load(config.SITE, True, TODAY, path)
+    for mid in ("2024-11-26-formal", "2024-11-26-study"):
+        m = next(x for x in data["meetings"] if x["id"] == mid)
+        watch, channel = cmx.videos(m)
+        assert watch == [] and channel["url"] == VC["channel_url"], mid
+    one = next(x for x in data["meetings"] if x["id"] == "2024-11-12-study")
+    assert cmx.videos(one)[1]["url"] == VC["channel_url"]
+    assert cmx.video_count() == 0
+
+
 def test_finance_committee_meetings_link_no_school_video(built):
     out, _ = built
     page = main_of(out / "county-committees" / "budget-committee" / "2024.html")
@@ -117,5 +135,6 @@ def test_the_explanation_says_why_in_plain_neutral_words():
     lim = config.SITE["switch"]["bodies"]["school"]["limits"]
     assert lim["why"] == ("The school district blocks automated visitors to cmcss.net, and YouTube's terms do not allow "
                           "copying videos. This site follows those rules: it shows the agendas the county posts and "
-                          "links each meeting to the district's own recording instead of transcribing it.")
+                          "links each meeting to the district's own recording when one is posted, or to the "
+                          "district's YouTube channel.")
     assert "videos" in lim["shown"]
