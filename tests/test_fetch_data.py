@@ -180,7 +180,10 @@ def test_fetch_data_ps1_matches_the_sh():
              "Could not move the current data/ aside. Nothing was changed.",
              "(replaced on the next run).", "($want files). Nothing was committed.",
              "git ls-files -- data", "git rev-parse --absolute-git-dir", "git ls-tree --name-only",
-             "git ls-tree -r --name-only", "refs/remotes/origin/records-data^{commit}", "--no-tags"]
+             "git ls-tree -r --name-only", "refs/remotes/origin/records-data^{commit}", "--no-tags",
+             "has data as mode $", ", not a folder (040000). Nothing was changed. Send this output to the team.",
+             "holds a symlink or submodule under data/ ($links). Nothing was changed. Send this output to the team.",
+             "(120000|160000) ", "Could not remove the old $", ". Nothing was changed. Send this output to the team."]
     for ln in lines:
         assert ln in sh, ln
         assert ln in ps1, ln
@@ -197,3 +200,113 @@ def test_the_preflight_doc_and_claude_md_name_fetch_data():
     claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
     this_repo = claude[claude.index("## This repo"):]
     assert "records-data" in this_repo and "scripts/fetch-data" in this_repo and "docs/ops/preflight.md" in this_repo
+
+
+def _origin_with_tree(tmp_path, build):
+    """A bare origin whose main ignores data/ and whose records-data tree is made by build(seed worktree)."""
+    bare = _origin(tmp_path, AFTER_MAIN)
+    w = tmp_path / "seed"
+    _git(w, "checkout", "-q", "--orphan", "records-data")
+    _git(w, "rm", "-rq", "--cached", ".")
+    for p in list(w.iterdir()):
+        if p.name != ".git":
+            shutil.rmtree(p) if p.is_dir() else p.unlink()
+    build(w)
+    _git(w, "commit", "-q", "-m", "seed")
+    _git(w, "push", "-q", str(bare), "HEAD:refs/heads/records-data")
+    return bare
+
+
+def _symlinked_data(w):
+    os.symlink("/etc", w / "data")
+    _git(w, "add", "-A", "-f")
+
+
+def _symlink_inside(w):
+    _write(w, DATA)
+    os.symlink("/etc/passwd", w / "data" / "council" / "leak.json")
+    _git(w, "add", "-A", "-f")
+
+
+def _submodule_inside(w):
+    _write(w, DATA)
+    _git(w, "add", "-A", "-f")
+    _git(w, "update-index", "--add", "--cacheinfo", "160000," + "1" * 40 + ",data/vendor")
+
+
+def _data_is_a_file(w):
+    _write(w, {"data": "not a folder\n"})
+    _git(w, "add", "-A", "-f")
+
+
+@pytest.mark.parametrize("build,says", [
+    (_symlinked_data, "has data as mode 120000, not a folder (040000). Nothing was changed."),
+    (_data_is_a_file, "has data as mode 100644, not a folder (040000). Nothing was changed."),
+    (_symlink_inside, "holds a symlink or submodule under data/ (data/council/leak.json). Nothing was changed."),
+    (_submodule_inside, "holds a symlink or submodule under data/ (data/vendor). Nothing was changed."),
+], ids=["data-symlink", "data-file", "symlink-inside", "submodule-inside"])
+def test_fetch_data_refuses_symlinks_and_submodules(tmp_path, build, says):
+    bare = _origin_with_tree(tmp_path, build)
+    c = _clone(tmp_path, bare)
+    _write(c, {"data/mine.json": "keep\n"})
+    before = _state(c)
+    r = _run(c)
+    assert r.returncode == 1 and says in r.stdout, r.stdout + r.stderr
+    assert (c / "data" / "mine.json").read_text() == "keep\n" and not (c / "data").is_symlink()
+    assert _state(c)[:3] == before[:3]
+    assert not (c / ".git" / "fetch-data" / "new" / "data").exists()
+
+
+def test_fetch_data_ps1_checks_modes_like_the_sh():
+    ps1 = PS1.read_text(encoding="utf-8")
+    assert "$topMode = ((@(git ls-tree $d data)) -join '').Split(' ')[0]" in ps1
+    assert "if ($topMode -cne '040000') {" in ps1
+    assert "$tree = @(git ls-tree -r $d -- data)" in ps1
+    assert "$m = @($tree | Where-Object { $_ -cmatch '^(120000|160000) ' })" in ps1
+    arch = ps1.index("git archive --format")
+    assert ps1.index("$topMode") < arch and ps1.index("$links") < arch
+    assert "if (Test-Path -LiteralPath $previous) {" in ps1
+    assert ps1.index("if (Test-Path -LiteralPath $previous) {") < ps1.index("Move-Item -LiteralPath 'data'")
+
+
+def test_fetch_data_fails_when_the_old_previous_cannot_be_removed(tmp_path):
+    """A partly removed previous/ must not get data/ moved inside it (previous/data): fail, data/ unchanged. An rm
+    on PATH that leaves previous/ in place stands in for a locked file (Windows) or a read-only folder."""
+    bare = _origin(tmp_path, AFTER_MAIN, DATA)
+    c = _clone(tmp_path, bare)
+    _write(c, {"data/mine.json": "keep\n"})
+    prev = c / ".git" / "fetch-data" / "previous"
+    _write(prev, {"locked/old.json": "old\n"})
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    (shim / "rm").write_text('#!/usr/bin/env bash\nfor a; do case "$a" in */previous) exit 1 ;; esac; done\n'
+                             'exec /bin/rm "$@"\n')
+    (shim / "rm").chmod(0o755)
+    env = {k: v for k, v in os.environ.items() if k not in ("GH_TOKEN", "GITHUB_TOKEN")}
+    env["PATH"] = f"{shim}:{env['PATH']}"
+    r = subprocess.run(["bash", str(SH)], cwd=c, env=env, capture_output=True, text=True, timeout=120)
+    assert r.returncode == 1 and f"Could not remove the old {prev}. Nothing was changed." in r.stdout, r.stdout + r.stderr
+    assert (c / "data" / "mine.json").read_text() == "keep\n" and not (prev / "data").exists()
+    assert (prev / "locked" / "old.json").read_text() == "old\n"
+
+
+def test_fetch_data_sh_checks_previous_is_gone_before_the_move():
+    sh = SH.read_text(encoding="utf-8")
+    assert '  if [ -e "$work/previous" ] || [ -L "$work/previous" ]; then' in sh
+    assert sh.index('[ -L "$work/previous" ]') < sh.index('mv data "$work/previous"')
+
+
+def test_fetch_data_decides_on_the_count_not_the_derived_names():
+    """Fail closed: the symlink/submodule refusal turns on how many ls-tree lines match, so a name extraction that
+    throws or comes out empty (PowerShell under ErrorActionPreference Continue) can't let a symlink through; a failed
+    listing is refused too."""
+    ps1, sh = PS1.read_text(encoding="utf-8"), SH.read_text(encoding="utf-8")
+    i = ps1.index("$tree = @(git ls-tree -r $d -- data)")
+    block = ps1[i:ps1.index("\n}\n", i) + 3]
+    assert "if ($LASTEXITCODE -ne 0) { Write-Host \"Could not list records-data $d." in block
+    assert "if ($m.Count -gt 0) {" in block and "if ($links)" not in ps1
+    assert block.index("if ($m.Count -gt 0) {") < block.index("$links =") < block.index("exit 1\n}")
+    assert 'tree=$(git ls-tree -r "$d" -- data) \\\n  || { echo "Could not list records-data $d.' in sh
+    assert 'if [ "$nbad" != 0 ]; then' in sh and '[ -n "$links" ]' not in sh
+    for text in (ps1, sh):
+        assert "Could not list records-data $d. Nothing was changed. Send this output to the team." in text

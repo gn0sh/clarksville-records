@@ -26,6 +26,20 @@ names=$(git ls-tree --name-only "$d" | paste -sd, -)
 if [ "$names" != data ]; then
   echo "records-data $d holds '$names', not only data/. Nothing was changed. Send this output to the team."; exit 1
 fi
+# data must be a real folder, and nothing under it a symlink (120000) or a submodule (160000): a symlinked data/ or
+# file would point the site build, the tests or the collector outside the checkout
+top_mode=$(git ls-tree "$d" data | cut -d' ' -f1)
+if [ "$top_mode" != 040000 ]; then
+  echo "records-data $d has data as mode $top_mode, not a folder (040000). Nothing was changed. Send this output to the team."; exit 1
+fi
+# decide on the count of matching lines, never on the names derived from them (fail closed)
+tree=$(git ls-tree -r "$d" -- data) \
+  || { echo "Could not list records-data $d. Nothing was changed. Send this output to the team."; exit 1; }
+nbad=$(printf '%s\n' "$tree" | grep -cE '^(120000|160000) ')
+if [ "$nbad" != 0 ]; then
+  links=$(printf '%s\n' "$tree" | grep -E '^(120000|160000) ' | cut -f2- | head -n 5 | paste -sd, -)
+  echo "records-data $d holds a symlink or submodule under data/ ($links). Nothing was changed. Send this output to the team."; exit 1
+fi
 want=$(git ls-tree -r --name-only "$d" -- data | wc -l | tr -d ' ')
 gd=$(git rev-parse --absolute-git-dir) || exit 1
 work="$gd/fetch-data"
@@ -41,6 +55,9 @@ if [ "$got" != "$want" ]; then
 fi
 if [ -e data ] || [ -L data ]; then
   rm -rf "$work/previous"
+  if [ -e "$work/previous" ] || [ -L "$work/previous" ]; then
+    echo "Could not remove the old $work/previous. Nothing was changed. Send this output to the team."; exit 1
+  fi
   mv data "$work/previous" || { echo "Could not move the current data/ aside. Nothing was changed."; exit 1; }
   echo "The data/ that was here is now at $work/previous (replaced on the next run)."
 fi

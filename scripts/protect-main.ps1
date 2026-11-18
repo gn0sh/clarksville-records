@@ -22,15 +22,23 @@
 # Run (PowerShell, in the repository folder):
 #   powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
 #   -Check: no writes, only the checks (for a settings-drift re-check, or a dry look before the cutover).
+# Main's .github/workflows/daily-update.yml is read too (ADR 0011 row J2, I-prov): after the cutover it must run the
+#   gate step ("Check main's history and the records-data head") in job gate and only there, push must need gate,
+#   push must be the only job with attestations: write (only J2 stores attestations) and with contents: write, no job
+#   may hold pull-requests: write or set its permissions inline, and the workflow's own permissions are {}.
+#   -PreCutover: cutover step 4 only, before the cutover merge. Main must then still hold the old step
+#   "Open and merge the data pull request", and the post-cutover checks wait for the next run without it.
 #   -Apps <names>|none: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App
 #   token: HTTP 403 for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and
 #   passes the Apps that can write this repository (or none). Without -Apps that check is NOT OK, never a silent pass.
-#   Only the Claude App ($allowedApp, through which the team pushes branches) may be listed: one App adds at most one
-#   approving identity, so 2 approvals stay out of reach with R2 off, and no App may hold Administration write (it
-#   could edit the rulesets). That no App can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must
-#   equal the files.
+#   Only the Claude App ($allowedApp, through which the team pushes branches) may be listed. With R2 off it is then
+#   the only approver besides gn0sh, so any 2 approvals include gn0sh's (invariant I-person, ADR 0011 Amendment
+#   2026-11-18 (b): at most one non-gn0sh approver counts; two Apps, or R2 on plus one, would make 2 without gn0sh).
+#   No App may hold Administration write (it could edit the rulesets) or bypass, and only J2 on main stores
+#   attestations. That no App can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must equal the
+#   files.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
-param([switch]$Check, [string]$Apps = '')
+param([switch]$Check, [switch]$PreCutover, [string]$Apps = '')
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
 $repo = 'gn0sh/clarksville-records'
 $owner = 'gn0sh'
@@ -231,10 +239,10 @@ if ($null -eq $inv) { Unread 'the pending invitations' } else {
 # installed Apps: confirmed by hand (-Apps), never read (no read an OAuth token can make lists them)
 if (-not $appsGiven) {
     Write-Host 'Installed Apps with write on this repository: not confirmed'
-    Problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with -Apps <their names from github.com/apps/<name>, comma-separated> or -Apps none. Only $allowedApp may be listed, and only if its Administration permission is not Read and write"
+    Problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with -Apps claude or -Apps none (one value; any other App must first lose its access to clarksville-records, or the team amends ADR 0011). Only $allowedApp may be listed, and only if its Administration permission is not Read and write"
 } elseif ($Apps -cnotmatch '^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$') {
-    Write-Host "Installed Apps with write on this repository: '$Apps' (not a list of App names)"
-    Problem '-Apps takes App names from github.com/apps/<name>, comma-separated, or none'
+    Write-Host "Installed Apps with write on this repository: '$Apps' (not claude or none)"
+    Problem "-Apps takes one value, claude or none ('$Apps' is not one; typed at a PowerShell prompt, a,b arrives as 'a b')"
 } else {
     $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
     Write-Host "Installed Apps with write on this repository: $Apps (confirmed by hand by $owner on $today, not read by this script; none with Administration write)"
@@ -261,6 +269,57 @@ foreach ($envName in @('github-pages', 'morning-note')) {
         $shown = (@($bp | ForEach-Object { $_ -replace "`t", ':' })) -join ','
         Write-Host ("Environment $envName policies: " + $(if ($shown) { $shown } else { 'none' }))
         if ($bp.Count -ne 1 -or $bp[0] -cne "main`tbranch") { Problem "environment $envName must allow exactly main, of type branch" }
+    }
+}
+
+# main's daily-update.yml (ADR 0011 row J2, I-prov): the post-cutover shape, or with -PreCutover the old one
+$gateStep = "Check main's history and the records-data head"
+$oldStep = 'Open and merge the data pull request'
+# lists are job names joined by commas. Comment lines and trailing comments are dropped.
+function WfShape($lines) {
+    $r = [ordered]@{ top = ''; gate = @(); attw = @(); contw = @(); prw = @(); inl = @(); oldpr = @(); pn = '' }
+    $inJobs = $false
+    $job = ''
+    foreach ($raw in $lines) {
+        $ln = ([string]$raw).TrimEnd("`r")
+        if ($ln -cmatch '^[ \t]*#') { continue }
+        $ln = ($ln -creplace '[ \t]+#.*$', '') -creplace '[ \t]+$', ''
+        if ($ln -cmatch '^[^ \t]') { $inJobs = ($ln -cmatch '^jobs:$') }
+        if ($ln -cmatch '^permissions:') { $r.top = $ln }
+        if (-not $inJobs) { continue }
+        if ($ln -cmatch '^  ([A-Za-z0-9_-]+):$') { $job = $Matches[1]; continue }
+        if ($ln -cmatch '^[ \t]+attestations:[ \t]*write$') { $r.attw += $job }
+        if ($ln -cmatch '^[ \t]+contents:[ \t]*write$') { $r.contw += $job }
+        if ($ln -cmatch '^[ \t]+pull-requests:[ \t]*write$') { $r.prw += $job }
+        if ($ln -cmatch '^    permissions:[ \t]*[^ \t]' -and $ln -cnotmatch '^    permissions:[ \t]*[{][}]$') { $r.inl += $job }
+        if ($ln -cmatch '^[ \t]+(- )?name:[ \t]*(.*)$') {
+            $n = $Matches[2]
+            if ($n -ceq $gateStep) { $r.gate += $job }
+            if ($n -ceq $oldStep) { $r.oldpr += $job }
+        }
+        if ($job -ceq 'push' -and $ln -cmatch '^    needs:[ \t]*(.*)$') { $r.pn = $Matches[1] }
+    }
+    foreach ($k in @('gate', 'attw', 'contw', 'prw', 'inl', 'oldpr')) { $r[$k] = ($r[$k] -join ',') }
+    return $r
+}
+$wf = @(gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" -H 'Accept: application/vnd.github.raw')
+if ($LASTEXITCODE -ne 0 -or $wf.Count -eq 0) { Unread "main's .github/workflows/daily-update.yml" } else {
+    $w = WfShape $wf
+    $top = $w.top; $g = $w.gate; $aw = $w.attw; $cw = $w.contw; $pw = $w.prw; $ip = $w.inl; $op = $w.oldpr; $pn = $w.pn
+    Write-Host "Main's daily-update.yml: workflow '$top'; gate step in '$g'; attestations: write in '$aw'; contents: write in '$cw'; pull-requests: write in '$pw'; inline job permissions in '$ip'; data pull request step in '$op'; push needs '$pn'"
+    if ($PreCutover) {
+        Write-Host "-PreCutover: main's daily-update.yml is checked as before the cutover (it still opens data pull requests); after the cutover merge, run this again without -PreCutover"
+        if (-not $op) { Problem "-PreCutover, but main's daily-update.yml no longer has the data pull request step (the cutover is merged): run this again without -PreCutover" }
+    } else {
+        if ($top -cne 'permissions: {}') { Problem "main's daily-update.yml must set permissions: {} at the top (each job then names its own)" }
+        if ($g -cne 'gate') { Problem "main's daily-update.yml must run the step '$gateStep' in job gate, and only there (the post-cutover gate, ADR 0011)" }
+        if ($aw -cne 'push') { Problem "in main's daily-update.yml only job push may hold attestations: write (only J2 stores attestations, I-prov)" }
+        if ($cw -cne 'push') { Problem "in main's daily-update.yml only job push may hold contents: write" }
+        if ($pw) { Problem "no job in main's daily-update.yml may hold pull-requests: write" }
+        if ($ip) { Problem "no job in main's daily-update.yml may set its permissions inline (write-all, read-all or a { } map)" }
+        $pnl = ',' + ($pn -creplace '[\[\] ]', '') + ','
+        if (-not $pnl.Contains(',gate,')) { Problem "job push in main's daily-update.yml must need gate" }
+        if ($op) { Problem "main's daily-update.yml still opens data pull requests (before the cutover): use -PreCutover only at cutover step 4, before the cutover merge" }
     }
 }
 

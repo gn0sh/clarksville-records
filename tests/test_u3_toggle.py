@@ -211,7 +211,7 @@ def _assert_restored(r, made, verdict):
 
 def test_r1pp_json_is_adr_0011_decision_5_and_otherwise_r1_prime():
     adr = (ROOT / "docs" / "adr" / "0011-data-off-main.md").read_text(encoding="utf-8")
-    d5 = adr[adr.index("5. **Ruleset R1'' on `main`:**"):adr.index("6. **R2 off")]
+    d5 = adr[adr.index("5. **Ruleset R1'' on `main`:**"):adr.index("\n6. ")]   # 6 may carry an amendment note
     for s in ("`required_approving_review_count: 2`", "`dismiss_stale_reviews_on_push: true`",
               "`require_last_push_approval: true`", "`require_code_owner_review: false`", "squash only",
               "bypass Repository admin role", "`pull_request` mode"):
