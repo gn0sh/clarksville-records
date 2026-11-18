@@ -7416,6 +7416,18 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3162,plainText=false)"
   },
   {
+    "bytes": 366128,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-18T04:50:03+00:00",
+    "kind": "minutes",
+    "label": "Regular Session",
+    "last_modified": null,
+    "meeting_date": "2026-07-02",
+    "sha256": "b235e0cc8ae2cc4de8120cf61af55279f67bba55dd365e329049dca1feedc689",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3252,plainText=false)"
+  },
+  {
     "bytes": 168364,
     "content_type": "application/pdf",
     "etag": null,
@@ -7488,6 +7500,18 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3227,plainText=false)"
   },
   {
+    "bytes": 366508,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-18T04:50:13+00:00",
+    "kind": "minutes",
+    "label": "Regular Session",
+    "last_modified": null,
+    "meeting_date": "2026-08-06",
+    "sha256": "008b362ffe885c06401f5ea5628a1af9c1478e436e6b0d9057dbd43022a41886",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3355,plainText=false)"
+  },
+  {
     "bytes": 273561,
     "content_type": "application/pdf",
     "etag": null,
@@ -7512,6 +7536,18 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3270,plainText=false)"
   },
   {
+    "bytes": 370923,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-18T04:50:23+00:00",
+    "kind": "minutes",
+    "label": "Regular Session",
+    "last_modified": null,
+    "meeting_date": "2026-09-03",
+    "sha256": "21577744c3eaccb3917633a1850a0df253e70ba055722b1b3b160e70d6ce3c60",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3353,plainText=false)"
+  },
+  {
     "bytes": 252800,
     "content_type": "application/pdf",
     "etag": null,
@@ -7534,6 +7570,18 @@
     "meeting_date": "2026-10-01",
     "sha256": "20fcaa22127d4cb1e72e4e634cca1a691b4d4a236eb6c30e1858c319f1f47647",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3306,plainText=false)"
+  },
+  {
+    "bytes": 245883,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-18T04:50:33+00:00",
+    "kind": "minutes",
+    "label": "Regular Session",
+    "last_modified": null,
+    "meeting_date": "2026-10-01",
+    "sha256": "626678618d511954ff200815b836f427f7ed77e99cb6a942aa20d520cf7f1fa9",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3354,plainText=false)"
   },
   {
     "bytes": 248511,

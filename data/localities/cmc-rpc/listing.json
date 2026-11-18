@@ -2384,5 +2384,1083 @@
     "label": "",
     "no_doc": [],
     "printed": "1/25/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-12-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1581,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1582,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1126
+    ],
+    "id": "2021-12-28-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - December 28, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-11-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1601,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1602,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1139
+    ],
+    "id": "2021-11-23-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - November 23, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-10-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1643,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1644,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1162
+    ],
+    "id": "2021-10-26-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Meeting Agenda - October 26, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-09-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1645,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1646,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1163
+    ],
+    "id": "2021-09-28-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Meeting Agenda - September 28, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-08-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1579,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1124
+    ],
+    "id": "2021-08-24-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - August 24, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-07-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1594,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1135
+    ],
+    "id": "2021-07-27-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - July 27, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-07-14",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1592,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1133
+    ],
+    "id": "2021-07-14-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - July 14, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-06-22",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1595,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1596,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1136
+    ],
+    "id": "2021-06-22-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - June 22, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-05-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1599,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1600,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1138
+    ],
+    "id": "2021-05-25-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - May 25, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-04-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1577,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1578,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1123
+    ],
+    "id": "2021-04-27-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - April 27, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-03-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1597,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1598,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1137
+    ],
+    "id": "2021-03-23-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - March 23, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-02-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1585,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1586,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1129
+    ],
+    "id": "2021-02-23-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - February 23, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-02-22",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1570,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1116
+    ],
+    "id": "2021-02-22-cdrb",
+    "kind": "cdrb",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Common Design Review Board Agenda - February 22, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-01-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1590,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1591,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1132
+    ],
+    "id": "2021-01-26-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - January 26, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2021-01-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1571,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1117
+    ],
+    "id": "2021-01-25-cdrb",
+    "kind": "cdrb",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Common Design Review Board Agenda - January 25, 2021",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-12-30",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1583,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1127
+    ],
+    "id": "2020-12-30-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - December 30, 2020",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-12-14",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1569,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1115
+    ],
+    "id": "2020-12-14-cdrb",
+    "kind": "cdrb",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Common Design Review Board Agenda - December 14, 2020",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-11-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1603,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1604,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1140
+    ],
+    "id": "2020-11-24-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - November 24, 2020",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-10-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1606,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1607,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1142
+    ],
+    "id": "2020-10-28-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - October 28, 2020",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-09-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1608,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1609,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1143
+    ],
+    "id": "2020-09-23-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda - September 23, 2020",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-08-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1637,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1638,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1158
+    ],
+    "id": "2020-08-26-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 8-26-20",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-07-29",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1635,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1636,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1157
+    ],
+    "id": "2020-07-29-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 7-29-20",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-06-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1629,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1630,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1154
+    ],
+    "id": "2020-06-24-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 6-24-20",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-05-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1625,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1626,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1152
+    ],
+    "id": "2020-05-27-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 5-27-20",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-04-29",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1621,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1622,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1150
+    ],
+    "id": "2020-04-29-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 4-29-20",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-04-06",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1623,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1624,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1151
+    ],
+    "id": "2020-04-06-special",
+    "kind": "special",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 4-6-20",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": true,
+    "date": "2020-03-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1575,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1121
+    ],
+    "id": "2020-03-25-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission 3-25-20 CANCELLED",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-02-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1617,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1618,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1148
+    ],
+    "id": "2020-02-26-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 2-26-20",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2020-01-29",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1615,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1616,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1147
+    ],
+    "id": "2020-01-29-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 1-29-20",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-12-19",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1614,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1146
+    ],
+    "id": "2019-12-19-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 12-19-19",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-11-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1612,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1613,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1145
+    ],
+    "id": "2019-11-26-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 11-26-19",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-10-30",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1610,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1611,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1144
+    ],
+    "id": "2019-10-30-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 10-30-19",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-09-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1641,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1647,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1160,
+      1164
+    ],
+    "id": "2019-09-25-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 9-25-19; Regional Planning Commission Minutes 9-25-19",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-08-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1639,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1640,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1159
+    ],
+    "id": "2019-08-28-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 8-28-19",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-07-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1633,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1634,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1156
+    ],
+    "id": "2019-07-24-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 7-24-19",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-06-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1631,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1632,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1155
+    ],
+    "id": "2019-06-26-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 6-26-19",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-05-29",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1627,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1628,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1153
+    ],
+    "id": "2019-05-29-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 5-29-19",
+    "source": "civicclerk"
+  },
+  {
+    "cancelled": false,
+    "date": "2019-04-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1619,plainText=false)"
+      },
+      {
+        "fetch": true,
+        "host": "clarksvilletn.api.civicclerk.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1620,plainText=false)"
+      }
+    ],
+    "event_ids": [
+      1149
+    ],
+    "id": "2019-04-24-regular",
+    "kind": "regular",
+    "label": "",
+    "listing_url": "https://clarksvilletn.portal.civicclerk.com/",
+    "no_doc": [],
+    "printed": "Regional Planning Commission Agenda 4-24-19",
+    "source": "civicclerk"
   }
 ]
