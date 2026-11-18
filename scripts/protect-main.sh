@@ -18,6 +18,12 @@
 # Run it after any settings change and right before MAIN_PR_BASELINE is set; it must print OK.
 # Prints "Main before the rulesets: <sha>" first (main read before any write). Exit 0 OK, 1 refused or NOT OK.
 # --check: no writes, only the checks (for a settings-drift re-check, or a dry look before the cutover).
+# Main's .github/workflows/daily-update.yml is read too (ADR 0011 row J2, I-prov): after the cutover it must run the
+#   gate step ("Check main's history and the records-data head") in job gate and only there, push must need gate,
+#   push must be the only job with attestations: write (only J2 stores attestations) and with contents: write, no job
+#   may hold pull-requests: write or set its permissions inline, and the workflow's own permissions are {}.
+#   --pre-cutover: cutover step 4 only, before the cutover merge. Main must then still hold the old step
+#   "Open and merge the data pull request", and the post-cutover checks wait for the next run without it.
 # --apps: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App token: HTTP 403
 #   for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and passes the Apps
 #   that can write this repository (or none). Without --apps that check is NOT OK, never a silent pass. Only the Claude
@@ -26,14 +32,16 @@
 #   one non-gn0sh approver counts; two Apps, or R2 on plus one, would make 2 without gn0sh). No App may hold
 #   Administration write (it could edit the rulesets) or bypass, and only J2 on main stores attestations. That no App
 #   can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must equal the files.
-# Needs: gh signed in as gn0sh (gh auth login) and jq. Run: bash scripts/protect-main.sh [--check] [--apps <names>|none]
+# Needs: gh signed in as gn0sh (gh auth login) and jq.
+# Run: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <names>|none]
 set -uo pipefail
-check=0
+check=0; pre=0
 apps=""; apps_given=0
-usage="Usage: bash scripts/protect-main.sh [--check] [--apps <App names>|none]"
+usage="Usage: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <App names>|none]"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --check) check=1; shift ;;
+    --pre-cutover) pre=1; shift ;;
     --apps) [ "$#" -ge 2 ] || { echo "$usage"; exit 1; }; apps=$2; apps_given=1; shift 2 ;;
     *) echo "$usage"; exit 1 ;;
   esac
@@ -206,6 +214,48 @@ for env in github-pages morning-note; do
     [ "$bp" = $'main\tbranch' ] || problem "environment $env must allow exactly main, of type branch"
   else unread "environment $env's deployment policies"; fi
 done
+
+# main's daily-update.yml (ADR 0011 row J2, I-prov): the post-cutover shape, or with --pre-cutover the old one
+gate_step="Check main's history and the records-data head"
+old_step="Open and merge the data pull request"
+# one line per key; lists are job names joined by commas. Comment lines and trailing comments are dropped.
+wf_awk='{ sub(/\r$/, "") }
+/^[ \t]*#/ { next }
+{ sub(/[ \t]+#.*$/, ""); sub(/[ \t]+$/, "") }
+/^[^ \t]/ { injobs = ($0 ~ /^jobs:$/) }
+/^permissions:/ { top = $0 }
+!injobs { next }
+/^  [A-Za-z0-9_-]+:$/ { job = $0; sub(/^  /, "", job); sub(/:$/, "", job); next }
+/^[ \t]+attestations:[ \t]*write$/ { attw = attw "," job }
+/^[ \t]+contents:[ \t]*write$/ { contw = contw "," job }
+/^[ \t]+pull-requests:[ \t]*write$/ { prw = prw "," job }
+/^    permissions:[ \t]*[^ \t]/ && !/^    permissions:[ \t]*[{][}]$/ { inl = inl "," job }
+/^[ \t]+(- )?name:/ { n = $0; sub(/^[ \t]+(- )?name:[ \t]*/, "", n)
+  if (n == gs) gate = gate "," job; if (n == os) oldpr = oldpr "," job }
+job == "push" && /^    needs:/ { pn = $0; sub(/^    needs:[ \t]*/, "", pn) }
+END { printf "top=%s\ngate=%s\nattw=%s\ncontw=%s\nprw=%s\ninl=%s\noldpr=%s\npn=%s\n", top, substr(gate, 2),
+  substr(attw, 2), substr(contw, 2), substr(prw, 2), substr(inl, 2), substr(oldpr, 2), pn }'
+if wf=$(gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" -H 'Accept: application/vnd.github.raw') \
+   && [ -n "$wf" ] && shape=$(awk -v gs="$gate_step" -v os="$old_step" "$wf_awk" <<< "$wf"); then
+  wfget() { sed -n "s/^$1=//p" <<< "$shape"; }
+  top=$(wfget top); g=$(wfget gate); aw=$(wfget attw); cw=$(wfget contw); pw=$(wfget prw); ip=$(wfget inl)
+  op=$(wfget oldpr); pn=$(wfget pn)
+  echo "Main's daily-update.yml: workflow '$top'; gate step in '$g'; attestations: write in '$aw'; contents: write in '$cw'; pull-requests: write in '$pw'; inline job permissions in '$ip'; data pull request step in '$op'; push needs '$pn'"
+  if [ "$pre" = 1 ]; then
+    echo "--pre-cutover: main's daily-update.yml is checked as before the cutover (it still opens data pull requests); after the cutover merge, run this again without --pre-cutover"
+    [ -n "$op" ] || problem "--pre-cutover, but main's daily-update.yml no longer has the data pull request step (the cutover is merged): run this again without --pre-cutover"
+  else
+    [ "$top" = "permissions: {}" ] || problem "main's daily-update.yml must set permissions: {} at the top (each job then names its own)"
+    [ "$g" = gate ] || problem "main's daily-update.yml must run the step '$gate_step' in job gate, and only there (the post-cutover gate, ADR 0011)"
+    [ "$aw" = push ] || problem "in main's daily-update.yml only job push may hold attestations: write (only J2 stores attestations, I-prov)"
+    [ "$cw" = push ] || problem "in main's daily-update.yml only job push may hold contents: write"
+    [ -z "$pw" ] || problem "no job in main's daily-update.yml may hold pull-requests: write"
+    [ -z "$ip" ] || problem "no job in main's daily-update.yml may set its permissions inline (write-all, read-all or a { } map)"
+    pnl=",$(tr -d '[] ' <<< "$pn"),"
+    [[ "$pnl" == *,gate,* ]] || problem "job push in main's daily-update.yml must need gate"
+    [ -z "$op" ] || problem "main's daily-update.yml still opens data pull requests (before the cutover): use --pre-cutover only at cutover step 4, before the cutover merge"
+  fi
+else unread "main's .github/workflows/daily-update.yml"; fi
 
 if [ "$problems" = 0 ]; then
   echo "OK: main is protected (R1'', R-D, R-T as written, R2 off, auto-merge off, $owner the only writer, both environments main only)."

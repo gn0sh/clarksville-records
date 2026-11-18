@@ -23,6 +23,73 @@ FILES = {"R1''": "main-ruleset.json", "R-D": "records-data-ruleset.json", "R-T":
 BODY = {k: json.loads((SCRIPTS / v).read_text(encoding="utf-8")) for k, v in FILES.items()}
 R1P = json.loads((SCRIPTS / "main-ruleset-r1p.json").read_text(encoding="utf-8"))
 CLOUD = ("CLAUDE_CODE_REMOTE", "GITHUB_ACTIONS", "CI")
+WF_PATH = f"repos/{REPO}/contents/.github/workflows/daily-update.yml?ref=main"
+GATE_STEP = "Check main's history and the records-data head"
+OLD_STEP = "Open and merge the data pull request"
+# The job and permission lines of daily-update.yml after B2/B3 (claude/data-off-main-b23 at 13598f76), with its
+# comment traps: header comments that name attestations: write and a trailing comment on a permission line.
+POST_WF = """# push job   : ... The only job with contents: write or attestations:
+#              write; id-token: write is held by it and deploy only.
+on:
+  workflow_dispatch:
+permissions: {}
+
+jobs:
+  # main-protect gate (ADR 0011): only the push job holds attestations: write
+  gate:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read         # read the history and records-data (not contents: write)
+      pull-requests: read    # read each commit's pull request and its reviews
+      attestations: read     # read the attestations of records-data's listing (I-prov)
+    steps:
+      - name: Check out this run's commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Check main's history and the records-data head
+        id: check
+        run: |
+          echo "attestations: write"
+  update:
+    needs: gate
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the gate's commit
+        run: true
+  push:
+    needs: [gate, update]
+    # attestations: write; id-token: write is held only here
+    permissions:
+      contents: write        # push records-data: the only job that can write to the repository
+      id-token: write        # sign the listing's attestation
+      attestations: write    # store that attestation, which the gate's I-prov check reads
+    steps:
+      - name: Commit refreshed data on records-data
+        run: true
+      - name: Attest the records-data listing
+        uses: actions/attest-build-provenance@v2
+  deploy:
+    needs: [gate, update, push]
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        run: true
+  gate-failed:
+    needs: gate
+    permissions:
+      issues: write
+    steps:
+      - name: Open or comment on the issue
+        run: true
+"""
+PRE_WF = (POST_WF.replace("      - name: Check main's history and the records-data head\n",
+                          "      - name: Check every change outside data/ reached main by a reviewed pull request\n")
+          .replace("      attestations: write    # store that attestation, which the gate's I-prov check reads\n",
+                   "      pull-requests: write   # open that pull request\n")
+          .replace("      - name: Attest the records-data listing\n",
+                   "      - name: Open and merge the data pull request\n"))
 
 pytestmark = pytest.mark.skipif(shutil.which("jq") is None, reason="jq is needed by the scripts and the stub")
 
@@ -66,6 +133,9 @@ def ruleset_view(rs):
             "_links": {"self": {"href": "https://api.github.com/x"}}, "current_user_can_bypass": "pull_requests_only"}
 if path == R + "/git/ref/heads/main":
     out({"object": {"sha": st["main"]}})
+if path == R + "/contents/.github/workflows/daily-update.yml?ref=main":
+    assert "Accept: application/vnd.github.raw" in a, a
+    save(); sys.stdout.write(st["wf"]); sys.exit(0)
 if path == R + "/rulesets?per_page=100":
     if method == "POST":
         body = json.load(open(args[args.index("--input") + 1]))
@@ -132,7 +202,7 @@ def _perm(level):
 
 
 def _pm_state(**over):
-    st = {"main": "1" * 40, "rulesets": [], "r2": True, "auto": False,
+    st = {"main": "1" * 40, "rulesets": [], "r2": True, "auto": False, "wf": POST_WF,
           "collabs": [{"login": "gn0sh", "permissions": _perm("admin"), "role_name": "admin"}],
           "invites": [], "keys": [],
           "envs": {e: {"protected_branches": False, "custom_branch_policies": True}
@@ -302,6 +372,7 @@ _READS = [
     f"GET {R}/keys?per_page=100", f"GET {R}/environments/github-pages", f"GET {R}/environments/morning-note",
     f"GET {R}/environments/github-pages/deployment-branch-policies?per_page=100",
     f"GET {R}/environments/morning-note/deployment-branch-policies?per_page=100",
+    f"GET {WF_PATH}",
 ]
 
 
@@ -371,7 +442,8 @@ def test_protect_main_check_only_writes_nothing(tmp_path):
 def test_protect_main_refuses_an_unknown_argument(tmp_path):
     for args in (["--force"], ["--apps"], ["--check", "x"]):
         r, made = _pm_args(tmp_path, args, _pm_state())
-        assert r.returncode == 1 and "Usage: bash scripts/protect-main.sh [--check] [--apps <App names>|none]" in r.stdout
+        usage = "Usage: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <App names>|none]"
+        assert r.returncode == 1 and usage in r.stdout
         assert made == []
 
 
@@ -437,7 +509,7 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
         assert ln in ps1.replace("${label}", "$label"), ln
     for var in CLOUD:
         assert var in sh and f"'{var}'" in ps1
-    assert "param([switch]$Check, [string]$Apps = '')" in ps1 and "if ($Check) {" in ps1
+    assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '')" in ps1 and "if ($Check) {" in ps1
     assert 'if [ "$check" = 1 ]; then' in sh
     assert "CHECK ONLY: nothing is written; the checks below read the live settings." in sh and "CHECK ONLY" in ps1
     for want in ("$'false\\ttrue'", "$'main\\tbranch'", "$'2\\tfalse'"):
@@ -667,10 +739,145 @@ def test_protect_main_an_app_in_a_bypass_list_is_not_ok(tmp_path):
 
 def test_protect_main_ps1_takes_apps_the_same_way():
     ps1 = PM_PS1.read_text(encoding="utf-8")
-    assert "param([switch]$Check, [string]$Apps = '')" in ps1 and "$PSBoundParameters.ContainsKey('Apps')" in ps1
+    assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '')" in ps1
+    assert "$PSBoundParameters.ContainsKey('Apps')" in ps1
     assert "$allowedApp = 'claude'" in ps1 and "allowed_app=claude" in PM_SH.read_text(encoding="utf-8")
     assert "$Apps -cne 'none' -and $Apps -cne $allowedApp" in ps1 and "-Apps none" in ps1
     assert "typed at a PowerShell prompt, a,b arrives as 'a b')" in ps1
     for script in (ps1, PM_SH.read_text(encoding="utf-8")):    # the I-person reason, not "one App adds at most one"
         flat = " ".join(ln.lstrip("# ").strip() for ln in script.splitlines() if ln.lstrip().startswith("#"))
         assert "so any 2 approvals include gn0sh's (invariant I-person" in flat and "adds at most one" not in flat
+
+
+# ---------------------------------------------------------------------------------------------- protect-main: workflow
+def _wf_line(r):
+    line = [ln for ln in r.stdout.splitlines() if ln.startswith("Main's daily-update.yml: ")]
+    assert len(line) == 1, r.stdout
+    return line[0]
+
+
+def test_protect_main_reads_mains_post_cutover_workflow(tmp_path):
+    """After B2/B3: the gate step in job gate, push the only job with attestations: write and contents: write. The
+    comment traps (headers naming attestations: write, a trailing comment on a permission line) count for nothing."""
+    r, made = _pm(tmp_path)
+    _ok(r)
+    assert _wf_line(r) == ("Main's daily-update.yml: workflow 'permissions: {}'; gate step in 'gate'; attestations: "
+                           "write in 'push'; contents: write in 'push'; pull-requests: write in ''; inline job "
+                           "permissions in ''; data pull request step in ''; push needs '[gate, update]'")
+    assert [c for c in made if c.get("path") == WF_PATH][0]["method"] == "GET"
+    assert OLD_STEP not in PM_SH.read_text(encoding="utf-8").split("old_step=")[0].split("Needs:")[1]
+
+
+_POST_BAD = [
+    ("no-gate-step", lambda w: w.replace(GATE_STEP, "Check main's history"),
+     f"must run the step '{GATE_STEP}' in job gate, and only there"),
+    ("gate-step-twice", lambda w: w.replace("      - name: Check out the gate's commit\n",
+                                            f"      - name: {GATE_STEP}\n"),
+     f"must run the step '{GATE_STEP}' in job gate, and only there"),
+    ("gate-step-commented", lambda w: w.replace(f"      - name: {GATE_STEP}\n", f"      # - name: {GATE_STEP}\n"),
+     f"must run the step '{GATE_STEP}' in job gate, and only there"),
+    ("attest-in-deploy", lambda w: w.replace("      pages: write\n", "      pages: write\n      attestations: write\n"),
+     "only job push may hold attestations: write (only J2 stores attestations, I-prov)"),
+    ("no-attest-in-push", lambda w: w.replace("      attestations: write    # store", "      attestations: read    # store"),
+     "only job push may hold attestations: write"),
+    ("contents-write-update", lambda w: w.replace("  update:\n    needs: gate\n    permissions:\n      contents: read\n",
+                                                  "  update:\n    needs: gate\n    permissions:\n      contents: write\n"),
+     "only job push may hold contents: write"),
+    ("pr-write", lambda w: w.replace("      id-token: write        # sign",
+                                     "      pull-requests: write\n      id-token: write        # sign"),
+     "no job in main's daily-update.yml may hold pull-requests: write"),
+    ("inline-write-all", lambda w: w.replace("    permissions:\n      issues: write\n", "    permissions: write-all\n"),
+     "may set its permissions inline (write-all, read-all or a { } map)"),
+    ("inline-map", lambda w: w.replace("    permissions:\n      issues: write\n",
+                                       "    permissions: { contents: write, attestations: write }\n"),
+     "may set its permissions inline"),
+    ("push-not-after-gate", lambda w: w.replace("    needs: [gate, update]\n", "    needs: [update]\n"),
+     "job push in main's daily-update.yml must need gate"),
+    ("push-needs-gate-failed", lambda w: w.replace("    needs: [gate, update]\n", "    needs: [gate-failed, update]\n"),
+     "job push in main's daily-update.yml must need gate"),
+    ("top-write-all", lambda w: w.replace("permissions: {}\n", "permissions: write-all\n"),
+     "must set permissions: {} at the top"),
+    ("top-missing", lambda w: w.replace("permissions: {}\n", ""), "must set permissions: {} at the top"),
+    ("empty", lambda w: "", "could not read main's .github/workflows/daily-update.yml"),
+]
+
+
+@pytest.mark.parametrize("change,says", [(c, s_) for _, c, s_ in _POST_BAD], ids=[i for i, _, _ in _POST_BAD])
+def test_protect_main_not_ok_for_a_workflow_off_the_post_cutover_shape(tmp_path, change, says):
+    r, _ = _pm(tmp_path, _pm_state(wf=change(POST_WF)))
+    _not_ok(r, says)
+
+
+def test_protect_main_crlf_workflow_reads_the_same(tmp_path):
+    r, _ = _pm(tmp_path, _pm_state(wf=POST_WF.replace("\n", "\r\n")))
+    _ok(r)
+
+
+def test_protect_main_the_old_workflow_is_not_ok_without_pre_cutover(tmp_path):
+    """The workflow on main before B2/B3 (the data pull request step) is not the post-cutover shape."""
+    r, _ = _pm(tmp_path, _pm_state(wf=PRE_WF))
+    _not_ok(r, "still opens data pull requests (before the cutover): use --pre-cutover only at cutover step 4, "
+               "before the cutover merge")
+    assert "pull-requests: write in 'push'" in _wf_line(r) and "data pull request step in 'push'" in _wf_line(r)
+
+
+def test_protect_main_pre_cutover_wants_the_old_workflow(tmp_path):
+    """Cutover step 4 runs before the cutover merge, so main still holds the old workflow: --pre-cutover accepts
+    exactly that, and refuses once the cutover is merged (both directions fail closed)."""
+    r, _ = _pm(tmp_path, _pm_state(wf=PRE_WF), args=("--pre-cutover", "--apps", "claude"))
+    _ok(r)
+    assert "--pre-cutover: main's daily-update.yml is checked as before the cutover" in r.stdout
+    sub = tmp_path / "post"
+    sub.mkdir()
+    r, _ = _pm(sub, _pm_state(), args=("--pre-cutover", "--apps", "claude"))
+    _not_ok(r, "--pre-cutover, but main's daily-update.yml no longer has the data pull request step (the cutover "
+               "is merged): run this again without --pre-cutover")
+
+
+def test_protect_main_accepts_this_checkouts_workflow(tmp_path):
+    """The real .github/workflows/daily-update.yml of this checkout: the old one needs --pre-cutover, and once B2/B3
+    is merged here the post-cutover one passes without it."""
+    wf = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
+    post = f"- name: {GATE_STEP}" in wf
+    args = ("--apps", "claude") if post else ("--pre-cutover", "--apps", "claude")
+    r, _ = _pm(tmp_path, _pm_state(wf=wf), args=args)
+    _ok(r)
+
+
+def test_protect_main_ps1_reads_the_workflow_the_same_way():
+    sh, ps1 = PM_SH.read_text(encoding="utf-8"), PM_PS1.read_text(encoding="utf-8")
+    call = ('gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" '
+            "-H 'Accept: application/vnd.github.raw'")
+    assert call in sh and call in ps1
+    assert f'gate_step="{GATE_STEP}"' in sh and f'$gateStep = "{GATE_STEP}"' in ps1
+    assert f'old_step="{OLD_STEP}"' in sh and f"$oldStep = '{OLD_STEP}'" in ps1
+    for want in ("^[ \\t]+attestations:[ \\t]*write$", "^[ \\t]+contents:[ \\t]*write$",
+                 "^[ \\t]+pull-requests:[ \\t]*write$", "^    permissions:[ \\t]*[^ \\t]",
+                 "^    permissions:[ \\t]*[{][}]$", "^[ \\t]*#", "[ \\t]+#.*$", "^  [A-Za-z0-9_-]+:$",
+                 "^[ \\t]+(- )?name:", "^    needs:[ \\t]*", "^jobs:$", "^permissions:"):
+        assert want in sh, want
+        assert want.replace("^  [A-Za-z0-9_-]+:$", "^  ([A-Za-z0-9_-]+):$") in ps1, want
+    for ln in ["Main's daily-update.yml: workflow '$top'; gate step in '$g'; attestations: write in '$aw'; "
+               "contents: write in '$cw'; pull-requests: write in '$pw'; inline job permissions in '$ip'; data pull "
+               "request step in '$op'; push needs '$pn'",
+               "main's daily-update.yml must set permissions: {} at the top (each job then names its own)",
+               "main's daily-update.yml must run the step '$", "' in job gate, and only there (the post-cutover gate, "
+               "ADR 0011)",
+               "in main's daily-update.yml only job push may hold attestations: write (only J2 stores attestations, "
+               "I-prov)",
+               "in main's daily-update.yml only job push may hold contents: write",
+               "no job in main's daily-update.yml may hold pull-requests: write",
+               "no job in main's daily-update.yml may set its permissions inline (write-all, read-all or a { } map)",
+               "job push in main's daily-update.yml must need gate",
+               "main's daily-update.yml still opens data pull requests (before the cutover): use ",
+               " only at cutover step 4, before the cutover merge",
+               ": main's daily-update.yml is checked as before the cutover (it still opens data pull requests); after "
+               "the cutover merge, run this again without ",
+               ", but main's daily-update.yml no longer has the data pull request step (the cutover is merged): run "
+               "this again without ",
+               "nread \"main's .github/workflows/daily-update.yml\""]:
+        assert ln in sh, ln
+        assert ln in ps1, ln
+    assert ps1.count("-PreCutover") >= 4 and "--pre-cutover" not in ps1.split("param(")[1]
+    assert "if ($PreCutover) {" in ps1 and 'if [ "$pre" = 1 ]; then' in sh
+    assert ".TrimEnd(\"`r\")" in ps1 and 'sub(/\\r$/, "")' in sh

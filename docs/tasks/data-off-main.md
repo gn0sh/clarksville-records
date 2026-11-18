@@ -142,6 +142,14 @@ same exposure as any write-token workflow and the team's own gn0sh access.
 Code follow-ups: fix the reason in the `protect-main.{sh,ps1}` header comments to "any 2 approvals include gn0sh's".
 D3 passes `-Apps` / `--apps` through to `protect-main`.
 
+**D1 note: main's workflow (2026-11-18, raised by B2/B3).** `protect-main` reads `main`'s `daily-update.yml` and is OK
+only for the post-cutover shape: the step "Check main's history and the records-data head" in job `gate` only, `push`
+needing `gate`, `push` the only job with `attestations: write` and with `contents: write`, no `pull-requests: write`,
+no inline job permissions, `permissions: {}` at the top, and no "Open and merge the data pull request" step.
+Cutover step 4 runs before the cutover merge, while `main` still has the old workflow, so D3 passes
+`-PreCutover` / `--pre-cutover` there (with `-Apps`). That flag is OK only while the old step is on `main`, so both
+directions fail closed. Every later run (V1, drift re-checks) goes without it.
+
 ## D2: `scripts/fetch-data.{sh,ps1}` and preflight
 Fill `data/` from `origin/records-data` (a worktree or `git archive`; never commits). Update the preflight docs and
 `CLAUDE.md` "This repo" line. Before the cutover it is a no-op when `data/` is tracked.
