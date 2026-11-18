@@ -15,6 +15,8 @@
 <meta property="og:description" content="{{ site.unofficial.notice }}">
 <link rel="icon" href="{{ root }}static/brand/favicon.ico?v=hook" sizes="any">
 <link rel="stylesheet" href="{{ root }}static/style.css">
+{# marks the page script-capable before first paint, so the header's date line keeps its space (static/js-flag.js) #}
+<script src="{{ root }}static/js-flag.js"></script>
 {% block head %}{% endblock %}
 </head>
 <body{% if page_name == "Home" %} class="page-landing"{% endif %}>
@@ -22,33 +24,8 @@
 {% if site.fixture %}
 <div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>
 {% endif %}
-{# The sky sun is on every page (owner, 2026-11-14, onceover/header/sun-on-every-page). The home page and each
-   "Show records from" target (a body's landing page) carry the full sun; every other page a small one (sky-small), so
-   the header is the same family everywhere. body_current is this page's switch key ("all" on the home page). #}
-{% set sky_full = page_name == "Home" or (body_current | default("")) != "" %}
-<header class="site-header has-sky{% if not sky_full %} sky-small{% endif %}">
-  {# Daylight name plate (docs/design/daylight): the sun dot, the name and the place, on every page, and
-     the sky: a sun that static/sky.js sets by the viewer's clock (CSS places it at midday without the script). The
-     landing also shows today's date, which stays hidden without the script (a static page can't know today's date). #}
-  <div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>
-  {# The moon, where it really is over the site's place right now (config sky_place; static/sky.js works out its
-     height, direction, phase and tilt, and draws it into this span). Decoration only, and hidden until the script
-     draws it: a static page cannot know where the moon is. #}
-  {% set sp = site.cfg.sky_place | default(none) %}{% if sp %}<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="{{ sp.lat }}" data-lon="{{ sp.lon }}" hidden></span></div>{% endif %}
-  <div class="masthead">
-    {# Design 2.1: without JS this is a link to the full list in the footer; static/nav.js swaps it for a button that
-       opens the drawer (a native <dialog> built from that same list, so the footer list is the single source). #}
-    <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
-    <div class="brand">
-      <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
-      <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
-      {# no coverage line in the masthead (onceover/header/county-kicker-everywhere): it printed the County
-         Commission's minutes dates over Search, About and Alerts. Each page states its body and its dates in its own
-         lede; a body's landing page in its own header (_hub.html.j2 body_head). #}
-    </div>
-  </div>
-  {% block sky %}{% endblock %}
-</header>
+{# One header pane on every page (owner, 2026-11-18): _header.html.j2, the same markup everywhere. #}
+{% include "_header.html.j2" %}
 {# "Show records from" (sitegen/bodies.py): one plain link per body to its hub page, All to the home page, so it works
    without script. static/switch.js remembers the choice on this device and hides other bodies' rows (data-body). #}
 {% set sw = site.switch | default(none) %}{% if sw %}{% set here = body_current | default("") %}

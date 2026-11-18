@@ -36,7 +36,7 @@ the files of a cold store come over a few runs, each run committing what it fetc
 the RPC's own update. A CivicClerk listing that is not read (refused, down) leaves the committed backfill rows as they
 are and asks for none of their files; the status line says so. A committed meeting the listing no longer has is kept
 as committed; a 2019-2021 meeting whose files are not in the store, or whose agenda is short of its printed case count,
-is held alone (hold_backfill; pipeline-limits-invariant.md L27): the backfill never stops the RPC's own update. Files
+is held alone (hold_backfill; pipeline-limits-invariant.md L28): the backfill never stops the RPC's own update. Files
 are read by the same agenda and minutes readers.
 
 Files (per locality, so no other body's manifest or facts are touched):
@@ -770,7 +770,7 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
     facts, summary = build(cfg, rows, store, audit_path=p["audit"])
     out["build"] = summary
     short = [m for m in summary.get("case_shortfalls") or [] if m not in bf_ids]
-    # RPC-3 (decision, pipeline-limits-invariant.md L27): a 2019-2021 agenda short of its printed case count holds that
+    # RPC-3 (decision, pipeline-limits-invariant.md L28): a 2019-2021 agenda short of its printed case count holds that
     # meeting only (as committed, else shown without cases), never the RPC update
     held.update({m: "its agenda prints more case numbers than were read" for m in summary.get("case_shortfalls") or []
                  if m in bf_ids})

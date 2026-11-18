@@ -317,13 +317,31 @@ def _actuals_missing(bg: Budget) -> list[str]:
 
 
 def _names(bg: Budget, fund_no: str) -> list[dict]:
-    """The fund's name as each book prints it, cited to the book's first page of that fund."""
+    """The fund's name as each book prints it, cited to the book's first page of that fund (a name the book prints
+    cut short, completed from another book (fund_name_from), is listed as the book prints it)."""
     out = []
     for b in bg.books:
         lines = bg.fund_lines(fund_no, b["id"])
         if lines:
-            out.append({"name": lines[0]["fund_name"] or bg.b["run_totals_name"], "book": b["title"],
-                        "src": bg.src(lines[0])})
+            cut = lines[0].get("fund_name_from")
+            out.append({"name": (cut and cut["printed"]) or lines[0]["fund_name"] or bg.b["run_totals_name"],
+                        "book": b["title"], "src": bg.src(lines[0])})
+    return out
+
+
+def _book_short(b: dict) -> str:
+    return f"FY{b['fiscal_year']} ({b['edition']})"
+
+
+def name_notes(bg: Budget, fund_no: str) -> list[str]:
+    """One fixed sentence per book whose fund name was completed from another book (provenance/fund-name-cross-book)."""
+    out = []
+    for b in bg.books:
+        cut = next((x["fund_name_from"] for x in bg.fund_lines(fund_no, b["id"]) if x.get("fund_name_from")), None)
+        if cut:
+            src = bg.book.get(cut["book_id"])
+            out.append(bg.b["fund_name_cut"].format(book=_book_short(b), printed=cut["printed"],
+                                                     from_book=_book_short(src) if src else cut["book_id"]))
     return out
 
 
@@ -447,7 +465,7 @@ def fund(fund_no: str, bg: Budget, keep=None, page: str | None = None, part_of: 
         printed.setdefault(n["name"], []).append(n["src"])
     return dict(_common(bg), fund_no=fund_no if bg.numbered else None, names=names, books=books,
                 words=_words(bg.b["words"]),
-                printed=[{"name": k, "srcs": v} for k, v in printed.items()],
+                printed=[{"name": k, "srcs": v} for k, v in printed.items()], name_notes=name_notes(bg, fund_no),
                 title=names[0]["name"], capital_href="../" + CAPITAL if fund_no == bg.capital_fund else None)
 
 

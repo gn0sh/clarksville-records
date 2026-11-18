@@ -353,7 +353,7 @@ def short_build(cfg, rows, store, audit_path=None):
 
 
 def test_a_short_2019_2021_agenda_holds_that_meeting_only(site):
-    """Decision (L27): shown without cases on a first run, as committed afterwards; the RPC page's update goes on."""
+    """Decision (L28): shown without cases on a first run, as committed afterwards; the RPC page's update goes on."""
     code, out = site.run({**page_routes(), **api_routes()}, build=short_build)
     assert code == rpc.STEP_OK, out["status"]
     facts = site.facts()

@@ -393,40 +393,38 @@ def test_method_page_lists_both_storage_keys(html):
     assert keys == {"cr-your-seats", "cr-body"}
 
 
-def test_every_switch_target_has_the_full_sky_sun_and_every_other_page_the_small_one(site, html):
-    """Owner, 2026-11-12: the sun at the top showed only on All. Every option's own page now has the landing's sky sun
-    (decorative, set by static/sky.js from the viewer's clock, at midday by CSS without it); the date line stays on
-    the home page. Owner, 2026-11-14 (onceover/header/sun-on-every-page): every other page has the same sun, small
-    (the header's class sky-small), so no page is left with a plain header."""
+def test_every_page_has_the_same_full_sky_whether_or_not_it_is_a_switch_target(site, html):
+    """Owner, 2026-11-12: the sun at the top showed only on All. Owner, 2026-11-14: every page has a sun (small on
+    all but the switch's own pages). Owner, 2026-11-18: "the header pane should be consistent across the whole
+    site": one header, the home page's, with its full sky and its date line, on a switch target and on every other
+    page alike (site/templates/_header.html.j2; tests/test_header.py compares the whole header)."""
     sun = '<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>'
     _, opts = switch_of(html["index.html"])
     targets = {SC.resolve("index.html", href) for href, _, _, _ in opts}
     assert len(targets) == 5 and targets <= set(html)
+    headers = {}
     for rel, page in html.items():
         depth = "../" * rel.count("/")
-        on = rel in targets
         header = page[page.index('<header class="site-header'):page.index("</header>")]
         assert sun in header and page.count('id="sky-sun"') == 1, rel
-        assert ('<header class="site-header has-sky">' in page) == on, rel
-        assert ('<header class="site-header has-sky sky-small">' in page) == (not on), rel
+        assert page.count('<header class="site-header has-sky">') == 1 and "sky-small" not in page, rel
         assert page.count(f'<script src="{depth}static/sky.js" defer></script>') == 1, rel
-        assert ('id="sky-hero"' in page) == (rel == "index.html"), rel
-    # without the date line a body page keeps its text clear of the sun: the brand column stops short of it (wide
-    # screens), and on a phone a sliver shows in a strip under the kicker
-    assert ".has-sky:not(:has(#sky-hero)) .brand { padding-right: var(--sun-room); }" in CSS
+        assert header.count('id="sky-hero"') == 1 and page.count('id="sky-hero"') == 1, rel
+        headers.setdefault(SC.site_header(page, rel), []).append(rel)
+    assert len(headers) == 1, [rels[0] for rels in headers.values()]
+    problems, note = SC.check_header(site, {rel: SC.parse(site / rel) for rel in html})
+    assert problems == [] and f"one header on {len(html)} of {len(html)} pages" in note, problems[:5]
+    # no page-by-page variants are left in the stylesheet: no small sun, and no rules for a header without the date
+    assert ".sky-small" not in CSS and ":not(:has(#sky-hero))" not in CSS and "--sun-room" not in CSS
     phone = CSS[CSS.index("@media (max-width: 699px) {\n  .sky-in"):]
     phone = phone[:phone.index("\n}\n")]
-    assert ".has-sky:not(:has(#sky-hero)) .sky-sun { --sun-max: .15; }" in phone
-    assert ".has-sky:not(:has(#sky-hero)) .masthead { padding-bottom:" in phone
-    # the small sun is a size, not another element: one wide-screen rule, and on a phone the body pages' sliver
-    small = CSS[CSS.index("@media (min-width: 700px) {\n  .sky-small .sky-sun {"):]
-    small = small[:small.index("\n}\n")]
-    assert "--sun-size: clamp(64px, 8vw, 104px)" in small and ".has-sky.sky-small { --sun-room:" in small
-    assert ".sky-small" not in CSS.replace(small, "")
+    assert ".sky-sun { --sun-max: .5; }" in phone             # on a phone the sun stays under the name plate
+    assert "html:not(.js) .has-sky:has(#sky-hero[hidden]) .sky-sun { --sun-max: .15; }" in phone     # no script: a sliver
 
 
-def test_sky_js_reads_no_home_only_data():
-    """static/sky.js on a body page: only #sky-sun is there, so it sets the sun and returns before the date line."""
+def test_sky_js_draws_the_sun_on_a_page_with_nothing_else():
+    """static/sky.js on a page with only #sky-sun (no place, no date line): it sets the sun by the viewer's clock, says
+    whether it is up, and returns before the date line."""
     src = (ROOT / "site" / "static" / "sky.js").read_text(encoding="utf-8")
     assert src.index('getElementById("sky-sun")') < src.index("if (!hero || !weekday || !date) { return; }")
     node = shutil.which("node")
@@ -435,15 +433,15 @@ def test_sky_js_reads_no_home_only_data():
     script = (
         "const els = {};"
         "global.document = {getElementById: (id) => id === 'sky-sun' ? (els[id] = els[id] || {style: {setProperty:"
-        " (k, v) => { els[id][k] = v; }}}) : null};"
+        " (k, v) => { els[id][k] = v; }}, setAttribute: (k, v) => { els[id][k] = v; }}) : null};"
         "global.window = global; global.addEventListener = () => {};"
         f"const src = require('fs').readFileSync({json.dumps(str(ROOT / 'site' / 'static' / 'sky.js'))}, 'utf8');"
         "(function (module) { eval(src); })(undefined);"
-        "console.log(JSON.stringify(els['sky-sun']['--sun-alt']));")
+        "console.log(JSON.stringify([els['sky-sun']['--sun-alt'], els['sky-sun']['data-at']]));")
     out = subprocess.run([node, "-e", script], capture_output=True, text=True, timeout=30)
     assert out.returncode == 0, out.stderr
-    alt = float(json.loads(out.stdout))
-    assert -0.25 <= alt <= 1
+    alt, at = json.loads(out.stdout)
+    assert -0.25 <= float(alt) <= 1 and at == ("up" if float(alt) >= 0 else "down")
 
 
 def test_switch_css_targets_and_no_old_colors():

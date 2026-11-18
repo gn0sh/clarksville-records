@@ -19,6 +19,20 @@ budget:
       fiscal_year: 2024
       url: https://www.clarksvilletn.gov/DocumentCenter/View/8991
       pages: [50, 156]
+    - id: fy2025-adopted
+      title: "Fiscal Year 2025 Budget"
+      edition: adopted
+      fiscal_year: 2025
+      url: https://www.clarksvilletn.gov/DocumentCenter/View/11392
+      pages: [43, 133]
+      # The analysis report is printed in Type 3 fonts with no Unicode map (pdftotext reads a cipher). Its glyph
+      # drawings are mapped to characters by this table (collector/type3_decode.py); the book is kept only if every
+      # printed total adds up exactly (docs/research/city-budget-fy2025-glyphs-2026-11-18.md).
+      glyph_map: config/localities/clarksville-tn/fy2025-adopted-glyphs.json
+      # This book prints the fund number before the name ("1100 General Fund"; the others print "General Fund"). The
+      # name is read after it, and fund_no stays null as in the other city books, so the four editions group and
+      # compare by fund name.
+      fund_line: '^\d{4} (?P<name>.+)$'
     - id: fy2026-final
       title: "Fiscal Year 2026 Budget (Final Submission)"
       edition: final submission
@@ -33,14 +47,9 @@ budget:
       fiscal_year: 2027
       url: https://www.clarksvilletn.gov/DocumentCenter/View/15550
       pages: [9, 434]
-  # Books fetched and linked but not read (fin_books lists them in the run report). The FY2025 analysis report
-  # (pp. 43-133) is printed in Type 3 fonts with no Unicode map: its text layer is a cipher, so no value is read.
-  books_not_read:
-    - id: fy2025-adopted
-      title: "Fiscal Year 2025 Budget"
-      fiscal_year: 2025
-      url: https://www.clarksvilletn.gov/DocumentCenter/View/11392
-      reason: "line-item pages have no usable text layer (Type 3 fonts without a Unicode map)"
+  # Books fetched and linked but not read (fin_books lists them in the run report): none since 2026-11-18 (the FY2025
+  # book is read through its glyph table above).
+  books_not_read: []
   # One report holds revenue and expense: each row's statement comes from its account code (rows.statement_by_code).
   page_titles:
     revenue: "NEXT YEAR / CURRENT YEAR BUDGET ANALYSIS"
@@ -82,6 +91,10 @@ budget:
     # fund's total, net of revenue and expense, over the fund's rows in this report run.
     fund_totals: []
     fund_total_by_name: true
+    # The FY2025 book prints a section total as its org and name ("100310 Taxes" with amounts, no "TOTAL"); a
+    # codeless row that repeats its section's org and names the section is that section's total. The other books
+    # print no such row (their reading is unchanged).
+    org_section_totals: true
     # Report-run totals, over every fund of the run (statement net = revenue and expense together).
     run_totals:
       TOTAL REVENUE: revenue
