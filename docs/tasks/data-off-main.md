@@ -109,8 +109,9 @@ holds.
 ## D1: `protect-main` and `merge-reviewed` (rows R1, R-D, R2, S1, S2)
 - `protect-main` writes R1'' (`scripts/main-ruleset.json`), R-D (`scripts/records-data-ruleset.json`) and R-T
   (`scripts/main-tag-ruleset.json`: blocks creating, updating or deleting a tag named `main`, F2) and turns R2 off.
-  Its OK check: approvals 2; R2 on = NOT OK; R-D and R-T present; no CODEOWNERS requirement; gn0sh the only writer,
-  counting collaborators with write or more, installed Apps with contents write and deploy keys with write (F1);
+  Its OK check: approvals 2; R2 on = NOT OK; R-D and R-T present; no CODEOWNERS requirement; no collaborator or
+  invitation with write or more besides gn0sh, no deploy key with write, and installed Apps `none` or `claude` alone
+  without Administration write (F1 as amended: ADR 0011 Amendment 2026-11-18 (b), invariant I-person);
   both environments' `main` deployment policy of type `branch` (F2). **Any refused or failed read is NOT OK**, never
   skipped (drift: the team proxy refuses `actions/permissions`, `collaborators` and `environments`). CODEOWNERS is
   deleted in the cutover PR.
@@ -126,13 +127,20 @@ endpoints (`repos/{r}/installation`, `users/{u}/installation`) need an App JWT, 
 organisations, so no token Brian holds can list Apps (from the REST docs; judgment, high confidence). The script no
 longer reads them: Brian confirms them by hand at https://github.com/settings/installations and passes
 `-Apps <names>|none`; without it the check is NOT OK, and the line it prints records his answer and the date.
-Treatment of the Claude GitHub App (`claude`, slug unverified): the team pushes branches through it, so it may be
-the one listed App, without Administration write (that could edit rulesets). Reasoning: with R2 off, one App adds at
-most one approving identity besides gn0sh, so no PR reaches 2 approvals without a bypass; a second App, or any App
-with Administration write, is NOT OK. Whether an App can **bypass** R1'', R-D or R-T is read, not confirmed: each
-ruleset's bypass list must equal its file (admin role only on R1'', none on R-D and R-T). Residual for S1: an App
-with contents write can fast-forward `records-data`; the gate refuses an unattested `D` (fail closed, a held deploy),
-the same exposure as the team's own gn0sh token.
+Treatment of the Claude GitHub App (`claude`): ADR 0011 Amendment 2026-11-18 (b) states the invariant (I-person) and
+every consumer. The reason first given here ("one App adds at most one approving identity besides gn0sh, so no PR
+reaches 2") was wrong: gn0sh plus the App is exactly 2. The correct reason is that, with R2 off, the App is the only
+approver besides gn0sh. So any 2 counted approvals include gn0sh's, and a path with no gn0sh action can't reach 2.
+A gn0sh-authored PR has at most 1 approval and merges only by bypass. Two Apps (or R2 on plus one App) make 2 without
+gn0sh, so they are NOT OK. Any App with Administration write could edit the rulesets, so that is NOT OK too. The
+slug `claude` and "no Administration write" are both unverified hand checks by Brian. A wrong slug fails closed
+(NOT OK, and the cutover stops). That no App can **bypass** R1'', R-D or R-T is read: each ruleset's bypass list must
+equal its file (admin role only on R1'', none on R-D and R-T). Team rule: gn0sh posts COMMENT reviews only, never
+APPROVE. Residual for S1: the App can fast-forward `records-data`. The gate refuses an unattested `D` (fail closed,
+a held deploy). An earlier attested tree is accepted, and I-pub catches it if it changes a published fact. This is the
+same exposure as any write-token workflow and the team's own gn0sh access.
+Code follow-ups: fix the reason in the `protect-main.{sh,ps1}` header comments to "any 2 approvals include gn0sh's".
+D3 passes `-Apps` / `--apps` through to `protect-main`.
 
 ## D2: `scripts/fetch-data.{sh,ps1}` and preflight
 Fill `data/` from `origin/records-data` (a worktree or `git archive`; never commits). Update the preflight docs and
