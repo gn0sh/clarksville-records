@@ -40,10 +40,9 @@ function TurnR2Off {
     gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
     if ($LASTEXITCODE -eq 0) { Log 'Turned off: workflows can no longer open pull requests, so the daily update stops saving data.' }
     else { Log 'Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now.' }
-    Log 'First, now: turn off GitHub Actions (Settings > Actions > General > Disable actions); this stops the daily data update until the architect re-plans. The repository is public, so anyone can open a pull request at any time.'
-    Log 'This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain'
-    Log "Then delete each closed pull request's head branch (a closed one whose branch still exists can be reopened and merged)."
-    Log 'Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team.'
+    Log 'Leave GitHub Actions on and open pull requests open: only someone with write access can start a workflow that merges (ADR 0010, invariant T1-T8).'
+    Log "The canary is removed by a person's pull request (scripts\merge-reviewed.ps1); the team opens it."
+    Log 'Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team: the fallback, data off main, goes to a Brain Trust (ADR 0010).'
 }
 $verdict = ''
 
@@ -176,7 +175,8 @@ try {
         Log "Probe pull request merged: $prShown. v1-canary.yml on main: $canary"
 
         $refusedLines = @($lines | Where-Object { $_ -match '^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]' })
-        $named = @($refusedLines | Where-Object { $_ -match 'without .workflows. permission' }).Count
+        # V1' (ADR 0010, T4.11.3): a refusal counts when it names the ruleset or code-owner review, or the workflows permission
+        $named = @($refusedLines | Where-Object { $_ -match 'code owner|rule|without .workflows. permission' }).Count
         $merged = @($lines | Where-Object { $_ -match '^V1-MERGED (squash|merge|rebase|graphql)' }).Count
         if ($merged -gt 0 -or $prMerged -eq 'true' -or $canary -eq 'on-main') {
             TurnR2Off
@@ -189,10 +189,10 @@ try {
             $verdict = 'INCONCLUSIVE: the probe pull request is not shown merged, but main moved during the probe or a read failed (see above). Allow GitHub Actions to create and approve pull requests is left on. Send this output to the team.'
             $code = 1
         } elseif ($refusedLines.Count -eq 4 -and $named -eq 4 -and $reviewOk -eq 'yes') {
-            $verdict = 'PASS: all four merges (squash, merge, rebase, GraphQL) refused for the workflows permission, main unchanged, review commit_id kept. Send this output to the team.'
+            $verdict = "PASS (V1'): all four merges (squash, merge, rebase, GraphQL) refused, each naming the ruleset, code-owner review or the workflows permission; main unchanged, the probe pull request unmerged, the canary not on main, review commit_id kept. Send this output to the team."
             $code = 0
         } else {
-            $verdict = "INCONCLUSIVE: refused $($refusedLines.Count) of 4, $named naming the workflows permission, review commit_id kept: $reviewOk. Send this output to the team."
+            $verdict = "INCONCLUSIVE: refused $($refusedLines.Count) of 4, $named naming the ruleset, code-owner review or the workflows permission, review commit_id kept: $reviewOk. Send this output to the team."
             $code = 1
         }
     }

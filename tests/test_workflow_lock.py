@@ -3193,31 +3193,53 @@ def test_the_v1_probe_step_says_when_it_cannot_read_the_node_id(tmp_path, node):
     assert not any(c.startswith("api graphql") for c in calls.read_text().splitlines())
 
 
-def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
-    """R2 governs creating PRs, not merging (security main-protect/r2-does-not-gate-merge): FAIL also says to close
-    every open pull request into main; sh and ps1 say it the same way."""
+def test_v1_probe_fail_keeps_actions_on_and_removes_the_canary_by_pr(tmp_path):
+    """T4.11.3 (ADR 0010, invariant "V1 is false" T1-T8): FAIL turns R2 off (kept), then says to remove the canary
+    by a person's PR and leave the baseline and MORNING_NOTE_SEND unset. "Turn off Actions" and "close every open
+    PR" are dropped: only a writer can start a workflow that merges. sh and ps1 say it the same way."""
     r, made = _v1(tmp_path, _ALL_REFUSED, CANARY="on-main")
-    assert r.returncode == 2 and "Close every open pull request into main now: https://github.com/gn0sh/" in r.stdout
-    # v1-probe/v1-fail-containment-incomplete: a closed PR whose branch exists can be reopened and merged
-    # Disable actions is required (public repo: anyone can open a PR); deleting closed PRs' branches is extra
-    # v1-fail-containment-order: Disable actions is the first manual step, before closing PRs and deleting branches
-    contain = ("First, now: turn off GitHub Actions (Settings > Actions > General > Disable actions); this stops the "
-               "daily data update until the architect re-plans.")
-    branch = "Then delete each closed pull request's head branch"
-    assert contain in r.stdout
+    assert r.returncode == 2 and _turned_off(made), r.stdout
+    keep = "Leave GitHub Actions on and open pull requests open: only someone with write access can start a workflow"
+    canary = "The canary is removed by a person's pull request"
+    unset = "Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset."
     out = r.stdout
-    assert out.index(contain) < out.index("Close every open pull request into main now") < out.index(branch)
+    assert out.index("Turned off: workflows can no longer open pull requests") < out.index(keep) \
+        < out.index(canary) < out.index(unset), out
+    assert "data off main, goes to a Brain Trust (ADR 0010)" in out
     for name in ("v1-probe.sh", "v1-probe.ps1"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
-        assert "This setting does not stop merging" in text and "safe state" not in text, name
-        assert contain in text and text.index(contain) < text.index("Close every open pull request") \
-            < text.index(branch), name
-    for doc in ("docs/ops/morning-note.md", "docs/architecture/main-protect-invariant.md"):
-        flat = " ".join((ROOT / doc).read_text(encoding="utf-8").split())
-        assert "head branch" in flat and "Disable actions" in flat and "v1-fail-containment-incomplete" in flat, doc
-        assert "stops the daily data update until the architect re-plans" in flat and ", or turn off" not in flat, doc
-        sec = flat[flat.index("(V1 false)"):]                 # the V1-false steps: Disable actions comes first
-        assert sec.index("Disable actions") < sec.index("close every open") < sec.index("head branch"), doc
+        assert keep in text and canary in text and unset in text, name
+        for gone in ("Disable actions", "Close every open pull request", "head branch", "turn off GitHub Actions"):
+            assert gone not in text, (name, gone)
+    flat = " ".join((ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8").split())
+    sec = flat[flat.index("**V1 probe: FAIL on 2026-11-18"):flat.index("`github-pages` deploys from `main` only")]
+    assert "Actions stays on and open pull requests stay open" in sec and "Disable actions" not in sec
+    assert "close every open" not in sec.lower() and "Brain Trust" in sec
+
+
+_OWNER_REFUSED = ("probe\tTry\t2026-11-18T09:00:01Z V1-RESULT {m} exit=1 {{\"message\":\"Repository rule violations "
+                  "found\\n\\nWaiting on code owner review from gn0sh.\"}}\n")
+_GQL_OWNER = ("probe\tTry\t2026-11-18T09:00:02Z V1-RESULT graphql exit=1 GraphQL: Repository rule violations found "
+              "Waiting on code owner review from gn0sh. (mergePullRequest)\n")
+
+
+@pytest.mark.parametrize("log,code,says", [
+    (_SOURCE + "".join(_OWNER_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")) + _GQL_OWNER, 0, "PASS (V1')"),
+    (_SOURCE + _OWNER_REFUSED.format(m="squash") + _REFUSED.format(m="merge") + _OWNER_REFUSED.format(m="rebase")
+     + _GQL_REFUSED, 0, "PASS (V1')"),
+    (_SOURCE + _OWNER_REFUSED.format(m="squash") + _OWNER_REFUSED.format(m="merge") + _OWNER_REFUSED.format(m="rebase")
+     + "probe\tTry\t2026-11-18T09:00:02Z V1-RESULT graphql exit=1 GraphQL: Pull request is not mergeable\n", 1,
+     "INCONCLUSIVE: refused 4 of 4, 3 naming the ruleset"),
+])
+def test_v1_prime_probe_pass_needs_four_refusals_naming_the_rule(tmp_path, log, code, says):
+    """T4.11.3: PASS = four refusals, each matching `code owner|rule` (case-insensitive) or the workflows permission;
+    a refusal for any other reason is INCONCLUSIVE and leaves R2 on."""
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == code and says in r.stdout, r.stdout + r.stderr
+    assert not _turned_off(made)
+    for name in ("v1-probe.sh", "v1-probe.ps1"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert "code owner|rule|without .workflows. permission" in text, name
 
 
 def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):

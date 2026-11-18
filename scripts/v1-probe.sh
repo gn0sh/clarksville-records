@@ -126,10 +126,9 @@ turn_r2_off() {
   gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
     && log "Turned off: workflows can no longer open pull requests, so the daily update stops saving data." \
     || log "Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now."
-  log "First, now: turn off GitHub Actions (Settings > Actions > General > Disable actions); this stops the daily data update until the architect re-plans. The repository is public, so anyone can open a pull request at any time."
-  log "This setting does not stop merging: a workflow can still merge a pull request that is already open. Close every open pull request into main now: https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+is%3Aopen+base%3Amain"
-  log "Then delete each closed pull request's head branch (a closed one whose branch still exists can be reopened and merged)."
-  log "Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team."
+  log "Leave GitHub Actions on and open pull requests open: only someone with write access can start a workflow that merges (ADR 0010, invariant T1-T8)."
+  log "The canary is removed by a person's pull request (scripts/merge-reviewed.sh); the team opens it."
+  log "Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset. Send this output to the team: the fallback, data off main, goes to a Brain Trust (ADR 0010)."
 }
 # v1-probe/verdict-race (L-c): a PASS or INCONCLUSIVE is final only after cleanup closed the probe pull request and
 # a fresh read still shows it unmerged; a merge that landed meanwhile turns it into FAIL.
@@ -173,7 +172,9 @@ fi
 log "Probe pull request merged: ${pr_merged:-unread}. v1-canary.yml on main: $canary"
 
 refused=$(grep -cE "^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]" <<< "$lines" || true)
-named=$(grep -E "^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]" <<< "$lines" | grep -ci "without .workflows. permission" || true)
+# V1' (ADR 0010, T4.11.3): a refusal counts when it names the ruleset or code-owner review, or the workflows permission
+named=$(grep -E "^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]" <<< "$lines" \
+        | grep -ciE "code owner|rule|without .workflows. permission" || true)
 if grep -qE "^V1-MERGED (squash|merge|rebase|graphql)" <<< "$lines" || [ "$pr_merged" = true ] || [ "$canary" = on-main ]; then
   turn_r2_off
   if [ "$pr_merged" = true ]; then num=""; fi   # the pull request is merged: nothing to close
@@ -187,6 +188,6 @@ if [ "$pr_merged" != false ] || [ "$canary" != absent ] || ! [[ "$main_after" =~
   finish 1 "INCONCLUSIVE: the probe pull request is not shown merged, but main moved during the probe or a read failed (see above). 'Allow GitHub Actions to create and approve pull requests' is left on. Send this output to the team."
 fi
 if [ "$refused" = 4 ] && [ "$named" = 4 ] && [ "$review_ok" = yes ]; then
-  finish 0 "PASS: all four merges (squash, merge, rebase, GraphQL) refused for the workflows permission, main unchanged, review commit_id kept. Send this output to the team."
+  finish 0 "PASS (V1'): all four merges (squash, merge, rebase, GraphQL) refused, each naming the ruleset, code-owner review or the workflows permission; main unchanged, the probe pull request unmerged, the canary not on main, review commit_id kept. Send this output to the team."
 fi
-finish 1 "INCONCLUSIVE: refused $refused of 4, $named naming the workflows permission, review commit_id kept: $review_ok. Send this output to the team."
+finish 1 "INCONCLUSIVE: refused $refused of 4, $named naming the ruleset, code-owner review or the workflows permission, review commit_id kept: $review_ok. Send this output to the team."
