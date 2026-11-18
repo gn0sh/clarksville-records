@@ -226,7 +226,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       ```
       powershell -NoProfile -File scripts\v1-probe.ps1
       ```
-      (bash: `bash scripts/v1-probe.sh`.) It may open a browser once to add the `workflow` scope to your GitHub CLI
+      (bash, Linux only: `bash scripts/v1-probe.sh`; it uses GNU `base64 -w0`, so not the macOS default.) It may open a browser once to add the `workflow` scope to your GitHub CLI
       sign-in. It pushes three throwaway target branches and opens their pull requests into `main` (ADR 0010
       decision 5): **W** `probe/v1-target` (an inert workflow file), **N** `probe/v1-target-n` (one inert file in
       `sitegen/`) and **H1** `probe/v1-target-h1` (only renames `.github/CODEOWNERS` into `data/`); then
@@ -242,8 +242,12 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         `github-actions` under R1', U2; the next 2.0.3 merge went through with `merged_by` gn0sh, U3) and Brian's
         two hand checks (Settings > Collaborators: no other admin; the ruleset page shows **Require review from
         Code Owners** and the repository's CODEOWNERS view shows no errors), and set the baseline (section 4 item 7).
-      - **FAIL**: a probe pull request merged, or a probe file is on `main`. The script has already turned R2
-        off (the daily data stops saving). Leave `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the
+      - **FAIL**: a probe pull request merged, or a probe file is on `main`. **If the H1 pull request merged or
+        `data/v1-probe-CODEOWNERS` is on `main`, the output says first: main has lost `.github/CODEOWNERS`**, so
+        the code-owner rule binds nothing. The first fix is one pull request that restores `.github/CODEOWNERS`
+        and deletes `data/v1-probe-CODEOWNERS`, merged by a person with `scripts/merge-reviewed.ps1` (2.0.3; the
+        team opens it); then run `scripts\protect-main.ps1` again (2.0.1). In every FAIL the script has already
+        turned R2 off (the daily data stops saving). Leave `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the
         output to the team; what merged is removed by a person's PR, and the fallback "data off `main`" goes to a
         Brain Trust (ADR 0010). Actions stays on and open pull requests stay open: only a writer can start a
         workflow that merges (invariant "V1 is false", T1-T8).
@@ -418,10 +422,12 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    `MORNING_NOTE_CANARY_IDS` secret) stays built and tested for later trials; the secret is not required.
    Two calls the runbook had tied to widening still need Brian's answer (team recommendation marked):
    - **A. Required reviewer on the `morning-note` environment: OFF (recommended) or ON.** Risk while OFF: a writer
-     who merges their own code PR (0 approvals) reaches the key, now with the whole list as the audience instead
-     of the team's ids. (The direct-push gap through the Actions bypass is closed: since 2026-11-17 the ruleset has
-     no bypass and the daily data goes by pull request, step 2.0.) What still stands: the `main` ruleset (pull
-     request required, no bypass), the gate (every code change a reviewed PR a person merged, after
+     who can get a code PR onto `main` reaches the key, now with the whole list as the audience instead of the
+     team's ids. Under R1' (ADR 0010, since 2026-11-18) that is a repository admin's bypass merge or a PR gn0sh
+     approved as code owner; nobody, GitHub Actions included, can push `main` (the one bypass is the admin role for
+     pull requests only), and the daily data goes by pull request (step 2.0). What still stands: the `main`
+     ruleset R1' (pull request required, code-owner review outside `data/`, squash only, stale approvals
+     dismissed, admin bypass for pull requests only), the gate (every code change a reviewed PR a person merged, after
      `MAIN_PR_BASELINE`), the note job's stale-run check, code review of every PR, and `max_recipients` / `max_editions`. Why OFF: ON means Brian
      approves a deployment every morning between 03:07 and about 07:00 CT; a missed approval skips that day, and a
      run left waiting blocks the next day's data and deploy. If ON: the steps are below.

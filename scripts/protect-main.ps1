@@ -49,6 +49,13 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host 'Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again.'
     exit 1
 }
+# main-protect/codeowners-normalize-unicode-space: only printable ASCII, CR and LF (a no-break or zero-width space, a
+# tab or a NUL could read differently to GitHub than to the normalising below)
+$coBad = ([regex]::Matches(($codeowners -join "`n"), '[^\x20-\x7E\r\n]')).Count
+if ($coBad -ne 0) {
+    Write-Host "Main's .github/CODEOWNERS has $coBad byte(s) outside printable ASCII. Nothing was changed. Send this output to the team."
+    exit 1
+}
 # (the same reading as scripts\v1-probe.ps1: runs of spaces or tabs made one space, ends trimmed; a later line would
 # override an earlier one, so nothing else is allowed. Comparisons here are case-sensitive: -cne, -cnotmatch.)
 $coRules = (@($codeowners | ForEach-Object { $_ -split "`n" } | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } |

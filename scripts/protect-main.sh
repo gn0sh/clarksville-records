@@ -26,8 +26,16 @@ esac
 # ADR 0010 (R1'): code-owner review binds only through .github/CODEOWNERS on main; without it, or with a line GitHub
 # could not read, a workflow's merge of a non-data pull request would need no review at all.
 # Its rules (comments and blank lines aside) must be exactly "* @gn0sh" then "/data/" (no owner: data/ unowned).
-codeowners=$(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2>/dev/null) \
-  || { echo "Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again."; exit 1; }
+co_file=$(mktemp)
+gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' > "$co_file" 2>/dev/null \
+  || { rm -f "$co_file"; echo "Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again."; exit 1; }
+# main-protect/codeowners-normalize-unicode-space: only printable ASCII, CR and LF (a no-break or zero-width space, a
+# tab or a NUL could read differently to GitHub than to the normalising below), checked on the raw bytes
+co_bad=$(LC_ALL=C tr -d '\r\n\040-\176' < "$co_file" | wc -c | tr -d ' ')
+codeowners=$(cat "$co_file"); rm -f "$co_file"
+if [ "$co_bad" != 0 ]; then
+  echo "Main's .github/CODEOWNERS has $co_bad byte(s) outside printable ASCII. Nothing was changed. Send this output to the team."; exit 1
+fi
 # (the same reading as scripts/v1-probe.sh: runs of spaces or tabs made one space, ends trimmed; a later line would
 # override an earlier one, so nothing else is allowed: v1-probe/rerun-after-fail-codeowners-override)
 co_rules=$(printf '%s\n' "$codeowners" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' \

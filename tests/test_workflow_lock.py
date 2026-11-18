@@ -2531,6 +2531,11 @@ def test_protect_main_refuses_before_main_opens_data_prs_and_flags_a_bypass(tmp_
     ({"CO_TEXT": ""}, "(it has: ). Nothing was changed."),
     ({"CO_TEXT": "* @gn0sh\n/data/\n/.github/ @someone\n"}, "(it has: * @gn0sh|/data/|/.github/ @someone)."),
     ({"CO_TEXT": "* @GN0SH\n/data/\n"}, "(it has: * @GN0SH|/data/)."),
+    # main-protect/codeowners-normalize-unicode-space: printable ASCII, CR and LF only, checked before normalising
+    ({"CO_TEXT": "*\u00a0@gn0sh\n/data/\n"}, "has 2 byte(s) outside printable ASCII. Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n/data/\u200b\n"}, "has 3 byte(s) outside printable ASCII. Nothing was changed."),
+    ({"CO_TEXT": "*\t@gn0sh\n/data/\n"}, "has 1 byte(s) outside printable ASCII. Nothing was changed."),
+    ({"CO_TEXT": "# \u00e9\n* @gn0sh\n/data/\n"}, "outside printable ASCII"),       # even in a comment
 ])
 def test_protect_main_changes_nothing_without_a_clean_codeowners_on_main(tmp_path, over, says):
     """ADR 0010 / T4.11.2: R1' binds only through .github/CODEOWNERS on main. If it is missing, its rules are not
@@ -2556,7 +2561,7 @@ def test_protect_main_accepts_the_committed_codeowners_with_crlf(tmp_path):
     (bindir / "gh").write_text(_GH_STUB)
     (bindir / "gh").chmod(0o755)
     text = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
-    for co in (text, text.replace("\n", "\r\n"), text.replace("* @gn0sh", "*\t @gn0sh  ")):
+    for co in (text, text.replace("\n", "\r\n"), text.replace("* @gn0sh", "*   @gn0sh  ")):
         env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
                "MAIN_WF": TEXT, "CO_TEXT": co}
         r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True,
@@ -2910,7 +2915,7 @@ def test_the_v1_probe_scripts_agree():
         assert "-X" not in text[text.index("rules/branches/main"):guard_end], name
     assert "run scripts/protect-main.sh first" in sh and "run scripts\\protect-main.ps1 first" in ps1
     # FAIL never from main's sha alone: the FAIL condition names only the merge answers, the PR and the canary
-    fail_sh = next(ln for ln in sh.splitlines() if "^V1-MERGED" in ln and ln.startswith("if "))
+    fail_sh = next(ln for ln in sh.splitlines() if "^V1-MERGED (W|N|H1)" in ln and ln.startswith("if "))
     fail_ps1 = next(ln for ln in ps1.splitlines() if "$merged -gt 0" in ln)
     for ln in (fail_sh, fail_ps1):
         assert "main_after" not in ln and "mainAfter" not in ln, ln
@@ -2929,7 +2934,11 @@ def count(name):
     open(p, "w").write(str(n + 1))
     return n
 if a[:2] == ["auth", "status"]:
-    print("Token scopes: 'gist', 'read:org', 'repo', 'workflow'"); sys.exit(0)
+    print(os.environ.get("AUTH_SCOPES", "Token scopes: 'gist', 'read:org', 'repo', 'workflow'")); sys.exit(0)
+if a[:2] == ["auth", "refresh"]:
+    sys.exit(0)
+if os.environ.get("FAIL_CALL") and os.environ["FAIL_CALL"] in " ".join(a):      # one call answers like a gh error
+    sys.stderr.write("gh: Server Error (HTTP 502)\\n"); sys.exit(1)
 if a[:2] == ["pr", "list"]:
     print(os.environ.get("DATA_PRS", "1")); sys.exit(0)
 if a[:2] == ["run", "list"]:
@@ -3093,11 +3102,14 @@ _RULE = '{"type": "pull_request", "ruleset_id": %d, "parameters": {"require_code
     {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}, '
                '{"actor_id": 1, "actor_type": "DeployKey", "bypass_mode": "always"}]'},
     {"BYPASS": "null"},                                                             # no bypass list: fail closed
+    {"CODEOWNERS": "*\u00a0@gn0sh\n/data/\n"},                                   # no-break space
+    {"CODEOWNERS": "* @gn0sh\u200b\n"},                                           # zero-width space
+    {"CODEOWNERS": "*\t@gn0sh\n"},                                                # tab
 ], ids=["rule-off", "no-pr-rule", "rules-read-fails", "one-ruleset-evaluate", "ruleset-disabled", "ruleset-read-fails",
         "no-codeowners", "codeowners-no-owner", "codeowners-other-owner", "codeowners-errors", "errors-read-fails",
         "codeowners-github-override", "codeowners-unowned-all", "codeowners-wrong-order", "codeowners-two-owners",
         "codeowners-case", "codeowners-empty", "bypass-always", "bypass-actions-app", "bypass-write-role",
-        "bypass-extra-actor", "bypass-unread"])
+        "bypass-extra-actor", "bypass-unread", "codeowners-nbsp", "codeowners-zwsp", "codeowners-tab"])
 def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extra):
     """v1-probe/rerun-after-fail (ADR 0010): after the 2026-11-18 FAIL a new run would merge the canary into main
     again, so the script stops, changing nothing, unless R1' really binds: the code-owner rule on main, every ruleset
@@ -3112,7 +3124,7 @@ def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extr
 @pytest.mark.parametrize("extra", [
     {},
     {"CODEOWNERS": "* @gn0sh\n"},
-    {"CODEOWNERS": "# ADR 0010\r\n\r\n*\t  @gn0sh  \r\n/data/\r\n"},
+    {"CODEOWNERS": "# ADR 0010\r\n\r\n*    @gn0sh  \r\n/data/\r\n"},
     {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]'},
 ], ids=["committed", "no-data-line", "crlf-and-spacing", "admin-pr-bypass"])
 def test_v1_probe_guard_allows_only_the_r1_prime_shapes(tmp_path, extra):
@@ -3126,8 +3138,8 @@ def test_v1_probe_guard_runs_before_the_auth_refresh():
     `gh auth refresh`, and the .ps1 compares case-sensitively."""
     for name in ("v1-probe.sh", "v1-probe.ps1"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
-        assert text.index("codeowners/errors?ref=main") < text.index("gh auth refresh -h github.com"), name
-        assert text.index("rules/branches/main") < text.index("gh auth refresh -h github.com"), name
+        assert text.index("codeowners/errors?ref=main") < text.index("gh auth refresh -h github.com -s workflow"), name
+        assert text.index("rules/branches/main") < text.index("gh auth refresh -h github.com -s workflow"), name
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
     assert "$coRules -cne '* @gn0sh' -and $coRules -cne '* @gn0sh|/data/'" in ps1
     assert "$bypass -cne 'RepositoryRole:5:pull_request'" in ps1 and "$enforcement -cne 'active'" in ps1
@@ -3400,7 +3412,7 @@ def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
     assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not read node_id"]
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
-    assert "if ($_ -match 'V1-ERROR: .*')" in ps1 and "foreach ($l in $errors) { Log $l }" in ps1
+    assert "if ($_ -cmatch 'V1-ERROR: .*')" in ps1 and "foreach ($l in $errors) { Log $l }" in ps1
 
 
 def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
@@ -3429,6 +3441,90 @@ def test_v1_probe_ansi_strip_keeps_the_text_after_an_erase_code(tmp_path):
     r, made = _v1(tmp_path, log)
     assert r.returncode == 2 and "FAIL (V1' false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
     assert "V1-MERGED W squash" in r.stdout.splitlines() and "\r" not in r.stdout and esc not in r.stdout
+
+
+@pytest.mark.parametrize("extra", [
+    {"PR_MERGED_H1": "true"},
+    {"CANARY_H1": "on-main"},
+    {"PR_MERGED_AFTER_H1": "true"},
+], ids=["h1-merged", "h1-file-on-main", "h1-merged-after-cleanup"])
+def test_v1_probe_fail_on_h1_says_first_that_main_lost_codeowners(tmp_path, extra):
+    """v1-probe/h1-fail-recovery-incomplete: if the H1 rename merged, main has no CODEOWNERS and the rule binds
+    nothing, so the FAIL output says that first, then how to restore it, then to re-run protect-main."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, **extra)
+    assert r.returncode == 2 and _turned_off(made), r.stdout + r.stderr
+    lost = "FIRST: main has lost .github/CODEOWNERS (the H1 rename merged)"
+    fix = ("FIRST: restore .github/CODEOWNERS and delete data/v1-probe-CODEOWNERS in one pull request a person merges "
+           "with scripts/merge-reviewed.sh")
+    out = r.stdout
+    assert out.index("FAIL (V1' false)") < out.index(lost) < out.index(fix) < out.index("Turned off: workflows")
+    assert "then run scripts/protect-main.sh again." in out
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert lost in ps1 and fix.replace("scripts/merge-reviewed.sh", "scripts\\merge-reviewed.ps1") in ps1 and "then run scripts\\protect-main.ps1 again." in ps1
+    for name in ("v1-probe.sh", "v1-probe.ps1"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert text.index("FAIL (V1' false)") < text.index(lost) < text.index("Turned off: workflows"), name
+    flat = " ".join((ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8").split())
+    fail = flat[flat.index("- **FAIL**: a probe pull request merged"):flat.index("- **INCONCLUSIVE**: a squash try")]
+    assert fail.index("main has lost `.github/CODEOWNERS`") < fail.index("R2") and "protect-main" in fail
+
+
+def test_v1_probe_fail_on_w_only_does_not_talk_about_codeowners(tmp_path):
+    r, made = _v1(tmp_path, _ALL_REFUSED, CANARY="on-main")
+    assert r.returncode == 2 and "lost .github/CODEOWNERS" not in r.stdout
+
+
+@pytest.mark.parametrize("call", ["refs/heads/probe/v1-runner", "contents/.github/workflows/v1-probe.yml",
+                                  "message=V1 probe: second commit", "refs/heads/probe/v1-target-h1",
+                                  "git/trees", "head=probe/v1-target-n"])
+def test_v1_probe_a_failed_setup_call_always_says_inconclusive(tmp_path, call):
+    """v1-probe/sh-ps1-exit-parity: under set -e an unguarded failing call ended the script with no verdict line;
+    every setup call now ends in the INCONCLUSIVE line, and cleanup still runs."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, FAIL_CALL=call)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "INCONCLUSIVE: could not set up the probe branches or pull requests" in r.stdout, r.stdout
+    assert any(c[:3] == ["api", "-X", "DELETE"] and c[3].endswith("heads/probe/v1-runner") for c in made[-12:])
+
+
+def test_v1_probe_failed_review_or_run_list_reads_do_not_end_the_script(tmp_path):
+    r, made = _v1(tmp_path, _ALL_REFUSED, FAIL_CALL="event=COMMENT")
+    assert r.returncode == 1 and "GitHub kept  (no)" in r.stdout and "review commit_id kept: no" in r.stdout, r.stdout
+    sh = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
+    assert "databaseId // empty') || run=\"\"" in sh
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    runner_ref = ps1.index('gh api -X POST "repos/$repo/git/refs" -f ref=refs/heads/$runner')
+    assert ps1[runner_ref:].split("\n")[1].strip() == "if ($LASTEXITCODE -ne 0) { SetupFailed }"
+    assert "$reviewOk = if ($kept -ceq $c1)" in ps1 and "if ($_ -cmatch 'V1-ERROR: .*')" in ps1
+
+
+@pytest.mark.parametrize("scopes,removed", [("Token scopes: 'repo'", True),
+                                            ("Token scopes: 'gist', 'repo', 'workflow'", False)])
+def test_v1_probe_gives_back_the_workflow_scope_it_added(tmp_path, scopes, removed):
+    """v1-probe/workflow-scope-left-on: the scope is removed at cleanup only if this run added it (merge-reviewed is
+    run by the team from its own session, so nothing Brian runs later needs it)."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, AUTH_SCOPES=scopes)
+    assert r.returncode == 0, r.stdout + r.stderr
+    refresh = [c for c in made if c[:2] == ["auth", "refresh"]]
+    want = [["auth", "refresh", "-h", "github.com", "-s", "workflow"],
+            ["auth", "refresh", "-h", "github.com", "--remove-scopes", "workflow"]] if removed else []
+    assert refresh == want, refresh
+    if removed:
+        closed = max(i for i, c in enumerate(made) if "state=closed" in c)
+        assert made.index(want[1]) > closed
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert "gh auth refresh -h github.com --remove-scopes workflow" in ps1 and "$script:scopeAdded = $true" in ps1
+
+
+def test_codeowners_byte_check_is_the_same_in_all_four_scripts():
+    """main-protect/codeowners-normalize-unicode-space: the raw-byte check is identical in the two .sh and in the two
+    .ps1 files, and comes before the normalising."""
+    for ext, check in (("sh", "co_bad=$(LC_ALL=C tr -d '\\r\\n\\040-\\176' < \"$co_file\" | wc -c | tr -d ' ')"),
+                       ("ps1", "$coBad = ([regex]::Matches(($codeowners -join \"`n\"), '[^\\x20-\\x7E\\r\\n]')).Count")):
+        for name in ("protect-main", "v1-probe"):
+            text = (ROOT / "scripts" / f"{name}.{ext}").read_text(encoding="utf-8")
+            assert text.count(check) == 1, (name, ext)
+            parse = "$coRules = (" if ext == "ps1" else "co_rules=$("
+            assert text.index(check) < text.index(parse), (name, ext)
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):
