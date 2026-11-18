@@ -155,6 +155,20 @@ holds; the city-books issue text names `config/fin-books-accepted.yml` and asks 
 Done when stub-`gh` tests cover each NOT OK (including an extra App, a write deploy key, a `tag`-type environment
 policy and a 403 on each read) and each refusal.
 
+**D1 notes for S1 (installed Apps, 2026-11-18).** Brian's `protect-main.ps1 -Check` at 2f1b0162 got HTTP 403 on
+`user/installations` ("must authenticate with an access token authorized to a GitHub App"). The other installation
+endpoints (`repos/{r}/installation`, `users/{u}/installation`) need an App JWT, and `orgs/{o}/installations` is for
+organisations, so no token Brian holds can list Apps (from the REST docs; judgment, high confidence). The script no
+longer reads them: Brian confirms them by hand at https://github.com/settings/installations and passes
+`-Apps <names>|none`; without it the check is NOT OK, and the line it prints records his answer and the date.
+Treatment of the Claude GitHub App (`claude`, slug unverified): the team pushes branches through it, so it may be
+the one listed App, without Administration write (that could edit rulesets). Reasoning: with R2 off, one App adds at
+most one approving identity besides gn0sh, so no PR reaches 2 approvals without a bypass; a second App, or any App
+with Administration write, is NOT OK. Whether an App can **bypass** R1'', R-D or R-T is read, not confirmed: each
+ruleset's bypass list must equal its file (admin role only on R1'', none on R-D and R-T). Residual for S1: an App
+with contents write can fast-forward `records-data`; the gate refuses an unattested `D` (fail closed, a held deploy),
+the same exposure as the team's own gn0sh token.
+
 ## D2: `scripts/fetch-data.{sh,ps1}` and preflight
 Fill `data/` from `origin/records-data` (a worktree or `git archive`; never commits). Update the preflight docs and
 `CLAUDE.md` "This repo" line. Before the cutover it is a no-op when `data/` is tracked.

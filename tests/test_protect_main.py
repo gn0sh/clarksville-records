@@ -110,11 +110,9 @@ if path == R + "/collaborators?affiliation=all&per_page=100":
     out(st["collabs"])
 if path == R + "/invitations?per_page=100":
     out(st["invites"])
-if path == "user/installations?per_page=100":
-    out({"total_count": len(st["apps"]), "installations": st["apps"]})
-if path.startswith("user/installations/") and path.endswith("/repositories?per_page=100"):
-    iid = path.split("/")[2]
-    out({"repositories": [{"full_name": x} for x in st["app_repos"].get(iid, [])]})
+if path.startswith("user/installations"):              # as GitHub answers gh's OAuth token (2026-11-18)
+    save(); sys.stderr.write("gh: You must authenticate with an access token authorized to a GitHub App in order "
+                             "to list installations (HTTP 403)\n"); sys.exit(1)
 if path == R + "/keys?per_page=100":
     out(st["keys"])
 if path.startswith(R + "/environments/"):
@@ -136,7 +134,7 @@ def _perm(level):
 def _pm_state(**over):
     st = {"main": "1" * 40, "rulesets": [], "r2": True, "auto": False,
           "collabs": [{"login": "gn0sh", "permissions": _perm("admin"), "role_name": "admin"}],
-          "invites": [], "apps": [], "app_repos": {}, "keys": [],
+          "invites": [], "keys": [],
           "envs": {e: {"protected_branches": False, "custom_branch_policies": True}
                    for e in ("github-pages", "morning-note")},
           "env_policies": {e: [{"id": 1, "name": "main", "type": "branch"}] for e in ("github-pages", "morning-note")}}
@@ -162,9 +160,9 @@ def _calls(tmp_path):
     return [json.loads(ln) for ln in p.read_text().splitlines()] if p.exists() else []
 
 
-def _pm(tmp_path, st=None, **env_over):
+def _pm(tmp_path, st=None, args=("--apps", "claude"), **env_over):
     env = {**_env(tmp_path, st or _pm_state()), **env_over}
-    r = subprocess.run(["bash", str(PM_SH)], env=env, capture_output=True, text=True, timeout=120)
+    r = subprocess.run(["bash", str(PM_SH), *args], env=env, capture_output=True, text=True, timeout=120)
     return r, _calls(tmp_path)
 
 
@@ -247,27 +245,16 @@ def test_protect_main_ruleset_files_are_r1pp_rd_and_rt():
 
 
 @pytest.mark.parametrize("st_over", [
-    {"apps": [{"id": 7, "app_slug": "other-acct", "account": {"login": "someone"}, "repository_selection": "all",
-               "permissions": {"contents": "write"}}]},
-    {"apps": [{"id": 8, "app_slug": "elsewhere", "account": {"login": "gn0sh"}, "repository_selection": "selected",
-               "permissions": {"contents": "write"}}], "app_repos": {"8": ["gn0sh/other"]}},
-    {"apps": [{"id": 9, "app_slug": "reader", "account": {"login": "gn0sh"}, "repository_selection": "all",
-               "permissions": {"contents": "read", "metadata": "read"}}]},
     {"keys": [{"id": 3, "title": "ro", "read_only": True}]},
     {"collabs": [{"login": "gn0sh", "permissions": _perm("admin")}, {"login": "friend", "permissions": _perm("triage")}]},
     {"invites": [{"id": 4, "invitee": {"login": "friend"}, "permissions": "read"}]},
-], ids=["app-other-account", "app-other-repo", "app-read-only", "read-only-key", "triage-collaborator",
-        "read-invite"])
+], ids=["read-only-key", "triage-collaborator", "read-invite"])
 def test_protect_main_ok_with_non_writers(tmp_path, st_over):
     r, _ = _pm(tmp_path, _pm_state(**st_over))
     _ok(r)
 
 
 # ---------------------------------------------------------------------------------------------- protect-main: each NOT OK
-_ADMIN_APP = {"id": 11, "app_slug": "admin-app", "account": {"login": "gn0sh"}, "repository_selection": "selected",
-              "permissions": {"administration": "write", "contents": "read"}}
-
-
 @pytest.mark.parametrize("st_over,says", [
     ({"r2_sticks": True}, "R2 is on"),
     ({"auto": True}, "auto-merge must be off"),
@@ -278,12 +265,6 @@ _ADMIN_APP = {"id": 11, "app_slug": "admin-app", "account": {"login": "gn0sh"}, 
     ({"collabs": []}, "the collaborators with write or more must be exactly gn0sh"),
     ({"invites": [{"id": 4, "invitee": {"login": "friend"}, "permissions": "write"}]},
      "a pending invitation with write or more: friend:write"),
-    ({"apps": [{"id": 7, "app_slug": "extra-app", "account": {"login": "gn0sh"}, "repository_selection": "all",
-                "permissions": {"contents": "write"}}]}, "an installed App can write this repository: extra-app"),
-    ({"apps": [{"id": 8, "app_slug": "picked", "account": {"login": "gn0sh"}, "repository_selection": "selected",
-                "permissions": {"contents": "write"}}], "app_repos": {"8": ["gn0sh/other", REPO]}},
-     "an installed App can write this repository: picked"),
-    ({"apps": [_ADMIN_APP], "app_repos": {"11": [REPO]}}, "an installed App can write this repository: admin-app"),
     ({"keys": [{"id": 3, "title": "deploy", "read_only": False}]}, "a deploy key with write: 3:deploy"),
     ({"env_policies": {"github-pages": [{"id": 1, "name": "main", "type": "tag"}],
                        "morning-note": [{"id": 2, "name": "main", "type": "branch"}]}},
@@ -307,7 +288,7 @@ _ADMIN_APP = {"id": 11, "app_slug": "admin-app", "account": {"login": "gn0sh"}, 
     ({"extra_main_rules": [{"type": "required_signatures"}]},
      "main's rules must be deletion,non_fast_forward,pull_request"),
 ], ids=["r2-stays-on", "auto-merge", "write-collaborator", "maintain-collaborator", "no-collaborators",
-        "write-invitation", "extra-app-all", "extra-app-selected", "admin-app", "write-deploy-key", "tag-env-policy",
+        "write-invitation", "write-deploy-key", "tag-env-policy",
         "extra-env-policy", "protected-branches-env", "all-branches-env", "r1pp-differs", "rd-differs",
         "duplicate-rt", "extra-code-owner-rule", "extra-main-rule"])
 def test_protect_main_not_ok(tmp_path, st_over, says):
@@ -318,7 +299,6 @@ def test_protect_main_not_ok(tmp_path, st_over, says):
 _READS = [
     f"GET {R}/rulesets/101", f"GET {R}/rulesets/102", f"GET {R}/rulesets/103", f"GET {R}/rules/branches/main",
     f"GET {R}", f"GET {R}/collaborators?affiliation=all&per_page=100", f"GET {R}/invitations?per_page=100",
-    "GET user/installations?per_page=100", "GET user/installations/8/repositories?per_page=100",
     f"GET {R}/keys?per_page=100", f"GET {R}/environments/github-pages", f"GET {R}/environments/morning-note",
     f"GET {R}/environments/github-pages/deployment-branch-policies?per_page=100",
     f"GET {R}/environments/morning-note/deployment-branch-policies?per_page=100",
@@ -329,9 +309,7 @@ _READS = [
 def test_protect_main_a_403_on_any_check_read_is_not_ok(tmp_path, key):
     """Settings drift: the team proxy refuses actions/permissions, collaborators and environments; a refused or failed
     read is NOT OK, never skipped and never OK by default."""
-    st = _pm_state(apps=[{"id": 8, "app_slug": "picked", "account": {"login": "gn0sh"},
-                          "repository_selection": "selected", "permissions": {"contents": "write"}}],
-                   app_repos={"8": ["gn0sh/other"]})
+    st = _pm_state()
     if key == "checks: rulesets list":                  # the writes list them three times; the 4th read is a check
         st["fail"] = {f"GET {R}/rulesets?per_page=100": [4]}
     elif key == "checks: R2":                           # the first read decides the write; the second is the check
@@ -380,7 +358,7 @@ def _pm_args(tmp_path, args, st):
 def test_protect_main_check_only_writes_nothing(tmp_path):
     """--check (settings-drift re-check, or a dry look before the cutover): the same checks, no write at all."""
     done = _pm_state(rulesets=[_live("R1''", 27502319), _live("R-D", 5), _live("R-T", 6)], r2=False)
-    r, made = _pm_args(tmp_path, ["--check"], done)
+    r, made = _pm_args(tmp_path, ["--check", "--apps", "none"], done)
     _ok(r)
     assert not _writes(made) and r.stdout.splitlines()[0].startswith("CHECK ONLY: nothing is written")
     sub = tmp_path / "before"
@@ -391,8 +369,10 @@ def test_protect_main_check_only_writes_nothing(tmp_path):
 
 
 def test_protect_main_refuses_an_unknown_argument(tmp_path):
-    r, made = _pm_args(tmp_path, ["--force"], _pm_state())
-    assert r.returncode == 1 and "Usage: bash scripts/protect-main.sh [--check]" in r.stdout and made == []
+    for args in (["--force"], ["--apps"], ["--check", "x"]):
+        r, made = _pm_args(tmp_path, args, _pm_state())
+        assert r.returncode == 1 and "Usage: bash scripts/protect-main.sh [--check] [--apps <App names>|none]" in r.stdout
+        assert made == []
 
 
 @pytest.mark.parametrize("var", CLOUD)
@@ -417,7 +397,7 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
     for path in ('"repos/$repo/git/ref/heads/main"', '"repos/$repo/rulesets?per_page=100"', '"repos/$repo/rulesets"',
                  '"repos/$repo/actions/permissions/workflow"', '"repos/$repo/rules/branches/main"', '"repos/$repo"',
                  '"repos/$repo/collaborators?affiliation=all&per_page=100"', '"repos/$repo/invitations?per_page=100"',
-                 '"user/installations?per_page=100"', '"repos/$repo/keys?per_page=100"',
+                 '"repos/$repo/keys?per_page=100"',
                  "-F can_approve_pull_request_reviews=false"):
         assert path in sh and path in ps1, path
     assert '"repos/$repo/environments/$env"' in sh and '"repos/$repo/environments/$envName"' in ps1
@@ -437,8 +417,14 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
              "auto-merge must be off: Settings > General > Pull Requests > untick Allow auto-merge",
              "Collaborators with write or more: ", "the collaborators with write or more must be exactly $owner",
              "Pending invitations with write or more: ", "a pending invitation with write or more: ",
-             "Installed Apps with contents or administration write on this repository: ",
-             "an installed App can write this repository: ", "Deploy keys with write: ", "a deploy key with write: ",
+             "Installed Apps with write on this repository: not confirmed",
+             "so confirm them by hand: open https://github.com/settings/installations, click Configure on each App",
+             "not read by this script; none with Administration write)",
+             "alone can write this repository (",
+             "remove its access to clarksville-records, or the team amends ADR 0011 first",
+             "takes App names from github.com/apps/<name>, comma-separated, or none",
+             "^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$",
+             "Deploy keys with write: ", "a deploy key with write: ",
              "must use custom deployment policies only (not protected branches, not all)",
              "must allow exactly main, of type branch", "expected exactly 1", "does not match scripts",
              "OK: main is protected (R1'', R-D, R-T as written, R2 off, auto-merge off, $owner the only writer, "
@@ -449,7 +435,8 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
         assert ln in ps1.replace("${label}", "$label"), ln
     for var in CLOUD:
         assert var in sh and f"'{var}'" in ps1
-    assert "param([switch]$Check)" in ps1 and "if ($Check) {" in ps1 and 'if [ "$check" = 1 ]; then' in sh
+    assert "param([switch]$Check, [string]$Apps = '')" in ps1 and "if ($Check) {" in ps1
+    assert 'if [ "$check" = 1 ]; then' in sh
     assert "CHECK ONLY: nothing is written; the checks below read the live settings." in sh and "CHECK ONLY" in ps1
     for want in ("$'false\\ttrue'", "$'main\\tbranch'", "$'2\\tfalse'"):
         assert want in sh, want
@@ -616,3 +603,67 @@ def test_merge_reviewed_ps1_matches_the_sh():
     assert "$i -le 5" in ps1 and "for i in 1 2 3 4 5; do" in sh
     assert not re.search(r"--jq '[^']*\"", ps1)          # no double quote inside a --jq argument (PowerShell 5.1)
     assert "-ExecutionPolicy Bypass" not in ps1
+
+
+# ---------------------------------------------------------------------------------------------- protect-main: Apps
+def test_protect_main_never_reads_installations_and_is_not_ok_without_the_hand_confirmation(tmp_path):
+    """No token Brian holds can list installed Apps (user/installations: HTTP 403 for gh's OAuth token on his PC,
+    2026-11-18). The script never tries, and without --apps the check is NOT OK with the exact steps: never a silent
+    pass."""
+    r, made = _pm(tmp_path, args=())
+    _not_ok(r, "Installed Apps with write on this repository: not confirmed")
+    assert "open https://github.com/settings/installations, click Configure on each App" in r.stdout
+    assert "--apps none" in r.stdout and "Only claude may be listed" in r.stdout
+    assert "1 problem(s) above" in r.stdout                   # everything else is OK
+    assert not any("installations" in c.get("path", "") for c in made)
+    for script in (PM_SH, PM_PS1):
+        assert "gh api --paginate \"user/installations" not in script.read_text(encoding="utf-8")
+        assert 'Lines "user/installations' not in script.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("apps", ["claude", "none"])
+def test_protect_main_records_the_hand_confirmed_apps(tmp_path, apps):
+    """Only the Claude App (the team's branch pushes) may hold write: one App is at most one approving identity, so
+    2 approvals stay out of reach with R2 off; whether any App can bypass is read from the bypass lists."""
+    r, _ = _pm(tmp_path, args=("--apps", apps))
+    _ok(r)
+    line = [ln for ln in r.stdout.splitlines() if ln.startswith("Installed Apps with write on this repository: ")]
+    assert len(line) == 1 and line[0].startswith(f"Installed Apps with write on this repository: {apps} (confirmed "
+                                                 "by hand by gn0sh on ")
+    assert line[0].endswith("not read by this script; none with Administration write)")
+
+
+@pytest.mark.parametrize("apps,says", [
+    ("claude,other-app", "an installed App other than claude alone can write this repository (claude,other-app)"),
+    ("other-app", "an installed App other than claude alone can write this repository (other-app)"),
+    ("Claude App", "--apps takes App names from github.com/apps/<name>, comma-separated, or none"),
+    ("", "--apps takes App names from github.com/apps/<name>, comma-separated, or none"),
+    ("none,claude", "an installed App other than claude alone can write this repository (none,claude)"),
+], ids=["claude-plus-another", "another", "display-name", "empty", "none-and-claude"])
+def test_protect_main_not_ok_for_other_apps(tmp_path, apps, says):
+    r, _ = _pm(tmp_path, args=("--apps", apps))
+    _not_ok(r, says)
+
+
+def test_protect_main_an_app_in_a_bypass_list_is_not_ok(tmp_path):
+    """The security question for Apps is bypass, and that is read: an Integration bypass actor on R1'' or R-D (here
+    added by GitHub's side after the write) makes the ruleset differ from its file."""
+    st = _pm_state(rulesets=[_live("R1''", 27502319), _live("R-D", 5), _live("R-T", 6)], r2=False)
+    r, made = _pm(tmp_path, st, args=("--check", "--apps", "claude"))
+    _ok(r)
+    for rs in st["rulesets"][:2]:
+        rs["bypass_actors"] = rs["bypass_actors"] + [{"actor_id": 1234, "actor_type": "Integration",
+                                                      "bypass_mode": "always"}]
+    sub = tmp_path / "b"
+    sub.mkdir()
+    r, _ = _pm(sub, st, args=("--check", "--apps", "claude"))
+    _not_ok(r, "R1'': ruleset 27502319 does not match scripts/main-ruleset.json")
+    assert "R-D: ruleset 5 does not match scripts/records-data-ruleset.json" in r.stdout
+    assert '"actor_type": "Integration"' in r.stdout
+
+
+def test_protect_main_ps1_takes_apps_the_same_way():
+    ps1 = PM_PS1.read_text(encoding="utf-8")
+    assert "param([switch]$Check, [string]$Apps = '')" in ps1 and "$PSBoundParameters.ContainsKey('Apps')" in ps1
+    assert "$allowedApp = 'claude'" in ps1 and "allowed_app=claude" in PM_SH.read_text(encoding="utf-8")
+    assert "$Apps -cne 'none' -and $Apps -cne $allowedApp" in ps1 and "-Apps none" in ps1
