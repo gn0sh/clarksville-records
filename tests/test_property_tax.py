@@ -252,6 +252,12 @@ def test_page_shows_rate_rows_and_table(page, county):
     assert f'<h2 id="proptax-h">{T["heading"]}</h2>' in sec
     txt = text_of(sec)
     assert "$2.10 per $100 of assessed value" in txt
+    # the "Every fund" total row is the label and the cents only: the rate is the line above the bar (owner,
+    # 2026-11-18: the "$2.10" under a 100-cent total read as if the cents should add up to $2.10)
+    total = re.search(r'<li class="drow drow-total"[^>]*>(.*?)</li>', sec, re.S).group(1)
+    assert text_of(total).split() == [*T["total_row"].split(), "100.0¢", "100.0", "cents"]
+    assert "drow-sub" not in total and "$2.10" not in total
+    assert txt.count("$2.10 per $100 of assessed value") == 2   # the lede and the rate line, nowhere else
     assert "as printed in the Fiscal Year 2027 Approved Budget" in txt and "as adopted" not in txt
     assert txt.count("This shows property tax only; funds can also get money from other sources, not shown here.") == 1
     assert "state and federal" not in txt

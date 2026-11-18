@@ -25,7 +25,7 @@
   </li>
 {% endfor %}
   <li class="drow drow-total" style="--n: {{ p.total_cents }}">
-    <span class="drow-name">{{ pt.total_row }} <span class="drow-sub">{{ p.rate_line }}</span></span>
+    <span class="drow-name">{{ pt.total_row }}</span>
     <span class="drow-c"><span aria-hidden="true">{{ p.total_cents }}&cent;</span><span class="sr-only">{{ pt.cents_many.format(n=p.total_cents) }}</span></span>
     <span class="drow-bar" aria-hidden="true"></span>
   </li>
