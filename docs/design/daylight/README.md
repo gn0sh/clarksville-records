@@ -56,7 +56,7 @@ them up, so every page carries one switch right under the header: All, Montgomer
   page's top line link each body's home page and say "website", not "budget page".
 - Wide: a segmented pill group, the chosen option `--blue` with a `--sun` bar under it. Under 700px: one row of 44px
   chips that scrolls sideways inside its own box; "Planning (RPC)" shows as "RPC" (the full label stays for screen readers).
-- One header on every body's landing page (Brian, 2026-11-14; `_hub.html.j2` `body_head`, `tests/test_body_switch.py`): the same masthead as the home page (name plate and tag, no coverage line), then kicker, h1, one-sentence lede, coverage line, "How recent the records are", Watch, then the cards; a row is left out only when the body has no such fact (the school board has no dates and no Watch).
+- One header on every body's landing page (Brian, 2026-11-14; `_hub.html.j2` `body_head`, `tests/test_body_switch.py`): the same header pane as every page (name plate, tag and date line, no coverage line), then kicker, h1, one-sentence lede, coverage line, "How recent the records are", Watch, then the cards; a row is left out only when the body has no such fact (the school board has no dates and no Watch).
 - With script the choice is kept on the device (`localStorage["cr-body"]`, a body key only; inside try/catch, and the
   page still filters when storage is blocked). Rows that carry `data-body` are hidden by the class `bs-off`, never
   removed, under a "Showing Clarksville only / Show all" line. Visiting a body's hub makes it the choice.
@@ -66,31 +66,69 @@ them up, so every page carries one switch right under the header: All, Montgomer
   URL). Not tagged, so never filtered: Items, Officials, district, member, meeting, fund, capital, bids and transcript
   pages, and each body's own pages.
 
-## The moon (Brian, 2026-11-14)
-The sun is unchanged: it still follows the viewer's own clock. The moon beside it is real: `static/sky.js` works out,
-for the current instant and for Clarksville (36.53 N, 87.36 W), the moon's altitude, compass direction, lit fraction,
-waxing or waning, and the tilt of its bright edge, and draws it on every page that has the sun.
+## The moon (Brian, 2026-11-14; redrawn 2026-11-18, next section)
+The moon is real: `static/sky.js` works out, for the current instant and for Clarksville (36.53 N, 87.36 W), the
+moon's altitude, compass direction, lit fraction, waxing or waning, and the tilt of its bright edge, and draws it in
+the header of every page.
 
-- Open sky only (manager's design call, 2026-11-14): the moon never covers the header's words or the sun. A first
-  version let a 20px moon pass behind the date and the name plate, where it read as a glitch and its phase could not
-  be seen. The script now measures the header (each line's own extent, the Menu column, the drawn sun's disc) and
-  takes the largest open rectangle of the band, which is on the sun's side, right of the words; with the sun up it
-  is the sky left of or above the sun. It is measured again on resize and when the web fonts arrive.
+- Open sky only (manager's design call, 2026-11-14): the moon never covers the header's words. A first version let a
+  20px moon pass behind the date and the name plate, where it read as a glitch and its phase could not be seen. The
+  script measures the header (each line's own extent and the Menu column) and takes the largest open rectangle of
+  the band, which is right of the words. It is measured again on resize and when the web fonts arrive.
 - Place inside that rectangle: height is the real altitude (its bottom is the horizon, its top straight overhead);
   across it, east is on the left, south in the middle, west on the right (azimuth 60 to 300 degrees), as the sun
   travels. Hidden below the horizon, and without script (a static page cannot know where the moon is).
-- A phone's band is short, so there the rectangle is small (the moon moves a little) and, with the sun up, the moon
-  may stand on the sun's faint rings, never on its disc (wider screens keep it off the rings too). If even that has no room the moon is drawn at 22px,
-  and failing that not at all.
-- Look: 28px on a phone, 40px at 1280, with a soft ring like the sun's, cooler and fainter (`--moon-ring`). The lit
-  part is `--moon` with a hairline `--moon-edge`; the dark part is a faint disc (earthshine); the terminator is half
-  an ellipse, turned to the real bright edge. A sliver under 6% lit is drawn as 6%. Paler while the drawn sun is up.
-  No animation. Decorative: `aria-hidden`. The header's text has no halo: nothing is read across the moon.
+- A phone's band is short, so there the rectangle is small (the moon moves a little). If it has no room the moon is
+  drawn at 22px, and failing that not at all.
 - The almanac is the Astronomical Almanac's short series, on the device: no network call, no storage, no location
-  request. The whole sky (sun, date line, moon) is redrawn on page load, on `pageshow`, every five minutes and when the tab is looked at again, so the moon always steers around the sun as drawn; the sun's own rule (the viewer's clock) is unchanged.
+  request. The whole sky (sun, date line, moon) is redrawn on page load, on `pageshow`, every five minutes and when
+  the tab is looked at again.
 - Checked against PyEphem in `tests/test_moon.py` (14 fixed instants in 2026): altitude and direction within 0.4
   degrees, lit fraction within 0.2%, bright edge within about 3 degrees. The same file checks in a browser, at 375
-  and 1280, that the moon touches no word of the header and not the sun.
+  and 1280, that the moon touches no word of the header.
+
+## One header, and the sun or the moon (Brian, 2026-11-18)
+Brian: "i really like the date at the top of the page, but it isn't on all the pages. i think the header pane should
+be consistent across the whole site. Also, i don't like how the moon looks. The moon and sun should never be on the
+page at the same time, and the moon should be represented as it looks.. not a whole moon with a shadow."
+
+- One header pane: `site/templates/_header.html.j2`, included by `base.html.j2`, is the same markup on every page:
+  the sky, Menu, the name plate, the unofficial tag and the date line ("Wednesday in Clarksville November 18",
+  the date linked to `today.html`). Only the way back to the site's top folder differs with the page's depth. This
+  replaces the three headers of 2026-11-16 (home with the date; a body's landing page with the full sun and no
+  date; every other page with the small sun, `sky-small`, which is gone). Every page's head loads
+  `static/js-flag.js`, so the date line keeps its space before the script fills it. The site has no error pages.
+  Site check `header/same-on-every-page`; tests `tests/test_header.py`, `tests/test_daylight.py`,
+  `tests/test_body_switch.py`.
+- Never both. The sky is Clarksville's real sky at this instant. The sun is drawn from the almanac's sunrise to its
+  sunset there (its top edge on the horizon: the disc's middle 0.833 degrees under it), 0 on the horizon and at the
+  top of its arc at local noon, winter and summer alike. After sunset no sun is drawn at all, not its disc and not
+  the ring that used to glow over the horizon (`data-at="down"`; with script the sun is also not drawn until the
+  script has placed it), and the moon is drawn if it is above the horizon. By day there is no moon, even when the
+  real one is up. At night with the moon down, or new, the sky is empty.
+- This changes the sun's rule (manager's brief, 2026-11-18): it used to follow the viewer's own clock on a fixed
+  6 AM to 7 PM day, which put a sun in the sky up to two and a half hours after the real sunset, so "never both"
+  could not be decided from it. A reader in another time zone now sees Clarksville's sky, as the date line already
+  showed Clarksville's date. A site with no `sky_place` has no moon and keeps the clock sun.
+- The moon as it looks: only the lit part is drawn, a crescent, a half, a gibbous shape or the full disc, from the
+  real lit fraction and turned to the real bright edge. The unlit part is not drawn: no faint disc and no ring
+  around the whole moon. The shape is never padded (a thin crescent is thin; it was 6% at least), and under 1% lit,
+  the day or so around new moon, nothing is drawn, as nothing can be seen in the real sky.
+- The shape (manager review, 2026-11-18): the outer edge is always half of the moon's own circle, pole to pole. The
+  terminator joins the same two poles: half an ellipse as tall as the disc and `|1 - 2 x lit fraction|` of its
+  radius wide, bowing toward the bright edge for a crescent and away from it past half, and a straight line at
+  half (a half disc). The drawn area is the lit share of the disc. The whole shape is then turned to the real
+  bright edge, so a quarter moon is a half disc that leans toward where the sun is: nearly upright on an August
+  evening (2026-08-19, bright edge 98 degrees from up), lit from below (a bowl) when a last quarter rises after
+  midnight (2026-12-01, 2 AM, 164 degrees the other way; PyEphem agrees, `tests/test_moon.py` REFERENCE).
+- Look: 28px on a phone, 40px at 1280. The lit part is `--moon` with a hairline `--moon-edge` (white with a navy
+  edge on the light sky, pale on the dark one) and a soft glow that follows its shape (`--moon-ring`, a drop
+  shadow). No animation; the sun slides only under `prefers-reduced-motion: no-preference`. Decorative:
+  `aria-hidden`.
+- Checked against PyEphem in `tests/test_moon.py`: the sun's altitude within 0.012 degrees through 2026 and its
+  sunrise and sunset within 3 seconds on six days; a year of renders every 97 minutes never draws both; and in a
+  browser, at 375 and 1280 on three pages, the sun or the moon or neither as the sky has it, the painted moon is
+  about its lit share of the disc and its unlit side is plain sky.
 
 ## Once-over fixes (design review, 2026-11-14)
 Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
@@ -101,7 +139,8 @@ Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
   as ISO: fetch days ("fetched 2026-11-07"), seat records ("seen in roll calls ..."), the district-lines text, the
   "latest meeting collected" line and the official page's totals sentences. Page titles and the morning-note preview
   are unchanged. Text printed by a source is never reformatted.
-- Masthead: name plate and tag only, on every page. Each page names its body and dates in its own lede.
+- Masthead: name plate and tag only, on every page (and, since 2026-11-18, today's date under them). Each page
+  names its body and dates in its own lede.
 - Headings: base `h1`/`h2` are Outfit 800, tight tracking, no rule under an `h2`. A class sets size and margin only.
 - Smallest type is `--t-eyebrow` (.72rem). The name plate's place line stays .62rem so the plate fits at 375px.
 - Touch (`pointer: coarse`): year pills, filter chips and boxes, and a row's Details and Show more are 44px in the
@@ -122,11 +161,10 @@ Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
 ## Round 2 polish (Brian approved, 2026-11-14; built 2026-11-16)
 Problem keys `onceover/...`; tests in `tests/test_round2_polish.py` unless named.
 
-- The sun is on every page (`onceover/header/sun-on-every-page`; this reverses "other pages have none"). The home
-  page and each body's landing page keep the full sun; every other page has the same sun, small (the header's class
-  `sky-small`: about 64 to 104px wide and lower in the band on a wide screen; on a phone the body pages' sliver, in
-  the same strip under the name plate). `static/sky.js` and the moon are on every page too, under the same rules.
-  Tests: `tests/test_body_switch.py`, `tests/test_daylight.py`, `tests/test_moon.py`.
+- The sun is on every page (`onceover/header/sun-on-every-page`; this reverses "other pages have none"). Since
+  2026-11-18 it is the same full sky on every page, with the date line ("One header, and the sun or the moon"
+  above); the small sun (`sky-small`) of this round is gone.
+  Tests: `tests/test_body_switch.py`, `tests/test_daylight.py`, `tests/test_moon.py`, `tests/test_header.py`.
 - Checking counts are one small sentence (`.stats-note`), never a big figure: under a meeting's figures "Roll calls not
   confirmed*: N. Names we could not match to an official: N.", under an official's "Votes in not confirmed* roll
   calls: N." The same words for every meeting and every official whatever the numbers are.

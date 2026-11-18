@@ -2,12 +2,7 @@
 {% from "_feed_links.html.j2" import feed_links %}
 {% from "_hub.html.j2" import overview, coming_tag, not_collected_tag %}
 {% from "_freshness.html.j2" import freshness as fresh with context %}
-{% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
-{% block sky %}
-<div class="sky-hero" id="sky-hero" data-tz="{{ site.cfg.site_timezone }}" hidden>
-  <p class="sky-day"><span class="sky-dow"><span id="sky-weekday"></span><span class="sky-in"> in {{ site.cfg.today_place }}</span></span> <a class="sky-link" href="today.html"><time class="sky-date" id="sky-date"></time><span class="sky-go" aria-hidden="true">&rsaquo;</span><span class="sr-only">: meetings day by day</span></a></p>
-</div>
-{% endblock %}
+{% block head %}{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block main %}
 {# Landing v2 (docs/design/front-page-v2.md, 2026-11-11): a welcome, the address box in its own card, four "Start
    here" doors, the meetings coming up and the most recent ones (a selection of today.html's cards, built with the
