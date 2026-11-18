@@ -210,6 +210,18 @@ def test_denied_hosts_are_never_allowed_for_any_city(tmp_path):
             assert not registry.may_fetch(city, d) and not registry.may_fetch(city, "www." + d), (city["slug"], d)
 
 
+def test_a_trailing_dot_host_is_never_allowed_but_a_denied_one_still_matches(tmp_path):
+    """fetch-host/trailing-dot-denied: the dot-strip widens the denied side only."""
+    clarksville = registry.load_city("clarksville-tn")
+    assert registry.may_fetch(clarksville, "montgomerytn.gov") and registry.may_fetch(clarksville, "www.montgomerytn.gov")
+    assert not registry.may_fetch(clarksville, "montgomerytn.gov.") and not registry.may_fetch(clarksville, "WWW.MONTGOMERYTN.GOV.:443")
+    for city in registry.load_all() + [registry.load_city("testville-or", make_root(tmp_path))]:
+        for host in registry.allowed_hosts(city):
+            assert registry.may_fetch(city, host) and not registry.may_fetch(city, host + "."), (city["slug"], host)
+        for d in fetch.DENIED_HOSTS:
+            assert not registry.may_fetch(city, d + ".") and not registry.may_fetch(city, "www." + d + "."), d
+
+
 @pytest.mark.parametrize("host", ["cityofclarksville.com", "www.cityofclarksville.com", "dev2.montgomerytn.gov"])
 def test_a_city_listing_a_denied_host_fails(tmp_path, host):
     root = make_root(tmp_path)

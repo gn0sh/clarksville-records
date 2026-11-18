@@ -580,12 +580,28 @@ def test_host_matches_is_the_public_host_rule():
     assert county_agenda.host_matches is fetch.host_matches and fin_run.host_matches is fetch.host_matches
 
 
+def test_a_trailing_dot_never_matches_an_allowlist():
+    # fetch-host/trailing-dot-denied: the dot-strip widens the DENIED side only; an ALLOW check stays exact
+    from collector import county_agenda, fetch, fin_run
+    assert fetch.host_matches("h.example", ("h.example",)) and fetch.host_matches("a.h.example:443", ("h.example",))
+    for host in ("h.example.", "a.h.example.", "H.EXAMPLE.:443"):
+        assert not fetch.host_matches(host, ("h.example",)), host
+    assert not fetch.host_matches("h.example", ("h.example.",))          # nor does a dotted name in the list
+    assert not county_agenda.allowed_url("https://mcgtn.org./x.pdf") and county_agenda.allowed_url("https://mcgtn.org/x.pdf")
+    assert not county_agenda.allowed_url("https://www.montgomerytn.gov./x.pdf")
+    from types import SimpleNamespace
+    cfg = SimpleNamespace(bonfire_hosts=())
+    assert fin_run.precheck("https://h.example./a.pdf", cfg, ("h.example",))[1].startswith("host not on the allowlist")
+    assert fin_run.precheck("https://h.example/a.pdf", cfg, ("h.example",)) is None
+
+
 def test_a_trailing_dot_still_matches_a_denied_host():
     # fetch-host/trailing-dot-denied: "cityofclarksville.com." is the same host as cityofclarksville.com
     from collector import fetch
     for host in ("cityofclarksville.com.", "www.cityofclarksville.com.", "CITYOFCLARKSVILLE.COM.:443"):
-        assert fetch.host_matches(host, fetch.DENIED_HOSTS), host
-    assert fetch.host_matches("h.example", ("h.example.",)) and not fetch.host_matches("h.example..", ("h.example",))
+        assert fetch.host_denied(host, fetch.DENIED_HOSTS), host
+    assert fetch.host_denied("h.example", ("h.example.",)) and not fetch.host_denied("h.example..", ("h.example",))
+    assert not fetch.host_denied("evilh.example.", ("h.example",)) and not fetch.host_denied("h.example.net.", ("h.example",))
     f, net, _ = make({})
     with pytest.raises(HostRefused, match="denied in code"):
         f.get("https://cityofclarksville.com./x.pdf")

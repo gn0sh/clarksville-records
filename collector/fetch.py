@@ -51,7 +51,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from . import limits
-from .hosts import DENIED_HOSTS, PLAIN_HOST, host_matches, plain_hostname  # noqa: F401  (re-exported: public names)
+from .hosts import DENIED_HOSTS, PLAIN_HOST, host_denied, host_matches, plain_hostname  # noqa: F401  (re-exported: public names)
 
 USER_AGENT = ("clarksville-records research collector "
               "(+https://github.com/gn0sh/clarksville-records; polite, 10s/host)")
@@ -208,10 +208,10 @@ class PoliteFetcher:
             self.log.append({"event": "refused", "host": host, "detail": "not a plain host name"})
             raise HostRefused(f"{host!r}: not a plain host name (letters, digits, dots, hyphens)")
         host = name
-        if host_matches(host, DENIED_HOSTS):
+        if host_denied(host, DENIED_HOSTS):
             self.log.append({"event": "refused", "host": host, "detail": "denied host"})
             raise HostRefused(f"{host}: denied in code (never collected)")
-        if host_matches(host, self.extra_denied):
+        if host_denied(host, self.extra_denied):
             self.log.append({"event": "refused", "host": host, "detail": "denied by config"})
             raise HostRefused(f"{host}: denied by config (never collected)")
         # A trailing dot matches the denied lists above (fetch-host/trailing-dot-denied) but never the allowlist: the

@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 
-from collector.hosts import DENIED_HOSTS, host_matches
+from collector.hosts import DENIED_HOSTS, host_denied, host_matches
 
 from . import brand as brand_mod
 from .errors import CityError
@@ -142,7 +142,7 @@ def allowed_hosts(city: dict) -> tuple[str, ...]:
 def may_fetch(city: dict, host: str) -> bool:
     """The fetcher's rule for this city: never a denied host (global or the city's own), else on its allowlist."""
     host = host.lower()
-    return not host_matches(host, city["denied_hosts"]) and host_matches(host, allowed_hosts(city))
+    return not host_denied(host, city["denied_hosts"]) and host_matches(host, allowed_hosts(city))
 
 
 def site_settings(city: dict, brand: dict) -> dict:
@@ -350,7 +350,7 @@ def _refuse_denied_links(data, denied: tuple[str, ...], where: str, path: str = 
                 host = urlsplit(m.group(0)).hostname or ""
             except ValueError as exc:
                 raise CityError(f"{where}: {path} holds {m.group(0)!r}, which is not a valid URL") from exc
-            if host and host_matches(host, denied):
+            if host and host_denied(host, denied):
                 raise CityError(f"{where}: {path} links {host}, a denied host; it can never be asked or linked")
 
 
@@ -490,7 +490,7 @@ def _hosts(city: dict, where: str) -> list[dict]:
         host = h["host"].strip().lower()
         if not HOST_RE.fullmatch(host):
             raise CityError(f"{where}: allowed_hosts[{i}] {host!r} is not a host name")
-        if host_matches(host, _denied(city)):
+        if host_denied(host, _denied(city)):
             raise CityError(f"{where}: {host} is a denied host and can never be allowed")
         for k in ("robots", "terms"):
             if not (isinstance(h.get(k), str) and h[k].strip()):
@@ -532,7 +532,7 @@ def _check_source_hosts(city: dict, root: Path, where: str) -> None:
             hosts = s["reader"].hosts(p)
         except ValueError:
             hosts = ()                                        # a draft config that doesn't load yet: `check` says so
-        denied = [h for h in hosts + s["reader"].link_hosts(p) if host_matches(h, city["denied_hosts"])]
+        denied = [h for h in hosts + s["reader"].link_hosts(p) if host_denied(h, city["denied_hosts"])]
         if denied:
             raise CityError(f"{s['config']}: {', '.join(denied)} is a denied host and can never be asked or linked")
         off = [h for h in hosts if not host_matches(h, allowed_hosts(city))]
