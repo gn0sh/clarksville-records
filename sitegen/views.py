@@ -1336,12 +1336,12 @@ def official_record(template: str, site: dict, ctx: dict) -> dict | None:
     return rec
 
 
-CORRECTIONS_LOG = config.REPO_ROOT / "data" / "corrections-log.json"
+CORRECTIONS_LOG = config.REPO_ROOT / "config" / "corrections-log.json"
 CORRECTION_KEYS = ("date", "page", "was", "now", "source_url")
 
 
 def corrections_log(path=None) -> list[dict]:
-    """The public log of every correction (data/corrections-log.json, a list, newest first). Empty = none yet.
+    """The public log of every correction (config/corrections-log.json, a list, newest first). Empty = none yet.
     Entries are written by hand after a report is checked against its source; each has exactly the keys above, all
     strings, a real ISO date (YYYY-MM-DD) and an https source_url with a hostname."""
     import json
