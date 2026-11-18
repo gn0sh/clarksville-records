@@ -15,9 +15,14 @@ DENIED_HOSTS = ("cityofclarksville.com", "dev2.montgomerytn.gov")
 
 def host_matches(host: str, names) -> bool:
     """True when `host` (a port is ignored) is one of `names` or a subdomain of one. The one host rule: the fetcher's
-    allowlist and denied list use it, and so does any adapter that filters links before asking the fetcher."""
-    host = host.lower().split(":")[0]
-    return any(host == n or host.endswith("." + n) for n in names)
+    allowlist and denied list use it, and so does any adapter that filters links before asking the fetcher. One
+    trailing dot (the DNS root, "cityofclarksville.com.") is the same host (fetch-host/trailing-dot-denied)."""
+    host = _no_root_dot(host.lower().split(":")[0])
+    return any(host == n or host.endswith("." + n) for n in map(_no_root_dot, names))
+
+
+def _no_root_dot(name: str) -> str:
+    return name[:-1] if name.endswith(".") else name
 
 
 PLAIN_HOST = re.compile(r"[a-z0-9.-]+")
