@@ -6,9 +6,9 @@ data/ holds collector output only. Its tree listing (`git ls-tree -r -z <commit>
    and
 2. no entry's file name is one of the curated inputs (CURATED_NAMES), at any depth. Those are reviewed code under
    config/ (row CFG); a copy in data/ would be an unreviewed edit the collector never wrote; and
-3. no entry is under data/maps/ or inside a transcripts/ folder at any depth (I-in, ADR 0011 decision 2a, rows TR and
-   MP): the map manifest and the transcripts are person-made inputs that live under config/ (config/maps/,
-   config/localities/<locality>/transcripts/), and no reader falls back to data/.
+3. no entry is inside a maps/ or transcripts/ folder at any depth, matched without regard to case (I-in, ADR 0011
+   decision 2a, rows TR and MP): the map manifest and the transcripts are person-made inputs that live under config/
+   (config/maps/, config/localities/<locality>/transcripts/), and no reader falls back to data/.
 
 This module is the one definition outside the workflow. The gate and push job's `SHAPE=$'...'` lines in
 .github/workflows/daily-update.yml are narrowed to SHAPE'' and gain the refusal list in task B2, with a test that keeps
@@ -78,23 +78,32 @@ def disk_listing(folder: Path) -> bytes:
     return b"".join(row + b"\0" for _, row in sorted(rows))
 
 
+def refusal(entry: bytes) -> str | None:
+    """Why one `git ls-tree -r` entry of data/ is refused, shown safely; None when it passes. The maps/ and
+    transcripts/ folders are refused at any depth and in any case (SHAPE'' allows mixed-case folder names)."""
+    folders = [f.lower() for f in entry.split(b"\t", 1)[-1].split(b"/")[1:-1]]
+    if entry.rsplit(b"/", 1)[-1] in _CURATED:
+        return f"curated input in data/ (it belongs in config/): {_shown(entry)}"
+    if b"maps" in folders:
+        return f"map manifest in data/ (it belongs in config/maps/): {_shown(entry)}"
+    if b"transcripts" in folders:
+        return f"transcript in data/ (it belongs in config/localities/<locality>/transcripts/): {_shown(entry)}"
+    if not SHAPE.fullmatch(entry):
+        return f"not allowed in data/: {_shown(entry)}"
+    return None
+
+
+def passing_paths(listing: bytes) -> set[bytes]:
+    """The paths (data/...) of the listing's entries that pass refusal(): the collector output a check may trust."""
+    return {e.split(b"\t", 1)[-1] for e in listing.split(b"\0") if e and refusal(e) is None}
+
+
 def problems(listing: bytes) -> list[str]:
     """Each refused entry of a NUL-separated `git ls-tree -r -z` listing of data/, shown safely; [] when it passes."""
     entries = [e for e in listing.split(b"\0") if e]
     if not entries:
         return ["data/ holds no file"]
-    out = []
-    for e in entries:
-        path = e.split(b"\t", 1)[-1]
-        if e.rsplit(b"/", 1)[-1] in _CURATED:
-            out.append(f"curated input in data/ (it belongs in config/): {_shown(e)}")
-        elif path.startswith(b"data/maps/"):
-            out.append(f"map manifest in data/ (it belongs in config/maps/): {_shown(e)}")
-        elif b"transcripts" in path.split(b"/")[:-1]:
-            out.append(f"transcript in data/ (it belongs in config/localities/<locality>/transcripts/): {_shown(e)}")
-        elif not SHAPE.fullmatch(e):
-            out.append(f"not allowed in data/: {_shown(e)}")
-    return out
+    return [r for r in map(refusal, entries) if r is not None]
 
 
 def main(argv=None) -> int:

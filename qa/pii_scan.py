@@ -37,6 +37,7 @@ import bisect
 import gzip
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -136,7 +137,8 @@ def needles(raw: Path) -> tuple[set[str], set[str], dict]:
 
 
 def public_text(root: Path = ROOT) -> list[str]:
-    """The strings of the PUBLIC_FIELDS of the data/ tree on disk outside any transcripts/ folder, folded."""
+    """The strings of the PUBLIC_FIELDS of the data/ files on disk whose listing entry passes data_shape (SHAPE'', not
+    curated, not under maps/ or transcripts/), folded: a stray file in data/ never clears a needle."""
     out: list[str] = []
 
     def walk(v, path: str):
@@ -149,9 +151,10 @@ def public_text(root: Path = ROOT) -> list[str]:
         elif isinstance(v, list):
             for x in v:
                 walk(x, f"{path}[]")
+    trusted = data_shape.passing_paths(data_shape.disk_listing(Path(root) / "data"))
     for p in data_files(root):
         rel = p.relative_to(root).as_posix()
-        if rel.endswith(".json") and "transcripts" not in Path(rel).parts[:-1]:
+        if rel.endswith(".json") and os.fsencode(rel) in trusted:
             try:
                 walk(json.loads(p.read_text(encoding="utf-8")), "")
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -218,9 +221,11 @@ def _read(p: Path) -> str | None:
 
 
 def tracked_files(root: Path = ROOT) -> list[Path]:
-    """Every `git ls-files` file outside data/ (data/ is read from disk: data_files)."""
-    out = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True, check=True).stdout
-    return [Path(root) / p for p in out.decode("utf-8").split("\0") if p and not p.startswith("data/")]
+    """Every file git tracks or would add (`git ls-files --cached --others --exclude-standard`: a new config
+    transcript not yet staged is scanned too) outside data/ (data/ is read from disk: data_files)."""
+    out = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                         capture_output=True, check=True).stdout
+    return [Path(root) / p for p in sorted(set(out.decode("utf-8").split("\0"))) if p and not p.startswith("data/")]
 
 
 def data_files(root: Path = ROOT) -> list[Path]:

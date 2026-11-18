@@ -71,7 +71,7 @@ def test_shape_bash_line_is_what_bash_gives_grep():
 
 @pytest.mark.parametrize("path", [b"data/facts.json", b"data/changes.jsonl", b"data/localities/clarksville-tn/wards.json",
                                   b"data/localities/clarksville-tn/transcripts.json", b"data/mapsx/manifest.json",
-                                  b"data/localities/maps/manifest.json", b"data/county-agendas/changes.jsonl",
+                                  b"data/county-agendas/changes.jsonl",
                                   b"data/a_b/x-1.v2.json"])
 def test_collector_output_passes(path):
     assert data_shape.problems(_listing(path)) == []
@@ -104,12 +104,26 @@ def test_curated_names_are_refused_at_any_depth(name, folder):
     (b"data/localities/x/transcripts/a.json", "transcript in data/"),
     (b"data/localities/clarksville-tn/transcripts/index.json", "transcript in data/"),
     (b"data/transcripts/a.json", "transcript in data/"),
-    (b"data/a/transcripts/b/c.json", "transcript in data/")])
+    (b"data/a/transcripts/b/c.json", "transcript in data/"),
+    (b"data/Maps/manifest.json", "map manifest in data/ (it belongs in config/maps/)"),
+    (b"data/localities/x/maps/m.json", "map manifest in data/ (it belongs in config/maps/)"),
+    (b"data/a/b/MAPS/changes.jsonl", "map manifest in data/ (it belongs in config/maps/)"),
+    (b"data/Transcripts/a.json", "transcript in data/"),
+    (b"data/localities/x/TranScripts/a.json", "transcript in data/")])
 def test_config_owned_inputs_are_refused_in_data(path, why):
     """I-in (ADR 0011 decision 2a, rows MP, TR and T): the map manifest and the transcripts live in config/; D refuses
     them at any depth, shown safely like the others."""
     found = data_shape.problems(_listing(b"data/facts.json", path))
     assert len(found) == 1 and found[0].startswith(why) and found[0].endswith(path.decode())
+
+
+@pytest.mark.parametrize("path", [b"data/maps.json", b"data/transcripts.json", b"data/a/Maps.json",
+                                  b"data/roadmaps/x.json", b"data/localities/x/transcripts-index/a.json"])
+def test_only_a_maps_or_transcripts_folder_is_refused(path):
+    """Review nit data-off-main/shape-transcripts-case: the refusal is on the folder name, so files and other folders
+    whose names merely contain it still pass."""
+    assert data_shape.problems(_listing(path)) == []
+    assert data_shape.passing_paths(_listing(path, b"data/Maps/m.json")) == {path}
 
 
 @pytest.mark.parametrize("folder", [b"data/", b"data/localities/clarksville-tn/", b"data/a/b/c/"])
