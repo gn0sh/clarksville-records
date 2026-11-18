@@ -354,6 +354,12 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   95 remote branches: every workflow file triggers only on `schedule` or `workflow_dispatch`. `MAIN_PR_BASELINE` and
   `MORNING_NOTE_SEND` unset. Still not readable from the team session (proxy): `actions/permissions*`,
   `environments`, `collaborators`.
+- Ruleset 27502319 read 2026-11-18 (team session, `gh api repos/gn0sh/clarksville-records/rulesets/27502319`): its
+  `pull_request` parameters also carry `required_reviewers: []` and
+  `require_extra_approval_for_unattributed_changes: true`, neither set by our json. R1' keeps both at these live
+  values. Meaning of the second, per GitHub's docs (as relayed by the PR #43 security review, not read by the team
+  directly): it applies only to pull requests authored by Copilot and has no effect at 0 required approvals, so it
+  does not change whether a data PR needs review (ADR 0010 U2; L1).
 - Re-plan: ADR 0010 (code-owner rule R1' replaces V1). Next facts here: the V1' probe (run link, four answers,
   `main` before and after), the first data PR merged under R1' and the first S2 merge under R1'.
 - `github-pages` deployment branches after runbook 2.0.5: not checked yet.

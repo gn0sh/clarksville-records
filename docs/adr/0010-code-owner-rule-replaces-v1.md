@@ -28,19 +28,33 @@ dropping the gate), which is the line the morning note's key depends on.
    `require_code_owner_review: true`; required approvals stay **0** (L-E); `allowed_merge_methods: ["squash"]`;
    bypass list: **Repository admin role, mode "pull request"** (admins may merge a PR without its requirements; nobody
    may push `main`). `deletion` and `non_fast_forward` unchanged; other parameters kept as GitHub returns them.
-   Effect: a PR that changes anything outside `data/` needs an approving review by gn0sh, which nobody gives (he
-   authors the PRs and cannot approve his own; `GITHUB_TOKEN` is no code owner and holds no admin role), so it merges
-   only by an admin's bypass merge, i.e. by a person (`merged_by.type == "User"`). A PR that changes only `data/` has
+   Effect: a PR that changes anything outside `data/` needs an approving review by gn0sh (`GITHUB_TOKEN` is no code
+   owner and holds no admin role). gn0sh cannot approve the PRs he authors, but **he can approve a PR a bot opened**;
+   such an approval is a person's act, and `dismiss_stale_reviews_on_push: true` (M3, main-protect/stale-owner-approval)
+   drops it on any later push, so a bot can never merge a commit gn0sh did not approve at its head. The team's
+   practice stays: nobody approves; a non-data PR merges by an admin's bypass merge, i.e. by a person
+   (`merged_by.type == "User"`). A PR that changes only `data/` has
    no owned file and needs nothing, so the `push` job merges it as today. This is V1' and replaces V1.
 3. **R2 back on now**, before R1' (Brian, one command): with R2 off the data stops; with it on, the exposure is the
    accepted 2026-11-17 state without V1, and only a writer can create a workflow that uses it (T7). The morning note
    stays off (`MAIN_PR_BASELINE`, `MORNING_NOTE_SEND` unset) until 5.
 4. **Remove the canary** by a person's merge-reviewed PR (`claude/remove-v1-canary`); the probe scripts refuse to run
    until R1' is on (a re-run today would merge the canary again: R2 off does not stop merging).
-5. **V1' probe**, the same probe re-run after R1' with a new PASS: all four bot merges refused with a message naming
-   the ruleset or code-owner review, `main` unchanged; plus two positive controls: the next data PR merges by
-   github-actions (U2) and the next `merge-reviewed` merge goes through by bypass (U3). PASS gates the baseline
-   (T4.10.8) and `MORNING_NOTE_SEND`. The baseline window check lists 3ef440a (PR #40) as its one known Bot merge.
+5. **V1' probe**, the probe re-run after R1'. What proves V1' (security review of PR #43, 2026-11-18):
+   - the runner posts a `GITHUB_TOKEN` APPROVE review on each target PR before its merge tries (a bot approval must
+     not count);
+   - three targets, each a PR into `main`: (W) one adding a workflow file, (N) one changing a non-workflow file
+     outside `data/` (`sitegen/`), (H1) one that only renames `.github/CODEOWNERS` into `data/`;
+   - for every target, REST squash and GraphQL squash are both refused with a message naming code-owner review
+     (merge and rebase are recorded as "method refused": squash only);
+   - `main` unchanged, every probe PR unmerged after cleanup, no probe file on `main`;
+   - positive controls: the next data PR merged by github-actions (U2), the next `merge-reviewed` merge went
+     through by bypass with `merged_by` gn0sh (U3).
+   Anything else is INCONCLUSIVE (or FAIL if a probe PR merged). PASS gates the baseline (T4.10.8) and
+   `MORNING_NOTE_SEND`. The baseline window check lists 3ef440a (PR #40) as its one known Bot merge.
+   **Brian's two hand checks**, recorded with the PASS: (1) Settings > Collaborators: no other admin; (2) after
+   `protect-main`, the ruleset page shows "Require review from Code Owners", and the repository's CODEOWNERS view
+   shows no errors.
 6. The gate (ADR 0009) is unchanged and stays as the I-main check and defence in depth.
 
 ## Alternatives considered
@@ -72,6 +86,14 @@ dropping the gate), which is the line the morning note's key depends on.
 - Reversible in minutes: re-apply the 2026-11-17 ruleset json, delete CODEOWNERS by PR.
 - Unverified, each checked before the note can send: U1 `require_code_owner_review` binds with 0 required approvals
   (V1' probe; if not, FAIL path); U2 an unowned `data/` path needs no review (next data PR; if not, the push job fails
-  loudly, revert the ruleset); U3 the admin bypass lets `merge-reviewed`'s REST merge through (if not, Brian clicks
+  loudly, revert the ruleset). The json keeps `require_extra_approval_for_unattributed_changes: true` at GitHub's
+  live value: per GitHub's docs it applies only to Copilot-authored pull requests and has no effect at 0 required
+  approvals, so it does not bear on U2 (L1, main-ruleset/unattributed-param-unexplained; `docs/platform-facts.md`
+  "Main protection"); U3 the admin bypass lets `merge-reviewed`'s REST merge through (if not, Brian clicks
   Merge with "bypass rules" after the script posted its review; the gate is satisfied either way); U4 the owner of a
-  personal repository holds the admin role for the bypass (S1 run shows it).
+  personal repository holds the admin role for the bypass (S1 run shows it). **H1** (high,
+  main-protect/codeowners-rename-vacuous): whether GitHub's code-owner check sees a rename's *old* path. If not, a PR
+  that renames `.github/CODEOWNERS` into `data/` would touch only unowned paths, merge by a bot, and leave `main`
+  with no CODEOWNERS, making the rule vacuous. The V1' probe's H1 target tests it (ideally first on a throwaway
+  public repository); H1 blocks the baseline and `MORNING_NOTE_SEND` until settled. (Even then, `protect-main` and
+  the probe guard refuse once CODEOWNERS is missing, and the gate refuses the bot merge.)
