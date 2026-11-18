@@ -9,6 +9,8 @@ Tasks: `docs/tasks/data-off-main.md`. Amended 2026-11-18 for the PR #54 security
 person-run writers B1 found (`docs/architecture/data-inventory.md`).
 Amended again 2026-11-18 (writer set and the Claude GitHub App): see "Amendment 2026-11-18 (b)" at the end; it
 supersedes decision 6's writer rule and finding F1's wording.
+Amended 2026-11-18 (c) (phase 0 after the cutover, finding main-protect/phase0-attest): see "Amendment 2026-11-18
+(c)" at the end; it supersedes decision 7's baseline order and the rollback's baseline check.
 
 ## Context
 The V1' probe (run 44354265953) FAILED. `GITHUB_TOKEN` squash-merged #49, which adds a workflow file, under
@@ -86,8 +88,9 @@ reviewer.
    before `MAIN_PR_BASELINE` is set. `MORNING_NOTE_SEND` is unset before R2 goes back on or any ruleset changes.
 7. **Order** (change 3). U3 runs first, as a scripted live toggle, before any rework. If it fails, this ADR is
    rejected and the fallback below applies. The cutover is one scripted session in the Operator's order (task list
-   D3), with `protect-main` (R1'', R-D, R-T, R2 off) before the cutover merge (finding 5). After it, the V1'' probe (architecture note section 4) must pass before `MAIN_PR_BASELINE` or
-   `MORNING_NOTE_SEND` is set.
+   D3), with `protect-main` (R1'', R-D, R-T, R2 off) before the cutover merge (finding 5). The cutover PR itself
+   sets `MAIN_PR_BASELINE` (Amendment 2026-11-18 (c)). After it, the V1'' probe (architecture note section 4) must
+   pass before `MORNING_NOTE_SEND` is set.
 
 ## Alternatives considered
 - **Required approvals 1-2 with data still on `main`:** the bot's data PR can't approve itself. A second identity
@@ -229,3 +232,64 @@ App, or widening one's access, is a settings change, so `protect-main` is re-run
 - The "exactly two writers" premise (decision 6, and the note's row R1 "Why 2") is replaced by I-person rules 1-3.
 - PR #54 F1's "NOT OK if any besides gn0sh" is replaced the same way. Security review S1 re-confirms this amendment,
   because one App approver is new since F1.
+
+## Amendment 2026-11-18 (c): no phase 0 on `main` after the cutover
+Trigger: the B2/B3 review finding main-protect/phase0-attest. Between the cutover merge and `MAIN_PR_BASELINE`, J2
+would sign attestations that the gate accepts forever, on a `main` whose history the gate never checked. The fix at
+fb94f5be (branch `claude/data-off-main-b23`) makes `push` need `needs.gate.outputs.verified == 'true'`. So in phase 0
+no run pushes, and no scheduled or `collect=true` run deploys either (deploy needs push to succeed). That breaks D3
+step 8, which expects the first run after the cutover to push and attest. B4 proposed running the tripwire in
+report-only mode during phase 0.
+
+**Ruling.**
+1. **The cutover PR sets `MAIN_PR_BASELINE`.** Its value is the sha of `main` that the seed is cut from. That sha
+   is also the PR's base, and the reviewers check it with the runbook 4.7.1 window listing, pasted into the PR. So
+   the cutover squash commit is the first commit after the baseline, and the gate checks it like any other: merged by
+   a person (`merge-reviewed`, a gn0sh bypass) and reviewed at its head (the COMMENT review that `merge-reviewed`
+   posts). The new workflow never runs on `main` without a baseline. There is no separate baseline PR, and Brian
+   has no extra step: his C1 "yes" covers the baseline, and the card says so (hard stop 1).
+2. **Phase 0 on `main` is a refusal.** On `main`, with the new workflow, an empty `MAIN_PR_BASELINE` makes the gate
+   refuse. Nothing is built, pushed, attested, deployed or sent, and `gate-failed` opens its issue. This takes the
+   main-protect L-1 fix (an empty baseline on `main` is a refusal) out of the later baseline PR and puts it in the
+   cutover PR. A PR that resets the baseline to `""` now freezes the pipeline instead of silently reopening phase 0.
+   Runs on other branches stay as they are: `verified=false`, and push, deploy and note are `main` only.
+3. **Belt and braces.** `push` keeps the `verified == 'true'` condition from fb94f5be. `deploy` gains the same
+   condition, so no deploy ever comes from history the gate hasn't checked, whatever the gate's output path.
+4. **The tripwire has one mode, and it always holds.** There is no report-only mode. A switch that runs I-pub without
+   holding the deploy is a bypass, like `allow_shrink` (F7), and it has no use once phase 0 can't run on `main`. On a
+   branch, the tripwire runs the same code, and `held` doesn't matter because deploy is `main` only.
+5. **What the site shows.** It stays on the last deploy from before the cutover. It changes when D3 step 7 deploys
+   the seed, after the merge and in the same session. If the session stops between the merge and step 7, the
+   workflow is still disabled (step 2) and the site stays on that last deploy. That is fine for a day, and the C1
+   card asks Brian to finish or roll back the same day.
+6. **V1'' no longer gates the baseline.** It still gates `MORNING_NOTE_SEND`. Setting the baseline earlier is
+   stricter, not weaker. If the V1'' probe gets a bot merge into `main` (FAIL), the gate refuses every later run
+   until a person moves the baseline past that commit. Under the old order, the later baseline PR would have had to
+   catch such a merge by hand (L-3). Drift rule: `protect-main` prints OK in step 4, just before the merge sets the
+   baseline, and a plain `--check` must print OK just after it. Together these meet "re-run before
+   `MAIN_PR_BASELINE` is set".
+7. **Rollback.** After the cutover merge, the baseline is non-empty on `main` by design, so `--rollback` can't refuse
+   on that at entry. It still refuses at entry while `MORNING_NOTE_SEND` is set, or while a `MAIN_PR_BASELINE`
+   repository variable exists (a refused or failed read counts as set). The workflow-value check moves to the point
+   just before R2 goes on: once restore PR R has merged, `main`'s workflow (the one from before the cutover) must hold
+   exactly one empty `MAIN_PR_BASELINE`, or the rollback stops with R2 still off. F4 holds, because R2 never comes
+   on while `main` carries a baseline. Before the cutover merge, the entry check is the same as today.
+
+**Invariants.** I-person: unchanged. The baseline reaches `main` only inside a PR that gn0sh merges by bypass under
+R1''. Amendment (b) rule 3 gets stronger: the gate checks the history behind every attestation J2 signs, from
+the first one. Fail closed: an empty baseline, a missing or wrong window start, or `main` having moved off the
+pinned baseline all stop the run before anything changes (D3 step 1) or refuse the gate.
+
+**Alternatives considered.**
+- *A separate one-line baseline PR right after the merge, in the same session* (the manager's example). This still
+  leaves a phase-0 window between two merges. The PR can't be prepared or reviewed in advance, because its value is
+  the squash sha. It also needs a second bypass merge and a review generated by the script. Rejected: it costs
+  more for a weaker result.
+- *Phase 0 with the tripwire in report-only mode* (the B4 proposal). Every phase-0 run would collect, build and throw
+  away its result, and the mode flag would be a lasting bypass of I-pub. Rejected (item 4).
+- *Revert fb94f5be and let phase 0 push and attest.* This reopens phase0-attest. Rejected.
+
+**Cost.** The cutover PR pins one more value, and each refresh of the seed pin also refreshes the baseline pin (same
+day, after the day's run, as for the seed digest). The window start (`R2 first on`, or the first `Main before the
+ruleset` sha) isn't recorded in `docs/platform-facts.md` yet. The manager supplies it from the ledger before the
+cutover PR's review. If it's unknown, the architect picks the window (runbook 4.7.1). Until then, D3 step 1 refuses.

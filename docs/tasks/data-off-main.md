@@ -136,10 +136,21 @@ the listing bytes the push job attests equal the bytes the gate rebuilds (one sh
   path: `fetch-data`, `fin-books fetch` and `fin-books build --locality <id>` locally, review
   `build/fin-books-<id>.json`, then a reader fix by PR or an entry in `config/fin-books-accepted.yml` by PR; the
   next daily run rebuilds. Fixed text only, as today (no run-log text in an expression).
+- **No phase 0 on `main` (ADR 0011 Amendment (c); on the B2/B3 branch, after fb94f5be):** on `main`, the gate refuses
+  an empty `MAIN_PR_BASELINE` (L-1; fixed text, through `gate-failed`). Branch runs stay `verified=false`. `push` keeps
+  `verified == 'true'`, and `deploy` gains `needs.gate.outputs.verified == 'true'`. The tripwire has one mode and
+  always holds: no report-only or phase switch, and no input or variable that turns the hold off.
+  `test_the_committed_baseline_is_unset_or_a_sha` accepts only a 40-hex sha on the cutover branch, and the workflow
+  carries the value the cutover PR pins (D3 `--plan`). Update the gate's "Phase 0" comment, the deploy comment
+  ("in phase 0 it passes ... deploys as before") and `docs/ops/morning-note.md` lines 10-15 and 29.
 
 Done when tests show: a changed outcome holds; a removed roll call holds; a listed change passes; a new meeting
 passes; a fetch failure holds; the seed bootstrap passes; an `allow_shrink` run that drops a published roll call
-holds; the city-books issue text names `config/fin-books-accepted.yml` and asks for no commit of `data/`.
+holds; the city-books issue text names `config/fin-books-accepted.yml` and asks for no commit of `data/`; on `main`
+an empty baseline refuses (nothing built, pushed or deployed) and a set baseline with the cutover squash as the
+only later commit verifies; on a branch the gate passes with `verified=false` and push and deploy are skipped; deploy
+is skipped whenever `verified` isn't `'true'`, including `collect=false`; no tripwire code path outputs `held=no`
+after a hit.
 
 ## D1: `protect-main` and `merge-reviewed` (rows R1, R-D, R2, S1, S2)
 - `protect-main` writes R1'' (`scripts/main-ruleset.json`), R-D (`scripts/records-data-ruleset.json`) and R-T
@@ -193,20 +204,29 @@ Done when a fresh clone with `fetch-data` passes the full suite.
 ## D3: cutover script `scripts/cutover-data-off-main.{sh,ps1}` (Operator's order)
 Brian runs it from his PC (U3-0 = no). `main` is protected before the cutover merge (F5).
 1. Refuse within 08:00-10:30 UTC, while a run is active, or while `MORNING_NOTE_SEND` is set (drift). A refused
-   or failed read of `actions/variables` counts as set.
+   or failed read of `actions/variables` counts as set. Also refuse unless `origin/main` equals the PR's pinned
+   `MAIN_PR_BASELINE` (Amendment (c)), and the runbook 4.7.1 window listing, from the pinned window start
+   to that sha, passes. A refused read, an empty or non-ancestor start, a `Bot` that isn't a known exception, or
+   N = 0 all refuse. The listing is printed for the record.
 2. Disable `daily-update`.
 3. Seed `records-data` from `main`'s `data/` minus the curated files and the moved person-run inputs
    (`data/localities/*/transcripts/`, `data/maps/`; I-in), as one parentless commit. Stop unless its listing passes
    `python -m collector.data_shape`, `python -m tools.scrub_rpc_phones --check` passes on it, and its digest equals
    the PR's `RECORDS_DATA_SEED_DIGEST`.
 4. Run `protect-main` (R1'', R-D, R-T, R2 off) and stop unless it prints OK.
-5. Merge the cutover PR (B1-B4, D1, D2, CODEOWNERS deleted) with `merge-reviewed`, which must print `bypass`.
+5. Merge the cutover PR (B1-B4, D1, D2, CODEOWNERS deleted, `MAIN_PR_BASELINE` pinned) with `merge-reviewed`,
+   which must print `bypass`. The squash's parent must equal the pinned baseline. This merge sets the baseline.
 6. Re-enable the workflow.
-7. Dispatch `collect=false` and check that the deploy succeeded and `build-info.json` shows the seed.
-8. Dispatch `collect=true` and check that `records-data` moved and is attested.
+7. Dispatch `collect=false`. Check that the gate logged the history line for exactly 1 commit (verified), the
+   deploy succeeded and `build-info.json` shows the seed.
+8. Dispatch `collect=true`. Check that the gate verified, `records-data` moved and is attested, and the deploy
+   succeeded. This is the first run after the baseline that pushes. No phase-0 run exists to wait for.
 
-`--rollback`: refuses while `MORNING_NOTE_SEND` or `MAIN_PR_BASELINE` is set (F4: R2 on reopens the bot path, so
-both are unset first, by Brian). A refused or failed variables read counts as set. Then R1' json back, R2 on, a reviewed PR restoring `data/` on
+`--rollback`: refuses at entry while `MORNING_NOTE_SEND`, or a `MAIN_PR_BASELINE` variable, is set (F4: R2 on reopens
+the bot path). A refused or failed variables read counts as set. After the cutover merge, the baseline in
+`main`'s workflow is set by design. So, per Amendment (c) item 7, the check that `main`'s workflow holds exactly one
+empty `MAIN_PR_BASELINE` runs after restore PR R merges and before R2 goes on. If it fails, the rollback stops with R2
+off. Before the merge, the check runs at entry, as today. Then R1' json back, R2 on, a reviewed PR restoring `data/` on
 `main` from `records-data`'s head (every `config/` input, curated or person-run, stays where the cutover PR put it,
 with its readers), and the workflow re-enabled. Every step prints what it did, and a failure stops with the exact `--rollback`
 command.
@@ -234,6 +254,13 @@ Choices the reviewers should check:
 - Step 4 runs `protect-main --pre-cutover --apps` (`-PreCutover -Apps`); after the merge, step 5 runs a plain
   `protect-main --check --apps` (no writes, main's new workflow), which must print OK before the workflow is re-enabled.
 - Contract with B4: the site's `build-info.json` names `D` as `data_sha` (`build_info_data_sha`).
+- **Change required by ADR 0011 Amendment (c):** `--plan` prints `BASELINE <sha>` (the `main` sha the seed is cut
+  from) beside `SEED DIGEST`, plus the 4.7.1 listing for the PR. The script gets a pinned window-start constant
+  (empty = step 1 refuses), and steps 1, 5, 7, 8 and the rollback change as written above. Port the 4.7.1 block
+  into both `.sh` and `.ps1`. Tests: step 1 refuses when `main` differs from the pin, when the start is empty, when
+  a read is refused, and on an unknown `Bot`. Step 5 refuses when the squash parent differs from the pin. Step 7
+  refuses an unverified gate. Rollback after the merge reaches R2 only when R's workflow has an empty baseline.
+  C1 card: "This also sets `MAIN_PR_BASELINE`."
 
 ## S1: security review
 Fresh review of the B1-D3 milestone (B1b included) at one sha, against I-main'', I-prov, I-pub, I-in, T1-T8 and
