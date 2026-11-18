@@ -70,8 +70,10 @@ jobs:
   # PR (that setting does not govern merging). A code commit merged that way, or by a
   # person without the reviewed-merge procedure (scripts/merge-reviewed.ps1, runbook 2.0.3), is refused here on every
   # later run until a person moves the baseline past it (fail closed; the gate-failed job opens one issue).
-  # The check is inline, never a script in the repository: only .github/workflows/ is out of a bot merge's reach, if
-  # the V1 probe (runbook 2.0.4) shows GitHub refuses GITHUB_TOKEN a workflow change by merge too. The checkout gives
+  # The check is inline, never a script in the repository. It cannot hold its own file: V1 is false (the V1 probe,
+  # runbook 2.0.4, 2026-11-18: GITHUB_TOKEN may merge a workflow change). What keeps a bot merge of anything outside
+  # data/ off main is the ruleset's code-owner rule (R1', .github/CODEOWNERS, ADR 0010); this gate is the check of
+  # what reached main and defence in depth. The checkout gives
   # git the history; no file from it is run (test: the gate's commands are allowlisted).
   # Phase 0 (MAIN_PR_BASELINE empty) or a run on a branch other than main: verified=false and success, so update,
   # push and deploy run as before and note never runs. MAIN_PR_BASELINE is main's commit when the baseline PR merged
