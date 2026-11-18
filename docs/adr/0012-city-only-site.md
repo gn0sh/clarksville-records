@@ -244,10 +244,13 @@ are no scores, rankings, counts by member on the front page, or commentary.
 service by"`, `support: "{site_name} {place} is free and always will be, but web hosting and sending email cost
 money. If it is useful to you, please consider supporting the project."`). `cities/brand.py` adds it to `LOCKED`.
 `drift()` compares only the seven keys `config/site.yml` duplicates today (`LEGACY_DUPLICATES`), so `site.yml` needs
-no edit. `views.site_context` gives the templates `footer_line` and `support_line`. When the settings set
-`place_name`, they are the named lines with `site_name` and `place_name` filled in ("Daylight Murfreesboro is
-provided as a free service by gnoshcodes LLC."; "Daylight Murfreesboro is free and always will be, ..."). Without
-it, they are today's exact text. Clarksville sets no `place_name`, so its output is byte-identical (decision 1
+no edit. `brand.merge` (called by `registry.site_settings`) adds `footer_line` and `support_line` to the site
+settings, so templates read `site.cfg.get("footer_line")` and `site.cfg.support_line`; this needs no change in
+`views.site_context` (T8 built, 2026-11-18). When the settings set `place_name`, they are the named lines with
+`site_name` and `place_name` filled in ("Daylight Murfreesboro is provided as a free service by gnoshcodes LLC.";
+"Daylight Murfreesboro is free and always will be, ..."). Without it, `footer_line` is absent and the footer keeps
+today's exact text ("Provided as a free service by"); `support_line` stays the brand's unnamed line. The
+`base.html.j2` footer line changed in T8's PR (T7 had not merged). Clarksville sets no `place_name`, so its output is byte-identical (decision 1
 guard). `place_name` must be a plain name (letters, spaces, hyphens, periods), at most 40 characters, and is never a
 brand key. A city still can't change the wording or the coffee link.
 

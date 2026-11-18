@@ -14,8 +14,10 @@ ROOT = Path(__file__).resolve().parent.parent
 BRAND_PATH = ROOT / "config" / "brand.yml"
 BMAC_URL = "https://buymeacoffee.com/gnoshcodes"      # one link for every city (no www)
 # Dotted paths of the locked keys, in the shape config/site.yml uses.
-LOCKED = ("site_name", "operator", "operator_url", "support_url", "support_label", "support_line", "support_enabled",
-          "corrections.email")
+LEGACY_DUPLICATES = ("site_name", "operator", "operator_url", "support_url", "support_label", "support_line",
+                     "support_enabled", "corrections.email")    # the keys Clarksville's config/site.yml still copies
+NAMED_LINES = ("named_lines.footer", "named_lines.support")     # ADR 0012 decision 9: used only with a place_name
+LOCKED = LEGACY_DUPLICATES + NAMED_LINES
 
 
 def get(d: dict, dotted: str, default=None):
@@ -45,12 +47,32 @@ def load_brand(path: str | Path = BRAND_PATH) -> dict:
     for k in LOCKED:
         if k != "support_enabled" and not (isinstance(get(brand, k), str) and get(brand, k).strip()):
             raise CityError(f"{path}: {k} must be non-empty text")
+    for k in NAMED_LINES:
+        if "{place}" not in get(brand, k) or "{site_name}" not in get(brand, k):
+            raise CityError(f"{path}: {k} must contain {{site_name}} and {{place}}")
+        try:
+            get(brand, k).format(site_name="", place="")
+        except (KeyError, IndexError, ValueError) as exc:
+            raise CityError(f"{path}: {k} may use only {{site_name}} and {{place}}") from exc
     return brand
+
+
+def named_lines(brand: dict, place_name: str | None) -> dict:
+    """The footer and support lines with the city's name filled in; {} for a city without a place_name, whose pages
+    keep the unnamed text (Clarksville stays byte-identical)."""
+    if not place_name:
+        return {}
+    fill = {"site_name": brand["site_name"], "place": place_name}
+    return {"footer_line": brand["named_lines"]["footer"].format(**fill),
+            "support_line": brand["named_lines"]["support"].format(**fill)}
 
 
 def locked_keys_set(settings: dict) -> list[str]:
     """The locked brand keys a city's settings try to set (any value, even the same one)."""
-    return [k for k in LOCKED if get(settings, k, _MISSING) is not _MISSING]
+    clash = [k for k in LOCKED if get(settings, k, _MISSING) is not _MISSING]
+    if "named_lines" in settings and not any(k.startswith("named_lines.") for k in clash):
+        clash.append("named_lines")          # the whole block is locked, whatever shape the city gives it
+    return clash
 
 
 def refuse(clash: list[str], where: str) -> None:
@@ -65,9 +87,10 @@ def merge(brand: dict, settings: dict, where: str) -> dict:
     refuse(locked_keys_set(settings), where)
     out = {**settings, **{k: v for k, v in brand.items() if k != "corrections"}}
     out["corrections"] = {**(settings.get("corrections") or {}), **brand["corrections"]}
+    out.update(named_lines(brand, settings.get("place_name")))   # templates read site.cfg.footer_line / support_line
     return out
 
 
 def drift(brand: dict, site: dict) -> list[str]:
     """Locked keys whose value in a legacy settings file (Clarksville's config/site.yml) differs from the brand."""
-    return [k for k in LOCKED if get(site, k, _MISSING) != get(brand, k)]
+    return [k for k in LEGACY_DUPLICATES if get(site, k, _MISSING) != get(brand, k)]

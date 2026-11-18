@@ -94,3 +94,37 @@ def test_old_daylight_alpha_hex_is_a_hit_only_when_no_hex_digit_follows(tmp_path
     (tmp_path / "hit.html").write_text('<p style="color:#2B4BA5ef">x</p>', encoding="utf-8")       # 8 digits, then a quote
     (tmp_path / "miss.json").write_text('"#2B4BA5e" "#2B4BA5ef0" "#ef5e35123456"', encoding="utf-8")  # 7, 9, 12 digits
     assert site_checks.check_old_daylight_colors(tmp_path)[0] == ["hit.html: old Daylight color(s) #2B4BA5"]
+
+
+# ------------------------------------------------------------------ the named footer lines (ADR 0012 decision 9, T8)
+def _footer_paragraph(cfg: dict) -> str:
+    """The footer's "Provided as a free service" paragraph, rendered from the line in base.html.j2 itself."""
+    from sitegen import build
+    source = (config.TEMPLATE_DIR / "base.html.j2").read_text(encoding="utf-8")
+    line = next(ln for ln in source.splitlines() if "footer_line" in ln).strip()
+    site = {"cfg": cfg, "operator_url": "https://gnoshcodes.com/", "operator": "gnoshcodes LLC",
+            "support_url": "https://buymeacoffee.com/gnoshcodes", "support_label": "Buy Me a Coffee"}
+    return build.make_env().from_string(line).render(site=site)
+
+
+def test_the_footer_without_a_place_name_is_todays_text():
+    assert "footer_line" not in config.SITE and config.SITE_NAME == "Daylight"          # Clarksville sets no place_name
+    html = _footer_paragraph(config.SITE)
+    assert html.startswith('<p>Provided as a free service by <a data-ext="operator"')
+    assert html.endswith('rel="noopener noreferrer">Buy Me a Coffee</a></p>')
+
+
+def test_the_footer_with_a_place_name_names_the_place_and_keeps_the_locked_coffee_link():
+    from cities import brand
+    cfg = brand.merge(brand.load_brand(), {"place_name": "Murfreesboro"}, "test")
+    assert cfg["footer_line"] == "Daylight Murfreesboro is provided as a free service by"
+    assert cfg["support_line"].startswith("Daylight Murfreesboro is free and always will be, but web hosting and ")
+    html = _footer_paragraph(cfg)
+    assert html.startswith('<p>Daylight Murfreesboro is provided as a free service by <a data-ext="operator"')
+    assert f'href="{brand.BMAC_URL}"' in html and ">Buy Me a Coffee</a>" in html
+
+
+def test_a_place_name_with_an_apostrophe_is_escaped_in_the_footer():
+    from cities import brand
+    cfg = brand.merge(brand.load_brand(), {"place_name": "Land O'Lakes"}, "test")
+    assert "Land O&#39;Lakes is provided" in _footer_paragraph(cfg)
