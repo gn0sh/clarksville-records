@@ -211,7 +211,9 @@ def committee_card(cmx, m: dict) -> dict:
             "bkey": views.SCHOOL_KEY if school else config.SITE["county_key"], "href": ctx["href"],
             "docs": [{"word": "Agenda", "url": doc["url"], "fetched": doc["fetched"],
                       "what": f"PDF, {doc['pages']} {'page' if doc['pages'] == 1 else 'pages'}"}] if doc else [],
-            "minutes_note": None, "watch": None, "votes": [], "state": "committee", "cases": [], "sols": [],
+            # a school board meeting's own official video when one is matched (the meeting's, before a hearing's)
+            "minutes_note": None, "watch": (ctx.get("videos") or [None])[0], "votes": [], "state": "committee",
+            "cases": [], "sols": [],
             "agenda_only": True, "cancelled": ctx["cancelled"], "n_lines": ctx["lines"], "text_shown": ctx["text"],
             "minutes": ctx["minutes"],
             "record": {"url": doc["url"], "label": "the county's copy of the agenda PDF", "ext": False} if doc else

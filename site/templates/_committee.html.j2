@@ -2,7 +2,10 @@
    agenda's lines as printed (data-item-title: the document's words, never reworded), each linked to its agenda page,
    a resolution or case number linked to the County Commission's record of the same number (exact match only), and
    the dashed COMING note that the minutes are not on this site. No vote, motion or outcome is ever shown. A body
-   stored with text: false (the school board) shows no heading and no item text, only the count of lines. #}
+   stored with text: false (the school board) shows no heading and no item text, only the count of lines. A school
+   board meeting links the district's own video of it (a Watch line per video) or, with none matched, the district's
+   channel; every word of those lines is config. #}
+{% from "_macros.html.j2" import watch_link %}
 {% macro minutes_note(n) -%}
 <p class="coming-note">{% if n.tag %}<span class="chip chip-uncollected">{{ n.tag }}</span>{% else %}<span class="chip chip-coming">Coming</span>{% endif %} {{ n.text }} <a data-ext="{{ n.link.kind }}" href="{{ n.link.url }}" target="_blank" rel="noopener noreferrer">{{ n.link.label }}<span class="sr-only"> (opens in a new tab)</span></a></p>
 {%- endmacro %}
@@ -19,6 +22,9 @@
     {% else %}
     <p class="source-line">Agenda: <a data-ext="listed" href="{{ m.url }}" target="_blank" rel="noopener noreferrer">listed on the county's page<span class="sr-only"> (opens in a new tab)</span></a>; not collected yet, so its items are not shown.</p>
     {% endif %}
+    {% for v in m.videos %}<p class="watch-line">{{ watch_link(v) }}</p>
+    {% endfor %}
+    {% if m.channel %}<p class="watch-line" data-channel>{{ m.channel.lede }} <a data-ext="{{ m.channel.kind }}" href="{{ m.channel.url }}" target="_blank" rel="noopener noreferrer">{{ m.channel.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>{% endif %}
   </header>
   {{ minutes_note(m.minutes) }}
   {% if not m.text %}

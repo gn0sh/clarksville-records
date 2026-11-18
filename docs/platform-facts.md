@@ -215,6 +215,13 @@
   (docs/architecture/agenda-withhold-invariant.md).
 - No minutes and no votes for any of these bodies on montgomerytn.gov. CMCSS minutes: cmcss.net (Cloudflare challenge,
   not collected). 2025 agendas: d6.mcgtn.org (blocked by this environment's network policy; not fetched).
+- CMCSS board videos (Brian 2026-11-18: link, never copy): the district's channel "CMCSS Focus"
+  (https://www.youtube.com/@CMCSSFocus, channel id UC7te1VFbkqSPY48oUiQB7mQ), titles like "CMCSS School Board Meeting
+  11-17-2026". Linked by `config/localities/montgomery-tn/school-board-videos.yml`: 31 (date, id) pairs read from the
+  channel's public search page by a person on Brian's PC (2026-11-18), plus the channel's RSS feed read daily by
+  collector/school_videos.py. Unverified here: www.youtube.com (robots.txt and the feed) is refused by this sandbox's
+  egress proxy (403 on CONNECT, 2026-11-18), so the feed's format is from YouTube's documented Atom layout and the
+  robots.txt answer for /feeds/ is checked by the fetcher at run time (a Disallow stops the step, no request made).
 
 ## City ward map (verified 2026-11-10; traced for the landing's ward lookup)
 - Source: RPC "City Council Wards" 36x36 poster, https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/ClarksvilleCityWardsPoster.pdf (listed on https://www.cmcrpc.com/maps/, "Updated February 25, 2026"; Last-Modified 2026-02-25). Fetched once with the collector's PoliteFetcher (robots.txt, then the PDF, crawl-delay 10 obeyed; 2 requests) by `tools/fetch_map.py`; bytes in the Store, listed in `data/maps/manifest.json` (sha256 742f2c13...). Not used: APSU/county ArcGIS (needs written permission).

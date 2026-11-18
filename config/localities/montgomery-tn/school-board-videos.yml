@@ -1,0 +1,66 @@
+# The school board's official meeting videos (Brian 2026-11-18: "we'll link to the videos and include it in the
+# explanation that we are complying with the district policy"). collector/school_videos.py reads the channel's public
+# RSS feed and writes the data file; sitegen/county_committees.py links each school board meeting to its video.
+#
+# Links only. No video, caption or transcript is ever downloaded (YouTube's terms), nothing is fetched from cmcss.net
+# (it answers automated visitors with a bot challenge), and the channel's pages, /youtubei/ and any internal API are
+# never read. The one URL the collector requests is feed_url (plus robots.txt), through the polite fetcher with its own
+# allowlist of www.youtube.com only, so no other step can reach YouTube. If robots.txt disallows the feed the step stops
+# with no request to it and the committed files stay as they are.
+#
+# The feed lists the channel's latest ~15 videos: every item ever read stays in the data file, so older ones are kept.
+
+locality: montgomery-tn
+body: school-board                    # the school board's body key in the committee agendas file
+channel_name: CMCSS Focus             # "The official YouTube page of the Clarksville-Montgomery County School System"
+channel_id: UC7te1VFbkqSPY48oUiQB7mQ
+channel_url: https://www.youtube.com/@CMCSSFocus
+feed_url: https://www.youtube.com/feeds/videos.xml?channel_id=UC7te1VFbkqSPY48oUiQB7mQ
+facts: data/localities/montgomery-tn/school-board-videos/videos.json
+
+# A video is matched to a meeting only when its title, as printed, fits this pattern whole (case-insensitive) and the
+# date in it equals the meeting date. No fuzzy matching: a title that does not fit links nothing, and that meeting
+# gets the channel link. `what` names the kind of video (a hearing is labelled a hearing, never the meeting itself).
+title_pattern: '^CMCSS\s+School\s+Board\s+(?P<what>Meeting|Study\s+Session|Public\s+Hearing|Budget\s+Hearing|Hearing)\s+(?P<m>\d{1,2})-(?P<d>\d{1,2})-(?P<y>\d{4})$'
+what:                                 # the title's words -> the kind of video
+  meeting: meeting
+  study session: meeting
+  public hearing: hearing
+  hearing: hearing
+  budget hearing: budget-hearing
+
+# Older videos the feed no longer lists: (date, video id, kind), read from the channel's public search page by a person
+# on 2026-11-18 (source: channel @CMCSSFocus; robots.txt allows that page). Matched by exact date only, like the feed.
+# Where the feed lists the same date or id with a different value, the feed wins and the build reports it.
+known:
+  - {date: 2026-01-13, id: bmfHTL6mAeE, what: meeting}
+  - {date: 2026-01-13, id: knldHgTK-po, what: hearing}
+  - {date: 2026-01-29, id: DOieqpJeXFU, what: meeting}
+  - {date: 2026-02-10, id: owe0h_NTPc4, what: meeting}
+  - {date: 2026-02-24, id: Otbkf9jv0PI, what: meeting}
+  - {date: 2026-03-24, id: m95jsP8RI1k, what: meeting}
+  - {date: 2026-04-07, id: I23Ftk6cqlA, what: meeting}
+  - {date: 2026-05-19, id: 8GKAzgyhrNM, what: meeting}
+  - {date: 2026-06-02, id: H0Qm6P6C3Ec, what: meeting}
+  - {date: 2026-06-16, id: bZc7lqFLgG8, what: meeting}
+  - {date: 2026-07-07, id: hNnd9bBK23Q, what: meeting}
+  - {date: 2026-07-21, id: zCAOI7z8SwU, what: meeting}
+  - {date: 2026-08-04, id: 5l70n-RoU9I, what: meeting}
+  - {date: 2026-08-18, id: YNUzGjP5bc0, what: meeting}
+  - {date: 2026-09-01, id: 4i3zmRlDlqU, what: meeting}
+  - {date: 2026-09-01, id: o6EeMu4_-6g, what: hearing}
+  - {date: 2026-09-15, id: gpTG9iiORuU, what: meeting}
+  - {date: 2026-10-20, id: zBu5o7XO5hA, what: meeting}
+  - {date: 2026-11-03, id: bLEE5JnfTUM, what: meeting}
+  - {date: 2026-11-17, id: _-H2GdRHnj0, what: meeting}
+  - {date: 2025-03-18, id: HiOtC7tzbQ4, what: meeting}
+  - {date: 2025-04-22, id: HZNqf4l440A, what: budget-hearing}
+  - {date: 2025-07-22, id: 0-p_b6y76ME, what: meeting}
+  - {date: 2025-09-09, id: ozL749JJuNw, what: meeting}
+  - {date: 2025-10-21, id: CpAPB3Lc0MI, what: meeting}
+  - {date: 2025-11-04, id: AepqxZJgfvI, what: meeting}
+  - {date: 2025-11-18, id: V4np9hCQXvk, what: meeting}
+  - {date: 2025-12-02, id: ntukrNBc4Mc, what: meeting}
+  - {date: 2025-12-16, id: NiMboUMHqoQ, what: meeting}
+  - {date: 2024-08-06, id: 2JnccyKYGuU, what: meeting}
+  - {date: 2024-12-03, id: 8oHTMsbwuhw, what: meeting}
