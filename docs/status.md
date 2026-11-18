@@ -2,7 +2,7 @@
 
 **Feature:** Daylight public-records site. **LIVE (soft opening) at https://daylight.gnoshcodes.com/ since 2026-11-13 ~1:08 AM CT.** No marketing until Brian's formal launch in January 2027 (after his council term); friends and family only.
 **Stage:** Live. Brian typed "launch" in thread "Launch the Daylight records site" (2026-11-13 12:40 AM CT), did go-live steps 1-6 (Pages source Actions, custom domain, Porkbun CNAME, HTTPS enforced, RECORDS_DEPLOY_ENABLED=true). PR #12 (live: true) merged; deploy run 43381404639 green. Report an error emails brian@gnoshcodes.com first (PR #18). Uptime: gnosh-uptime monitor.config.json (PR #15) + Better Stack (Brian). gh-pages preview no longer served (Pages source is Actions); removing gh-pages from the env branch policy is optional hygiene, not asked.
-**Now (Nov 18, thread "Finish Clarksville Daylight by Wednesday", recycled 11:35 AM CT):** V1' probe FAILED (run 44354265953): the code-owner rule (R1') never binds because the pull_request rule reads "pass" for every PR, so GITHUB_TOKEN merged workflow PR #49. R2 back ON (Brian typed "R2 on", 11:22 AM CT); daily data PR #45 merged and live. Brain Trust (6) on data-off-main: Fix First. Re-plan = ADR 0011 (data off main), gated on the U3 positive control. Morning note slips past Wed until ADR 0011 is built and probed. Shipped today: PR #48 (BOM fix), #52 (canary removed), #53 (probe scripts locked; 2b20704 = 2nd known bot merge).
+**Now (Nov 18, U3 PASS 1:10 PM CT: rule suite 5212430938, ruleset restored, gate open for B1..D2; PR #59 tax chart total row removed, merged dee558f, expected live at the next daily run; B1 started on claude/data-off-main-b1; thread "Finish Clarksville Daylight by Wednesday", recycled 11:35 AM CT):** V1' probe FAILED (run 44354265953): the code-owner rule (R1') never binds because the pull_request rule reads "pass" for every PR, so GITHUB_TOKEN merged workflow PR #49. R2 back ON (Brian typed "R2 on", 11:22 AM CT); daily data PR #45 merged and live. Brain Trust (6) on data-off-main: Fix First. Re-plan = ADR 0011 (data off main), gated on the U3 positive control. Morning note slips past Wed until ADR 0011 is built and probed. Shipped today: PR #48 (BOM fix), #52 (canary removed), #53 (probe scripts locked; 2b20704 = 2nd known bot merge).
 **Earlier (Nov 17, thread "Finish Clarksville Daylight by Wednesday"):** round 2 (PR #25), morning note switch-on + gate (PR #26) and the Pillow-free test fix (PR #27) are live since run 44055540243 (dispatched by hand 09:26 UTC; GitHub's 09:07 schedule had not fired). Gate/probe security follow-ups merged as PR #28 (819c397); rebuild run 44080352930 green (gate, update, deploy). The three baseline follow-ups and the Bypass removal merged early as PR #29 (9225294). CI test step speed-up merged as PR #30 (2c0ea91). Only L-1 rides with the baseline PR (docs/tasks/morning-note.md T4.10.8).
 **Morning note:** nothing sends until, in order: Brian's runbook 2.0 steps, V1 probe PASS, baseline PR (T4.10.8), MORNING_NOTE_SEND set by Brian (hard stop). Sample approved; no test week.
 **Next:** Brian's 2.0 steps one at a time; after Wed: CMCSS meeting videos + transcripts (big PC), RPC 2019-2021 backfill, FY2025 city book, property-tax split.
@@ -21,6 +21,18 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-18 | frontend-engineer | sonnet/medium | PR #59 remove whole total row (694b213) | done; 145 pass |
+| 2026-11-18 | code-reviewer | sonnet/medium | PR #59 694b213 | approve with nits; merged dee558f |
+| 2026-11-18 | code-reviewer | sonnet/medium | PR #58 4f2aa8c | approve with nits |
+| 2026-11-18 | manager (RC on big PC) | - | U3-2 control | PASS, rule suite 5212430938, restored |
+| 2026-11-18 | devops-engineer | sonnet/medium | slot-2 window test (PR #55) | done; 530 pass |
+| 2026-11-18 | code-reviewer | sonnet/medium | PR #55 | approve (docstring nit fixed) |
+| 2026-11-18 | software-architect | opus/high | ADR 0011 amend for 8 findings (PR #56) | done; delta 4 small items folded |
+| 2026-11-18 | security-engineer | opus/high (resumed) | PR #56 delta | approve |
+| 2026-11-18 | devops-engineer | opus/high | U3-1 u3-toggle (PR #57) + PR P (#58) | done; 2 fix rounds; 90 pass |
+| 2026-11-18 | code-reviewer | opus/high | PR #57 | request changes (must-fix v1-probe/u3-false-pass-on-pr-eval-pass) -> delta approve w/ nits |
+| 2026-11-18 | security-engineer | opus/high | PR #57 | approve w/ follow-ups (M v1-probe/u3-refusal-comment) -> delta approve |
+| 2026-11-18 | frontend-engineer | opus/medium | tax chart total label (PR #59) | done; 145 pass |
 | 2026-11-18 | security-engineer | opus/high | PR #54 ADR 0011 plan 76f83c71 | approve with follow-ups (4 M, 4 L); docs/reviews/pr54-security-review.md |
 | 2026-11-18 | manager | n/a | U3-0 no-op ruleset PUT from team session | NO: proxy 403 (read-back unchanged); Brian runs U3 |
 | 2026-11-18 | software-architect | opus/high | V1' fail root cause + ADR 0011, U3 plan, task list (claude/v1-fail-plan c62e4a9) | done |

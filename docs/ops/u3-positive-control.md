@@ -1,5 +1,7 @@
 # U3 positive control: does the team's `merge-reviewed` merge go through as a bypass under R1''?
 
+**Result (2026-11-18): PASS**, rule suite 5212430938; see `docs/platform-facts.md` "Main protection".
+
 Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and verdict). Gates ADR 0011. Analysis: `docs/architecture/v1-fail-2026-11-18.md`.
 
 ## Choice: scripted live toggle on this repository, not a throwaway repository
