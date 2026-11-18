@@ -37,8 +37,9 @@ reviewer.
    `daily-update.yml` at `refs/heads/main`. The predicate type pins it to the provenance J2 writes.
    **Seed scope (finding 7):** `RECORDS_DATA_SEED_DIGEST`, pinned by the cutover PR, is accepted only while `D` is
    the seed commit itself (the root of `records-data`, no parents). R-D refuses non-fast-forwards, so once a run has
-   moved the branch, a tree equal to the seed is checked like any other. **No `data_sha` input.** Rollback: a person restores an earlier attested tree whole on `records-data`, then runs
-   `collect=false`.
+   moved the branch, a tree equal to the seed is checked like any other. The seed itself is never attested, so a
+   rollback to the seed tree after the first run fails closed (accepted). **No `data_sha` input.** Rollback: a
+   person restores an earlier attested tree whole on `records-data`, then runs `collect=false`.
 4. **Content tripwire** (change 2). J1 compares the votes, roll calls and outcomes in the `D` recorded in the live
    site's `build-info.json` with what this run will deploy. Any change or removal not listed in the reviewed
    `config/published-fact-changes.yml` opens one fixed-title issue and holds the deploy (`held=yes`). The data push
@@ -89,7 +90,9 @@ reviewer.
   job with `attestations: write`; `deploy` keeps its own `id-token: write`. The gate gains `attestations: read`.
 - **U3-0 = no** (finding 8): the team's cloud session got a proxy 403 on the no-op ruleset PUT at 17:37 UTC
   2026-11-18 (read-back unchanged). So every ruleset, R2, environment and R-D write is Brian's, run from his PC:
-  U3, the cutover's settings steps and any rollback. The team-token anchor question is moot.
+  U3, the cutover's settings steps and any rollback. Those writes are blocked today by the session proxy's
+  policy, not by the token's permissions; if that changes, the team-token anchor returns. Re-check U3-0 whenever
+  the proxy allowlist changes.
 - Local runs and preflight need `scripts/fetch-data`. The multi-city template inherits the two-branch setup through
   `protect-main`.
 - Cost: about 3-4 engineer days plus security review. Brian: one U3 session, then one cutover session.

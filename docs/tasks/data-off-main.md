@@ -127,7 +127,8 @@ Done when a fresh clone with `fetch-data` passes the full suite.
 
 ## D3: cutover script `scripts/cutover-data-off-main.{sh,ps1}` (Operator's order)
 Brian runs it from his PC (U3-0 = no). `main` is protected before the cutover merge (F5).
-1. Refuse within 08:00-10:30 UTC, while a run is active, or while `MORNING_NOTE_SEND` is set (drift).
+1. Refuse within 08:00-10:30 UTC, while a run is active, or while `MORNING_NOTE_SEND` is set (drift). A refused
+   or failed read of `actions/variables` counts as set.
 2. Disable `daily-update`.
 3. Seed `records-data` from `main`'s `data/` minus the curated files, as one parentless commit, and check that its
    digest equals the PR's `RECORDS_DATA_SEED_DIGEST`.
@@ -138,11 +139,11 @@ Brian runs it from his PC (U3-0 = no). `main` is protected before the cutover me
 8. Dispatch `collect=true` and check that `records-data` moved and is attested.
 
 `--rollback`: refuses while `MORNING_NOTE_SEND` or `MAIN_PR_BASELINE` is set (F4: R2 on reopens the bot path, so
-both are unset first, by Brian). Then R1' json back, R2 on, a reviewed PR restoring `data/` and the curated paths on
+both are unset first, by Brian). A refused or failed variables read counts as set. Then R1' json back, R2 on, a reviewed PR restoring `data/` and the curated paths on
 `main`, and the workflow re-enabled. Every step prints what it did, and a failure stops with the exact `--rollback`
 command.
 Done when a stub-`gh` dry run walks every step in this order and the rollback, and tests show step 1 and
-`--rollback` refusing with each variable set.
+`--rollback` refusing with each variable set and with a 403 on the variables read.
 
 ## S1: security review
 Fresh review of the B1-D3 milestone at one sha, against I-main'', I-prov, I-pub, T1-T8 and the Brain Trust
@@ -157,8 +158,8 @@ Done when steps 1-8 are green, and `docs/status.md` records the shas, the run id
 
 ## V1: V1'' probe
 Rewrite the probe per the note's section 4 (targets W, N, D0; gn0sh-opened and bot-opened; `NOT-TRIED` lines;
-direct push; scratch-branch environment refusal). F2: creating a tag named `main` is refused (R-T), and a run at a
-tag ref is refused both environments. Run it, then remove its guard refusal for that one run only.
+direct push; scratch-branch environment refusal). F2: creating a tag named `main` is refused (R-T), and a run at
+probe tag `v1pp-probe` is refused both environments. Run it, then remove its guard refusal for that one run only.
 PASS gates `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND`. Drift: Brian re-runs `protect-main` from his PC right before
 `MAIN_PR_BASELINE` is set, and it must print OK.
 Done when the PASS output and that OK are recorded in platform facts.
