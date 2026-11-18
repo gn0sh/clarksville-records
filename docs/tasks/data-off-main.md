@@ -198,6 +198,20 @@ Done when a stub-`gh` dry run walks every step in this order and the rollback, a
 `--rollback` refusing with each variable set and with a 403 on the variables read, and step 3 stopping on a seed
 that holds a `transcripts/` folder, `data/maps/` or a phone in an RPC location.
 
+Built (devops-engineer, 2026-11-18, branch `claude/data-off-main-d3`; tests `tests/test_cutover_data_off_main.py`).
+Choices the reviewers should check:
+- Step 1 already builds and checks the seed and compares the pin, so a bad seed stops with nothing changed; step 3
+  rebuilds it if `main` moved after step 1, and stops there. A moved input is left out only when the cutover head
+  has its `config/` copy as the same blob; otherwise it stays in and the I-in guard refuses it (no silent drop).
+- Brian runs it from a checkout of the cutover PR at the reviewed sha (the python checks are then reviewed code).
+  `--plan` (read-only, no gh) prints `SEED DIGEST` for the PR's pin: run it after the day's run, cut over the same day.
+- `--apps <answer>` is passed to `protect-main` (D1). Brian's PC needs Python 3.10+ with `requirements.txt`.
+- Rollback order: after the cutover merge it is two calls. `--rollback --cutover-merge <sha>` opens the restore PR
+  (also restores the workflow and CODEOWNERS from before the merge, else the gate would refuse every run);
+  `--rollback --merge <R> --sha <head> --report <r>` merges it, then R1', then R2 on, then the workflow, so R2 never
+  comes on while CODEOWNERS is absent. Before the merge it is R1', R2 on, workflow on. Both disable the workflow first.
+- Contract with B4: the site's `build-info.json` names `D` as `data_sha` (`build_info_data_sha`).
+
 ## S1: security review
 Fresh review of the B1-D3 milestone (B1b included) at one sha, against I-main'', I-prov, I-pub, I-in, T1-T8 and
 the Brain Trust findings (Opponent: dispatch on scratch branches, T5, author refusal).

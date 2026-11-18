@@ -146,7 +146,7 @@ print(json.dumps({"sha": "s", "data_sha": st.get("build_info", "")}))
 '''
 
 _PROTECT = r'''#!/usr/bin/env bash
-python3 -c 'import json,os; open(os.environ["GH_CALLS"],"a").write(json.dumps({"method":"SCRIPT","path":"protect-main"})+"\n")'
+python3 -c 'import json,os,sys; open(os.environ["GH_CALLS"],"a").write(json.dumps({"method":"SCRIPT","path":"protect-main","argv":sys.argv[1:]})+"\n")' "$@"
 echo "Main before the rulesets: $(git --git-dir "$STUB_ORIGIN" rev-parse refs/heads/main)"
 if [ "${STUB_PM:-ok}" = ok ]; then echo "OK: main is protected (stub)."; exit 0; fi
 echo "  NOT OK: R2 is on"; echo "NOT OK: 1 problem(s) above."; exit 1
@@ -278,7 +278,8 @@ class Fx:
         return [json.loads(x) for x in p.read_text().splitlines()] if p.exists() else []
 
     def cut(self, **kw):
-        return self.run(["--pr", "60", "--sha", self.head, "--report", "docs/reviews/x.md"], **kw)
+        return self.run(["--pr", "60", "--sha", self.head, "--apps", kw.pop("apps", "none"), "--report",
+                         "docs/reviews/x.md"], **kw)
 
     def rd(self):
         r = subprocess.run(["git", "--git-dir", str(self.origin), "rev-parse", "--verify", "-q",
@@ -314,6 +315,7 @@ def test_dry_run_walks_every_step_in_the_operators_order(tmp_path):
     assert seq == [("PUT", "disable"), ("SCRIPT", "protect-main"), ("SCRIPT", "merge-reviewed"), ("PUT", "enable"),
                    ("POST", "dispatches"), ("POST", "dispatches")], seq
     pm = [c for c in fx.calls() if c["path"] == "protect-main"]
+    assert [c["argv"] for c in pm] == [["--apps", "none"]]
     seed = re.search(r"Step 3 OK: records-data = seed ([0-9a-f]{40})", out).group(1)
     # F5: main is protected before the cutover merge; the seed was pushed before protect-main ran
     disable_i = next(i for i, c in enumerate(fx.calls()) if c["path"].endswith("/disable"))
@@ -420,6 +422,12 @@ def test_step1_refuses_a_pr_that_is_not_the_reviewed_one(tmp_path, change, text)
     fx = Fx(tmp_path)
     fx.state["pr"].update(change(fx))
     _refused(fx.cut(), fx, text)
+
+
+@pytest.mark.parametrize("apps", ["", "Claude", "a,,b", "x;y"])
+def test_step1_refuses_without_a_well_formed_apps_answer(tmp_path, apps):
+    fx = Fx(tmp_path)
+    _refused(fx.cut(apps=apps), fx, "--apps takes the App names")
 
 
 def test_step1_refuses_a_checkout_not_at_the_reviewed_head(tmp_path):
@@ -665,7 +673,7 @@ def test_ps1_has_the_same_steps_refusals_and_calls():
         assert s in ps1, s
     assert "$((10#$hm)) -ge 800 ] && [ $((10#$hm)) -le 1030" in sh
     # every refusal of the .sh is in the .ps1 (the fixed text before any variable)
-    for msg in set(re.findall(r'refuse "([^"$]{16,})', sh)):
+    for msg in set(re.findall(r'refuse "([^"$]{16,})', sh)) - {"could not read the UTC time"}:   # Get-Date can't fail
         assert msg.split("'")[0].split("(")[0].split(":")[0].strip() in ps1, msg
     for msg in set(re.findall(r'fail "([^"$]{16,})', sh)):
         assert msg.split("'")[0].split("(")[0].split(":")[0].strip() in ps1, msg
