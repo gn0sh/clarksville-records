@@ -1945,6 +1945,45 @@ def test_the_window_check_runs_and_stops_where_it_must(tmp_path, case):
         assert "checked 2 commits" not in r.stdout
 
 
+@pytest.mark.parametrize("case", ["canary", "other-file", "other-pr", "other-sha"])
+def test_the_window_check_lets_only_the_v1_probe_canary_merge_through(tmp_path, case):
+    """ADR 0010 / T4.11.4: 3ef440a (PR #40, the V1 probe's bot merge of .github/workflows/v1-canary.yml) is the one
+    known Bot merge in the window. The block passes it only when the sha, the PR number and the file list all match;
+    any other Bot merge still stops. The real sha is swapped for a local commit to run it."""
+    script = _window_script()
+    assert "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40" in script
+    origin, work, bindir = tmp_path / "origin.git", tmp_path / "work", tmp_path / "bin"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(tmp_path, "init", "-q", str(work))
+    shas = []
+    canary = "sender/a.py" if case == "other-file" else ".github/workflows/v1-canary.yml"
+    for i, rel in enumerate(["sender/a.py", canary, "sender/b.py"]):
+        (work / rel).parent.mkdir(parents=True, exist_ok=True)
+        (work / rel).write_text(f"{i}\n")
+        _git(work, "add", "-A")
+        _git(work, "commit", "-q", "-m", f"c{i}")
+        shas.append(_git(work, "rev-parse", "HEAD"))
+    _git(work, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
+    _git(work, "remote", "add", "origin", f"file://{origin}")
+    known = "e" * 40 if case == "other-sha" else shas[1]
+    pr = int(shas[1][:6], 16) + (1 if case == "other-pr" else 0)
+    types = {shas[1]: "Bot", shas[2]: "User"}
+    bindir.mkdir()
+    (bindir / "gh").write_text(_WINDOW_GH)
+    (bindir / "gh").chmod(0o755)
+    script = script.replace('"<R2-on sha>"', f'"{shas[0]}"', 1).replace(
+        "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40", f"known={known}; known_pr={pr}")
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "TYPES": json.dumps(types),
+           "GIT_CONFIG_GLOBAL": "/dev/null"}
+    r = subprocess.run(["bash", "-c", script], cwd=work, env=env, capture_output=True, text=True)
+    if case == "canary":
+        assert r.returncode == 0 and r.stdout.splitlines()[-1] == "checked 2 commits", r.stdout + r.stderr
+        assert f"KNOWN EXCEPTION: {shas[1]} is PR #{pr}" in r.stdout
+    else:
+        assert r.returncode == 1 and f"STOP: {shas[1]} was not merged by a person" in r.stdout, r.stdout + r.stderr
+        assert "KNOWN EXCEPTION" not in r.stdout
+
+
 def test_the_runbook_quotes_the_gates_data_refusals_exactly():
     """runbook/gate-message-drift: every data/ refusal and the history-read refusal the gate prints, word for word
     (up to the first variable), is in "When the gate fails"."""
