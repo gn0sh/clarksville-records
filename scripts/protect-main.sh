@@ -28,7 +28,10 @@ esac
 # Its rules (comments and blank lines aside) must be exactly "* @gn0sh" then "/data/" (no owner: data/ unowned).
 co=$(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2>/dev/null) \
   || { echo "Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again."; exit 1; }
-co_rules=$(printf '%s\n' "$co" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' | paste -sd'|' - || true)
+# (the same reading as scripts/v1-probe.sh: runs of spaces or tabs made one space, ends trimmed; a later line would
+# override an earlier one, so nothing else is allowed: v1-probe/rerun-after-fail-codeowners-override)
+co_rules=$(printf '%s\n' "$co" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' \
+           | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' | paste -sd'|' - || true)
 if [ "$co_rules" != '* @gn0sh|/data/' ]; then
   echo "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: $co_rules). Nothing was changed. Send this output to the team."; exit 1
 fi

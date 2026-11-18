@@ -49,14 +49,16 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host 'Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again.'
     exit 1
 }
-$coRules = (@($co | ForEach-Object { $_ -split "`n" } | ForEach-Object { $_.TrimEnd("`r") } |
-              Where-Object { $_ -notmatch '^\s*(#|$)' })) -join '|'
-if ($coRules -ne '* @gn0sh|/data/') {
+# (the same reading as scripts\v1-probe.ps1: runs of spaces or tabs made one space, ends trimmed; a later line would
+# override an earlier one, so nothing else is allowed. Comparisons here are case-sensitive: -cne, -cnotmatch.)
+$coRules = (@($co | ForEach-Object { $_ -split "`n" } | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } |
+              Where-Object { $_ -cnotmatch '^(#|$)' })) -join '|'
+if ($coRules -cne '* @gn0sh|/data/') {
     Write-Host "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: $coRules). Nothing was changed. Send this output to the team."
     exit 1
 }
 $coErrors = (gh api "repos/$repo/codeowners/errors?ref=main" --jq '.errors | length') -join ''
-if ($LASTEXITCODE -ne 0 -or $coErrors -ne '0') {
+if ($LASTEXITCODE -ne 0 -or $coErrors -cne '0') {
     Write-Host "GitHub lists errors in main's .github/CODEOWNERS ('$coErrors'). Nothing was changed. Send this output to the team."
     exit 1
 }
@@ -125,11 +127,11 @@ foreach ($id in $found) {
     $shown = if ($actors) { $actors } else { 'none' }
     Write-Host "Ruleset ${id}: $enf, bypass $shown, required approvals $appr"
     Write-Host "Code-owner review: $owner, merge methods: $methods"
-    if ($enf -ne 'active') { $ok = $false }
+    if ($enf -cne 'active') { $ok = $false }
     # ADR 0010: exactly one bypass, the Repository admin role (id 5), for pull requests only (nobody pushes main).
-    if ($actors -ne 'RepositoryRole:5:pull_request') { Write-Host 'The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).'; $ok = $false }
-    if ($owner -ne 'true') { Write-Host 'Code-owner review must be on (ADR 0010).'; $ok = $false }
-    if ($methods -ne 'squash') { Write-Host 'Squash must be the only merge method (ADR 0010).'; $ok = $false }
+    if ($actors -cne 'RepositoryRole:5:pull_request') { Write-Host 'The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).'; $ok = $false }
+    if ($owner -cne 'true') { Write-Host 'Code-owner review must be on (ADR 0010).'; $ok = $false }
+    if ($methods -cne 'squash') { Write-Host 'Squash must be the only merge method (ADR 0010).'; $ok = $false }
     if ($appr -ne '0') { Write-Host 'Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow approval would count).'; $ok = $false }
 }
 if ($ok) {

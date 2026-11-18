@@ -2527,6 +2527,8 @@ def test_protect_main_refuses_before_main_opens_data_prs_and_flags_a_bypass(tmp_
     ({"CO_TEXT": "/data/\n* @gn0sh\n"}, "(it has: /data/|* @gn0sh). Nothing was changed."),
     ({"CO_TEXT": "* @gn0sh\n/data/\n* @someone\n"}, "Nothing was changed."),
     ({"CO_TEXT": ""}, "(it has: ). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n/data/\n/.github/ @someone\n"}, "(it has: * @gn0sh|/data/|/.github/ @someone)."),
+    ({"CO_TEXT": "* @GN0SH\n/data/\n"}, "(it has: * @GN0SH|/data/)."),
 ])
 def test_protect_main_changes_nothing_without_a_clean_codeowners_on_main(tmp_path, over, says):
     """ADR 0010 / T4.11.2: R1' binds only through .github/CODEOWNERS on main. If it is missing, its rules are not
@@ -2552,7 +2554,7 @@ def test_protect_main_accepts_the_committed_codeowners_with_crlf(tmp_path):
     (bindir / "gh").write_text(_GH_STUB)
     (bindir / "gh").chmod(0o755)
     text = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
-    for co in (text, text.replace("\n", "\r\n")):
+    for co in (text, text.replace("\n", "\r\n"), text.replace("* @gn0sh", "*\t @gn0sh  ")):
         env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
                "MAIN_WF": TEXT, "CO_TEXT": co}
         r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True,
@@ -2595,9 +2597,11 @@ def test_protect_main_ps1_has_the_r1_prime_checks():
                      "The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).",
                      "Code-owner review must be on (ADR 0010).", "Squash must be the only merge method (ADR 0010)."):
             assert part in text, part
-    assert "$coRules -ne '* @gn0sh|/data/'" in ps1 and "'^\\s*(#|$)'" in ps1
-    assert "$actors -ne 'RepositoryRole:5:pull_request'" in ps1 and "$owner -ne 'true'" in ps1
-    assert "$methods -ne 'squash'" in ps1 and "$coErrors -ne '0'" in ps1
+    # case-sensitive comparisons (PowerShell's -ne and -match ignore case)
+    assert "$coRules -cne '* @gn0sh|/data/'" in ps1 and "$_ -cnotmatch '^(#|$)'" in ps1
+    assert "($_ -replace '\\s+', ' ').Trim()" in ps1 and "s/[[:space:]]+/ /g; s/^ //; s/ $//" in sh
+    assert "$actors -cne 'RepositoryRole:5:pull_request'" in ps1 and "$owner -cne 'true'" in ps1
+    assert "$methods -cne 'squash'" in ps1 and "$coErrors -cne '0'" in ps1 and "$enf -cne 'active'" in ps1
     # the CODEOWNERS checks come before main is read and before anything is written
     for text, read_main in ((ps1, '$mainSha = (gh api'), (sh, 'main_sha=$(gh api')):
         assert text.index("CODEOWNERS?ref=main") < text.index("codeowners/errors") < text.index(read_main)
@@ -2897,7 +2901,8 @@ guard = {"/rules/branches/main": ("RULES", R1_RULES), "/codeowners/errors?ref=ma
          "/contents/.github/CODEOWNERS?ref=main": ("CODEOWNERS", "# ADR 0010\\n* @gn0sh\\n/data/\\n")}
 rs = path.rsplit("/rulesets/", 1)
 if len(rs) == 2:
-    guard["/rulesets/" + rs[1]] = ("RULESET_" + rs[1], '{"id": %s, "enforcement": "active"}' % rs[1])
+    guard["/rulesets/" + rs[1]] = ("RULESET_" + rs[1], '{"id": %s, "enforcement": "active", "bypass_actors": %s}'
+                                   % (rs[1], os.environ.get("BYPASS", "[]")))
 for suffix, (var, default) in guard.items():
     if path.endswith(suffix):
         body = os.environ.get(var, default)
@@ -2984,8 +2989,25 @@ _RULE = '{"type": "pull_request", "ruleset_id": %d, "parameters": {"require_code
     {"CODEOWNERS": "# * @gn0sh\n* @someone-else\n"},
     {"OWNER_ERRORS": '{"errors": [{"line": 2, "kind": "Unknown owner"}]}'},
     {"OWNER_ERRORS": "FAIL"},
+    # v1-probe/rerun-after-fail-codeowners-override: `* @gn0sh` first, then only `/data/`
+    {"CODEOWNERS": "* @gn0sh\n/.github/ @someone-else\n"},
+    {"CODEOWNERS": "* @gn0sh\n/data/\n*\n"},
+    {"CODEOWNERS": "/data/\n* @gn0sh\n"},
+    {"CODEOWNERS": "* @gn0sh @someone-else\n/data/\n"},
+    {"CODEOWNERS": "* @GN0SH\n"},
+    {"CODEOWNERS": ""},
+    # v1-probe/rerun-after-fail-bypass: the bypass list is empty or exactly the admin role in pull request mode
+    {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]'},
+    {"BYPASS": '[{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "pull_request"}]'},
+    {"BYPASS": '[{"actor_id": 4, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]'},
+    {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}, '
+               '{"actor_id": 1, "actor_type": "DeployKey", "bypass_mode": "always"}]'},
+    {"BYPASS": "null"},                                                             # no bypass list: fail closed
 ], ids=["rule-off", "no-pr-rule", "rules-read-fails", "one-ruleset-evaluate", "ruleset-disabled", "ruleset-read-fails",
-        "no-codeowners", "codeowners-no-owner", "codeowners-other-owner", "codeowners-errors", "errors-read-fails"])
+        "no-codeowners", "codeowners-no-owner", "codeowners-other-owner", "codeowners-errors", "errors-read-fails",
+        "codeowners-github-override", "codeowners-unowned-all", "codeowners-wrong-order", "codeowners-two-owners",
+        "codeowners-case", "codeowners-empty", "bypass-always", "bypass-actions-app", "bypass-write-role",
+        "bypass-extra-actor", "bypass-unread"])
 def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extra):
     """v1-probe/rerun-after-fail (ADR 0010): after the 2026-11-18 FAIL a new run would merge the canary into main
     again, so the script stops, changing nothing, unless R1' really binds: the code-owner rule on main, every ruleset
@@ -2995,6 +3017,35 @@ def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extr
     assert "run scripts/protect-main.sh first" in r.stdout
     assert not any("-X" in c for c in made), made
     assert not list(tmp_path.glob("v1-probe-results-*.txt"))
+
+
+@pytest.mark.parametrize("extra", [
+    {},
+    {"CODEOWNERS": "* @gn0sh\n"},
+    {"CODEOWNERS": "# ADR 0010\r\n\r\n*\t  @gn0sh  \r\n/data/\r\n"},
+    {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]'},
+], ids=["committed", "no-data-line", "crlf-and-spacing", "admin-pr-bypass"])
+def test_v1_probe_guard_allows_only_the_r1_prime_shapes(tmp_path, extra):
+    """v1-probe/rerun-after-fail-codeowners-override, -bypass: these pass the guard (and the run goes on to PASS)."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, **extra)
+    assert r.returncode == 0 and "PASS" in r.stdout, r.stdout + r.stderr
+
+
+def test_v1_probe_guard_runs_before_the_auth_refresh():
+    """Nit from the PR #41 review: a refusal must not open a browser first; both scripts guard before
+    `gh auth refresh`, and the .ps1 compares case-sensitively."""
+    for name in ("v1-probe.sh", "v1-probe.ps1"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert text.index("codeowners/errors?ref=main") < text.index("gh auth refresh -h github.com"), name
+        assert text.index("rules/branches/main") < text.index("gh auth refresh -h github.com"), name
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert "$coRules -cne '* @gn0sh' -and $coRules -cne '* @gn0sh|/data/'" in ps1
+    assert "$bypass -cne 'RepositoryRole:5:pull_request'" in ps1 and "$enforcement -cne 'active'" in ps1
+    assert "$ownerErrors -cne '0'" in ps1
+    sh = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
+    assert "'* @gn0sh'|'* @gn0sh|/data/') ;;" in sh and '"RepositoryRole:5:pull_request"' in sh
+    for text in (sh, ps1):
+        assert "--jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv'" in text
 
 
 def test_v1_probe_runs_when_one_ruleset_has_the_rule_off_and_another_on(tmp_path):

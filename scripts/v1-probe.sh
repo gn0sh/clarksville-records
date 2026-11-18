@@ -29,21 +29,15 @@ log() { echo "$1"; echo "$1" >> "$results"; }
 api_quiet() { gh api "$@" --silent >/dev/null 2>&1 || true; }
 
 gh auth status >/dev/null 2>&1 || { echo "Not signed in: run gh auth login (as the repository owner)."; exit 1; }
-if ! gh auth status 2>&1 | grep -q "workflow"; then
-  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
-  gh auth refresh -h github.com -s workflow
-fi
-data_prs=$(gh pr list --repo "$repo" --state merged --app github-actions --search "head:data/" --json number --jq 'length')
-if ! [[ "$data_prs" =~ ^[0-9]+$ ]] || [ "$data_prs" -lt 1 ]; then
-  echo "No daily data pull request merged by GitHub Actions yet: do the check run of runbook step 2.0 first. Nothing was changed."
-  exit 1
-fi
 # v1-probe/rerun-after-fail (ADR 0010): the probe found FAIL on 2026-11-18 (GitHub let GITHUB_TOKEN merge a workflow
 # change into main). Turning "Allow GitHub Actions to create and approve pull requests" off does not stop merging, so
 # running the probe again would put the canary on main again. It runs only once main's ruleset requires a code
 # owner's review (R1', scripts/protect-main.sh), which is what a new run tests. The rule is vacuous without an owner,
-# so it also needs .github/CODEOWNERS on main with a `* @gn0sh` line and no CODEOWNERS errors, and every ruleset that
-# carries the rule must be active (not evaluate or disabled). Any failed read stops it (fail closed).
+# so it also needs .github/CODEOWNERS on main whose rules are `* @gn0sh` first and nothing else but `/data/` (a later
+# line overrides an earlier one: v1-probe/rerun-after-fail-codeowners-override), no CODEOWNERS errors, every ruleset
+# that carries the rule active (not evaluate or disabled), and its bypass list empty or exactly the admin role in
+# pull request mode (v1-probe/rerun-after-fail-bypass). Any failed read stops it (fail closed). It runs before
+# `gh auth refresh`, so a refusal opens no browser.
 refuse_rerun() {
   echo "Stopped: $1 (ADR 0010: run scripts/protect-main.sh first). The probe found FAIL on 2026-11-18; running it now would merge the canary into main again. Nothing was changed."
   exit 1
@@ -59,15 +53,34 @@ for id in $owner_rules; do
   if [ "$enforcement" != active ]; then
     refuse_rerun "ruleset $id requires a code owner's review but its enforcement is '$enforcement', not active"
   fi
+  bypass=$(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv' \
+           2>/dev/null) || refuse_rerun "could not read ruleset $id's bypass list"
+  bypass=$(printf '%s' "$bypass" | tr '\t' ':' | paste -sd, -)
+  if [ -n "$bypass" ] && [ "$bypass" != "RepositoryRole:5:pull_request" ]; then
+    refuse_rerun "ruleset $id lets '$bypass' bypass it (only the admin role in pull request mode, RepositoryRole:5:pull_request, may)"
+  fi
 done
 codeowners=$(gh api -H 'Accept: application/vnd.github.raw' "repos/$repo/contents/.github/CODEOWNERS?ref=main" 2>/dev/null) \
   || refuse_rerun "could not read .github/CODEOWNERS on main"
-if ! grep -qxE '\*[[:space:]]+@gn0sh[[:space:]]*' <<< "$codeowners"; then
-  refuse_rerun ".github/CODEOWNERS on main has no '* @gn0sh' line"
-fi
+# its rules: comments and blank lines dropped, runs of spaces or tabs made one space, ends trimmed
+co_rules=$(printf '%s\n' "$codeowners" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' \
+           | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' | paste -sd'|' - || true)
+case "$co_rules" in
+  '* @gn0sh'|'* @gn0sh|/data/') ;;
+  *) refuse_rerun ".github/CODEOWNERS on main is not '* @gn0sh' (then only '/data/'): its rules are '$co_rules'" ;;
+esac
 owner_errors=$(gh api "repos/$repo/codeowners/errors?ref=main" --jq '.errors | length' 2>/dev/null) \
   || refuse_rerun "could not read GitHub's CODEOWNERS errors"
 if [ "$owner_errors" != 0 ]; then refuse_rerun "GitHub lists '$owner_errors' error(s) in .github/CODEOWNERS"; fi
+if ! gh auth status 2>&1 | grep -q "workflow"; then
+  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
+  gh auth refresh -h github.com -s workflow
+fi
+data_prs=$(gh pr list --repo "$repo" --state merged --app github-actions --search "head:data/" --json number --jq 'length')
+if ! [[ "$data_prs" =~ ^[0-9]+$ ]] || [ "$data_prs" -lt 1 ]; then
+  echo "No daily data pull request merged by GitHub Actions yet: do the check run of runbook step 2.0 first. Nothing was changed."
+  exit 1
+fi
 
 : > "$results"
 main_before=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true)
