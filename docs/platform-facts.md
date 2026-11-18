@@ -377,6 +377,8 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   2026-11-18T19:10:08Z (ruleset 27502319 read back equal to the backup)`. Run from Brian's big PC with
   `scripts/u3-toggle.ps1 -Pr 58 -Merge` (the first real run of the .ps1; a rehearsal at 19:08:51Z also restored).
   The `-Report` string passed was `docs/ops/u3-positive-control.md`. Meaning: R1'' (2 approvals, last-push approval)
-  binds (`pull_request=fail`), and the team's merge-reviewed path merges through admin bypass. PR #58 head 4f2aa8c0
+  was evaluated as fail for PR #58 (`pull_request=fail`), and the team's merge-reviewed path merges through admin
+  bypass. The in-window ruleset read matched R1'': the script prints `U3 WINDOW OPEN` only after R1'' reads back as
+  written (`scripts/u3-toggle.ps1:344-348`). PR #58 head 4f2aa8c0
   was reviewed just after the merge, not before (`docs/reviews/pr58-code-review.md`, approve with nits; its 3 nits
   are applied above). The gate is open for B1..D2.
