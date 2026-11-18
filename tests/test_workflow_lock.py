@@ -1948,8 +1948,8 @@ def test_the_window_check_runs_and_stops_where_it_must(tmp_path, case):
 @pytest.mark.parametrize("slot", [1, 2])
 @pytest.mark.parametrize("case", ["canary", "other-file", "other-pr", "other-sha"])
 def test_the_window_check_lets_only_the_v1_probe_canary_merge_through(tmp_path, case, slot):
-    """ADR 0010 / T4.11.4: 3ef440a (PR #40, the V1 probe's bot merge of .github/workflows/v1-canary.yml) is the one
-    known Bot merge in the window. The block passes it only when the sha, the PR number and the file list all match;
+    """ADR 0010 / T4.11.4: 3ef440a (PR #40, the V1 probe's bot merge of .github/workflows/v1-canary.yml) and 2b20704
+    (PR #49, the V1' probe's) are the two known Bot merges in the window, each tested in its own slot. The block passes it only when the sha, the PR number and the file list all match;
     any other Bot merge still stops. The real sha is swapped for a local commit to run it."""
     script = _window_script()
     assert "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40" in script
