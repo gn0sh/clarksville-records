@@ -2667,14 +2667,23 @@ def test_the_v1_probe_scripts_agree():
         assert "contents/.github/workflows/v1-canary.yml?ref=main" in s and "HTTP 404" in s
         assert "of 4" in s and "all four merges" in s and "is left on" in s
         assert "INCONCLUSIVE: could not read main. Nothing was changed." in s
-        # v1-probe/rerun-after-fail (ADR 0010): no new run until main's ruleset requires a code owner's review
-        assert "rules/branches/main" in s and ".parameters.require_code_owner_review // empty" in s
-        assert s.index("require_code_owner_review") < s.index(": > \"$results\"" if s is sh else "Set-Content -Path $results")
+        # v1-probe/rerun-after-fail (ADR 0010): no new run until R1' is on, owned, active and error-free
+        for part in ("rules/branches/main", "select(.parameters.require_code_owner_review == true) | .ruleset_id",
+                     "rulesets/$id", "--jq '.enforcement'", "contents/.github/CODEOWNERS?ref=main",
+                     "codeowners/errors?ref=main", "--jq '.errors | length'", "@gn0sh", "not active"):
+            assert part in s, part
         assert "-ExecutionPolicy Bypass" not in s
         # L-c v1-probe/verdict-race: the run must be completed, and .merged is read again after cleanup
         assert "--json status --jq '.status'" in s and "had not finished" in s
         assert "read again after cleanup" in s and s.rindex("read again after cleanup") > s.index("Cleanup" if s is ps1
                                                                                                  else "cleanup()")
+    # nothing changes before the guard, checked per script by name (v1-probe/rerun-after-fail-test-gap)
+    for name, text, first_write in (("v1-probe.sh", sh, ': > "$results"'),
+                                    ("v1-probe.ps1", ps1, "Set-Content -Path $results")):
+        guard_end = text.index("codeowners/errors?ref=main")
+        assert text.index("rules/branches/main") < guard_end < text.index(first_write), name
+        assert "-X" not in text[text.index("rules/branches/main"):guard_end], name
+    assert "run scripts/protect-main.sh first" in sh and "run scripts\\protect-main.ps1 first" in ps1
     # FAIL never from main's sha alone: the FAIL condition names only the merge answers, the PR and the canary
     fail_sh = next(ln for ln in sh.splitlines() if "^V1-MERGED" in ln and ln.startswith("if "))
     fail_ps1 = next(ln for ln in ps1.splitlines() if "$merged -gt 0" in ln)
@@ -2685,6 +2694,7 @@ def test_the_v1_probe_scripts_agree():
 
 _V1_STUB = '''#!/usr/bin/env python3
 import json, os, sys
+R1_RULES = '[{"type": "deletion", "ruleset_id": 1}, {"type": "pull_request", "ruleset_id": 1, "parameters": {"required_approving_review_count": 0, "require_code_owner_review": true}}]'
 a = sys.argv[1:]
 with open(os.environ["GH_CALLS"], "a") as f:
     f.write(json.dumps(a) + "\\n")
@@ -2707,8 +2717,23 @@ if a[:2] == ["run", "view"] and "--json" in a:
 if a[:2] == ["run", "view"]:
     sys.stdout.write(open(os.environ["RUN_LOG"]).read()); sys.exit(0)
 path = [x for x in a if x.startswith("repos/")][0]
-if path.endswith("/rules/branches/main"):     # v1-probe/rerun-after-fail: R1' (code owner review) is on
-    print(os.environ.get("CODE_OWNER_RULE", "true")); sys.exit(0)
+# v1-probe/rerun-after-fail: the guard's reads (R1' on, its rulesets active, CODEOWNERS on main, no errors). The
+# stub holds GitHub's JSON and applies the script's own --jq with jq, as gh does; "FAIL" answers like a gh api error.
+guard = {"/rules/branches/main": ("RULES", R1_RULES), "/codeowners/errors?ref=main": ("OWNER_ERRORS", '{"errors": []}'),
+         "/contents/.github/CODEOWNERS?ref=main": ("CODEOWNERS", "# ADR 0010\\n* @gn0sh\\n/data/\\n")}
+rs = path.rsplit("/rulesets/", 1)
+if len(rs) == 2:
+    guard["/rulesets/" + rs[1]] = ("RULESET_" + rs[1], '{"id": %s, "enforcement": "active"}' % rs[1])
+for suffix, (var, default) in guard.items():
+    if path.endswith(suffix):
+        body = os.environ.get(var, default)
+        if body == "FAIL":
+            print('{"message":"Server Error","status":"502"}'); sys.stderr.write("gh: Server Error (HTTP 502)\\n"); sys.exit(1)
+        if "--jq" in a:
+            import subprocess
+            body = subprocess.run(["jq", "-r", a[a.index("--jq") + 1]], input=body, capture_output=True, text=True,
+                                  check=True).stdout
+        sys.stdout.write(body); sys.exit(0)
 if path.endswith("/git/ref/heads/main"):
     sha = os.environ.get("MAIN_BEFORE", "1" * 40) if count("main") == 0 else os.environ.get("MAIN_AFTER", "1" * 40)
     if sha == "EMPTY":
@@ -2770,14 +2795,41 @@ def _turned_off(made):
     return any("can_approve_pull_request_reviews=false" in c for c in made)
 
 
-@pytest.mark.parametrize("rule", ["", "false", "EMPTY"])
-def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, rule):
+_RULE = '{"type": "pull_request", "ruleset_id": %d, "parameters": {"require_code_owner_review": %s}}'
+
+
+@pytest.mark.parametrize("extra", [
+    {"RULES": "[" + _RULE % (1, "false") + "]"},                                    # the rule is off
+    {"RULES": '[{"type": "deletion", "ruleset_id": 1}]'},                            # no pull_request rule
+    {"RULES": "FAIL"},                                                              # gh api error (JSON body, exit 1)
+    {"RULES": "[" + _RULE % (1, "true") + ", " + _RULE % (2, "true") + "]", "RULESET_2": '{"enforcement": "evaluate"}'},
+    {"RULESET_1": '{"enforcement": "disabled"}'},
+    {"RULESET_1": "FAIL"},
+    {"CODEOWNERS": "FAIL"},                                                         # no CODEOWNERS on main (404)
+    {"CODEOWNERS": "/data/\n"},                                                    # the rule is vacuous: no owner
+    {"CODEOWNERS": "# * @gn0sh\n* @someone-else\n"},
+    {"OWNER_ERRORS": '{"errors": [{"line": 2, "kind": "Unknown owner"}]}'},
+    {"OWNER_ERRORS": "FAIL"},
+], ids=["rule-off", "no-pr-rule", "rules-read-fails", "one-ruleset-evaluate", "ruleset-disabled", "ruleset-read-fails",
+        "no-codeowners", "codeowners-no-owner", "codeowners-other-owner", "codeowners-errors", "errors-read-fails"])
+def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extra):
     """v1-probe/rerun-after-fail (ADR 0010): after the 2026-11-18 FAIL a new run would merge the canary into main
-    again, so the script stops, changing nothing, unless main's ruleset requires a code owner's review."""
-    r, made = _v1(tmp_path, _ALL_REFUSED, CODE_OWNER_RULE=rule)
-    assert r.returncode == 1 and "Stopped: main's ruleset does not require a code owner's review" in r.stdout
-    assert not any("-X" in c for c in made) and not any("POST" in c or "PUT" in c for c in made), made
+    again, so the script stops, changing nothing, unless R1' really binds: the code-owner rule on main, every ruleset
+    carrying it active, .github/CODEOWNERS on main with `* @gn0sh`, and no CODEOWNERS errors. A failed read stops it."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, **extra)
+    assert r.returncode == 1 and r.stdout.startswith("Stopped: ") and "Nothing was changed." in r.stdout, r.stdout
+    assert "run scripts/protect-main.sh first" in r.stdout
+    assert not any("-X" in c for c in made), made
     assert not list(tmp_path.glob("v1-probe-results-*.txt"))
+
+
+def test_v1_probe_runs_when_one_ruleset_has_the_rule_off_and_another_on(tmp_path):
+    """v1-probe/rerun-after-fail-test-gap: rules from two rulesets, false then true (only the second active): the
+    rule binds, and only the ruleset carrying it is read."""
+    rules = "[" + _RULE % (1, "false") + ", " + _RULE % (2, "true") + "]"
+    r, made = _v1(tmp_path, _ALL_REFUSED, RULES=rules, RULESET_1='{"enforcement": "disabled"}')
+    assert r.returncode == 0 and "PASS" in r.stdout, r.stdout + r.stderr
+    assert not any(str(x).endswith("/rulesets/1") for c in made for x in c)
 
 
 def test_v1_probe_pass(tmp_path):
