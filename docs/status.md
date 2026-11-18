@@ -21,6 +21,8 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-18 | security-engineer | opus/high | PR #54 ADR 0011 plan 76f83c71 | approve with follow-ups (4 M, 4 L); docs/reviews/pr54-security-review.md |
+| 2026-11-18 | manager | n/a | U3-0 no-op ruleset PUT from team session | NO: proxy 403 (read-back unchanged); Brian runs U3 |
 | 2026-11-18 | software-architect | opus/high | V1' fail root cause + ADR 0011, U3 plan, task list (claude/v1-fail-plan c62e4a9) | done |
 | 2026-11-18 | brain-trust x6 | opus/high | data off main | Fix First; 4 changes taken into ADR 0011 |
 | 2026-11-18 | code-reviewer / security-engineer | per PR | PRs #48, #52, #53 | approve with follow-ups; merged |
