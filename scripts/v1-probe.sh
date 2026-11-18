@@ -38,6 +38,36 @@ if ! [[ "$data_prs" =~ ^[0-9]+$ ]] || [ "$data_prs" -lt 1 ]; then
   echo "No daily data pull request merged by GitHub Actions yet: do the check run of runbook step 2.0 first. Nothing was changed."
   exit 1
 fi
+# v1-probe/rerun-after-fail (ADR 0010): the probe found FAIL on 2026-11-18 (GitHub let GITHUB_TOKEN merge a workflow
+# change into main). Turning "Allow GitHub Actions to create and approve pull requests" off does not stop merging, so
+# running the probe again would put the canary on main again. It runs only once main's ruleset requires a code
+# owner's review (R1', scripts/protect-main.sh), which is what a new run tests. The rule is vacuous without an owner,
+# so it also needs .github/CODEOWNERS on main with a `* @gn0sh` line and no CODEOWNERS errors, and every ruleset that
+# carries the rule must be active (not evaluate or disabled). Any failed read stops it (fail closed).
+refuse_rerun() {
+  echo "Stopped: $1 (ADR 0010: run scripts/protect-main.sh first). The probe found FAIL on 2026-11-18; running it now would merge the canary into main again. Nothing was changed."
+  exit 1
+}
+owner_rules=$(gh api "repos/$repo/rules/branches/main" \
+  --jq '.[] | select(.parameters.require_code_owner_review == true) | .ruleset_id' 2>/dev/null) \
+  || refuse_rerun "could not read main's rules"
+if [ -z "$owner_rules" ]; then refuse_rerun "main's ruleset does not require a code owner's review yet"; fi
+for id in $owner_rules; do
+  if ! [[ "$id" =~ ^[0-9]+$ ]]; then refuse_rerun "could not read main's rules"; fi
+  enforcement=$(gh api "repos/$repo/rulesets/$id" --jq '.enforcement' 2>/dev/null) \
+    || refuse_rerun "could not read ruleset $id"
+  if [ "$enforcement" != active ]; then
+    refuse_rerun "ruleset $id requires a code owner's review but its enforcement is '$enforcement', not active"
+  fi
+done
+codeowners=$(gh api -H 'Accept: application/vnd.github.raw' "repos/$repo/contents/.github/CODEOWNERS?ref=main" 2>/dev/null) \
+  || refuse_rerun "could not read .github/CODEOWNERS on main"
+if ! grep -qxE '\*[[:space:]]+@gn0sh[[:space:]]*' <<< "$codeowners"; then
+  refuse_rerun ".github/CODEOWNERS on main has no '* @gn0sh' line"
+fi
+owner_errors=$(gh api "repos/$repo/codeowners/errors?ref=main" --jq '.errors | length' 2>/dev/null) \
+  || refuse_rerun "could not read GitHub's CODEOWNERS errors"
+if [ "$owner_errors" != 0 ]; then refuse_rerun "GitHub lists '$owner_errors' error(s) in .github/CODEOWNERS"; fi
 
 : > "$results"
 main_before=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true)

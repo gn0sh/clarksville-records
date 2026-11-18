@@ -62,6 +62,35 @@ if ($dataPrs -notmatch '^[0-9]+$' -or [int]$dataPrs -lt 1) {
     Write-Host 'No daily data pull request merged by GitHub Actions yet: do the check run of runbook step 2.0 first. Nothing was changed.'
     exit 1
 }
+# v1-probe/rerun-after-fail (ADR 0010): the probe found FAIL on 2026-11-18 (GitHub let GITHUB_TOKEN merge a workflow
+# change into main). Turning "Allow GitHub Actions to create and approve pull requests" off does not stop merging, so
+# running the probe again would put the canary on main again. It runs only once main's ruleset requires a code
+# owner's review (R1', scripts\protect-main.ps1), which is what a new run tests. The rule is vacuous without an owner,
+# so it also needs .github/CODEOWNERS on main with a `* @gn0sh` line and no CODEOWNERS errors, and every ruleset that
+# carries the rule must be active (not evaluate or disabled). Any failed read stops it (fail closed).
+function RefuseRerun([string]$why) {
+    Write-Host "Stopped: $why (ADR 0010: run scripts\protect-main.ps1 first). The probe found FAIL on 2026-11-18; running it now would merge the canary into main again. Nothing was changed."
+    exit 1
+}
+$ownerRules = @(gh api "repos/$repo/rules/branches/main" --jq '.[] | select(.parameters.require_code_owner_review == true) | .ruleset_id' 2>$null)
+if ($LASTEXITCODE -ne 0) { RefuseRerun "could not read main's rules" }
+if ($ownerRules.Count -eq 0) { RefuseRerun "main's ruleset does not require a code owner's review yet" }
+foreach ($id in $ownerRules) {
+    if ($id -notmatch '^[0-9]+$') { RefuseRerun "could not read main's rules" }
+    $enforcement = (gh api "repos/$repo/rulesets/$id" --jq '.enforcement' 2>$null) -join ''
+    if ($LASTEXITCODE -ne 0) { RefuseRerun "could not read ruleset $id" }
+    if ($enforcement -ne 'active') {
+        RefuseRerun "ruleset $id requires a code owner's review but its enforcement is '$enforcement', not active"
+    }
+}
+$codeowners = @(gh api -H 'Accept: application/vnd.github.raw' "repos/$repo/contents/.github/CODEOWNERS?ref=main" 2>$null)
+if ($LASTEXITCODE -ne 0) { RefuseRerun 'could not read .github/CODEOWNERS on main' }
+if (-not @($codeowners | Where-Object { $_ -match '^\*\s+@gn0sh\s*$' }).Count) {
+    RefuseRerun ".github/CODEOWNERS on main has no '* @gn0sh' line"
+}
+$ownerErrors = (gh api "repos/$repo/codeowners/errors?ref=main" --jq '.errors | length' 2>$null) -join ''
+if ($LASTEXITCODE -ne 0) { RefuseRerun "could not read GitHub's CODEOWNERS errors" }
+if ($ownerErrors -ne '0') { RefuseRerun "GitHub lists '$ownerErrors' error(s) in .github/CODEOWNERS" }
 
 Set-Content -Path $results -Value ''
 $mainBefore = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
