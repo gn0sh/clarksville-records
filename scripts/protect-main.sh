@@ -26,11 +26,11 @@ esac
 # ADR 0010 (R1'): code-owner review binds only through .github/CODEOWNERS on main; without it, or with a line GitHub
 # could not read, a workflow's merge of a non-data pull request would need no review at all.
 # Its rules (comments and blank lines aside) must be exactly "* @gn0sh" then "/data/" (no owner: data/ unowned).
-co=$(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2>/dev/null) \
+codeowners=$(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2>/dev/null) \
   || { echo "Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again."; exit 1; }
 # (the same reading as scripts/v1-probe.sh: runs of spaces or tabs made one space, ends trimmed; a later line would
 # override an earlier one, so nothing else is allowed: v1-probe/rerun-after-fail-codeowners-override)
-co_rules=$(printf '%s\n' "$co" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' \
+co_rules=$(printf '%s\n' "$codeowners" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' \
            | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' | paste -sd'|' - || true)
 if [ "$co_rules" != '* @gn0sh|/data/' ]; then
   echo "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: $co_rules). Nothing was changed. Send this output to the team."; exit 1
@@ -94,24 +94,29 @@ for id in $(gh api "repos/$repo/rulesets" --jq "$find"); do
           | paste -sd, -)
   methods=$(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .allowed_merge_methods[]?' \
             | paste -sd, -)
+  # M3 main-protect/stale-owner-approval: gn0sh can approve a pull request a bot opened; a push after that approval
+  # must dismiss it, so a later commit never rides on an owner's approval of an earlier head.
+  stale=$(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push' \
+          | paste -sd, -)
   # main-protect L-E: approvals stay 0. With GitHub Actions allowed to approve pull requests, a workflow's approval
   # would count toward any number above 0; the gate counts a person's merge and review instead (ADR 0009).
   appr=$(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters.required_approving_review_count // empty' \
          | paste -sd, -)
   found=1
   echo "Ruleset $id: $enf, bypass ${actors:-none}, required approvals ${appr:-none}"
-  echo "Code-owner review: ${owner:-none}, merge methods: ${methods:-none}"
+  echo "Code-owner review: ${owner:-none}, merge methods: ${methods:-none}, dismiss stale reviews: ${stale:-none}"
   [ "$enf" = active ] || ok=0
   # ADR 0010: exactly one bypass, the Repository admin role (id 5), for pull requests only (nobody pushes main).
   [ "$actors" = "RepositoryRole:5:pull_request" ] || { echo "The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request)."; ok=0; }
   [ "$owner" = true ] || { echo "Code-owner review must be on (ADR 0010)."; ok=0; }
   [ "$methods" = squash ] || { echo "Squash must be the only merge method (ADR 0010)."; ok=0; }
+  [ "$stale" = true ] || { echo "Dismiss stale approvals on push must be on (ADR 0010, M3)."; ok=0; }
   [ "$appr" = 0 ] || { echo "Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow's approval would count)."; ok=0; }
 done
 [ "$found" = 1 ] || { echo "No ruleset named 'main: pull request required' found after writing it."; ok=0; }
 if [ "$ok" = 1 ]; then
   echo "OK: main is protected. Next: Actions > Daily update > Run workflow (the check run of step 2.0)."
 else
-  echo "NOT OK: expected rules deletion,non_fast_forward,pull_request, active, bypass RepositoryRole:5:pull_request only, required approvals 0, code-owner review on, squash only, auto-merge off, and Actions may create pull requests."
+  echo "NOT OK: expected rules deletion,non_fast_forward,pull_request, active, bypass RepositoryRole:5:pull_request only, required approvals 0, code-owner review on, squash only, dismiss stale reviews on, auto-merge off, and Actions may create pull requests."
   exit 1
 fi

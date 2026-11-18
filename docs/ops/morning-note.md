@@ -150,7 +150,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       the **first** run (main-protect/window-start-gap); (d) prints **OK: main is protected** (rules on main
       `deletion,non_fast_forward,pull_request`, `GitHub Actions may create pull requests: true`, `Auto-merge
       allowed: false`, the ruleset `active, bypass RepositoryRole:5:pull_request, required approvals 0` and
-      `Code-owner review: true, merge methods: squash`), or **NOT OK** with what it found: send that output to the
+      `Code-owner review: true, merge methods: squash, dismiss stale reviews: true`), or **NOT OK** with what it found: send that output to the
       team. (U4 of ADR 0010: the bypass line shows the owner's admin role is the one that bypasses.)
    2. **Or by hand, in the browser** (only if the terminal is not an option). First, before 2, open
       https://github.com/gn0sh/clarksville-records/commits/main and send the team the first commit's full sha (the
@@ -187,9 +187,12 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      approve pull requests). The check run above settles both; record what was seen in `docs/platform-facts.md`.
    - **If the data PR's merge is refused under R1' (U2 of ADR 0010: an unowned `data/` path should need no
      review):** the `push` job fails loudly ("Daily update failed" issue). Re-apply the previous ruleset json from
-     git (`git show eda3835:scripts/main-ruleset.json > $env:TEMP\r1.json`, then `gh api -X PUT
-     repos/gn0sh/clarksville-records/rulesets/<id> --input $env:TEMP\r1.json`), re-run the failed job, and tell
-     the architect. A write-access deploy key as a bypass actor would also work but is a new secret (hard stop 5);
+     git, in the repository folder after `git pull` (one line, piped, no file written; 91d2ecc is `main` before
+     R1'):
+     ```
+     git show 91d2ecc:scripts/main-ruleset.json | gh api -X PUT repos/gn0sh/clarksville-records/rulesets/27502319 --input -
+     ```
+     then re-run the failed job, and tell the architect. A write-access deploy key as a bypass actor would also work but is a new secret (hard stop 5);
      not recommended.
    - Until this check passes, the note job must stay off (`MORNING_NOTE_SEND` unset): section 4 item 6.
    3. **Merging every pull request that changes anything outside `data/` (team, from now on; S2, main-protect L-D).**

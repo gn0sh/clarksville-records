@@ -2417,6 +2417,8 @@ elif jq == ".rules[].parameters | select(. != null) | .require_code_owner_review
     print(os.environ.get("OWNER", "true"))
 elif jq == ".rules[].parameters | select(. != null) | .allowed_merge_methods[]?":
     print(os.environ.get("METHODS", "squash"))
+elif jq == ".rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push":
+    print(os.environ.get("STALE", "true"))
 elif path.endswith("/actions/permissions/workflow"):
     assert jq == ".can_approve_pull_request_reviews", jq
     r2 = "true" if os.path.exists(os.environ["GH_CALLS"] + ".r2on") else os.environ.get("R2", "false")
@@ -2460,7 +2462,7 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
     assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
     assert "bypass RepositoryRole:5:pull_request, required approvals 0" in r.stdout
-    assert "Code-owner review: true, merge methods: squash" in r.stdout
+    assert "Code-owner review: true, merge methods: squash, dismiss stale reviews: true" in r.stdout
     assert "GitHub Actions may create pull requests: true" in r.stdout
     assert "Auto-merge allowed: false" in r.stdout
     lines = calls.read_text().splitlines()
@@ -2562,21 +2564,23 @@ def test_protect_main_accepts_the_committed_codeowners_with_crlf(tmp_path):
         assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
 
 
-@pytest.mark.parametrize("owner,methods,ok,says", [
-    ("true", "squash", True, ""),
-    ("false", "squash", False, "Code-owner review must be on"),
-    ("", "squash", False, "Code-owner review must be on"),
-    ("true", "merge\nsquash\nrebase", False, "Squash must be the only merge method"),
-    ("true", "", False, "Squash must be the only merge method"),
+@pytest.mark.parametrize("owner,methods,ok,says,stale", [
+    ("true", "squash", True, "", "true"),
+    ("true", "squash", False, "Dismiss stale approvals on push must be on (ADR 0010, M3).", "false"),
+    ("true", "squash", False, "Dismiss stale approvals on push must be on (ADR 0010, M3).", ""),
+    ("false", "squash", False, "Code-owner review must be on", "true"),
+    ("", "squash", False, "Code-owner review must be on", "true"),
+    ("true", "merge\nsquash\nrebase", False, "Squash must be the only merge method", "true"),
+    ("true", "", False, "Squash must be the only merge method", "true"),
 ])
-def test_protect_main_needs_code_owner_review_and_squash_only(tmp_path, owner, methods, ok, says):
+def test_protect_main_needs_code_owner_review_and_squash_only(tmp_path, owner, methods, ok, says, stale):
     """ADR 0010 (R1'): the OK check reads code-owner review on and squash as the only merge method, else NOT OK."""
     bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
     bindir.mkdir()
     (bindir / "gh").write_text(_GH_STUB)
     (bindir / "gh").chmod(0o755)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
-           "MAIN_WF": TEXT, "OWNER": owner, "METHODS": methods}
+           "MAIN_WF": TEXT, "OWNER": owner, "METHODS": methods, "STALE": stale}
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
     assert (r.returncode == 0) == ok, r.stdout + r.stderr
     assert says in r.stdout and (("OK: main is protected" in r.stdout) == ok)
@@ -2595,18 +2599,55 @@ def test_protect_main_ps1_has_the_r1_prime_checks():
                      "Main has no .github/CODEOWNERS yet. Nothing was changed.",
                      "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: ",
                      "The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).",
-                     "Code-owner review must be on (ADR 0010).", "Squash must be the only merge method (ADR 0010)."):
+                     "Code-owner review must be on (ADR 0010).", "Squash must be the only merge method (ADR 0010).",
+                     "--jq '.rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push'",
+                     "Dismiss stale approvals on push must be on (ADR 0010, M3)."):
             assert part in text, part
     # case-sensitive comparisons (PowerShell's -ne and -match ignore case)
     assert "$coRules -cne '* @gn0sh|/data/'" in ps1 and "$_ -cnotmatch '^(#|$)'" in ps1
     assert "($_ -replace '\\s+', ' ').Trim()" in ps1 and "s/[[:space:]]+/ /g; s/^ //; s/ $//" in sh
     assert "$actors -cne 'RepositoryRole:5:pull_request'" in ps1 and "$owner -cne 'true'" in ps1
+    assert "$stale -cne 'true'" in ps1 and '[ "$stale" = true ]' in sh
     assert "$methods -cne 'squash'" in ps1 and "$coErrors -cne '0'" in ps1 and "$enf -cne 'active'" in ps1
     # the CODEOWNERS checks come before main is read and before anything is written
     for text, read_main in ((ps1, '$mainSha = (gh api'), (sh, 'main_sha=$(gh api')):
         assert text.index("CODEOWNERS?ref=main") < text.index("codeowners/errors") < text.index(read_main)
         assert text.index(read_main) < text.index("-X POST")
     assert "-ExecutionPolicy Bypass" not in ps1.replace("never -ExecutionPolicy Bypass", "")
+
+
+def _codeowners_parse(text: str, ps1: bool) -> list:
+    """The lines that read main's CODEOWNERS into its rules: from the parse line to the line that ends it."""
+    start = "$coRules = (" if ps1 else "co_rules=$("
+    lines = text.splitlines()
+    i = next(n for n, ln in enumerate(lines) if ln.startswith(start))
+    return lines[i:i + 2]
+
+
+def test_codeowners_parsing_is_identical_in_protect_main_and_the_probe():
+    """protect-main/ps1-parity-untested: the .ps1 cannot run here, so its CODEOWNERS parsing is pinned to be the same
+    text as the probe's (and the .sh pair likewise, which the fake-gh tests run); the read before it is the same too."""
+    for ext, ps1 in (("sh", False), ("ps1", True)):
+        pm = (ROOT / "scripts" / f"protect-main.{ext}").read_text(encoding="utf-8")
+        probe = (ROOT / "scripts" / f"v1-probe.{ext}").read_text(encoding="utf-8")
+        a, b = _codeowners_parse(pm, ps1), _codeowners_parse(probe, ps1)
+        assert a == b and len(a) == 2, (ext, a, b)
+        assert ("$codeowners" in a[0]) if ps1 else ('"$codeowners"' in a[0]), a
+        for text in (pm, probe):
+            assert "contents/.github/CODEOWNERS?ref=main" in text and "Accept: application/vnd.github.raw" in text
+
+
+def test_the_ruleset_rollback_is_one_piped_line_from_a_reachable_commit():
+    """ops-runbook/rollback-ref-unreachable: the rollback reads the pre-R1' json from 91d2ecc (main; a branch commit
+    is gone after a squash merge) and pipes it, since a `>` redirect in Windows PowerShell 5.1 writes UTF-16."""
+    runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
+    line = ("git show 91d2ecc:scripts/main-ruleset.json | gh api -X PUT repos/gn0sh/clarksville-records/rulesets/27502319"
+            " --input -")
+    assert line in runbook and "eda3835" not in runbook and "r1.json" not in runbook
+    r = subprocess.run(["git", "show", "91d2ecc:scripts/main-ruleset.json"], cwd=ROOT, capture_output=True, text=True)
+    if r.returncode == 0:                         # a shallow checkout may not have it
+        old = json.loads(r.stdout)
+        assert old["bypass_actors"] == [] and old["name"] == "main: pull request required"
 
 
 def test_codeowners_text_is_pinned():
@@ -2700,9 +2741,11 @@ def test_protect_main_scripts_share_one_ruleset_body():
     assert body["bypass_actors"] == [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
     pr_rule = [r for r in body["rules"] if r["type"] == "pull_request"]
     assert len(pr_rule) == 1 and pr_rule[0]["parameters"]["required_approving_review_count"] == 0     # L-E
-    # every other parameter as GitHub returned it on 2026-11-18 (ruleset 27502319)
+    # every other parameter as GitHub returned it on 2026-11-18 (ruleset 27502319), except dismiss_stale_reviews_on_push
+    # (M3 main-protect/stale-owner-approval: an owner approval does not survive a later push). The unattributed-changes
+    # parameter is kept at its live value: Copilot-authored PRs only, no effect at 0 approvals (L1, platform-facts).
     assert pr_rule[0]["parameters"] == {
-        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": False, "required_reviewers": [],
+        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": True, "required_reviewers": [],
         "require_code_owner_review": True, "require_last_push_approval": False,
         "required_review_thread_resolution": False, "require_extra_approval_for_unattributed_changes": True,
         "allowed_merge_methods": ["squash"]}

@@ -44,14 +44,14 @@ if ($LASTEXITCODE -ne 0 -or $wf -notmatch 'Open and merge the data pull request'
 # ADR 0010 (R1'): code-owner review binds only through .github/CODEOWNERS on main; without it, or with a line GitHub
 # could not read, a workflow's merge of a non-data pull request would need no review at all.
 # Its rules (comments and blank lines aside) must be exactly "* @gn0sh" then "/data/" (no owner: data/ unowned).
-$co = @(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2> $null)
+$codeowners = @(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2> $null)
 if ($LASTEXITCODE -ne 0) {
     Write-Host 'Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again.'
     exit 1
 }
 # (the same reading as scripts\v1-probe.ps1: runs of spaces or tabs made one space, ends trimmed; a later line would
 # override an earlier one, so nothing else is allowed. Comparisons here are case-sensitive: -cne, -cnotmatch.)
-$coRules = (@($co | ForEach-Object { $_ -split "`n" } | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } |
+$coRules = (@($codeowners | ForEach-Object { $_ -split "`n" } | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } |
               Where-Object { $_ -cnotmatch '^(#|$)' })) -join '|'
 if ($coRules -cne '* @gn0sh|/data/') {
     Write-Host "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: $coRules). Nothing was changed. Send this output to the team."
@@ -122,22 +122,26 @@ foreach ($id in $found) {
     # ADR 0010 (R1'): code-owner review on, squash only. jq's // would turn false into empty, so select() instead.
     $owner = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .require_code_owner_review')) -join ','
     $methods = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .allowed_merge_methods[]?')) -join ','
+    # M3 main-protect/stale-owner-approval: gn0sh can approve a pull request a bot opened; a push after that approval
+    # must dismiss it, so a later commit never rides on an owner's approval of an earlier head.
+    $stale = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push')) -join ','
     # main-protect L-E: approvals stay 0 (a workflow's approval would count toward any number above 0; ADR 0009).
     $appr = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters.required_approving_review_count // empty')) -join ','
     $shown = if ($actors) { $actors } else { 'none' }
     Write-Host "Ruleset ${id}: $enf, bypass $shown, required approvals $appr"
-    Write-Host "Code-owner review: $owner, merge methods: $methods"
+    Write-Host "Code-owner review: $owner, merge methods: $methods, dismiss stale reviews: $stale"
     if ($enf -cne 'active') { $ok = $false }
     # ADR 0010: exactly one bypass, the Repository admin role (id 5), for pull requests only (nobody pushes main).
     if ($actors -cne 'RepositoryRole:5:pull_request') { Write-Host 'The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).'; $ok = $false }
     if ($owner -cne 'true') { Write-Host 'Code-owner review must be on (ADR 0010).'; $ok = $false }
     if ($methods -cne 'squash') { Write-Host 'Squash must be the only merge method (ADR 0010).'; $ok = $false }
+    if ($stale -cne 'true') { Write-Host 'Dismiss stale approvals on push must be on (ADR 0010, M3).'; $ok = $false }
     if ($appr -ne '0') { Write-Host 'Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow approval would count).'; $ok = $false }
 }
 if ($ok) {
     Write-Host 'OK: main is protected. Next: Actions > Daily update > Run workflow (the check run of step 2.0).'
 } else {
-    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request, active, bypass RepositoryRole:5:pull_request only, required approvals 0, code-owner review on, squash only, auto-merge off, and Actions may create pull requests.'
+    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request, active, bypass RepositoryRole:5:pull_request only, required approvals 0, code-owner review on, squash only, dismiss stale reviews on, auto-merge off, and Actions may create pull requests.'
     Write-Host 'Send this output to the team.'
     exit 1
 }
