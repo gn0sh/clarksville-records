@@ -53,7 +53,8 @@ Facts this design rests on, verified or not (none of them changes the data model
     `config/site.yml`. *(T2 build note: a city's site file, or its `site:` block, that sets a shared path, a brand
     key or a `city.yml` field (`site_timezone`, `today_place`, `live`, ...) fails, naming the key.)*
 - `config.PRIMARY`, one normalised dict that names the site's primary body: `key`, `name`, `label`,
-  `meeting_title_body`, `record`, `kind_labels`, `held_sentences`, `seats` (`districts` | `wards` | `at_large`).
+  `meeting_title_body`, `record`, `kind_labels`, `held_sentences`, `seats` (`districts` | `wards` | `at_large`),
+  `titles`, `member_title` (T5: Clarksville `[]` and None; seat labels read them).
   For Clarksville it is filled from today's keys (`county_key`, `county_body`, `meeting_title_body`, ...). Those
   values are equal to today's literals, so the bytes are equal. Code and templates that print a county word
   today read it from `PRIMARY` instead.
