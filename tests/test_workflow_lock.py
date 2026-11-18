@@ -29,7 +29,9 @@ LOCK = "vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
 # pipeline/deploy-independent-of-push: the lock, then the results of the two jobs deploy needs. A status function
 # (!cancelled()) replaces GitHub's implicit success(), which would also skip deploy on the rebuild-only run, where
 # push is skipped by design (the runbook's rollback path).
-DEPLOY_IF = (LOCK + " && !cancelled() && needs.gate.result == 'success' && needs.update.result == 'success' && "
+# ADR 0011 Amendment (c) item 3: verified on every deploy (collect=false too); row J3: the tripwire's held exactly 'no'
+DEPLOY_IF = (LOCK + " && !cancelled() && needs.gate.result == 'success' && needs.gate.outputs.verified == 'true' && "
+             "needs.update.result == 'success' && needs.update.outputs.held == 'no' && "
              "(needs.push.result == 'success' || "
              "(needs.push.result == 'skipped' && github.event_name == 'workflow_dispatch' && !inputs.collect))")
 
@@ -91,11 +93,11 @@ def _holds(expr: str, ctx: dict) -> bool:
 
 
 def _ctx(**over) -> dict:
-    """A scheduled run on main, deploy enabled, both needed jobs green."""
+    """A scheduled run on main, deploy enabled, every needed job green, the gate verified, the tripwire passed."""
     ctx = {"vars.RECORDS_DEPLOY_ENABLED": "true", "github.ref": "refs/heads/main", "github.event_name": "schedule",
            "inputs.collect": None, "inputs.allow_shrink": None, "needs.update.result": "success",
-           "needs.push.result": "success", "needs.gate.result": "success", "needs.gate.outputs.verified": "false",
-           "cancelled": False}
+           "needs.push.result": "success", "needs.gate.result": "success", "needs.gate.outputs.verified": "true",
+           "needs.update.outputs.held": "no", "cancelled": False}
     return {**ctx, **{k.replace("__", "."): v for k, v in over.items()}}
 
 
@@ -114,15 +116,33 @@ def test_deploy_needs_a_successful_push():
 
 
 def test_deploy_needs_a_successful_gate():
-    """main-protect M-A: a refused (or cancelled) gate stops the deploy, also on the rebuild-only run; phase 0
-    (verified false, gate green) deploys as before."""
+    """main-protect M-A: a refused (or cancelled) gate stops the deploy, also on the rebuild-only run. ADR 0011
+    Amendment (c) item 3: deploy is skipped whenever verified isn't exactly 'true' (a green gate on a branch, or any
+    other value), including collect=false."""
     cond = _deploy_if()
     rebuild = dict(github__event_name="workflow_dispatch", inputs__collect=False, needs__push__result="skipped")
     for result in ("failure", "cancelled", "skipped"):
         assert not _holds(cond, _ctx(needs__gate__result=result)), result
         assert not _holds(cond, _ctx(needs__gate__result=result, **rebuild)), result
-    assert _holds(cond, _ctx(needs__gate__outputs__verified="false"))
+    for verified in ("false", "", None, "TRUE", "yes"):
+        assert not _holds(cond, _ctx(needs__gate__outputs__verified=verified)), verified
+        assert not _holds(cond, _ctx(needs__gate__outputs__verified=verified, **rebuild)), verified
+        assert not _holds(cond, _ctx(needs__gate__outputs__verified=verified, github__event_name="workflow_dispatch",
+                                     inputs__collect=True)), verified
     assert _holds(cond, _ctx(needs__gate__outputs__verified="true"))
+    assert _holds(cond, _ctx(needs__gate__outputs__verified="true", **rebuild))
+
+
+def test_deploy_needs_the_tripwire_to_pass():
+    """Row J3: held exactly 'no'; a hold, a missing output or any other value skips deploy, on every kind of run.
+    The push job does not read held (the data push still happens)."""
+    cond = _deploy_if()
+    rebuild = dict(github__event_name="workflow_dispatch", inputs__collect=False, needs__push__result="skipped")
+    for held in ("yes", "", None, "No", "false"):
+        assert not _holds(cond, _ctx(needs__update__outputs__held=held)), held
+        assert not _holds(cond, _ctx(needs__update__outputs__held=held, **rebuild)), held
+    assert _holds(cond, _ctx()) and _holds(cond, _ctx(**rebuild))
+    assert "held" not in WF["jobs"]["push"]["if"]
 
 
 def test_rebuild_only_run_still_deploys_without_a_push():
@@ -135,6 +155,7 @@ def test_rebuild_only_run_still_deploys_without_a_push():
     assert not _holds(cond, _ctx(**{**rebuild, "needs__update__result": "failure"}))
     push_if = WF["jobs"]["push"]["if"]                    # the push job is skipped exactly when deploy allows 'skipped'
     assert not _holds(push_if, _ctx(**rebuild)) and _holds(push_if, _ctx(needs__gate__outputs__verified="true"))
+    assert not _holds(push_if, _ctx(needs__gate__outputs__verified="false"))
 
 
 def test_the_lock_and_main_only_hold_in_every_case():
@@ -232,7 +253,8 @@ def test_push_commits_on_the_gates_records_data_head():
     assert len(checkout) == 1 and checkout[0]["with"] == {"ref": "${{ needs.gate.outputs.data_sha }}"}
     assert _push_steps()[COMMIT_STEP]["env"] == {"ALLOWED": "${{ needs.update.outputs.allowed }}",
                                                  "D": "${{ needs.gate.outputs.data_sha }}",
-                                                 "TRIGGERING_ACTOR": "${{ github.triggering_actor }}"}
+                                                 "TRIGGERING_ACTOR": "${{ github.triggering_actor }}",
+                                                 "DISPATCH_ACTOR": "${{ github.actor }}"}
     run = _push_run_text()
     assert (run.index("git commit") < run.index('data_check HEAD "$listing"')
             < run.index('git push origin "HEAD:refs/heads/records-data"'))
@@ -258,14 +280,16 @@ def test_push_validates_the_artifact_before_staging():
 
 
 def test_tracked_data_files_fit_the_allowlist():
-    """I-data'' on what D3 seeds records-data with: every tracked `git ls-tree -r -z HEAD -- data` entry but the curated
-    files (B1 moves them to config/), as bytes, fits the gate's own SHAPE'' (regular 100644 files, plain names, .json
-    or changes.jsonl), and there is at least one. (Once main tracks no data/, the seed test reads records-data.)"""
-    out = subprocess.run(["git", "ls-tree", "-r", "-z", "HEAD", "--", "data"], cwd=ROOT, capture_output=True,
-                         check=True).stdout
-    entries = [e for e in out.split(b"\0") if e]
+    """I-data'' on what D3 seeds records-data with, read from the data/ folder on disk (ADR 0011 row LS: before the
+    cutover the checkout's tracked data/, after it the tree scripts/fetch-data fills from records-data), never from
+    git's index of main: every entry, as bytes, fits the gate's own SHAPE'' (regular 100644 files, plain names, .json
+    or changes.jsonl), none is curated or person-made (data_shape), and there is at least one."""
+    listing = data_shape.disk_listing(ROOT / "data")
+    entries = [e for e in listing.split(b"\0") if e]
+    assert entries, "data/ holds no file: fill it from records-data first (scripts/fetch-data)"
     shape = re.compile(_gate_shape())
-    assert entries and not [e for e in entries if e.rsplit(b"/", 1)[-1] in CURATED_NAMES]
+    assert not [e for e in entries if e.rsplit(b"/", 1)[-1] in CURATED_NAMES]
+    assert data_shape.problems(listing) == []
     for e in entries:
         assert shape.fullmatch(e), e
 
@@ -438,7 +462,8 @@ def _records_repo(tmp_path, moved=None):
     return origin, work, d
 
 
-def _run_commit_step(tmp_path, work, d, new_data: dict, allowed="no", actor="github-actions[bot]", push=True):
+def _run_commit_step(tmp_path, work, d, new_data: dict, allowed="no", actor="github-actions[bot]", push=True,
+                     dispatcher=None):
     """The commit step over an artifact of work's data/ with `new_data` changed; then, when it committed and `push`
     (standing for a successful attest step), the push step. Returns (the last step's result, outputs)."""
     runner = tmp_path / "runner"
@@ -456,7 +481,8 @@ def _run_commit_step(tmp_path, work, d, new_data: dict, allowed="no", actor="git
     out = tmp_path / "github-output"
     out.write_text("")
     env = {**os.environ, "RUNNER_TEMP": str(runner), "GITHUB_OUTPUT": str(out), "ALLOWED": allowed, "D": d,
-           "TRIGGERING_ACTOR": actor, "GIT_CONFIG_GLOBAL": "/dev/null"}
+           "TRIGGERING_ACTOR": actor, "DISPATCH_ACTOR": actor if dispatcher is None else dispatcher,
+           "GIT_CONFIG_GLOBAL": "/dev/null"}
     r = subprocess.run(["bash", "-c", _push_steps()[COMMIT_STEP]["run"]], cwd=work, env=env, capture_output=True,
                        text=True)
     outputs = dict(ln.split("=", 1) for ln in out.read_text().splitlines() if "=" in ln)
@@ -545,14 +571,19 @@ def test_the_allow_shrink_override_is_named_in_the_commit_message(tmp_path):
     assert r.returncode == 0 and "allow_shrink" in _git(origin, "log", "-1", "--format=%s", out["sha"])
 
 
-@pytest.mark.parametrize("allowed,actor", [("yes", "github-actions[bot]"), ("yes", "someone"), ("yes", ""),
-                                           ("yes", "gn0sh2"), ("", "gn0sh"), ("maybe", "gn0sh")])
-def test_an_allow_shrink_result_not_triggered_by_gn0sh_is_never_pushed(tmp_path, allowed, actor):
-    """data-prov/dispatch-actor: any token with actions: write can dispatch the workflow, so a result that replaced
-    kept documents is committed only for a run gn0sh triggered (and an unreadable value is refused)."""
+@pytest.mark.parametrize("allowed,actor,dispatcher", [
+    ("yes", "github-actions[bot]", None), ("yes", "someone", None), ("yes", "", None), ("yes", "gn0sh2", None),
+    ("", "gn0sh", None), ("maybe", "gn0sh", None),
+    # the delta review of fb94f5be: gn0sh re-running someone else's dispatch, and the other way round
+    ("yes", "gn0sh", "someone"), ("yes", "gn0sh", ""), ("yes", "someone", "gn0sh")])
+def test_an_allow_shrink_result_not_triggered_by_gn0sh_is_never_pushed(tmp_path, allowed, actor, dispatcher):
+    """data-prov/dispatch-actor: any token with actions: write can dispatch the workflow, and a re-run keeps the
+    first dispatch's inputs, so a result that replaced kept documents is committed only for a run gn0sh both
+    dispatched (github.actor) and triggered (github.triggering_actor); an unreadable value is refused."""
     origin, work, d = _records_repo(tmp_path)
-    r, out = _run_commit_step(tmp_path, work, d, {"x.json": "2\n"}, allowed=allowed, actor=actor)
-    assert r.returncode == 1 and out == {} and "not triggered by gn0sh" in r.stdout
+    r, out = _run_commit_step(tmp_path, work, d, {"x.json": "2\n"}, allowed=allowed, actor=actor,
+                              dispatcher=dispatcher)
+    assert r.returncode == 1 and out == {} and "not dispatched and triggered by gn0sh" in r.stdout
     assert _refs(origin)["refs/heads/records-data"] == d
 
 
@@ -599,7 +630,7 @@ def test_the_listing_the_push_job_attests_is_the_listing_the_gate_verifies(tmp_p
     gout.write_text("")
     (tmp_path / "gate-runner").mkdir()
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
-           "GH_CALLS": str(calls), "ATTEST": str(tmp_path / "attest.json"), "SHA": tip, "REF": "refs/heads/main",
+           "GH_CALLS": str(calls), "ATTEST": str(tmp_path / "attest.json"), "SHA": tip, "REF": "refs/heads/feature",
            "GITHUB_OUTPUT": str(gout), "RUNNER_TEMP": str(tmp_path / "gate-runner"), "MAIN_PR_BASELINE": "",
            "RECORDS_DATA_SEED_DIGEST": ""}
     g = subprocess.run(["bash", "-c", _gate_steps()[GATE_STEP]["run"]], cwd=gate_work, env=env, capture_output=True,
@@ -1683,14 +1714,42 @@ def test_the_gate_fails_closed_with_an_invalid_baseline(tmp_path, baseline):
     assert code == 2 and calls == [] and out == {}
 
 
-@pytest.mark.parametrize("baseline,ref", [("", "refs/heads/main"), ("BASE", "refs/heads/feature"),
-                                          ("", "refs/heads/feature"), ("not-a-sha", "refs/tags/v1")])
-def test_phase_0_and_other_refs_pass_unverified(tmp_path, baseline, ref):
-    """An empty baseline (phase 0) on main, or any run not on main: verified=false with success, no PR read, so
-    update, push and deploy run as before and the note job never runs."""
+@pytest.mark.parametrize("baseline,ref", [("BASE", "refs/heads/feature"), ("", "refs/heads/feature"),
+                                          ("not-a-sha", "refs/tags/v1")])
+def test_other_refs_pass_unverified(tmp_path, baseline, ref):
+    """Any run not on main: verified=false with success, no PR read, so push, deploy and note (main only, and each
+    needs verified) never run; the tripwire's code still runs in update."""
     ops = [("commit", "A", _ALL), ("commit", "X", SENDER)]                    # X would be refused if checked
     code, calls, shas, out = _pr_check(tmp_path, ops, {}, baseline=baseline, ref=ref)
-    assert code == 0 and calls == [] and out == {"sha": shas["X"], "data_sha": shas["R0"], "verified": "false"}
+    assert code == 0 and calls == [] and out == {"sha": shas["X"], "data_sha": shas["R0"], "seed": "yes",
+                                                 "verified": "false"}
+    for job in ("push", "deploy", "note"):
+        assert "github.ref == 'refs/heads/main'" in WF["jobs"][job]["if"] and \
+            "needs.gate.outputs.verified == 'true'" in WF["jobs"][job]["if"], job
+
+
+def test_an_empty_baseline_on_main_refuses(tmp_path):
+    """ADR 0011 Amendment (c) item 2 (main-protect L-1): no phase 0 on main. An empty MAIN_PR_BASELINE on main is a
+    refusal with fixed text, after S and D are checked and before any history read: no output, so nothing is built,
+    pushed, attested, deployed or sent, and gate-failed opens its issue."""
+    ops = [("commit", "A", _ALL), ("commit", "X", SENDER)]
+    code, calls, shas, out = _pr_check(tmp_path, ops, {}, baseline="", ref="refs/heads/main")
+    assert code == 2 and calls == [] and out == {}
+    assert "MAIN_PR_BASELINE is empty on main (ADR 0011 Amendment (c): there is no phase 0 on main" in shas["_stdout"]
+    jobs = WF["jobs"]
+    assert jobs["update"]["needs"] == "gate" and "gate" in jobs["push"]["needs"] and "gate" in jobs["deploy"]["needs"]
+    assert "needs.gate.result == 'failure'" in jobs["gate-failed"]["if"]
+    run = _gate_steps()[GATE_STEP]["run"]
+    assert "verdict false" not in run.split('base="${MAIN_PR_BASELINE:-}"', 1)[1]   # no unverified exit after it
+
+
+def test_the_cutover_squash_as_the_only_commit_after_the_baseline_verifies(tmp_path):
+    """Amendment (c) item 1: the cutover PR pins its base as MAIN_PR_BASELINE; its squash commit (merged by a person
+    with merge-reviewed, a COMMENT review at its head) is the one commit the gate checks, and it verifies."""
+    ops = [("commit", "CUT", SENDER + (".github/workflows/daily-update.yml",))]
+    code, calls, shas, out = _pr_check(tmp_path, ops, {"CUT": [_pr("CUT")]}, baseline="BASE")
+    assert code == 0 and out["verified"] == "true", shas["_stdout"]
+    assert _commit_calls(calls) == [f"api repos/o/r/commits/{shas['CUT']}/pulls --jq {PR_JQ}"]
 
 
 def test_the_gate_refuses_a_checkout_that_is_not_the_runs_commit(tmp_path):
@@ -1739,6 +1798,10 @@ SHAPE_OK = {
     # names near the curated ones are collector output like any other
     "near-curated-names": [MANIFEST, ("100644", b"data/names.json"), ("100644", b"data/xcorrections-log.json"),
                            ("100644", b"data/a/corrections.json")],
+    # names near the person-made folders: a file named maps.json, a folder that only starts or ends with the word
+    "near-person-folders": [MANIFEST, ("100644", b"data/maps.json"), ("100644", b"data/a/transcripts.json"),
+                            ("100644", b"data/mapsx/y.json"), ("100644", b"data/xtranscripts/y.json"),
+                            ("100644", b"data/sitemaps/y.json")],
 }
 SHAPE_BAD = {
     "symlink": [MANIFEST, ("120000", b"data/x.json")],
@@ -1781,6 +1844,13 @@ TREE_BAD = {
     "curated-names": [MANIFEST, ("100644", b"data/names.yml")],
     "curated-procedural-titles": [MANIFEST, ("100644", b"data/procedural-titles.yml")],
     "curated-published-fact-changes": [MANIFEST, ("100644", b"data/a/published-fact-changes.yml")],
+    "curated-fin-books-accepted": [MANIFEST, ("100644", b"data/fin-books-accepted.yml")],
+    # I-in (ADR 0011 decision 2a): person-made inputs live in config/; a maps/ or transcripts/ folder at any depth,
+    # in any case, is refused even when every file in it fits SHAPE''
+    "person-maps": [MANIFEST, ("100644", b"data/maps/manifest.json")],
+    "person-maps-nested-case": [MANIFEST, ("100644", b"data/a/MaPs/b/x.json")],
+    "person-transcripts": [MANIFEST, ("100644", b"data/localities/c-tn/transcripts/m1.json")],
+    "person-transcripts-case": [MANIFEST, ("100644", b"data/TRANSCRIPTS/m1.json")],
 }
 D_BAD = {**SHAPE_BAD, **TREE_BAD}
 # the gate's step under a UTF-8 locale (where S-1 failed open), under C, and with LC_ALL unset (LANG UTF-8)
@@ -1834,7 +1904,9 @@ def _shape_origin(tmp_path, entries):
     return origin, tip, d
 
 
-def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main", env_over=None, seed=""):
+def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/feature", env_over=None, seed=""):
+    # a branch by default: S and D are checked, the history is not (on main an empty baseline is refused, ADR 0011
+    # Amendment (c)), so these runs decide on I-main'', I-data'' and I-prov alone
     """The gate step in `work`, with a gh that only records that it was called (a D accepted as the seed never needs
     it). stdout is bytes, so a test can see every byte the step would put in the log."""
     bindir, calls, out = tmp_path / "bin", tmp_path / "gh-calls", tmp_path / "github-output"
@@ -1876,25 +1948,28 @@ def _error_lines_are_printable(stdout: bytes):
 def test_the_gate_accepts_data_that_meets_i_data(tmp_path, case, loc):
     tip, d, r, out, called = _shape_check(tmp_path, SHAPE_OK[case], env_over=LOCALES[loc])
     assert r.returncode == 0, r.stdout + r.stderr
-    assert out == {"sha": tip, "data_sha": d, "verified": "false"} and not called   # phase 0, the seed: unverified
+    assert out == {"sha": tip, "data_sha": d, "seed": "yes", "verified": "false"} and not called   # a branch, the seed
 
 
 def _seed_from_todays_data(tmp_path):
-    """D3 step 3 on this commit: records-data seeded from the tracked data/ minus the curated files, one parentless
-    commit, built in a bare origin that borrows the repository's objects (no blob is copied). Returns (origin, main
-    tip, seed)."""
+    """D3 step 3 on this checkout: records-data seeded from the data/ folder on disk (the tracked data/ before the
+    cutover, the fetched records-data tree after it: never git's index, ADR 0011 row LS) minus the curated files, one
+    parentless commit in a bare origin. Returns (origin, main tip, seed)."""
     origin = tmp_path / "origin.git"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
     _git(origin, "config", "uploadpack.allowFilter", "true")
-    common = Path(_git(ROOT, "rev-parse", "--path-format=absolute", "--git-common-dir"))
-    (origin / "objects" / "info" / "alternates").write_text(f"{common / 'objects'}\n")
-    out = subprocess.run(["git", "ls-tree", "-r", "-z", "HEAD", "--", "data"], cwd=ROOT, capture_output=True,
-                         check=True).stdout
+    listing = data_shape.disk_listing(ROOT / "data")
+    rows = [e for e in listing.split(b"\0") if e]
+    assert rows, "data/ holds no file: fill it from records-data first (scripts/fetch-data)"
+    keep = [(meta, path) for meta, path in (e.split(b"\t", 1) for e in rows)
+            if path.rsplit(b"/", 1)[-1] not in CURATED_NAMES]
+    # write each file's blob into the origin (the ids disk_listing computed must be the ids git stores)
+    files = "\n".join(os.fsdecode(ROOT / os.fsdecode(path)) for _, path in keep) + "\n"
+    ids = subprocess.run(["git", "hash-object", "-w", "--no-filters", "--stdin-paths"], cwd=origin, input=files,
+                         capture_output=True, text=True, check=True).stdout.split()
+    assert ids == [meta.split()[2].decode() for meta, _ in keep]
     tree: dict = {}
-    for e in filter(None, out.split(b"\0")):
-        meta, path = e.split(b"\t", 1)
-        if path.rsplit(b"/", 1)[-1] in CURATED_NAMES:
-            continue
+    for meta, path in keep:
         *dirs, leaf = path.split(b"/")
         node = tree
         for d in dirs:
@@ -1905,7 +1980,6 @@ def _seed_from_todays_data(tmp_path):
         recs = [(b"040000 tree " + write(v).encode() if isinstance(v, dict) else v) + b"\t" + k for k, v in node.items()]
         return subprocess.run(["git", "mktree", "-z"], cwd=origin, input=b"".join(r + b"\0" for r in recs),
                               capture_output=True, check=True).stdout.decode().strip()
-    assert tree, "no tracked data/ left: seed from records-data instead (D3)"
     seed = _git(origin, "commit-tree", write(tree), "-m", "seed")
     blob = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=origin, input=b"x\n", capture_output=True,
                           check=True).stdout.decode().strip()
@@ -1925,7 +1999,8 @@ def test_the_seed_of_todays_data_meets_i_data(tmp_path, loc):
     work = tmp_path / "work"
     _git(tmp_path, "clone", "-q", "--depth=1", "--no-checkout", f"file://{origin}", str(work))
     r, out, called = _run_gate(work, tmp_path, tip, env_over=LOCALES[loc], seed=_listing_digest(origin, seed))
-    assert r.returncode == 0 and out == {"sha": tip, "data_sha": seed, "verified": "false"}, r.stdout + r.stderr
+    assert r.returncode == 0 and out == {"sha": tip, "data_sha": seed, "seed": "yes", "verified": "false"}, \
+        r.stdout + r.stderr
     assert not called
 
 
@@ -1940,6 +2015,9 @@ def test_the_gate_refuses_anything_else_in_records_data(tmp_path, case, loc):
     _error_lines_are_printable(r.stdout)
     if case.startswith("curated-"):
         assert b"::error::curated, belongs in config/: 100644 blob " in r.stdout and b"0 curated" not in r.stdout
+    if case.startswith("person-"):
+        assert b"::error::person-made (maps/ or transcripts/), belongs in config/: 100644 blob " in r.stdout
+        assert b"0 curated, 1 person-made" in r.stdout
 
 
 def test_a_refusal_names_at_most_20_entries_cleaned(tmp_path):
@@ -1964,6 +2042,18 @@ def test_the_workflow_helper_equals_collector_data_shape():
     # in the bash source a literal dot is written \\. (bash's $'...' makes it \.)
     names = "|".join(n.replace(".", r"\\.") for n in data_shape.CURATED_NAMES)
     assert curated == [r"CURATED=$'\tdata/([^/]*/)*(" + names + r")$'"], curated
+    # PERSON is refusal()'s maps/transcripts rule: a folder (followed by /) of that name at any depth, in any case
+    person = [ln.strip() for ln in run.splitlines() if ln.strip().startswith("PERSON=")]
+    assert person == [r"PERSON=$'\tdata/([^/]*/)*([Mm][Aa][Pp][Ss]|[Tt][Rr][Aa][Nn][Ss][Cc][Rr][Ii][Pp][Tt][Ss])/'"]
+    assert 'person=$(LC_ALL=C grep -zacE -- "$PERSON" "$2")' in run and '[ "$person" = 0 ]' in run
+    pat = re.compile(subprocess.run(["bash", "-c", person[0] + '\nprintf %s "$PERSON"'], capture_output=True,
+                                    check=True).stdout)
+    for case, entries in {**SHAPE_OK, **TREE_BAD}.items():
+        for m, p in entries:
+            if p.startswith(b"data/"):
+                e = m.encode() + b" blob " + b"a" * 40 + b"\t" + p
+                assert bool(pat.search(e)) == ((data_shape.refusal(e) or "").startswith(("map manifest", "transcript"))), \
+                    (case, p)
     sha = b"a" * 40
     for case, entries in {**SHAPE_OK, **SHAPE_BAD, **TREE_BAD}.items():
         kind = {"160000": b" commit ", "040000": b" tree "}
@@ -2005,7 +2095,7 @@ def test_the_d_checks_run_on_every_ref_and_before_the_baseline(tmp_path):
     assert r.returncode == 2 and out == {} and not called and b"(I-data'')" in r.stdout
     (tmp_path / "c").mkdir()
     tip, d, r, out, called = _shape_check(tmp_path / "c", SHAPE_OK["json-and-change-logs"], ref="refs/heads/feature")
-    assert r.returncode == 0 and out == {"sha": tip, "data_sha": d, "verified": "false"} and not called
+    assert r.returncode == 0 and out == {"sha": tip, "data_sha": d, "seed": "yes", "verified": "false"} and not called
     run = _gate_steps()[GATE_STEP]["run"]
     order = ["git ls-tree --name-only HEAD -- data", '"+refs/heads/records-data:refs/gate/records-data"',
              'data_check "$D" "$listing"', "gh attestation verify", 'if [ "$REF" != refs/heads/main ]',
@@ -2039,9 +2129,14 @@ def test_the_d_checks_read_no_blob(tmp_path, entries, ok):
 
 
 def test_the_committed_baseline_is_unset_or_a_sha():
-    """Until T4.10.8 MAIN_PR_BASELINE is empty (phase 0: the note job never runs); then a sha (runbook 4.7)."""
+    """ADR 0011 Amendment (c): the cutover PR pins MAIN_PR_BASELINE to its base sha (D3 --plan), so on the cutover
+    branch and on main after it (the commits that track no data/) only a 40-hex sha passes. Before the cutover (this
+    commit still tracks data/, which the new gate refuses on any ref) it may still be empty."""
     env = _gate_steps()[GATE_STEP]["env"]
-    assert env["MAIN_PR_BASELINE"] == "" or re.fullmatch(r"[0-9a-f]{40}", env["MAIN_PR_BASELINE"])
+    tracks_data = subprocess.run(["git", "ls-tree", "--name-only", "HEAD", "--", "data"], cwd=ROOT,
+                                 capture_output=True, text=True, check=True).stdout.strip() != ""
+    assert re.fullmatch(r"[0-9a-f]{40}", env["MAIN_PR_BASELINE"]) or (tracks_data and env["MAIN_PR_BASELINE"] == ""), \
+        "the cutover PR pins MAIN_PR_BASELINE to its base sha (ADR 0011 Amendment (c))"
     # ADR 0011 (F7): the seed digest is pinned by the reviewed cutover PR, in the gate step only; empty = no seed
     assert env["RECORDS_DATA_SEED_DIGEST"] == "" or re.fullmatch(r"[0-9a-f]{64}", env["RECORDS_DATA_SEED_DIGEST"])
     assert "RECORDS_DATA_SEED_DIGEST" not in TEXT.split("\n  update:", 1)[1]
@@ -2208,9 +2303,10 @@ def test_the_gate_fails_closed_when_github_cannot_be_read(tmp_path):
     assert code != 0 and len(calls) == 1 and out == {}
 
 
+FEATURE = "refs/heads/feature"
 # ------------------------------------------------------------------ I-prov (ADR 0011, row G): which D the gate accepts
 # records-data histories (oldest first, as _records_data), the attestations stored for them, the label pinned as the
-# seed digest (or a literal), and whether the gate accepts the head. Phase 0 on main: only S and D are checked.
+# seed digest (or a literal), and whether the gate accepts the head. Run on a branch: only S and D are checked.
 R_SEED = ("seed", "R0", {"data/manifest.json": "[]\n", "data/a/changes.jsonl": "{}\n"})
 R_A = ("commit", "RA", {"data/manifest.json": "[1]\n"})              # a daily run's commit, attested by the push job
 R_B = ("commit", "RB", {"data/manifest.json": "[1, 2]\n"})
@@ -2247,7 +2343,7 @@ PROV_CASES = {
 @pytest.mark.parametrize("case", list(PROV_CASES))
 def test_the_gate_accepts_only_an_attested_or_seed_records_data_head(tmp_path, case):
     records, attest, seed, ok = PROV_CASES[case]
-    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", records=records,
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", ref=FEATURE, records=records,
                                        attest=attest, seed=seed)
     assert (code == 0) == ok and code in (0, 2), (case, shas["_stdout"])
     head = records[-1][1]
@@ -2255,7 +2351,8 @@ def test_the_gate_accepts_only_an_attested_or_seed_records_data_head(tmp_path, c
     # the seed is accepted without an attestation read; any other head is read exactly once, with exactly the flags
     assert calls == ([] if case == "seed" else verify), calls
     if ok:
-        assert out == {"sha": shas["A"], "data_sha": shas[head], "verified": "false"}
+        assert out == {"sha": shas["A"], "data_sha": shas[head], "seed": "yes" if case == "seed" else "no",
+                       "verified": "false"}
     else:
         assert "(I-prov)" in shas["_stdout"] and shas[head] in shas["_stdout"]
 
@@ -2263,18 +2360,18 @@ def test_the_gate_accepts_only_an_attested_or_seed_records_data_head(tmp_path, c
 def test_an_attested_head_on_main_with_a_baseline_is_verified(tmp_path):
     code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {"A": [_pr("A")]}, baseline="BASE",
                                        records=[R_SEED, R_A], attest=[("RA", {})])
-    assert code == 0 and out == {"sha": shas["A"], "data_sha": shas["RA"], "verified": "true"}
+    assert code == 0 and out == {"sha": shas["A"], "data_sha": shas["RA"], "seed": "no", "verified": "true"}
     assert calls[0].startswith("attestation verify ") and calls[1].startswith("api repos/o/r/commits/")
 
 
 @pytest.mark.parametrize("seed", ["F" * 64, "f" * 63, "sha256:" + "f" * 64, "R0 "])
 def test_a_malformed_seed_digest_refuses(tmp_path, seed):
-    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", seed=seed)
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", ref=FEATURE, seed=seed)
     assert code == 2 and calls == [] and "RECORDS_DATA_SEED_DIGEST is not a 64-hex sha256." in shas["_stdout"]
 
 
 def test_a_missing_records_data_refuses(tmp_path):
-    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", records=None)
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", ref=FEATURE, records=None)
     assert code == 2 and calls == [] and "could not read records-data (missing, or not readable)." in shas["_stdout"]
 
 
@@ -2287,7 +2384,8 @@ def test_a_tracked_data_folder_on_s_refuses(tmp_path, ref):
 
 
 def test_a_failed_attestation_read_refuses(tmp_path):
-    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", records=[R_SEED, R_A],
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", ref=FEATURE,
+                                       records=[R_SEED, R_A],
                                        attest=[("RA", {})], gh_fail=True)
     assert code == 2 and len(calls) == 1 and "(I-prov)" in shas["_stdout"]
 
@@ -2351,6 +2449,7 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     assert "needs" not in gate and "if" not in gate and "environment" not in gate and gate["timeout-minutes"] <= 10
     assert gate["outputs"] == {"sha": "${{ steps.check.outputs.sha }}",
                                "data_sha": "${{ steps.check.outputs.data_sha }}",
+                               "seed": "${{ steps.check.outputs.seed }}",
                                "verified": "${{ steps.check.outputs.verified }}"}
     steps = gate["steps"]
     assert [s.get("name") for s in steps] == ["Check out this run's commit", GATE_STEP]
@@ -2369,7 +2468,10 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     # update builds exactly the gate's commit (L-A); push, deploy and note need the gate
     assert jobs["update"]["needs"] == "gate"
     co = [s for s in jobs["update"]["steps"] if "actions/checkout@" in s.get("uses", "")]
-    assert len(co) == 1 and co[0]["with"]["ref"] == "${{ needs.gate.outputs.sha }}" and co[0]["id"] == "checkout"
+    # S (the gate's commit), then D (the gate's records-data head) beside it, never `ref: main` (row J1)
+    assert len(co) == 2 and co[0]["with"]["ref"] == "${{ needs.gate.outputs.sha }}" and co[0]["id"] == "checkout"
+    assert co[1]["with"] == {"ref": "${{ needs.gate.outputs.data_sha }}", "path": ".records-data",
+                             "persist-credentials": False}
     assert "          ref: main\n" not in TEXT
     assert jobs["push"]["needs"] == ["gate", "update"]
     assert jobs["deploy"]["needs"] == ["gate", "update", "push"]

@@ -123,6 +123,9 @@ reviewer.
   that. I-pub holds the deploy if it drops or changes a published fact; an old tree that differs only in facts not
   yet live deploys. Accepted: the data is still `main`'s own pipeline output. (e) Settings drift: R1'' holds only
   while the settings in decision 6 hold, and only a run of `protect-main` from Brian's PC can see them all.
+  (f) Attested but unpushed (the delta review of fb94f5be): the push job attests before it pushes, so a refused
+  non-fast-forward push leaves an attestation of a listing that never reached `records-data`; that is harmless only
+  because the listing is the workflow's own checked output (the same as residual (d) if it is ever pushed later).
 - The push job gains `id-token: write` and `attestations: write`, and loses `pull-requests: write`. It is the only
   job with `attestations: write`; `deploy` keeps its own `id-token: write`. The gate gains `attestations: read`.
 - **U3-0 = no** (finding 8): the team's cloud session got a proxy 403 on the no-op ruleset PUT at 17:37 UTC

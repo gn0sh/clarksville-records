@@ -130,6 +130,8 @@ the listing bytes the push job attests equal the bytes the gate rebuilds (one sh
   fixed-title issue. A failed fetch also holds, with its own issue text. A missing `build-info.json` is accepted
   only when `D` is the seed.
 - Write `build-info.json` (`S`, `D`, the listing digest) into the site.
+  Contract (B4, D3): `{"schema": "build-info/1", "sha": S, "data_sha": D, "listing_sha256": <sha256 of
+  `git ls-tree -r -z <deployed commit> -- data`>}` at `<site>/build-info.json` (`collector/tripwire.py` `build_info`).
 - Deploy needs `held != yes`; the note follows deploy. Drop any `data_sha` input.
 - `allow_shrink` never bypasses the tripwire (F7); only the reviewed list does.
 - City-books issue (row FB, `daily-update.yml:566-596`): the text drops "before it is committed" and names the

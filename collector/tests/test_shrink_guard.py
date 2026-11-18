@@ -137,7 +137,7 @@ def county(tmp_path, monkeypatch):
     return state
 
 
-def collect(tmp_path, city=0, county=0, run_log=None, event="schedule", allow="", actor="gn0sh"):
+def collect(tmp_path, city=0, county=0, run_log=None, event="schedule", allow="", actor="gn0sh", dispatcher=None):
     """The Collect step's own script, the two collector calls replaced; returns (exit, outputs, county args)."""
     work = tmp_path / "collect"
     (work / "build").mkdir(parents=True, exist_ok=True)
@@ -151,7 +151,7 @@ def collect(tmp_path, city=0, county=0, run_log=None, event="schedule", allow=""
     assert script != COLLECT["run"] and str(args) in script
     r = subprocess.run(["bash", "-c", script], cwd=work, capture_output=True, text=True,
                        env={**os.environ, "GITHUB_OUTPUT": str(out), "GITHUB_EVENT_NAME": event, "ALLOW_SHRINK": allow,
-                            "TRIGGERING_ACTOR": actor})
+                            "TRIGGERING_ACTOR": actor, "DISPATCH_ACTOR": actor if dispatcher is None else dispatcher})
     outputs = dict(ln.split("=", 1) for ln in out.read_text().split())
     return r.returncode, outputs, args.read_text().split()
 
@@ -353,9 +353,14 @@ def test_allow_shrink_dispatch_only(county, tmp_path):
         assert code == 0 and args == (["--allow-shrink"] if passed else []), (event, allow)
     # data-prov/dispatch-actor: honoured only for a run gn0sh triggered (anyone with actions: write can dispatch)
     assert COLLECT["env"]["TRIGGERING_ACTOR"] == "${{ github.triggering_actor }}"
+    assert COLLECT["env"]["DISPATCH_ACTOR"] == "${{ github.actor }}"
     for actor in ("github-actions[bot]", "someone", "", "gn0sh2", "Gn0sh"):
         code, _, args = collect(tmp_path, event="workflow_dispatch", allow="true", actor=actor)
         assert code == 0 and args == [], actor
+    # a gn0sh re-run of someone else's allow_shrink dispatch keeps their inputs: not honoured (delta review, fb94f5be)
+    for actor, dispatcher in (("gn0sh", "someone"), ("gn0sh", ""), ("someone", "gn0sh")):
+        code, _, args = collect(tmp_path, event="workflow_dispatch", allow="true", actor=actor, dispatcher=dispatcher)
+        assert code == 0 and args == [], (actor, dispatcher)
     push_if = WF["jobs"]["push"]["if"]
     assert "github.ref == 'refs/heads/main'" in push_if and "allow_shrink" not in push_if   # commits from main only
     new = copy.deepcopy(committed())

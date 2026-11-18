@@ -12,8 +12,10 @@ and 5).
   into `main`, merged by a person, with a person's review (Comment or Approve; by the owner or a collaborator) of the
   PR's head commit before the merge (step 2.0.3 does both); a merge commit's merged-in side must be that head. It outputs the run's commit and
   `verified`. `update` builds exactly that commit, `deploy` needs the gate's success, and `note` needs
-  `verified == 'true'`. While the baseline is empty (phase 0) or on any branch other than `main`, it passes with
-  `verified=false`: the site updates and deploys as before, and the note never runs. Read-only token, no secret;
+  `verified == 'true'`. There is no phase 0 on `main` (ADR 0011 Amendment (c)): the cutover PR pins
+  `MAIN_PR_BASELINE` to its base sha, and on `main` an empty baseline is a refusal. On any branch other than `main` it
+  passes with `verified=false`, and push, deploy and the note never run (they are `main` only, and each needs
+  `verified == 'true'`; deploy needs it on `collect = false` runs too). Read-only token, no secret;
   it runs no file from the repository. A refusal opens one issue **"Daily update: main history check failed"**
   (job `gate-failed`) and stops the build, deploy and note: "When the gate fails" below.
 - `update` job, step "Plan the morning note (dry run, no network)": `python -m sender plan --rehearse` every day,
@@ -26,7 +28,8 @@ and 5).
   3. the repository variable `MORNING_NOTE_SEND` is exactly `true`;
   4. the `update` and `deploy` jobs both succeeded (so it never runs while the deploy is locked, and an email never
      links a page that is not live);
-  5. the `gate` job verified `main`'s history (`verified` is `true`: never while `MAIN_PR_BASELINE` is empty).
+  5. the `gate` job verified `main`'s history (`verified` is `true`; on `main` an empty `MAIN_PR_BASELINE` is a gate
+     refusal, so the note never runs then either).
   Inside it: mask the canary ids, check out the gate's commit (no token kept), stop if its `sender/`,
   `config/site.yml` or `.github/` differ from `main` (a re-run of an older run), Python with no pip step, stage `sender/*.py` and
   `config/site.yml` from the commit's git objects into a new folder outside the checkout (its sha256 digest is
@@ -354,8 +357,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only).** Set by the team the day
    the V1' probe passes (not at note go-live), after 2.0.5 and the gate's pull request merged; at note go-live this
    item is only the check in 7.3. It is in `.github/workflows/daily-update.yml`, the `env:` of the `gate` job's step
-   "Check main's history and the records-data head", and is empty until then (phase 0: the gate checks nothing and passes with `verified=false`, so the note
-   job never runs). Set to a commit that is not a 40-hex sha on `main`'s first-parent line, the gate fails every
+   "Check main's history and the records-data head". **ADR 0011 Amendment (c) replaces this timing:** the cutover PR
+   pins it to its own base sha (checked with the 4.7.1 window listing pasted into that PR), so there is no phase 0
+   on `main`; an empty value on `main` is a gate refusal. Before the cutover it is empty. Set to a commit that is not a 40-hex sha on `main`'s first-parent line, the gate fails every
    run. The gate checks every change outside `data/` after the baseline; the baseline stands for "a person checked
    everything up to here".
    1. `git fetch origin main`, then
@@ -508,13 +512,16 @@ or "Check the plan" means the plan from the update job was missing or did not pa
 "Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
 re-run, or a change to `sender/`, `config/site.yml` or the workflow file merged during the run (see "Rules for
 manual runs and re-runs"): nothing was sent.
-A note job skipped with the gate green but `verified` false means phase 0 (`MAIN_PR_BASELINE` empty) or a run not
-on `main`: nothing to fix until section 4 item 7.
+A note job skipped with the gate green but `verified` false means a run not on `main` (on `main` an empty
+`MAIN_PR_BASELINE` is a gate refusal, ADR 0011 Amendment (c)): nothing to fix.
 
 ## When the gate fails
 The issue "Daily update: main history check failed" opens (or gets a comment). Nothing was built, pushed, deployed or
 sent; the live site keeps its last deploy and the data waits for the next run. Open the run's `gate` job log; it says
 one of:
+- "MAIN_PR_BASELINE is empty on main (ADR 0011 Amendment (c): there is no phase 0 on main; ...": a PR emptied the
+  baseline, so the pipeline is frozen on purpose. Set it back to a reviewed `main` sha (runbook 4.7.1 window listing)
+  by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
 - `MAIN_PR_BASELINE` is not a sha, not on `main`'s first-parent line, or no commit follows it: the baseline PR was
   wrong. Fix it by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
 - A commit (its sha is in the log) is not the merge of exactly one PR into `main`; was merged by a bot or with no
@@ -533,12 +540,15 @@ one of:
   branch `records-data` is gone or GitHub could not be read. Re-run the failed jobs once. If the branch is missing,
   treat it as an incident (ruleset R-D forbids deleting it) and tell the team; do not recreate it by hand.
 - "records-data does not meet I-data'' at <sha>: ..." (the head commit), after up to 20 lines
-  "not allowed in data/: <entry>" or "curated, belongs in config/: <entry>" (mode, object and name; any byte outside
+  "not allowed in data/: <entry>", "curated, belongs in config/: <entry>" or "person-made (maps/ or transcripts/),
+  belongs in config/: <entry>" (mode, object and name; any byte outside
   plain ASCII shown as `?`). The reason is one of: "data/ must be the only entry of the tree, and a folder
-  (I-data''): ..."; "data/ must hold only regular files with plain names ending .json, or named changes.jsonl, and
-  none of the curated files (I-data''): <m> of <n> entries fit, <c> curated."; "could not read the tree of ...",
+  (I-data''): ..."; "data/ must hold only regular files with plain names ending .json, or named changes.jsonl, none
+  of the curated files and nothing in a maps/ or transcripts/ folder (I-data''): <m> of <n> entries fit, <c> curated,
+  <p> person-made."; "could not read the tree of ...",
   "could not read data/ in the tree of ..." or "could not check data/'s names.". A symlink, submodule, executable,
-  `.yml` file, a name with a space, a leading dot or a non-ASCII byte, a curated file, or anything outside `data/` is
+  `.yml` file, a name with a space, a leading dot or a non-ASCII byte, a curated file, a `maps/` or `transcripts/`
+  folder (person-made inputs live in `config/`), or anything outside `data/` is
   never something the push job writes (it runs the same check before it pushes). Read the commits that changed it
   (`git log --format='%h %an %s' origin/records-data`) and treat it as an incident if nobody meant it. Then restore
   the last attested tree whole on `records-data` (below).
