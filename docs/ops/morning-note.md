@@ -7,7 +7,7 @@ team creates no account, key, secret, variable or environment; every step marked
 and 5).
 
 ## How it runs (`.github/workflows/daily-update.yml`)
-- `gate` job, first, every run (T4.10.2; `docs/architecture/main-protect-invariant.md`, ADR 0009): step "Check every change outside data/ reached main by a reviewed pull request a person merged". On `main`, with `MAIN_PR_BASELINE` set, it refuses unless every commit on `main`'s first-parent line
+- `gate` job, first, every run (T4.10.2; `docs/architecture/main-protect-invariant.md`, ADR 0009): step "Check main's history and the records-data head". On `main`, with `MAIN_PR_BASELINE` set, it refuses unless every commit on `main`'s first-parent line
   after the baseline that changes anything outside `data/` is the merge or squash commit of exactly one pull request
   into `main`, merged by a person, with a person's review (Comment or Approve; by the owner or a collaborator) of the
   PR's head commit before the merge (step 2.0.3 does both); a merge commit's merged-in side must be that head. It outputs the run's commit and
@@ -81,7 +81,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    - **The ruleset is accident prevention plus an audit trail**, not a lock: it stops every direct push and force
      push (its one bypass is for pull requests only), and it makes every change to `main` show up as a pull
      request. The `gate` job adds a check
-     on top, before anything is built, deployed or sent (step "Check every change outside data/ reached main by a reviewed pull request a person merged"): **every** commit on `main`'s first-parent
+     on top, before anything is built, deployed or sent (step "Check main's history and the records-data head"): **every** commit on `main`'s first-parent
      line after the baseline `MAIN_PR_BASELINE` that touches anything outside `data/` must be the merge of exactly
      one pull request into `main`, **merged by a person**, with **a person's review of the PR's head commit** (the owner's
      or a collaborator's) posted before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
@@ -354,7 +354,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only).** Set by the team the day
    the V1' probe passes (not at note go-live), after 2.0.5 and the gate's pull request merged; at note go-live this
    item is only the check in 7.3. It is in `.github/workflows/daily-update.yml`, the `env:` of the `gate` job's step
-   "Check every change outside data/ reached main by a reviewed pull request a person merged", and is empty until then (phase 0: the gate checks nothing and passes with `verified=false`, so the note
+   "Check main's history and the records-data head", and is empty until then (phase 0: the gate checks nothing and passes with `verified=false`, so the note
    job never runs). Set to a commit that is not a 40-hex sha on `main`'s first-parent line, the gate fails every
    run. The gate checks every change outside `data/` after the baseline; the baseline stands for "a person checked
    everything up to here".
@@ -512,31 +512,49 @@ A note job skipped with the gate green but `verified` false means phase 0 (`MAIN
 on `main`: nothing to fix until section 4 item 7.
 
 ## When the gate fails
-The issue "Daily update: main history check failed" opens (or gets a comment). Nothing was built, deployed or sent;
-the live site keeps its last deploy and the data waits for the next run. Open the run's `gate` job log; it says one of:
-- `MAIN_PR_BASELINE` is not a sha, not on `main`'s first-parent line, or no commit after it changes anything outside
-  `data/`: the baseline PR was wrong. Fix it by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
+The issue "Daily update: main history check failed" opens (or gets a comment). Nothing was built, pushed, deployed or
+sent; the live site keeps its last deploy and the data waits for the next run. Open the run's `gate` job log; it says
+one of:
+- `MAIN_PR_BASELINE` is not a sha, not on `main`'s first-parent line, or no commit follows it: the baseline PR was
+  wrong. Fix it by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
 - A commit (its sha is in the log) is not the merge of exactly one PR into `main`; was merged by a bot or with no
   `merged_by`; is a merge whose merged-in side is not the PR's head; or has no review of the PR's head by the owner
-  or a collaborator before the merge. Read that commit first (`git show <sha>`, and its PR page): who merged it, how, and what it
+  or a collaborator before the merge. Since ADR 0011 this holds for every commit, `data/` included. Read that commit
+  first (`git show <sha>`, and its PR page): who merged it, how, and what it
   changed. A later pull request does **not** clear it: the gate refuses on every run until the baseline moves past
   it. If it was meant (for example a PR merged with the Merge button instead of 2.0.3): a person reads its whole
   diff, then a PR merged with `scripts/merge-reviewed.ps1` sets `MAIN_PR_BASELINE` to `main`'s commit at that time
   (as in section 4 item 7). If it was **not** meant (a workflow or someone merged code nobody reviewed): treat it
   as an incident; delete the variable `MORNING_NOTE_SEND`, and do not move the baseline until it is understood.
-- "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): <m>
-  of <n> entries fit." (it checks on every run on `main`, phase 0 included), after up to 20 lines
-  "not allowed in data/: <entry>" (mode, object and name; any byte outside plain ASCII shown as `?`). A symlink,
-  submodule, executable file, a name with a space, a leading dot or a non-ASCII byte, or any other name under
-  `data/` is never something the collector writes. Read the commit that added it (`git log --first-parent -- data/`
-  on `main`, then `git show <sha> --stat`) and treat it as an incident if nobody meant it; otherwise remove it by a
-  PR merged with `scripts/merge-reviewed.ps1`.
-- "data/ is not a folder in this commit (missing, a file or a link), or could not be read (I-data)." `data/` was
-  deleted, emptied or replaced by a file or link (a data PR merged from an empty refresh, or a hand edit). Restore it
-  from the last commit whose `data/` was good, by a PR merged with `scripts/merge-reviewed.ps1`:
-  `git fetch origin main`, `git log --first-parent --format='%h %s' origin/main -- data` and pick the newest commit
-  before the bad one (`<good>`); then on a new branch from `origin/main`: `git rm -r -q --cached data; rm -rf data;
-  git checkout <good> -- data`, commit "Restore data/ from <good>", open the PR, review it, merge it with 2.0.3. The
-  next run collects again on top of it. If the same thing repeats, treat it as an incident.
-- "could not read data/ in this commit's tree.", "could not check data/'s names.", "could not read main's full
+- "this commit tracks data/ (I-main''): collector output lives on records-data only, curated inputs in config/."
+  A PR put `data/` back on `main`. Remove it by a PR merged with `scripts/merge-reviewed.ps1`; curated inputs go in
+  `config/`.
+- "could not read records-data (missing, or not readable)." or "could not read records-data's head commit.": the
+  branch `records-data` is gone or GitHub could not be read. Re-run the failed jobs once. If the branch is missing,
+  treat it as an incident (ruleset R-D forbids deleting it) and tell the team; do not recreate it by hand.
+- "records-data does not meet I-data'' at <sha>: ..." (the head commit), after up to 20 lines
+  "not allowed in data/: <entry>" or "curated, belongs in config/: <entry>" (mode, object and name; any byte outside
+  plain ASCII shown as `?`). The reason is one of: "data/ must be the only entry of the tree, and a folder
+  (I-data''): ..."; "data/ must hold only regular files with plain names ending .json, or named changes.jsonl, and
+  none of the curated files (I-data''): <m> of <n> entries fit, <c> curated."; "could not read the tree of ...",
+  "could not read data/ in the tree of ..." or "could not check data/'s names.". A symlink, submodule, executable,
+  `.yml` file, a name with a space, a leading dot or a non-ASCII byte, a curated file, or anything outside `data/` is
+  never something the push job writes (it runs the same check before it pushes). Read the commits that changed it
+  (`git log --format='%h %an %s' origin/records-data`) and treat it as an incident if nobody meant it. Then restore
+  the last attested tree whole on `records-data` (below).
+- "records-data is not attested by daily-update.yml on main, and is not the seed (I-prov): head <sha>, ..." The
+  head's tree listing has no attestation by `daily-update.yml` at `refs/heads/main` (predicate SLSA provenance v1,
+  GitHub-hosted runner), and it is not the parentless seed with the pinned digest. Either the push job pushed and its
+  attestation step failed (the push job's issue says so), a hand edit, or a write-token workflow on another branch
+  pushed it (treat that as an incident). To recover, restore the last attested tree whole on `records-data`: find the
+  newest commit whose tree is attested (`git fetch origin records-data`, then for each candidate `<good>`:
+  `git ls-tree -r -z <good> -- data > listing && gh attestation verify listing --repo gn0sh/clarksville-records
+  --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/daily-update.yml@refs/heads/main
+  --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners`); then on
+  a checkout of `origin/records-data`: `git rm -r -q data; git checkout <good> -- data`, commit "Restore records-data
+  to <good>", and `git push origin HEAD:records-data` (a fast-forward; never force). Then run the workflow with
+  `collect = false`. The seed itself is never attested: once records-data has moved past it, its tree is refused.
+- "RECORDS_DATA_SEED_DIGEST is not a 64-hex sha256.": the cutover PR pinned a bad value. Fix it by a PR merged with
+  `scripts/merge-reviewed.ps1`.
+- "could not read this commit's tree.", "could not read records-data's listing.", "could not read main's full
   history." or a GitHub API error: re-run the failed jobs once; if it repeats, tell the team.

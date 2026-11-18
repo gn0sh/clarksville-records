@@ -1,8 +1,10 @@
 # Daily update and GitHub Pages deploy for https://daylight.gnoshcodes.com/
 #
-# gate job   : runs first. Checks main's history (every change outside data/ after MAIN_PR_BASELINE is a pull
-#              request a person merged, reviewed at its head) and outputs the commit every later job uses. Read-only.
-#              docs/architecture/main-protect-invariant.md, ADR 0009.
+# gate job   : runs first. Fixes the run's two commits: code S = github.sha and data D = the head of branch
+#              records-data, read once (ADR 0011). Refuses a tracked data/ on S, a D that fails I-data'' or I-prov
+#              (attested by this workflow's push job on main, or the pinned seed), and, after MAIN_PR_BASELINE, any
+#              commit on main that is not a reviewed pull request a person merged. Read-only.
+#              docs/architecture/v1-fail-2026-11-18.md, ADR 0011.
 # update job : builds the gate's commit: collect politely, rebuild, check, upload the refreshed data/ and the site
 #              as artifacts. It parses
 #              untrusted downloaded PDFs, so it has read-only repo access and no persisted token. It never publishes.
@@ -56,38 +58,44 @@ permissions: {}
 #   RECORDS_BUILD_TARGET=pages  file cap of GitHub Pages (3000), not the claude.ai preview's 500
 
 jobs:
-  # main-protect gate (docs/architecture/main-protect-invariant.md "The gate job", ADR 0009, T4.10.2). Runs first, on
-  # every run. It checks I-main for this run's commit S = github.sha: after MAIN_PR_BASELINE, every commit on S's
-  # first-parent line that changes anything outside data/ is the merge or squash commit of exactly one pull request
-  # into main, merged by a person (merged_by.type User), whose head at merge carries a person's review of that exact
-  # commit (by the owner or a collaborator, COMMENTED or APPROVED, commit_id == head.sha, submitted no later than
-  # merged_at); a merge commit's second parent is that head. On main, phase 0 included, data/ must meet I-data: only
-  # regular *.json, *.yml and changes.jsonl files with plain names (who merged a data-only commit is a residual).
-  # Every other job builds, deploys or sends only S: update checks out the gate's sha, deploy
-  # needs the gate's success and note needs verified == 'true'. Outputs: sha (= S) and verified.
-  # Why: the setting "Allow GitHub Actions to create and approve pull requests" (on for the push job's data PR) lets
-  # a workflow on any branch open a PR to main with GITHUB_TOKEN, and a workflow with contents: write can merge an open
-  # PR (that setting does not govern merging). A code commit merged that way, or by a
-  # person without the reviewed-merge procedure (scripts/merge-reviewed.ps1, runbook 2.0.3), is refused here on every
-  # later run until a person moves the baseline past it (fail closed; the gate-failed job opens one issue).
-  # The check is inline, never a script in the repository. It cannot hold its own file: V1 is false (the V1 probe,
-  # runbook 2.0.4, 2026-11-18: GITHUB_TOKEN may merge a workflow change). What keeps a bot merge of anything outside
-  # data/ off main is the ruleset's code-owner rule (R1', .github/CODEOWNERS, ADR 0010); this gate is the check of
-  # what reached main and defence in depth. The checkout gives
-  # git the history; no file from it is run (test: the gate's commands are allowlisted).
-  # Phase 0 (MAIN_PR_BASELINE empty) or a run on a branch other than main: verified=false and success, so update,
-  # push and deploy run as before and note never runs. MAIN_PR_BASELINE is main's commit when the baseline PR merged
-  # (runbook 4.7, T4.10.8): history up to it was read by a person. Changing it is a change to .github/, so the PR that
-  # sets it is after the baseline and is checked too. Cost: 3 API calls per code commit after the baseline.
+  # main-protect gate (ADR 0011; docs/architecture/v1-fail-2026-11-18.md, I-main'', I-data'', I-prov, I-run'', row G).
+  # Runs first, on every run, and fixes the two commits every later job uses: code S = github.sha and data D = the
+  # head of branch records-data, read once here (no workflow input can choose another D). Outputs sha (S), data_sha
+  # (D) and verified. In order:
+  # - S tracks no data/ (I-main''): collector output lives on records-data only, curated inputs are code in config/.
+  # - D meets I-data'' (the data-tree helper below): its tree is data/ only, every entry a regular *.json or
+  #   changes.jsonl file with a plain name (SHAPE'', no .yml), at least one, and none of the curated names.
+  # - D meets I-prov: the listing `git ls-tree -r -z D -- data` (the bytes the push job attests) carries an artifact
+  #   attestation by .github/workflows/daily-update.yml at refs/heads/main of this repository, from a GitHub-hosted
+  #   runner, predicate type SLSA provenance v1 (only the push job holds attestations: write); or D is the seed: no
+  #   parents and the listing's sha256 equals RECORDS_DATA_SEED_DIGEST (pinned by the reviewed cutover PR; empty =
+  #   no seed accepted). The attestation is on the tree, so a person's whole-tree restore of an earlier attested tree
+  #   is accepted and a hand edit is not. Once records-data moves past the seed, a tree equal to the seed on a commit
+  #   with a parent is checked like any other (the seed is never attested), so it is refused (F7).
+  # - On main, after MAIN_PR_BASELINE (I-main'', no data-only exception): every commit on S's first-parent line is the
+  #   merge or squash commit of exactly one pull request into main, merged by a person (merged_by.type User), whose
+  #   head at merge carries a person's review of that exact commit (the owner or a collaborator, COMMENTED or
+  #   APPROVED, commit_id == head.sha, submitted no later than merged_at); a merge commit's second parent is that
+  #   head. A bot's merge of anything is refused on every later run until a person moves the baseline past it.
+  # Fail closed: any read that fails (records-data missing, git, GitHub, the attestation lookup) refuses, and a refusal
+  # outputs nothing, so nothing is built, pushed, deployed or sent; the gate-failed job opens one issue.
+  # Phase 0 (MAIN_PR_BASELINE empty) or a run on a branch other than main: S and D are still checked, the history is
+  # not; verified=false and success, so the note never runs (push and deploy are main only). MAIN_PR_BASELINE is
+  # main's commit when the baseline PR merged (runbook 4.7; set after the cutover PR and the V1'' probe): history up
+  # to it was read by a person. Changing it is a change to .github/, so the PR that sets it is checked too.
+  # The check is inline, never a script in the repository; no file from the checkout is run (test: the gate's
+  # commands are allowlisted). Cost: 3 API calls per commit after the baseline, plus one attestation lookup.
   gate:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       sha: ${{ steps.check.outputs.sha }}
+      data_sha: ${{ steps.check.outputs.data_sha }}
       verified: ${{ steps.check.outputs.verified }}
     permissions:
-      contents: read         # read the history (the repository is public; the token is not kept on disk)
-      pull-requests: read    # read each code commit's pull request and its reviews
+      contents: read         # read the history and records-data (the repository is public; the token is not on disk)
+      pull-requests: read    # read each commit's pull request and its reviews
+      attestations: read     # read the attestations of records-data's listing (I-prov)
     steps:
       - name: Check out this run's commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -95,42 +103,93 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Check every change outside data/ reached main by a reviewed pull request a person merged
+      - name: Check main's history and the records-data head
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
           REF: ${{ github.ref }}
           MAIN_PR_BASELINE: ""   # T4.10.8: set to main's commit sha by a reviewed PR (runbook 4.7); empty = phase 0
+          RECORDS_DATA_SEED_DIGEST: ""   # ADR 0011: sha256 of the seed's listing, set by the cutover PR; empty = none
         run: |
           set -euo pipefail
-          verdict() { echo "sha=$SHA" >> "$GITHUB_OUTPUT"; echo "verified=$1" >> "$GITHUB_OUTPUT"; }
-          refuse() { echo "::error::$1 Nothing after this runs: no build, deploy or note."; exit 2; }
+          D=""
+          verdict() { echo "sha=$SHA" >> "$GITHUB_OUTPUT"; echo "data_sha=$D" >> "$GITHUB_OUTPUT"; echo "verified=$1" >> "$GITHUB_OUTPUT"; }
+          refuse() { echo "::error::$1 Nothing after this runs: no build, push, deploy or note."; exit 2; }
           if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || [ "$(git rev-parse HEAD)" != "$SHA" ]; then
             refuse "the checkout is not this run's commit."
           fi
+          # ---- data-tree helper: the same text in the gate and the push job (a test keeps the two copies equal) ----
+          # I-data'' (ADR 0011; B1 owns the curated-file move to config/): the commit's tree is data/ only; data/ holds
+          # regular files (mode 100644) with plain ASCII names ending .json, or named changes.jsonl (SHAPE'', no .yml),
+          # at least one, and none of the curated names (CURATED, at any depth). Passes only by counting entries that
+          # fit (matched == total >= 1), compared as bytes (LC_ALL=C, grep -a: under a UTF-8 locale grep withholds a
+          # non-UTF-8 name as "binary file matches", S-1). NUL-separated records, so a name holding a newline stays
+          # one record and fails. Tree objects only: works on a blob:none partial clone. data_listing writes the bytes
+          # the push job attests and the gate verifies (I-prov). data_check sets $why when it returns 1.
+          SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.json|changes\\.jsonl)$'
+          CURATED=$'\tdata/([^/]*/)*(names\\.yml|procedural-titles\\.yml|corrections-log\\.json)$'
+          TOP=$'^040000 tree [0-9a-f]{40}\tdata$'
+          data_listing() { git ls-tree -r -z "$1" -- data; }
+          data_check() {
+            local n_top top_ok total matched curated
+            why="could not read the tree of $1."
+            git ls-tree -z "$1" > "$2.top" || return 1
+            n_top=$(LC_ALL=C tr -cd '\000' < "$2.top" | wc -c) || return 1
+            top_ok=$(LC_ALL=C grep -zacE -- "$TOP" "$2.top") || [ $? = 1 ] || return 1
+            why="data/ must be the only entry of the tree, and a folder (I-data''): $n_top entries, $top_ok of them data/."
+            [ "$n_top" = 1 ] && [ "$top_ok" = 1 ] || return 1
+            why="could not read data/ in the tree of $1."
+            data_listing "$1" > "$2" || return 1
+            total=$(LC_ALL=C tr -cd '\000' < "$2" | wc -c) || return 1
+            why="could not check data/'s names."
+            matched=$(LC_ALL=C grep -zacE -- "$SHAPE" "$2") || [ $? = 1 ] || return 1
+            curated=$(LC_ALL=C grep -zacE -- "$CURATED" "$2") || [ $? = 1 ] || return 1
+            if [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] && [ "$total" -ge 1 ] && [ "$matched" = "$total" ] \
+               && [ "$curated" = 0 ]; then
+              return 0
+            fi
+            # at most 20 refused entries of each kind, every byte outside 0x20-0x7E shown as ?: never a raw name in the log
+            LC_ALL=C grep -zavE -m 20 -- "$SHAPE" "$2" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
+              | while IFS= read -r entry; do echo "::error::not allowed in data/: $entry"; done || true
+            LC_ALL=C grep -zaE -m 20 -- "$CURATED" "$2" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
+              | while IFS= read -r entry; do echo "::error::curated, belongs in config/: $entry"; done || true
+            why="data/ must hold only regular files with plain names ending .json, or named changes.jsonl, and none of the curated files (I-data''): $matched of $total entries fit, $curated curated."
+            return 1; }
+          # ---- end of the data-tree helper ----
+          # I-main'': this commit tracks no data/ (any ref: every later job reads data from D only)
+          if ! s_data=$(git ls-tree --name-only HEAD -- data); then refuse "could not read this commit's tree."; fi
+          if [ -n "$s_data" ]; then
+            refuse "this commit tracks data/ (I-main''): collector output lives on records-data only, curated inputs in config/."
+          fi
+          # D: the records-data head, read once (one fetch; trees only, no file contents). Missing = refused.
+          if ! git fetch --no-tags --filter=blob:none origin "+refs/heads/records-data:refs/gate/records-data"; then
+            refuse "could not read records-data (missing, or not readable)."
+          fi
+          D=$(git rev-parse --verify -q "refs/gate/records-data^{commit}") || refuse "could not read records-data's head commit."
+          if ! [[ "$D" =~ ^[0-9a-f]{40}$ ]]; then refuse "could not read records-data's head commit."; fi
+          listing="$RUNNER_TEMP/records-data-listing"
+          if ! data_check "$D" "$listing"; then refuse "records-data does not meet I-data'' at $D: $why"; fi
+          # I-prov: the seed (no parent line in the commit's header, listing digest pinned) or an attested listing.
+          # The raw header, not rev-list: a shallow or grafted history can hide parents, the commit object cannot.
+          raw=$(git cat-file commit "$D") || refuse "could not read records-data's head commit."
+          header="${raw%%$'\n\n'*}"
+          n_parents=$(grep -c '^parent ' <<< "$header" || true)
+          digest=$(sha256sum < "$listing") || refuse "could not read records-data's listing."
+          digest="${digest%% *}"
+          seed="${RECORDS_DATA_SEED_DIGEST:-}"
+          if [ -n "$seed" ] && ! [[ "$seed" =~ ^[0-9a-f]{64}$ ]]; then refuse "RECORDS_DATA_SEED_DIGEST is not a 64-hex sha256."; fi
+          if [ "$n_parents" = 0 ] && [ -n "$seed" ] && [ "$digest" = "$seed" ]; then
+            echo "records-data $D is the seed (no parents; listing sha256 $digest = RECORDS_DATA_SEED_DIGEST)."
+          elif gh attestation verify "$listing" --repo gn0sh/clarksville-records \
+                 --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/daily-update.yml@refs/heads/main \
+                 --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners; then
+            echo "records-data $D: its listing (sha256 $digest) is attested by daily-update.yml on main."
+          else
+            refuse "records-data is not attested by daily-update.yml on main, and is not the seed (I-prov): head $D, $n_parents parent(s), listing sha256 $digest."
+          fi
           if [ "$REF" != refs/heads/main ]; then
             echo "Not main ($REF): no history check; verified=false."; verdict false; exit 0
-          fi
-          # I-data (docs/architecture/main-protect-invariant.md "I-data"; phase 0 too): data/ is a folder of regular
-          # files (mode 100644) with plain ASCII names ending .json or .yml, or named changes.jsonl. Passes only by
-          # counting entries that fit (matched == total >= 1), compared as bytes (LC_ALL=C, grep -a: under a UTF-8
-          # locale grep withholds a non-UTF-8 name as "binary file matches", S-1). NUL-separated records, so a name
-          # holding a newline stays one record and fails. Tree objects only: works on a blob:none partial clone.
-          # SHAPE is the same text in the push job's commit step (a test keeps them identical).
-          SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.(json|yml)|changes\\.jsonl)$'
-          if [ "$(git cat-file -t HEAD:data 2>/dev/null || true)" != tree ]; then
-            refuse "data/ is not a folder in this commit (missing, a file or a link), or could not be read (I-data)."
-          fi
-          listing="$RUNNER_TEMP/gate-data-tree"
-          if ! git ls-tree -r -z HEAD -- data > "$listing"; then refuse "could not read data/ in this commit's tree."; fi
-          total=$(LC_ALL=C tr -cd '\000' < "$listing" | wc -c)
-          matched=$(LC_ALL=C grep -zacE -- "$SHAPE" "$listing") || { [ $? = 1 ] || refuse "could not check data/'s names."; }
-          if ! [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] || [ "$total" -lt 1 ] || [ "$matched" != "$total" ]; then
-            # at most 20 refused entries, every byte outside 0x20-0x7E shown as ?: never a raw name in the log
-            LC_ALL=C grep -zavE -m 20 -- "$SHAPE" "$listing" | LC_ALL=C tr -c '\040-\176\000' '?' | LC_ALL=C tr '\000' '\n' \
-              | while IFS= read -r entry; do echo "::error::not allowed in data/: $entry"; done || true
-            refuse "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): ${matched:-?} of ${total:-?} entries fit."
           fi
           base="${MAIN_PR_BASELINE:-}"
           if [ -z "$base" ]; then
@@ -144,13 +203,13 @@ jobs:
           if [ "$(git rev-parse --is-shallow-repository)" != false ]; then refuse "could not read main's full history."; fi
           on_line=$(git rev-list --first-parent HEAD | grep -Fxc -- "$base" || true)
           if [ "$on_line" != 1 ]; then refuse "MAIN_PR_BASELINE $base is not a commit on main's first-parent line."; fi
-          shas=$(git log --first-parent --format=%H "$base..HEAD" -- . ':(exclude)data/')
+          shas=$(git log --first-parent --format=%H "$base..HEAD")
           if [ -z "$shas" ]; then
-            refuse "no commit after MAIN_PR_BASELINE touches anything outside data/ (the commit that set it must)."
+            refuse "no commit after MAIN_PR_BASELINE (the commit that set it must be one)."
           fi
           for sha in $shas; do
             if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then refuse "unexpected git log output."; fi
-            what="$sha (a change outside data/ on main after MAIN_PR_BASELINE)"
+            what="$sha (a commit on main after MAIN_PR_BASELINE)"
             num=$(COMMIT="$sha" gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
                   '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.COMMIT) | .number | tostring] | join(" ")')
             if ! [[ "$num" =~ ^[0-9]+$ ]]; then refuse "$what is not the merge of exactly one pull request into main ('$num')."; fi
@@ -173,7 +232,7 @@ jobs:
               refuse "$what was merged by pull request #$num with no person's review of its head $head before the merge (merge with scripts/merge-reviewed.ps1, runbook 2.0.3)."
             fi
           done
-          echo "Every change outside data/ on main after $base was merged by a person, reviewed at its head: $(echo "$shas" | wc -l) commit(s)."
+          echo "Every commit on main after $base was merged by a person, reviewed at its head: $(echo "$shas" | wc -l) commit(s)."
           verdict true
 
   update:
@@ -1223,7 +1282,7 @@ jobs:
           GATE_TITLE: "Daily update: main history check failed"
         run: |
           set -eu
-          body="The gate job refused main's history or could not read it: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Nothing was built, deployed or sent; the live site keeps its last deploy. The run log names the commit; see docs/ops/morning-note.md, 'When the gate fails'."
+          body="The gate job refused main's history or the records-data head, or could not read them: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. Nothing was built, deployed or sent; the live site keeps its last deploy. The run log names the commit; see docs/ops/morning-note.md, 'When the gate fails'."
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$GATE_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.GATE_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then

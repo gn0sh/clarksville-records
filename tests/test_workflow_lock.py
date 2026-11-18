@@ -240,11 +240,12 @@ def test_push_validates_the_artifact_before_staging():
 
 
 def test_tracked_data_files_fit_the_allowlist():
-    """I-data on the committed tree: every `git ls-tree -r -z HEAD -- data` entry, as bytes, fits the gate's own SHAPE
-    (regular 100644 files, plain names, .json/.yml or changes.jsonl), and there is at least one."""
+    """I-data'' on what D3 seeds records-data with: every tracked `git ls-tree -r -z HEAD -- data` entry but the curated
+    files (B1 moves them to config/), as bytes, fits the gate's own SHAPE'' (regular 100644 files, plain names, .json
+    or changes.jsonl), and there is at least one. (Once main tracks no data/, the seed test reads records-data.)"""
     out = subprocess.run(["git", "ls-tree", "-r", "-z", "HEAD", "--", "data"], cwd=ROOT, capture_output=True,
                          check=True).stdout
-    entries = [e for e in out.split(b"\0") if e]
+    entries = [e for e in out.split(b"\0") if e and e.rsplit(b"/", 1)[-1] not in CURATED_NAMES]
     shape = re.compile(_gate_shape())
     assert entries
     for e in entries:
@@ -459,16 +460,6 @@ def test_the_push_job_checks_i_data_on_the_commit_it_pushes(tmp_path, new, loc, 
     for ln in r.stdout.splitlines():
         if ln.startswith("::error::"):
             assert all(0x20 <= ord(c) <= 0x7E for c in ln), ln
-
-
-def test_the_gate_and_the_push_job_carry_the_identical_shape():
-    gate = [ln.strip() for ln in _gate_steps()[GATE_STEP]["run"].splitlines() if ln.strip().startswith("SHAPE=")]
-    push = [ln.strip() for ln in _push_steps()[COMMIT_STEP]["run"].splitlines() if ln.strip().startswith("SHAPE=")]
-    assert len(gate) == 1 and gate == push
-    run = _push_steps()[COMMIT_STEP]["run"]
-    assert run.index("git pull --rebase origin main") < run.index('LC_ALL=C grep -zacE -- "$SHAPE"') \
-        < run.index('git push origin "HEAD:refs/heads/$branch"')
-    assert "git cat-file -t HEAD:data" in run and '[ "$matched" != "$total" ]' in run and '"$total" -lt 1' in run
 
 
 def test_a_concurrent_data_edit_on_main_fails_loudly(tmp_path):
@@ -1276,7 +1267,7 @@ def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
 
 
 # ------------------------------------------------------------------ main-protect: the gate job (T4.10.2, ADR 0009)
-GATE_STEP = "Check every change outside data/ reached main by a reviewed pull request a person merged"
+GATE_STEP = "Check main's history and the records-data head"
 PR_STEP = GATE_STEP          # the one copy of the history check (it moved out of the note job)
 STALE_STEP = "Check this commit's sender and config are main's"
 PR_JQ = ('[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.COMMIT) | .number '
@@ -1289,6 +1280,27 @@ REVIEW_JQ = ('.[] | select(.user.type == "User" and (.author_association == "OWN
 MERGED_AT = "2026-11-11T00:00:00Z"
 # note-job/pr-check-test-gap: the stub evaluates the step's own --jq filters with jq (gh uses gojq), so the cases
 # test the filters the workflow runs, not a Python copy of them.
+# I-prov: `gh attestation verify FILE --flag value ...` as gh does it, against a store of attestations (ATTEST, a JSON
+# list: the listing's sha256, repo, cert identity, source ref, predicate type, hosted runner). It passes only when one
+# attestation matches the file's digest and every constraint the step passes; a flag the step leaves out never matches.
+_ATTEST_PY = '''
+def attest_verify(a):
+    import hashlib
+    assert a[1] == "verify" and os.environ["GH_TOKEN"] == "t", a
+    digest = hashlib.sha256(open(a[2], "rb").read()).hexdigest()
+    opts, rest = {}, a[3:]
+    while rest:
+        if rest[0] == "--deny-self-hosted-runners":
+            opts["deny"], rest = True, rest[1:]
+        else:
+            opts[rest[0]], rest = rest[1], rest[2:]
+    store = json.load(open(os.environ["ATTEST"])) if os.environ.get("ATTEST") else []
+    ok = any(s["digest"] == digest and s["repo"] == opts.get("--repo") and s["identity"] == opts.get("--cert-identity")
+             and s["source_ref"] == opts.get("--source-ref") and s["predicate"] == opts.get("--predicate-type")
+             and (s["hosted"] or not opts.get("deny")) for s in store)
+    print("Verification succeeded" if ok else "no attestation matched", file=sys.stdout if ok else sys.stderr)
+    return 0 if ok else 1
+'''
 _PULLS_STUB = '''#!/usr/bin/env python3
 import json, os, subprocess, sys
 a = sys.argv[1:]
@@ -1296,6 +1308,9 @@ with open(os.environ["GH_CALLS"], "a") as f:
     f.write(" ".join(a) + "\\n")
 if os.environ.get("GH_FAIL"):
     sys.exit(1)
+''' + _ATTEST_PY + '''
+if a[0] == "attestation":
+    sys.exit(attest_verify(a))
 pulls = json.load(open(os.environ["PULLS"]))
 assert a[0] == "api" and os.environ["GH_TOKEN"] == "t", a
 def by_number(num):
@@ -1324,7 +1339,8 @@ sys.stdout.write(r.stdout)
 sys.stderr.write(r.stderr)
 sys.exit(r.returncode)
 '''
-_ALL = ("config/site.yml", "sender/deliver.py", "data/x.json", ".github/workflows/daily-update.yml")
+# main tracks no data/ (I-main''): BASE touches code only; a case that adds data/ on main removes it again ("rm")
+_ALL = ("config/site.yml", "sender/deliver.py", ".github/workflows/daily-update.yml")
 
 
 def _need_jq():
@@ -1366,12 +1382,68 @@ def _gate_steps():
     return {s.get("name"): s for s in WF["jobs"]["gate"]["steps"]}
 
 
-def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE", ref="refs/heads/main"):
+# I-prov: what an attestation by the push job carries (gh attestation verify's view of it)
+IDENTITY = "https://github.com/gn0sh/clarksville-records/.github/workflows/daily-update.yml@refs/heads/main"
+SLSA = "https://slsa.dev/provenance/v1"
+VERIFY_ARGS = ["--repo", "gn0sh/clarksville-records", "--cert-identity", IDENTITY, "--source-ref", "refs/heads/main",
+               "--predicate-type", SLSA, "--deny-self-hosted-runners"]
+SEED_RECORDS = [("seed", "R0", {"data/manifest.json": "[]\n"})]
+
+
+def _listing_digest(repo, sha) -> str:
+    """sha256 of the listing `git ls-tree -r -z <sha> -- data`, computed here, not by the step."""
+    import hashlib
+    out = subprocess.run(["git", "ls-tree", "-r", "-z", sha, "--", "data"], cwd=repo, capture_output=True,
+                         check=True).stdout
+    return hashlib.sha256(out).hexdigest()
+
+
+def _attestation(digest, **over) -> dict:
+    """An attestation as the push job's attest step makes it, with `over` changing one property."""
+    return {"digest": digest, "repo": "gn0sh/clarksville-records", "identity": IDENTITY,
+            "source_ref": "refs/heads/main", "predicate": SLSA, "hosted": True, **over}
+
+
+def _records_data(tmp_path, origin, records) -> dict:
+    """Build branch records-data on `origin` from `records`, oldest first: ("seed", label, files) a parentless commit
+    holding `files` {path: text}; ("commit", label, files) a child of the previous one with `files` changed (None
+    deletes); ("tree-of", label, other) a child whose tree is `other`'s (a whole-tree restore). Returns {label: sha}."""
+    rsrc = tmp_path / "rsrc"
+    _git(tmp_path, "init", "-q", str(rsrc))
+    shas = {}
+    for kind, label, arg in records:
+        if kind == "tree-of":
+            tree = _git(rsrc, "rev-parse", f"{shas[arg]}^{{tree}}")
+            sha = _git(rsrc, "commit-tree", tree, "-p", "HEAD", "-m", label)
+            _git(rsrc, "reset", "-q", "--hard", sha)
+        else:
+            if kind == "seed":
+                _git(rsrc, "checkout", "-q", "--orphan", f"seed-{label}")
+                _git(rsrc, "rm", "-rqf", "--ignore-unmatch", ".")
+            for rel, text in arg.items():
+                if text is None:
+                    _git(rsrc, "rm", "-q", rel)
+                else:
+                    (rsrc / rel).parent.mkdir(parents=True, exist_ok=True)
+                    (rsrc / rel).write_text(text)
+            _git(rsrc, "add", "-A")
+            _git(rsrc, "commit", "-q", "--allow-empty", "-m", label)
+            sha = _git(rsrc, "rev-parse", "HEAD")
+        shas[label] = sha
+    _git(rsrc, "push", "-q", f"file://{origin}", "HEAD:refs/heads/records-data")
+    return shas
+
+
+def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE", ref="refs/heads/main", records=SEED_RECORDS,
+              attest=(), seed="R0"):
     """Build main from `ops`, check out its tip from a depth-1 clone (as actions/checkout does) and run the gate's
     check step. main starts with a commit BASE touching every checked path, with no PR (the history before go-live).
-    ops: ("commit", label, paths) on main, or ("merge", label, branch_label, paths): a branch commit touching paths,
-    merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal sha), ...]}. baseline: the label (or a
-    literal value) given as MAIN_PR_BASELINE. Returns (exit, gh calls, {label: sha}, step outputs)."""
+    ops: ("commit", label, paths) on main, ("rm", label, paths) removing paths, or ("merge", label, branch_label,
+    paths): a branch commit touching paths, merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal
+    sha), ...]}. baseline: the label (or a literal value) given as MAIN_PR_BASELINE. records: records-data, as
+    _records_data (None: no such branch). attest: [(label, {overrides})], an attestation of that commit's listing.
+    seed: the label whose listing digest is RECORDS_DATA_SEED_DIGEST, a literal value, or "" (none).
+    Returns (exit, gh calls, {label: sha, "_stdout": the step's output}, step outputs)."""
     _need_jq()
     step = _gate_steps()[GATE_STEP]
     origin, src, work, bindir = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work", tmp_path / "bin"
@@ -1389,8 +1461,11 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE", ref="refs/he
         _git(src, "add", "-A")
 
     for op in [("commit", "BASE", _ALL), *ops]:
-        if op[0] == "commit":
-            touch(op[2])
+        if op[0] in ("commit", "rm"):
+            if op[0] == "rm":
+                _git(src, "rm", "-rq", *op[2])
+            else:
+                touch(op[2])
             _git(src, "commit", "-q", "-m", op[1])
             shas[op[1]] = _git(src, "rev-parse", "HEAD")
         else:
@@ -1404,6 +1479,12 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE", ref="refs/he
             shas[label] = _git(src, "rev-parse", "HEAD")
             merged_in[label] = branch_label
     _git(src, "push", "-q", f"file://{origin}", "main:refs/heads/main")
+    rsrc = tmp_path / "rsrc"
+    if records:
+        shas.update(_records_data(tmp_path, origin, records))
+    store = [_attestation(_listing_digest(rsrc, shas[label]), **over) for label, over in attest]
+    (tmp_path / "attest.json").write_text(json.dumps(store))
+    seed_digest = _listing_digest(rsrc, shas[seed]) if seed in shas else seed
     _git(tmp_path, "clone", "-q", "--depth=1", f"file://{origin}", str(work))
     tip = shas[ops[-1][1]]
     _git(work, "checkout", "-q", "--detach", tip)
@@ -1427,19 +1508,23 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE", ref="refs/he
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
            "GH_CALLS": str(calls), "PULLS": str(tmp_path / "pulls.json"), "EXPECTED_JQ": PR_JQ, "PULL_JQ": PULL_JQ,
            "REVIEW_JQ": REVIEW_JQ, "SHA": tip, "REF": ref, "GITHUB_OUTPUT": str(out), "RUNNER_TEMP": str(tmp_path),
-           "MAIN_PR_BASELINE": shas.get(baseline, baseline), **({"GH_FAIL": "1"} if gh_fail else {})}
+           "MAIN_PR_BASELINE": shas.get(baseline, baseline), "RECORDS_DATA_SEED_DIGEST": seed_digest,
+           "ATTEST": str(tmp_path / "attest.json"), **({"GH_FAIL": "1"} if gh_fail else {})}
     r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
     assert "Traceback" not in r.stderr, r.stderr
     calls = calls.read_text().splitlines() if calls.exists() else []
-    if calls:   # it read a PR, so it fetched main's whole history after the depth-1 clone, without file contents
+    if any(c.startswith("api ") for c in calls):
+        # it read a PR, so it fetched main's whole history after the depth-1 clone, without file contents
         assert _git(work, "rev-parse", "--is-shallow-repository") == "false"
         assert _git(work, "config", "--get", "remote.origin.partialclonefilter") == "blob:none"
         assert "filtering not recognized by server" not in r.stderr, r.stderr
     outputs = dict(ln.split("=", 1) for ln in out.read_text().splitlines() if "=" in ln)
     if r.returncode == 0:
         assert outputs["sha"] == tip and outputs["verified"] in ("true", "false"), outputs
+        assert outputs["data_sha"] == _git(origin, "rev-parse", "refs/heads/records-data"), outputs
     else:
         assert outputs == {}, outputs            # a refusal outputs nothing: no job reads a verdict from it
+    shas["_stdout"] = r.stdout
     return r.returncode, calls, shas, outputs
 
 
@@ -1448,17 +1533,18 @@ SENDER = ("sender/deliver.py",)
 OLD = "2026-11-10T22:00:00Z"
 # case: (ops on main after BASE, pulls, passes?, the commits whose PRs are read, newest first)
 PR_CASES = {
-    # the PR-merged commit, then daily data/ commits pushed without a PR (before the data PR): passes
-    "pr-then-data-days": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("commit", "D2", DATA)],
-                          {"A": [_pr("A")]}, True, ["A"]),
+    # I-main'' has no data-only exception (ADR 0011): data/ commits pushed without a PR are refused like any other,
+    # even when a later person's PR removes data/ again
+    "data-days-are-checked": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("rm", "D2", DATA)],
+                              {"A": [_pr("A")], "D2": [_pr("D2")]}, False, ["D2", "D1"]),
     # two PRs: every one is read
-    "pr-then-pr": ([("commit", "A", _ALL), ("commit", "D", DATA), ("commit", "P", SENDER)],
+    "pr-then-pr": ([("commit", "A", _ALL), ("commit", "P", SENDER)],
                    {"A": [_pr("A")], "P": [_pr("P")]}, True, ["P", "A"]),
-    # a merge-commit PR (the branch commit itself has no PR of its own), then a data day
-    "merge-commit-pr": ([("commit", "A", _ALL), ("merge", "M", "B", SENDER), ("commit", "D", DATA)],
+    # a merge-commit PR (the branch commit itself has no PR of its own)
+    "merge-commit-pr": ([("commit", "A", _ALL), ("merge", "M", "B", SENDER)],
                         {"A": [_pr("A")], "M": [_pr("M")]}, True, ["M", "A"]),
     # pushed straight to main (ruleset off, or a bypass put back): refused
-    "direct-sender": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "D", DATA)],
+    "direct-sender": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
                       {"A": [_pr("A")]}, False, ["X"]),
     "direct-config": ([("commit", "A", _ALL), ("commit", "X", ("config/site.yml",))], {"A": [_pr("A")]}, False,
                       ["X"]),
@@ -1468,7 +1554,7 @@ PR_CASES = {
     "pr-direct-pr": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "P", ("config/site.yml",))],
                      {"A": [_pr("A")], "P": [_pr("P")]}, False, ["P", "X"]),
     "pr-direct-merge-pr": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/other.yml",)),
-                            ("merge", "M", "B", SENDER), ("commit", "D", DATA)],
+                            ("merge", "M", "B", SENDER)],
                            {"A": [_pr("A")], "M": [_pr("M")]}, False, ["M", "X"]),
     # the commit belongs to a PR that is still open, merged elsewhere, or merged as another commit: refused
     "open-pr": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
@@ -1481,23 +1567,26 @@ PR_CASES = {
     "pushed-merge-of-pr-commit": ([("commit", "A", _ALL), ("merge", "M", "E", SENDER)],
                                   {"A": [_pr("A")], "E": [_pr("E")]}, False, ["M"]),
     # main-protect/pr-check-path-scope: anything outside data/ is checked, not only sender/, config and .github/
-    "direct-root-py": ([("commit", "A", _ALL), ("commit", "X", ("json.py",)), ("commit", "D", DATA)],
+    "direct-root-py": ([("commit", "A", _ALL), ("commit", "X", ("json.py",))],
                        {"A": [_pr("A")]}, False, ["X"]),
     "direct-sitegen": ([("commit", "A", _ALL), ("commit", "X", ("sitegen/build.py",))], {"A": [_pr("A")]}, False,
                        ["X"]),
     "pr-direct-root-pr": ([("commit", "A", _ALL), ("commit", "X", ("pyproject.toml",)), ("commit", "P", SENDER)],
                           {"A": [_pr("A")], "P": [_pr("P")]}, False, ["P", "X"]),
-    "pr-root-py": ([("commit", "A", _ALL), ("commit", "P", ("json.py", "docs/x.md")), ("commit", "D", DATA)],
+    "pr-root-py": ([("commit", "A", _ALL), ("commit", "P", ("json.py", "docs/x.md"))],
                    {"A": [_pr("A")], "P": [_pr("P")]}, True, ["P", "A"]),
     # no PR at all after the baseline (the team's earlier merges without PRs): refused
-    "no-pr-history": ([("commit", "A", _ALL), ("commit", "D", DATA)], {}, False, ["A"]),
-    # the push job's daily data/ PRs, merged by GitHub Actions (a bot): data/ only, so never read
-    "pr-then-data-prs": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("merge", "D2", "DB", DATA)],
-                         {"A": [_pr("A")], "D1": [_pr("D1", by="Bot")], "D2": [_pr("D2", by="Bot")]}, True, ["A"]),
+    "no-pr-history": ([("commit", "A", _ALL)], {}, False, ["A"]),
+    # the old push job's daily data/ PRs, merged by GitHub Actions (a bot): no longer exempt, refused (I-main'')
+    "bot-merged-data-pr": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("rm", "D2", DATA)],
+                           {"A": [_pr("A")], "D1": [_pr("D1", by="Bot")], "D2": [_pr("D2")]}, False, ["D2", "D1"]),
+    # a bot commit after the baseline that touches docs only: refused (any path, any commit)
+    "bot-merged-docs": ([("commit", "A", _ALL), ("commit", "X", ("docs/x.md",))],
+                        {"A": [_pr("A")], "X": [_pr("X", by="Bot")]}, False, ["X"]),
     # main-protect/bot-merged-code: a code PR merged by a bot (a workflow on any branch merging its own PR), or with
     # no merged_by, is refused; a later person's PR does not launder it
-    "bot-merged-sender": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "D", DATA)],
-                          {"A": [_pr("A")], "X": [_pr("X", by="Bot")], "D": [_pr("D", by="Bot")]}, False, ["X"]),
+    "bot-merged-sender": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                          {"A": [_pr("A")], "X": [_pr("X", by="Bot")]}, False, ["X"]),
     "bot-merged-then-pr": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/daily-update.yml",)),
                             ("commit", "P", SENDER)],
                            {"A": [_pr("A")], "X": [_pr("X", by="Bot")], "P": [_pr("P")]}, False, ["P", "X"]),
@@ -1567,15 +1656,16 @@ def test_the_gate_refuses_unless_every_code_change_is_a_reviewed_pr_a_person_mer
 def test_the_gate_ignores_history_up_to_the_baseline(tmp_path):
     """The baseline (main when it was set, read by a person) and everything before it are not read: a direct push X
     before it does not refuse; the same history with the baseline before X does."""
-    ops = [("commit", "X", SENDER), ("commit", "G", DATA), ("commit", "P", (".github/workflows/daily-update.yml",))]
+    ops = [("commit", "X", SENDER), ("commit", "G", ("docs/g.md",)),
+           ("commit", "P", (".github/workflows/daily-update.yml",))]
     (tmp_path / "g").mkdir()
-    code, calls, shas, out = _pr_check(tmp_path / "g", ops, {"P": [_pr("P")]}, baseline="G")
+    code, calls, shas, out = _pr_check(tmp_path / "g", ops, {"G": [_pr("G")], "P": [_pr("P")]}, baseline="G")
     assert code == 0 and out["verified"] == "true"
     assert _commit_calls(calls) == [f"api repos/o/r/commits/{shas['P']}/pulls --jq {PR_JQ}"]
     (tmp_path / "base").mkdir()
-    code, calls, shas, _ = _pr_check(tmp_path / "base", ops, {"P": [_pr("P")]}, baseline="BASE")
+    code, calls, shas, _ = _pr_check(tmp_path / "base", ops, {"G": [_pr("G")], "P": [_pr("P")]}, baseline="BASE")
     assert code == 2 and _commit_calls(calls) == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}"
-                                                  for c in ("P", "X")]
+                                                  for c in ("P", "G", "X")]
 
 
 @pytest.mark.parametrize("baseline", ["not-a-sha", "A" * 40, "a" * 40, "B", "P"])
@@ -1595,7 +1685,7 @@ def test_phase_0_and_other_refs_pass_unverified(tmp_path, baseline, ref):
     update, push and deploy run as before and the note job never runs."""
     ops = [("commit", "A", _ALL), ("commit", "X", SENDER)]                    # X would be refused if checked
     code, calls, shas, out = _pr_check(tmp_path, ops, {}, baseline=baseline, ref=ref)
-    assert code == 0 and calls == [] and out == {"sha": shas["X"], "verified": "false"}
+    assert code == 0 and calls == [] and out == {"sha": shas["X"], "data_sha": shas["R0"], "verified": "false"}
 
 
 def test_the_gate_refuses_a_checkout_that_is_not_the_runs_commit(tmp_path):
@@ -1615,9 +1705,10 @@ def test_the_gate_refuses_a_checkout_that_is_not_the_runs_commit(tmp_path):
         assert r.returncode == 2 and out.read_text() == "", sha
 
 
-# I-data (docs/architecture/main-protect-invariant.md "I-data", after M-2 and S-1): the gate's check of data/'s shape.
-# Entries are (mode, path bytes), built straight into tree objects (git mktree), so modes are exact (120000 symlink,
-# 160000 submodule, 100755 executable) and names may hold any byte, whatever the file system or index would allow.
+# I-data'' (ADR 0011; docs/architecture/v1-fail-2026-11-18.md "I-data''", after M-2 and S-1): the gate's check of D,
+# the records-data head. Entries are (mode, path bytes), built straight into tree objects (git mktree), so modes are
+# exact (120000 symlink, 160000 submodule, 100755 executable) and names may hold any byte, whatever the file system or
+# index would allow.
 def _shape_literal(run: str) -> bytes:
     """SHAPE as bash makes it from the step's own `SHAPE=$'...'` line (exactly one such line)."""
     lines = [ln.strip() for ln in run.splitlines() if ln.strip().startswith("SHAPE=$'")]
@@ -1626,6 +1717,7 @@ def _shape_literal(run: str) -> bytes:
 
 
 GATE_SHAPE = None     # filled lazily: _gate_steps() needs WF, defined above
+CURATED_NAMES = (b"names.yml", b"procedural-titles.yml", b"corrections-log.json")   # B1 moves them to config/
 
 
 def _gate_shape() -> bytes:
@@ -1637,10 +1729,11 @@ def _gate_shape() -> bytes:
 
 MANIFEST = ("100644", b"data/manifest.json")
 SHAPE_OK = {
-    "json-yml-and-change-logs": [MANIFEST, ("100644", b"data/a/b.yml"), ("100644", b"data/changes.jsonl"),
-                                 ("100644", b"data/a/b/changes.jsonl"), ("100644", b"data/localities/c-tn/m_1.json")],
-    # outside data/: not the shape check's (a code change; the history check reads its PR)
-    "outside-data-is-not-shape-checked": [MANIFEST, ("100755", b"database.sh"), ("120000", b"data.json")],
+    "json-and-change-logs": [MANIFEST, ("100644", b"data/changes.jsonl"), ("100644", b"data/a/b/changes.jsonl"),
+                             ("100644", b"data/localities/c-tn/m_1.json")],
+    # names near the curated ones are collector output like any other
+    "near-curated-names": [MANIFEST, ("100644", b"data/names.json"), ("100644", b"data/xcorrections-log.json"),
+                           ("100644", b"data/a/corrections.json")],
 }
 SHAPE_BAD = {
     "symlink": [MANIFEST, ("120000", b"data/x.json")],
@@ -1649,6 +1742,8 @@ SHAPE_BAD = {
     "submodule-named-json": [MANIFEST, ("160000", b"data/x.json")],
     "executable": [MANIFEST, ("100755", b"data/x.json")],
     "html": [MANIFEST, ("100644", b"data/x.html")],
+    # SHAPE'': no .yml in collector output (the curated .yml files are code in config/)
+    "yml": [MANIFEST, ("100644", b"data/a/b.yml")],
     "other-jsonl": [MANIFEST, ("100644", b"data/x.jsonl")],
     "xchanges-jsonl": [MANIFEST, ("100644", b"data/xchanges.jsonl")],
     "script": [MANIFEST, ("100644", b"data/run.sh")],
@@ -1671,12 +1766,23 @@ SHAPE_BAD = {
     "data-is-a-submodule": [("160000", b"data")],
     "data-emptied": [("040000", b"data")],
 }
+# I-data'' beyond SHAPE'': D's tree is data/ only, and holds none of the curated names, at any depth
+TREE_BAD = {
+    "outside-data-code": [MANIFEST, ("100644", b"sender/x.py")],
+    "outside-data-workflow": [MANIFEST, ("100644", b".github/workflows/x.yml")],
+    "outside-data-link": [MANIFEST, ("120000", b"data.json")],
+    "curated-corrections-log": [MANIFEST, ("100644", b"data/corrections-log.json")],
+    "curated-nested": [MANIFEST, ("100644", b"data/localities/c-tn/corrections-log.json")],
+    "curated-names": [MANIFEST, ("100644", b"data/names.yml")],
+    "curated-procedural-titles": [MANIFEST, ("100644", b"data/procedural-titles.yml")],
+}
+D_BAD = {**SHAPE_BAD, **TREE_BAD}
 # the gate's step under a UTF-8 locale (where S-1 failed open), under C, and with LC_ALL unset (LANG UTF-8)
 LOCALES = {"C.UTF-8": {"LC_ALL": "C.UTF-8"}, "C": {"LC_ALL": "C"}, "unset": {"LC_ALL": None, "LANG": "C.UTF-8"}}
 # tests/suite-time: only names whose bytes a locale can treat differently (S-1) run in every locale; the rest in
 # C.UTF-8, the locale where S-1 failed open
 BYTE_SENSITIVE = ("non-utf8-byte", "non-utf8-symlink", "newline-in-name", "escape-in-name", "newline-forged-name")
-BAD_LOCALE_CASES = [(c, loc) for c in SHAPE_BAD for loc in (LOCALES if c in BYTE_SENSITIVE else ["C.UTF-8"])]
+BAD_LOCALE_CASES = [(c, loc) for c in D_BAD for loc in (LOCALES if c in BYTE_SENSITIVE else ["C.UTF-8"])]
 
 
 def _mktree(repo, entries) -> str:
@@ -1710,20 +1816,21 @@ def _mktree(repo, entries) -> str:
 
 
 def _shape_origin(tmp_path, entries):
-    """A bare origin whose main has one commit: sender/x.py plus `entries`. Returns (origin, tip sha)."""
+    """A bare origin whose main has one commit holding sender/x.py, and whose records-data is one parentless commit
+    holding exactly `entries`. Returns (origin, main tip, records-data head)."""
     origin, src = tmp_path / "origin.git", tmp_path / "src"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
     _git(origin, "config", "uploadpack.allowFilter", "true")
     _git(tmp_path, "init", "-q", str(src))
-    tree = _mktree(src, [("100644", b"sender/x.py"), *entries])
-    tip = _git(src, "commit-tree", tree, "-m", "c")
-    _git(src, "push", "-q", f"file://{origin}", f"{tip}:refs/heads/main")
-    return origin, tip
+    tip = _git(src, "commit-tree", _mktree(src, [("100644", b"sender/x.py")]), "-m", "c")
+    d = _git(src, "commit-tree", _mktree(src, entries), "-m", "seed")
+    _git(src, "push", "-q", f"file://{origin}", f"{tip}:refs/heads/main", f"{d}:refs/heads/records-data")
+    return origin, tip, d
 
 
-def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main", env_over=None):
-    """The gate step in `work`, with a gh that only records that it was called (the shape check never needs it).
-    stdout is bytes, so a test can see every byte the step would put in the log."""
+def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main", env_over=None, seed=""):
+    """The gate step in `work`, with a gh that only records that it was called (a D accepted as the seed never needs
+    it). stdout is bytes, so a test can see every byte the step would put in the log."""
     bindir, calls, out = tmp_path / "bin", tmp_path / "gh-calls", tmp_path / "github-output"
     bindir.mkdir(exist_ok=True)
     (bindir / "gh").write_text(f"#!/bin/sh\necho \"$*\" >> '{calls}'\nexit 1\n")
@@ -1731,7 +1838,7 @@ def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main", env_over=
     out.write_text("")
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
            "SHA": tip, "REF": ref, "GITHUB_OUTPUT": str(out), "MAIN_PR_BASELINE": baseline,
-           "RUNNER_TEMP": str(tmp_path)}
+           "RECORDS_DATA_SEED_DIGEST": seed, "RUNNER_TEMP": str(tmp_path)}
     for k, v in (env_over or {}).items():
         if v is None:
             env.pop(k, None)
@@ -1743,13 +1850,13 @@ def _run_gate(work, tmp_path, tip, baseline="", ref="refs/heads/main", env_over=
 
 
 def _shape_check(tmp_path, entries, **kw):
-    origin, tip = _shape_origin(tmp_path, entries)
+    """D = a parentless records-data commit holding `entries`, pinned as the seed (so I-data'' alone decides)."""
+    origin, tip, d = _shape_origin(tmp_path, entries)
     work = tmp_path / "work"
-    # depth 1, as actions/checkout; no working files (a name like a/../b.json cannot be checked out, and the check
-    # reads only the commit's tree)
+    # depth 1, as actions/checkout; no working files (the check reads only the commits' trees)
     _git(tmp_path, "clone", "-q", "--depth=1", "--no-checkout", f"file://{origin}", str(work))
     assert _git(work, "rev-parse", "HEAD") == tip
-    return (tip, *_run_gate(work, tmp_path, tip, **kw))
+    return (tip, d, *_run_gate(work, tmp_path, tip, seed=_listing_digest(origin, d), **kw))
 
 
 def _error_lines_are_printable(stdout: bytes):
@@ -1761,44 +1868,91 @@ def _error_lines_are_printable(stdout: bytes):
 @pytest.mark.parametrize("loc", ["C.UTF-8"])
 @pytest.mark.parametrize("case", list(SHAPE_OK))
 def test_the_gate_accepts_data_that_meets_i_data(tmp_path, case, loc):
-    tip, r, out, called = _shape_check(tmp_path, SHAPE_OK[case], env_over=LOCALES[loc])
+    tip, d, r, out, called = _shape_check(tmp_path, SHAPE_OK[case], env_over=LOCALES[loc])
     assert r.returncode == 0, r.stdout + r.stderr
-    assert out == {"sha": tip, "verified": "false"} and not called          # phase 0 on main: passes, unverified
+    assert out == {"sha": tip, "data_sha": d, "verified": "false"} and not called   # phase 0, the seed: unverified
+
+
+def _seed_from_todays_data(tmp_path):
+    """D3 step 3 on this commit: records-data seeded from the tracked data/ minus the curated files, one parentless
+    commit, built in a bare origin that borrows the repository's objects (no blob is copied). Returns (origin, main
+    tip, seed)."""
+    origin = tmp_path / "origin.git"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(origin, "config", "uploadpack.allowFilter", "true")
+    common = Path(_git(ROOT, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+    (origin / "objects" / "info" / "alternates").write_text(f"{common / 'objects'}\n")
+    out = subprocess.run(["git", "ls-tree", "-r", "-z", "HEAD", "--", "data"], cwd=ROOT, capture_output=True,
+                         check=True).stdout
+    tree: dict = {}
+    for e in filter(None, out.split(b"\0")):
+        meta, path = e.split(b"\t", 1)
+        if path.rsplit(b"/", 1)[-1] in CURATED_NAMES:
+            continue
+        *dirs, leaf = path.split(b"/")
+        node = tree
+        for d in dirs:
+            node = node.setdefault(d, {})
+        node[leaf] = meta
+
+    def write(node) -> str:
+        recs = [(b"040000 tree " + write(v).encode() if isinstance(v, dict) else v) + b"\t" + k for k, v in node.items()]
+        return subprocess.run(["git", "mktree", "-z"], cwd=origin, input=b"".join(r + b"\0" for r in recs),
+                              capture_output=True, check=True).stdout.decode().strip()
+    assert tree, "no tracked data/ left: seed from records-data instead (D3)"
+    seed = _git(origin, "commit-tree", write(tree), "-m", "seed")
+    blob = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=origin, input=b"x\n", capture_output=True,
+                          check=True).stdout.decode().strip()
+    main_tree = subprocess.run(["git", "mktree"], cwd=origin, input=f"100644 blob {blob}\tx.py\n".encode(),
+                               capture_output=True, check=True).stdout.decode().strip()
+    tip = _git(origin, "commit-tree", main_tree, "-m", "main")
+    _git(origin, "update-ref", "refs/heads/main", tip)
+    _git(origin, "update-ref", "refs/heads/records-data", seed)
+    return origin, tip, seed
 
 
 @pytest.mark.parametrize("loc", ["C.UTF-8", "C"])
-def test_the_gate_accepts_todays_data_tree(tmp_path, loc):
-    """The repository's own committed data/ (HEAD), as the daily run sees it."""
-    tip = _git(ROOT, "rev-parse", "HEAD")
-    r, out, called = _run_gate(ROOT, tmp_path, tip, env_over=LOCALES[loc])
-    assert r.returncode == 0 and out == {"sha": tip, "verified": "false"}, r.stdout + r.stderr
+def test_the_seed_of_todays_data_meets_i_data(tmp_path, loc):
+    """The repository's own tracked data/ minus the curated files (what D3 seeds records-data with) passes I-data''
+    and is accepted as the seed by its listing digest."""
+    origin, tip, seed = _seed_from_todays_data(tmp_path)
+    work = tmp_path / "work"
+    _git(tmp_path, "clone", "-q", "--depth=1", "--no-checkout", f"file://{origin}", str(work))
+    r, out, called = _run_gate(work, tmp_path, tip, env_over=LOCALES[loc], seed=_listing_digest(origin, seed))
+    assert r.returncode == 0 and out == {"sha": tip, "data_sha": seed, "verified": "false"}, r.stdout + r.stderr
+    assert not called
 
 
 @pytest.mark.parametrize("case,loc", BAD_LOCALE_CASES, ids=[f"{c}-{loc}" for c, loc in BAD_LOCALE_CASES])
-def test_the_gate_refuses_anything_else_under_data(tmp_path, case, loc):
-    """Phase 0 on main: refused before the baseline check, so no build, deploy or note, and no PR read; whatever the
-    locale (S-1); the log's ::error:: lines carry only printable ASCII, never a raw name."""
-    _, r, out, called = _shape_check(tmp_path, SHAPE_BAD[case], env_over=LOCALES[loc])
+def test_the_gate_refuses_anything_else_in_records_data(tmp_path, case, loc):
+    """Refused before I-prov and the baseline check, so no build, push, deploy or note, and no attestation or PR read;
+    whatever the locale (S-1); the log's ::error:: lines carry only printable ASCII, never a raw name. A curated name
+    is named as one."""
+    _, _, r, out, called = _shape_check(tmp_path, D_BAD[case], env_over=LOCALES[loc])
     assert r.returncode == 2 and out == {} and not called, r.stdout + r.stderr
-    assert b"(I-data)" in r.stdout
+    assert b"(I-data'')" in r.stdout
     _error_lines_are_printable(r.stdout)
+    if case.startswith("curated-"):
+        assert b"::error::curated, belongs in config/: 100644 blob " in r.stdout and b"0 curated" not in r.stdout
 
 
 def test_a_refusal_names_at_most_20_entries_cleaned(tmp_path):
     bad = [("100644", b"data/n%02d\xff\x1b.html" % i) for i in range(30)]
-    _, r, out, _ = _shape_check(tmp_path, [MANIFEST, *bad])
+    _, _, r, out, _ = _shape_check(tmp_path, [MANIFEST, *bad])
     assert r.returncode == 2
     listed = [ln for ln in r.stdout.split(b"\n") if ln.startswith(b"::error::not allowed in data/: ")]
     assert len(listed) == 20 and all(b"??.html" in ln for ln in listed), listed
-    assert b"1 of 31 entries fit" in r.stdout
+    assert b"1 of 31 entries fit, 0 curated" in r.stdout
     _error_lines_are_printable(r.stdout)
 
 
 def test_the_gate_shape_is_the_architects_literal_and_python_agrees():
-    """SHAPE in the gate is I-data's literal (TAB for <TAB>); Python's bytes regex gives the same verdicts as grep."""
+    """SHAPE in the gate is SHAPE'': I-data's literal (TAB for <TAB>) narrowed to .json and changes.jsonl (ADR 0011
+    decision 2: no .yml); Python's bytes regex gives the same verdicts as grep."""
     doc = (ROOT / "docs" / "architecture" / "main-protect-invariant.md").read_text(encoding="utf-8")
     lit = re.search(r"`(\^100644 blob \[0-9a-f\]\{40\}<TAB>data/[^`]*)`", doc).group(1)
-    assert _gate_shape() == lit.replace("<TAB>", "\t").encode()
+    narrowed = lit.replace(r"\.(json|yml)|", r"\.json|")
+    assert narrowed != lit and _gate_shape() == narrowed.replace("<TAB>", "\t").encode()
     pat = re.compile(_gate_shape())
     sha = b"a" * 40
     for case, entries in {**SHAPE_OK, **SHAPE_BAD}.items():
@@ -1811,50 +1965,57 @@ def test_the_gate_shape_is_the_architects_literal_and_python_agrees():
             assert not fits, case
 
 
-def test_the_shape_check_runs_before_the_baseline_and_after_the_not_main_exit(tmp_path):
-    """With a baseline set, a bad shape refuses before any history fetch or PR read; on another branch the gate exits
-    unverified first (that run cannot push, deploy or send)."""
+def test_the_d_checks_run_on_every_ref_and_before_the_baseline(tmp_path):
+    """S's data/, then D (read once), I-data'' and I-prov run on every ref, before the not-main exit and the baseline:
+    with a baseline set a bad D refuses before any history fetch or PR read, and on another branch it refuses too."""
     (tmp_path / "a").mkdir()
-    tip, r, out, called = _shape_check(tmp_path / "a", SHAPE_BAD["symlink"], baseline="b" * 40)
-    assert r.returncode == 2 and not called and b"(I-data)" in r.stdout
+    _, _, r, out, called = _shape_check(tmp_path / "a", SHAPE_BAD["symlink"], baseline="b" * 40)
+    assert r.returncode == 2 and not called and b"(I-data'')" in r.stdout
     (tmp_path / "b").mkdir()
-    tip, r, out, called = _shape_check(tmp_path / "b", SHAPE_BAD["symlink"], ref="refs/heads/feature")
-    assert r.returncode == 0 and out == {"sha": tip, "verified": "false"} and not called
+    _, _, r, out, called = _shape_check(tmp_path / "b", SHAPE_BAD["symlink"], ref="refs/heads/feature")
+    assert r.returncode == 2 and out == {} and not called and b"(I-data'')" in r.stdout
+    (tmp_path / "c").mkdir()
+    tip, d, r, out, called = _shape_check(tmp_path / "c", SHAPE_OK["json-and-change-logs"], ref="refs/heads/feature")
+    assert r.returncode == 0 and out == {"sha": tip, "data_sha": d, "verified": "false"} and not called
     run = _gate_steps()[GATE_STEP]["run"]
-    assert run.index("refs/heads/main") < run.index("git cat-file -t HEAD:data") \
-        < run.index("git ls-tree -r -z HEAD -- data") < run.index("MAIN_PR_BASELINE")
-    assert 'LC_ALL=C grep -zacE -- "$SHAPE"' in run and '[ "$matched" != "$total" ]' in run and '"$total" -lt 1' in run
+    order = ["git ls-tree --name-only HEAD -- data", '"+refs/heads/records-data:refs/gate/records-data"',
+             'data_check "$D" "$listing"', "gh attestation verify", 'if [ "$REF" != refs/heads/main ]',
+             'base="${MAIN_PR_BASELINE:-}"']
+    assert [run.index(o) for o in order] == sorted(run.index(o) for o in order)
+    assert 'LC_ALL=C grep -zacE -- "$SHAPE"' in run and '[ "$matched" = "$total" ]' in run and '"$total" -ge 1' in run
+    assert 'LC_ALL=C grep -zacE -- "$CURATED"' in run and '[ "$curated" = 0 ]' in run
 
 
-def _missing_blobs(work) -> int:
-    out = _git(work, "rev-list", "--objects", "--all", "--missing=print")      # --missing=print never fetches
-    return sum(1 for ln in out.splitlines() if ln.startswith("?"))
+def _missing(work, ref) -> set:
+    out = _git(work, "rev-list", "--objects", "--missing=print", ref)      # --missing=print never fetches
+    return {ln[1:] for ln in out.splitlines() if ln.startswith("?")}
 
 
-@pytest.mark.parametrize("entries,ok", [(SHAPE_OK["json-yml-and-change-logs"], True), (SHAPE_BAD["symlink"], False),
+@pytest.mark.parametrize("entries,ok", [(SHAPE_OK["json-and-change-logs"], True), (SHAPE_BAD["symlink"], False),
                                         (SHAPE_BAD["executable"], False), (SHAPE_BAD["non-utf8-byte"], False)])
-def test_the_shape_check_reads_no_blob_on_a_blob_none_partial_clone(tmp_path, entries, ok):
-    """The architect's check: `git cat-file -t` and `git ls-tree -r` read tree objects only. On a --filter=blob:none
-    clone with no checkout (no file contents at all) and its promisor remote made unreachable, the gate gives the
-    same verdict, and every blob is still missing afterwards, so it fetched none (a lazy fetch would have failed on
-    the dead remote)."""
-    origin, tip = _shape_origin(tmp_path, entries)
+def test_the_d_checks_read_no_blob(tmp_path, entries, ok):
+    """The checks read tree objects only (`git ls-tree`, `git cat-file commit`). On a --filter=blob:none clone of main
+    with no checkout, the gate's own fetch of records-data is blob:none too: the verdict is the same, and afterwards
+    every blob of D is still missing (a lazy fetch would have brought it)."""
+    origin, tip, d = _shape_origin(tmp_path, entries)
     work = tmp_path / "work"
-    _git(tmp_path, "clone", "-q", "--filter=blob:none", "--no-checkout", f"file://{origin}", str(work))
+    _git(tmp_path, "clone", "-q", "--single-branch", "--filter=blob:none", "--no-checkout", f"file://{origin}",
+         str(work))
     assert _git(work, "config", "--get", "remote.origin.partialclonefilter") == "blob:none"
-    before = _missing_blobs(work)
-    assert before >= 2                                       # sender/x.py and every data/ blob are not here
-    _git(work, "remote", "set-url", "origin", f"file://{tmp_path / 'gone.git'}")
-    r, out, called = _run_gate(work, tmp_path, tip)
+    r, out, called = _run_gate(work, tmp_path, tip, seed=_listing_digest(origin, d))
     assert (r.returncode == 0) == ok and r.returncode in (0, 2), r.stdout + r.stderr
-    assert b"gone.git" not in r.stderr and b"fetch" not in r.stderr.lower(), r.stderr
-    assert _missing_blobs(work) == before and not called
+    assert _git(work, "rev-parse", "refs/gate/records-data") == d
+    blobs = {ln.split()[2] for ln in _git(origin, "ls-tree", "-r", d).splitlines() if ln.split()[1] == "blob"}
+    assert blobs and blobs <= _missing(work, "refs/gate/records-data") and not called
 
 
 def test_the_committed_baseline_is_unset_or_a_sha():
     """Until T4.10.8 MAIN_PR_BASELINE is empty (phase 0: the note job never runs); then a sha (runbook 4.7)."""
     env = _gate_steps()[GATE_STEP]["env"]
     assert env["MAIN_PR_BASELINE"] == "" or re.fullmatch(r"[0-9a-f]{40}", env["MAIN_PR_BASELINE"])
+    # ADR 0011 (F7): the seed digest is pinned by the reviewed cutover PR, in the gate step only; empty = no seed
+    assert env["RECORDS_DATA_SEED_DIGEST"] == "" or re.fullmatch(r"[0-9a-f]{64}", env["RECORDS_DATA_SEED_DIGEST"])
+    assert "RECORDS_DATA_SEED_DIGEST" not in TEXT.split("\n  update:", 1)[1]
     assert not any("MAIN_PR_BASELINE" in s.get("run", "") for j, job in WF["jobs"].items() if j != "gate"
                    for s in job["steps"])
     runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
@@ -1999,20 +2160,124 @@ def test_the_runbook_quotes_the_gates_data_refusals_exactly():
     """runbook/gate-message-drift: every data/ refusal and the history-read refusal the gate prints, word for word
     (up to the first variable), is in "When the gate fails"."""
     run = _gate_steps()[GATE_STEP]["run"]
-    msgs = re.findall(r'refuse "([^"]*)"', run)
-    msgs += re.findall(r'echo "::error::(not allowed in data/: )', run)
-    wanted = [m.split("$", 1)[0] for m in msgs if m.startswith(("data/", "could not", "not allowed in data/"))]
-    assert len(wanted) >= 6, wanted
+    msgs = re.findall(r'refuse "([^"]*)"', run) + re.findall(r'why="([^"]*)"', run)     # the helper's reasons too
+    msgs += re.findall(r'echo "::error::(not allowed in data/: |curated, belongs in config/: )', run)
+    wanted = [m.split("$", 1)[0] for m in msgs if m.startswith(("data/", "could not", "not allowed in data/",
+                                                                 "records-data", "this commit tracks data/",
+                                                                 "RECORDS_DATA_SEED_DIGEST", "curated, "))]
+    assert len(wanted) >= 14, wanted
     runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
     section = " ".join(runbook[runbook.index("## When the gate fails"):].split("\n## ", 1)[0].split())
     for m in wanted:
         assert " ".join(m.split()) in section, m
-    assert "Restore it from the last commit whose `data/` was good" in section
+    assert "restore the last attested tree whole on `records-data`" in section
+    assert " ".join(["gh attestation verify listing", *VERIFY_ARGS]) in section      # the gate's own flags
 
 
 def test_the_gate_fails_closed_when_github_cannot_be_read(tmp_path):
     code, calls, _, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {"A": [_pr("A")]}, gh_fail=True)
     assert code != 0 and len(calls) == 1 and out == {}
+
+
+# ------------------------------------------------------------------ I-prov (ADR 0011, row G): which D the gate accepts
+# records-data histories (oldest first, as _records_data), the attestations stored for them, the label pinned as the
+# seed digest (or a literal), and whether the gate accepts the head. Phase 0 on main: only S and D are checked.
+R_SEED = ("seed", "R0", {"data/manifest.json": "[]\n", "data/a/changes.jsonl": "{}\n"})
+R_A = ("commit", "RA", {"data/manifest.json": "[1]\n"})              # a daily run's commit, attested by the push job
+R_B = ("commit", "RB", {"data/manifest.json": "[1, 2]\n"})
+OTHER_REF = IDENTITY.replace("@refs/heads/main", "@refs/heads/feature")
+PROV_CASES = {
+    # accepted: the seed itself (no attestation read), an attested head, a person's whole-tree restore of an earlier
+    # attested tree (the attestation is on the listing, so the new commit needs none of its own)
+    "seed": ([R_SEED], [], "R0", True),
+    "attested": ([R_SEED, R_A], [("RA", {})], "R0", True),
+    "whole-tree-restore": ([R_SEED, R_A, R_B, ("tree-of", "RR", "RA")], [("RA", {}), ("RB", {})], "R0", True),
+    # refused: an unattested head; the seed with another digest pinned, or none pinned
+    "unattested": ([R_SEED, R_A], [], "R0", False),
+    "seed-digest-mismatch": ([R_SEED], [], "f" * 64, False),
+    "no-seed-pinned": ([R_SEED], [], "", False),
+    # F7: the seed's tree on a commit with a parent (records-data moved past the seed, then back to its tree)
+    "seed-tree-with-a-parent": ([R_SEED, R_A, ("tree-of", "RS", "R0")], [("RA", {})], "R0", False),
+    # F3: an attestation of the same listing, but another predicate type, or signed at another ref, by another
+    # workflow, in another repository, or on a self-hosted runner
+    "other-predicate-type": ([R_SEED, R_A], [("RA", {"predicate": "https://in-toto.io/attestation/release/v0.1"})],
+                             "R0", False),
+    "signed-at-another-ref": ([R_SEED, R_A], [("RA", {"identity": OTHER_REF, "source_ref": "refs/heads/feature"})],
+                              "R0", False),
+    "source-ref-not-main": ([R_SEED, R_A], [("RA", {"source_ref": "refs/heads/feature"})], "R0", False),
+    "other-workflow": ([R_SEED, R_A], [("RA", {"identity": IDENTITY.replace("daily-update.yml", "probe.yml")})],
+                       "R0", False),
+    "other-repository": ([R_SEED, R_A], [("RA", {"repo": "someone/clarksville-records"})], "R0", False),
+    "self-hosted-runner": ([R_SEED, R_A], [("RA", {"hosted": False})], "R0", False),
+    # a partial hand edit on top of an attested tree
+    "partial-hand-edit": ([R_SEED, R_A, ("commit", "RH", {"data/a/changes.jsonl": "{\"x\": 1}\n"})], [("RA", {})],
+                          "R0", False),
+}
+
+
+@pytest.mark.parametrize("case", list(PROV_CASES))
+def test_the_gate_accepts_only_an_attested_or_seed_records_data_head(tmp_path, case):
+    records, attest, seed, ok = PROV_CASES[case]
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", records=records,
+                                       attest=attest, seed=seed)
+    assert (code == 0) == ok and code in (0, 2), (case, shas["_stdout"])
+    head = records[-1][1]
+    verify = [f"attestation verify {tmp_path}/records-data-listing " + " ".join(VERIFY_ARGS)]
+    # the seed is accepted without an attestation read; any other head is read exactly once, with exactly the flags
+    assert calls == ([] if case == "seed" else verify), calls
+    if ok:
+        assert out == {"sha": shas["A"], "data_sha": shas[head], "verified": "false"}
+    else:
+        assert "(I-prov)" in shas["_stdout"] and shas[head] in shas["_stdout"]
+
+
+def test_an_attested_head_on_main_with_a_baseline_is_verified(tmp_path):
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {"A": [_pr("A")]}, baseline="BASE",
+                                       records=[R_SEED, R_A], attest=[("RA", {})])
+    assert code == 0 and out == {"sha": shas["A"], "data_sha": shas["RA"], "verified": "true"}
+    assert calls[0].startswith("attestation verify ") and calls[1].startswith("api repos/o/r/commits/")
+
+
+@pytest.mark.parametrize("seed", ["F" * 64, "f" * 63, "sha256:" + "f" * 64, "R0 "])
+def test_a_malformed_seed_digest_refuses(tmp_path, seed):
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", seed=seed)
+    assert code == 2 and calls == [] and "RECORDS_DATA_SEED_DIGEST is not a 64-hex sha256." in shas["_stdout"]
+
+
+def test_a_missing_records_data_refuses(tmp_path):
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", records=None)
+    assert code == 2 and calls == [] and "could not read records-data (missing, or not readable)." in shas["_stdout"]
+
+
+@pytest.mark.parametrize("ref", ["refs/heads/main", "refs/heads/feature"])
+def test_a_tracked_data_folder_on_s_refuses(tmp_path, ref):
+    """I-main'': main tracks no data/, so a commit that does is refused before records-data is read, on any ref."""
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL + DATA)], {"A": [_pr("A")]}, ref=ref)
+    assert code == 2 and calls == [] and "this commit tracks data/ (I-main'')" in shas["_stdout"]
+    assert _git(tmp_path / "work", "for-each-ref", "refs/gate") == ""          # D never read
+
+
+def test_a_failed_attestation_read_refuses(tmp_path):
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", records=[R_SEED, R_A],
+                                       attest=[("RA", {})], gh_fail=True)
+    assert code == 2 and len(calls) == 1 and "(I-prov)" in shas["_stdout"]
+
+
+def test_an_unattested_head_refuses_on_any_ref(tmp_path):
+    code, calls, shas, out = _pr_check(tmp_path, [("commit", "A", _ALL)], {}, baseline="", records=[R_SEED, R_A],
+                                       ref="refs/heads/feature")
+    assert code == 2 and len(calls) == 1 and "(I-prov)" in shas["_stdout"]
+
+
+def test_the_gate_reads_records_data_once_and_no_input_chooses_d():
+    """I-run'': D is the records-data head of one fetch; nothing a dispatch can set reaches the gate."""
+    run = _gate_steps()[GATE_STEP]["run"]
+    assert run.count("refs/heads/records-data") == 1 and run.count("git fetch") == 2      # D, then main's history
+    assert "ls-remote" not in run and "inputs." not in TEXT.split("  gate:", 1)[1].split("\n  update:", 1)[0]
+    inputs = WF[True]["workflow_dispatch"]["inputs"] if True in WF else WF["on"]["workflow_dispatch"]["inputs"]
+    assert set(inputs) == {"collect", "allow_shrink"}
+    assert run.count(" ".join(["gh attestation verify", '"$listing"'])) == 1
+    assert " ".join(run.replace("\\\n", " ").split()).count(" ".join(["gh attestation verify", '"$listing"', *VERIFY_ARGS]) + ";") == 1
 
 
 def test_the_gate_jq_filters_with_real_jq():
@@ -2051,9 +2316,11 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     jobs = WF["jobs"]
     assert list(jobs)[0] == "gate"
     gate = jobs["gate"]
-    assert gate["permissions"] == {"contents": "read", "pull-requests": "read"}    # exactly the two reads
+    # exactly the three reads (ADR 0011: attestations: read for I-prov)
+    assert gate["permissions"] == {"contents": "read", "pull-requests": "read", "attestations": "read"}
     assert "needs" not in gate and "if" not in gate and "environment" not in gate and gate["timeout-minutes"] <= 10
     assert gate["outputs"] == {"sha": "${{ steps.check.outputs.sha }}",
+                               "data_sha": "${{ steps.check.outputs.data_sha }}",
                                "verified": "${{ steps.check.outputs.verified }}"}
     steps = gate["steps"]
     assert [s.get("name") for s in steps] == ["Check out this run's commit", GATE_STEP]
@@ -2061,13 +2328,14 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     assert steps[0]["with"] == {"ref": "${{ github.sha }}", "persist-credentials": False}
     check = steps[1]
     assert check["id"] == "check" and "${{" not in check["run"]
-    assert set(check["env"]) == {"GH_TOKEN", "SHA", "REF", "MAIN_PR_BASELINE"}
+    assert set(check["env"]) == {"GH_TOKEN", "SHA", "REF", "MAIN_PR_BASELINE", "RECORDS_DATA_SEED_DIGEST"}
     assert check["env"]["GH_TOKEN"] == "${{ github.token }}" and check["env"]["SHA"] == "${{ github.sha }}"
     assert check["env"]["REF"] == "${{ github.ref }}"
     run = " ".join(check["run"].split())
     for jq in (PR_JQ, PULL_JQ, REVIEW_JQ):
         assert jq in run, jq
-    assert """-- . ':(exclude)data/')""" in run and "--first-parent" in run
+    # I-main'': no data-only exception, every first-parent commit after the baseline is read
+    assert ":(exclude)data/" not in run and 'git log --first-parent --format=%H "$base..HEAD")' in run
     # update builds exactly the gate's commit (L-A); push, deploy and note need the gate
     assert jobs["update"]["needs"] == "gate"
     co = [s for s in jobs["update"]["steps"] if "actions/checkout@" in s.get("uses", "")]
@@ -2087,7 +2355,9 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     assert "git diff --quiet HEAD FETCH_HEAD -- sender/ config/site.yml .github/;" in _note_steps()[STALE_STEP]["run"]
 
 
-GATE_COMMANDS = {"git", "grep", "gh", "wc", "tr", "verdict", "refuse"}
+# beyond the gate's own functions: the data-tree helper's two (shared with the push job) and its shell builtins
+GATE_COMMANDS = {"git", "grep", "gh", "wc", "tr", "sha256sum", "verdict", "refuse", "data_listing", "data_check",
+                 "local", "return"}
 
 
 def test_the_gate_runs_no_file_from_the_checkout():
