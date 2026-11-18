@@ -4,7 +4,8 @@ Status: proposed (software-architect, 2026-11-18), **gated on U3** (`docs/ops/u3
 ADR 0010 decisions 1 (CODEOWNERS), 2 (ruleset R1') and 5 (the V1' probe). ADR 0010 decisions 3 (R2 on, now
 interim), 4 (canary removal, done by #52) and 6 (the gate stands) remain. Analysis, invariant and every consumer:
 `docs/architecture/v1-fail-2026-11-18.md`. Panel: `docs/reviews/brain-trust-data-off-main.md` (Fix First, 5-1).
-Tasks: `docs/tasks/data-off-main.md`.
+Tasks: `docs/tasks/data-off-main.md`. Amended 2026-11-18 for the PR #54 security review
+(`docs/reviews/pr54-security-review.md`, findings 1-8 and settings drift).
 
 ## Context
 The V1' probe (run 44354265953) FAILED. `GITHUB_TOKEN` squash-merged #49, which adds a workflow file, under
@@ -26,24 +27,38 @@ reviewer.
    inventory task confirms each remaining file's writer.
 3. **Provenance** (change 2). After pushing, the push job attests the new tree listing (`git ls-tree -r -z D -- data`
    as a file) with `actions/attest-build-provenance`. The gate reads the `records-data` head once (`D`) and accepts
-   it only if that listing verifies (`gh attestation verify`, signer workflow `daily-update.yml`, source ref
-   `refs/heads/main`, no self-hosted runners) or equals `RECORDS_DATA_SEED_DIGEST`, pinned by the cutover PR.
-   **No `data_sha` input.** Rollback: a person restores an earlier attested tree whole on `records-data`, then runs
+   it only if that listing verifies, or `D` is the seed (below). Verify:
+   `gh attestation verify <listing> --repo gn0sh/clarksville-records --cert-identity
+   https://github.com/gn0sh/clarksville-records/.github/workflows/daily-update.yml@refs/heads/main --source-ref
+   refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners`.
+   **Signer scope (finding 3):** the certificate names the workflow file and ref, not the job, and the `deploy` job
+   already holds `id-token: write` for `deploy-pages` (`daily-update.yml:990`). So the property is: only J2 holds
+   `attestations: write`, so only J2 can store an attestation the gate will find, and only on `main`'s
+   `daily-update.yml` at `refs/heads/main`. The predicate type pins it to the provenance J2 writes.
+   **Seed scope (finding 7):** `RECORDS_DATA_SEED_DIGEST`, pinned by the cutover PR, is accepted only while `D` is
+   the seed commit itself (the root of `records-data`, no parents). R-D refuses non-fast-forwards, so once a run has
+   moved the branch, a tree equal to the seed is checked like any other. **No `data_sha` input.** Rollback: a person restores an earlier attested tree whole on `records-data`, then runs
    `collect=false`.
 4. **Content tripwire** (change 2). J1 compares the votes, roll calls and outcomes in the `D` recorded in the live
    site's `build-info.json` with what this run will deploy. Any change or removal not listed in the reviewed
    `config/published-fact-changes.yml` opens one fixed-title issue and holds the deploy (`held=yes`). The data push
-   still happens. This extends ADR 0006's guards, which see only one run's collection.
+   still happens. `allow_shrink` never bypasses it (finding 7): only the reviewed list does. This extends ADR 0006's guards, which see only one run's collection.
 5. **Ruleset R1'' on `main`:** `required_approving_review_count: 2`, `dismiss_stale_reviews_on_push: true`,
    `require_last_push_approval: true`, `require_code_owner_review: false`, squash only, bypass Repository admin role
    in `pull_request` mode. `.github/CODEOWNERS` is deleted. Every merge into `main` is a person's bypass merge via
    `merge-reviewed`, which refuses PRs not authored by gn0sh or with a head in another repository.
 6. **R2 off from the cutover on, and load-bearing.** R1'' is unreachable for a bot only while there are exactly
    two writers (gn0sh and github-actions[bot]) and R2 is off. `protect-main` writes R1'' and R-D, turns R2 off, and
-   reports NOT OK if R2 is on or if any collaborator besides gn0sh has write or more.
+   reports NOT OK if R2 is on, or if anything besides gn0sh can write: a collaborator with write or more, an
+   installed App with contents write, or a deploy key with write (finding 1). Both environments' `main` policy must
+   be of type `branch`, and tag ruleset R-T blocks creating a tag named `main` (finding 2).
+   **Settings drift (the review's most serious item):** this rests on settings no daily run can read, and the team
+   proxy refuses the `actions/permissions`, `collaborators` and `environments` reads. So `protect-main` reports
+   NOT OK on any refused or failed read, never OK by default. It runs from Brian's PC after any settings change and
+   before `MAIN_PR_BASELINE` is set. `MORNING_NOTE_SEND` is unset before R2 goes back on or any ruleset changes.
 7. **Order** (change 3). U3 runs first, as a scripted live toggle, before any rework. If it fails, this ADR is
    rejected and the fallback below applies. The cutover is one scripted session in the Operator's order (task list
-   C-series). After it, the V1'' probe (architecture note section 4) must pass before `MAIN_PR_BASELINE` or
+   D3), with `protect-main` (R1'', R-D, R-T, R2 off) before the cutover merge (finding 5). After it, the V1'' probe (architecture note section 4) must pass before `MAIN_PR_BASELINE` or
    `MORNING_NOTE_SEND` is set.
 
 ## Alternatives considered
@@ -65,12 +80,19 @@ reviewer.
 - New residuals: (a) attested but wrong new facts from `main`'s own pipeline (a hostile PDF, T5) when they don't
   touch published facts. (b) Every merge is a bypass, so the bypass log stops being a signal; the gate's
   person-merge check and the rule-suite read in `merge-reviewed` replace it. (c) Brian is the sole admin, so `main`
-  freezes if the team's bypass stops working.
-- The push job gains `id-token: write` and `attestations: write`, and loses `pull-requests: write`. The gate gains
-  `attestations: read`.
+  freezes if the team's bypass stops working. (d) Replay (finding 7): a write-token workflow on any branch can
+  push an earlier attested tree to `records-data`. The gate accepts it, because a person's rollback needs exactly
+  that. I-pub holds the deploy if it drops or changes a published fact; an old tree that differs only in facts not
+  yet live deploys. Accepted: the data is still `main`'s own pipeline output. (e) Settings drift: R1'' holds only
+  while the settings in decision 6 hold, and only a run of `protect-main` from Brian's PC can see them all.
+- The push job gains `id-token: write` and `attestations: write`, and loses `pull-requests: write`. It is the only
+  job with `attestations: write`; `deploy` keeps its own `id-token: write`. The gate gains `attestations: read`.
+- **U3-0 = no** (finding 8): the team's cloud session got a proxy 403 on the no-op ruleset PUT at 17:37 UTC
+  2026-11-18 (read-back unchanged). So every ruleset, R2, environment and R-D write is Brian's, run from his PC:
+  U3, the cutover's settings steps and any rollback. The team-token anchor question is moot.
 - Local runs and preflight need `scripts/fetch-data`. The multi-city template inherits the two-branch setup through
   `protect-main`.
-- Cost: about 3-4 engineer days plus security review. Brian: one U3 session if the team's token can't write
-  rulesets, then one cutover session.
-- Reversal: `scripts/cutover-data-off-main --rollback` re-applies R1' json, restores `data/` on `main` by a
+- Cost: about 3-4 engineer days plus security review. Brian: one U3 session, then one cutover session.
+- Reversal: `scripts/cutover-data-off-main --rollback` refuses while `MORNING_NOTE_SEND` or `MAIN_PR_BASELINE` is
+  set (finding 4: R2 on reopens the bot path), then re-applies R1' json, restores `data/` on `main` by a
   reviewed PR from `records-data`'s head, and turns R2 on. The `records-data` branch is kept.
