@@ -59,6 +59,17 @@
     {% endif %}
   </section>
 
+  {# The morning note, offered on the front page (front-signup, 2026-11-18; owner: "I had to go looking for it" in the
+     menu). Only while the sign-up form is enabled (site.morning_note, sitegen/morning_page.py privacy()). A plain
+     link to the form on the Alerts page, not a second form: the lists, the seats box and the line saying what is
+     sent stay in one place. Nothing is sent or counted here. #}
+  {% if site.morning_note %}
+  <section class="note-invite" aria-label="{{ site.morning_note.heading }}">
+    <p>{{ site.morning_note.front_pitch }}</p>
+    <a class="note-invite-btn" href="{{ root }}{{ site.morning_note.signup_href }}">{{ site.morning_note.front_button }}</a>
+  </section>
+  {% endif %}
+
   {# The page's order is the wide screen's: the doors, the public bodies, then the meetings. A phone shows the meetings
      first by CSS `order` (static/style.css), an accepted deviation recorded in docs/design/front-page-v2.md. #}
   {% if doors %}
