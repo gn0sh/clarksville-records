@@ -214,12 +214,12 @@ class Site:
         self.p = rpc.paths(CFG, tmp_path)
         self.store_dir = tmp_path / "store"
 
-    def run(self, routes: dict, cfg=CFG):
+    def run(self, routes: dict, cfg=CFG, build=None):
         net, clock = FakeNet(routes), Clock()
         f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [])
         log: dict = {}
         store = Store(manifest_path=self.p["manifest"], root=self.store_dir)
-        code = rpc.run_step(log, False, fetcher=f, cfg=cfg, root=self.root, store=store, build=fake_build)
+        code = rpc.run_step(log, False, fetcher=f, cfg=cfg, root=self.root, store=store, build=build or fake_build)
         self.calls = [u for u, _ in net.calls]
         self.agents = {ua for _, ua in net.calls}
         self.clock = clock
@@ -297,11 +297,99 @@ def test_a_refused_civicclerk_listing_keeps_the_committed_backfill_and_updates_t
     assert {m["id"] for m in site.facts()["meetings"]} >= {"2019-04-24-regular", "2020-12-14-cdrb"}
 
 
-def test_a_backfill_meeting_gone_from_the_api_is_refused_by_the_shrink_guard(site):
+def test_a_backfill_meeting_gone_from_the_api_is_kept_as_committed(site):
+    """rpc-backfill/blocks-rpc-update: a shorter CivicClerk answer never drops a meeting nor stops the RPC update."""
     assert site.run({**page_routes(), **api_routes()})[0] == rpc.STEP_OK
-    fewer = {**EVENTS, "value": [e for e in EVENTS["value"] if e["id"] != 1149]}
+    before = site.facts()
+    fewer = {**EVENTS, "value": [e for e in EVENTS["value"] if e["id"] not in (1149, 1164)]}
     code, out = site.run({**page_routes(), **api_routes(fewer)})
-    assert code == rpc.STEP_REFUSED and "2019-04-24-regular" in out["status"]
+    assert code == rpc.STEP_OK, out["status"]
+    problems = out["fetch"]["problems"]
+    assert "civicclerk event 1149 (2019-04-24): gone from the API: kept as committed" in problems
+    assert "civicclerk event 1164 (2019-09-25): gone from the API: kept as committed" in problems
+    listing = json.loads(site.p["listing"].read_text(encoding="utf-8"))
+    sept = [r for r in listing if r["date"] == "2019-09-25"]
+    assert len(sept) == 1 and sept[0]["event_ids"] == [1160, 1164]          # the joined row, as committed
+    assert site.facts()["meetings"] == before["meetings"]
+
+
+def test_an_empty_civicclerk_answer_is_a_listing_not_read(site):
+    assert site.run({**page_routes(), **api_routes()})[0] == rpc.STEP_OK
+    before = site.facts()
+    code, out = site.run({**page_routes(), **api_routes({**EVENTS, "value": []})})
+    assert code == rpc.STEP_OK and "listing not read (EventsError: the events listing answered with no events)" \
+        in out["status"]
+    assert site.facts()["meetings"] == before["meetings"]
+
+
+def test_missing_backfill_files_hold_their_meetings_not_the_rpc_update(site):
+    """A fresh store (an evicted cache) without the 2019-2021 bytes: the RPC page's meetings update, each 2019-2021
+    meeting with a missing file stays as committed, and the files are fetched again under the cap."""
+    assert site.run({**page_routes(), **api_routes()})[0] == rpc.STEP_OK
+    before = site.facts()
+    for f in site.store_dir.glob("*.pdf"):
+        if b"civicclerk" in f.read_bytes():
+            f.unlink()
+    # the CivicClerk API refuses this run, so no file comes back: the meetings are held, the step still commits
+    code, out = site.run({**page_routes(), **api_routes(status=403)})
+    assert code == rpc.STEP_OK, out["status"]
+    assert out["held"] == ["2019-04-24-regular", "2019-09-25-regular", "2020-03-25-regular", "2020-12-14-cdrb"]
+    assert "4 meetings held" in out["status"]
+    after = site.facts()
+    assert after["meetings"] == before["meetings"] and after["cases"] == before["cases"]
+    assert after["sources"] == before["sources"]
+    # the next run with the API back fetches them again (gaps first) and reads them
+    code, out = site.run({**page_routes(), **api_routes()})
+    assert code == rpc.STEP_OK and not out.get("held")
+    assert len([u for u in site.api_calls() if "GetMeetingFileStream" in u]) == 6
+
+
+def short_build(cfg, rows, store, audit_path=None):
+    """Every backfill agenda prints one case number more than can be read."""
+    def short(path):
+        pages = extract(path)
+        return pages + ["CASE NUMBER: (not legible)"] if b"civicclerk" in path.read_bytes() else pages
+    return rpc_agenda.build(cfg, rows, store, extract=short, ocr=lambda *a: None, audit_path=audit_path)
+
+
+def test_a_short_2019_2021_agenda_holds_that_meeting_only(site):
+    """Decision (L27): shown without cases on a first run, as committed afterwards; the RPC page's update goes on."""
+    code, out = site.run({**page_routes(), **api_routes()}, build=short_build)
+    assert code == rpc.STEP_OK, out["status"]
+    facts = site.facts()
+    first = next(m for m in facts["meetings"] if m["id"] == "2019-04-24-regular")
+    assert first["case_count"] == 0 and first["case_numbers_printed"] is None and first["agenda_read_by"] is None
+    assert not [c for c in facts["cases"] if c["meeting_id"] == first["id"]]
+    assert [c for c in facts["cases"] if c["meeting_id"].startswith("2026-")]           # the RPC page's, as read
+    report = json.loads((site.root / "build" / "rpc-report.json").read_text())
+    assert ("2019-04-24-regular: held (its agenda prints more case numbers than were read)"
+            in report["build"]["problems"])
+    from qa import site_checks
+    assert site_checks.check_rpc_cases(facts)[0] == []
+    # read in full once, then short again: kept as committed
+    assert site.run({**page_routes(), **api_routes()})[0] == rpc.STEP_OK
+    good = site.facts()
+    assert site.run({**page_routes(), **api_routes()}, build=short_build)[0] == rpc.STEP_OK
+    assert site.facts() == good
+
+
+def test_a_listing_page_agenda_short_of_its_count_still_stops_the_step(site):
+    def page_short(cfg, rows, store, audit_path=None):
+        def short(path):
+            pages = extract(path)
+            return pages if b"civicclerk" in path.read_bytes() else pages + ["CASE NUMBER: (not legible)"]
+        return rpc_agenda.build(cfg, rows, store, extract=short, ocr=lambda *a: None, audit_path=audit_path)
+    code, _ = site.run({**page_routes(), **api_routes()}, build=page_short)
+    assert code == rpc.STEP_GATE
+
+
+def test_an_event_without_a_real_date_is_left_out_and_reported():
+    ev = events()
+    bad = [dict(ev[0], date="2019-02-30", event_id=1), dict(ev[0], date="2019-04-2", event_id=2),
+           dict(ev[0], date=None, event_id=3)]
+    rows, problems = rpc.backfill_rows(bad + ev, CFG)
+    assert len(rows) == 4
+    assert [p["event"] for p in problems if p["problem"] == "event date is not a date: left out"] == [1, 2, 3]
 
 
 def test_without_the_backfill_the_step_never_asks_the_api(site):
@@ -331,6 +419,30 @@ def test_the_backfills_documents_are_never_news(tmp_path):
                 [{"manifest": str(m), "before": "1/1/2022"}], "data/x.json"):
         cfg["morning_note"]["backfill"]["past_records"] = bad
         assert any("past_records" in p for p in morning.problems(cfg))
+
+
+def test_the_backfills_cases_are_no_feed_entries(site, tmp_path):
+    """Decision (manager, PR #36): a 2019-2021 case is no Atom feed entry either; the RPC page's cases still are."""
+    import copy
+    from sitegen import config, feeds
+    assert site.run({**page_routes(), **api_routes()})[0] == rpc.STEP_OK
+    view = site_rpc.Rpc({**site_rpc.load_config("cmc-rpc"), "hold_motions": True}, site.facts())
+    cfg = copy.deepcopy(config.SITE)
+    cfg["fetch_manifests"] = [str(site.p["manifest"])]
+    cfg["morning_note"]["backfill"]["past_records"] = [{"manifest": str(site.p["manifest"]), "before": BF.to_date}]
+    dates = {m["date"][:4] for _, m in feeds._rpc_cases(view, cfg)}
+    assert dates and all(d >= "2022" for d in dates)
+    cfg["morning_note"]["backfill"]["past_records"] = []
+    assert "2019" in {m["date"][:4] for _, m in feeds._rpc_cases(view, cfg)}
+
+
+def test_the_portal_link_is_allowed_from_rpc_yml_not_from_the_facts():
+    from qa import site_checks
+    cfg = site_rpc.load_config("cmc-rpc")
+    facts = {"meetings": [{"id": "x", "listing_url": "https://elsewhere.example/", "documents": []}]}
+    allowed = site_checks.rpc_allowed({**facts, "_cfg": cfg})
+    assert BF.listing_url in allowed and "https://elsewhere.example/" not in allowed
+    assert BF.listing_url not in site_checks.rpc_allowed({**facts, "_cfg": {**cfg, "civicclerk": None}})
 
 
 # ------------------------------------------------------------------ the pages and the export

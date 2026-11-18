@@ -34,7 +34,10 @@ events listing (civicclerk.discover: robots.txt, OData paging on the API host on
 meeting (source "civicclerk", backfill_rows), and fetches their files under a cap of their own (BACKFILL_FETCH_CAP):
 the files of a cold store come over a few runs, each run committing what it fetched, so the backfill never holds up
 the RPC's own update. A CivicClerk listing that is not read (refused, down) leaves the committed backfill rows as they
-are and asks for none of their files; the status line says so. Files are read by the same agenda and minutes readers.
+are and asks for none of their files; the status line says so. A committed meeting the listing no longer has is kept
+as committed; a 2019-2021 meeting whose files are not in the store, or whose agenda is short of its printed case count,
+is held alone (hold_backfill; pipeline-limits-invariant.md L27): the backfill never stops the RPC's own update. Files
+are read by the same agenda and minutes readers.
 
 Files (per locality, so no other body's manifest or facts are touched):
 - data/localities/cmc-rpc/listing.json    every listed meeting as printed (committed; a build reads it offline)
@@ -334,7 +337,15 @@ def backfill_rows(events: list[dict], cfg: RpcConfig) -> tuple[list[dict], list[
       "<kind label>, <date>" and reported. Problems carry event ids and dates only, never an event or file name."""
     bf = cfg.backfill
     rows, problems = [], []
+    from datetime import date as _date
     for e in events:
+        try:      # the API's startDateTime as printed: its first ten characters must be a real date
+            ok = isinstance(e.get("date"), str) and len(e["date"]) == 10 and bool(_date.fromisoformat(e["date"]))
+        except ValueError:
+            ok = False
+        if not ok:
+            problems.append({"event": e.get("event_id"), "date": None, "problem": "event date is not a date: left out"})
+            continue
         if e["date"] >= bf.to_date or e["date"] < bf.cc.from_date:
             continue
         title = " ".join((e.get("title") or "").split())
@@ -396,12 +407,34 @@ def merge_backfill(rows: list[dict], extra: list[dict]) -> tuple[list[dict], lis
     return out, problems
 
 
+def keep_committed_backfill(rows: list[dict], committed: list[dict]) -> tuple[list[dict], list[dict]]:
+    """(rows, problems): a committed backfill meeting with an event the read listing no longer has is kept as
+    committed (its row as it was, any new row sharing one of its events dropped) and reported, so a short or
+    changed CivicClerk answer never drops a 2019-2021 meeting nor stops the RPC's update (rpc-backfill/
+    blocks-rpc-update). A person looks at the report line."""
+    have = {i for r in rows for i in r["event_ids"]}
+    out, problems = list(rows), []
+    for c in committed:
+        missing = [i for i in c.get("event_ids") or [] if i not in have]
+        if not missing:
+            continue
+        ids = set(c["event_ids"])
+        out = [r for r in out if not ids & set(r["event_ids"])]
+        out.append({k: v for k, v in c.items() if k != "id"})
+        problems += [{"event": i, "date": c["date"], "problem": "gone from the API: kept as committed"}
+                     for i in missing]
+    out.sort(key=lambda r: (r["date"], r["event_ids"][0]), reverse=True)
+    return out, problems
+
+
 def discover_backfill(f, cfg: RpcConfig, log: dict, cache_dir: Path) -> list[dict]:
     """The CivicClerk events listing (civicclerk.discover: robots, paging on the API host only, each page cached
     under cache_dir), as listing rows. Raises on a refusal or a page that is not the API's (a partial listing is
     never used)."""
     sub: dict = {}
     events = civicclerk.discover(f, cfg.backfill.cc, cfg.kind_of, sub, cache_dir)
+    if not events:      # an empty answer for a closed 2019-2021 span is not the listing we know: not read
+        raise civicclerk.EventsError("the events listing answered with no events")
     rows, problems = backfill_rows(events, cfg)
     log.setdefault("backfill", {})["listing_pages"] = len(sub.get("listings", []))
     log["problems"] += [problem_line(p) for p in sub.get("listing_problems", []) + problems]
@@ -472,12 +505,15 @@ def cmd_fetch(cfg: RpcConfig, store: Store, listing_path: Path, log: dict, fetch
         # RPC-3: a CivicClerk listing that is not read (refused, down, not the API we know) does not stop the RPC's own
         # update: the committed backfill rows stand as they are, none of their files is requested this run, and the
         # reason is in the report (rpc.backfill.not_read). The API host is never asked again this run after a 403/429.
+        committed = committed_backfill(listing_path)
         try:
             bf_rows = discover_backfill(f, cfg, log, store.root / "civicclerk")
             bf_read = True
+            bf_rows, gone = keep_committed_backfill(bf_rows, committed)
+            log["problems"] += [problem_line(p) for p in gone]
         except (civicclerk.EventsError, FetchFailed, RequestCapReached) + STOP as e:
             log.setdefault("backfill", {})["not_read"] = f"{type(e).__name__}: {e}"[:400]
-            bf_rows = committed_backfill(listing_path)
+            bf_rows = committed
         rows, more = merge_backfill(rows, bf_rows)
         log["problems"] += [problem_line(p) for p in more]
     rows = assign_ids(rows)
@@ -568,11 +604,10 @@ def fetch_backfill(f, cfg: RpcConfig, store: Store, jobs: list, log: dict, limit
                    capped: bool = True) -> None:
     """The backfill's files the store lacks, oldest meeting first, agenda before minutes: first the ones the manifest
     lists whose bytes the store lacks (gaps), then new ones, as many as the CivicClerk cap (BACKFILL_FETCH_CAP, after
-    robots.txt and the listing) and `limit` allow. What does not fit waits for a later run: a gap is counted
-    `over_cap` (the daily step then fills the store and changes nothing, as for the listing page's gaps); a new file
-    is counted in backfill `later`, and its meeting is listed without that file's source until a run fetches it, so a
-    cold store is filled over a few days and never stops the RPC's own update. A 403/429 or a robots refusal ends the
-    backfill's requests for the run (backfill `stopped`); a failed file is logged and skipped."""
+    robots.txt and the listing) and `limit` allow. What does not fit waits for a later run, counted in backfill
+    `later`, and never stops the RPC's own update: a new file's meeting is listed without that file's source until a
+    run fetches it; a gap's meeting is held as committed (_daily, hold_backfill). A 403/429 or a robots refusal ends
+    the backfill's requests for the run (backfill `stopped`); a failed file is logged and skipped."""
     bl = log.setdefault("backfill", {})
     host = cfg.backfill.cc.api_host
     by_url = {d["url"]: (r, d) for r, d in sorted(jobs, key=lambda j: (j[0]["date"], j[1]["kind"] != "agenda"))}
@@ -588,10 +623,7 @@ def fetch_backfill(f, cfg: RpcConfig, store: Store, jobs: list, log: dict, limit
     stopped = None
 
     def wait(u: str) -> None:
-        if u in gaps:
-            log["fetched"]["over_cap"] = log["fetched"].get("over_cap", 0) + 1
-        else:
-            bl["later"] = bl.get("later", 0) + 1
+        bl["later"] = bl.get("later", 0) + 1
     for u in gaps + new:
         if u not in wanted or stopped:
             wait(u)
@@ -602,7 +634,7 @@ def fetch_backfill(f, cfg: RpcConfig, store: Store, jobs: list, log: dict, limit
                                                        "label": f"{r['printed']} {d['kind']}"}, expect="pdf")
             bl.setdefault("fetched", {})[status] = bl.setdefault("fetched", {}).get(status, 0) + 1
             if u in gaps and status not in ("cached", "cached-meta"):
-                log["fetched"]["gaps_filled"] = log["fetched"].get("gaps_filled", 0) + 1
+                bl["gaps_filled"] = bl.get("gaps_filled", 0) + 1
             store.save()
         except RequestCapReached:             # retries or redirects used the cap up: no request was made
             wait(u)
@@ -722,7 +754,12 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
             out["status"] = (f"filling the store, nothing changed: {left} documents left for later runs "
                              f"(at most {max_requests} requests per run)")
             return STEP_FILLING
-    gaps = store_gaps(rows, store)
+    bf_ids = {r.get("id") for r in rows if r.get("source") == BACKFILL}
+    all_gaps = set(store_gaps(rows, store))
+    gaps = sorted(u for u in all_gaps if not any(d["url"] == u for r in rows if r.get("id") in bf_ids for d in r["docs"]))
+    # RPC-3: a 2019-2021 meeting whose stored files are not in the store is held as committed, never the RPC update
+    held = {r.get("id"): "its stored files are not in the store" for r in rows
+            if r.get("id") in bf_ids and any(d["url"] in all_gaps for d in r["docs"])}
     if gaps or not rows:
         out["status"] = (f"nothing changed: {len(gaps)} stored documents are not in the store, e.g. {gaps[0]}"
                          if gaps else "nothing changed: no listing")
@@ -732,11 +769,19 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
         from .rpc_agenda import build
     facts, summary = build(cfg, rows, store, audit_path=p["audit"])
     out["build"] = summary
-    short = summary.get("case_shortfalls") or []
+    short = [m for m in summary.get("case_shortfalls") or [] if m not in bf_ids]
+    # RPC-3 (decision, pipeline-limits-invariant.md L27): a 2019-2021 agenda short of its printed case count holds that
+    # meeting only (as committed, else shown without cases), never the RPC update
+    held.update({m: "its agenda prints more case numbers than were read" for m in summary.get("case_shortfalls") or []
+                 if m in bf_ids})
     if short:
         out["status"] = f"nothing changed: {len(short)} agendas with cases not read: {', '.join(short)}"
         return STEP_GATE
     old = json.loads(p["facts"].read_text(encoding="utf-8")) if p["facts"].is_file() else None
+    if held:
+        facts = hold_backfill(facts, old, held)
+        summary.setdefault("problems", []).extend(f"{m}: held ({why})" for m, why in sorted(held.items()))
+        out["held"] = sorted(held)
     if old:
         out["corrections"] = minutes_corrections(old, facts)     # reported in the run summary (G1 (b), G4 (i))
     why = shrink_reason(old, facts, hold_motions=cfg.hold_motions, allow_shrink=allow_shrink) if old else None
@@ -744,15 +789,55 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
         out["status"] = f"nothing changed: {why}"
         return STEP_REFUSED
     out["changed"] = write_json(p["facts"], facts)
-    out["status"] = (f"{summary.get('meetings')} meetings, {summary.get('sources')} sources, {summary.get('cases')} "
+    out["status"] = (f"{len(facts.get('meetings', []))} meetings, {len(facts.get('sources', []))} sources, "
+                     f"{len(facts.get('cases', []))} "
                      f"cases; {p['facts'].name} {'rewritten' if out['changed'] else 'unchanged'}")
     bf = (out.get("fetch") or {}).get("backfill") or {}
     notes = [f"{bf['later']} files left for later runs" if bf.get("later") else None,
              f"listing not read ({bf['not_read']})" if bf.get("not_read") else None,
-             f"stopped ({bf['stopped']})" if bf.get("stopped") else None]
+             f"stopped ({bf['stopped']})" if bf.get("stopped") else None,
+             f"{len(out['held'])} meetings held ({', '.join(out['held'][:3])})" if out.get("held") else None]
     if any(notes):
         out["status"] = (out["status"] + "; CivicClerk 2019-2021: " + ", ".join(n for n in notes if n))[:600]
     return STEP_OK
+
+
+def hold_backfill(facts: dict, old: dict | None, held: dict) -> dict:
+    """RPC-3: `facts` with each held 2019-2021 meeting (id -> why) as the committed record has it: its meeting, cases,
+    motions and the sources they cite put back from `old`. A held meeting the committed record lacks is shown without
+    cases or motions, its agenda marked not read (so no check counts a case it does not show). Only those meetings
+    change; every other meeting is the new build's, and the record keeps its order (meetings, then each one's cases
+    and motions in the order read)."""
+    old = old or {}
+    before = {m["id"]: m for m in old.get("meetings", [])}
+    old_sources = {s["id"]: s for s in old.get("sources", [])}
+    sources = {s["id"]: s for s in facts["sources"]}
+
+    def of(rec: dict, key: str, mid: str) -> list:
+        return [x for x in rec.get(key, []) if x["meeting_id"] == mid]
+    meetings, cases, motions = [], [], []
+    for m in facts["meetings"]:
+        mid = m["id"]
+        if mid not in held:
+            meetings.append(m)
+            cases += of(facts, "cases", mid)
+            motions += of(facts, "motions", mid)
+        elif mid in before:
+            b = before[mid]
+            kept, kept_motions = of(old, "cases", mid), of(old, "motions", mid)
+            meetings.append(b)
+            cases += kept
+            motions += kept_motions
+            cited = {x.get("source_id") for x in [*kept, *kept_motions, *b["documents"]]}
+            cited |= {b.get("agenda_source_id"), b.get("minutes_source_id")}
+            sources.update({k: old_sources[k] for k in cited if k in old_sources})   # as committed, too
+        else:
+            meetings.append({**m, "case_count": 0, "case_numbers_printed": None, "case_numbers_read": None,
+                             "agenda_read_by": None, "agenda_date": None, "hearings": [], "minutes_read_by": None,
+                             "minutes_source_id": None, "minutes_case_heads_printed": None,
+                             "minutes_case_heads_read": None})
+    return {**facts, "meetings": meetings, "cases": cases, "motions": motions,
+            "sources": sorted(sources.values(), key=lambda s: s["id"])}
 
 
 def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = None, root: Path = ROOT,
