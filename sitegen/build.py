@@ -574,6 +574,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         raise BuildError(f"county committees: {exc}") from exc
     if cmx is not None:   # resolution and case numbers -> the County Commission's record of the same number
         cmx.link_county(ix, ax)
+        # a known video the feed disagrees with is left out (the feed wins): said in the run log, never a failure
+        for p in (cmx.cfg.get("videos") or {}).get("problems") or []:
+            warnings.append(f"school board videos: {p}")
+            print(f"sitegen: school board videos: {p}", flush=True)
     fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
     if capital_fund is DEFAULT:
         capital_fund = config.FIXTURE_CAPITAL_FUND if fixture else config.CAPITAL_FUND

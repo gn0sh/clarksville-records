@@ -7,6 +7,8 @@ python -m collector rpc {fetch,build,run}      (Regional Planning Commission: co
 python -m collector committees {fetch,build,run}   (city Finance and Audit committees: collector/committees.py)
 python -m collector county-committees {fetch,build,run,daily}   (school board and county finance committee agendas:
                                                collector/county_committees.py)
+python -m collector school-videos {fetch,show}   (the school board's official video links, from the district's YouTube
+                                               channel's RSS feed: collector/school_videos.py)
 python -m collector transcripts import <dir>   (meeting video transcripts: collector/transcripts.py)
 run: discover -> fetch new (polite), and refetch any manifest minutes whose bytes the store lacks -> parse ->
 resolve names -> verify -> shrink guard -> data/facts.json -> finance fetch and
@@ -15,7 +17,10 @@ the agenda page, new agenda PDFs, data/county-agendas/agendas.json) -> Regional 
 the listing page, new documents, data/localities/cmc-rpc/rpc.json; all or nothing) -> school board and county
 committee agendas (county_committees.run_step: the county's Committee Agendas page, new agenda PDFs,
 data/localities/montgomery-tn/committee-agendas/agendas.json; all or nothing, never changes the exit code; its outcome
-is in build/run-log.json `county_committees`) -> city budget books (fin_books.run_step: new books only, built offline
+is in build/run-log.json `county_committees`) -> school board video links (school_videos.run_step: the district's
+YouTube RSS feed through its own www.youtube.com-only fetcher, data/localities/montgomery-tn/school-board-videos/
+videos.json; never changes the exit code; its outcome is in build/run-log.json `school_videos`) -> city budget books
+(fin_books.run_step: new books only, built offline
 into data/localities/<id>/finance.json; a warning at most) -> sitegen -> export ->
 build/report.json, build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure
 (votes gates, or finance parity 'review needed'), 7 (KEPT, a warning) when the shrink guard kept a source document's
@@ -159,6 +164,14 @@ def run_county_committees(log: dict, offline: bool, fetcher: PoliteFetcher | Non
     built from them."""
     from .county_committees import run_step
     return run_step(log, offline, fetcher=fetcher)
+
+
+def run_school_videos(log: dict, offline: bool) -> int:
+    """The school board's official video links (collector/school_videos.py run_step): one read of the district's
+    YouTube RSS feed with the step's own fetcher (www.youtube.com only, robots.txt obeyed). Its own code in
+    build/run-log.json `school_videos`; it never adds to log['failures'] and never raises."""
+    from .school_videos import run_step
+    return run_step(log, offline)
 
 
 RPC_FAILED, RPC_FILLING = 5, 6       # `run` exit codes for the RPC step alone (everything else ok)
@@ -480,6 +493,7 @@ def cmd_run(args) -> int:
     rpc_code = run_rpc(log, args.offline, fetcher=fetcher,      # before the site build, which reads rpc.json
                        allow_shrink=allow)
     run_county_committees(log, args.offline, fetcher=fetcher)   # before the site build, which reads its agendas.json
+    run_school_videos(log, args.offline)                        # before the site build, which reads videos.json
     run_city_books(log, args.offline, fetcher=fetcher)          # before the site build, which reads them
     site = BUILD / "site"
     try:
@@ -545,6 +559,9 @@ def main(argv=None) -> int:
     if argv[:1] == ["county-committees"]:
         from .county_committees import main as cc_main
         return cc_main(argv[1:])
+    if argv[:1] == ["school-videos"]:
+        from .school_videos import main as sv_main
+        return sv_main(argv[1:])
     if argv[:1] == ["transcripts"]:
         from .transcripts import main as tx_main
         return tx_main(argv[1:])

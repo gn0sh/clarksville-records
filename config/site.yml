@@ -361,6 +361,18 @@ county_committees:
   no_text: "The items on this agenda are not shown on this site for now, because school board agendas can list students by name. Read them in the agenda PDF."
   older:
     text: "Agendas from before {year} are not collected yet: the county keeps them on another server that this site cannot reach yet."
+  # Each school board meeting's official video (Brian 2026-11-18), from `file` (collector/school_videos.py): a link
+  # only, never fetched. A meeting whose date has a matched video gets one Watch line per video (labels by kind: a
+  # hearing is never called the meeting); any other gets the plain channel line. Every word is here.
+  videos:
+    file: config/localities/montgomery-tn/school-board-videos.yml
+    link: Watch
+    labels:
+      meeting: "The district's own video of this meeting (opens YouTube)"
+      hearing: "The district's own video of the hearing held that day (opens YouTube)"
+      budget-hearing: "The district's own video of the budget hearing held that day (opens YouTube)"
+    channel_lede: "Recordings:"
+    channel_label: official CMCSS YouTube channel
 
 # Official meeting video, per body key (county_key above; a council's and the RPC's body_key), Brian 2026-11-11
 # (sitegen/watch.py): one plain "Watch" link to the page where the body itself posts its meeting video. A link only:
@@ -371,8 +383,8 @@ video:
   county: {url: "https://www.youtube.com/channel/UColCy-INQM4uZSqrJCeHTGg", host: YouTube}
   city: {url: "https://clarksvilletn.portal.civicclerk.com/", host: "the city's CivicClerk portal"}
   rpc: {url: "https://www.youtube.com/@CMCRPC", host: YouTube}
-  # school: the school board's slot (it voted to livestream and record its meetings, Brian 2026-11-16). Left empty
-  # until a person confirms the page where the board posts them; no page reads it yet (sitegen/watch.py).
+  # school: no entry here. The school board's meetings link their own videos, or the district's channel, from
+  # config/localities/montgomery-tn/school-board-videos.yml (county_committees.videos above, Brian 2026-11-18).
 video_link: Watch
 video_label: "Official video channel (opens {host})"
 video_recording: "Official video (opens the meeting's MP4 recording)"
@@ -517,13 +529,13 @@ switch:
       # (committee_home.html.j2): what is here, what is not and why, and one plain link (official_link). cmcss.net
       # answers automated visitors with a bot challenge and this site never works around a block, so nothing is
       # collected from it (docs/research/rpc-cmcss-sources.md). The link is school_board.url, the district's home page,
-      # until a person confirms the board page's own URL. Its video link has a slot in `video:` above (`school`), left
-      # empty until the board's recordings page is confirmed; none is guessed.
+      # until a person confirms the board page's own URL. Videos (Brian 2026-11-18): YouTube's terms do not allow
+      # copying them, so each meeting links the district's own recording (county_committees.videos), never a copy.
       limits:
         heading: What we can show
-        shown: "Shown here: the board's meeting agendas, taken from the county's website."
+        shown: "Shown here: the board's meeting agendas, taken from the county's website, and links to the district's own meeting videos."
         not_shown: "Not shown: the board's minutes, recorded votes and budget."
-        why: "The school system's website blocks automated collection, and this site respects that."
+        why: "The school district blocks automated visitors to cmcss.net, and YouTube's terms do not allow copying videos. This site follows those rules: it shows the agendas the county posts and links each meeting to the district's own recording when one is posted, or to the district's YouTube channel."
         link_lede: "Find them on the official site:"
         link: {from: school_board, kind: school}
       cards:

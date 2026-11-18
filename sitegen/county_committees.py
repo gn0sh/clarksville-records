@@ -8,6 +8,12 @@ Pages (one per body and year, each meeting a section #<meeting id>, so the previ
   agendas), and <slug>/meetings/<yyyy>.html;
 - the county finance committees' index, <finance.slug>/index.html, and <finance.slug>/<body key>/<yyyy>.html.
 
+Videos (Brian 2026-11-18): each school board meeting links the district's own recording on YouTube when one is
+matched by exact date (collector/school_videos.py by_date: the channel's feed, kept in its data file, and the config's
+`known` list), one Watch line per video, labelled by kind from config `county_committees.videos`; a meeting with none,
+or a date with more than one school board meeting (which video is whose is not guessed), links the channel instead.
+Links only: nothing is fetched from YouTube here, and no video title is shown.
+
 Rules: every entry is the agenda's own words, linked to the agenda page it is printed on; a resolution or case number
 links the County Commission's record of the same number only on an exact match (the minutes' item page, else the
 agenda-only meeting that lists it); these bodies post no minutes online, so every meeting says so in a dashed COMING
@@ -55,7 +61,39 @@ def settings(site: dict | None = None) -> dict | None:
     # it, or with text: false (the school board), shows no title and no item text (agenda-withhold-invariant.md)
     text = {b["key"]: b.get("text", True) is True for b in raw.get("bodies") or []}
     return {**cc, "facts_path": config.REPO_ROOT / raw["facts"], "listing_url": raw["listing_url"],
-            "record_label": raw["record_label"], "text_bodies": text}
+            "record_label": raw["record_label"], "text_bodies": text, "videos_spec": cc.get("videos")}
+
+
+VIDEO_TEXT = ("link", "channel_lede", "channel_label")
+
+
+def video_settings(spec: dict | None, fixture: bool = False, data_path: Path | None = None) -> dict | None:
+    """The school board's video links: {body, channel_url, by_date, problems, link, labels, channel_lede,
+    channel_label}, or None without a `videos:` block. A fixture build (made-up meetings) never links a real video:
+    it reads only `data_path` (a test's videos file, with no `known` list), or none and links the channel only."""
+    if not spec:
+        return None
+    from collector import school_videos as sv
+    bad = [k for k in VIDEO_TEXT if not isinstance(spec.get(k), str) or not spec[k].strip()]
+    if bad or not spec.get("file"):
+        raise CommitteesError(f"config/site.yml county_committees.videos: missing or empty {', '.join(bad) or 'file'}")
+    labels = spec.get("labels")
+    if not isinstance(labels, dict) or any(not isinstance(labels.get(w), str) or not labels[w].strip()
+                                           for w in sv.WHATS):
+        raise CommitteesError(f"county_committees.videos.labels: one label for each of {', '.join(sv.WHATS)}")
+    try:
+        vc = sv.load_config(config.REPO_ROOT / spec["file"])
+        if fixture:
+            vc = {**vc, "known": []}
+            data = json.loads(Path(data_path).read_text(encoding="utf-8")) if data_path else {"videos": []}
+        else:
+            data = sv.load_data(vc, config.REPO_ROOT)
+        links, problems = sv.by_date(vc, data)
+    except (sv.ConfigError, sv.FeedError, OSError, ValueError) as e:
+        raise CommitteesError(f"county_committees.videos: {e}") from e
+    return {"body": vc["body"], "channel_url": vc["channel_url"], "by_date": links, "problems": problems,
+            "link": spec["link"], "labels": labels, "channel_lede": spec["channel_lede"],
+            "channel_label": spec["channel_label"]}
 
 
 class Committees:
@@ -85,6 +123,10 @@ class Committees:
         self.school = [k for k, b in self.bodies.items() if b["group"] == "school" and self.by_body.get(k)]
         self.finance = [k for k, b in self.bodies.items() if b["group"] == "county-finance" and self.by_body.get(k)]
         self.links: dict[str, dict] = {}       # number -> {href, label}: the County Commission's record of it
+        vs = cfg.get("videos")
+        self.video_body = vs["body"] if vs and vs["body"] in self.bodies else None
+        dates = [m["date"] for m in self.by_body.get(self.video_body or "", [])]
+        self.video_shared = {d for d in dates if dates.count(d) > 1}   # a date with two board meetings: no video
 
     # ------------------------------------------------------------------ paths
     @property
@@ -148,8 +190,25 @@ class Committees:
     def shows_text(self, key: str) -> bool:
         return (self.cfg.get("text_bodies") or {}).get(key, False)
 
+    def videos(self, m: dict) -> tuple[list[dict], dict | None]:
+        """([a Watch link per matched video], the channel link when none): ([], None) for a body without videos."""
+        vs = self.cfg.get("videos")
+        if not vs or m["body"] != self.video_body:
+            return [], None
+        found = [] if m["date"] in self.video_shared else vs["by_date"].get(m["date"], [])
+        watch = [{"url": v["url"], "link": vs["link"], "label": vs["labels"][v["what"]], "ext": "watch"}
+                 for v in found]
+        channel = None if watch else {"url": vs["channel_url"], "lede": vs["channel_lede"],
+                                      "label": vs["channel_label"], "kind": "watch"}
+        return watch, channel
+
+    def video_count(self) -> int:
+        """The school board meetings that link at least one video of their own."""
+        return sum(1 for m in self.by_body.get(self.video_body or "", []) if self.videos(m)[0])
+
     def meeting(self, m: dict) -> dict:
         b = self.bodies[m["body"]]
+        watch, channel = self.videos(m)
         src = self.sources.get(m.get("source_id") or "")
         text = self.shows_text(m["body"])
         entries = []
@@ -164,7 +223,8 @@ class Committees:
                 "doc": ({"url": src["url"], "pages": src["pages"], "fetched": localdates.fetched(src),
                          "no_text": src.get("text_layer") == "none"} if src else None),
                 "entries": entries, "minutes": self.minutes_note(m["body"]), "href": self.meeting_href(m),
-                "text": text, "lines": m.get("lines", len(m.get("entries") or [])), "no_text_note": self.cfg["no_text"]}
+                "text": text, "lines": m.get("lines", len(m.get("entries") or [])), "no_text_note": self.cfg["no_text"],
+                "videos": watch, "channel": channel}
 
     def year_page(self, key: str, year: str) -> dict:
         b = self.bodies[key]
@@ -244,7 +304,8 @@ def load(site: dict | None, fixture: bool, today: date, facts_path: Path | None 
         raise CommitteesError(f"{p}: not a committee agendas file (schema {data.get('schema')!r})")
     if bool(data.get("fixture")) != bool(fixture):
         return None
-    cfg = {**cfg, "facts_path": p}
+    cfg = {**cfg, "facts_path": p,
+           "videos": video_settings(cfg.get("videos_spec"), bool(fixture), data.get("fixture_videos") if fixture else None)}
     sb = ((site or config.SITE).get("school_board") or {})
     pg = sb.get("page") or {}
     cfg["school_label"] = pg.get("title") or sb.get("label") or "School board"

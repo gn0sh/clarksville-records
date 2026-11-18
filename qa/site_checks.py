@@ -1073,6 +1073,32 @@ def books_not_read_urls(cfg: dict) -> set[str]:
     return out
 
 
+YT_VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{11}")
+
+
+def school_video_urls(cfg: dict, data_path: Path | None = None) -> set[str]:
+    """The school board's video links, restated here (an independent check of sitegen/county_committees.py): the
+    channel_url of the file config `county_committees.videos.file` names, if it is an https www.youtube.com page, and
+    https://www.youtube.com/watch?v=<id> for each well-formed id in its `known` list and in its data file (`facts`, or
+    `data_path`). Exact URLs only: any other youtube.com link on a page fails the external-link check."""
+    import yaml
+    spec = (cfg.get("county_committees") or {}).get("videos") or {}
+    p = ROOT / str(spec.get("file") or "")
+    if not spec.get("file") or not p.is_file():
+        return set()
+    raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    out = set()
+    ch = str(raw.get("channel_url") or "")
+    if re.fullmatch(r"https://www\.youtube\.com/[@A-Za-z0-9_./-]+", ch):
+        out.add(ch)
+    ids = [str(k.get("id")) for k in raw.get("known") or [] if isinstance(k, dict)]
+    data = Path(data_path) if data_path else (ROOT / str(raw.get("facts") or "") if raw.get("facts") else None)
+    if data is not None and data.is_file():
+        ids += [str(v.get("id")) for v in json.loads(data.read_text(encoding="utf-8")).get("videos") or []
+                if isinstance(v, dict)]
+    return out | {f"https://www.youtube.com/watch?v={i}" for i in ids if YT_VIDEO_ID.fullmatch(i)}
+
+
 def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | None,
                      corrections_path: Path | None = None) -> set[str]:
     """Exact URLs (qa-weakened/ext-link-any-host): config/site.yml links, the map's source_url, every roster row's
@@ -1091,6 +1117,7 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
             if isinstance(x, dict) and x.get("url")}
     out |= {v["url"] for v in (cfg.get("video") or {}).values()   # the "Watch" links (sitegen/watch.py)
             if isinstance(v, dict) and isinstance(v.get("url"), str) and v["url"].startswith("https://")}
+    out |= school_video_urls(cfg)                    # the school board meetings' video and channel links
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
     out |= books_not_read_urls(cfg)                  # a city budget book fetched and linked, not read
     if cfg.get("operator_url"):
