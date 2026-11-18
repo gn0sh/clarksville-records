@@ -188,6 +188,12 @@ budget_city:
     fy2025-adopted: "Linked only, not read: its line-item pages have no usable text layer. Its FY2025 figures (2025 ORIG BUD, 2025 REVISED BUD, 2025 ACTUAL, 2025 PROJECTION) are printed in the columns of the Fiscal Year 2026 Budget (Final Submission), which is read here."
   words: [actual, adopted-budget, amended-budget, fund, proposed-budget]
 
+# The general fund dollar on the city's page (sitegen/dollar_split.py): the words that differ from `dollar`, as
+# `budget_city` over `budget`. The county's caption stays plain: its school funds are not in our data, so "main
+# budget" would not hold there (review finance-pages/caption-unsourced-gloss).
+dollar_city:
+  total_line: "This bar is the general fund, the city's main budget for everyday services: {amount}."
+
 # The city budget dollar, by fund (sitegen/fund_split.py, docs/architecture/city-funds-dollar.md; CEO 2026-11-18:
 # "just break them up the same way you did with the county stuff"). Plain and factual: each fund's spending as the
 # book prints it, nothing about whether it is enough. {year}: the column's fiscal year; {n}: funds; {amount}: "$..."
@@ -240,7 +246,7 @@ dollar:
   lede: "How the {body}'s FY{year} adopted general fund budget splits across departments, in cents of each dollar. This is the general fund only, not all of the {body}'s spending, and not property tax alone."
   key_label: "Departments named on the bar, left to right"
   key_note: "Departments that get {n} cents or more of each dollar are named, left to right in the book's order."
-  total_line: "This bar is the general fund, the {body}'s main budget for everyday services: {amount}."
+  total_line: "This bar is the {body}'s general fund budget: {amount}."
   total_amount: "{amount} dollars"
   list_heading: Every department
   list_order: in the book's order

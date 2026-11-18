@@ -582,10 +582,16 @@ def test_city_caption_names_the_general_fund_first_then_the_department_rule(city
                              "book's order.")
 
 
-def test_county_caption_says_the_county(county):
+def test_county_caption_says_the_county_general_fund_and_no_gloss(county):
+    """finance-pages/caption-unsourced-gloss: the county's school funds are not in our data, so no "main budget"."""
     _, d = county
-    assert d["total_line"].startswith("This bar is the general fund, the county's main budget for everyday services: $")
-    assert d["total_line"].endswith(".") and "dollars" not in d["total_line"]
+    assert d["total_line"] == "This bar is the county's general fund budget: $" + d["total"] + "."
+    assert "main" not in d["total_line"] and "everyday" not in d["total_line"]
+
+
+def test_only_the_city_page_overrides_the_caption():
+    assert set(config.FIN_TEXT["dollar_city"]) == {"total_line"}
+    assert "dollar_county" not in config.FIN_TEXT
 
 
 def test_the_caption_amount_is_budget_views_usd_and_there_is_no_second_helper():

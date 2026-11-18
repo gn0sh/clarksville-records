@@ -122,6 +122,8 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
     book = bg.book[cfg["book"]]
     column, cents = cfg["column"], bg.cents(book["id"])
     money = cents_text if cents else dollars
+    # the words that differ on one body's page (finance_text.yml `dollar_<body>`, as `budget_city` over `budget`)
+    tx = T | config.FIN_TEXT.get(f"dollar_{cfg['body']}", {})
     lines = [x for x in bg.lines if x["book_id"] == book["id"] and fund_key(x) == cfg["fund"]]
     if not lines:
         return None
@@ -205,7 +207,7 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
     other = None
     if small:
         amount = total_of([g["amount"] for g in small])
-        other = row("other", T["other_name"].format(n=len(small)),
+        other = row("other", tx["other_name"].format(n=len(small)),
                     [(t, a) for g in small for t, a in zip(g["members"], g["amounts"])], amount)
         other["departments"] = [{"name": g["name"], "amount": money(g["amount"]),
                                  "members": [member(t, a) for t, a in zip(g["members"], g["amounts"])]} for g in small]
@@ -216,46 +218,47 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
     for i, (r, c) in enumerate(zip(rows, shares)):
         r["cents"] = c
         r["moved"] = i in moved
-        r["cents_words"] = T["cent_one"] if c == 1 else T["cents_many"].format(n=c)
+        r["cents_words"] = tx["cent_one"] if c == 1 else tx["cents_many"].format(n=c)
         r["labelled"] = c >= T_LABEL_MIN
         r["narrow"] = c < T_PHONE_MIN
-        r["short"] = T["other_short"] if r is other else r["name"]
+        r["short"] = tx["other_short"] if r is other else r["name"]
     ft = basis["line"]
     fsrc = bg.src(ft)
-    total_text = (T["total_printed"] if basis["kind"] == "printed" else T["total_net"]).format(
+    total_text = (tx["total_printed"] if basis["kind"] == "printed" else tx["total_net"]).format(
         amount=money(total), label=ft["label_as_printed"], n=len(dept_totals), cite="{cite}").split("{cite}")
     year = first["fiscal_year"]
-    rounding = T["rounding_exact"] if not moved else T["rounding_moved" if len(moved) > 1 else "rounding_moved_one"].format(
+    moved_key = "rounding_moved" if len(moved) > 1 else "rounding_moved_one"
+    rounding = tx["rounding_exact"] if not moved else tx[moved_key].format(
         sum=nearest_sum, n=len(moved), names="; ".join(rows[i]["name"] for i in moved),
-        way=T["way_less"] if nearest_sum > 100 else T["way_more"],
-        most=T["most_up"] if nearest_sum > 100 else T["most_down"])
+        way=tx["way_less"] if nearest_sum > 100 else tx["way_more"],
+        most=tx["most_up"] if nearest_sum > 100 else tx["most_down"])
     rev_pages = sorted({x["page"] for x in lines if x["statement"] == "revenue" and x["row_role"] == "detail"})
     out = {
-        "heading": T["heading"],
-        "lede": T["lede"].format(year=year, body=cfg["body"]),
+        "heading": tx["heading"],
+        "lede": tx["lede"].format(year=year, body=cfg["body"]),
         # the key under the bar: the rows whose segment carries its cents, in the bar's (the book's) order
         "key": [r for r in rows if r["labelled"]],
-        "key_note": T["key_note"].format(n=T_LABEL_MIN),
-        "total_line": T["total_line"].format(body=cfg["body"], amount=usd(total if cents else total * 100)),
-        "total_amount": T["total_amount"].format(amount=money(total)),
-        "source": T["source"].format(book=book["title"], header=column, fund=ft["fund_name"] or cfg["fund"]),
+        "key_note": tx["key_note"].format(n=T_LABEL_MIN),
+        "total_line": tx["total_line"].format(body=cfg["body"], amount=usd(total if cents else total * 100)),
+        "total_amount": tx["total_amount"].format(amount=money(total)),
+        "source": tx["source"].format(book=book["title"], header=column, fund=ft["fund_name"] or cfg["fund"]),
         "rows": rows, "other": other, "total": money(total), "total_cents": total_of(shares),
         "total_src": fsrc, "total_href": href_of(ft["id"]),
         "total_before": total_text[0], "total_after": total_text[1],
-        "measures": T["measures"].format(body=cfg["body"]),
-        "tax": T["tax"] if rev_pages else None,
+        "measures": tx["measures"].format(body=cfg["body"]),
+        "tax": tx["tax"] if rev_pages else None,
         "tax_src": bg.fx.src(book["source_id"], rev_pages[0]) if rev_pages else None,
         "tax_pages": (f"pp. {rev_pages[0]}-{rev_pages[-1]}" if len(rev_pages) > 1 else f"p. {rev_pages[0]}")
         if rev_pages else None,
-        "rounding": T["rounding"] + " " + rounding,
-        "order": T["order"],
-        "transfers": T["transfers"] if any("transfer" in t["tags"] for t in dept_totals) else None,
+        "rounding": tx["rounding"] + " " + rounding,
+        "order": tx["order"],
+        "transfers": tx["transfers"] if any("transfer" in t["tags"] for t in dept_totals) else None,
         "note": note,
         "zero": [{"name": g["name"], "members": [member(t, a) for t, a in zip(g["members"], g["amounts"])]}
                  for g in zero],
-        "zero_heading": T["zero"].format(header=column, n=len(zero)),
+        "zero_heading": tx["zero"].format(header=column, n=len(zero)),
         "col_amount": column, "kind": config.FIN_TEXT["budget"]["kinds"][first["kind"]],
-        "caption": T["caption"].format(year=year), "t": T,
+        "caption": tx["caption"].format(year=year), "t": tx,
         "book_id": book["id"], "fund": cfg["fund"], "value_total": total, "total_fact_id": f"dollar/{book['id']}/total",
     }
     return out
