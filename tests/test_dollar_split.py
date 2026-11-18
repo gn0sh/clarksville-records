@@ -76,6 +76,30 @@ def test_no_split_that_would_break_the_one_cent_rule():
         fin_checks.cents_of_dollar([6] * 15 + [910], 1000)
 
 
+@pytest.mark.parametrize("amounts", [[1130, 140, 369, 390, 40, 31], [1, 1, 1], [3, 5, 1992], [1] * 7, [995, 3, 1, 1],
+                                     [6] * 15 + [910], [1, 0, 99]])
+def test_tenths_add_up_to_1000_and_each_is_within_a_tenth(amounts):
+    """The property tax dollar's rounding (fin_checks.tenths_of_dollar): largest remainder at tenths of a cent."""
+    total = sum(amounts)
+    tenths, nearest_sum, moved = fin_checks.tenths_of_dollar(amounts, total)
+    assert sum(tenths) == 1000
+    nearest = [(2000 * a + total) // (2 * total) for a in amounts]
+    assert nearest_sum == sum(nearest) and moved == [i for i in range(len(amounts)) if tenths[i] != nearest[i]]
+    for a, t in zip(amounts, tenths):
+        assert abs(t - Fraction(1000 * a, total)) < 1
+
+
+def test_tenths_tie_goes_to_the_larger_exact_share_and_is_named():
+    # 3 and 5 of 2000 are 1.5 and 2.5 tenths: both cut to 1 and 2 with the same remainder, one tenth left over.
+    # It goes to the larger exact share (2.5 -> 3); the smaller (1.5, nearest 2) is shown at 1 and is the moved one.
+    assert fin_checks.tenths_of_dollar([3, 5, 1992], 2000) == ([1, 3, 996], 1001, [0])
+    assert fin_checks.tenths_of_dollar([5, 3, 1992], 2000) == ([3, 1, 996], 1001, [1])   # not by position
+    # the county FY2027 rates: Schools and Debt service tie on remainder and both go up; Roads stays at 6.6
+    assert fin_checks.tenths_of_dollar([1130, 140, 369, 390, 40, 31], 2100) == ([538, 66, 176, 186, 19, 15], 1001, [1])
+    # equal shares: ties to the first listed
+    assert fin_checks.tenths_of_dollar([1, 1, 1], 3) == ([334, 333, 333], 999, [0])
+
+
 def test_rounding_is_deterministic_ties_go_to_the_first_listed():
     cents, s, moved = fin_checks.cents_of_dollar([1, 1, 1], 3)      # 33.33 each: nearest 33, 99 in all
     assert (cents, s, moved) == ([34, 33, 33], 99, [0])

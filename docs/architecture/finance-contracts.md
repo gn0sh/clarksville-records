@@ -303,7 +303,14 @@ with the rate itself ("$2.10 per $100 of assessed value"). `sitegen/property_tax
   The config's year is its book's; a newer book that prints an adopted budget for its own year fails the build
   (stale-book, as section 11). A set config never yields a hidden bar: a missing book raises, and the build stops if
   no bar was built (silent-hide). Segments under 10 cents hide their label on a phone (the key names them).
-- **Rounding:** `cents_of_dollar`, as section 11 (FY2027: 101 rounded, Schools moves one cent, named on the page).
+- **Rounding (`tenths_of_dollar`):** tenths of a cent, largest remainder: each share cut to the tenth below, the
+  leftover tenths to the largest remainders (a tie to the larger exact share, then the first listed); they add up to
+  exactly 100.0 and each is within a tenth of its exact share. Rows shown other than their nearest tenth are named
+  (FY2027: 53.8 / 6.6 / 17.6 / 18.6 / 1.9 / 1.5; nearest would add up to 100.1, so Roads 6.667 shows 6.6). Whole
+  cents tied Schools and Debt service and showed Schools a cent low (review, tie-understates-schools).
+- **Copy:** "as printed in the FY2027 Approved Budget" until the June 8, 2026 minutes are collected (TODO in the
+  config: then "as adopted" with the vote linked); one neutral sentence for every fund: "Each fund also has money
+  from sources other than property tax, not shown here."
 - **Fact ids:** `proptax/<book>/<printed fund slug>` and `proptax/<book>/total`, from `property_tax.fact_ids`, known to
   `qa/site_checks.finance_fact_ids`.
 - **Updating for a new year:** add the new book, then edit the config (book, page, column, rates as printed, fixture

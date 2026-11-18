@@ -8,7 +8,9 @@ budget book already in finance.json, so every row cites that page. The rates are
 and against the book: every fund the book budgets current property tax for (the configured account, adopted column) is
 one row, and each of those amounts is the same multiple of its rate. Anything that does not hold fails the build: a
 wrong rate must never reach the page. Rows keep the resolution's order (no amount sort, neutrality/*); adding goes
-through collector.fin_checks (budget-reconcile/*); the rounding is dollar_split's (cents_of_dollar)."""
+through collector.fin_checks (budget-reconcile/*). Shares are in tenths of a cent (tenths_of_dollar, largest remainder,
+a tie to the larger exact share), so near-equal rates are never told apart by a whole-cent tie break
+(property-tax-split/tie-understates-schools)."""
 from __future__ import annotations
 
 import re
@@ -17,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from collector.fin_checks import cents_of_dollar, total_of
+from collector.fin_checks import tenths_of_dollar, total_of
 
 from . import config
 from .budget_views import Budget, dollars, fund_key
@@ -28,6 +30,11 @@ T = config.FIN_TEXT["property_tax"]
 RATE_RE = re.compile(r"\$?(\d+)\.(\d{3})")      # a rate as the resolution's table prints it: "$1.130", "0.140"
 RATE2_RE = re.compile(r"\$(\d+)\.(\d{2})")      # Section 1's combined rate: "$2.10"
 FILE = "property-tax-split.yml"
+
+
+def tenths_text(t: int) -> str:
+    """Tenths of a cent as the page prints them: 538 -> "53.8", 1000 -> "100.0"."""
+    return f"{t // 10}.{t % 10}"
 
 
 def _thousandths(text: str, rx: re.Pattern, where: str) -> int:
@@ -153,33 +160,32 @@ def split(bg: Budget, cfg: dict | None, dollar_fund: str | None = None) -> dict 
     check = _check_against_book(bg, book, cfg, rates)
     src = bg.fx.src(book["source_id"], cfg["page"])
     href_of = bg.href_from(bg.index)
-    shares, nearest_sum, moved = cents_of_dollar(rates, total)
+    shares, nearest_sum, moved = tenths_of_dollar(rates, total)
     base = f"proptax/{book['id']}"
     rows = []
-    for i, (f, r, c) in enumerate(zip(cfg["funds"], rates, shares)):
+    for i, (f, r, t) in enumerate(zip(cfg["funds"], rates, shares)):
         rows.append({
             "key": slug(f["printed"]), "name": f["name"], "printed": f["printed"], "rate": f["rate"], "value": r,
-            "cents": c, "moved": i in moved, "labelled": c >= T_LABEL_MIN, "narrow": c < T_PHONE_MIN,
-            "short": f["name"],
-            "cents_words": T["cent_one"] if c == 1 else T["cents_many"].format(n=c),
+            "tenths": t, "cents": tenths_text(t), "moved": i in moved,
+            "labelled": t >= 10 * T_LABEL_MIN, "narrow": t < 10 * T_PHONE_MIN, "short": f["name"],
+            "cents_words": T["cents_many"].format(n=tenths_text(t)),
             "printed_as": f["printed"] != f["name"], "src": src, "fact_id": f"{base}/{slug(f['printed'])}",
             "fund": f["fund"], "to_dollar": bool(dollar_fund) and f["fund"] == dollar_fund,
         })
     rounding = T["rounding_exact"] if not moved else T["rounding_moved" if len(moved) > 1 else "rounding_moved_one"].format(
-        sum=nearest_sum, n=len(moved), names="; ".join(rows[i]["name"] for i in moved),
-        way=T["way_less"] if nearest_sum > 100 else T["way_more"],
-        most=T["most_up"] if nearest_sum > 100 else T["most_down"])
+        sum=tenths_text(nearest_sum), names="; ".join(rows[i]["name"] for i in moved),
+        way=T["way_less"] if nearest_sum > 1000 else T["way_more"])
     ck = check["lines"]
     return {
         "heading": T["heading"],
-        "lede": T["lede"].format(year=cfg["fiscal_year"], rate=cfg["rate_as_printed"], n=len(rows)),
+        "lede": T["lede"].format(year=cfg["fiscal_year"], rate=cfg["rate_as_printed"], n=len(rows), book=book["title"]),
         "rate_line": T["rate_line"].format(rate=cfg["rate_as_printed"]),
-        "schools": T["schools"], "city": T["city"],
+        "other_money": T["other_money"], "city": T["city"],
         "key": [r for r in rows if r["labelled"]],
         "key_note": T["key_note"].format(n=T_LABEL_MIN),
         "source": T["source"].format(number=cfg["resolution"], title=cfg["title"], book=book["title"],
                                      column=cfg["column"]),
-        "src": src, "rows": rows, "total_cents": total_of(shares), "total": cfg["total_as_printed"],
+        "src": src, "rows": rows, "total_cents": tenths_text(total_of(shares)), "total": cfg["total_as_printed"],
         "rate": cfg["rate_as_printed"], "column": cfg["column"],
         "rounding": T["rounding"] + " " + rounding, "order": T["order"],
         "check": T["check"].format(n=len(ck), account=cfg["check_account"], column=cfg["check_column"]),

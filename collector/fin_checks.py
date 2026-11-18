@@ -265,6 +265,25 @@ def cents_of_dollar(amounts: list[int], total: int) -> tuple[list[int], int, lis
     return cents, s, adjusted
 
 
+
+def tenths_of_dollar(amounts: list[int], total: int) -> tuple[list[int], int, list[int]]:
+    """Tenths of a cent of each dollar for each amount, adding up to exactly 1000 (100.0 cents): (tenths, nearest_sum,
+    moved). Largest remainder: each share is cut to the tenth below, and the tenths left over go one each to the
+    shares with the largest remainders; a tie goes to the larger exact share (the larger amount), then to the one
+    listed first. Every share is then less than a tenth of a cent from its exact share. `nearest_sum`: what the shares
+    rounded to the nearest tenth (a half up) would add up to; `moved`: the shares shown other than that nearest tenth,
+    so the page can name them. Integer arithmetic only. `amounts` must be zero or more and add up to `total`."""
+    if total <= 0 or any(a < 0 for a in amounts) or total_of(amounts) != total:
+        raise ValueError("tenths_of_dollar: amounts must be zero or more and add up to a total above zero")
+    floor = [1000 * a // total for a in amounts]
+    rem = [1000 * a % total for a in amounts]
+    need = 1000 - total_of(floor)
+    up = sorted(range(len(amounts)), key=lambda i: (-rem[i], -amounts[i], i))[:need]
+    tenths = [f + (1 if i in up else 0) for i, f in enumerate(floor)]
+    nearest = [(2000 * a + total) // (2 * total) for a in amounts]
+    moved = [i for i, (t, n) in enumerate(zip(tenths, nearest)) if t != n]
+    return tenths, total_of(nearest), moved
+
 # ------------------------------------------------------------------ coverage and parity
 def coverage(fin: dict) -> dict:
     """Live counts for every page and the report (schema coverage)."""

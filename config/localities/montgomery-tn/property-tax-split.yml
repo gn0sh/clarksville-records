@@ -13,6 +13,9 @@
 # The build checks these against the book itself (sitegen/property_tax.py): the rates add up to the printed total and
 # to Section 1's rate exactly, and every fund the book budgets "CURRENT PROPERTY TAX" (account 40110) for in the adopted
 # column is one row here, each amount the same multiple of its rate. Anything else fails the build.
+# TODO(provenance/as-adopted): the page says "as printed in the FY2027 Approved Budget". Once the June 8, 2026
+# commission minutes are collected (the clerk's minutes page listed only up to May 2026 on 2026-11-18), switch the
+# lede to "as adopted" and link the 26-6-11 vote from the minutes.
 book: fy2027-approved
 page: 20
 resolution: "26-6-11"

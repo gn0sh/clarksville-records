@@ -8,7 +8,7 @@
 {% set pt = proptax.t %}
 <section aria-labelledby="proptax-h" class="dollar proptax" id="property-tax-dollar">
 <h2 id="proptax-h">{{ p.heading }}</h2>
-<p class="dollar-lede">{{ p.lede }} {{ p.schools }}</p>
+<p class="dollar-lede">{{ p.lede }} {{ p.other_money }}</p>
 <p class="proptax-rate"><b>{{ p.rate_line }}</b> <span class="cite">({{ fin_link(p.src) }})</span></p>
 <div class="dollar-fig">
 <div class="dollar-bar" aria-hidden="true" title="{{ pt.bar_label }}">{% for r in p.rows %}<span class="dseg{% if r.labelled %} dseg-l{% endif %}{% if r.narrow %} dseg-narrow{% endif %}" style="--n: {{ r.cents }}" title="{{ r.name }}: {{ r.cents_words }}">{% if r.labelled %}<b class="dseg-t">{{ r.cents }}&cent;</b>{% endif %}</span>{% endfor %}</div>
@@ -38,7 +38,6 @@
   <li>{{ p.check }} {% for c in p.check_cites %}<a href="{{ c.href }}">{{ c.label }}</a> {{ c.amount }} ({{ fin_link(c.src) }}){% if not loop.last %}; {% else %}.{% endif %}{% endfor %}{% if p.per_dollar %} {{ p.per_dollar }}{% endif %}</li>
   <li>{{ p.rounding }}</li>
   <li>{{ p.order }}</li>
-  <li>{{ p.schools }}</li>
 </ul>
 <div class="table-scroll fin-scroll">
 <table class="fin-stack dollar-table">

@@ -73,18 +73,21 @@ def test_plain_names_schools_included(county):
                                                  "School Transportation"]
 
 
-def test_cents_are_rate_over_total_rate_and_add_up_to_100(county):
+def test_cents_are_rate_over_total_rate_in_tenths_and_add_up_to_100(county):
+    """property-tax-split/tie-understates-schools: in whole cents Schools (17.571) and Debt service (18.571) tie and
+    the tie break showed Schools a cent low. In tenths of a cent: 53.810 / 6.667 / 17.571 / 18.571 / 1.905 / 1.476
+    -> 53.8 / 6.6 / 17.6 / 18.6 / 1.9 / 1.5 = 100.0. Nearest tenths add up to 100.1; the largest remainder leaves
+    Roads (6.667, remainder 0.67 of a tenth, the smallest of the rounded-up ones) at 6.6, and the page names it."""
     _, d = county
     total = 2100
-    assert sum(r["value"] for r in d["rows"]) == total and d["total_cents"] == 100
-    assert sum(r["cents"] for r in d["rows"]) == 100
+    assert sum(r["value"] for r in d["rows"]) == total and d["total_cents"] == "100.0"
+    assert sum(r["tenths"] for r in d["rows"]) == 1000
     for r in d["rows"]:
-        assert abs(r["cents"] - Fraction(100 * r["value"], total)) < 1, r["name"]
-    # 53.81 / 6.67 / 17.57 / 18.57 / 1.90 / 1.48 round to 54 / 7 / 18 / 19 / 2 / 1 = 101: the row rounded up the most
-    # (Schools and Debt service tie at 0.43 of a cent; the first listed) gives one back, and the page names it
-    assert [r["cents"] for r in d["rows"]] == [54, 7, 17, 19, 2, 1]
-    assert [r["name"] for r in d["rows"] if r["moved"]] == ["Schools"]
-    assert "add up to 101" in d["rounding"] and d["rounding"].endswith(": Schools.")
+        assert abs(r["tenths"] - Fraction(1000 * r["value"], total)) < 1, r["name"]
+    assert [r["cents"] for r in d["rows"]] == ["53.8", "6.6", "17.6", "18.6", "1.9", "1.5"]
+    assert [r["cents_words"] for r in d["rows"]][2] == "17.6 cents"
+    assert [r["name"] for r in d["rows"] if r["moved"]] == ["Roads"]
+    assert "add up to 100.1" in d["rounding"] and d["rounding"].endswith(": Roads.")
 
 
 def test_every_row_cites_the_resolution_page(county):
@@ -172,7 +175,7 @@ def test_labels_too_narrow_for_a_phone_are_marked(county):
     _, d = county
     from sitegen import dollar_split
     assert [r["name"] for r in d["rows"] if r["labelled"] and r["narrow"]] == ["Roads"]
-    assert all(r["narrow"] == (r["cents"] < dollar_split.T_PHONE_MIN) for r in d["rows"])
+    assert all(r["narrow"] == (r["tenths"] < 10 * dollar_split.T_PHONE_MIN) for r in d["rows"])
     assert "Roads" in [r["short"] for r in d["key"]]
 
 
@@ -249,16 +252,19 @@ def test_page_shows_rate_rows_and_table(page, county):
     assert f'<h2 id="proptax-h">{T["heading"]}</h2>' in sec
     txt = text_of(sec)
     assert "$2.10 per $100 of assessed value" in txt
-    assert "as adopted" in txt and "Schools also get state and federal money, which is not shown here." in txt
-    segs = re.findall(r'<span class="dseg[^"]*" style="--n: (\d+)"', sec)
-    assert [int(s) for s in segs] == [r["cents"] for r in d["rows"]]
-    items = re.findall(r'<li class="drow" style="--n: (\d+)">\s*<span class="drow-name">(.*?)</span>\s*'
+    assert "as printed in the Fiscal Year 2027 Approved Budget" in txt and "as adopted" not in txt
+    assert txt.count("Each fund also has money from sources other than property tax, not shown here.") == 1
+    assert "state and federal" not in txt
+    segs = re.findall(r'<span class="dseg[^"]*" style="--n: ([\d.]+)"', sec)
+    assert segs == [r["cents"] for r in d["rows"]]
+    assert "53.8&cent;" in sec and "100.0&cent;" in sec
+    items = re.findall(r'<li class="drow" style="--n: ([\d.]+)">\s*<span class="drow-name">(.*?)</span>\s*'
                        r'<span class="drow-c">', sec, re.S)
     assert [text_of(n).strip().split(" How the")[0] for _, n in items] == PLAIN
     rows = re.findall(r'<tr class="fact[^"]*" data-fact-id="(proptax/[^"]+)">', sec)
     assert rows == [r["fact_id"] for r in d["rows"]] + [d["total_fact_id"]]
     cells = re.findall(r'<td class="num c-cents"[^>]*>([^<]+)</td>\s*<td class="num c-amt"[^>]*>([^<]+)</td>', sec)
-    assert cells == [(r["cents_words"], html_mod.escape(r["rate"])) for r in d["rows"]] + [("100 cents", "$2.100")]
+    assert cells == [(r["cents_words"], html_mod.escape(r["rate"])) for r in d["rows"]] + [("100.0 cents", "$2.100")]
     # each row and the total cite the resolution's page in the book
     assert len(re.findall(r'href="[^"]+FY%202027%20Approved%20Budget\.pdf#page=20"', sec)) >= len(d["rows"]) + 1
     assert "<details open" not in sec
