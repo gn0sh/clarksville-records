@@ -34,7 +34,10 @@ Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and 
    the ruleset back and stops (and restores) unless those fields match the body it sent exactly. It prints `U3 WINDOW OPEN <utc time>`. From here on, the restore runs on every exit (`trap` /
    `try { } finally { }`).
 3. **Merge.** It waits for `main` to move, checking every 15 s for up to 20 minutes, while the manager runs
-   `merge-reviewed` in the team session after Brian types `U3 go`.
+   `merge-reviewed` in the team session after Brian types `U3 go`. If that merge is refused, the manager comments
+   `U3 merge refused: <gh's error line>` on PR P (as gn0sh). The script sees it, ends the wait and reports FAIL-U3.
+   PASS reads the rule suite's `result` (pass / fail / bypass); rule evaluations only read pass / fail.
+   `--noop` repeats U3-0. The team path (`--merge`) works only where ruleset writes are allowed (not the cloud session today).
 4. **Read the verdict.** It reads PR P (`merged`, `merged_by`, `merge_commit_sha`) and the rule suite whose
    `after_sha` is that merge commit (`GET rulesets/rule-suites?ref=main`, then `rule-suites/<id>`).
 5. **Restore R1'.** It PUTs the backup json through the same builder, reads it back, and stops loudly if it doesn't match. It prints
