@@ -283,3 +283,26 @@ This is the one place a Finance index shows amounts, and it changes design 6's "
 - **Rounding (`cents_of_dollar`):** nearest whole cent (a half rounds up, so half a cent or more is never 0); if the
   rounded cents do not add up to 100, the |sum - 100| rows rounded the most that way move one cent back (never below
   1). Every row is then less than one cent from its exact share; the page names the moved rows. Integer arithmetic.
+
+## 12. The county property tax dollar (added 2026-11-18, backend-engineer; owner's request 2026-11-18)
+On the county Finance index (`finance/index.html`), above the general fund dollar: "Where a county property tax dollar
+goes", each fund's share of the county property tax rate, schools included, in whole cents (rate_fund / total rate),
+with the rate itself ("$2.10 per $100 of assessed value"). `sitegen/property_tax.py`, template `_proptax.html.j2`
+(the section 11 component and styles), words `config/finance_text.yml` `property_tax`, data
+`config/localities/montgomery-tn/property-tax-split.yml`. No schema change. The city has no config, so no bar.
+- **Source:** Resolution 26-6-11 (FY2027 levy), FY 2027 column, as the FY2027 Approved Budget prints it (book
+  `fy2027-approved`, source src-f6538dd0321b, PDF p. 20). The rates are copied into the config as printed;
+  `tests/fixtures/fy2027-tax-levy-p20.txt` (the page's text layer) and `tests/test_property_tax.py` read them back.
+  Rows in the resolution's order, plain names (County general fund, Roads, Schools, Debt service, Capital projects,
+  School transportation); every row and the total cite p. 20. The County general fund row links to `#general-fund-dollar`.
+- **Invariants (property-tax-split/*; the build fails otherwise):** every config key present; each rate a printed
+  three-decimal rate above zero; the rates add up exactly to the printed Total Tax Rate and to Section 1's rate; the
+  book and its source are in `finance.json`; every fund the book budgets account 40110 (CURRENT PROPERTY TAX) for in
+  the adopted column is one config row and vice versa, each printed once, not held, and each amount the same multiple of
+  its rate (integer cross-products; FY2027: 91,200,000 x rate). Adding only via `collector/fin_checks.total_of`.
+- **Rounding:** `cents_of_dollar`, as section 11 (FY2027: 101 rounded, Schools moves one cent, named on the page).
+- **Fact ids:** `proptax/<book>/<printed fund slug>` and `proptax/<book>/total`, from `property_tax.fact_ids`, known to
+  `qa/site_checks.finance_fact_ids`.
+- **Updating for a new year:** add the new book, then edit the config (book, page, column, rates as printed, fixture
+  text). The config names its book and year, so the page always says which year's rates it shows; pointing the
+  config at a new book without new rates fails the 40110 check.

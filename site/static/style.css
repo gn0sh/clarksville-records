@@ -1054,6 +1054,11 @@ table.budget td.c-source { min-width: 9rem; }
   .drow-c { grid-column: 3; grid-row: 1; }
   .drow details.dollar-list { grid-row: 2; }
 }
+/* The county property tax dollar (sitegen/property_tax.py, finance-contracts 12) uses the same parts, plus its rate
+   line, and sits above the general fund dollar with a rule between them. */
+.proptax-rate { margin: 6px 0 0; font-size: var(--t-md); }
+.proptax-rate .cite { font-size: var(--t-sm); }
+.proptax + .dollar { border-top: 1px solid var(--border); padding-top: 20px; }
 details.dollar-src { margin: 14px 0 0; max-width: 64rem; }
 details.dollar-src > summary { cursor: pointer; min-height: 44px; padding: 10px 0; box-sizing: border-box; font-weight: 600; color: var(--link);
   width: max-content; max-width: 100%; border-radius: var(--radius); }

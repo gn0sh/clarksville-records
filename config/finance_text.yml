@@ -238,6 +238,42 @@ dollar:
   cents_many: "{n} cents"
   bar_label: "The general fund dollar as a bar, 100 cents wide. The list below holds the same figures."
 
+# The county property tax dollar (sitegen/property_tax.py, architecture finance-contracts 12). Owner's request
+# 2026-11-18. Neutral and factual: the rate split as the resolution prints it, nothing about whether it is enough.
+property_tax:
+  heading: Where a county property tax dollar goes
+  lede: "The county property tax rate for FY{year} is {rate} per $100 of assessed value. The county commission's tax rate resolution splits that rate across {n} funds. This is that split as adopted, in cents of each county property tax dollar."
+  rate_line: "{rate} per $100 of assessed value"
+  schools: "Schools also get state and federal money, which is not shown here."
+  city: "This is the county's property tax only. The City of Clarksville's property tax is separate and not shown here."
+  key_label: "Funds named on the bar, left to right"
+  key_note: "Named here: each fund with {n} cents or more, left to right in the order the resolution prints them."
+  list_heading: Every fund
+  list_order: in the resolution's order
+  sources_toggle: Where these numbers come from
+  source: "From Resolution {number}, \"{title}\", column \"{column}\", as printed in the {book}. Each fund's rate is per $100 of assessed value, exactly as printed, and its cents are its rate divided by the total rate."
+  check: "The same book budgets current property tax (account {account}, column \"{column}\") in {n} of these funds, and each of those amounts is the same multiple of its rate:"
+  per_dollar: "Each of those amounts is {amount} times its rate."
+  rounding: "Cents are each fund's share of the total rate, rounded to the nearest whole cent, and always less than one cent from the exact share."
+  rounding_exact: "Rounded that way they add up to 100."
+  rounding_moved: "Rounded that way they add up to {sum}, so the {n} rows {most} each show one cent {way}, and the cents add up to 100: {names}."
+  rounding_moved_one: "Rounded that way they add up to {sum}, so the row {most} shows one cent {way}, and the cents add up to 100: {names}."
+  most_up: rounded up the most
+  most_down: rounded down the most
+  way_less: less
+  way_more: more
+  order: "Funds are in the order the resolution prints them. The bar, the list and the table show the same rows in that order."
+  to_dollar: "How the general fund budget splits across departments"
+  caption: "Cents of each county property tax dollar, by fund, FY{year} tax rate"
+  col_fund: Fund
+  col_cents: Cents of each dollar
+  col_source: Source
+  total_row: Total tax rate
+  printed_as: "Printed as"
+  cent_one: 1 cent
+  cents_many: "{n} cents"
+  bar_label: "The county property tax dollar as a bar, 100 cents wide. The list below holds the same figures."
+
 # Design 3: alphabetical, one sentence each, no evaluation words. id = the anchor on glossary.html.
 glossary:
   - {id: actual, term: Actual, text: "The amount the books show was received or spent in a fiscal year. For a year still in progress when a book was printed, it runs to that book's report date."}
