@@ -136,4 +136,28 @@ check (the call-on rule, CZ-01-2024). By tests: 15 in test_city_seats.py, 5 in t
 tests, about 60 on the council fixture site and about 30 on the transcript fixtures now read the pinned snapshot.
 
 ## Proof
-PROOF
+Run 2026-11-18 on a shared, loaded machine (CI runs the suite in about 15 minutes).
+
+**Normal tree** (this change, `python -m pytest -q`, no `-x`): 5299 passed, 5 skipped in 47m59s.
+`tests/test_pinned_data.py`, added after that run started: 3 passed.
+
+**Simulated growth.** A scratch copy of the repository (not committed) with `data/` grown the way a daily update grows
+it, written in the collectors' own format (indent 2, sorted keys, UTF-8) with manifest rows for every new document:
+- city: the 2026-07-02 minutes read late, an EARLIER list (the 2026-06-22 list again, naming Claunch: hit 2); the
+  2026-10-01 and 2026-11-05 minutes read (the 2026-07-06 list again, with its roll calls; 2026-11-05 has a committed
+  transcript, so its call-ons now resolve);
+- county: a 2026-06-08 meeting after the latest (2026-05-11), its roll calls those of 2026-05-11 again.
+
+| suite on the grown copy | result |
+|---|---|
+| the tests at b5a3638, `tests/` | 8 failed: 7 in test_city_seats.py (hit 2's `test_the_07_06_list_read_as_printed_...` and the 6 county seat tests) and test_map_seats.py's `..._after_one_new_meeting`. The real run showed one, because of `-x`. |
+| this change: every pinned test and the live seat tests (test_city_seats, test_map_seats, test_transcripts, test_transcript_privacy, test_independent_readings, test_city_verify_data, the trustee note, the file budget, the council day card) | 233 passed, 3 skipped |
+| this change, full suite, no `-x` | `tests/`: 0 failed. `collector/tests/`: 12 failed, all in checks that the committed files are exactly what the collectors write (ids sorted, byte-identical after a keep: test_verify, test_shrink_guard, test_city_shrink_guard, test_run). With the grown county lists and city sources put in the writers' order, 8 of the 12 pass; the 4 left (`test_city_reposted_minutes_not_read_keeps_the_committed_meeting`, byte identity of the city facts) need the city writer's meeting order, which a hand-made growth does not reproduce. Judged a simulation artifact (medium confidence): the real hit-2 run passed every collector test on real growth. collector/tests is outside this list (follow-up below). |
+
+The 22 `test_morning.py` errors in the b5a3638 run were `OSError: [Errno 28] No space left on device` from the shared
+machine; the module passes alone on both trees (84 passed).
+
+## Follow-up
+- `collector/tests/` reads `data/` in 13 modules (shrink guards, run, verify, finance, committees, one-vote,
+  provenance). They passed every real daily run so far; classify them against I-live/I-pin the next time any of them is
+  touched, or at once on a hit there (owner: backend-engineer).
