@@ -4,6 +4,8 @@ software-architect, 2026-11-17. Replaces the 2026-11-11 version (devops-engineer
 branch push `main`) and the bot-merge path that replaced it (security V1, M-A, L-A, L-C, L-D, L-E). Decision record:
 ADR 0009. Tasks: `docs/tasks/morning-note.md` T4.10. Third hit (security S-1, L-a, L-b at 6e3c019): the data/ shape
 check failed open on non-UTF-8 names; the shape is restated below as I-data, with every consumer.
+**2026-11-18: V1 is false** (probe run 44270476748: `GITHUB_TOKEN` squash-merged PR #40, which adds a workflow file).
+The workflow line is now held by the code-owner rule R1' (ADR 0010), not V1; threats and re-plan in "V1 is false".
 
 ## The invariant
 **I-main (what reaches `main`).** After `MAIN_PR_BASELINE`, every commit on `main`'s first-parent line that changes
@@ -22,11 +24,13 @@ the whole run, which the `gate` job has checked against I-main on `main`.
 
 **The one line the gate cannot hold.** The gate runs inside the workflow it judges, so a bad workflow on `main` skips
 it. The workflow file at `S` meets I-main only because (a) the ruleset makes a pull request the only way into `main`,
-and (b) GitHub refuses `GITHUB_TOKEN` any change under `.github/workflows/`, by push **and by merging a PR** (V1). (b)
-is unverified for merges: the V1 probe (below) must pass before `MAIN_PR_BASELINE` or `MORNING_NOTE_SEND` is set.
-For the same reason the gate's check is inline in the workflow file, never a script in the repository: only
-`.github/workflows/` is out of a bot merge's reach, and a gate that runs `scripts/` code could be emptied by the very
-merge it must catch.
+and (b') **R1'** (ADR 0010): `.github/CODEOWNERS` gives every path outside `data/` the owner gn0sh and the ruleset
+requires a code owner's approving review, so a PR that changes anything outside `data/` merges only by an admin's
+bypass merge, i.e. by a person; `GITHUB_TOKEN` is no code owner and holds no admin role. (b') replaces V1 ("GitHub
+refuses `GITHUB_TOKEN` a workflow change by merge"), which the probe showed false on 2026-11-18. (b') is unverified
+until the V1' probe passes, which must happen before `MAIN_PR_BASELINE` or `MORNING_NOTE_SEND` is set.
+The gate's check stays inline in the workflow file, never a script in the repository (under R1' no bot merge reaches
+`scripts/` either, but one copy in one place is simpler to review).
 
 Actors: a person with write (Brian, or the team acting as him): trusted, but a self-merge with 0 approvals passes
 (residual L3). A workflow on any branch (its `GITHUB_TOKEN` can push branches and, with the Actions setting on, open
@@ -69,19 +73,20 @@ test in one PR.
 | J3 | `deploy` job | `needs: [gate, update, push]`, plus `needs.gate.result == 'success'` in its `if:`. Publishes only this run's artifact from J1. Environment `github-pages`, main only (E1). |
 | J4 | `note` job | `needs: [gate, update, deploy]`, `if:` adds `needs.gate.outputs.verified == 'true'`; checks out `needs.gate.outputs.sha`. Its own PR-check step is removed (one copy, in the gate); the stale-rerun step stays. Internals: table "Inside the note job" below. |
 | J5 | `note-failed`, `gate-failed` (new), push's failure step | `issues: write` only, fixed text, no checkout, run no repo code. |
-| W1 | The workflow file at `S` | Ruleset (R1) + V1. The gate also refuses a bot-merged `.github/` commit already in the history, so a later good workflow stops until a person moves the baseline past it. |
-| W2 | Workflows on any other branch | Can open a PR to main (with R2 on) and, with `contents: write`, merge an open PR to main, including one a person opened (R2 does not govern merging): any code commit that makes is refused by G on every later run (fail closed, `gate-failed` issue); a data-only one is not detected, only its shape is checked (residual M-2). Cannot change a workflow on main (V1). Cannot enter `github-pages` or `morning-note` (main-only deployment branches, E1, E2). |
+| W1 | The workflow file at `S` | Ruleset R1' (PR only, code-owner review outside `data/`, admin bypass for PRs only). V1 is false and no longer relied on. The gate also refuses a bot-merged `.github/` commit already in the history (3ef440a, PR #40, is before the baseline: see "V1 is false"), so a later good workflow stops until a person moves the baseline past it. |
+| W2 | Workflows on any other branch | Only a writer can create or start one (T2, T7 in "V1 is false"). With `contents: write` it can merge an open PR (R2 does not govern merging) and, with R2 on, open its own, from any branch or fork. Under R1' it can merge into `main` only a PR that changes nothing outside `data/` (residual M-2, shape checked); before R1' a code or workflow change too, since V1 is false, which G refuses on later runs only if the workflow file still holds G. It can merge into unprotected branches (workflows included) and dispatch them: they reach no credential while E1 and E2 are main only. |
 | E1 | Environment `github-pages` | Deployment branches **main only**. `gh-pages` is still allowed today (status: "optional hygiene"); under I-run it is not optional: a workflow a person pushes to `gh-pages` (the ruleset covers main only) would get `pages: write` outside the gate. Removed in T4.10.5. |
 | E2 | Environment `morning-note` | Main only (runbook 2.0). Required reviewer optional (runbook 5.0 A): the only control against L3. |
-| R1 | Main ruleset, `scripts/main-ruleset.json` | `deletion`, `non_fast_forward`, `pull_request` with 0 approvals, no bypass. Approvals stay 0 (L-E): with R2 on, a workflow's approval would count toward any number above 0. The gate counts no approvals, only a person's merge and a person's review at head, so a bot approval never satisfies it. |
-| R2 | Setting "Allow GitHub Actions to create and approve pull requests" | On, for J2. It governs creating and approving PRs with `GITHUB_TOKEN`, not merging (security main-protect/r2-does-not-gate-merge, needs verification): a workflow with `contents: write` can merge any open PR into main, R2 on or off. With R2 on it can also open its own, so W2 can put a commit on main by itself, which is why G exists. Turning R2 off stops J2 opening its data PR; it does not stop merges of PRs already open. |
-| R3 | Repo merge settings | `allow_auto_merge: false` (L-D: auto-merge merges whatever head the branch has later). Squash and merge commits allowed; a rebase merge of more than one commit leaves commits whose sha is no PR's `merge_commit_sha`, so G refuses it: merge with squash or a merge commit (S2 uses squash). |
-| S1 | `scripts/protect-main.sh`, `.ps1` | Create or update R1, then read R2 and `main`'s sha, then turn on R2 (in that order since L-b), printing `R2 was off; main was <sha>` or `R2 already on`; their OK check also asserts approvals 0 and `allow_auto_merge` false, and says NOT OK otherwise. |
-| S2 | `scripts/merge-reviewed.sh`, `.ps1` (new) | The only way a person merges a non-data PR: `merge-reviewed <pr> <reviewed-sha>` posts a COMMENT review with `commit_id=<reviewed-sha>` (body: the review report links), merges with `sha=<reviewed-sha>` (refused if the head moved: L-D), then deletes the head branch. |
-| B | `MAIN_PR_BASELINE` | Lives in the gate step's `env` only (moved from J4). Empty = phase 0: gate outputs `verified=false` and passes, so J1-J3 run as they do today and J4 never runs. Set by a person's PR (T4.10.8) after the V1 probe passes; from then the test accepts only a sha. Before it is set, runbook 4.7.1 checks the window from the R2 switch-on (section "Baseline window check"). Moved later only by a reviewed PR after a person read every commit it skips. |
+| R1 | Main ruleset, `scripts/main-ruleset.json` (R1' from T4.11.2, ADR 0010) | `deletion`, `non_fast_forward`, `pull_request` with 0 approvals and (R1') `require_code_owner_review: true`, `allowed_merge_methods: ["squash"]`; bypass (R1'): Repository admin role, mode pull request only (nobody may push `main`). Approvals stay 0 (L-E): with R2 on, a workflow's approval would count toward any number above 0, and the data PR has no one to approve it; a bot's approval is never a code owner's. The gate counts no approvals, only a person's merge and a person's review at head. |
+| CO | `.github/CODEOWNERS` (new, T4.11.2) | `* @gn0sh` then `/data/` with no owner: every path outside `data/` is owned, `data/` is not. Read by GitHub from `main` (the base); a change to it is itself owned. A syntax error silently drops a line, so S1 checks `codeowners/errors` is empty and a test pins the exact text. |
+| R2 | Setting "Allow GitHub Actions to create and approve pull requests" | On, for J2 (off since the 2026-11-18 FAIL; back on per ADR 0010 decision 3). It governs creating and approving PRs with `GITHUB_TOKEN`, not merging (seen 2026-11-18: R2 off did not matter to the probe, whose PR a person opened). With R2 on a workflow can also open its own PR; under R1' it can merge it only if it is data-only. Turning R2 off stops J2 opening its data PR and nothing else of consequence. |
+| R3 | Repo merge settings | `allow_auto_merge: false` (L-D: auto-merge merges whatever head the branch has later). Under R1' the ruleset allows squash only (S2 and J2 squash), so G's rebase-merge refusal becomes a second line. |
+| S1 | `scripts/protect-main.sh`, `.ps1` | Create or update R1 (R1' from T4.11.2), then read R2 and `main`'s sha, then turn on R2 (in that order since L-b), printing `R2 was off; main was <sha>` or `R2 already on`; their OK check asserts approvals 0, `allow_auto_merge` false and (T4.11.2) code-owner review on, squash only, bypass exactly the admin role in pull-request mode, `.github/CODEOWNERS` on `main` with `codeowners/errors` empty; NOT OK otherwise. |
+| S2 | `scripts/merge-reviewed.sh`, `.ps1` | The only way a person merges a non-data PR: `merge-reviewed <pr> <reviewed-sha>` posts a COMMENT review with `commit_id=<reviewed-sha>` (body: the review report links), merges with `sha=<reviewed-sha>` (refused if the head moved: L-D), then deletes the head branch. Under R1' its merge is an admin bypass (U3 in ADR 0010; fallback: the Merge button with "bypass rules" after the script posted its review). |
+| B | `MAIN_PR_BASELINE` | Lives in the gate step's `env` only (moved from J4). Empty = phase 0: gate outputs `verified=false` and passes, so J1-J3 run as they do today and J4 never runs. Set by a person's PR (T4.10.8) after the V1' probe passes, at or after the canary-removal merge; from then the test accepts only a sha. Before it is set, runbook 4.7.1 checks the window from the R2 switch-on (section "Baseline window check"), with 3ef440a (PR #40) as its one known Bot merge. Moved later only by a reviewed PR after a person read every commit it skips. |
 | D | `data/` | Meets I-data: checked by G on every run on main (phase 0 included; on a `blob:none` clone it reads no blob) and by J2 on the commit it pushes; consumers in section "I-data". Who merged a data-only commit is not checked (residual M-2). Read with `json` and `yaml.safe_load` only (grep, 2026-11-17: `sitegen/`, `collector/`); not read by J4. |
 | K | Caches (`actions/cache` in J1) | Fetched documents and OCR: data, never executed; GitHub scopes them by branch (a branch run cannot write main's cache). |
-| P | Runbook `docs/ops/morning-note.md` | 2.0 (protect main; new 2.0.3 merge procedure S2; new 2.0.4 V1 probe), 4.6, 4.7 (baseline: now T4.10.8, check only), 5.0 A, "Rules for manual runs and re-runs", "When the note job fails" plus new "When the gate fails". Each says what this table says, no stronger. |
+| P | Runbook `docs/ops/morning-note.md` | 2.0 (protect main, R1' and CODEOWNERS from T4.11.4; 2.0.3 merge procedure S2, a bypass merge under R1'; 2.0.4 V1 probe: FAIL 2026-11-18, then the V1' probe), 4.6, 4.7 (baseline: now T4.10.8, check only), 5.0 A, "Rules for manual runs and re-runs", "When the note job fails" plus new "When the gate fails". Each says what this table says, no stronger. |
 | T | Tests, `tests/test_workflow_lock.py` | `PR_CASES` run against the gate step, plus the new review cases (M-1: outsider and contributor refused, collaborator and owner accepted); the I-data cases, each run with `LC_ALL=C.UTF-8` and with `LC_ALL` unset as well as `C` (refused: symlink, submodule, 100755, other suffix, names `data/\xff.json`, `data/a\nb.json`, `data/x\x1b.json`, `data/.x.json`, `data/a/../b.json`, a tree with no `data/`, `data` as a symlink or file, `data/` emptied; passed: today's tree, `data/changes.jsonl`, `data/a/b/changes.jsonl`; a refusal's `::error::` lines hold no byte outside 0x20-0x7E; also on a `blob:none` clone with no blob fetched); J2 runs the same checks after the rebase (an executable or `\xff` name refused, an empty artifact refused) with the identical `SHAPE` text; only J2 grants `contents: write` or `pull-requests: write` in any workflow; `needs`, `ref` and `if:` of J1-J4; J2's L-C cases; R1 json (approvals 0, no bypass); G's permissions exactly the two reads; G runs no file from the checkout (allowlist lint, as `NOTE_STEP_COMMANDS`); baseline is "" or a sha (sha only after T4.10.8). |
 
 ## The gate job
@@ -125,7 +130,9 @@ Before the baseline is set, a person lists `merged_by.type` for every non-data f
 - **Loop.** `set -euo pipefail`; the recorded sha must be 40 hex and an ancestor of `origin/main`
   (`git merge-base --is-ancestor`); the commit list is assigned to a variable first (a failing `git log` inside
   `for c in $(...)` would not stop the loop); each line prints `sha PR #n merged_by.type=t`; the end prints
-  `checked N commits`. Stop on any `Bot`, any `none` (no merged PR), any failed read, or **N = 0** (a wrong or
+  `checked N commits`. One known exception (ADR 0010): 3ef440a, PR #40, the V1 probe's bot merge, which changed only
+  `.github/workflows/v1-canary.yml` (`git show --stat 3ef440a`) and which the canary-removal PR reverts; the person
+  checks both and names them in the baseline PR. Otherwise stop on any `Bot`, any `none` (no merged PR), any failed read, or **N = 0** (a wrong or
   placeholder sha, since the gate's own PR at least is in the window). The whole output is pasted into the baseline
   PR; a test keeps `merged_by`, `merge-base --is-ancestor` and `checked` in the runbook text.
 
@@ -150,18 +157,39 @@ refusal below means the workflow rule, not a general refusal). Run by devops wit
 5. Clean up: close the PR unmerged, delete both probe branches (throwaway branches the team made), record the run
    link, the four messages and step 4's result in `docs/platform-facts.md` "Main protection".
 
-If any merge goes through (V1 false): turn R2 off at once (`gh api -X PUT
-repos/gn0sh/clarksville-records/actions/permissions/workflow -F can_approve_pull_request_reviews=false`; J2 then
-can no longer open its data PR, so the site's data stops updating); then, as the first manual step, turn off
-GitHub Actions (Settings > Actions > General > Disable actions; required, since the repository is public and anyone
-can open a PR at any time; v1-probe/v1-fail-containment-incomplete, v1-fail-containment-order); this stops the
-daily data update until the architect re-plans. R2 off stops workflows opening PRs, not merging them, so then close
-every open PR into `main` (a workflow can still merge one a person opened), then delete each closed PR's head
-branch (a closed PR whose branch still exists can be reopened and merged); remove the inert canary by a person's PR; leave
-`MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset; the architect re-plans the data path (the leading candidate: data
-leaves `main` for a branch the build reads, so no workflow needs to merge to main). **The probe gates
-`MORNING_NOTE_SEND`:** runbook section 4 gets an item "V1 probe passed (link)" before item 7, and T4.10.8 depends on
-it.
+**Result, 2026-11-18 08:50 UTC: FAIL (V1 false).** The first try, REST squash pinned to the head, merged PR #40
+(details: `docs/platform-facts.md` "Main protection"). The script turned R2 off. Step 4 held (`commit_id` c588924
+kept). The 2026-11-17 FAIL steps (v1-fail-containment-incomplete: after R2 off, Disable actions, which stops the
+daily data update until the architect re-plans; then close every open PR into `main`; then delete each closed PR's
+head branch) were judged against the live state the same day and are **not needed** (section "V1 is false", T1-T8;
+T4.11.3 rewrites the scripts' FAIL text and its test): the containment
+for a FAIL is R2 off, the canary removed by a person's PR, and the baseline and `MORNING_NOTE_SEND` left unset. The
+probe scripts now refuse to run until R1' is on (v1-probe/rerun-after-fail), since R2 off does not stop the runner's
+merge of a PR a person opened.
+
+**V1' probe (T4.11.7, after R1').** The same steps 1-5, target and runner unchanged. PASS: all four merges refused,
+each message naming the ruleset or code-owner review (a refusal naming the `workflows` permission also counts: the
+merge was refused), `main` unchanged, the PR unmerged after cleanup, the canary absent from `main`; any other refusal
+reason is inconclusive. Positive controls, recorded with it: the next data PR merged by github-actions under R1'
+(U2) and the next S2 merge went through (U3). FAIL: R2 off, canary removed again by a person's PR, and the fallback
+"data off main" goes to a Brain Trust (ADR 0010). **The V1' probe gates `MORNING_NOTE_SEND`** through T4.10.8.
+
+## V1 is false (2026-11-18): threats with Actions on, and what holds them
+State that day (gh api and git, team session): R1 active, no bypass, 0 approvals, code-owner review off; R2 off;
+Actions on; canary on `main` (inert); no open PR into `main` (#38 was merged at 08:54 by gn0sh with S2); every
+workflow file on all 95 branches triggers only on `schedule` or `workflow_dispatch`.
+| # | Path | Today | Under R1' |
+|---|---|---|---|
+| T1 | Outsider's fork PR runs its own `pull_request` workflow | Read-only token, no secrets (public repo; first-time contributors also need approval): cannot merge, push or open PRs. Closed. | Same. |
+| T2 | Outsider triggers a base-branch workflow with a write token (`pull_request_target`, `workflow_run`, `issue_comment`, `issues`...) | No workflow on any branch listens to one (`pull_request_target` runs the PR's *base* branch file, and an outsider may target any branch). Closed. A new such workflow on **any** branch reopens it: forbidden (T4.11.2 adds a lint on the workflow files of the branch under test; review checks others). | Same. |
+| T3 | Outsider opens a PR into `main` and waits for a bot to merge it | No workflow merges a PR it did not open (J2 checks number, branch, head, files). Closing PRs adds nothing. Closed. | Bot merge of anything outside `data/` refused. |
+| T4 | J2 steered to merge code | Its `sha` input is rebased and must be exactly one commit on `main`, `data/` only; the server file list must equal it (L-C); merge pinned to head. Closed. | Same, plus R1'. |
+| T5 | Malicious PDF runs code in J1 | `contents: read`, no persisted token; its artifact is shape-checked (I-data, M-2). Bad data at most. | Same. |
+| T6 | A writer (Brian, the team as gn0sh) | Could merge anything already (0 approvals). Residual L3, unchanged. | Bypass merges, logged. |
+| T7 | A workflow a writer pushes to any branch, or a pinned action inside one | Merges any open PR into `main`; with R2 on opens and merges its own, workflows included (V1 false), dropping G. Needs write plus the `workflow` scope to create, so it adds no reach beyond T6, but it breaks I-run silently for the note. **Open until R1'.** | Data-only into `main` (M-2). Can still merge and dispatch workflows on unprotected branches: no credential while E1, E2 are main only (T4.10.5 required). |
+| T8 | The canary on `main` | `workflow_dispatch` only, `permissions: {}`, `if: false`: inert. Fails `test_the_v1_probe_workflows_are_inert_and_least_privilege` until removed. | Removed by PR. |
+Verdict: **turning Actions off is not needed**; with R2 off nothing below a writer can reach `main`, and with R2 on
+(needed for data) the same holds, because T7 needs a writer. R1' closes T7 before the note can send.
 
 ## Inside the note job (rows 3-15 and 18 of the 2026-11-11 version, still in force)
 "Code" is anything the job executes or that can change what it executes. Everything the job loads is taken from
@@ -199,6 +227,7 @@ it.
   the note ever sends without the E2 reviewer.
 - zip-slip-residual: a download that could write anywhere on the runner (toolcache, `GITHUB_ENV`) has better targets
   than `NOTE_LIB`; the defence is the pinned `download-artifact` (v4.3.0) and the plan coming only from this run's J1.
-- Unverified GitHub behaviour, each failing closed if wrong except V1: V1 (probe step 3); an author's COMMENT review
-  keeps the `commit_id` it was posted with (probe step 4); a merged PR's `head.sha` stays as merged (S2 deletes the
-  head branch, so nothing can push it later).
+- Unverified GitHub behaviour: U1-U4 of ADR 0010 (code-owner review binds with 0 approvals: V1' probe; data/ unowned
+  needs no review; S2's merge goes through as a bypass; the owner holds the admin role), each checked before the
+  baseline; a merged PR's `head.sha` stays as merged (S2 deletes the head branch, so nothing can push it later).
+  Verified 2026-11-18: an author's COMMENT review keeps the `commit_id` it was posted with (probe step 4); V1 is false.
