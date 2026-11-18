@@ -311,7 +311,10 @@ def city(slug, status="live", earliest=date(2020, 1, 1), launch=True):
 
 
 def test_launch_windows_moved_but_legistar_names_still_work():
-    assert legistar.launch_windows is plan.launch_windows and legistar.Window is plan.Window
+    # ADR 0012 decision 7: one function in collector/windows.py; plan's name wraps it to raise CityError
+    assert legistar.launch_windows is plan._windows.launch_windows and legistar.Window is plan.Window
+    assert legistar.launch_windows(date(2026, 11, 16), 365, date(2020, 1, 1)) == \
+        plan.launch_windows(date(2026, 11, 16), 365, date(2020, 1, 1))
 
 
 def test_plan_puts_daily_updates_first_and_shares_one_budget():

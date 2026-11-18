@@ -13,8 +13,8 @@ Two pieces a new city needs:
   record: a Legistar vote is shown "not confirmed" until the verifier reads the same vote in the minutes PDF.
 
 launch_windows() is the "launch with a year, backfill as compute allows" plan: the newest year first, then one older
-year per run until the configured earliest date. It now lives in cities/plan.py (shared by every portal type); the
-names Window and launch_windows stay importable from here.
+year per run until the configured earliest date. It now lives in collector/windows.py (shared by every portal type,
+re-exported by cities/plan.py); the names Window and launch_windows stay importable from here.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-from cities.plan import Window, launch_windows  # noqa: F401  (moved to the shared planner; names kept here)
+from .windows import Window, launch_windows  # noqa: F401  (moved to the shared leaf module; names kept here)
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = "legistar"

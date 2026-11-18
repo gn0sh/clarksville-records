@@ -1,0 +1,810 @@
+{
+ "corrections": [],
+ "coverage": {
+  "body": "Murfreesboro City Council (fixture)",
+  "from": "2025-01-14",
+  "to": "2026-09-08"
+ },
+ "fixture": true,
+ "item_events": [
+  {
+   "date": "2025-01-14",
+   "id": "ev-190c3deb-p2-0",
+   "item_id": "fx-resolution-1",
+   "label": "Roll call (fixture)",
+   "meeting_id": "2025-01-14-regular",
+   "order": 0,
+   "page": 2,
+   "ref": "rc-190c3deb-p2-0",
+   "source_id": "src-190c3debe10c",
+   "type": "roll_call"
+  },
+  {
+   "date": "2025-06-10",
+   "id": "ev-46989e2b-p2-0",
+   "item_id": "fx-resolution-2",
+   "label": "Roll call (fixture)",
+   "meeting_id": "2025-06-10-regular",
+   "order": 0,
+   "page": 2,
+   "ref": "rc-46989e2b-p2-0",
+   "source_id": "src-46989e2bb7f2",
+   "type": "roll_call"
+  },
+  {
+   "date": "2026-03-10",
+   "id": "ev-e4ecf0d8-p2-0",
+   "item_id": "fx-resolution-3",
+   "label": "Roll call (fixture)",
+   "meeting_id": "2026-03-10-regular",
+   "order": 0,
+   "page": 2,
+   "ref": "rc-e4ecf0d8-p2-0",
+   "source_id": "src-e4ecf0d855a1",
+   "type": "roll_call"
+  }
+ ],
+ "items": [
+  {
+   "id": "fx-resolution-1",
+   "link_basis": "number",
+   "number": "FX-1",
+   "title": "Fixture resolution 1",
+   "year": 2025
+  },
+  {
+   "id": "fx-resolution-2",
+   "link_basis": "number",
+   "number": "FX-2",
+   "title": "Fixture resolution 2",
+   "year": 2025
+  },
+  {
+   "id": "fx-resolution-3",
+   "link_basis": "number",
+   "number": "FX-3",
+   "title": "Fixture resolution 3",
+   "year": 2026
+  }
+ ],
+ "meetings": [
+  {
+   "agenda_url": null,
+   "attendance": [
+    {
+     "official_id": "fx-testperson-alpha",
+     "page": 1,
+     "raw_name": "Testperson Alpha",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-bravo",
+     "page": 1,
+     "raw_name": "Testperson Bravo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-charlie",
+     "page": 1,
+     "raw_name": "Testperson Charlie",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-delta",
+     "page": 1,
+     "raw_name": "Testperson Delta",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-echo",
+     "page": 1,
+     "raw_name": "Testperson Echo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-foxtrot",
+     "page": 1,
+     "raw_name": "Testperson Foxtrot",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-golf",
+     "page": 1,
+     "raw_name": "Testperson Golf",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Murfreesboro City Council (fixture)",
+   "date": "2025-01-14",
+   "id": "2025-01-14-regular",
+   "kind": "regular",
+   "listing_source": "agenda-center",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/murfreesboro-fixture/minutes/2025-01-14.pdf",
+   "source_id": "src-190c3debe10c",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2025-01-14 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": null,
+   "attendance": [
+    {
+     "official_id": "fx-testperson-alpha",
+     "page": 1,
+     "raw_name": "Testperson Alpha",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-bravo",
+     "page": 1,
+     "raw_name": "Testperson Bravo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-charlie",
+     "page": 1,
+     "raw_name": "Testperson Charlie",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-delta",
+     "page": 1,
+     "raw_name": "Testperson Delta",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-echo",
+     "page": 1,
+     "raw_name": "Testperson Echo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-foxtrot",
+     "page": 1,
+     "raw_name": "Testperson Foxtrot",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-golf",
+     "page": 1,
+     "raw_name": "Testperson Golf",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Murfreesboro City Council (fixture)",
+   "date": "2025-06-10",
+   "id": "2025-06-10-regular",
+   "kind": "regular",
+   "listing_source": "agenda-center",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/murfreesboro-fixture/minutes/2025-06-10.pdf",
+   "source_id": "src-46989e2bb7f2",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2025-06-10 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": null,
+   "attendance": [
+    {
+     "official_id": "fx-testperson-alpha",
+     "page": 1,
+     "raw_name": "Testperson Alpha",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-bravo",
+     "page": 1,
+     "raw_name": "Testperson Bravo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-charlie",
+     "page": 1,
+     "raw_name": "Testperson Charlie",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-delta",
+     "page": 1,
+     "raw_name": "Testperson Delta",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-echo",
+     "page": 1,
+     "raw_name": "Testperson Echo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-foxtrot",
+     "page": 1,
+     "raw_name": "Testperson Foxtrot",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-golf",
+     "page": 1,
+     "raw_name": "Testperson Golf",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Murfreesboro City Council (fixture)",
+   "date": "2025-11-11",
+   "id": "2025-11-11-regular",
+   "kind": "regular",
+   "listing_source": "agenda-center",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/murfreesboro-fixture/minutes/2025-11-11.pdf",
+   "source_id": "src-574187d0ad38",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2025-11-11 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": null,
+   "attendance": [
+    {
+     "official_id": "fx-testperson-alpha",
+     "page": 1,
+     "raw_name": "Testperson Alpha",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-bravo",
+     "page": 1,
+     "raw_name": "Testperson Bravo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-charlie",
+     "page": 1,
+     "raw_name": "Testperson Charlie",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-delta",
+     "page": 1,
+     "raw_name": "Testperson Delta",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-echo",
+     "page": 1,
+     "raw_name": "Testperson Echo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-foxtrot",
+     "page": 1,
+     "raw_name": "Testperson Foxtrot",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-hotel",
+     "page": 1,
+     "raw_name": "Testperson Hotel",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Murfreesboro City Council (fixture)",
+   "date": "2026-03-10",
+   "id": "2026-03-10-regular",
+   "kind": "regular",
+   "listing_source": "agenda-center",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/murfreesboro-fixture/minutes/2026-03-10.pdf",
+   "source_id": "src-e4ecf0d855a1",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2026-03-10 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": null,
+   "attendance": [
+    {
+     "official_id": "fx-testperson-alpha",
+     "page": 1,
+     "raw_name": "Testperson Alpha",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-bravo",
+     "page": 1,
+     "raw_name": "Testperson Bravo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-charlie",
+     "page": 1,
+     "raw_name": "Testperson Charlie",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-delta",
+     "page": 1,
+     "raw_name": "Testperson Delta",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-echo",
+     "page": 1,
+     "raw_name": "Testperson Echo",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-foxtrot",
+     "page": 1,
+     "raw_name": "Testperson Foxtrot",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-testperson-hotel",
+     "page": 1,
+     "raw_name": "Testperson Hotel",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Murfreesboro City Council (fixture)",
+   "date": "2026-09-08",
+   "id": "2026-09-08-regular",
+   "kind": "regular",
+   "listing_source": "agenda-center",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/murfreesboro-fixture/minutes/2026-09-08.pdf",
+   "source_id": "src-f030ff68afff",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2026-09-08 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  }
+ ],
+ "motions": [
+  {
+   "id": "mo-190c3deb-p2-0",
+   "item_id": "fx-resolution-1",
+   "meeting_id": "2025-01-14-regular",
+   "moved_by": {
+    "official_id": "fx-testperson-delta",
+    "raw_name": "Testperson Delta"
+   },
+   "page": 2,
+   "seconded_by": {
+    "official_id": "fx-testperson-echo",
+    "raw_name": "Testperson Echo"
+   },
+   "source_id": "src-190c3debe10c",
+   "text": "Testperson Delta moved to adopt the resolution; seconded by Testperson Echo",
+   "verification": {
+    "checks": [
+     {
+      "check": "mover_resolves",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "id": "mo-46989e2b-p2-0",
+   "item_id": "fx-resolution-2",
+   "meeting_id": "2025-06-10-regular",
+   "moved_by": {
+    "official_id": "fx-testperson-echo",
+    "raw_name": "Testperson Echo"
+   },
+   "page": 2,
+   "seconded_by": {
+    "official_id": "fx-testperson-delta",
+    "raw_name": "Testperson Delta"
+   },
+   "source_id": "src-46989e2bb7f2",
+   "text": "Testperson Echo moved to adopt the resolution; seconded by Testperson Delta",
+   "verification": {
+    "checks": [
+     {
+      "check": "mover_resolves",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "id": "mo-e4ecf0d8-p2-0",
+   "item_id": "fx-resolution-3",
+   "meeting_id": "2026-03-10-regular",
+   "moved_by": {
+    "official_id": "fx-testperson-foxtrot",
+    "raw_name": "Testperson Foxtrot"
+   },
+   "page": 2,
+   "seconded_by": {
+    "official_id": "fx-testperson-charlie",
+    "raw_name": "Testperson Charlie"
+   },
+   "source_id": "src-e4ecf0d855a1",
+   "text": "Testperson Foxtrot moved to adopt the resolution; seconded by Testperson Charlie",
+   "verification": {
+    "checks": [
+     {
+      "check": "mover_resolves",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  }
+ ],
+ "officials": [
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-testperson-alpha",
+   "name": "Testperson Alpha",
+   "surname": "Alpha",
+   "title": "Councilmember"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-testperson-bravo",
+   "name": "Testperson Bravo",
+   "surname": "Bravo",
+   "title": "Councilmember"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-testperson-charlie",
+   "name": "Testperson Charlie",
+   "surname": "Charlie",
+   "title": "Councilmember"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-testperson-delta",
+   "name": "Testperson Delta",
+   "surname": "Delta",
+   "title": "Councilmember"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-testperson-echo",
+   "name": "Testperson Echo",
+   "surname": "Echo",
+   "title": "Councilmember"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-testperson-foxtrot",
+   "name": "Testperson Foxtrot",
+   "surname": "Foxtrot",
+   "title": "Councilmember"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-testperson-golf",
+   "name": "Testperson Golf",
+   "surname": "Golf",
+   "title": "Councilmember"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-testperson-hotel",
+   "name": "Testperson Hotel",
+   "surname": "Hotel",
+   "title": "Councilmember"
+  }
+ ],
+ "roll_calls": [
+  {
+   "id": "rc-190c3deb-p2-0",
+   "item_id": "fx-resolution-1",
+   "meeting_id": "2025-01-14-regular",
+   "motion_id": "mo-190c3deb-p2-0",
+   "outcome": "passed",
+   "outcome_text": "The motion passed.",
+   "page": 2,
+   "source_id": "src-190c3debe10c",
+   "stated_tally": {
+    "abstain": 0,
+    "no": 1,
+    "yes": 6
+   },
+   "verification": {
+    "checks": [
+     {
+      "check": "one_vote_per_present_member",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   },
+   "votes": [
+    {
+     "official_id": "fx-testperson-alpha",
+     "raw_name": "Testperson Alpha",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-bravo",
+     "raw_name": "Testperson Bravo",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-charlie",
+     "raw_name": "Testperson Charlie",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-delta",
+     "raw_name": "Testperson Delta",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-echo",
+     "raw_name": "Testperson Echo",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-foxtrot",
+     "raw_name": "Testperson Foxtrot",
+     "raw_value": "N",
+     "value": "no"
+    },
+    {
+     "official_id": "fx-testperson-golf",
+     "raw_name": "Testperson Golf",
+     "raw_value": "Y",
+     "value": "yes"
+    }
+   ]
+  },
+  {
+   "id": "rc-46989e2b-p2-0",
+   "item_id": "fx-resolution-2",
+   "meeting_id": "2025-06-10-regular",
+   "motion_id": "mo-46989e2b-p2-0",
+   "outcome": "passed",
+   "outcome_text": "The motion passed.",
+   "page": 2,
+   "source_id": "src-46989e2bb7f2",
+   "stated_tally": {
+    "abstain": 0,
+    "no": 1,
+    "yes": 6
+   },
+   "verification": {
+    "checks": [
+     {
+      "check": "one_vote_per_present_member",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   },
+   "votes": [
+    {
+     "official_id": "fx-testperson-alpha",
+     "raw_name": "Testperson Alpha",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-bravo",
+     "raw_name": "Testperson Bravo",
+     "raw_value": "N",
+     "value": "no"
+    },
+    {
+     "official_id": "fx-testperson-charlie",
+     "raw_name": "Testperson Charlie",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-delta",
+     "raw_name": "Testperson Delta",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-echo",
+     "raw_name": "Testperson Echo",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-foxtrot",
+     "raw_name": "Testperson Foxtrot",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-golf",
+     "raw_name": "Testperson Golf",
+     "raw_value": "Y",
+     "value": "yes"
+    }
+   ]
+  },
+  {
+   "id": "rc-e4ecf0d8-p2-0",
+   "item_id": "fx-resolution-3",
+   "meeting_id": "2026-03-10-regular",
+   "motion_id": "mo-e4ecf0d8-p2-0",
+   "outcome": "passed",
+   "outcome_text": "The motion passed.",
+   "page": 2,
+   "source_id": "src-e4ecf0d855a1",
+   "stated_tally": {
+    "abstain": 0,
+    "no": 1,
+    "yes": 7
+   },
+   "verification": {
+    "checks": [
+     {
+      "check": "tally_matches_stated",
+      "detail": "held: stated tally differs from the votes read (fixture)",
+      "ok": false
+     }
+    ],
+    "status": "unverified"
+   },
+   "votes": [
+    {
+     "official_id": "fx-testperson-alpha",
+     "raw_name": "Testperson Alpha",
+     "raw_value": "N",
+     "value": "no"
+    },
+    {
+     "official_id": "fx-testperson-bravo",
+     "raw_name": "Testperson Bravo",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-charlie",
+     "raw_name": "Testperson Charlie",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-delta",
+     "raw_name": "Testperson Delta",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-echo",
+     "raw_name": "Testperson Echo",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-foxtrot",
+     "raw_name": "Testperson Foxtrot",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-testperson-hotel",
+     "raw_name": "Testperson Hotel",
+     "raw_value": "Y",
+     "value": "yes"
+    }
+   ]
+  }
+ ],
+ "schema_version": "1.0",
+ "sources": [
+  {
+   "fetched_at": "2026-11-01",
+   "id": "src-190c3debe10c",
+   "kind": "minutes",
+   "meeting_date": "2025-01-14",
+   "pages": 6,
+   "sha256": "190c3debe10cdcc3754bbb8f132b7272b27d63695ff241dadc216da96871a497",
+   "text_layer": "text",
+   "url": "https://example.org/murfreesboro-fixture/minutes/2025-01-14.pdf"
+  },
+  {
+   "fetched_at": "2026-11-01",
+   "id": "src-46989e2bb7f2",
+   "kind": "minutes",
+   "meeting_date": "2025-06-10",
+   "pages": 6,
+   "sha256": "46989e2bb7f27c9600362112970a5a25b85a86f570b8d5f1095981a405909a04",
+   "text_layer": "text",
+   "url": "https://example.org/murfreesboro-fixture/minutes/2025-06-10.pdf"
+  },
+  {
+   "fetched_at": "2026-11-01",
+   "id": "src-574187d0ad38",
+   "kind": "minutes",
+   "meeting_date": "2025-11-11",
+   "pages": 6,
+   "sha256": "574187d0ad386b8d301efabeae0bc0ba0924295cc08ced341a3d74182172c98e",
+   "text_layer": "text",
+   "url": "https://example.org/murfreesboro-fixture/minutes/2025-11-11.pdf"
+  },
+  {
+   "fetched_at": "2026-11-01",
+   "id": "src-e4ecf0d855a1",
+   "kind": "minutes",
+   "meeting_date": "2026-03-10",
+   "pages": 6,
+   "sha256": "e4ecf0d855a1ae0ce5544413ab50fc1947699aa7922278710ce8abb0797971c4",
+   "text_layer": "text",
+   "url": "https://example.org/murfreesboro-fixture/minutes/2026-03-10.pdf"
+  },
+  {
+   "fetched_at": "2026-11-01",
+   "id": "src-f030ff68afff",
+   "kind": "minutes",
+   "meeting_date": "2026-09-08",
+   "pages": 6,
+   "sha256": "f030ff68afff217166dca1093feed73b23b9952bc76c5568d5de66b760ab8679",
+   "text_layer": "text",
+   "url": "https://example.org/murfreesboro-fixture/minutes/2026-09-08.pdf"
+  }
+ ]
+}
