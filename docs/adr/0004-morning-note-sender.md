@@ -1,4 +1,4 @@
-# ADR 0004: Morning note sender: Buttondown, one edition email per identical selection
+# ADR 0004: Morning note sender: Buttondown, one edition email per identical selection (one edition for all, 2026-11-18)
 
 Status: proposed (software-architect, 2026-11-10). Provider chosen by Brian on 2026-11-10 (docs/status.md,
 Decisions). Not built; needs the T4 security review and Brian's go-ahead before anything is sent. Details:
@@ -27,6 +27,17 @@ Actions logs are public. Sending, the account, the key and any cost are hard sto
    `note-district-<n>`, `note-ward-<n>`), and subscriber metadata holds only the sender's stamp, written as the whole
    object. Brian (2026-11-16): no canary week (`canary_only: false`), no paid plan. Details and the security notes:
    architecture "Switch-on: tags, and the security notes".
+6. **Amended 2026-11-18: one edition for every confirmed subscriber.** A real sign-up on the live form (a team
+   address, every list ticked) became a confirmed subscriber by double opt-in with **no tags**; Buttondown documents
+   tags, and subscriber metadata, as paid (Basic plan; "Tagging & segmentation +$9/month"). Brian's decision, as
+   relayed by the manager on 2026-11-18: *"stay on the FREE plan: every confirmed subscriber gets ONE morning note
+   edition with all topics; the topic picker and seat (district/ward) fields come off the form; per-topic choices
+   may return later if people ask."* So decision 2 becomes: the plan writes **one edition holding every entry of
+   the note** (all zoning, every Commission and Council record, budget, contracts; each under its first list), and
+   the deliver stage creates **one scheduled email with no filter** (new `mode: all`), reading no subscriber and no
+   tag. The form posts only the address. `stamp` (HMAC stamp, canary ids) stays built for canary trials, with one
+   edition; `max_editions` and the `no-tags` check are removed. Details, files and tests: architecture "One edition
+   for everyone"; tasks `docs/tasks/morning-note-one-edition.md`.
 
 ## Alternatives considered
 - **A fixed set of segment emails** (per list, per district, per ward). Strongest case: the sender never reads a
@@ -40,6 +51,13 @@ Actions logs are public. Sending, the account, the key and any cost are hard sto
   the probe fails or Brian does not go ahead; the sign-up section already says "follow by feed now".
 - **A "sent" ledger file committed to the repository.** Rejected: the job holding the mail key would also need a
   write token, and the provider's own record survives a lost runner.
+- **(2026-11-18) Keep `stamp` for the one edition** instead of `mode: all`. Strongest case: the sender confirms
+  every recipient itself at run time, `max_recipients` stays an exact bound, and the canary path is the daily path,
+  so no new mode needs review. Not chosen: it rests on subscriber metadata, which Buttondown's settings call a
+  Basic-plan feature (the API accepted it on the free plan on 2026-11-16, much as the form accepted tags it then did
+  not keep), it keeps the key's subscriber write (threat point 2) and the stray-stamp machinery for no audience
+  benefit, and costs 2 requests per subscriber. It stays available by config for canary trials.
+- **(2026-11-18) Pay for tagging (+$9/month) and keep per-reader editions.** Brian declined (hard stop 3).
 
 ## Consequences
 - The key needs subscriber access (write for `stamp`, read for `ids`). This is the main thing the security review
@@ -49,6 +67,10 @@ Actions logs are public. Sending, the account, the key and any cost are hard sto
   for metadata filters). The free tier covers the first 100 subscribers. Both are Brian's spend decisions.
 - A document collected between the first send and 7:00 is not mailed that day or the next; it is on the site and feeds.
 - A run that finishes after `latest_send` skips the day rather than sending late.
+- (2026-11-18) In `mode: all` the key needs no subscriber area (Emails and Sending write only), no subscriber data
+  reaches the note job, and a run is two or three requests. The audience is whoever the provider holds as confirmed
+  at 7:00; that an unfiltered email reaches exactly them is documented, not probed: checked at the first send.
+  Every reader gets every topic, so busy days are long emails. Per-topic choices can return only with paid tags.
 - Reversible: the sender is one package and one workflow job behind three switches. Changing provider means a new
   adapter file and a new sign-up form target; subscribers would have to be moved by the provider's export, which is
   the costly part. That is why the provider choice is recorded here.

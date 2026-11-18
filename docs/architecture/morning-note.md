@@ -129,13 +129,15 @@ morning_note:
   enabled: false        # true only after the CEO picks a provider (hard stops 3-5)
   provider: ""          # label for the record only; code never branches on it
   form_action: ""       # https URL the sign-up form POSTs to (the provider's hosted endpoint)
-  form_fields: {email: "email", lists: "tag", district: "tag", ward: "tag"}   # 2026-11-17: Buttondown tags only
+  form_fields: {email: "email"}   # 2026-11-18: email only (was lists/district/ward as Buttondown tags; free plan keeps no tags)
   privacy_url: ""       # the provider's privacy policy, required when enabled
 ```
 Off (M3): the form has no `action`, no email field and no submit; it shows the picker, "Email starts at launch;
 follow by feed now", and the picked lists' feed links. On: the build renders the email field, posts directly to
 `form_action` (CSP `form-action 'self'` gains that one origin, computed by the build), and the page says what is sent
-and to whom, linking `privacy_url`. On, the stored seats are posted only by consent (security review finding 3):
+and to whom, linking `privacy_url`. (**Superseded 2026-11-18** by "One edition for everyone" below: the form posts only the address, so the seat consent box, the
+`seats_sent` text and the "never sent anywhere" switch that follow are removed; the seats never leave the device.)
+On, the stored seats are posted only by consent (security review finding 3):
 the form shows a visible, ticked "Include my saved seats: District 5, Ward 3" box (no `name`, never posted itself,
 shown only when seats are stored); unticked, or without the script, both seat fields stay disabled and nothing about
 a seat is posted. On, the landing and Method pages also stop saying the seats are "never sent anywhere"
@@ -191,6 +193,9 @@ GitHub Actions secret that does not exist yet; no key, address or subscriber fie
 Nothing in T4 sends until three separate switches are on (see "Switches").
 
 ### Decision: editions, not per-person mails and not fixed per-list segments
+**Superseded 2026-11-18** by "One edition for everyone" below: one edition, every entry, every confirmed
+subscriber (the free plan keeps no tags, so the sender cannot know anyone's lists or seats).
+
 Each subscriber gets **at most one email a day, holding exactly what `select()` returns for their lists and seats**,
 and nothing on a day when that is empty. Subscribers whose selection is identical share one email, an **edition**.
 The sender creates one Buttondown email per edition (a handful a day), never one per person.
@@ -223,6 +228,7 @@ Input guards, each ending in `send: false` with a `reason`, exit 0, unless marke
 - the plan's files over `MAX_PLAN_BYTES` (32 MB, `sender/common.py`): fail (something is wrong with the data, not a
   busy day). As built, `sender.max_editions` is applied by the deliver stage to editions that have a recipient.
 
+(**Superseded 2026-11-18** by "One edition for everyone" below: `rows = one_edition(note)`, one edition, no `signatures`.)
 Otherwise, for every possible signature (each non-empty subset of the four lists x district none or 1..`district_count`
 x ward none or 1..`ward_count`; 15 x 22 x 13 = 4,290 calls of `morning.select`, cheap), take the selected entry ids.
 Signatures with the same email share an edition: the same entries, each under the same list heading
@@ -269,6 +275,8 @@ Order of work for `deliver --live` (any failed check stops before the first writ
    - any with a different `note_sha256`: the day belongs to an earlier, different plan. Send nothing, exit 0. (A second
      collection before 7:00 that adds a document changes the note; its additions are on the site and feeds only.)
    - the listing fails, is cut short or cannot be read: send nothing, exit non-zero. **Fail closed.**
+   (**Superseded 2026-11-18** by "One edition for everyone" below: steps 4 and 5 hold only for `stamp` canary trials, with one edition; the shipped
+   `mode: all` makes no subscriber call and creates one unfiltered email.)
 4. **Recipients**: page through subscribers, keep `type == "regular"` (confirmed; `unactivated`, `unsubscribed` and
    the rest are never mailed), and reduce each at the adapter boundary to `(id, lists, district, ward)`, read from
    the sender's own Buttondown tags only (`note-<list key>`, `note-district-<n>`, `note-ward-<n>`; 2026-11-17, see
@@ -450,6 +458,7 @@ From `docs/reviews/security-review-morning-2b4796b.md`:
    `index.html.j2:26,37` depend on `note.enabled`; Method gains a Morning note paragraph (what is sent, to whom, how
    to unsubscribe, `privacy_url`); a test proves an enabled build has neither sentence; `seats.js` header updated.
 2. Finding 3: the form shows the seat values it will send, or a visible ticked "include my saved seats" box.
+   (Moot from 2026-11-18: the form posts no seat; see "One edition for everyone".)
 3. Finding 2, at account setup, recorded in `docs/platform-facts.md`: double opt-in on for form sign-ups, open and
    click tracking off, and `sent_line` extended ("...and, like any website, your IP address").
 4. Findings 4 and 5: source URLs checked with `build._is_https_uri` before they become links (the sender's renderer
@@ -469,6 +478,8 @@ Added by this design:
    from Buttondown's own sending address); the runbook section 5 records both calls.
 
 ### Switch-on: tags, and the security notes (2026-11-17)
+**Superseded 2026-11-18** by "One edition for everyone" below: the first real sign-up (2026-11-18) got no tags on the free plan.
+The notes (a) to (c), the tag form fields, `no-tags`, `max_editions` and `method_change` below are history.
 What changed for the switch-on PR, after the T4.0 probe (`docs/platform-facts.md` "Morning note provider"):
 - **Form:** `form_fields: {email: email, lists: tag, district: tag, ward: tag}`. Each list box posts
   `tag=note-<key>`; the two seat fields post `tag=note-district-<n>` / `tag=note-ward-<n>` (the script adds the
@@ -560,7 +571,155 @@ Notes for the security review (each is a judgment call unless marked):
 - **Not changed and still open:** the open-redirect check of the government source hosts in `link_hosts`
   (runbook section 4 item 2).
 
+### One edition for everyone (2026-11-18; amends ADR 0004)
+**Fact** (`docs/platform-facts.md` "Morning note provider", 2026-11-18): a real sign-up on the live Alerts form, a
+team address with every list box ticked, became a confirmed `regular` subscriber by double opt-in, with **no tags**.
+Buttondown documents tags as a paid feature (Basic plan; "Tagging & segmentation +$9/month"), and subscriber
+metadata too (research: project files `clarksville-records/research/buttondown-form-tags.md`). **Decision (Brian,
+2026-11-18):** stay on the free plan; every confirmed subscriber gets one note with all topics; the topic picker and
+the seat fields come off the form; per-topic choices may return later if people ask. Tasks:
+`docs/tasks/morning-note-one-edition.md`.
+
+**Invariant (one-edition):** on a day the plan says send, there is exactly one edition, holding every entry of the
+note, and it goes to every confirmed subscriber. Nothing a subscriber or the form wrote (tags, metadata) changes who
+gets it or what it says. Consumers: `plan.build` (writes it), `deliver.check_plan` (refuses any other shape),
+`deliver.run` (one email), `render.body_html` / `body_text` (prints it), the preview page (shows the same).
+
+**Content and order (no seats):**
+- Every entry of `morning/<D>.json`, none filtered: all four lists. "Zoning near me" has no address or seat to
+  match, so it is **all zoning** (every Z/ZO/CZ/CZO/HZ case and linked county item, with or without a printed
+  district or ward). The `seats` list with no seat is every County Commission and City Council agenda and minutes
+  entry. Budget and contracts as before.
+- Each entry stands under its **first** list (`e["lists"][0]`). The note is already sorted by first list in
+  `LIST_KEYS` order (zoning, seats, budget, contracts), then body, meeting date, page, id (`morning.write`), so
+  email order = note order = the preview page's order. `plan.placed()` and the per-shape `under` map go.
+- Headings stay config (`morning_note.lists` labels, scanned by `BANNED`): `zoning` "Zoning near me" -> **"Zoning"**,
+  `seats` "My two seats" -> **"County Commission and City Council"** (frontend may refine the copy; config only).
+  The Alerts feed panel and the preview page print the same labels.
+- The unplaced line ("N zoning cases printed no district or ward") leaves the email and the preview page: every
+  zoning case is now in them, so it explains nothing. The note JSON keeps `unplaced_zoning` / `unplaced_text`
+  (the output contract is additive).
+- `sender.text.why`: "You get this note because you signed up for it. It lists every record added to the site
+  since yesterday morning." (config; the old text said "a list you picked").
+- Size: a day over `backfill.max_entries` (100) is a backfill day and is never mailed, so the one body holds at most
+  100 entries, well under `deliver.MAX_BODY` (500,000); a test builds a 100-entry note and checks it.
+- Follow-up, not in this change: print a zoning case's printed district and ward in the email, as the preview page
+  already does, so a reader can find their own (needs two sender text keys).
+
+**Plan stage (`sender/plan.py`, `sender/__main__.py`):**
+- Schema **`morning-send/2`** (`common.PLAN_SCHEMA`): `editions` holds 0 or 1 edition; `signatures` is gone.
+- `build()`: the `signatures(cfg)` loop becomes `rows = one_edition(note)` = `[(e["id"], e["lists"][0]) for e in
+  note["entries"]]`, key `edition_key(date, rows)` (unchanged formula). Delete `signatures()` and `placed()`; drop
+  `from sitegen import morning` if nothing else uses it. The disabled, quiet, backfill, `--rehearse` and size paths
+  are unchanged. `__main__.py plan` and `deliver.describe()` stop printing "subscriber shape(s)".
+
+**Render (`sender/render.py`):** `body_html` / `body_text` stop printing `unplaced_text`; `under` may stay (None
+already means the first list). Body check, escaping, link hosts and the credit line unchanged.
+
+**Deliver stage (`sender/deliver.py`, `sender/buttondown.py`, `sender/settings.py`, `sender/common.py`):**
+- `check_plan`: schema `/2`; exactly one edition when `send` is true, none otherwise; a `signatures` key is refused.
+  `plan_digest` drops `signatures` from its canon (claim identity still covers note digest, key, subject, body, ids).
+- New **`mode: all`** (shipped; `common.MODES` and `morning.SENDER_MODES` = `("all", "stamp", "ids")`, parity test).
+  After guards 1 to 4 (enabled, `send`, date and `latest_send`, day claim), **no subscriber call at all**: create one
+  email with `status: "scheduled"`, `publish_date` = max(`send_at`, clock + `PUBLISH_MARGIN`) or exit 2 "late" past
+  `latest_send`, `archival_mode: "disabled"`, metadata `{note_date, note_edition: "<D>.<key>", note_sha256,
+  note_plan}`, and **no `filters` key**. `_check_audience("all")` refuses a payload carrying `filters`;
+  `_check_echo("all")` accepts a stored filter only when absent, null or exactly `{"filters": [], "groups": [],
+  "predicate": "and"}` (the empty shape the probe saw), else take it back to a draft and fail (as today). A re-run of
+  the same plan finds the key in `done` and creates nothing. The log line: "emails created 1; recipients: every
+  confirmed subscriber" (the run does not know the count; the dashboard does).
+- **`stamp` stays for canary trials only**, with one edition: audience = confirmed subscribers, narrowed to
+  `MORNING_NOTE_CANARY_IDS` when `canary_only`. The signature routing becomes "every recipient -> the one edition".
+  Still apply unchanged: the HMAC stamp `<D>.<key>.<HMAC-SHA256(key, "<D>.<key>")[:16]>` and `secret_ok`, the
+  re-read before each write (now: same id, still `type == "regular"`; no tag comparison), `held_stamps`, `_strays`,
+  the one-stamp-one-email invariant, the exact `{"note_edition": <stamp>}` write, idempotency keys, `max_recipients`.
+  Caveat: a stamp is subscriber metadata, which Buttondown's settings call Basic-plan only; the API accepted it on the
+  free plan on 2026-11-16. If that stops, `set_metadata`'s echo check fails closed (nothing sent).
+- `canary_only: true` needs `mode: stamp` (all mode has no filter to narrow): `morning.sender_problems()` refuses
+  the pair, and `run()` exits 2 "bad-config" before any call. `ids` is unchanged and still unusable on Buttondown.
+- **Deleted:** `recipient()`'s tag reading (`Recipient` keeps `id` only), `_one_seat`, `MAX_LIST_VALUES`, the
+  `no-tags` exit (sender/tags-silent-zero retired: nothing is read that could be silently missing),
+  `common.read_tags`, `_SEAT_TAG`, `signature`, `SIGNATURE_RE`; `max_editions` (config, `morning.SENDER_KEYS`,
+  `settings.py`, `Settings`, the "over-limit" editions branch), since `check_plan` bounds a run at one email. The
+  second of tasks N1 and N2 to merge deletes `common.list_tag`, `seat_tag_prefix`, `TAG_FIELD`, `TAG_PREFIX` and
+  `morning.TAG_FIELD` (the form imports two of them until N2).
+- Adapter: `_reduce_subscriber` keeps `{id, type, metadata}`; `tags` is dropped unread (any shape; no longer a
+  fail-closed check). In `all` mode `subscribers`, `subscriber` and `set_metadata` are never called.
+- `max_recipients` applies in `stamp` and `ids` only. In `all` mode the bound is the provider's plan (free: 100
+  subscribers); the mistake class it bounded (writes to the whole list) does not exist without subscriber writes.
+
+**Run time:** `all` mode: one email listing (at most `MAX_PAGES` pages) and one create (plus one take-back on a bad
+echo): seconds. `stamp` trial: 2 listings + 1 email + 2 requests per recipient, so at `max_recipients` 1000 about
+(3 + 2,000) x 0.2 s = 6.7 minutes, inside the note job's 15. The run-time-budget test is re-derived from these.
+
+**Key scope:** `all` needs Emails write and Sending write; **Subscribers: none**. A key already made with
+subscriber write still works but holds more than it needs; narrow it at the next rotation (no ask). `stamp` trials
+need Subscribers write.
+
+**Workflow:** no change. The note job validates file names (`plan.json`, `edition-<12 hex>.html|.txt`), which stay;
+the schema is checked by `check_plan`.
+
+**Form and site (frontend):**
+- Config `form_fields: {email: email}`; `morning.FORM_FIELD_KEYS = ("email",)`; `problems()` requires exactly that
+  key, a plain name that is neither `tag` nor `metadata*`.
+- `site/templates/alerts.html.j2` (enabled form): the only named fields are `email` and the hidden `embed=1`.
+  Remove the two hidden seat inputs (`data-seat-field`, `data-tag-prefix`), the `#mn-seats` consent row and the
+  picker inside the form. The feed panel stays (feeds are on-device), moved out of the form into a `<details>` as in
+  the off state, its unnamed picker choosing only which feeds are shown (`page.legend` "Show feeds for").
+- `_morning.html.j2` `picker()`: boxes never carry a `name` or a tag value. `sitegen/morning_page.py`: `_lists`
+  drops `tag`, `_section` drops `seat_tags` and passes only the email field, the `sender.common` tag imports go.
+- `site/static/morning.js`: delete `seatPost`, `seatWords`, the seat-field and consent-box code in `updateNote`,
+  the `submit` listener and their exports (keep `pageshow` for the feed panel). Preview page: no picker, no
+  `#lists=` filter, no seats hint: it shows every entry, as the email does; the Alerts preview link drops
+  `#lists=`. JS `select`, `matches`, `parseLists` are then unused: delete them and their parity test. Python
+  `morning.select()` stays (the seam per-topic choices would return through).
+- `morning.html.j2`: drop the picker, `preview_mine`, the seats hint and the unplaced row; optionally an `<h2>` per
+  list as the email prints.
+- `morning_page.privacy()`: the seats never leave the device again, so `seats_sent` and the `{box}` fill go;
+  `method.html.j2:20` and `index.html.j2:40,169` print the off-state sentences ("never sent anywhere", with the
+  analytics clause) whether or not the note is on.
+- Method paragraph (`page.method_*`): `method_sent` loses `{box}`: "The morning note is an email you sign up for on
+  the Alerts page. Sending the sign-up form gives {provider} your email address and nothing else from this site.
+  Everyone gets the same note: every record added to the site since the morning before." `method_change` is removed
+  (config, `PAGE_KEYS`, `privacy()["change"]`, `method.html.j2:28`): there is nothing to change but stop, which
+  `method_unsubscribe` says. Also removed: `seats_include`, `seats_sent`, `preview_mine`. Changed: `sent_line`
+  ("Sending this form gives {provider} your email address and, like any website, your IP address."), `about`
+  ("A short email by 7:00 AM on days when something new is on an agenda or was voted on: zoning, County Commission
+  and City Council meetings, budget and contracts. Quiet on every other day."), `legend`, `quiet` ("Nothing new
+  today. On a day like this no note is sent.").
+- The front-page card (branch `claude/front-signup`) must post exactly `email` and `embed=1` to `form_action`, with
+  the same `sent_line` and privacy link; its CSP and `qa.site_checks` allowance for `index.html` is that branch's.
+  Whichever merges second makes `method_sent` name both places to sign up.
+
+**Security notes that change:**
+- Fewer fields posted: the address (and `embed=1`) only; no lists, no seats. Review findings 1 and 3 (seat consent,
+  "never sent anywhere") are moot, and the sentence is true again.
+- Note (a), the form adding tags to anyone's address, is closed: no tag is read. Note (b), the form setting
+  `metadata__note_edition`, is closed in `all` mode (no filter reads metadata) and stays as analysed for `stamp`
+  trials (the MAC). Note (c) reduces to: the sender reads no tag, and in `all` mode no subscriber.
+- Threat point 2 (subscriber access): `all` mode makes no subscriber call; the key needs no subscriber area, so a
+  leaked key cannot read the list.
+- Threat point 4 flips: everyone confirmed is the intended audience. The checks are that the stored email carries no
+  filter (echo) and that the provider does not mail `unactivated` or `unsubscribed` addresses (documented
+  behaviour, unverified on this account: checked at the first send, runbook 4a).
+- Accepted: the unfiltered email reaches whoever is confirmed at 7:00, including people who confirm between the run
+  (about 4 AM) and 7:00.
+- What relied on tags, all removed: `deliver.recipient`, the `no-tags` exit, the tag comparison in `stamp()`'s
+  re-read, the `max_editions` sizing, `method_change` and its runbook 4a dependency, tag fixtures in tests.
+- Unchanged: key handling, plan validation and body check, link hosts, the day claim, totals-only logs (now no
+  subscriber data is read at all in `all` mode), double opt-in as the only sign-up control (now verified).
+
+**Risks of this change:**
+- That an email with no filter reaches exactly the confirmed subscribers is the documented default, not probed (the
+  probe sent only filtered emails and drafts). The first send reaches team addresses only; runbook 5 step 3 checks.
+- A busy day (an RPC agenda) is a long email led by zoning; a reader who wanted only budget gets everything. Brian's
+  call; per-topic choices need tags (paid, hard stop 3).
+- Merge order: N1, N2 and `claude/front-signup` share `config/site.yml`, `sitegen/morning.py` and `index.html.j2`.
+- Brian approved a per-shape sample; the one edition is longer. The manager attaches a fresh rehearsal sample to the
+  `MORNING_NOTE_SEND` go-ahead ask (not a separate ask).
+
 ### Threat points for the security review
+(2026-11-18: points 2 and 4 change with one edition, see "One edition for everyone", security notes.)
 1. **The key.** Scope, storage in an environment limited to `main`, exposure to exactly one step, no pip install and
    no third-party action beyond the pinned checkout and download in that job, no run on pull requests or manual runs.
 2. **Subscriber access.** `stamp` needs subscriber write: a bug could change or blank metadata for the whole list.
@@ -589,4 +748,6 @@ Notes for the security review (each is a judgment call unless marked):
   email list as a claim record). T4.0 exists to settle them before any delivery code is written; if both modes fail
   the probe, come back to the architect, do not improvise a third.
 - GitHub's scheduler can start late. With `stamp` the email still leaves at 7:00; past `latest_send` the day is skipped.
+- (2026-11-18) The free plan keeps no tags from a form sign-up, so per-reader editions are off; see "One edition
+  for everyone".
 - The free tier ends at 100 subscribers (as shown today). Past that it costs money: Brian's call, not the sender's.

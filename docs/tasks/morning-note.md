@@ -12,6 +12,7 @@ creates an account or stores an email. T4 (the sender, below) is built off and s
 | T2 Missing feeds | backend-engineer | none | yes (separate files from T1) |
 | T3 Sign-up section, preview page, morning.js | frontend-engineer | contract only; integrates T1/T2 at the end | yes |
 | T4 Sender (T4.0 to T4.10 below) | backend, devops, frontend, writer | T1-T3 merged (done) | see T4 |
+| N1-N7 One edition for everyone (2026-11-18; free plan keeps no tags) | backend, frontend, review, QA | none | `docs/tasks/morning-note-one-edition.md` |
 
 ## T1: digest generator (`sitegen/morning.py`, config, build hook)
 - `config/site.yml` `morning_note:` block (lists with key/label, `cutoff`, `keep_days`, `zoning_prefixes`, seam keys,

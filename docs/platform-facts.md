@@ -297,6 +297,7 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   and metadata holds only the sender's stamp. **Unverified until the first real sign-up:** that the free plan's form
   accepts `tag` on a new address (and adds several when several `tag` fields are posted), that a new tag name is
   created on the fly, that a form sign-up gets double opt-in, and that the API returns `tags` as a list of names.
+  **Answered 2026-11-18 (below):** double opt-in yes; tags no, so the form stops posting them.
 - **Probe scoring (not changed):** the script scored `stamp_checks_pass: false` for three reasons: the wrong manual
   runbook-1 answer above; `runbook-8` (the form sets `note_edition` on an existing subscriber), which the design
   now accepts because the stamp carries a MAC (architecture "Switch-on: tags, and the security notes"); and the
@@ -312,6 +313,18 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   day>` answered 200 with all 4 of that day's emails, so the filter keeps the day's rows. Whether it leaves older
   rows out is unproven (there were none). The sender asks for emails created since yesterday; ignored, the listing
   is the whole history (still correct, bounded by the adapter's page limit).
+- **First real sign-up (2026-11-18, 1:39 PM CT, reported by the manager):** a team address signed up on the live
+  Alerts form (`form_action` `.../embed-subscribe/daylight`) with every list box ticked. Verified: the post was
+  accepted, a confirmation email came, and after confirming the subscriber is a confirmed `regular` subscriber
+  (**double opt-in works for form sign-ups**). Verified: the subscriber has **no tags** (none of `note-zoning`,
+  `note-seats`, `note-budget`, `note-contracts`; no seat tag). Buttondown's docs call tags a Basic-plan feature and
+  the pricing page lists "Tagging & segmentation +$9/month" (research, project files
+  `clarksville-records/research/buttondown-form-tags.md`); subscriber metadata is also documented as paid. So on
+  the free plan the form cannot carry anyone's lists or seats. **Brian (2026-11-18): stay on the free plan; one
+  note with all topics for every confirmed subscriber** (ADR 0004 decision 6; architecture "One edition for
+  everyone"). Not checked by this sign-up: whether the provider's redirect stays inside the CSP `form-action`
+  origin with no console error (runbook section 4 item 4a), and that an unfiltered email skips `unactivated` and
+  `unsubscribed` addresses (first send).
 
 ## GitHub repository settings (checked 2026-11-17 by `gh api` from the team's session, signed in with admin rights)
 - `main` has **no ruleset and no branch protection** yet: `repos/gn0sh/clarksville-records/rulesets` is `[]`,

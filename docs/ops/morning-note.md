@@ -55,10 +55,12 @@ and may be labelled differently. Record what each screen really says in `docs/pl
 4. **Brian:** Settings > Tracking: open tracking **off**, click tracking **off**.
 5. **Brian:** Settings > Email: reply-to = a team address (not a personal one).
 6. **Brian:** Settings > Metadata: nothing to add. On the free plan the screen says metadata needs the Basic plan,
-   and the sign-up form posts Buttondown **tags** instead (`note-zoning`, `note-district-5`, ...; 2026-11-17). Do
-   **not** add `canary` or `note_edition` (canaries are ids in a secret; the stamp is written by the sender only).
+   and tags are paid too (2026-11-18: a real sign-up got none), so the form posts only the address and every
+   confirmed subscriber gets the one note (`mode: all`; architecture "One edition for everyone"). Do **not** add
+   `canary` or `note_edition` (canaries are ids in a secret; the stamp is written by the sender only).
 7. **Brian:** Settings > API > New key: a **scoped** key, never the primary key. Emails: write. Sending: write.
-   Subscribers: write for `stamp` mode, read for `ids` mode (set after the T4.0 probe). Every other area: none.
+   Subscribers: **none** for `mode: all` (from task N1, 2026-11-18); write only for a `stamp` canary trial. Every
+   other area: none. A key already made with Subscribers write keeps working; narrow it at the next rotation.
    Copy it once; it goes straight into the GitHub secret in step 2.3 and nowhere else (not a file, chat or issue).
 
 ## 2. GitHub settings (Brian, once; nothing runs yet)
@@ -323,26 +325,27 @@ architect.
 Results and corrections to the probe file's manual answers: `docs/platform-facts.md` "Morning note provider".
 
 ## 4. Before the first send (team, by reviewed PRs)
-1. T4.6 done (privacy text, seat consent) and the launch preconditions of the architecture ("Launch
-   preconditions" 1 to 9) checked, each with a link in the PR.
+1. T4.6 done (privacy text) and the launch preconditions of the architecture ("Launch preconditions" 1 to 9)
+   checked, each with a link in the PR. Seat consent is moot since 2026-11-18 (the form posts no seat).
+1b. **One edition (2026-11-18): tasks N1 to N5 of `docs/tasks/morning-note-one-edition.md` merged** (sender
+   `mode: all`, the form posting only the address, their security review). Until then the shipped sender still
+   plans per-tag editions, and a live run would stop as `no-tags` (exit 2, nothing sent), because the free plan
+   keeps no tags.
 2. Add the site's host (`daylight.gnoshcodes.com`) to `morning_note.sender.link_hosts`; check each government source
    host in `link_hosts` for an open redirect and record the result in `docs/platform-facts.md`.
 3. T4.8 security review of the T4.5 commit passed.
 4. `morning_note.enabled: true` and `morning_note.sender.enabled: true`, with `canary_only: false` (Brian,
-   2026-11-16: no canary week). The switch-on PR (branch `r2-note-on`) does this, with `mode: stamp` and the form
-   posting tags.
-4a. **One real sign-up on the live form, after the switch-on PR is deployed** (a team member, a team address that
-   is not yet subscribed; launch precondition 5): fill in the Alerts page form with two lists ticked and saved
-   seats included. Check, and write each answer into `docs/platform-facts.md` "Morning note provider": the post
-   lands on a buttondown.com page (no CSP error in the browser console); a confirmation email arrives (double
-   opt-in); before confirming, the subscriber is `unactivated` in Buttondown; after confirming, it shows exactly the
-   tags `note-<list>` for each ticked list plus `note-district-<n>` and `note-ward-<n>`. If the form answers an
-   error or the tags are missing, stop: `MORNING_NOTE_SEND` stays unset, and the form goes back off by PR.
-   Then (sender/tags-seat-change; the Method page tells readers to do this): unsubscribe that address with the
-   link in its confirmation or first email, sign up again with one other list and another ward, confirm, and check
-   it shows only the new tags. If the old tags stay, the Method page's `method_change` line is wrong: change it by
-   PR before `MORNING_NOTE_SEND` is set. A note job that finds confirmed subscribers but no `note-` tag fails as
-   `no-tags` (sender/tags-silent-zero).
+   2026-11-16: no canary week). The switch-on PR (branch `r2-note-on`) did this with `mode: stamp` and tags; task
+   N1 sets `mode: all`.
+4a. **The real sign-up on the live form.** Done 2026-11-18 (platform-facts "Morning note provider"): a team
+   address with every list ticked was confirmed by double opt-in (verified) and got **no tags** (verified), which
+   is why the note is one edition and the tag checks that stood here (each `note-<list>` and seat tag, and the
+   unsubscribe-and-sign-up-again check behind the Method page's old `method_change` line) are dropped. Still to
+   check, once N2 is deployed, with a team address not yet subscribed: the post (address only) lands on a
+   buttondown.com page with no CSP error in the browser console; before confirming, the subscriber is
+   `unactivated`; leave it unconfirmed through the first send and check it gets no note (an unfiltered email must
+   skip unconfirmed addresses). Write each answer into `docs/platform-facts.md`. If the form answers an error,
+   stop: `MORNING_NOTE_SEND` stays unset and the form goes back off by PR.
 5. The site deploy is live (`RECORDS_DEPLOY_ENABLED` is `true`): the note job needs a successful deploy.
 6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.1) prints "OK: main is protected" (R1':
    code-owner review, squash only, admin bypass for pull requests only, approvals 0, auto-merge off), and the last scheduled run's `push` job merged its `data/` pull request
@@ -433,7 +436,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
      pull requests only), and the daily data goes by pull request (step 2.0). What still stands: the `main`
      ruleset R1' (pull request required, code-owner review outside `data/`, squash only, stale approvals
      dismissed, admin bypass for pull requests only), the gate (every code change a reviewed PR a person merged, after
-     `MAIN_PR_BASELINE`), the note job's stale-run check, code review of every PR, and `max_recipients` / `max_editions`. Why OFF: ON means Brian
+     `MAIN_PR_BASELINE`), the note job's stale-run check, code review of every PR, and the one-edition plan check (2026-11-18; was `max_recipients` / `max_editions`). Why OFF: ON means Brian
      approves a deployment every morning between 03:07 and about 07:00 CT; a missed approval skips that day, and a
      run left waiting blocks the next day's data and deploy. If ON: the steps are below.
    - **B. Custom sending domain (SPF, DKIM): NO (recommended) or YES.** The free plan sends from Buttondown's own
@@ -458,16 +461,16 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 1. **Brian**, only after section 4 is done (6a V1' PASS and 7 checked last), and after he approved the
    sample note: https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository
    variable** > name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
-2. The next scheduled run (09:07 UTC) schedules the day's emails for 7:00 (site time zone) to every confirmed
-   subscriber whose lists have something new; nothing on a quiet or backfill day.
+2. The next scheduled run (09:07 UTC) schedules the day's one email for 7:00 (site time zone) to every confirmed
+   subscriber (`mode: all`, 2026-11-18); nothing on a quiet or backfill day.
 3. The first mornings (until one clean week), a team member checks: the run's `note` job is green, its log shows
-   totals only (no address, no id), the team's own addresses got exactly the editions their lists and seats call
-   for (nothing on a quiet day), the links open live pages, the unsubscribe link works, and the Buttondown
-   dashboard's recipient count matches the log's total.
-4. `max_editions` is 400 (was 80 until 2026-11-17: a busy real day plans up to 191 editions, and 80 would have
-   sent nothing that day; basis in architecture "Switch-on"). `max_recipients` is 1000 (was 2000, about 14
-   minutes of requests against the note job's 15): a run over either sends nothing that day (loud). At both caps a
-   run takes about 8 minutes. Revisit both, and the job timeout, before the list nears 1,000.
+   totals only ("emails created 1"; no address, no id), every confirmed team address got the one note with every
+   entry of the preview page (`morning/index.html`), in the same order (nothing on a quiet day), the unconfirmed
+   address of section 4 item 4a got nothing, the links open live pages, the unsubscribe link works, and the
+   Buttondown dashboard's recipient count for that email equals its number of confirmed subscribers.
+4. `max_editions` is gone (2026-11-18: a plan holds at most one edition, so a run creates at most one email).
+   `max_recipients` (1000) bounds only a `stamp` canary trial; `mode: all` reads no subscriber, and the free
+   plan's 100-subscriber limit is the provider's own bound. A `mode: all` run is a few requests.
 
 ## Rules for manual runs and re-runs
 - **Never re-run a Daily update run from an earlier day** ("Re-run all jobs" or "Re-run failed jobs" on yesterday's
