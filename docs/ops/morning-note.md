@@ -351,17 +351,24 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    code-owner review, squash only, admin bypass for pull requests only, approvals 0, auto-merge off), and the last scheduled run's `push` job merged its `data/` pull request
    into `main` under the ruleset. Link the check output and that PR in the go-live PR.
 6a. **V1' probe passed (link)** (step 2.0.4, T4.11.7; the 2026-11-18 V1 probe was FAIL): the PASS output, the
-   run link and the U2 and U3 positive controls are in `docs/platform-facts.md` "Main protection". Without the V1'
-   PASS, `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` stay unset.
+   run link and the U2 and U3 positive controls are in `docs/platform-facts.md` "Main protection". Without the
+   V1'' PASS (ADR 0011), `MORNING_NOTE_SEND` stays unset. The probe no longer gates `MAIN_PR_BASELINE`: the cutover PR
+   sets it (item 7; ADR 0011 Amendment (c) item 6).
    And `github-pages` deploys from `main` only (step 2.0.5).
-7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only).** Set by the team the day
-   the V1' probe passes (not at note go-live), after 2.0.5 and the gate's pull request merged; at note go-live this
-   item is only the check in 7.3. It is in `.github/workflows/daily-update.yml`, the `env:` of the `gate` job's step
-   "Check main's history and the records-data head". **ADR 0011 Amendment (c) replaces this timing:** the cutover PR
-   pins it to its own base sha (checked with the 4.7.1 window listing pasted into that PR), so there is no phase 0
-   on `main`; an empty value on `main` is a gate refusal. Before the cutover it is empty. Set to a commit that is not a 40-hex sha on `main`'s first-parent line, the gate fails every
-   run. The gate checks every change outside `data/` after the baseline; the baseline stands for "a person checked
-   everything up to here".
+7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only; ADR 0011 Amendment (c)).**
+   Set by the cutover PR of ADR 0011 (not by a separate PR, and not gated by the V1'' probe, which gates only
+   `MORNING_NOTE_SEND`). Its value is the `main` sha the `records-data` seed is cut from, which is also the PR's base.
+   `scripts/cutover-data-off-main.ps1 -Plan` prints it as `BASELINE <sha>`, together with the 4.7.1 listing below,
+   which is pasted into the cutover PR. Brian's C1 "yes" covers it (hard stop 1). At note go-live this item is only
+   the check in 7.3. It is in `.github/workflows/daily-update.yml`, the `env:` of the `gate` job's step "Check main's
+   history and the records-data head". After the cutover, an empty value
+   on `main` is a gate refusal, not phase 0. Before the cutover it is empty: the old workflow's phase 0 checks
+   nothing and passes with `verified=false`, so the note job never runs. Set to a commit that is not a 40-hex sha on
+   `main`'s first-parent line, the gate fails every run. The gate checks every commit after the baseline; the
+   baseline stands for "a person checked everything up to here". The cutover script refuses unless `origin/main`
+   still equals the pin and the 4.7.1 listing passes (step 1), and unless the squash's one parent is the pin (step
+   5). The window start is pinned in the script as `WINDOW_START` (4c5cd910, PR #31: `main` when ruleset 27502319 was
+   created; reasoning in `docs/tasks/data-off-main.md` D3).
    1. `git fetch origin main`, then
       `git log --first-parent --format='%h %an %s' origin/main -- . ':(exclude)data/'` and read it: each
       change outside `data/` was meant (the earlier ones were merged without pull requests). `%an` is the commit's
@@ -372,7 +379,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       `R2 was off; main was <sha>`). If 2.0.1 needed more than one run, the window starts at `main`'s sha before
       the **first** run (that run's `Main before the ruleset: <sha>`), not at a later run's
       (main-protect/window-start-gap). If 2.0.1's first run said `R2 already on`, the start is unknown: stop, the
-      architect picks the window. Paste the whole output into the baseline PR:
+      architect picks the window. Paste the whole output into the baseline PR (the cutover PR; D3 `-Plan` prints it):
       ```bash
       bash -s "<R2-on sha>" <<'WINDOW'
       set -euo pipefail
@@ -413,15 +420,15 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       **Otherwise it stops on any `Bot`** (a workflow merged code: treat it as an incident, `MAIN_PR_BASELINE` stays empty), on `none` (no
       merged PR, which R1 should have made impossible), on any failed read, and on N = 0: a person reads why before
       anything else. Then `git rev-parse origin/main` prints the baseline sha.
-   2. A PR that changes only `MAIN_PR_BASELINE: ""` to `MAIN_PR_BASELINE: "<that sha>"` (and makes
-      `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha), reviewed, merged with
-      `scripts/merge-reviewed.ps1` (2.0.3). That PR comes after the baseline, so the gate checks it too. The same
-      PR makes an empty baseline on `main` a refusal instead of phase 0 (main-protect L-1: otherwise a later PR
-      resetting it to `""` reopens phase 0 silently); the exact change and tests are in `docs/tasks/morning-note.md`
-      T4.10.8.
-   3. Check (the day it merges, and again before setting `MORNING_NOTE_SEND`): the next Daily update run's `gate`
-      job logs "Every change outside data/ on main after <baseline> was merged by a person, reviewed at its head:
-      <n> commit(s)." and `update`, `push` and `deploy` are green. Link that run.
+   2. The cutover PR (ADR 0011) carries `MAIN_PR_BASELINE: "<that sha>"` (and makes
+      `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha). It is reviewed and merged by D3 step 5
+      with `scripts/merge-reviewed.ps1` (2.0.3). Its squash is the first commit after the baseline, so the gate
+      checks it too. The same PR makes an empty baseline on `main` a refusal instead of phase 0 (main-protect L-1:
+      otherwise a later PR resetting it to `""` would reopen phase 0 silently). The exact change and tests are in
+      `docs/tasks/data-off-main.md` B2 and D3.
+   3. Check (D3 steps 7 and 8 check it on the cutover day; check again before setting `MORNING_NOTE_SEND`): a Daily
+      update run's `gate` job logs "Every commit on main after <baseline> was merged by a person, reviewed at its
+      head: <n> commit(s)." (n = 1 on the cutover day), and `update`, `push` and `deploy` are green. Link that run.
    Never move the baseline later except by a reviewed PR, after a person has checked every commit it skips.
 
 ## 5. Go-live: every confirmed subscriber (Brian; hard stop 1)

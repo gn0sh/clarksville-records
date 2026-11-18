@@ -205,7 +205,7 @@ Done when a fresh clone with `fetch-data` passes the full suite.
 
 ## D3: cutover script `scripts/cutover-data-off-main.{sh,ps1}` (Operator's order)
 Brian runs it from his PC (U3-0 = no). `main` is protected before the cutover merge (F5).
-1. Refuse within 08:00-10:30 UTC, while a run is active, or while `MORNING_NOTE_SEND` is set (drift). A refused
+1. Refuse within 05:00-10:30 UTC (D3 review: steps 7 and 8 must not meet the 09:07 cron), while a run is active, or while `MORNING_NOTE_SEND` is set (drift). A refused
    or failed read of `actions/variables` counts as set. Also refuse unless `origin/main` equals the PR's pinned
    `MAIN_PR_BASELINE` (Amendment (c)), and the runbook 4.7.1 window listing, from the pinned window start
    to that sha, passes. A refused read, an empty or non-ancestor start, a `Bot` that isn't a known exception, or
@@ -243,10 +243,10 @@ where the tests that read collector output take it from the `data/` folder on di
 Built (devops-engineer, 2026-11-18, branch `claude/data-off-main-d3`; tests `tests/test_cutover_data_off_main.py`).
 Choices the reviewers should check:
 - Step 1 already builds and checks the seed and compares the pin, so a bad seed stops with nothing changed; step 3
-  rebuilds it if `main` moved after step 1, and stops there. A moved input is left out only when the cutover head
+  stops if `main` moved off the pinned baseline after step 1 (Amendment (c)). A moved input is left out only when the cutover head
   has its `config/` copy as the same blob; otherwise it stays in and the I-in guard refuses it (no silent drop).
 - Brian runs it from a checkout of the cutover PR at the reviewed sha (the python checks are then reviewed code).
-  `--plan` (read-only, no gh) prints `SEED DIGEST` for the PR's pin: run it after the day's run, cut over the same day.
+  `--plan` (gh reads only) prints `SEED DIGEST` and `BASELINE` for the PR's pins: run it after the day's run, cut over the same day.
 - `--apps claude|none` (Amendment (b)): Brian reads https://github.com/settings/installations first; any other
   answer is refused before anything changes, and it is passed to `protect-main`. His PC needs Python 3.10+ with
   `requirements.txt`.
@@ -260,13 +260,40 @@ Choices the reviewers should check:
 - Step 4 runs `protect-main --pre-cutover --apps` (`-PreCutover -Apps`); after the merge, step 5 runs a plain
   `protect-main --check --apps` (no writes, main's new workflow), which must print OK before the workflow is re-enabled.
 - Contract with B4: the site's `build-info.json` names `D` as `data_sha` (`build_info_data_sha`).
-- **Change required by ADR 0011 Amendment (c):** `--plan` prints `BASELINE <sha>` (the `main` sha the seed is cut
-  from) beside `SEED DIGEST`, plus the 4.7.1 listing for the PR. The script gets a pinned window-start constant
-  (empty = step 1 refuses), and steps 1, 5, 7, 8 and the rollback change as written above. Port the 4.7.1 block
-  into both `.sh` and `.ps1`. Tests: step 1 refuses when `main` differs from the pin, when the start is empty, when
-  a read is refused, and on an unknown `Bot`. Step 5 refuses when the squash parent differs from the pin. Step 7
-  refuses an unverified gate. Rollback after the merge reaches R2 only when R's workflow has an empty baseline.
-  C1 card: "This also sets `MAIN_PR_BASELINE`."
+- **ADR 0011 Amendment (c), done (devops-engineer, 2026-11-18).** `--plan` prints `BASELINE <sha>` beside `SEED
+  DIGEST`, says whether the head pins both and contains `main`, and prints the 4.7.1 listing to paste into the PR
+  (gh reads only; it exits 1 on a stale pin). Step 1 refuses unless the PR's one 40-hex `MAIN_PR_BASELINE` equals
+  `origin/main` and the 4.7.1 block (ported into both scripts, same jq filters) passes from `WINDOW_START`. Step 3
+  and step 5 stop if `main` moved off the pin (no seed rebuild any more). Step 5 checks that the squash has one
+  parent, the pin. Steps 7 and 8 read the `gate` job's log and need B2's line "Every commit on main after <pin>
+  was merged by a person, reviewed at its head: 1 commit(s)." with the job `success`. Step 8 also needs the deploy
+  to succeed. Contract with B2: that line's text and the job name `gate` (`gate_verified`).
+- **Window start `WINDOW_START=4c5cd91022b74f5b7ad68ec94cdb863fcc444acd` (PR #31).** No `R2 first on` or `Main
+  before the ruleset` line was ever recorded (platform facts, status ledger). Ruleset 27502319, the first R1, was
+  created 2026-11-17T22:21:09Z (`gh api repos/gn0sh/clarksville-records/rulesets/27502319`, `created_at`). On
+  `main`'s first-parent line, 4c5cd910 (#31) merged at 16:49:13Z, and the next commit, b5a3638d (#32), merged at
+  00:02:13Z on Nov 18 (`gh api pulls/31`, `pulls/32`). So `main` was 4c5cd910 for the whole time S1 could have read
+  it before writing R1, and anything after R1 is in the window. "R2 back ON 11:22 AM CT Nov 18" (status) was R2
+  being turned on again after the V1' probe. Starting there would be a later start and would leave out #40 and #49,
+  the two known bot merges, so it was not used. Check run 2026-11-18 (team session, the runbook 4.7.1 block from
+  4c5cd910 to `origin/main` 60167e4c): `checked 23 commits`, every line `User` apart from the two `KNOWN EXCEPTION`
+  lines (#40, #49). Changing the start needs a reviewed PR.
+- **Review of e05c5242 (REQUEST CHANGES), fixed in the same round:**
+  - main-protect/r2-on-without-codeowners: step 1 refuses a head that doesn't contain `main`
+    (`merge-base --is-ancestor`), and also a `main` without CODEOWNERS or one empty baseline. The rollback now picks
+    its path by whether `--cutover-merge` is on `main`, never by `data/`. Each path refuses at entry unless the commit
+    R2 will come on over tracks `data/` and has CODEOWNERS and one empty `MAIN_PR_BASELINE`: `main` for the early
+    path, the merge's parent for R's opening (f4-wrong-workflow, call 1), R's head for `--merge` (call 2).
+  - rollback-r2-unchecked-codeowners: after R merges, `main`'s workflow and CODEOWNERS must equal R's blobs, with
+    one empty baseline. Otherwise it stops with R2 off. The restore tree also drops anything `main` still tracks
+    under `data/` before adding `records-data`'s copy.
+  - undo-line-after-merge: after the merge call, any stop fetches `main`, and if it moved, the undo line names
+    `--cutover-merge <new main>`.
+  - window-vs-duration: step 1 refuses 05:00-10:30 UTC. ps1-case: the `.gitignore` filter uses `-cnotmatch`.
+  - Checked against the I-person consumers. Rollback is the only consumer that changes. R2 still comes on only
+    after both variables are confirmed unset, and only over a commit with CODEOWNERS and an empty baseline (F4).
+    The squash-parent check keeps the gate's first count at 1. `protect-main`, `merge-reviewed`, the gate and J2
+    are unchanged.
 
 ## S1: security review
 Fresh review of the B1-D3 milestone (B1b included) at one sha, against I-main'', I-prov, I-pub, I-in, T1-T8 and
@@ -275,17 +302,21 @@ Done when it approves, or its findings are fixed and re-reviewed by delta.
 
 ## C1: cutover session (hard stop 1: a production change)
 Brian runs D3 from his PC (U3-0 = no). His card: "**Cut over Daylight's data to records-data today? yes / no**",
-with the exact PowerShell command, the time window (outside 08:00-10:30 UTC) and what he should see (`OK` from
-`protect-main`, `bypass` from the merge, then each step green). Default if no answer: wait; nothing changes.
+plus "This also sets `MAIN_PR_BASELINE`" (ADR 0011 Amendment (c): the cutover PR pins it, so his yes covers the
+baseline, hard stop 1). It gives the exact PowerShell command, the time window (outside 05:00-10:30 UTC, after
+`-Plan` on the same day's `main`) and what he should see (`OK` from `protect-main`, `bypass` from the merge, then
+each step green). Default if no answer: wait; nothing changes.
 Done when steps 1-8 are green, and `docs/status.md` records the shas, the run ids and the first attested `D`.
 
 ## V1: V1'' probe
 Rewrite the probe per the note's section 4 (targets W, N, D0; gn0sh-opened and bot-opened; `NOT-TRIED` lines;
 direct push; scratch-branch environment refusal). F2: creating a tag named `main` is refused (R-T), and a run at
 probe tag `v1pp-probe` is refused both environments. Run it, then remove its guard refusal for that one run only.
-PASS gates `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND`. Drift: Brian re-runs `protect-main` from his PC right before
-`MAIN_PR_BASELINE` is set, and it must print OK.
-Done when the PASS output and that OK are recorded in platform facts.
+PASS gates `MORNING_NOTE_SEND` only. Since ADR 0011 Amendment (c) item 6, the cutover PR sets `MAIN_PR_BASELINE`,
+and V1'' no longer gates it. A FAIL (a bot merge into `main`) then makes the gate refuse every run until a person
+moves the baseline past that commit. The drift rule for the baseline is met inside D3: `protect-main` prints OK in
+step 4, just before the merge sets the baseline, and a plain `--check` prints OK just after it.
+Done when the PASS output is recorded in platform facts.
 
 ## W1: docs
 - `docs/architecture/main-protect-invariant.md`: I-main'', I-prov, I-pub, I-in, the consumer table from the note.
@@ -303,4 +334,4 @@ Done when a review confirms that each doc says what the note says, no stronger.
 ## Suggested order
 1. Done: N1+N2, U3-0 (no). Now: U3-1, then U3-2 (Brian).
 2. On PASS: B1 (done); now B1b, B2+B3 (one branch) and D1, D2 in parallel; then B4; then D3; then S1.
-3. Then C1 (a day, outside 08:00-10:30 UTC), V1, W1.
+3. Then C1 (a day, outside 05:00-10:30 UTC), V1, W1.

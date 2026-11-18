@@ -29,7 +29,7 @@ pytestmark = pytest.mark.skipif(shutil.which("jq") is None, reason="jq is needed
 
 # ---------------------------------------------------------------------------------------------- stubs
 _GH = r'''#!/usr/bin/env python3
-import hashlib, json, os, subprocess, sys
+import hashlib, json, os, re, subprocess, sys
 a = sys.argv[1:]
 statef = os.environ["GH_STATE"]
 st = json.load(open(statef))
@@ -93,7 +93,18 @@ if path == W + "/dispatches" and method == "POST":
     rid = max([r["id"] for r in st["runs"]] + [100]) + 1
     st["runs"].append({"id": rid, "status": "completed", "conclusion": "success", "event": "workflow_dispatch",
                        "collect": collect})
-    st.setdefault("jobs", {})[str(rid)] = [{"name": "deploy", "conclusion": st.get("deploy", "success")}]
+    st.setdefault("jobs", {})[str(rid)] = [{"name": "gate", "id": rid * 10, "conclusion": st.get("gate", "success")},
+                                           {"name": "deploy", "conclusion": st.get("deploy", "success")}]
+    # B2's gate on main: with a pinned baseline, it logs the count of first-parent commits after it
+    wf = git("show", "refs/heads/main:.github/workflows/daily-update.yml")
+    mb = re.search(r'MAIN_PR_BASELINE:\s*"([0-9a-f]{40})"', wf)
+    if mb:
+        n = st.get("gate_n") or len(git("rev-list", "--first-parent", mb.group(1) + "..refs/heads/main").split())
+        log_text = ("2026-11-19T00:00:01.0Z Every commit on main after %s was merged by a person, reviewed at its "
+                    "head: %d commit(s).\n" % (mb.group(1), n))
+    else:
+        log_text = "2026-11-19T00:00:01.0Z ::warning::MAIN_PR_BASELINE is not set\n"
+    st.setdefault("logs", {})[str(rid * 10)] = st.get("gate_log", log_text)
     if collect == "true" and st.get("collect_moves", True):
         head = rd_head()
         idx = os.environ["GH_STATE"] + ".idx"
@@ -112,6 +123,19 @@ if path == W + "/dispatches" and method == "POST":
             st.setdefault("attested", []).append(hashlib.sha256(listing).hexdigest())
     st["build_info"] = rd_head() if st.get("deploy", "success") == "success" else st.get("build_info", "")
     save(); sys.exit(0)
+if path.startswith(R + "/actions/jobs/") and path.endswith("/logs"):
+    sys.stdout.write(st["logs"][path.split("/")[-2]]); sys.exit(0)
+if path.startswith(R + "/commits/") and path.endswith("/pulls"):    # the 4.7.1 window: one merged PR per commit
+    c = path.split("/")[-2]
+    if c in st.get("no_pr", []):
+        out([])
+    n = st.setdefault("pr_map", {}).get(c) or str(1000 + len(st["pr_map"]))
+    st["pr_map"][c] = n; save()
+    out([{"number": int(n), "merged_at": "2026-11-18T00:00:00Z", "base": {"ref": "main"}, "merge_commit_sha": c},
+         {"number": 7, "merged_at": None, "base": {"ref": "main"}, "merge_commit_sha": c}])
+if path.startswith(R + "/pulls/") and path[len(R + "/pulls/"):] in st.get("pr_map", {}).values():
+    c = [k for k, v in st["pr_map"].items() if v == path[len(R + "/pulls/"):]][0]
+    out({"number": int(path.rsplit("/", 1)[-1]), "merged_by": {"type": "Bot" if c in st.get("bot", []) else "User"}})
 if path.startswith(R + "/actions/runs/"):
     rest = path[len(R + "/actions/runs/"):]
     rid = rest.split("/")[0]
@@ -122,6 +146,8 @@ if path == R + "/pulls/%s" % st["pr"]["number"]:
     out(st["pr"])
 if path == R + "/pulls" and method == "POST":
     st["opened"] = [x for x in a if x.startswith(("head=", "base="))]; save()
+    head = [x for x in a if x.startswith("head=")][0].split("=", 1)[1]
+    git("update-ref", "refs/pull/99/head", git("rev-parse", "refs/heads/" + head))
     out({"number": 99})
 if path == R + "/rulesets?per_page=100":
     out([{"id": 27502319, "name": "main: pull request required"}])
@@ -160,10 +186,15 @@ echo "  NOT OK: R2 is on"; echo "NOT OK: 1 problem(s) above."; exit 1
 _MERGE = r'''#!/usr/bin/env bash
 python3 -c 'import json,os,sys; open(os.environ["GH_CALLS"],"a").write(json.dumps({"method":"SCRIPT","path":"merge-reviewed","argv":sys.argv[1:]})+"\n")' "$@"
 g="git --git-dir $STUB_ORIGIN"
-m=$($g -c user.name=gn0sh -c user.email=g@x commit-tree "$2^{tree}" -p refs/heads/main -m "squash #$1")
+if [ -n "${STUB_MR_MOVE:-}" ]; then   # another commit lands on main just before the squash
+  x=$($g -c user.name=g -c user.email=g@x commit-tree "refs/heads/main^{tree}" -p refs/heads/main -m "late")
+  $g update-ref refs/heads/main "$x"
+fi
+m=$($g -c user.name=gn0sh -c user.email=g@x commit-tree "${STUB_MR_TREE:-$2}^{tree}" -p refs/heads/main -m "squash #$1")
 $g update-ref refs/heads/main "$m"
 echo "Merged pull request #$1 (reviewed at $2) as $m."
 if [ "${STUB_MR:-bypass}" = bypass ]; then echo "Rule suite 9 for $m: bypass"; exit 0; fi
+if [ "${STUB_MR}" = garbled ]; then echo "gh: HTTP 502"; exit 1; fi
 echo "Rule suite 9 for $m: pass"; echo "The merge was not a bypass (pass): tell the team."; exit 2
 '''
 
@@ -216,7 +247,8 @@ def _seed_listing(work, rev, moved):
 class Fx:
     """origin (bare), and a checkout at the cutover PR's head P (child of main M)."""
 
-    def __init__(self, tmp_path, main_extra=None, pr_extra=None, pin=None, skip_config=()):
+    def __init__(self, tmp_path, main_extra=None, pr_extra=None, pin=None, skip_config=(), baseline=None,
+                 window=None, pr_off_main=False):
         self.tmp = tmp_path
         self.origin = tmp_path / "origin.git"
         self.work = tmp_path / "work"
@@ -227,10 +259,17 @@ class Fx:
         _git(tmp_path, "init", "-q", "-b", "main", str(self.work), env=self.genv)
         w = self.work
         g = lambda *a, **k: _git(w, *a, env=self.genv, **k)
+        # the window start S (WINDOW_START), then main M, the commit the seed is cut from and the PR's baseline
+        (w / "README").write_text("start\n")
+        g("add", "README"); g("commit", "-q", "-m", "start")
+        self.start = g("rev-parse", "HEAD").decode().strip()
         (w / "collector").symlink_to(ROOT / "collector")
         (w / "tools").symlink_to(ROOT / "tools")
         (w / "scripts").mkdir()
-        shutil.copy(SH, w / "scripts" / SH.name)
+        text = SH.read_text(encoding="utf-8")
+        assert re.search(r"(?m)^WINDOW_START=[0-9a-f]{40}$", text)
+        (w / "scripts" / SH.name).write_text(
+            re.sub(r"(?m)^WINDOW_START=.*$", "WINDOW_START=" + (self.start if window is None else window), text))
         shutil.copy(ROOT / "scripts" / "main-ruleset-r1p.json", w / "scripts")
         for name, text in (("protect-main.sh", _PROTECT), ("merge-reviewed.sh", _MERGE)):
             (w / "scripts" / name).write_text(text)
@@ -246,11 +285,15 @@ class Fx:
         self.digest = hashlib.sha256(listing).hexdigest()
         g("rm", "-q", "-r", "--cached", "data")
         shutil.rmtree(w / "data")
-        new_wf = OLD_WF + '      RECORDS_DATA_SEED_DIGEST: "%s"   # ADR 0011\n' % (pin or self.digest)
+        self.baseline = self.main if baseline is None else baseline
+        new_wf = (OLD_WF.replace('MAIN_PR_BASELINE: ""', 'MAIN_PR_BASELINE: "%s"' % self.baseline)
+                  + '      RECORDS_DATA_SEED_DIGEST: "%s"   # ADR 0011\n' % (pin or self.digest))
         _write(w, {**cfg, ".github/workflows/daily-update.yml": new_wf, ".github/CODEOWNERS": None,
                    ".gitignore": "build/\ndata/\n", **(pr_extra or {})})
         g("add", "-A"); g("commit", "-q", "-m", "cutover PR")
         self.head = g("rev-parse", "HEAD").decode().strip()
+        if pr_off_main:   # the same tree, but based on S: the head does not contain main
+            self.head = g("commit-tree", self.head + "^{tree}", "-p", self.start, "-m", "cutover PR").decode().strip()
         g("remote", "add", "origin", str(self.origin))
         g("push", "-q", "origin", f"{self.main}:refs/heads/main", f"{self.head}:refs/pull/60/head")
         g("checkout", "-q", "--detach", self.head)
@@ -363,7 +406,16 @@ def test_the_left_out_inputs_are_exactly_the_moved_ones(tmp_path):
     assert sorted(p for _, p in left) == sorted(MOVED)
     assert all(c == "config/" + p[5:] for c, p in left)
     assert f"SEED DIGEST {fx.digest}" in r.stdout and "The cutover head pins this digest." in r.stdout
-    assert fx.calls() == [] and fx.rd() == ""          # --plan: no gh call, no push
+    assert f"BASELINE {fx.main}\n" in r.stdout and "The cutover head pins this baseline." in r.stdout
+    assert re.search(rf"^{fx.main} PR #\d+ merged_by.type=User$", r.stdout, re.M) and "checked 1 commits" in r.stdout
+    assert _writes(fx.calls()) == [] and fx.rd() == ""          # --plan: gh reads only, no push
+
+
+def test_plan_reports_a_stale_baseline_pin(tmp_path):
+    fx = Fx(tmp_path, baseline="1" * 40)
+    r = fx.run(["--plan"])
+    assert r.returncode == 1 and f"BASELINE {fx.main}" in r.stdout and "update MAIN_PR_BASELINE" in r.stdout
+    assert "checked 1 commits" in r.stdout and _writes(fx.calls()) == []
 
 
 def test_plan_reports_a_stale_pin(tmp_path):
@@ -416,13 +468,14 @@ def test_step1_refuses_a_cutover_head_that_does_not_ignore_data(tmp_path):
 # ---------------------------------------------------------------------------------------------- step 1 refusals
 
 
-@pytest.mark.parametrize("hm", ["0800", "0907", "1030"])
+@pytest.mark.parametrize("hm", ["0500", "0759", "0907", "1030"])
 def test_step1_refuses_in_the_daily_window(tmp_path, hm):
+    """data-off-main/window-vs-duration: from 05:00, so steps 7 and 8 can't meet the 09:07 cron."""
     fx = Fx(tmp_path)
-    _refused(fx.cut(hm=hm), fx, "inside the daily run's window (08:00-10:30)")
+    _refused(fx.cut(hm=hm), fx, "inside the daily run's window (05:00-10:30")
 
 
-@pytest.mark.parametrize("hm", ["0759", "1031"])
+@pytest.mark.parametrize("hm", ["0459", "1031"])
 def test_step1_allows_outside_the_window(tmp_path, hm):
     fx = Fx(tmp_path)
     assert fx.cut(hm=hm).returncode == 0
@@ -517,6 +570,74 @@ def test_step1_refuses_an_existing_records_data_that_is_not_the_seed(tmp_path):
     assert r.returncode == 1 and "records-data already exists at" in r.stdout and _writes(fx.calls()) == []
 
 
+# ---------------------------------------------------------------------------------------------- step 1: baseline and window
+
+
+def test_step1_prints_the_window_listing_for_the_record(tmp_path):
+    fx = Fx(tmp_path)
+    r = fx.cut()
+    assert r.returncode == 0, r.stdout + r.stderr
+    w = r.stdout[r.stdout.index("Window (runbook 4.7.1)"):r.stdout.index("Step 1 OK")]
+    assert f"from {fx.start} to {fx.main}:" in w
+    assert re.search(rf"^{fx.main} PR #\d+ merged_by.type=User$", w, re.M) and "checked 1 commits" in w
+    assert w.index("checked 1 commits") < r.stdout.index("Step 1 OK")
+
+
+def test_the_shipped_window_start_is_mains_sha_before_the_ruleset():
+    """4c5cd910 (PR #31): main when ruleset 27502319 was created (2026-11-17T22:21:09Z); see the D3 notes."""
+    start = "4c5cd91022b74f5b7ad68ec94cdb863fcc444acd"
+    assert re.search(rf"(?m)^WINDOW_START={start}$", SH.read_text(encoding="utf-8"))
+    assert f"$WINDOW_START = '{start}'" in PS1.read_text(encoding="utf-8")
+    for s in ("3ef440aea9e5ce7374cdb789a05d646d74a91ac3", "2b207042a53e4d11dadfee978b029392df63c376",
+              ".github/workflows/v1-canary.yml", "KNOWN EXCEPTION: ", "checked ", "merged_by.type=",
+              "--is-ancestor", ":(exclude)data/", "--first-parent"):
+        assert s in SH.read_text(encoding="utf-8") and s in PS1.read_text(encoding="utf-8"), s
+
+
+@pytest.mark.parametrize("baseline,text", [
+    ("1" * 40, "but the cutover PR pins MAIN_PR_BASELINE " + "1" * 40),
+    ("", "pins no single 40-hex MAIN_PR_BASELINE"),
+    ("main~", "pins no single 40-hex MAIN_PR_BASELINE"),
+], ids=["other-sha", "empty", "not-hex"])
+def test_step1_refuses_unless_main_equals_the_pinned_baseline(tmp_path, baseline, text):
+    fx = Fx(tmp_path, baseline=baseline)
+    _refused(fx.cut(), fx, text)
+
+
+def test_step1_refuses_a_pr_head_that_does_not_contain_main(tmp_path):
+    """main-protect/r2-on-without-codeowners fix (a): the squash must not leave a later main's data/ tracked."""
+    fx = Fx(tmp_path, pr_off_main=True)
+    _refused(fx.cut(), fx, f"does not contain main {fx.main}")
+
+
+@pytest.mark.parametrize("window,text", [
+    ("", "the window start '' is not a 40-hex sha"),
+    ("f" * 40, "is not an ancestor of main"),
+    (None, "no commit in the window"),             # start = main: N = 0
+], ids=["empty", "not-ancestor", "n0"])
+def test_step1_refuses_a_bad_window_start(tmp_path, window, text):
+    fx = Fx(tmp_path, window=window if window is not None else "MAIN")
+    if window is None:   # main's sha is known only after the fixture's commit: edit the copy, hide it from status
+        p = fx.work / "scripts" / SH.name
+        p.write_text(p.read_text().replace("WINDOW_START=MAIN", "WINDOW_START=" + fx.main))
+        _git(fx.work, "update-index", "--assume-unchanged", "scripts/" + SH.name, env=fx.genv)
+    _refused(fx.cut(), fx, text)
+
+
+@pytest.mark.parametrize("how,text", [
+    ("bot", "was not merged by a person (merged_by.type=Bot)"),
+    ("no_pr", "was not merged by a person (merged_by.type=none)"),
+    ("refuse", "could not read the pull requests of"),
+], ids=["unknown-bot", "no-pr", "read-refused"])
+def test_step1_window_stops_on_a_bot_no_pr_or_a_refused_read(tmp_path, how, text):
+    fx = Fx(tmp_path)
+    if how == "refuse":
+        fx.state["refuse"] = [R + "/commits/" + fx.main + "/pulls"]
+    else:
+        fx.state[how] = [fx.main]
+    _refused(fx.cut(), fx, text)
+
+
 # ---------------------------------------------------------------------------------------------- step 3 stops (I-in, phones)
 
 BAD_SEEDS = {
@@ -535,12 +656,10 @@ def test_the_seed_checks_stop_before_anything_changes(tmp_path, case):
     _refused(fx.cut(), fx, text)
 
 
-@pytest.mark.parametrize("case", sorted(BAD_SEEDS))
-def test_step3_stops_on_a_seed_that_changed_after_step1(tmp_path, case):
-    """main gains the bad entry between step 1 and step 3: step 3 rebuilds the seed, stops, pushes nothing."""
-    extra, skip, text = BAD_SEEDS[case]
-    if skip:
-        pytest.skip("a config/ copy missing from the PR cannot appear after step 1")
+@pytest.mark.parametrize("extra", [{"data/late.json": "{}\n"}, BAD_SEEDS["transcripts"][0]], ids=["data", "transcripts"])
+def test_step3_stops_when_main_moved_after_step1(tmp_path, extra):
+    """main gains a commit between step 1 and step 3: it is off the PR's MAIN_PR_BASELINE, so step 3 stops, pushes
+    nothing (Amendment (c): the squash's parent must be the pinned baseline)."""
     fx = Fx(tmp_path)
     late = tmp_path / "late"
     _git(tmp_path, "clone", "-q", "-b", "main", str(fx.origin), str(late), env=fx.genv)
@@ -548,8 +667,8 @@ def test_step3_stops_on_a_seed_that_changed_after_step1(tmp_path, case):
     fx.state["on_disable"] = [f"cd {late} && git add -A && git -c user.name=g -c user.email=g@x commit -q -m late "
                               f"&& git push -q origin HEAD:main"]
     r = fx.cut()
-    assert r.returncode == 2 and "STOPPED at step 3" in r.stdout and text in r.stdout, r.stdout + r.stderr
-    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback" in r.stdout
+    assert r.returncode == 2 and "STOPPED at step 3" in r.stdout and "off the PR's MAIN_PR_BASELINE " + fx.main in r.stdout
+    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback\n" in r.stdout
     assert fx.rd() == "" and [c["path"] for c in _writes(fx.calls())] == [R + "/actions/workflows/daily-update.yml/disable"]
 
 
@@ -573,6 +692,35 @@ def test_step5_stops_unless_the_merge_is_a_bypass(tmp_path):
     r = fx.cut(STUB_MR="pass")
     assert r.returncode == 2 and "STOPPED at step 5" in r.stdout and "bypass" in r.stdout
     assert fx.state["wf_state"] == "disabled_manually"
+    # data-off-main/undo-line-after-merge: main moved in the call, so the undo names the new main
+    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge " + fx.og("rev-parse", "refs/heads/main") in r.stdout
+
+
+def test_step5_undo_names_the_new_main_when_the_merge_output_is_not_understood(tmp_path):
+    fx = Fx(tmp_path)
+    r = fx.cut(STUB_MR="garbled")
+    assert r.returncode == 2 and "STOPPED at step 5" in r.stdout
+    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge " + fx.og("rev-parse", "refs/heads/main") in r.stdout
+
+
+def test_step5_stops_when_the_squash_parent_is_not_the_pinned_baseline(tmp_path):
+    fx = Fx(tmp_path)
+    r = fx.cut(STUB_MR_MOVE="1")
+    m = fx.og("rev-parse", "refs/heads/main")
+    assert r.returncode == 2 and "STOPPED at step 5" in r.stdout and f"not the pinned MAIN_PR_BASELINE {fx.main}" in r.stdout
+    assert f"Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge {m}" in r.stdout
+    assert fx.state["wf_state"] == "disabled_manually"
+
+
+@pytest.mark.parametrize("over", [{"gate_log": "verified=false\n"}, {"gate_n": 2}, {"gate": "failure"}],
+                         ids=["unverified", "two-commits", "gate-failed"])
+def test_step7_stops_unless_the_gate_verified_exactly_one_commit(tmp_path, over):
+    fx = Fx(tmp_path)
+    fx.state.update(over)
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 7" in r.stdout and "gate did not verify exactly the cutover commit" in r.stdout
+    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge " in r.stdout
+    assert [x["collect"] for x in fx.state["runs"] if x.get("event") == "workflow_dispatch"] == ["false"]
 
 
 def test_step7_stops_when_the_deploy_did_not_succeed(tmp_path):
@@ -628,19 +776,137 @@ def test_rollback_a_403_on_the_variables_read_counts_as_set(tmp_path):
     assert r.returncode == 1 and "could not be read (counts as set)" in r.stdout and _writes(fx.calls()) == []
 
 
+def _commit_on(fx, ref, files, msg, push_to=None):
+    """A commit on origin's <ref> with <files> written (None deletes); pushed to <push_to> (default: ref). Its sha."""
+    d = fx.tmp / ("c-" + hashlib.sha1((ref + msg).encode()).hexdigest()[:8])
+    _git(fx.tmp, "clone", "-q", str(fx.origin), str(d), env=fx.genv)
+    co = "origin/" + ref[len("refs/heads/"):] if ref.startswith("refs/heads/") else ref
+    _git(d, "checkout", "-q", "--detach", co, env=fx.genv)
+    for rel, text in files.items():
+        p = d / rel
+        if text is None:
+            _git(d, "rm", "-q", "-r", rel, env=fx.genv)
+        else:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(text)
+    _git(d, "add", "-A", "-f", "--", *[r for r, t in files.items() if t is not None], env=fx.genv)
+    _git(d, "commit", "-q", "-m", msg, env=fx.genv)
+    c = _git(d, "rev-parse", "HEAD", env=fx.genv).decode().strip()
+    _git(d, "push", "-q", "-f", "origin", f"HEAD:{push_to or ref}", env=fx.genv)
+    return c
+
+
+SET_WF = OLD_WF.replace('MAIN_PR_BASELINE: ""', 'MAIN_PR_BASELINE: "' + "1" * 40 + '"')
+
+
 def test_rollback_refuses_while_mains_workflow_sets_the_baseline(tmp_path):
+    """Before the cutover merge: main's workflow must hold one empty MAIN_PR_BASELINE (F4), checked at entry."""
+    fx = Fx(tmp_path)
+    _commit_on(fx, "refs/heads/main", {".github/workflows/daily-update.yml": SET_WF}, "baseline", "refs/heads/main")
+    r = fx.run(["--rollback"])
+    assert r.returncode == 1 and "workflow sets MAIN_PR_BASELINE" in r.stdout and _writes(fx.calls()) == []
+
+
+def test_rollback_without_the_merge_sha_refuses_when_main_has_no_codeowners(tmp_path):
+    """main-protect/r2-on-without-codeowners: a squash over a later data commit leaves main tracking data/ with
+    CODEOWNERS gone. The rollback never picks the early path (R2 on) by data/ alone."""
     fx = Fx(tmp_path)
     r = fx.cut()
     assert r.returncode == 0
-    late = tmp_path / "late"
-    _git(tmp_path, "clone", "-q", "-b", "main", str(fx.origin), str(late), env=fx.genv)
-    wf = late / ".github/workflows/daily-update.yml"
-    wf.write_text(wf.read_text().replace('MAIN_PR_BASELINE: ""', 'MAIN_PR_BASELINE: "' + "1" * 40 + '"'))
-    _git(late, "commit", "-q", "-am", "baseline", env=fx.genv)
-    _git(late, "push", "-q", "origin", "HEAD:main", env=fx.genv)
+    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    _commit_on(fx, "refs/heads/main", {"data/late.json": "{}\n"}, "late data", "refs/heads/main")
+    assert fx.og("ls-tree", "--name-only", "refs/heads/main", "--", "data") == "data"
+    fx.state["r2"] = False
     open(tmp_path / "calls", "w").close()
-    r = fx.run(["--rollback"])
-    assert r.returncode == 1 and "main's workflow sets MAIN_PR_BASELINE" in r.stdout and _writes(fx.calls()) == []
+    for extra in ([], ["--cutover-merge", "e" * 40]):              # absent, or not on main
+        r = fx.run(["--rollback", *extra])
+        assert r.returncode == 1 and "has no .github/CODEOWNERS" in r.stdout and "--cutover-merge <sha>" in r.stdout
+        assert _writes(fx.calls()) == [] and fx.state["r2"] is False
+    # with the merge sha it opens the restore PR, whose data/ is records-data's (main's late file replaced)
+    r = fx.run(["--rollback", "--cutover-merge", merge])
+    assert r.returncode == 0 and "ROLLBACK PR #99 opened" in r.stdout, r.stdout + r.stderr
+    c = re.search(r"pushed branch \S+ at ([0-9a-f]{40})", r.stdout).group(1)
+    assert fx.og("rev-parse", c + ":data") == fx.og("rev-parse", fx.rd() + ":data")
+    assert fx.og("show", c + ":.github/CODEOWNERS") == CODEOWNERS.strip() and fx.state["r2"] is False
+
+
+def test_rollback_open_refuses_when_the_commit_before_the_merge_sets_the_baseline(tmp_path):
+    """main-protect/f4-wrong-workflow, call 1: R restores the workflow of the merge's parent, so that one is checked."""
+    fx = Fx(tmp_path)
+    x = _commit_on(fx, "refs/heads/main", {".github/workflows/daily-update.yml": SET_WF}, "set", "refs/heads/main")
+    y = _commit_on(fx, x, {"data": None, ".github/CODEOWNERS": None}, "a cutover-like squash", "refs/heads/main")
+    r = fx.run(["--rollback", "--cutover-merge", y])
+    assert r.returncode == 1 and "the commit before the cutover merge" in r.stdout and "MAIN_PR_BASELINE" in r.stdout
+    assert _writes(fx.calls()) == []
+
+
+@pytest.mark.parametrize("case", ["tracks-data", "has-codeowners"])
+def test_rollback_open_refuses_a_cutover_merge_sha_that_is_not_the_cutover_merge(tmp_path, case):
+    """main-protect/rollback-cutover-merge-unverified: the --cutover-merge sha itself must track no data/ and hold no
+    .github/CODEOWNERS (the cutover squash), not just have a parent that passes."""
+    fx = Fx(tmp_path)
+    if case == "tracks-data":            # before the cutover: a later commit on main whose parent M passes
+        y = _commit_on(fx, "refs/heads/main", {"README": "y\n"}, "later", "refs/heads/main")
+        text = y + " tracks data/: that is not the cutover merge"
+    else:                                # after the cutover: a commit that puts CODEOWNERS back, data/ still off main
+        assert fx.cut().returncode == 0
+        y = _commit_on(fx, "refs/heads/main", {".github/CODEOWNERS": CODEOWNERS}, "codeowners", "refs/heads/main")
+        text = y + " holds .github/CODEOWNERS: that is not the cutover merge"
+    open(tmp_path / "calls", "w").close()
+    r = fx.run(["--rollback", "--cutover-merge", y])
+    assert r.returncode == 1 and text in r.stdout and "Nothing was changed." in r.stdout, r.stdout + r.stderr
+    assert _writes(fx.calls()) == []
+
+
+@pytest.mark.parametrize("hm,minutes", [("0430", 269), ("0459", 240), ("0300", 359), ("1400", 360), ("2330", 360)])
+def test_step8_waits_at_most_until_before_0900_utc(tmp_path, hm, minutes):
+    """data-off-main/window-vs-duration: step 8's wait is capped so it ends before 09:00 UTC (the 09:07 run)."""
+    fx = Fx(tmp_path)
+    r = fx.cut(hm=hm)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert f"Step 8: waiting up to {minutes} minutes, so the wait ends before 09:00 UTC" in r.stdout
+    assert 'fail "run $id did not complete within $w minutes, and the wait ends before 09:00 UTC' in SH.read_text()
+
+
+def _opened_restore(fx):
+    r = fx.cut()
+    assert r.returncode == 0, r.stdout + r.stderr
+    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    fx.state["r2"] = False
+    r = fx.run(["--rollback", "--cutover-merge", merge])
+    assert r.returncode == 0, r.stdout + r.stderr
+    br, c = re.search(r"pushed branch (rollback/data-on-main-\S+) at ([0-9a-f]{40})", r.stdout).groups()
+    open(fx.tmp / "calls", "w").close()
+    return merge, br, c
+
+
+def test_rollback_merge_refuses_a_restore_head_that_sets_the_baseline(tmp_path):
+    """main-protect/f4-wrong-workflow, call 2: R's head is checked before anything changes."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    c2 = _commit_on(fx, c, {".github/workflows/daily-update.yml": SET_WF}, "set", "refs/pull/99/head")
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c2, "--report", "x"])
+    assert r.returncode == 1 and "the restore PR #99 at " + c2 in r.stdout and "MAIN_PR_BASELINE" in r.stdout
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--report", "x"])          # pull/99/head is c2 now
+    assert r.returncode == 1 and "origin's pull/99/head is not " + c in r.stdout and _writes(fx.calls()) == []
+
+
+@pytest.mark.parametrize("files,text", [
+    ({".github/CODEOWNERS": None}, "does not hold the restore PR's .github/CODEOWNERS"),
+    ({".github/workflows/daily-update.yml": SET_WF}, "does not hold the restore PR's .github/workflows/daily-update.yml"),
+], ids=["no-codeowners", "other-workflow"])
+def test_rollback_merge_keeps_r2_off_unless_main_holds_rs_files(tmp_path, files, text):
+    """main-protect/rollback-r2-unchecked-codeowners and Amendment (c) item 7: after R merges, main must hold R's
+    workflow and CODEOWNERS byte for byte (one empty baseline) before R1' or R2 change."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    other = _commit_on(fx, c, files, "drift", "refs/heads/other")
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--report", "x"], STUB_MR_TREE=other)
+    assert r.returncode == 2 and "STOPPED at step 4" in r.stdout and text in r.stdout and "R2 stays off" in r.stdout
+    seq = [x["path"].rsplit("/", 1)[-1] for x in _writes(fx.calls())]
+    assert seq == ["disable", "merge-reviewed"], seq
+    assert fx.state["r2"] is False and fx.state["wf_state"] == "disabled_manually"
 
 
 def test_rollback_before_the_merge_puts_r1_prime_back_and_r2_on(tmp_path):
@@ -664,8 +930,8 @@ def test_rollback_after_the_merge_opens_a_restore_pr_then_merges_it(tmp_path):
     rd = fx.rd()
     fx.state["r2"] = False
     open(tmp_path / "calls", "w").close()
-    r = fx.run(["--rollback"])
-    assert r.returncode == 2 and "--cutover-merge <sha>" in r.stdout
+    r = fx.run(["--rollback"])                      # the merge is on main: never the early path
+    assert r.returncode == 1 and "--cutover-merge <sha>" in r.stdout and _writes(fx.calls()) == []
     r = fx.run(["--rollback", "--cutover-merge", merge])
     assert r.returncode == 0 and "ROLLBACK PR #99 opened" in r.stdout, r.stdout + r.stderr
     br = re.search(r"pushed branch (rollback/data-on-main-\S+) at ([0-9a-f]{40})", r.stdout)
@@ -738,10 +1004,19 @@ def test_ps1_has_the_same_steps_refusals_and_calls():
         assert s in sh, s
     assert "-PreCutover -Apps $a" in ps1 and "-Check -Apps $a" in ps1
     assert 'protect-main.sh" --pre-cutover --apps "$1"' in sh and 'protect-main.sh" --check --apps "$1"' in sh
-    for s in ("[switch]$Rollback", "[switch]$Plan", "[switch]$CheckAttested", "-CutoverMerge", "$hm -ge 800 -and $hm -le 1030",
-              "protect-main.ps1", "merge-reviewed.ps1", "New-Object Text.UTF8Encoding $false"):
+    for s in ("[switch]$Rollback", "[switch]$Plan", "[switch]$CheckAttested", "-CutoverMerge", "$hm -ge 500 -and $hm -le 1030",
+              "protect-main.ps1", "merge-reviewed.ps1", "New-Object Text.UTF8Encoding $false",
+              "-cnotmatch '^/?data/?(\\*\\*?)?\\s*$'"):          # data-off-main/ps1-case
         assert s in ps1, s
-    assert "$((10#$hm)) -ge 800 ] && [ $((10#$hm)) -le 1030" in sh
+    assert "$((10#$hm)) -ge 500 ] && [ $((10#$hm)) -le 1030" in sh
+    # Amendment (c) and the D3 review fixes, the same in both
+    for s in ("BASELINE ", "pinned MAIN_PR_BASELINE", "R2 stays off", "--is-ancestor",
+              "Every commit on main after ", "was merged by a person, reviewed at its head: ", "/logs",
+              "refs/cutover/rollback", "--force-remove", "byte for byte",
+              "Step 8: waiting up to ", "the wait ends before 09:00 UTC so it can't meet the 09:07 daily run",
+              "(540 - (", "% 1440", "tracks data/: that is not the cutover merge",
+              "holds .github/CODEOWNERS: that is not the cutover merge"):
+        assert s in ps1 and s in sh, s
     # every refusal of the .sh is in the .ps1 (the fixed text before any variable)
     for msg in set(re.findall(r'refuse "([^"$]{16,})', sh)) - {"could not read the UTC time"}:   # Get-Date can't fail
         assert msg.split("'")[0].split("(")[0].split(":")[0].strip() in ps1, msg
