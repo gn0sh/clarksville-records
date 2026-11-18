@@ -5,7 +5,6 @@
    the week strip and one day at a time; without it the page is a list of the days that have records (empty days are
    left out by CSS). Votes come from views._roll_call_block, so a held roll call shows "Not confirmed" and no value.
    Agenda and archive text carries data-item-title: the document's words, never linked or reworded. #}
-{% block head %}<script src="{{ root }}static/js-flag.js"></script>{% endblock %}
 {% macro card(c) %}
 <article class="day-card day-card-{{ c.kind }}" id="{{ c.id }}" data-body="{{ c.bkey }}" aria-labelledby="{{ c.id }}-h">
   <header class="day-card-hd">
