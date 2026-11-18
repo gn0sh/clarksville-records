@@ -51,7 +51,7 @@ dropping the gate), which is the line the morning note's key depends on.
    - positive controls: the next data PR merged by github-actions (U2), the next `merge-reviewed` merge went
      through by bypass with `merged_by` gn0sh (U3).
    Anything else is INCONCLUSIVE (or FAIL if a probe PR merged). PASS gates the baseline (T4.10.8) and
-   `MORNING_NOTE_SEND`. The baseline window check lists 3ef440a (PR #40) as its one known Bot merge.
+   `MORNING_NOTE_SEND`. The baseline window check lists 3ef440a (PR #40) as its one known Bot merge (2b20704, PR #49, the V1' probe's, was added on 2026-11-18).
    **Brian's two hand checks**, recorded with the PASS: (1) Settings > Collaborators: no other admin; (2) after
    `protect-main`, the ruleset page shows "Require review from Code Owners", and the repository's CODEOWNERS view
    shows no errors.

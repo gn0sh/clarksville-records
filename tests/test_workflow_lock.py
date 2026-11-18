@@ -1945,13 +1945,14 @@ def test_the_window_check_runs_and_stops_where_it_must(tmp_path, case):
         assert "checked 2 commits" not in r.stdout
 
 
-@pytest.mark.parametrize("case", ["canary", "other-file", "other-pr", "other-sha"])
+@pytest.mark.parametrize("case", ["canary", "canary2", "other-file", "other-pr", "other-sha"])
 def test_the_window_check_lets_only_the_v1_probe_canary_merge_through(tmp_path, case):
     """ADR 0010 / T4.11.4: 3ef440a (PR #40, the V1 probe's bot merge of .github/workflows/v1-canary.yml) is the one
     known Bot merge in the window. The block passes it only when the sha, the PR number and the file list all match;
     any other Bot merge still stops. The real sha is swapped for a local commit to run it."""
     script = _window_script()
     assert "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40" in script
+    assert "known2=2b207042a53e4d11dadfee978b029392df63c376; known_pr2=49" in script
     origin, work, bindir = tmp_path / "origin.git", tmp_path / "work", tmp_path / "bin"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
     _git(tmp_path, "init", "-q", str(work))
@@ -1971,12 +1972,18 @@ def test_the_window_check_lets_only_the_v1_probe_canary_merge_through(tmp_path, 
     bindir.mkdir()
     (bindir / "gh").write_text(_WINDOW_GH)
     (bindir / "gh").chmod(0o755)
-    script = script.replace('"<R2-on sha>"', f'"{shas[0]}"', 1).replace(
-        "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40", f"known={known}; known_pr={pr}")
+    other = "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40"
+    second = "known2=2b207042a53e4d11dadfee978b029392df63c376; known_pr2=49"
+    if case == "canary2":   # the second known merge is matched by its own sha and PR, not the first's
+        swapped = (other, f"known={'e' * 40}; known_pr=40", second, f"known2={known}; known_pr2={pr}")
+        script = script.replace(swapped[0], swapped[1], 1).replace(swapped[2], swapped[3], 1)
+    else:
+        script = script.replace(other, f"known={known}; known_pr={pr}")
+    script = script.replace('"<R2-on sha>"', f'"{shas[0]}"', 1)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "TYPES": json.dumps(types),
            "GIT_CONFIG_GLOBAL": "/dev/null"}
     r = subprocess.run(["bash", "-c", script], cwd=work, env=env, capture_output=True, text=True)
-    if case == "canary":
+    if case in ("canary", "canary2"):
         assert r.returncode == 0 and r.stdout.splitlines()[-1] == "checked 2 commits", r.stdout + r.stderr
         assert f"KNOWN EXCEPTION: {shas[1]} is PR #{pr}" in r.stdout
     else:
@@ -3059,6 +3066,19 @@ def _run_log(**over):
 _ALL_REFUSED = _run_log()
 
 
+def _unlocked_probe(tmp_path):
+    """The refusal lock (v1-probe/guard-passes-after-fail) stops the real script, so the guard and verdict tests run
+    a copy with only the lock block cut out. The copy keeps the rest of the script as it is for the future design."""
+    text = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
+    a, b = text.index("# BEGIN-REFUSAL-LOCK"), text.index("# END-REFUSAL-LOCK")
+    copy = tmp_path / "scripts" / "v1-probe.sh"
+    copy.parent.mkdir(exist_ok=True)
+    copy.write_text(text[:a] + text[b:], encoding="utf-8")
+    if not (copy.parent / "v1-probe").exists():
+        (copy.parent / "v1-probe").symlink_to(ROOT / "scripts" / "v1-probe")
+    return copy
+
+
 def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1", **extra):
     bindir, calls = tmp_path / "bin", tmp_path / "calls"
     bindir.mkdir()
@@ -3070,7 +3090,7 @@ def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1", **extra):
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls),
            "RUN_LOG": str(tmp_path / "log"), "RESULTS_DIR": str(tmp_path), "DATA_PRS": data_prs,
            **({"MAIN_AFTER": main_after} if main_after else {}), **({"KEPT": kept} if kept else {}), **extra}
-    r = subprocess.run(["bash", str(ROOT / "scripts" / "v1-probe.sh")], env=env, capture_output=True, text=True)
+    r = subprocess.run(["bash", str(_unlocked_probe(tmp_path))], env=env, capture_output=True, text=True)
     made = [json.loads(ln) for ln in calls.read_text().splitlines()] if calls.exists() else []
     return r, made
 
@@ -3650,3 +3670,24 @@ def test_the_lock_matches_requirements_txt_and_the_runner_python():
     assert py == {"3.12"}                                                         # the Python the lock was compiled on
     head = (ROOT / "requirements.lock").read_text(encoding="utf-8")[:400]
     assert "pip-compile with Python 3.12" in head and "--generate-hashes" in head
+
+
+def test_both_v1_probe_scripts_refuse_unconditionally(tmp_path):
+    """v1-probe/guard-passes-after-fail: after the 2026-11-18 V1' FAIL (PR #49, main 2b20704) both scripts print
+    REFUSED and exit non-zero before any GitHub call, even where every guard read would pass."""
+    for name in ("v1-probe.sh", "v1-probe.ps1"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        lock = text[text.index("# BEGIN-REFUSAL-LOCK"):text.index("# END-REFUSAL-LOCK")]
+        assert "REFUSED: the V1' probe failed on 2026-11-18" in lock and "exit 1" in lock, name
+        assert "a new ADR re-enables it" in lock, name
+        assert text.index("# END-REFUSAL-LOCK") < min(text.index(s) for s in ("rules/branches/main", "gh auth status")), name
+        assert "gh " not in lock.replace("GitHub call", "").replace("GITHUB_TOKEN", ""), name
+    bindir, calls = tmp_path / "bin", tmp_path / "calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_V1_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "RESULTS_DIR": str(tmp_path),
+           "DATA_PRS": "1"}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "v1-probe.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode != 0 and r.stdout.startswith("REFUSED: the V1' probe failed on 2026-11-18"), r.stdout + r.stderr
+    assert not calls.exists() and not list(tmp_path.glob("v1-probe-results-*.txt"))

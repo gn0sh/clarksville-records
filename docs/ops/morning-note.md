@@ -374,6 +374,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       set -euo pipefail
       start=$1; R=repos/gn0sh/clarksville-records
       known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40   # ADR 0010: the V1 probe's bot merge
+      known2=2b207042a53e4d11dadfee978b029392df63c376; known_pr2=49   # the V1' probe's bot merge (2026-11-18)
       git fetch -q origin main
       [[ "$start" =~ ^[0-9a-f]{40}$ ]] || { echo "STOP: the start '$start' is not a 40-hex sha"; exit 1; }
       git merge-base --is-ancestor "$start" origin/main || { echo "STOP: $start is not an ancestor of origin/main"; exit 1; }
@@ -388,9 +389,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
         fi
         n=$((n + 1))
         echo "$c PR #$pr merged_by.type=$t"
-        if [ "$t" = Bot ] && [ "$c" = "$known" ] && [ "$pr" = "$known_pr" ] \
+        if [ "$t" = Bot ] && { { [ "$c" = "$known" ] && [ "$pr" = "$known_pr" ]; } || { [ "$c" = "$known2" ] && [ "$pr" = "$known_pr2" ]; }; } \
            && [ "$(git show --format= --name-only "$c")" = .github/workflows/v1-canary.yml ]; then
-          echo "KNOWN EXCEPTION: $c is PR #$known_pr, the V1 probe canary (only .github/workflows/v1-canary.yml); name it in the baseline PR"
+          echo "KNOWN EXCEPTION: $c is PR #$pr, the V1 probe canary (only .github/workflows/v1-canary.yml); name it in the baseline PR"
           continue
         fi
         [ "$t" = User ] || { echo "STOP: $c was not merged by a person"; exit 1; }
@@ -399,9 +400,10 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       [ "$n" -gt 0 ] || { echo "STOP: no commit in the window (a wrong or placeholder start: the gate's own PR at least is in it)"; exit 1; }
       WINDOW
       ```
-      It must end `checked N commits` with N at least 1 and every line `merged_by.type=User`, with **one known
-      exception (ADR 0010)**: 3ef440a, PR #40, the V1 probe's bot merge of `.github/workflows/v1-canary.yml` (V1
-      FAIL, 2026-11-18). The block lets that one commit through only if it is PR #40, merged by a `Bot` and
+      It must end `checked N commits` with N at least 1 and every line `merged_by.type=User`, with **two known
+      exceptions (ADR 0010)**: 3ef440a, PR #40, the V1 probe's bot merge of `.github/workflows/v1-canary.yml` (V1
+      FAIL, 2026-11-18), and 2b20704, PR #49, the V1' probe's bot merge of the same file (V1' FAIL, 2026-11-18). The
+      block lets each of these through only if it is its own PR (#40, #49), merged by a `Bot` and
       changes nothing but that file, and prints `KNOWN EXCEPTION`; the person also checks that the canary-removal
       pull request (a later line, `merged_by.type=User`) removed it, and names both in the baseline PR.
       **Otherwise it stops on any `Bot`** (a workflow merged code: treat it as an incident, `MAIN_PR_BASELINE` stays empty), on `none` (no
