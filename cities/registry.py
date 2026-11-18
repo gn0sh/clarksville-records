@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 
-from collector.fetch import DENIED_HOSTS, host_matches
+from collector.hosts import DENIED_HOSTS, host_matches
 
 from . import brand as brand_mod
 from .errors import CityError

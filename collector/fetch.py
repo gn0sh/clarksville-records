@@ -51,6 +51,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from . import limits
+from .hosts import DENIED_HOSTS, PLAIN_HOST, host_matches, plain_hostname  # noqa: F401  (re-exported: public names)
 
 USER_AGENT = ("clarksville-records research collector "
               "(+https://github.com/gn0sh/clarksville-records; polite, 10s/host)")
@@ -60,9 +61,7 @@ ALLOWED_HOSTS = ("montgomerytn.gov", "mcgtn.org", "d6.mcgtn.org",
                  "montgomeryminutes.bisonline.com", "clarksvilletn.gov",
                  "clarksvilletn.api.civicclerk.com",    # the city's CivicClerk API (ADR 0003; Brian 2026-11-09)
                  "cmcrpc.com")    # Regional Planning Commission (www.cmcrpc.com; robots crawl-delay 10; CEO 2026-11-10)
-# cityofclarksville.com blocks automated tools: never collect from it. dev2.montgomerytn.gov (the M0 index host)
-# answered 403 from the site on 2026-11-07: stopped for good, never retried by another route.
-DENIED_HOSTS = ("cityofclarksville.com", "dev2.montgomerytn.gov")
+# DENIED_HOSTS (cityofclarksville.com, dev2.montgomerytn.gov) lives in collector/hosts.py with the host rule.
 # pipeline/fetch-cap-no-margin (limits invariant L16): largest real file 52,041,095 B (city agenda 2021-10-28,
 # clarksville-tn manifest, 2026-11-11); 200 MiB is ~4x. The body is held in memory: fine on the runner.
 MAX_BYTES = 200 * 1024 * 1024
@@ -114,27 +113,7 @@ class NotPdf(FetchFailed):
     """The body is not a PDF (e.g. a .docx behind a document link). Nothing was stored."""
 
 
-def host_matches(host: str, names) -> bool:
-    """True when `host` (a port is ignored) is one of `names` or a subdomain of one. The one host rule: the fetcher's
-    allowlist and denied list use it, and so does any adapter that filters links before asking the fetcher."""
-    host = host.lower().split(":")[0]
-    return any(host == n or host.endswith("." + n) for n in names)
-
-
-PLAIN_HOST = re.compile(r"[a-z0-9.-]+")
 CONTROL_OR_SPACE = re.compile(r"[\x00-\x20\x7f]")
-
-
-def plain_hostname(host: str) -> str | None:
-    """The lowercase host name of a netloc (no port, no user info) when it is a plain DNS name: letters, digits, dots
-    and hyphens only. None otherwise (collector-input/host-percent-encoded): urllib decodes %23, %40, %2f in a host
-    before it connects, so a raw netloc like evil.com%23.clarksvilletn.gov must never be matched against the
-    allowlist."""
-    try:
-        name = urllib.parse.urlsplit("//" + host).hostname
-    except ValueError:
-        return None
-    return name if name and PLAIN_HOST.fullmatch(name) else None
 
 
 def split_url(url: str) -> urllib.parse.SplitResult:

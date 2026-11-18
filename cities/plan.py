@@ -15,32 +15,22 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
 
+from collector import windows as _windows
+from collector.windows import YEAR, Window, WindowError  # noqa: F401  (re-exported: public names)
+
 from .errors import CityError
 
 ROOT = Path(__file__).resolve().parent.parent
-YEAR = timedelta(days=365)
 DAILY_MINUTES = 5          # provisional run-cost estimates; recalibrate from the first real runs
 YEAR_MINUTES = 30
 
 
-@dataclass(frozen=True)
-class Window:
-    start: date      # inclusive
-    end: date        # exclusive
-
-
 def launch_windows(today: date, launch_days: int, earliest: date) -> list[Window]:
-    """The collection windows, newest first: [today - launch_days, today + 1 day), then one older year at a time back
-    to `earliest`. Run 1 collects windows[0] (the launch year); each later run takes the next window it has not done."""
-    end = today + timedelta(days=1)
-    start = max(earliest, end - timedelta(days=launch_days))
-    if start >= end:
-        raise CityError(f"earliest {earliest} is after {today}: no launch window")
-    windows = [Window(start, end)]
-    while start > earliest:
-        end, start = start, max(earliest, start - YEAR)
-        windows.append(Window(start, end))
-    return windows
+    """collector.windows.launch_windows, with its WindowError as CityError (the one error type of `cities`)."""
+    try:
+        return _windows.launch_windows(today, launch_days, earliest)
+    except WindowError as exc:
+        raise CityError(str(exc)) from exc
 
 
 # ------------------------------------------------------------------ state (data/cities/<slug>/backfill.json)
