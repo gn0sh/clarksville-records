@@ -90,16 +90,21 @@ if path == R + "/pulls/%s/reviews" % st["pr_number"]:
     out({"commit_id": st["pr"]["head"]["sha"]})
 if path == R + "/pulls/%s/merge" % st["pr_number"]:
     if st.get("merge_refuse"):
+        st["moved_on"] = True; save()
         sys.stderr.write("gh: At least 2 approving reviews are required by reviewers with write access. (HTTP 405)\n")
         sys.exit(1)
+    st["moved_on"] = True
     st["pr"].update(merged=True, merged_by={"login": "gn0sh"}, merge_commit_sha=st["merge_sha"], state="closed")
     st["main"] = st["merge_sha"]; save()
     out({"sha": st["merge_sha"]})
 if path == R + "/pulls/%s" % st["pr_number"]:
+    if st.get("head_after") and st.get("moved_on"):     # someone pushed P after the merge try or the comment
+        st["pr"]["head"]["sha"] = st["head_after"]
     out(st["pr"])
 if method == "DELETE":
     sys.exit(0)
 if path == R + "/issues/%s/comments?per_page=100" % st["pr_number"]:
+    st["moved_on"] = True; save()
     out(st.get("comments", []))
 if path.startswith(R + "/rulesets/rule-suites?"):
     assert "ref=main" in path, path
@@ -110,7 +115,13 @@ sys.stderr.write("stub: unexpected call %r\n" % a); sys.exit(9)
 '''
 
 _DATE = r'''#!/bin/sh
-for x in "$@"; do [ "$x" = "+%H%M" ] && { echo "$FAKE_HM"; exit 0; }; done
+for x in "$@"; do
+  [ "$x" = "+%H%M" ] && { echo "$FAKE_HM"; exit 0; }
+  if [ "$x" = "+%s" ] && [ -n "${FAKE_S_STEP:-}" ]; then
+    n=$(cat "$GH_STATE.s" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > "$GH_STATE.s"
+    echo $((1000000 + n * FAKE_S_STEP)); exit 0
+  fi
+done
 exec /bin/date "$@"
 '''
 
@@ -124,7 +135,7 @@ def _state(**over):
           "merge_sha": MERGE, "suites": [{"id": 777, "after_sha": MERGE, "result": "bypass"}],
           "suite": {"id": 777, "result": "bypass", "rule_evaluations": [
               {"rule_source": {"type": "ruleset", "id": RID, "name": "main: pull request required"},
-               "enforcement": "active", "result": "pass", "rule_type": "pull_request"},
+               "enforcement": "active", "result": "fail", "rule_type": "pull_request"},
               {"rule_source": {"type": "ruleset", "id": RID}, "enforcement": "active", "result": "pass",
                "rule_type": "deletion"}]}}
     for k, v in over.items():
@@ -148,9 +159,9 @@ def _env(tmp_path, st, hm="1400"):
             "GH_STATE": str(tmp_path / "state.json"), "FAKE_HM": hm, "HOME": str(home)}
 
 
-def _run(tmp_path, args, st=None, hm="1400", timeout=60):
-    env = _env(tmp_path, st or _state(), hm)
-    r = subprocess.run(["bash", str(SH), *args], env=env, capture_output=True, text=True, timeout=timeout)
+def _run(tmp_path, args, st=None, hm="1400", timeout=60, script=SH, **env_over):
+    env = {**_env(tmp_path, st or _state(), hm), **env_over}
+    r = subprocess.run(["bash", str(script), *args], env=env, capture_output=True, text=True, timeout=timeout)
     return r, _calls(tmp_path)
 
 
@@ -251,8 +262,8 @@ def test_every_put_body_is_whitelisted(tmp_path):
             assert "--input" in c["argv"] and not any(x.startswith(("-f", "-F")) for x in c["argv"]), c
     backup = next(Path(p) for p in (tmp_path / "home").iterdir() if p.name.startswith("u3-ruleset-backup-"))
     assert json.loads(backup.read_text()) == _wl(R1P)
-    assert f"backup {backup}" in r.stdout and re.search(r"^U3 WINDOW OPEN \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ backup ",
-                                                         r.stdout, re.M)
+    assert re.search(rf"^U3 WINDOW OPEN \d{{4}}-\d\d-\d\dT\d\d:\d\d:\d\dZ BACKUP {re.escape(str(backup))}$", r.stdout, re.M)
+    assert f"\nBACKUP {backup}\n" in r.stdout
 
 
 # ---------------------------------------------------------------------------------------------- verdicts
@@ -261,7 +272,8 @@ def test_every_put_body_is_whitelisted(tmp_path):
 def test_pass_team_path(tmp_path):
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "docs/reviews/x.md"])
     line = _assert_restored(r, made, "PASS")
-    assert "rule-suite 777:" in line and f"merged by gn0sh as {MERGE}" in line and "result=bypass" in line
+    assert "rule-suite 777:" in line and f"merged by gn0sh as {MERGE}" in line
+    assert "result=bypass pull_request=fail enforcement=active" in line
     merges = [c for c in made if c.get("path", "").endswith("/pulls/60/merge")]
     assert len(merges) == 1 and f"sha={HEAD}" in merges[0]["argv"]
     # R1'' was in force at the merge: the merge comes after the R1'' PUT and before the restore PUT
@@ -278,12 +290,45 @@ def test_pass_brians_path_waits_for_main_to_move(tmp_path):
     assert not any(c.get("path", "").endswith("/merge") for c in made)          # the team merges, not this script
 
 
-def test_fail_rule_when_the_suite_reads_pass(tmp_path):
-    st = _state(suites=[{"id": 778, "after_sha": MERGE, "result": "pass"}])
-    st["suite"]["result"] = "pass"
+@pytest.mark.parametrize("suite_result", ["bypass", "pass"])
+def test_fail_rule_when_the_pull_request_evaluation_reads_pass(tmp_path, suite_result):
+    """v1-probe/u3-false-pass-on-pr-eval-pass: a pass evaluation means 2 approvals did not bind, so a bypass suite
+    with it must never read PASS."""
+    st = _state(suites=[{"id": 778, "after_sha": MERGE, "result": suite_result}])
+    st["suite"]["result"] = suite_result
+    st["suite"]["rule_evaluations"][0]["result"] = "pass"
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], st)
     line = _assert_restored(r, made, "FAIL-RULE")
-    assert "rule-suite 778:" in line and "result=pass pull_request=pass" in line
+    assert "rule-suite 778:" in line and f"result={suite_result} pull_request=pass" in line
+
+
+def _suite_shape(suite_result=None, evals=None, enforcement=None):
+    st = _state()
+    if suite_result:
+        st["suite"]["result"] = suite_result
+    if enforcement:
+        st["suite"]["rule_evaluations"][0]["enforcement"] = enforcement
+    if evals is not None:
+        st["suite"]["rule_evaluations"] = evals
+    return st
+
+
+_PR_EVAL = {"rule_source": {"type": "ruleset", "id": RID}, "enforcement": "active", "result": "fail",
+            "rule_type": "pull_request"}
+
+
+@pytest.mark.parametrize("st,why", [
+    (_suite_shape("pass"), "not bypass+fail"),                                       # pass + fail
+    (_suite_shape("fail"), "not bypass+fail"),
+    (_suite_shape(enforcement="evaluate"), "was not enforced"),
+    (_suite_shape(evals=[]), "got 0"),
+    (_suite_shape(evals=[_PR_EVAL, _PR_EVAL]), "got 2"),
+    (_suite_shape(evals=[{**_PR_EVAL, "rule_source": {"type": "ruleset", "id": 1}}]), "got 0"),   # another ruleset
+], ids=["pass-fail", "fail-fail", "evaluate-mode", "no-evaluation", "two-evaluations", "other-ruleset"])
+def test_any_other_suite_shape_is_inconclusive(tmp_path, st, why):
+    r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], st)
+    line = _assert_restored(r, made, "INCONCLUSIVE")
+    assert why in line and "rule suite 777 result=" in line, line
 
 
 def test_fail_u3_team_merge_refused_restores(tmp_path):
@@ -292,14 +337,37 @@ def test_fail_u3_team_merge_refused_restores(tmp_path):
     assert "HTTP 405" in line and "rule-suite none" in line
 
 
+_LATE = "2999-01-01T00:00:00Z"
+_REFUSED = "U3 merge refused: gh: At least 2 approving reviews are required (HTTP 405)"
+
+
 def test_fail_u3_brians_path_from_the_teams_refusal_comment(tmp_path):
-    st = _state(comments=[{"user": {"login": "gn0sh"}, "created_at": "2999-01-01T00:00:00Z",
-                           "body": "U3 merge refused: gh: At least 2 approving reviews are required (HTTP 405)"},
-                          {"user": {"login": "someone"}, "created_at": "2999-01-01T00:00:00Z",
-                           "body": "U3 merge refused: fake"}])
+    st = _state(comments=[{"user": {"login": "someone"}, "created_at": _LATE, "body": "U3 merge refused: fake 405 review"},
+                          {"user": {"login": "gn0sh"}, "created_at": _LATE, "body": _REFUSED + "\nsecond line"}],
+                pr={"merge_commit_sha": "d" * 40})        # GitHub's test merge sha on an open PR: fields must not shift
     r, made = _run(tmp_path, ["--pr", "60"], st)
     line = _assert_restored(r, made, "FAIL-U3")
-    assert "(HTTP 405)" in line and "fake" not in line
+    assert "(HTTP 405)" in line and "fake" not in line and f"at {HEAD} was refused" in line
+
+
+@pytest.mark.parametrize("comment,pr,why", [
+    ("Note: U3 merge refused (HTTP 405) reviews", {}, "no merge in the 20-minute window"),   # must START with it
+    ("U3 merge refused: gh: something else (HTTP 502)", {}, "without a ruleset refusal"),
+    ("U3 merge refused: gh: Not allowed (HTTP 405)", {}, "without a ruleset refusal"),     # 405 naming no review
+    (_REFUSED, {"head": {"sha": "f" * 40, "ref": "x", "repo": {"full_name": REPO}}}, "head is now " + "f" * 40),
+], ids=["not-at-start", "not-405", "405-no-review", "head-moved"])
+def test_a_refusal_comment_reads_fail_u3_only_when_it_holds(tmp_path, comment, pr, why):
+    st = _state(comments=[{"user": {"login": "gn0sh"}, "created_at": _LATE, "body": comment}])
+    if pr:   # the head moves once the comment is read: the preflight saw HEAD
+        st["head_after"] = pr["head"]["sha"]
+    r, made = _run(tmp_path, ["--pr", "60"], st)
+    assert why in _assert_restored(r, made, "INCONCLUSIVE")
+
+
+def test_a_team_refusal_at_a_moved_head_is_inconclusive(tmp_path):
+    st = _state(merge_refuse=True, head_after="f" * 40)
+    r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], st)
+    assert "head is now" in _assert_restored(r, made, "INCONCLUSIVE")
 
 
 def test_an_old_refusal_comment_does_not_count(tmp_path):
@@ -315,7 +383,7 @@ def test_an_old_refusal_comment_does_not_count(tmp_path):
     ({"other_actor_at": 3}, "is not merged (another actor)"),
     ({"merge_at": 2, "main_after": "e" * 40}, "(another actor)"),
     ({"merge_at": 2, "merger": "github-actions[bot]"}, "not gn0sh"),
-    ({"merge_at": 2, "suites": []}, "no rule suite lists it"),
+    ({"merge_at": 2, "suites": []}, "no rule suite listed it within the window"),
     ({"merge_at": 2, "rs_read_fail": [3]}, "could not be read at the end of the window"),
 ], ids=["no-merge", "read-failure", "main-moved-unmerged", "main-not-merge-commit", "bot-merged", "no-suite",
         "ruleset-unread"])
@@ -330,7 +398,7 @@ def test_no_bypass_and_no_pass_is_inconclusive(tmp_path):
     st["suite"]["result"] = "fail"
     st["suite"]["rule_evaluations"][0]["result"] = "fail"
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], st)
-    assert "neither bypass nor pass" in _assert_restored(r, made, "INCONCLUSIVE")
+    assert "not bypass+fail and not a pull_request pass" in _assert_restored(r, made, "INCONCLUSIVE")
 
 
 def test_readback_mismatch_closes_the_window_and_restores(tmp_path):
@@ -349,6 +417,8 @@ def test_a_refused_r1pp_put_is_still_restored(tmp_path):
 def test_a_failed_restore_is_loud_and_never_pass(tmp_path):
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], _state(put_fail=[2, 3, 4]))
     assert "RESTORE FAILED" in r.stdout and "--restore" in r.stdout and r.returncode == 3
+    failed = next(ln for ln in r.stdout.splitlines() if ln.startswith("RESTORE FAILED"))
+    assert re.search(r"BACKUP \S+u3-ruleset-backup-\d{8}-\d{6}\.json", failed), failed
     line = _verdict(r.stdout)
     assert line.startswith("U3 VERDICT INCONCLUSIVE ") and "restore was not verified" in line
 
@@ -365,6 +435,8 @@ def test_ctrl_c_in_the_window_restores(tmp_path):
         seen.append(ln)
         if ln.startswith("U3 WINDOW OPEN"):
             break
+    for b in (tmp_path / "home").glob("u3-ruleset-backup-*"):     # u3-restore-source: memory, not the file
+        b.unlink()
     time.sleep(0.3)
     p.send_signal(signal.SIGINT)
     rest, err = p.communicate(timeout=60)
@@ -382,14 +454,15 @@ def _refused(r, made, text):
     assert "U3 WINDOW OPEN" not in r.stdout and "U3 VERDICT" not in r.stdout
 
 
-@pytest.mark.parametrize("hm", ["0800", "0907", "1030"])
-def test_refused_at_0800_1030_utc(tmp_path, hm):
+@pytest.mark.parametrize("hm", ["0730", "0759", "0800", "0907", "1030"])
+def test_refused_from_0730_to_1030_utc(tmp_path, hm):
+    """main-protect/window-over-20-min: a start at 07:30 or later could run (30 min) into 08:00-10:30."""
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], hm=hm)
-    _refused(r, made, "inside 08:00-10:30")
+    _refused(r, made, "could reach the daily run's window (08:00-10:30)")
     assert not made                                       # refused before any GitHub read, too
 
 
-@pytest.mark.parametrize("hm", ["0759", "1031"])
+@pytest.mark.parametrize("hm", ["0729", "1031", "0000", "2359"])
 def test_runs_just_outside_the_window(tmp_path, hm):
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], hm=hm)
     _assert_restored(r, made, "PASS")
@@ -510,20 +583,29 @@ def test_ps1_uses_the_same_gh_filters_as_the_sh():
 def test_ps1_has_the_same_steps_lines_and_refusals():
     ps1 = PS1.read_text(encoding="utf-8")
     sh = SH.read_text(encoding="utf-8")
-    for s in ("U3 WINDOW OPEN $opened backup $backup", "RESTORED ", "U3 VERDICT ", "RESTORE FAILED",
+    for s in ("U3 WINDOW OPEN $opened BACKUP $($script:backup)", "RESTORED ", "U3 VERDICT ", "RESTORE FAILED",
+              "U3 REHEARSAL WINDOW OPEN ", "U3 REHEARSAL DONE", "U3 REHEARSAL FAILED", "[switch]$Rehearse",
+              "BACKUP $($script:backup)", "[DateTime]::UtcNow.AddMinutes(20)", "[DateTime]::UtcNow -ge $deadline",
+              "$hm -ge 730 -and $hm -le 1030", "if (-not (PinOk))", "$script:backupObj = $live",
+              "$suiteResult -ceq 'bypass' -and $prEval -ceq 'fail'", "$prEnf -cne 'active'", "$ev.Count -ne 3",
+              "$script:prSt[3] -cne $head", "startswith($ENV.U3_REFUSED)", "$env:U3_REFUSED = 'U3 merge refused'",
               "'PASS'", "'FAIL-U3'", "'FAIL-RULE'", "'INCONCLUSIVE'", "NOOP OK", "NOOP REFUSED", "NOOP CHANGED",
-              "$hm -ge 800 -and $hm -le 1030", "Start-Sleep -Seconds 15", "$i -le 80", "$fails -ge 4",
+              "Start-Sleep -Seconds 15", "$i -le 80", "$fails -ge 4",
               "-cne 'completed'", "'pull_requests_only'", "'always'", "StartsWith('docs/', [StringComparison]::Ordinal)",
               "U3 merge refused", "HTTP 405", "merge-reviewed.ps1", "$rid = '27502319'",
               "gh api -X PUT \"repos/$repo/rulesets/$rid\" --input $path --silent", "Wl $o",
               "Remove-TypeData System.Array"):
         assert s in ps1, s
-    for s in ("U3 WINDOW OPEN $opened backup $backup", "-ge 800 ] && [ $((10#$hm)) -le 1030", "sleep 15",
+    for s in ("U3 WINDOW OPEN $opened BACKUP $backup", "-ge 730 ] && [ $((10#$hm)) -le 1030", "sleep 15",
+              "U3 REHEARSAL WINDOW OPEN", "U3 REHEARSAL DONE", "U3 REHEARSAL FAILED", "deadline=$(( $(date +%s) + 1200 ))",
+              '[ "$suite_result" = bypass ] && [ "$pr_eval" = fail ]', '[ "$pr_enf" != active ]', "pin_ok ||",
+              '[ "$h" = "$head" ]', 'U3_REFUSED="U3 merge refused"', 'backup_json=$(jq -c "$wl" "$work/live.json")',
               "seq 1 80", '"$fails" -lt 4', "merge-reviewed.sh", "rid=27502319", "U3 merge refused", "HTTP 405"):
         assert s in sh, s
     # exactly one PUT of the ruleset in each script, and it sends the whitelisted body file
     hint = "gh api -X PUT repos/$repo/rulesets/$rid --input '$backup'"
-    assert ps1.count("-X PUT") == 2 and sh.count("-X PUT") == 2 and hint in ps1 and hint in sh
+    assert ps1.count("-X PUT") == 2 and sh.count("-X PUT") == 2 and hint in sh
+    assert "gh api -X PUT repos/$repo/rulesets/$rid --input '$($script:backup)'" in ps1
     # every refusal message of the .sh is in the .ps1 (the shared text after "refuse"/"Refuse")
     for msg in set(re.findall(r'refuse "([^"$]{12,})', sh)) - {"could not read the UTC time"}:   # Get-Date can't fail
         assert msg.split("'")[0].split("(")[0].strip() in ps1, msg
@@ -532,7 +614,8 @@ def test_ps1_has_the_same_steps_lines_and_refusals():
     assert body.index("$script:armed = $true") < body.index("PutVerify (ReadJsonFile $r1pp)")
     assert re.search(r"try \{\s*RunWindow\s*\} finally \{\s*if \(\$script:armed\) \{ CloseWindow \}\s*\}", ps1)
     close = ps1[ps1.index("function CloseWindow"):]
-    assert close.index("RestoreFrom $backup") < close.index("U3 VERDICT")
+    assert close.index("RestoreFrom $src $label") < close.index("U3 REHEARSAL DONE") < close.index("U3 VERDICT")
+    assert "$src = $script:backupObj" in close and "$src = ReadJsonFile $r1p" in close
     # the whitelist keeps exactly the fields the .sh keeps
     wl = ps1[ps1.index("function Wl("):ps1.index("function Canon(")]
     for k in ("name = $o.name", "target = $o.target", "enforcement = $o.enforcement", "conditions = $o.conditions",
@@ -540,3 +623,82 @@ def test_ps1_has_the_same_steps_lines_and_refusals():
               "bypass_mode = $a.bypass_mode", "type = $x.type; parameters = $x.parameters"):
         assert k in wl, k
     assert "current_user_can_bypass" not in wl and "_links" not in wl
+
+
+# ---------------------------------------------------------------------------------------------- window bound, pin, rehearsal
+
+
+def test_the_window_ends_20_minutes_after_it_opened(tmp_path):
+    """main-protect/u3-window-bound: a wall-clock deadline (each date +%s here is 5 minutes later), not 80 sleeps."""
+    r, made = _run(tmp_path, ["--pr", "60"], _state(), FAKE_S_STEP="300")
+    assert "no merge in the 20-minute window" in _assert_restored(r, made, "INCONCLUSIVE")
+    assert sum(1 for c in made if c.get("path", "").endswith("/git/ref/heads/main")) < 8
+
+
+def test_the_deadline_also_bounds_the_rule_suite_reads(tmp_path):
+    r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], _state(suites=[]), FAKE_S_STEP="700")
+    assert "no rule suite listed it within the window" in _assert_restored(r, made, "INCONCLUSIVE")
+    assert sum(1 for c in made if "rule-suites?" in c.get("path", "")) < 8
+
+
+@pytest.mark.parametrize("change", [
+    lambda pp: pp.update(dismiss_stale_reviews_on_push=False),        # a fourth parameter changed
+    lambda pp: pp.update(required_approving_review_count=1),           # one of the three, wrong value
+    lambda pp: pp.update(allowed_merge_methods=["squash", "merge"]),
+], ids=["fourth-param", "wrong-count", "merge-methods"])
+def test_refused_unless_r1pp_is_pinned_to_adr_0011(tmp_path, change):
+    """v1-probe/u3-r1pp-pin: the preflight itself checks R1'' = R1' plus exactly the three decision-5 values."""
+    sdir = tmp_path / "scripts"
+    sdir.mkdir()
+    for name in ("u3-toggle.sh", "main-ruleset.json", "merge-reviewed.sh"):
+        shutil.copy(ROOT / "scripts" / name, sdir / name)
+    rs = json.loads(json.dumps(R1PP))
+    change([x for x in rs["rules"] if x["type"] == "pull_request"][0]["parameters"])
+    (sdir / "main-ruleset-r1pp.json").write_text(json.dumps(rs))
+    r, made = _run(tmp_path, ["--pr", "60"], script=sdir / "u3-toggle.sh")
+    _refused(r, made, "is not R1' with only ADR 0011 decision 5's three changes")
+
+
+def test_rehearsal_puts_r1_prime_twice_and_prints_no_verdict(tmp_path):
+    """v1-probe/ps1-never-executed: the whole preflight, a window that changes nothing, the real restore path."""
+    r, made = _run(tmp_path, ["--pr", "60", "--rehearse"])
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert _puts(made) == [_wl(R1P), _wl(R1P)]
+    out = r.stdout
+    assert "U3 REHEARSAL WINDOW OPEN " in out and "BACKUP " in out and "RESTORED " in out
+    assert out.index("U3 REHEARSAL WINDOW OPEN") < out.index("RESTORED ") < out.index("U3 REHEARSAL DONE")
+    assert "U3 VERDICT" not in out and "U3 WINDOW OPEN" not in out
+    assert not any(c.get("path", "").endswith("/merge") or "rule-suites" in c.get("path", "") for c in made)
+
+
+def test_rehearsal_runs_the_same_preflight(tmp_path):
+    r, made = _run(tmp_path, ["--pr", "60", "--rehearse"], _state(files=[{"filename": "sitegen/x.py"}]))
+    _refused(r, made, "outside docs/")
+    sub = tmp_path / "b"
+    sub.mkdir()
+    r, made = _run(sub, ["--pr", "60", "--rehearse"], hm="0900")
+    _refused(r, made, "could reach the daily run's window")
+
+
+def test_rehearsal_ctrl_c_restores(tmp_path):
+    env = _env(tmp_path, _state(), "1400")
+    env["STUB_SLEEP"] = "0.3"
+    p = subprocess.Popen(["bash", str(SH), "--pr", "60", "--rehearse"], env=env, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, text=True)
+    seen = []
+    while True:
+        ln = p.stdout.readline()
+        seen.append(ln)
+        if not ln or ln.startswith("U3 REHEARSAL WINDOW OPEN"):
+            break
+    time.sleep(0.2)
+    p.send_signal(signal.SIGINT)
+    rest, err = p.communicate(timeout=60)
+    out = "".join(seen) + rest
+    assert p.returncode == 0 and "RESTORED " in out and "U3 REHEARSAL DONE" in out and "interrupted" in out, out + err
+    assert _puts(_calls(tmp_path)) == [_wl(R1P), _wl(R1P)]
+
+
+def test_a_failed_rehearsal_restore_is_loud(tmp_path):
+    r, made = _run(tmp_path, ["--pr", "60", "--rehearse"], _state(put_fail=[2, 3, 4]))
+    assert r.returncode == 3 and "U3 REHEARSAL FAILED" in r.stdout and "RESTORE FAILED" in r.stdout
