@@ -25,6 +25,13 @@
 # Run (PowerShell, in the repository folder):  powershell -NoProfile -File scripts\v1-probe.ps1
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them).
 
+# BEGIN-REFUSAL-LOCK (v1-probe/guard-passes-after-fail): unconditional, before any GitHub call. The V1' run on
+# 2026-11-18 let GITHUB_TOKEN merge PR #49 (main 2b20704), and the guard below passes with code-owner review on, so
+# without this lock a re-run would merge another canary. Remove only in the PR of the new ADR that re-enables it.
+Write-Host "REFUSED: the V1' probe failed on 2026-11-18 (ADR 0010 superseded; see docs/architecture/v1-fail-2026-11-18.md). Do not run it until a new ADR re-enables it."
+exit 1
+# END-REFUSAL-LOCK
+
 $ErrorActionPreference = 'Continue'   # exit codes are checked
 $repo = 'gn0sh/clarksville-records'
 $target = 'probe/v1-target'

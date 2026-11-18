@@ -22,6 +22,12 @@
 # v1-probe/verdict-race (L-c): the run must read `completed` before its answers count (else INCONCLUSIVE), and a PASS
 # or INCONCLUSIVE stands only if the probe PR, read again after cleanup closed it, is still unmerged.
 # Writes the result to v1-probe-results-<time>.txt in RESULTS_DIR (default: the home folder). Nothing is sent.
+# BEGIN-REFUSAL-LOCK (v1-probe/guard-passes-after-fail): unconditional, before any GitHub call. The V1' run on
+# 2026-11-18 let GITHUB_TOKEN merge PR #49 (main 2b20704), and the guard below passes with code-owner review on, so
+# without this lock a re-run would merge another canary. Remove only in the PR of the new ADR that re-enables it.
+echo "REFUSED: the V1' probe failed on 2026-11-18 (ADR 0010 superseded; see docs/architecture/v1-fail-2026-11-18.md). Do not run it until a new ADR re-enables it."
+exit 1
+# END-REFUSAL-LOCK
 set -euo pipefail
 repo=gn0sh/clarksville-records
 here="$(cd "$(dirname "$0")" && pwd)"
