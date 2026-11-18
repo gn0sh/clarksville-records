@@ -1,6 +1,7 @@
 # Architecture: the city budget dollar, by fund (city/finance)
 
-Status: design, 2026-11-18 (software-architect). Not built. Base: origin/main 60167e4c.
+Status: design, 2026-11-18 (software-architect). Built 2026-11-18 (backend-engineer, branch `claude/city-funds-dollar`;
+section 5 notes the three as-built names). Base: origin/main 60167e4c.
 Goal (CEO, 2026-11-18): on `city/finance/index.html` the only figure is "Where each dollar of the general fund budget
 goes". He asked "what other spending does the city do?", then: "just break them up the same way you did with the
 county stuff." Reading used here: one more bar on the city Finance index, in the style of the county's "Where a county
@@ -216,8 +217,10 @@ No schema change; reads `finance.json` as is. New and changed files:
     - {printed: "Vehicle Replacement Fund", name: "Vehicle replacement"}
   ```
 - `sitegen/fund_split.py` (new): `load(locality) -> dict | None` (every key present, as property_tax.load; two funds
-  may not share `printed` or `name`); `split(bg: Budget, cfg: dict | None) -> dict | None` (None only when cfg is None;
-  a config whose book is missing raises: fund-split/silent-hide); `fact_ids(fin, locality) -> set[str]`.
+  may not share `printed` or `name`); `split(bg: Budget, cfg: dict | None, dollar: dict | None = None) -> dict | None`
+  (None only when cfg is None; a config whose book is missing raises: fund-split/silent-hide; `dollar`: the general
+  fund bar's view, for the dollar-match check and the link down, as built: 2026-11-18); `fact_ids(fin, locality) ->
+  set[str]`.
   Reuses `dollar_split._cell`, `_exact_in_column`, `_newer_books_note`, `slug`, `T_LABEL_MIN`, `T_PHONE_MIN`,
   `property_tax.tenths_text`, `fin_checks.total_of`, `parts_add_up`, `tenths_of_dollar`. No `sum()`, no sort by
   amount (the existing `test_no_sum_or_amount_sort_*` pattern).
@@ -235,8 +238,10 @@ No schema change; reads `finance.json` as is. New and changed files:
   `#general-fund-dollar` with `to_dollar`, others link to their fund page); closed sources block with source, total
   line and its two PDF cites, notes (fund_check, measures, rounding, order, note), the between-funds list, and the table
   (fund, cents, amount as printed under the column header with its kind link, source: member totals with pages, or
-  `dollar_members` for the general fund). Section `id="city-funds-dollar"`, `aria-labelledby="funds-h"`.
+  `dollar_members` for the general fund). Section `id="city-funds-dollar"`, `aria-labelledby="city-funds-h"` (as
+  built: `funds-h` is already the id of the index's Funds table heading).
 - `site/templates/fin_index.html.j2`: include `_funds.html.j2` after the property tax include and before `_dollar`.
+  The view is passed as `fundsplit` (as built: `funds` is already the index's fund list).
 - `sitegen/build.py` `render_budget`: a `funds_cfg` argument, `fund_split.load(<city locality>)` for the city call
   only, the same silent-hide guard as the other two bars; `general_fund_dollar=False` builds also skip it.
 - `sitegen/budget_views.py`: `usd(cents: int) -> str` ("$" + cents_text, ".00" dropped; never negative here).

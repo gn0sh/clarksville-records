@@ -70,6 +70,15 @@ def cents_text(n: int) -> str:
     return f"{'-' if n < 0 else ''}{q:,}.{r:02d}"
 
 
+def usd(cents: int) -> str:
+    """An amount in cents for running text: "$" + the cents text, a ".00" dropped ("$165,631,658", "$221,059,845.77").
+    Never a negative (the bars that use it read spending only)."""
+    if cents < 0:
+        raise ValueError("usd: a negative amount is never shown in running text")
+    text = cents_text(cents)
+    return "$" + (text[:-3] if text.endswith(".00") else text)
+
+
 def minus_aria(text: str | None) -> str | None:
     """A cents book prints a negative with a leading minus ("-1,404.28"): screen readers say "minus 1,404.28"."""
     if text and len(text) > 1 and text.startswith("-"):

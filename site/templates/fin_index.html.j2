@@ -15,6 +15,8 @@
 
 <div data-body="{{ body_key | default(site.cfg.county_key) }}">{# every book and fund here is one body's (the county's, or the city's under city/) #}
 {% if proptax is defined and proptax %}{% include "_proptax.html.j2" %}{% endif %}
+{# the city budget dollar, by fund (CEO 2026-11-18, architecture city-funds-dollar): the city's page only #}
+{% if fundsplit is defined and fundsplit %}{% include "_funds.html.j2" %}{% endif %}
 {% if dollar is defined and dollar %}{% include "_dollar.html.j2" %}{% endif %}
 <section aria-labelledby="books-h">
 <h2 id="books-h">{{ b.books_heading }}</h2>

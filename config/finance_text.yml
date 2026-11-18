@@ -188,6 +188,47 @@ budget_city:
     fy2025-adopted: "Linked only, not read: its line-item pages have no usable text layer. Its FY2025 figures (2025 ORIG BUD, 2025 REVISED BUD, 2025 ACTUAL, 2025 PROJECTION) are printed in the columns of the Fiscal Year 2026 Budget (Final Submission), which is read here."
   words: [actual, adopted-budget, amended-budget, fund, proposed-budget]
 
+# The city budget dollar, by fund (sitegen/fund_split.py, docs/architecture/city-funds-dollar.md; CEO 2026-11-18:
+# "just break them up the same way you did with the county stuff"). Plain and factual: each fund's spending as the
+# book prints it, nothing about whether it is enough. {year}: the column's fiscal year; {n}: funds; {amount}: "$..."
+fund_split:
+  heading: Where each dollar of the city budget goes, by fund
+  lede: "How the city's FY{year} adopted budget splits across the {n} funds this site reads from its budget book, in cents of each dollar. A fund is a separate set of accounts the city keeps for one purpose."
+  between: "When one of these funds pays another, such as the general fund paying into the health insurance fund, that money is in both funds' spending, as the book prints each fund's budget."
+  key_label: "Funds named on the bar, left to right"
+  key_note: "Named here: each fund with {n} cents or more, left to right in the order the book prints them."
+  total_line: "The whole bar is {amount}, the spending the book prints for these {n} funds."
+  list_heading: Every fund
+  list_order: in the book's order
+  to_dollar: "How the general fund splits across departments"
+  sources_toggle: Where these numbers come from
+  source: "From {book}, column \"{header}\". No fund in this book prints a total of its spending alone, so each fund's amount is its printed spending totals added up here; each is listed with its page."
+  total: "Total: {amount}, the book's own \"TOTAL EXPENSE\" lines of its {runs} report runs added up {cites}. The funds' amounts add up to it exactly."
+  fund_check: "Each fund's amount and its printed revenue totals together give the fund's printed \"TOTAL\" line to the cent."
+  measures: "These are the funds in the book's line-item report. Other parts of the book are not read here (see the note above), so this is not every dollar the city spends."
+  between_list: "Revenue lines that other funds print as received from the general fund (\"GF\"), as printed. They are not taken out of the total, because the book does not print a matching general fund line for each of them:"
+  # rounding, then rounding_exact or rounding_moved(_one) ({sum}: the shares rounded to the nearest tenth, added up;
+  # {names}: the rows shown other than their nearest tenth; {way}: way_less or way_more)
+  rounding: "Cents are each fund's share of the total in tenths of a cent: each share is cut to the tenth below, and the tenths left over go to the shares with the largest remainders (a tie to the larger share), so they add up to exactly 100.0 and each is less than a tenth of a cent from its exact share."
+  rounding_exact: "Each is also its share rounded to the nearest tenth."
+  rounding_moved: "Rounded to the nearest tenth they would add up to {sum}, so these rows each show one tenth {way} than their nearest tenth: {names}."
+  rounding_moved_one: "Rounded to the nearest tenth they would add up to {sum}, so this row shows one tenth {way} than its nearest tenth: {names}."
+  way_less: less
+  way_more: more
+  order: "Funds are in the order the book prints them. The bar, the list and the table show the same rows in that order."
+  zero: "Printed with no spending in \"{header}\" ({n}):"
+  members: "Spending totals as printed ({n})"
+  member_one: "Spending total as printed"
+  dollar_members: "Its {n} department totals are listed under the general fund bar below."
+  caption: "Cents of each city budget dollar, in tenths of a cent, by fund, FY{year} adopted budget"
+  col_fund: Fund
+  col_cents: Cents of each dollar
+  col_source: Source
+  total_row: Total of these funds
+  printed_as: "Printed as"
+  cents_many: "{n} cents"
+  bar_label: "The city budget dollar as a bar, 100 cents wide. The list below holds the same figures."
+
 # The general fund dollar on each Finance index (sitegen/dollar_split.py, finance-contracts 11; owner's request
 # 2026-11-11). Plain and factual. First what a reader needs at a glance (one plain lede, the bar, its key, the list of
 # every department); where every figure comes from and how the cents are rounded sit in the closed "Where these numbers
