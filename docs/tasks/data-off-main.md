@@ -212,6 +212,9 @@ Choices the reviewers should check:
   (also restores the workflow and CODEOWNERS from before the merge, else the gate would refuse every run);
   `--rollback --merge <R> --sha <head> --report <r>` merges it, then R1', then R2 on, then the workflow, so R2 never
   comes on while CODEOWNERS is absent. Before the merge it is R1', R2 on, workflow on. Both disable the workflow first.
+- The cutover PR's own change (B2 refuses a tracked `data/`): `--prepare` on its branch stages `git rm -r --cached
+  data`, `data/` in `.gitignore` and CODEOWNERS deleted; then `--plan` gives the pin, the sha256 of `git ls-tree -r -z
+  <seed> -- data` (the gate's bytes). Step 1 refuses a head that tracks or does not ignore `data/`.
 - Contract with B4: the site's `build-info.json` names `D` as `data_sha` (`build_info_data_sha`).
 
 ## S1: security review

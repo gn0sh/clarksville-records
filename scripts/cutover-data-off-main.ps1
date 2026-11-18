@@ -16,6 +16,10 @@
 #     before anything changes; protect-main gets it in step 4.
 #   ... -Plan [-Ref <git rev>]    read-only: the seed step 3 would push from origin/main's data/, its checks and
 #                                 "SEED DIGEST <sha256>" for the cutover PR's RECORDS_DATA_SEED_DIGEST. No gh call.
+#   ... -Prepare                  on the cutover PR's branch (team, any machine): stages data/ out of the index
+#                                 (git rm -r --cached: the files stay on disk), data/ into .gitignore and
+#                                 .github/CODEOWNERS deleted. Commit that, then -Plan, and pin its SEED DIGEST in the
+#                                 gate's RECORDS_DATA_SEED_DIGEST (sha256 of git ls-tree -r -z <seed> -- data).
 #   ... -Rollback [-CutoverMerge <sha>]   undo (the .sh twin's --rollback --cutover-merge)
 #   ... -Rollback -Merge <R> -Sha <reviewed head> -Report <review>
 #   ... -CheckAttested            read-only: step 8's check again, for a later run
@@ -56,6 +60,7 @@ param(
     [string]$Apps = '',
     [string[]]$Report = @(),
     [switch]$Plan,
+    [switch]$Prepare,
     [string]$Ref = 'HEAD',
     [switch]$Rollback,
     [string]$CutoverMerge = '',
@@ -95,7 +100,7 @@ function Fail([string]$m) {
     exit 2
 }
 
-if (-not $Plan) {
+if (-not $Plan -and -not $Prepare) {
     foreach ($v in @('CLAUDE_CODE_REMOTE', 'GITHUB_ACTIONS', 'CI')) {
         if ([Environment]::GetEnvironmentVariable($v)) {
             Refuse "$v is set: the cutover runs only from Brian's PC (ruleset, settings and workflow writes are his)"
@@ -414,6 +419,32 @@ function CheckAttestedNow([string]$seed) {
 }
 
 try {
+# ---------------------------------------------------------------------------------------------- -Prepare
+if ($Prepare) {
+    if (GitText @('ls-files', '--', 'data')) {
+        if ((GitRun @('rm', '-r', '-q', '--cached', '--', 'data')).Code -ne 0) { Refuse 'git rm -r --cached data failed' }
+        Write-Host 'Staged: data/ out of the index (the files stay on disk).'
+    } else { Write-Host 'data/ is already out of the index.' }
+    if ((GitRun @('check-ignore', '-q', 'data/')).Code -ne 0) {
+        $gi = Join-Path $top '.gitignore'
+        $old = ''
+        if (Test-Path -LiteralPath $gi) { $old = [IO.File]::ReadAllText($gi, $utf8) }
+        if ($old -and -not $old.EndsWith("`n")) { $old += "`n" }
+        [IO.File]::WriteAllText($gi, $old + "# ADR 0011: collector output lives on branch records-data (scripts/fetch-data fills data/)`ndata/`n", $utf8)
+        if ((GitRun @('add', '.gitignore')).Code -ne 0) { Refuse 'could not add data/ to .gitignore' }
+        Write-Host 'Staged: data/ in .gitignore.'
+    } else { Write-Host 'data/ is already ignored.' }
+    if (GitText @('ls-files', '--', '.github/CODEOWNERS')) {
+        if ((GitRun @('rm', '-q', '--', '.github/CODEOWNERS')).Code -ne 0) { Refuse 'git rm .github/CODEOWNERS failed' }
+        Write-Host 'Staged: .github/CODEOWNERS deleted (ADR 0011 decision 5).'
+    }
+    if ((GitText @('ls-files', '--', 'data')) -or (GitRun @('check-ignore', '-q', 'data/')).Code -ne 0) {
+        Refuse 'data/ is still tracked or not ignored after --prepare (-Prepare)'
+    }
+    Write-Host "PREPARED: commit this, then run $me -Plan and set RECORDS_DATA_SEED_DIGEST in the gate step's env to its SEED DIGEST."
+    exit 0
+}
+
 # ---------------------------------------------------------------------------------------------- -Plan
 if ($Plan) {
     NeedPython
@@ -575,7 +606,8 @@ if (-not $pinned) { Refuse "the cutover PR's $wfname pins no single 64-hex RECOR
 $m0 = FetchMain
 if (-not $m0) { Refuse 'could not fetch main from origin' }
 if (-not (TracksData $m0)) { Refuse "main $m0 tracks no data/: the cutover PR looks merged already" }
-if (TracksData $Sha) { Refuse "the cutover PR at $Sha still tracks data/" }
+if (TracksData $Sha) { Refuse "the cutover PR at $Sha still tracks data/ (run --prepare on its branch; -Prepare)" }
+if ((GitRun @('check-ignore', '-q', 'data/')).Code -ne 0) { Refuse "the cutover PR at $Sha does not gitignore data/ (run --prepare on its branch; -Prepare)" }
 if (-not (BuildSeed $m0 $Sha)) { Refuse $script:why }
 if (-not (CheckSeed)) { Refuse $script:why }
 if ($script:seedDigest -cne $pinned) { Refuse "the seed from main $m0 has listing sha256 $($script:seedDigest), but the PR pins $pinned (main changed since: re-run -Plan and update the PR)" }

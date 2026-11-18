@@ -370,6 +370,41 @@ def test_plan_runs_in_a_cloud_session(tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
 
 
+def test_prepare_untracks_data_ignores_it_and_deletes_codeowners(tmp_path):
+    """The cutover PR's own change (B2's gate refuses a tracked data/): staged, never committed, files kept."""
+    fx = Fx(tmp_path)
+    w = fx.work
+    _git(w, "checkout", "-q", "--detach", fx.main, env=fx.genv)
+    r = fx.run(["--prepare"], CLAUDE_CODE_REMOTE="true")
+    assert r.returncode == 0 and "PREPARED" in r.stdout, r.stdout + r.stderr
+    assert _git(w, "ls-files", "--", "data", env=fx.genv) == b""
+    assert subprocess.run(["git", "check-ignore", "-q", "data/"], cwd=w).returncode == 0
+    assert _git(w, "ls-files", "--", ".github/CODEOWNERS", env=fx.genv) == b""
+    assert (w / "data" / "facts.json").exists()                          # the files stay on disk
+    assert _git(w, "rev-parse", "HEAD", env=fx.genv).decode().strip() == fx.main   # nothing committed
+    staged = _git(w, "diff", "--cached", "--name-status", env=fx.genv).decode()
+    assert "M\t.gitignore" in staged and "D\t.github/CODEOWNERS" in staged and "D\tdata/facts.json" in staged
+    r = fx.run(["--prepare"])
+    assert r.returncode == 0 and "already out of the index" in r.stdout and "already ignored" in r.stdout
+    assert fx.calls() == []
+
+
+def test_the_pin_is_the_sha256_of_the_gates_listing_bytes(tmp_path):
+    """RECORDS_DATA_SEED_DIGEST = sha256 of `git ls-tree -r -z <seed> -- data` (the gate's data_listing)."""
+    fx = Fx(tmp_path)
+    r = fx.cut()
+    seed = re.search(r"Step 3 OK: records-data = seed ([0-9a-f]{40})", r.stdout).group(1)
+    raw = _git(tmp_path, "--git-dir", str(fx.origin), "ls-tree", "-r", "-z", seed, "--", "data")
+    pin = re.search(r'RECORDS_DATA_SEED_DIGEST: "([0-9a-f]{64})"',
+                    _git(fx.work, "show", fx.head + ":.github/workflows/daily-update.yml", env=fx.genv).decode()).group(1)
+    assert hashlib.sha256(raw).hexdigest() == pin
+
+
+def test_step1_refuses_a_cutover_head_that_does_not_ignore_data(tmp_path):
+    fx = Fx(tmp_path, pr_extra={".gitignore": "build/\n"})
+    _refused(fx.cut(), fx, "does not gitignore data/")
+
+
 # ---------------------------------------------------------------------------------------------- step 1 refusals
 
 

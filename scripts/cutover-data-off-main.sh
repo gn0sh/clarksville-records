@@ -16,6 +16,10 @@
 #   bash scripts/cutover-data-off-main.sh --plan [--ref <git rev>]   read-only: the seed step 3 would push from
 #        origin/main's data/, its checks and "SEED DIGEST <sha256>" for the cutover PR's RECORDS_DATA_SEED_DIGEST
 #        (--ref: the cutover head whose config/ holds the moved inputs; default HEAD). No gh call, no push.
+#   bash scripts/cutover-data-off-main.sh --prepare   on the cutover PR's branch (team, any machine): stages data/
+#        out of the index (git rm -r --cached: the files stay on disk), data/ into .gitignore and .github/CODEOWNERS
+#        deleted. Commit that, then --plan, and pin its SEED DIGEST in the gate's RECORDS_DATA_SEED_DIGEST (the
+#        sha256 of `git ls-tree -r -z <seed> -- data`, the gate's own bytes). No gh call, no commit, no push.
 #   bash scripts/cutover-data-off-main.sh --rollback [--cutover-merge <sha>]       undo (below)
 #   bash scripts/cutover-data-off-main.sh --rollback --merge <R> --sha <reviewed head> --report <review> [...]
 #   bash scripts/cutover-data-off-main.sh --check-attested   read-only: step 8's check again, for a later run
@@ -84,6 +88,7 @@ while [ "$#" -gt 0 ]; do
     --apps) apps="${2:-}"; shift 2 || { echo "$usage"; exit 1; } ;;
     --report) [ -n "${2:-}" ] || { echo "$usage"; exit 1; }; reports+=("$2"); shift 2 ;;
     --plan) mode=plan; shift ;;
+    --prepare) mode=prepare; shift ;;
     --ref) ref="${2:-}"; shift 2 || { echo "$usage"; exit 1; } ;;
     --rollback) mode=rollback; shift ;;
     --cutover-merge) cmerge="${2:-}"; shift 2 || { echo "$usage"; exit 1; } ;;
@@ -104,7 +109,7 @@ fail() {
   exit 2
 }
 
-if [ "$mode" != plan ]; then
+if [ "$mode" != plan ] && [ "$mode" != prepare ]; then
   for v in CLAUDE_CODE_REMOTE GITHUB_ACTIONS CI; do
     [ -z "${!v:-}" ] || refuse "$v is set: the cutover runs only from Brian's PC (ruleset, settings and workflow writes are his)"
   done
@@ -277,6 +282,31 @@ merged_line_ok() {   # $1 merge-reviewed output: prints the merge sha when its l
   [ -n "$m" ] && echo "$m"
 }
 
+# ---------------------------------------------------------------------------------------------- --prepare
+if [ "$mode" = prepare ]; then
+  if [ -n "$(git ls-files -- data | head -n 1)" ]; then
+    git rm -r -q --cached -- data || refuse "git rm -r --cached data failed"
+    echo "Staged: data/ out of the index (the files stay on disk)."
+  else
+    echo "data/ is already out of the index."
+  fi
+  if ! git check-ignore -q data/; then
+    printf '%s\n' "# ADR 0011: collector output lives on branch records-data (scripts/fetch-data fills data/)" "data/" >> .gitignore \
+      && git add .gitignore || refuse "could not add data/ to .gitignore"
+    echo "Staged: data/ in .gitignore."
+  else
+    echo "data/ is already ignored."
+  fi
+  if [ -n "$(git ls-files -- .github/CODEOWNERS)" ]; then
+    git rm -q -- .github/CODEOWNERS || refuse "git rm .github/CODEOWNERS failed"
+    echo "Staged: .github/CODEOWNERS deleted (ADR 0011 decision 5)."
+  fi
+  [ -z "$(git ls-files -- data | head -n 1)" ] && git check-ignore -q data/ \
+    || refuse "data/ is still tracked or not ignored after --prepare"
+  echo "PREPARED: commit this, then run $me --plan and set RECORDS_DATA_SEED_DIGEST in the gate step's env to its SEED DIGEST."
+  exit 0
+fi
+
 # ---------------------------------------------------------------------------------------------- --plan
 if [ "$mode" = plan ]; then
   need_python
@@ -430,7 +460,8 @@ git var GIT_COMMITTER_IDENT >/dev/null 2>&1 || refuse "git has no user.name/user
 pinned=$(pinned_seed_digest "$sha") || refuse "the cutover PR's $wfname pins no single 64-hex RECORDS_DATA_SEED_DIGEST"
 m0=$(fetch_main) || refuse "could not fetch main from origin"
 tracks_data "$m0" || refuse "main $m0 tracks no data/: the cutover PR looks merged already"
-tracks_data "$sha" && refuse "the cutover PR at $sha still tracks data/"
+tracks_data "$sha" && refuse "the cutover PR at $sha still tracks data/ (run --prepare on its branch)"
+git check-ignore -q data/ || refuse "the cutover PR at $sha does not gitignore data/ (run --prepare on its branch)"
 build_seed "$m0" "$sha" || refuse "$why"
 check_seed || refuse "$why"
 [ "$seed_digest" = "$pinned" ] || refuse "the seed from main $m0 has listing sha256 $seed_digest, but the PR pins $pinned (main changed since: re-run --plan and update the PR)"
