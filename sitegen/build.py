@@ -25,7 +25,7 @@ from . import rpc as rpc_mod
 from . import freshness as fresh_mod
 from . import morning_page
 from . import budget_views, config, council as council_mod, days as days_mod, dollar_split, feeds as feeds_mod, \
-    fin_views, property_tax, \
+    fin_views, fund_split, property_tax, \
     georef as georef_mod, localdates, morning as morning_mod, unofficial as unofficial_mod, \
     transcripts as transcripts_mod, watch as watch_mod, \
     seats as seats_mod, views
@@ -450,7 +450,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
     config/localities/<locality>/districts.json; a fixture facts file reads neither (made-up people must never be
     joined to the real roster), so tests pass their own fixture files. None means: no such file.
-    `general_fund_dollar=False`: no general fund dollar on the Finance indexes (sitegen/dollar_split.py). Only for a
+    `general_fund_dollar=False`: no general fund dollar on the Finance indexes (sitegen/dollar_split.py), and no city
+    budget dollar by fund (sitegen/fund_split.py). Only for a
     build over a partial finance file (the pinned test snapshot holds two city funds): a real build always shows it,
     and fails when its dollar-split.yml names a book or fund the file lacks (dollar-split/silent-hide).
     `finance_path`: finance.json (bids and awards). Left out, a real build reads finance.json next to the facts file
@@ -824,9 +825,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             ctx = fin_views.solicitation(sol["id"], fx)
             render("fin_solicitation.html.j2", f"contracts/{sol['slug']}.html", f"{title}: {sol['title']}", **ctx)
         render("glossary.html.j2", "glossary.html", "Glossary", **fin_views.glossary())
-    def render_budget(bg, title, body_note, sctx=None, dollar_cfg=None, proptax_cfg=None):
+    def render_budget(bg, title, body_note, sctx=None, dollar_cfg=None, proptax_cfg=None, funds_cfg=None):
         """Finance index, one page per fund (and the capital page): the county's, or the city's under city/. The index
-        is rendered once every fund page is planned, so its general fund dollar links each total to its page part."""
+        is rendered once every fund page is planned, so its general fund dollar links each total to its page part.
+        `funds_cfg`: the city budget dollar by fund (sitegen/fund_split.py), the city's call only."""
         # Fund and capital pages over config.PAGE_BYTES are split in parts by heading (finance-pages/page-weight):
         # every fund is planned first, so each line's row has its part before any page links to it.
         split = []
@@ -855,15 +857,18 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         try:
             dollar = dollar_split.split(bg, dollar_cfg)
             proptax = property_tax.split(bg, proptax_cfg, dollar["fund"] if dollar else None)
+            fundsplit = fund_split.split(bg, funds_cfg, dollar)
         except fin_views.FinanceError as exc:
             raise BuildError(f"{bg.index}: {exc}") from exc
+        if funds_cfg is not None and fundsplit is None:   # fund-split/silent-hide: never dropped either
+            raise BuildError(f"{bg.index}: fund-split.yml is set but no fund bar was built")
         if proptax_cfg is not None and proptax is None:   # property-tax-split/silent-hide: never dropped either
             raise BuildError(f"{bg.index}: property-tax-split.yml is set but no property tax bar was built")
         if dollar_cfg is not None and dollar is None:   # dollar-split/silent-hide: a real build never drops the bar
             raise BuildError(f"{bg.index}: dollar-split.yml names book {dollar_cfg['book']!r} and fund "
                              f"{dollar_cfg['fund']!r}, which this finance file does not hold")
         render("fin_index.html.j2", bg.index, title, sctx, **budget_views.finance_index(bg, export=export),
-               body_note=body_note, dollar=dollar, proptax=proptax)
+               body_note=body_note, dollar=dollar, proptax=proptax, fundsplit=fundsplit)
         for tpl, name, make, parts, paths, part_of, by_id in planned:
             nav = [{"href": posixpath.basename(p), "label": budget_views.part_label([by_id[i] for i in ids])}
                    for ids, p in zip(parts, paths)] if len(parts) > 1 else []
@@ -883,6 +888,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                                               sibling=budget_views.INDEX if bg is not None else None),
                       council_mod.site_for(site, city_council),
                       dollar_cfg=dollar_split.load(Path(city_council.cfg["facts_path"]).parent.name)
+                      if general_fund_dollar else None,
+                      funds_cfg=fund_split.load(Path(city_council.cfg["facts_path"]).parent.name)
                       if general_fund_dollar else None)
     for o in facts["officials"]:
         if vote_lists:   # first, so the official page knows how many pages the list is on

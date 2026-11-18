@@ -3,9 +3,10 @@
 {% from "_fin_macros.html.j2" import fin_cites, words_toggle %}
 {% block main %}
 <div class="fin">
-{# Design finance-contracts 6: books, then funds in the book's order. The figure blocks are the county property tax dollar
-   (owner 2026-11-18, architecture finance-contracts 12) and the general fund dollar (owner's request 2026-11-11,
-   architecture finance-contracts 11): no other amount, chart or total tile. #}
+{# Design finance-contracts 6: books, then funds in the book's order. The figure blocks, in page order, are the county
+   property tax dollar (owner 2026-11-18, architecture finance-contracts 12; county page), the city budget dollar by
+   fund (CEO 2026-11-18, architecture finance-contracts 13 and city-funds-dollar; city page) and the general fund dollar
+   (owner's request 2026-11-11, architecture finance-contracts 11; both pages): no other amount, chart or total tile. #}
 <h1>{{ b.title }}</h1>
 {# Which body's money this is, first (owner 2026-11-12). The links are the bodies' own sites, from the config. #}
 {% if body_note is defined and body_note %}<p class="note body-note" id="body-note"><strong>{{ body_note.text }}</strong>{% if body_note.sibling %} {{ body_note.sibling.lede }} <a href="{{ root }}{{ body_note.sibling.href }}">{{ body_note.sibling.label }}</a>.{% endif %}{% if body_note.links %} {{ body_note.link_lede }}{% for l in body_note.links %} <a data-ext="{{ l.kind }}" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">{{ l.label }}<span class="sr-only"> (opens in a new tab)</span></a>{{ "." if loop.last else "," }}{% endfor %}{% endif %}</p>{% endif %}
@@ -15,6 +16,9 @@
 
 <div data-body="{{ body_key | default(site.cfg.county_key) }}">{# every book and fund here is one body's (the county's, or the city's under city/) #}
 {% if proptax is defined and proptax %}{% include "_proptax.html.j2" %}{% endif %}
+{#- the city budget dollar, by fund (CEO 2026-11-18, architecture city-funds-dollar): the city's page only; trimmed so
+    a page without it (the county's) renders byte for byte as before -#}
+{%- if fundsplit is defined and fundsplit %}{% include "_funds.html.j2" %}{% endif -%}
 {% if dollar is defined and dollar %}{% include "_dollar.html.j2" %}{% endif %}
 <section aria-labelledby="books-h">
 <h2 id="books-h">{{ b.books_heading }}</h2>

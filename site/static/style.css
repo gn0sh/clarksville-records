@@ -1104,6 +1104,11 @@ details.dollar-list li { margin: 4px 0; }
   table.dollar-table tbody tr.d-total > * { border-top: 0; }
   table.dollar-table tbody tr.d-total { border: 2px solid var(--fg); }
 }
+/* The fund bar has 14 segments, most under a cent wide on a phone: a gap between each would add 13 px of bar the
+   shares do not have and show the small funds about twice their share (finance-pages/bar-gap-distorts-shares). No
+   gap; a 1 px line drawn inside each segment's left edge keeps them apart without changing any width. */
+.fundsplit .dollar-bar { gap: 0; }
+.fundsplit .dseg + .dseg { box-shadow: inset 1px 0 var(--bg); }
 @media (max-width: 640px) {
   table.budget tbody td.c-acct:empty { display: none; }
   table.budget tbody td.c-acct::before { content: attr(data-label) " "; }
