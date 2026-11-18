@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Protect main: the bash twin of scripts/protect-main.ps1 (docs/ops/morning-note.md, step 2.0.1). Creates the
-# "main: pull request required" ruleset (no bypass), or updates it if it already exists; never makes a second one.
+# "main: pull request required" ruleset (R1', ADR 0010: code-owner review, squash only, admin bypass for pull requests
+# only, so nobody pushes main), or updates it if it already exists; never makes a second one. It stops, changing
+# nothing, if .github/CODEOWNERS is not on main or GitHub lists an error in it (a bad line is silently dropped).
 # It reads main's sha BEFORE writing the ruleset (R1) and prints "Main before the ruleset: <sha>". Then it reads
 # "Allow GitHub Actions to create and approve pull requests" (R2) and turns it on (the push job's data PR), printing
 # "R2 was off; main was <sha>" (that same pre-R1 sha) or "R2 already on": record those lines in
@@ -21,6 +23,22 @@ case "$wf" in
   *"Open and merge the data pull request"*) ;;
   *) echo "Main does not have the data pull request change yet. Nothing was changed. Merge that pull request first, then run this again."; exit 1 ;;
 esac
+# ADR 0010 (R1'): code-owner review binds only through .github/CODEOWNERS on main; without it, or with a line GitHub
+# could not read, a workflow's merge of a non-data pull request would need no review at all.
+# Its rules (comments and blank lines aside) must be exactly "* @gn0sh" then "/data/" (no owner: data/ unowned).
+codeowners=$(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2>/dev/null) \
+  || { echo "Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again."; exit 1; }
+# (the same reading as scripts/v1-probe.sh: runs of spaces or tabs made one space, ends trimmed; a later line would
+# override an earlier one, so nothing else is allowed: v1-probe/rerun-after-fail-codeowners-override)
+co_rules=$(printf '%s\n' "$codeowners" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' \
+           | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' | paste -sd'|' - || true)
+if [ "$co_rules" != '* @gn0sh|/data/' ]; then
+  echo "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: $co_rules). Nothing was changed. Send this output to the team."; exit 1
+fi
+co_errors=$(gh api "repos/$repo/codeowners/errors?ref=main" --jq '.errors | length' || true)
+if [ "$co_errors" != 0 ]; then
+  echo "GitHub lists errors in main's .github/CODEOWNERS ('$co_errors'). Nothing was changed. Send this output to the team."; exit 1
+fi
 # main-protect/window-start-gap: main's sha is read BEFORE R1 is written, so no commit can land on main between the
 # window start and R1 (a direct push in that gap would be inside the window and caught by the 4.7.1 check).
 main_sha=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha' || true)
@@ -69,21 +87,36 @@ echo "Auto-merge allowed: $auto"
 [ "$auto" = false ] || { echo "Auto-merge must be off: Settings > General > Pull Requests > untick Allow auto-merge."; ok=0; }
 for id in $(gh api "repos/$repo/rulesets" --jq "$find"); do
   enf=$(gh api "repos/$repo/rulesets/$id" --jq '.enforcement')
-  actors=$(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id] | @tsv' \
+  actors=$(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv' \
            | tr '\t' ':' | paste -sd, -)
+  # ADR 0010 (R1'): code-owner review on, squash only. jq's // would turn false into empty, so select() instead.
+  owner=$(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .require_code_owner_review' \
+          | paste -sd, -)
+  methods=$(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .allowed_merge_methods[]?' \
+            | paste -sd, -)
+  # M3 main-protect/stale-owner-approval: gn0sh can approve a pull request a bot opened; a push after that approval
+  # must dismiss it, so a later commit never rides on an owner's approval of an earlier head.
+  stale=$(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push' \
+          | paste -sd, -)
   # main-protect L-E: approvals stay 0. With GitHub Actions allowed to approve pull requests, a workflow's approval
   # would count toward any number above 0; the gate counts a person's merge and review instead (ADR 0009).
   appr=$(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters.required_approving_review_count // empty' \
          | paste -sd, -)
   found=1
   echo "Ruleset $id: $enf, bypass ${actors:-none}, required approvals ${appr:-none}"
-  [ "$enf" = active ] && [ -z "$actors" ] || ok=0
+  echo "Code-owner review: ${owner:-none}, merge methods: ${methods:-none}, dismiss stale reviews: ${stale:-none}"
+  [ "$enf" = active ] || ok=0
+  # ADR 0010: exactly one bypass, the Repository admin role (id 5), for pull requests only (nobody pushes main).
+  [ "$actors" = "RepositoryRole:5:pull_request" ] || { echo "The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request)."; ok=0; }
+  [ "$owner" = true ] || { echo "Code-owner review must be on (ADR 0010)."; ok=0; }
+  [ "$methods" = squash ] || { echo "Squash must be the only merge method (ADR 0010)."; ok=0; }
+  [ "$stale" = true ] || { echo "Dismiss stale approvals on push must be on (ADR 0010, M3)."; ok=0; }
   [ "$appr" = 0 ] || { echo "Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow's approval would count)."; ok=0; }
 done
 [ "$found" = 1 ] || { echo "No ruleset named 'main: pull request required' found after writing it."; ok=0; }
 if [ "$ok" = 1 ]; then
   echo "OK: main is protected. Next: Actions > Daily update > Run workflow (the check run of step 2.0)."
 else
-  echo "NOT OK: expected rules deletion,non_fast_forward,pull_request, active, no bypass, required approvals 0, auto-merge off, and Actions may create pull requests."
+  echo "NOT OK: expected rules deletion,non_fast_forward,pull_request, active, bypass RepositoryRole:5:pull_request only, required approvals 0, code-owner review on, squash only, dismiss stale reviews on, auto-merge off, and Actions may create pull requests."
   exit 1
 fi

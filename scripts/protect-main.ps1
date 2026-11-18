@@ -1,6 +1,9 @@
 # Protect main: create the "main: pull request required" ruleset, or update it if it already exists
 # (docs/ops/morning-note.md, step 2.0.1). Safe to run more than once: it never makes a second ruleset.
-# The ruleset has NO bypass: the daily update reaches main by its own pull request (the push job). This reads main's
+# The ruleset is R1' (ADR 0010): code-owner review (.github/CODEOWNERS owns everything outside data/), squash only,
+# and one bypass, the Repository admin role for pull requests only, so nobody pushes main. The daily update reaches
+# main by its own data-only pull request (the push job). It stops, changing nothing, if .github/CODEOWNERS is not on
+# main or GitHub lists an error in it. This reads main's
 # sha BEFORE writing the ruleset (R1) and prints "Main before the ruleset: <sha>"; after R1 it reads "Allow GitHub
 # Actions to create and approve pull requests" (R2, Settings > Actions > General) and turns it on, printing "R2 was
 # off; main was <sha>" (that same pre-R1 sha) or "R2 already on": record those lines in docs/platform-facts.md
@@ -11,7 +14,7 @@
 # Needs: GitHub CLI (winget install GitHub.cli), signed in as the repository owner: gh auth login
 # Run (PowerShell, in the repository folder):
 #   powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
-# The rules (and the empty bypass list) are in scripts\main-ruleset.json.
+# The rules (and the one bypass) are in scripts\main-ruleset.json.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): the name comes in through $ENV.
 
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
@@ -35,6 +38,28 @@ if ($LASTEXITCODE -ne 0) {
 $wf = (gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" -H 'Accept: application/vnd.github.raw') -join "`n"
 if ($LASTEXITCODE -ne 0 -or $wf -notmatch 'Open and merge the data pull request') {
     Write-Host 'Main does not have the data pull request change yet. Nothing was changed. Merge that pull request first, then run this again.'
+    exit 1
+}
+
+# ADR 0010 (R1'): code-owner review binds only through .github/CODEOWNERS on main; without it, or with a line GitHub
+# could not read, a workflow's merge of a non-data pull request would need no review at all.
+# Its rules (comments and blank lines aside) must be exactly "* @gn0sh" then "/data/" (no owner: data/ unowned).
+$codeowners = @(gh api "repos/$repo/contents/.github/CODEOWNERS?ref=main" -H 'Accept: application/vnd.github.raw' 2> $null)
+if ($LASTEXITCODE -ne 0) {
+    Write-Host 'Main has no .github/CODEOWNERS yet. Nothing was changed. Merge the code-owner pull request first, then run this again.'
+    exit 1
+}
+# (the same reading as scripts\v1-probe.ps1: runs of spaces or tabs made one space, ends trimmed; a later line would
+# override an earlier one, so nothing else is allowed. Comparisons here are case-sensitive: -cne, -cnotmatch.)
+$coRules = (@($codeowners | ForEach-Object { $_ -split "`n" } | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } |
+              Where-Object { $_ -cnotmatch '^(#|$)' })) -join '|'
+if ($coRules -cne '* @gn0sh|/data/') {
+    Write-Host "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: $coRules). Nothing was changed. Send this output to the team."
+    exit 1
+}
+$coErrors = (gh api "repos/$repo/codeowners/errors?ref=main" --jq '.errors | length') -join ''
+if ($LASTEXITCODE -ne 0 -or $coErrors -cne '0') {
+    Write-Host "GitHub lists errors in main's .github/CODEOWNERS ('$coErrors'). Nothing was changed. Send this output to the team."
     exit 1
 }
 
@@ -92,19 +117,31 @@ $found = @(gh api "repos/$repo/rulesets" --jq $find | Where-Object { $_ })
 if ($found.Count -eq 0) { Write-Host 'No ruleset named main: pull request required found after writing it.'; $ok = $false }
 foreach ($id in $found) {
     $enf = (gh api "repos/$repo/rulesets/$id" --jq '.enforcement') -join ''
-    $actors = (@(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id] | @tsv') |
+    $actors = (@(gh api "repos/$repo/rulesets/$id" --jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv') |
                ForEach-Object { $_ -replace "`t", ':' }) -join ','
+    # ADR 0010 (R1'): code-owner review on, squash only. jq's // would turn false into empty, so select() instead.
+    $owner = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .require_code_owner_review')) -join ','
+    $methods = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .allowed_merge_methods[]?')) -join ','
+    # M3 main-protect/stale-owner-approval: gn0sh can approve a pull request a bot opened; a push after that approval
+    # must dismiss it, so a later commit never rides on an owner's approval of an earlier head.
+    $stale = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push')) -join ','
     # main-protect L-E: approvals stay 0 (a workflow's approval would count toward any number above 0; ADR 0009).
     $appr = (@(gh api "repos/$repo/rulesets/$id" --jq '.rules[].parameters.required_approving_review_count // empty')) -join ','
     $shown = if ($actors) { $actors } else { 'none' }
     Write-Host "Ruleset ${id}: $enf, bypass $shown, required approvals $appr"
-    if ($enf -ne 'active' -or $actors -ne '') { $ok = $false }
+    Write-Host "Code-owner review: $owner, merge methods: $methods, dismiss stale reviews: $stale"
+    if ($enf -cne 'active') { $ok = $false }
+    # ADR 0010: exactly one bypass, the Repository admin role (id 5), for pull requests only (nobody pushes main).
+    if ($actors -cne 'RepositoryRole:5:pull_request') { Write-Host 'The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).'; $ok = $false }
+    if ($owner -cne 'true') { Write-Host 'Code-owner review must be on (ADR 0010).'; $ok = $false }
+    if ($methods -cne 'squash') { Write-Host 'Squash must be the only merge method (ADR 0010).'; $ok = $false }
+    if ($stale -cne 'true') { Write-Host 'Dismiss stale approvals on push must be on (ADR 0010, M3).'; $ok = $false }
     if ($appr -ne '0') { Write-Host 'Required approvals must be 0 (raising them needs ADR 0009 changed first: a workflow approval would count).'; $ok = $false }
 }
 if ($ok) {
     Write-Host 'OK: main is protected. Next: Actions > Daily update > Run workflow (the check run of step 2.0).'
 } else {
-    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request, active, no bypass, required approvals 0, auto-merge off, and Actions may create pull requests.'
+    Write-Host 'NOT OK: expected rules deletion,non_fast_forward,pull_request, active, bypass RepositoryRole:5:pull_request only, required approvals 0, code-owner review on, squash only, dismiss stale reviews on, auto-merge off, and Actions may create pull requests.'
     Write-Host 'Send this output to the team.'
     exit 1
 }

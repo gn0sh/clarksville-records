@@ -338,6 +338,28 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
 
 ## Main protection (V1 probe, T4.10.1)
-- Not run yet. When it runs (runbook 2.0.4): the run link, the four merge answers (REST squash, merge, rebase; GraphQL), the review `commit_id` result,
-  and `main`'s sha before and after go here.
+- **V1 probe: FAIL, 2026-11-18 08:50 UTC** (Brian's run of `scripts/v1-probe.ps1`; run
+  https://github.com/gn0sh/clarksville-records/actions/runs/44270476748). The runner's first try, REST
+  `PUT pulls/40/merge` with `merge_method=squash` pinned to head 912b0fb, **merged** PR #40 ("V1 probe (do not
+  merge)", author gn0sh), which adds `.github/workflows/v1-canary.yml`: `merged_by` github-actions[bot] (type Bot) at
+  08:50:47Z; `main` 551a483 -> 3ef440a, whose only file is `v1-canary.yml`. The other three tries (merge, rebase,
+  GraphQL) did not run (the runner stops at the first merge). So `GITHUB_TOKEN` with `contents: write` can merge a
+  workflow change into `main` under the 0-approval ruleset: **V1 is false.** Step 4: a COMMENT review posted with
+  the older `commit_id` c588924 kept it (verified). The script turned **Allow GitHub Actions to create and approve
+  pull requests** off; GitHub Actions stayed on; the script's cleanup deleted both probe branches.
+- Read 2026-11-18 after the probe (team session, `gh api` and `git`): ruleset 27502319 `main: pull request
+  required` active on the default branch, rules `deletion`, `non_fast_forward`, `pull_request` (0 approvals,
+  `require_code_owner_review` false, merge methods merge, squash, rebase), bypass list empty. PR #38 merged 08:54:02Z
+  by gn0sh (User) with a COMMENTED review at its head 97a627f (S2), `main` now 0d17211; no open PR into `main`. All
+  95 remote branches: every workflow file triggers only on `schedule` or `workflow_dispatch`. `MAIN_PR_BASELINE` and
+  `MORNING_NOTE_SEND` unset. Still not readable from the team session (proxy): `actions/permissions*`,
+  `environments`, `collaborators`.
+- Ruleset 27502319 read 2026-11-18 (team session, `gh api repos/gn0sh/clarksville-records/rulesets/27502319`): its
+  `pull_request` parameters also carry `required_reviewers: []` and
+  `require_extra_approval_for_unattributed_changes: true`, neither set by our json. R1' keeps both at these live
+  values. Meaning of the second, per GitHub's docs (as relayed by the PR #43 security review, not read by the team
+  directly): it applies only to pull requests authored by Copilot and has no effect at 0 required approvals, so it
+  does not change whether a data PR needs review (ADR 0010 U2; L1).
+- Re-plan: ADR 0010 (code-owner rule R1' replaces V1). Next facts here: the V1' probe (run link, four answers,
+  `main` before and after), the first data PR merged under R1' and the first S2 merge under R1'.
 - `github-pages` deployment branches after runbook 2.0.5: not checked yet.

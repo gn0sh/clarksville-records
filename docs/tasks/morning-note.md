@@ -318,6 +318,49 @@ Owner: devops-engineer unless named. One branch for T4.10.2 to T4.10.4 and T4.10
 
 Order: .1, .5 and branch A (.2, .3, .4, .6) in parallel; .7 on branch A; merge A; .8 the same day .1 passes, to
 close phase 0. `MORNING_NOTE_SEND` waits on .1 PASS and .8 (runbook section 4).
+**2026-11-18: .1 returned FAIL (V1 false).** .8 now waits on T4.11 (V1' PASS) instead of .1.
+
+### T4.11 V1 is false: code-owner rule R1' (2026-11-18; ADR 0010, invariant "V1 is false")
+Owner: devops-engineer unless named. One branch for .2-.4 (same scripts and tests).
+| Task | Owner | Depends on | Parallel |
+|---|---|---|---|
+| T4.11.0 R2 back on (data saving resumes) | Brian | none | now |
+| T4.11.1 Merge `claude/remove-v1-canary` | manager (review: code-reviewer) | none | yes, with .2-.4 |
+| T4.11.2 CODEOWNERS, R1' json, S1 checks, workflow trigger lint | devops | none | branch B |
+| T4.11.3 Probe verdict V1' | devops | none | branch B |
+| T4.11.4 Runbook and workflow comments | devops | .2, .3 drafted | branch B |
+| T4.11.5 Security review (fresh, opus/high) | security-engineer | branch B committed | before B merges |
+| T4.11.6 Apply R1' (`protect-main`), positive controls U2, U3 | Brian, then devops records | B merged, .1 merged | after B |
+| T4.11.7 V1' probe | Brian | .6 | after .6 |
+
+- **T4.11.1** Branch `claude/remove-v1-canary`: deletes `.github/workflows/v1-canary.yml`; the probe scripts stop,
+  changing nothing, unless `rules/branches/main` shows `require_code_owner_review` true (v1-probe/rerun-after-fail),
+  with tests. Merge with `scripts/merge-reviewed` under today's ruleset. Done when: `main` has no `v1-canary.yml`
+  and `tests/test_workflow_lock.py` passes on `main`.
+- **T4.11.2** `.github/CODEOWNERS` exactly: a comment naming ADR 0010, `* @gn0sh`, `/data/` (no owner).
+  `scripts/main-ruleset.json`: `require_code_owner_review: true`, approvals 0, `allowed_merge_methods: ["squash"]`,
+  `bypass_actors: [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]` (check the
+  admin role id against GitHub's docs or a read of an existing ruleset), every other parameter as GitHub returns it
+  today. `protect-main.sh`/`.ps1`: stop, changing nothing, if `.github/CODEOWNERS` is not on `main` or
+  `repos/gn0sh/clarksville-records/codeowners/errors?ref=main` lists any error; OK check adds code-owner review on,
+  squash only, bypass exactly that one actor. Tests: CODEOWNERS text pinned; json asserted (replacing "no bypass");
+  fake-`gh` runs of both refusals and the OK path; a lint that no workflow file in the tree listens to
+  `pull_request_target`, `workflow_run`, `issue_comment`, `issues`, `discussion*` or `pull_request_review*` (T2).
+- **T4.11.3** `v1-probe.sh`/`.ps1`: PASS = four refusals each matching `code owner|rule` (case-insensitive) or the
+  `workflows` permission, `main` unchanged, PR unmerged after cleanup, canary absent; anything else INCONCLUSIVE.
+  FAIL text: R2 off (kept), remove the canary by PR, leave baseline and `MORNING_NOTE_SEND` unset; drop "turn off
+  Actions" and "close every open PR" (invariant T1-T8). Tests updated (refusal fixtures for the ruleset message).
+- **T4.11.4** Runbook `docs/ops/morning-note.md` 2.0 (CODEOWNERS, R1', S2 is a bypass merge, U3 fallback), 2.0.4
+  (FAIL 2026-11-18, the V1' probe), 4.6a (V1' PASS), 4.7.1 (the 3ef440a exception); `daily-update.yml` comments that
+  cite V1 or "only `.github/workflows/` is out of a bot merge's reach". Done when: no line states V1 as a fact.
+- **T4.11.6** Brian runs `scripts\protect-main.ps1` (prints OK with the new lines). Then record in
+  `docs/platform-facts.md`: the next data PR merged by github-actions under R1' (U2; if refused, re-run the old json
+  from git and tell the architect) and the next S2 merge's result (U3).
+- **T4.11.7** Brian runs `scripts\v1-probe.ps1`. PASS: record, then T4.10.8 (baseline at or after branch B's merge).
+  FAIL: the script turns R2 off; canary removed by PR; Brain Trust on "data off `main`" (ADR 0010 fallback).
+
+Order: .0 now; .1 and branch B (.2-.4, then .5) in parallel; merge .1, then B (both under today's ruleset); .6;
+.7; then T4.10.5 if still open and T4.10.8.
 
 ### Order for T4
 T4.1 + T4.2 + T4.3 + T4.6 in parallel now (T4.6 touches only templates and `morning_note.page`; T4.3 owns the rest of

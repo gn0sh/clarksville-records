@@ -691,7 +691,11 @@ def test_no_untrusted_triggers_and_no_echoed_credentials(path):
     text = path.read_text(encoding="utf-8")
     wf = yaml.safe_load(text)
     on = wf.get("on") or wf[True]
-    assert not set(on) & {"pull_request_target", "workflow_run", "pull_request", "issue_comment"}
+    # T2 (main-protect invariant, ADR 0010): no trigger that runs a workflow on an event someone without write
+    # access can cause (V1 is false, so such a run's write token could merge into main)
+    banned = {"pull_request_target", "workflow_run", "pull_request", "issue_comment", "issues"}
+    assert not set(on) & banned, sorted(set(on) & banned)
+    assert not [t for t in on if str(t).startswith(("discussion", "pull_request_review"))], list(on)
     assert _secret_uses(wf) == (ALLOWED_SECRETS if path.name == "daily-update.yml" else [])
     for line in text.splitlines():
         s = line.strip()
@@ -1941,6 +1945,45 @@ def test_the_window_check_runs_and_stops_where_it_must(tmp_path, case):
         assert "checked 2 commits" not in r.stdout
 
 
+@pytest.mark.parametrize("case", ["canary", "other-file", "other-pr", "other-sha"])
+def test_the_window_check_lets_only_the_v1_probe_canary_merge_through(tmp_path, case):
+    """ADR 0010 / T4.11.4: 3ef440a (PR #40, the V1 probe's bot merge of .github/workflows/v1-canary.yml) is the one
+    known Bot merge in the window. The block passes it only when the sha, the PR number and the file list all match;
+    any other Bot merge still stops. The real sha is swapped for a local commit to run it."""
+    script = _window_script()
+    assert "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40" in script
+    origin, work, bindir = tmp_path / "origin.git", tmp_path / "work", tmp_path / "bin"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(tmp_path, "init", "-q", str(work))
+    shas = []
+    canary = "sender/a.py" if case == "other-file" else ".github/workflows/v1-canary.yml"
+    for i, rel in enumerate(["sender/a.py", canary, "sender/b.py"]):
+        (work / rel).parent.mkdir(parents=True, exist_ok=True)
+        (work / rel).write_text(f"{i}\n")
+        _git(work, "add", "-A")
+        _git(work, "commit", "-q", "-m", f"c{i}")
+        shas.append(_git(work, "rev-parse", "HEAD"))
+    _git(work, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
+    _git(work, "remote", "add", "origin", f"file://{origin}")
+    known = "e" * 40 if case == "other-sha" else shas[1]
+    pr = int(shas[1][:6], 16) + (1 if case == "other-pr" else 0)
+    types = {shas[1]: "Bot", shas[2]: "User"}
+    bindir.mkdir()
+    (bindir / "gh").write_text(_WINDOW_GH)
+    (bindir / "gh").chmod(0o755)
+    script = script.replace('"<R2-on sha>"', f'"{shas[0]}"', 1).replace(
+        "known=3ef440aea9e5ce7374cdb789a05d646d74a91ac3; known_pr=40", f"known={known}; known_pr={pr}")
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "TYPES": json.dumps(types),
+           "GIT_CONFIG_GLOBAL": "/dev/null"}
+    r = subprocess.run(["bash", "-c", script], cwd=work, env=env, capture_output=True, text=True)
+    if case == "canary":
+        assert r.returncode == 0 and r.stdout.splitlines()[-1] == "checked 2 commits", r.stdout + r.stderr
+        assert f"KNOWN EXCEPTION: {shas[1]} is PR #{pr}" in r.stdout
+    else:
+        assert r.returncode == 1 and f"STOP: {shas[1]} was not merged by a person" in r.stdout, r.stdout + r.stderr
+        assert "KNOWN EXCEPTION" not in r.stdout
+
+
 def test_the_runbook_quotes_the_gates_data_refusals_exactly():
     """runbook/gate-message-drift: every data/ refusal and the history-read refusal the gate prints, word for word
     (up to the first variable), is in "When the gate fails"."""
@@ -2358,8 +2401,25 @@ if path == "repos/gn0sh/clarksville-records/contents/.github/workflows/daily-upd
     assert a[-2:] == ["-H", "Accept: application/vnd.github.raw"], a
     print(os.environ["MAIN_WF"])
     sys.exit(0)
+if path == "repos/gn0sh/clarksville-records/contents/.github/CODEOWNERS?ref=main":
+    assert a[-2:] == ["-H", "Accept: application/vnd.github.raw"], a
+    if os.environ.get("CO_MISSING"):
+        sys.exit(1)                        # gh: HTTP 404
+    print(os.environ.get("CO_TEXT", "# ADR 0010\\n* @gn0sh\\n/data/\\n"), end="")
+    sys.exit(0)
 jq = a[a.index("--jq") + 1]
-if path.endswith("/actions/permissions/workflow"):
+if path == "repos/gn0sh/clarksville-records/codeowners/errors?ref=main":
+    assert jq == ".errors | length", jq
+    if os.environ.get("CO_ERRORS") == "FAIL":
+        sys.exit(1)
+    print(os.environ.get("CO_ERRORS", "0"))
+elif jq == ".rules[].parameters | select(. != null) | .require_code_owner_review":
+    print(os.environ.get("OWNER", "true"))
+elif jq == ".rules[].parameters | select(. != null) | .allowed_merge_methods[]?":
+    print(os.environ.get("METHODS", "squash"))
+elif jq == ".rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push":
+    print(os.environ.get("STALE", "true"))
+elif path.endswith("/actions/permissions/workflow"):
     assert jq == ".can_approve_pull_request_reviews", jq
     r2 = "true" if os.path.exists(os.environ["GH_CALLS"] + ".r2on") else os.environ.get("R2", "false")
     if r2 == "FAIL":
@@ -2385,7 +2445,8 @@ elif path.endswith("/rules/branches/main"):
 elif jq == ".enforcement":
     print("active")
 else:
-    print(os.environ.get("BYPASS", ""), end="")      # the ruleset's bypass list: empty
+    assert jq == ".bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv", jq
+    print(os.environ.get("BYPASS", "RepositoryRole\\t5\\tpull_request\\n"), end="")   # R1': the admin role, PRs only
 '''
 
 
@@ -2400,7 +2461,9 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
            "MAIN_WF": TEXT}
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
     assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
-    assert "bypass none, required approvals 0" in r.stdout and "GitHub Actions may create pull requests: true" in r.stdout
+    assert "bypass RepositoryRole:5:pull_request, required approvals 0" in r.stdout
+    assert "Code-owner review: true, merge methods: squash, dismiss stale reviews: true" in r.stdout
+    assert "GitHub Actions may create pull requests: true" in r.stdout
     assert "Auto-merge allowed: false" in r.stdout
     lines = calls.read_text().splitlines()
     # main-protect/window-start-gap: main's sha is read (and printed) BEFORE R1 (the ruleset) is written; L-b: R1
@@ -2431,10 +2494,16 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
     assert all("main-ruleset.json" in c for c in lines if " -X " in f" {c}")
 
 
-@pytest.mark.parametrize("bypass", ["", "Integration\t15368\n"])
+_R1P_BYPASS = "RepositoryRole\t5\tpull_request\n"
+
+
+@pytest.mark.parametrize("bypass", [_R1P_BYPASS, "", "Integration\t15368\talways\n", "RepositoryRole\t5\talways\n",
+                                    "RepositoryRole\t4\tpull_request\n",
+                                    _R1P_BYPASS + "Integration\t15368\tpull_request\n"])
 def test_protect_main_refuses_before_main_opens_data_prs_and_flags_a_bypass(tmp_path, bypass):
     """Without the bypass, the old push job (git push to main) would fail every day: the script changes nothing until
-    main's workflow has the data PR step. A ruleset that still lists a bypass is NOT OK."""
+    main's workflow has the data PR step. ADR 0010 (R1'): the bypass is exactly the admin role (5) in pull request
+    mode; none, another actor, an extra actor or mode "always" (a direct push to main) is NOT OK."""
     bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
     bindir.mkdir()
     (bindir / "gh").write_text(_GH_STUB)
@@ -2446,7 +2515,149 @@ def test_protect_main_refuses_before_main_opens_data_prs_and_flags_a_bypass(tmp_
     assert not any(" -X " in f" {c}" for c in calls.read_text().splitlines())
     env["MAIN_WF"] = TEXT
     r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
-    assert (r.returncode == 0) == (bypass == ""), r.stdout
+    assert (r.returncode == 0) == (bypass == _R1P_BYPASS), r.stdout
+    if bypass != _R1P_BYPASS:
+        assert "The bypass must be exactly the admin role in pull request mode" in r.stdout
+
+
+@pytest.mark.parametrize("over,says", [
+    ({"CO_MISSING": "1"}, "Main has no .github/CODEOWNERS yet. Nothing was changed."),
+    ({"CO_ERRORS": "2"}, "GitHub lists errors in main's .github/CODEOWNERS ('2'). Nothing was changed."),
+    ({"CO_ERRORS": "FAIL"}, "GitHub lists errors in main's .github/CODEOWNERS (''). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n"}, "(it has: * @gn0sh). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n/data/ @gn0sh\n"}, "(it has: * @gn0sh|/data/ @gn0sh). Nothing was changed."),
+    ({"CO_TEXT": "/data/\n* @gn0sh\n"}, "(it has: /data/|* @gn0sh). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n/data/\n* @someone\n"}, "Nothing was changed."),
+    ({"CO_TEXT": ""}, "(it has: ). Nothing was changed."),
+    ({"CO_TEXT": "* @gn0sh\n/data/\n/.github/ @someone\n"}, "(it has: * @gn0sh|/data/|/.github/ @someone)."),
+    ({"CO_TEXT": "* @GN0SH\n/data/\n"}, "(it has: * @GN0SH|/data/)."),
+])
+def test_protect_main_changes_nothing_without_a_clean_codeowners_on_main(tmp_path, over, says):
+    """ADR 0010 / T4.11.2: R1' binds only through .github/CODEOWNERS on main. If it is missing, its rules are not
+    exactly '* @gn0sh' then '/data/' (order matters: the last match wins), GitHub reports an error in it, or the error
+    list cannot be read, the script stops before reading main or writing anything."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT, **over}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 1 and says in r.stdout, r.stdout + r.stderr
+    lines = calls.read_text().splitlines()
+    assert not any(" -X " in f" {c}" for c in lines)
+    assert not any("/git/ref/heads/main" in c for c in lines) and "Main before the ruleset" not in r.stdout
+
+
+def test_protect_main_accepts_the_committed_codeowners_with_crlf(tmp_path):
+    """The file as committed (comment line included) passes, also with Windows line ends."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    text = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+    for co in (text, text.replace("\n", "\r\n"), text.replace("* @gn0sh", "*\t @gn0sh  ")):
+        env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+               "MAIN_WF": TEXT, "CO_TEXT": co}
+        r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True,
+                           text=True)
+        assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
+
+
+@pytest.mark.parametrize("owner,methods,ok,says,stale", [
+    ("true", "squash", True, "", "true"),
+    ("true", "squash", False, "Dismiss stale approvals on push must be on (ADR 0010, M3).", "false"),
+    ("true", "squash", False, "Dismiss stale approvals on push must be on (ADR 0010, M3).", ""),
+    ("false", "squash", False, "Code-owner review must be on", "true"),
+    ("", "squash", False, "Code-owner review must be on", "true"),
+    ("true", "merge\nsquash\nrebase", False, "Squash must be the only merge method", "true"),
+    ("true", "", False, "Squash must be the only merge method", "true"),
+])
+def test_protect_main_needs_code_owner_review_and_squash_only(tmp_path, owner, methods, ok, says, stale):
+    """ADR 0010 (R1'): the OK check reads code-owner review on and squash as the only merge method, else NOT OK."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": "42",
+           "MAIN_WF": TEXT, "OWNER": owner, "METHODS": methods, "STALE": stale}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert (r.returncode == 0) == ok, r.stdout + r.stderr
+    assert says in r.stdout and (("OK: main is protected" in r.stdout) == ok)
+
+
+def test_protect_main_ps1_has_the_r1_prime_checks():
+    """No PowerShell here: the .ps1 twin of the CODEOWNERS refusals and the R1' OK checks, line by line."""
+    ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
+    sh = (ROOT / "scripts" / "protect-main.sh").read_text(encoding="utf-8")
+    for text in (ps1, sh):
+        for part in ('"repos/$repo/contents/.github/CODEOWNERS?ref=main" -H \'Accept: application/vnd.github.raw\'',
+                     '"repos/$repo/codeowners/errors?ref=main" --jq \'.errors | length\'',
+                     "--jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv'",
+                     "--jq '.rules[].parameters | select(. != null) | .require_code_owner_review'",
+                     "--jq '.rules[].parameters | select(. != null) | .allowed_merge_methods[]?'",
+                     "Main has no .github/CODEOWNERS yet. Nothing was changed.",
+                     "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/' (it has: ",
+                     "The bypass must be exactly the admin role in pull request mode (RepositoryRole:5:pull_request).",
+                     "Code-owner review must be on (ADR 0010).", "Squash must be the only merge method (ADR 0010).",
+                     "--jq '.rules[].parameters | select(. != null) | .dismiss_stale_reviews_on_push'",
+                     "Dismiss stale approvals on push must be on (ADR 0010, M3)."):
+            assert part in text, part
+    # case-sensitive comparisons (PowerShell's -ne and -match ignore case)
+    assert "$coRules -cne '* @gn0sh|/data/'" in ps1 and "$_ -cnotmatch '^(#|$)'" in ps1
+    assert "($_ -replace '\\s+', ' ').Trim()" in ps1 and "s/[[:space:]]+/ /g; s/^ //; s/ $//" in sh
+    assert "$actors -cne 'RepositoryRole:5:pull_request'" in ps1 and "$owner -cne 'true'" in ps1
+    assert "$stale -cne 'true'" in ps1 and '[ "$stale" = true ]' in sh
+    assert "$methods -cne 'squash'" in ps1 and "$coErrors -cne '0'" in ps1 and "$enf -cne 'active'" in ps1
+    # the CODEOWNERS checks come before main is read and before anything is written
+    for text, read_main in ((ps1, '$mainSha = (gh api'), (sh, 'main_sha=$(gh api')):
+        assert text.index("CODEOWNERS?ref=main") < text.index("codeowners/errors") < text.index(read_main)
+        assert text.index(read_main) < text.index("-X POST")
+    assert "-ExecutionPolicy Bypass" not in ps1.replace("never -ExecutionPolicy Bypass", "")
+
+
+def _codeowners_parse(text: str, ps1: bool) -> list:
+    """The lines that read main's CODEOWNERS into its rules: from the parse line to the line that ends it."""
+    start = "$coRules = (" if ps1 else "co_rules=$("
+    lines = text.splitlines()
+    i = next(n for n, ln in enumerate(lines) if ln.startswith(start))
+    return lines[i:i + 2]
+
+
+def test_codeowners_parsing_is_identical_in_protect_main_and_the_probe():
+    """protect-main/ps1-parity-untested: the .ps1 cannot run here, so its CODEOWNERS parsing is pinned to be the same
+    text as the probe's (and the .sh pair likewise, which the fake-gh tests run); the read before it is the same too."""
+    for ext, ps1 in (("sh", False), ("ps1", True)):
+        pm = (ROOT / "scripts" / f"protect-main.{ext}").read_text(encoding="utf-8")
+        probe = (ROOT / "scripts" / f"v1-probe.{ext}").read_text(encoding="utf-8")
+        a, b = _codeowners_parse(pm, ps1), _codeowners_parse(probe, ps1)
+        assert a == b and len(a) == 2, (ext, a, b)
+        assert ("$codeowners" in a[0]) if ps1 else ('"$codeowners"' in a[0]), a
+        for text in (pm, probe):
+            assert "contents/.github/CODEOWNERS?ref=main" in text and "Accept: application/vnd.github.raw" in text
+
+
+def test_the_ruleset_rollback_is_one_piped_line_from_a_reachable_commit():
+    """ops-runbook/rollback-ref-unreachable: the rollback reads the pre-R1' json from 91d2ecc (main; a branch commit
+    is gone after a squash merge) and pipes it, since a `>` redirect in Windows PowerShell 5.1 writes UTF-16."""
+    runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
+    line = ("git show 91d2ecc:scripts/main-ruleset.json | gh api -X PUT repos/gn0sh/clarksville-records/rulesets/27502319"
+            " --input -")
+    assert line in runbook and "eda3835" not in runbook and "r1.json" not in runbook
+    r = subprocess.run(["git", "show", "91d2ecc:scripts/main-ruleset.json"], cwd=ROOT, capture_output=True, text=True)
+    if r.returncode == 0:                         # a shallow checkout may not have it
+        old = json.loads(r.stdout)
+        assert old["bypass_actors"] == [] and old["name"] == "main: pull request required"
+
+
+def test_codeowners_text_is_pinned():
+    """ADR 0010 decision 1: every path outside data/ is owned by gn0sh; /data/ has no owner (a pattern without owners
+    leaves those files unowned), so the push job's data-only pull request needs no review."""
+    text = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+    lines = text.splitlines()
+    assert text.endswith("\n") and len(lines) == 3
+    assert lines[0].startswith("#") and "ADR 0010" in lines[0]
+    assert lines[1:] == ["* @gn0sh", "/data/"]
 
 
 @pytest.mark.parametrize("auto,approvals,ok", [("false", "0", True), ("true", "0", False), ("false", "1", False),
@@ -2525,9 +2736,19 @@ def test_protect_main_sh_and_ps1_agree_on_the_r2_window_line():
 def test_protect_main_scripts_share_one_ruleset_body():
     body = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
     assert body["name"] == "main: pull request required" and body["enforcement"] == "active"
-    assert body["bypass_actors"] == []          # main-protect/actions-bypass-reopens-M1: nobody pushes main directly
+    # ADR 0010 (R1'): one bypass, the Repository admin role (5), for pull requests only: nobody pushes main directly
+    # (main-protect/actions-bypass-reopens-M1), and a non-data PR merges only by a person's bypass merge
+    assert body["bypass_actors"] == [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
     pr_rule = [r for r in body["rules"] if r["type"] == "pull_request"]
     assert len(pr_rule) == 1 and pr_rule[0]["parameters"]["required_approving_review_count"] == 0     # L-E
+    # every other parameter as GitHub returned it on 2026-11-18 (ruleset 27502319), except dismiss_stale_reviews_on_push
+    # (M3 main-protect/stale-owner-approval: an owner approval does not survive a later push). The unattributed-changes
+    # parameter is kept at its live value: Copilot-authored PRs only, no effect at 0 approvals (L1, platform-facts).
+    assert pr_rule[0]["parameters"] == {
+        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": True, "required_reviewers": [],
+        "require_code_owner_review": True, "require_last_push_approval": False,
+        "required_review_thread_resolution": False, "require_extra_approval_for_unattributed_changes": True,
+        "allowed_merge_methods": ["squash"]}
     assert sorted(r["type"] for r in body["rules"]) == ["deletion", "non_fast_forward", "pull_request"]
     assert body["conditions"]["ref_name"]["include"] == ["~DEFAULT_BRANCH"]
     for name in ("protect-main.ps1", "protect-main.sh"):
@@ -2638,12 +2859,16 @@ def test_the_v1_probe_workflows_are_inert_and_least_privilege():
     assert "secrets." not in text and "uses:" not in text                        # no secret, no action, no checkout
     run = job["steps"][0]["run"]
     assert "for method in squash merge rebase" in run and '-f sha="$head"' in run
+    # M2: three targets, and a GITHUB_TOKEN approval at the head before any merge try of each
+    assert "for pair in W:probe/v1-target N:probe/v1-target-n H1:probe/v1-target-h1; do" in run
+    assert run.index("event=APPROVE") < run.index("for method in squash merge rebase")
+    assert '-f commit_id="$head"' in run
     # security Info (2026-11-17): the GraphQL merge path too, after the REST tries, pinned to the head, squash
     assert run.index("for method in squash merge rebase") < run.index("gh api graphql")
     assert "mergePullRequest(input: {pullRequestId: $id, expectedHeadOid: $oid, mergeMethod: SQUASH})" in run
-    assert '-f oid="$head"' in run and 'if [ -z "$merged" ]; then' in run
+    assert '-f oid="$head"' in run
     # the verdict markers in the script's own text never match the probe script's patterns (the log shows the source)
-    assert not re.search(r"V1-(RESULT|MERGED) (squash|merge|rebase|graphql)", text)
+    assert not re.search(r"V1-(RESULT|MERGED|APPROVE) (W|N|H1) ", text)
     assert not (ROOT / ".github" / "workflows" / "v1-probe.yml").exists()
     assert not (ROOT / ".github" / "workflows" / "v1-canary.yml").exists()
     for name in ("v1-probe.sh", "v1-probe.ps1"):
@@ -2659,13 +2884,13 @@ def test_the_v1_probe_scripts_agree():
     sh = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
     for s in (sh, ps1):
-        assert "V1-(RESULT|MERGED) (squash|merge|rebase|graphql)" in s
-        assert "^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]" in s
-        assert "^V1-MERGED (squash|merge|rebase|graphql)" in s
-        assert "without .workflows. permission" in s and "-ci \"workflow\"" not in s
-        assert "--jq '.merged'" in s
-        assert "contents/.github/workflows/v1-canary.yml?ref=main" in s and "HTTP 404" in s
-        assert "of 4" in s and "all four merges" in s and "is left on" in s
+        assert "V1-(RESULT|MERGED|APPROVE) (W|N|H1) .*" in s
+        assert "^V1-MERGED (W|N|H1) " in s and "code owner" in s and "-ci \"workflow\"" not in s
+        assert "--jq '.merged'" in s and "HTTP 404" in s
+        for part in (".github/workflows/v1-canary.yml", "sitegen/v1-probe-canary.txt", "data/v1-probe-CODEOWNERS",
+                     "probe/v1-target-n", "probe/v1-target-h1", "git/trees", "parents[]="):
+            assert part in s, part
+        assert "PASS (V1')" in s and "is left on" in s and "(method refused)" in s
         assert "INCONCLUSIVE: could not read main. Nothing was changed." in s
         # v1-probe/rerun-after-fail (ADR 0010): no new run until R1' is on, owned, active and error-free
         for part in ("rules/branches/main", "select(.parameters.require_code_owner_review == true) | .ruleset_id",
@@ -2689,7 +2914,7 @@ def test_the_v1_probe_scripts_agree():
     fail_ps1 = next(ln for ln in ps1.splitlines() if "$merged -gt 0" in ln)
     for ln in (fail_sh, fail_ps1):
         assert "main_after" not in ln and "mainAfter" not in ln, ln
-        assert "merged" in ln.lower() and "canary" in ln, ln
+        assert "merged" in ln.lower() and ("on_main" in ln or "onMain" in ln), ln
 
 
 _V1_STUB = '''#!/usr/bin/env python3
@@ -2723,7 +2948,8 @@ guard = {"/rules/branches/main": ("RULES", R1_RULES), "/codeowners/errors?ref=ma
          "/contents/.github/CODEOWNERS?ref=main": ("CODEOWNERS", "# ADR 0010\\n* @gn0sh\\n/data/\\n")}
 rs = path.rsplit("/rulesets/", 1)
 if len(rs) == 2:
-    guard["/rulesets/" + rs[1]] = ("RULESET_" + rs[1], '{"id": %s, "enforcement": "active"}' % rs[1])
+    guard["/rulesets/" + rs[1]] = ("RULESET_" + rs[1], '{"id": %s, "enforcement": "active", "bypass_actors": %s}'
+                                   % (rs[1], os.environ.get("BYPASS", "[]")))
 for suffix, (var, default) in guard.items():
     if path.endswith(suffix):
         body = os.environ.get(var, default)
@@ -2739,15 +2965,20 @@ if path.endswith("/git/ref/heads/main"):
     if sha == "EMPTY":
         sys.stderr.write("gh: Bad gateway (HTTP 502)\\n"); sys.exit(1)
     print(sha); sys.exit(0)
-if path.endswith("/contents/.github/workflows/v1-canary.yml?ref=main"):
-    canary = os.environ.get("CANARY", "404")
+if path.endswith("?ref=main") and "/contents/" in path:
+    var = {"/contents/.github/workflows/v1-canary.yml?ref=main": "CANARY",
+           "/contents/sitegen/v1-probe-canary.txt?ref=main": "CANARY_N",
+           "/contents/data/v1-probe-CODEOWNERS?ref=main": "CANARY_H1"}[path[path.index("/contents/"):]]
+    canary = os.environ.get(var, "404")
     if canary == "on-main":
         print("e" * 40); sys.exit(0)
     sys.stderr.write("gh: Not Found (HTTP 404)\\n" if canary == "404" else "gh: Bad gateway (HTTP 502)\\n"); sys.exit(1)
-if path.endswith("/pulls/77") and "--jq" in a and a[a.index("--jq") + 1] == ".merged":
-    merged = os.environ.get("PR_MERGED", "false")
-    if count("merged") > 0:                  # the read after cleanup (L-c)
-        merged = os.environ.get("PR_MERGED_AFTER", merged)
+PRS = {"77": "", "78": "_N", "79": "_H1"}         # W, N, H1
+if path.rsplit("/", 1)[-1] in PRS and "/pulls/" in path and "--jq" in a and a[a.index("--jq") + 1] == ".merged":
+    sfx = PRS[path.rsplit("/", 1)[-1]]
+    merged = os.environ.get("PR_MERGED" + sfx, "false")
+    if count("merged" + sfx) > 0:            # the read after cleanup (L-c)
+        merged = os.environ.get("PR_MERGED_AFTER" + sfx, merged)
     if merged == "EMPTY":
         sys.exit(1)
     print(merged); sys.exit(0)
@@ -2760,19 +2991,57 @@ if "-X" in a and a[a.index("-X") + 1] == "PUT" and "/contents/" in path:
         print("d" * 40)
     sys.exit(0)
 if path.endswith("/pulls") and "POST" in a:
-    print("77"); sys.exit(0)
+    head = next(x.split("=", 1)[1] for x in a if x.startswith("head="))
+    print({"probe/v1-target": "77", "probe/v1-target-n": "78", "probe/v1-target-h1": "79"}[head]); sys.exit(0)
+if "/contents/.github/CODEOWNERS?ref=" in path:                 # the blob H1 renames, read at main_before
+    assert a[a.index("--jq") + 1] == ".sha", a
+    print("b" * 40); sys.exit(0)
+if "/git/commits/" in path:
+    print("t" * 40); sys.exit(0)
+if path.endswith("/git/trees"):
+    open(os.environ["GH_CALLS"] + ".tree", "w").write(sys.stdin.read())
+    print("a" * 40); sys.exit(0)
+if path.endswith("/git/commits"):
+    print("f" * 40); sys.exit(0)
 if path.endswith("/reviews"):
     print(os.environ.get("KEPT", "c" * 40)); sys.exit(0)
 sys.exit(0)
 '''
-_SOURCE = ('probe\\tTry\\t2026-11-18T09:00:00Z echo "V1-RESULT $method exit=$code $(printf ...)"\n'
-           'probe\\tTry\\t2026-11-18T09:00:00Z if [ "$code" = 0 ]; then echo "V1-MERGED $method"; break; fi\n')
-_REFUSED = ("probe\\tTry\\t2026-11-18T09:00:01Z V1-RESULT {m} exit=1 {{\"message\":\"refusing to allow a GitHub App to "
-            "create or update workflow `.github/workflows/v1-canary.yml` without `workflows` permission\"}}\n")
-_GQL_REFUSED = ("probe\tTry\t2026-11-18T09:00:02Z V1-RESULT graphql exit=1 GraphQL: refusing to allow a GitHub App to "
-                "create or update workflow `.github/workflows/v1-canary.yml` without `workflows` permission "
-                "(mergePullRequest)\n")
-_ALL_REFUSED = _SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")) + _GQL_REFUSED
+_SOURCE = ('probe\\tTry\\t2026-11-18T09:00:00Z echo "V1-RESULT $t $method exit=$code $(printf ...)"\n'
+           'probe\\tTry\\t2026-11-18T09:00:00Z if [ "$code" = 0 ]; then echo "V1-MERGED $t $method"; exit 0; fi\n'
+           'probe\\tTry\\t2026-11-18T09:00:00Z echo "V1-APPROVE $t exit=$code $(printf ...)"\n')
+_OWNER = '{"message":"Repository rule violations found\\n\\nWaiting on code owner review from gn0sh."}'
+_GQL_OWNER_MSG = "GraphQL: Repository rule violations found Waiting on code owner review from gn0sh. (mergePullRequest)"
+_METHOD = '{"message":"Merge method {m} is not allowed on this repository"}'
+_WORKFLOWS = ('{"message":"refusing to allow a GitHub App to create or update workflow '
+              '`.github/workflows/v1-canary.yml` without `workflows` permission"}')
+_TARGETS = ("W", "N", "H1")
+
+
+def _line(text):
+    return f"probe\tTry\t2026-11-18T09:00:01Z {text}\n"
+
+
+def _target(t, squash=None, graphql=None, merge=None, rebase=None, approve="0 APPROVED"):
+    """One target's lines as the runner prints them: the bot approval, then squash, merge, rebase, GraphQL."""
+    out = _line(f"V1-APPROVE {t} exit={approve}") if approve is not None else ""
+    for m, answer in (("squash", squash or "1 " + _OWNER), ("merge", merge or "1 " + _METHOD.replace("{m}", "merge")),
+                      ("rebase", rebase or "1 " + _METHOD.replace("{m}", "rebase")),
+                      ("graphql", graphql or "1 " + _GQL_OWNER_MSG)):
+        if answer == "SKIP":
+            continue
+        out += _line(f"V1-RESULT {t} {m} exit={answer}")
+        if answer.startswith("0"):
+            return out + _line(f"V1-MERGED {t} {m}")
+    return out
+
+
+def _run_log(**over):
+    """The whole run: every target refused for code-owner review, unless `over` gives a target's own lines."""
+    return _SOURCE + "".join(over.get(t, _target(t)) for t in _TARGETS)
+
+
+_ALL_REFUSED = _run_log()
 
 
 def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1", **extra):
@@ -2810,8 +3079,25 @@ _RULE = '{"type": "pull_request", "ruleset_id": %d, "parameters": {"require_code
     {"CODEOWNERS": "# * @gn0sh\n* @someone-else\n"},
     {"OWNER_ERRORS": '{"errors": [{"line": 2, "kind": "Unknown owner"}]}'},
     {"OWNER_ERRORS": "FAIL"},
+    # v1-probe/rerun-after-fail-codeowners-override: `* @gn0sh` first, then only `/data/`
+    {"CODEOWNERS": "* @gn0sh\n/.github/ @someone-else\n"},
+    {"CODEOWNERS": "* @gn0sh\n/data/\n*\n"},
+    {"CODEOWNERS": "/data/\n* @gn0sh\n"},
+    {"CODEOWNERS": "* @gn0sh @someone-else\n/data/\n"},
+    {"CODEOWNERS": "* @GN0SH\n"},
+    {"CODEOWNERS": ""},
+    # v1-probe/rerun-after-fail-bypass: the bypass list is empty or exactly the admin role in pull request mode
+    {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]'},
+    {"BYPASS": '[{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "pull_request"}]'},
+    {"BYPASS": '[{"actor_id": 4, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]'},
+    {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}, '
+               '{"actor_id": 1, "actor_type": "DeployKey", "bypass_mode": "always"}]'},
+    {"BYPASS": "null"},                                                             # no bypass list: fail closed
 ], ids=["rule-off", "no-pr-rule", "rules-read-fails", "one-ruleset-evaluate", "ruleset-disabled", "ruleset-read-fails",
-        "no-codeowners", "codeowners-no-owner", "codeowners-other-owner", "codeowners-errors", "errors-read-fails"])
+        "no-codeowners", "codeowners-no-owner", "codeowners-other-owner", "codeowners-errors", "errors-read-fails",
+        "codeowners-github-override", "codeowners-unowned-all", "codeowners-wrong-order", "codeowners-two-owners",
+        "codeowners-case", "codeowners-empty", "bypass-always", "bypass-actions-app", "bypass-write-role",
+        "bypass-extra-actor", "bypass-unread"])
 def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extra):
     """v1-probe/rerun-after-fail (ADR 0010): after the 2026-11-18 FAIL a new run would merge the canary into main
     again, so the script stops, changing nothing, unless R1' really binds: the code-owner rule on main, every ruleset
@@ -2821,6 +3107,35 @@ def test_v1_probe_refuses_to_run_again_before_the_code_owner_rule(tmp_path, extr
     assert "run scripts/protect-main.sh first" in r.stdout
     assert not any("-X" in c for c in made), made
     assert not list(tmp_path.glob("v1-probe-results-*.txt"))
+
+
+@pytest.mark.parametrize("extra", [
+    {},
+    {"CODEOWNERS": "* @gn0sh\n"},
+    {"CODEOWNERS": "# ADR 0010\r\n\r\n*\t  @gn0sh  \r\n/data/\r\n"},
+    {"BYPASS": '[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]'},
+], ids=["committed", "no-data-line", "crlf-and-spacing", "admin-pr-bypass"])
+def test_v1_probe_guard_allows_only_the_r1_prime_shapes(tmp_path, extra):
+    """v1-probe/rerun-after-fail-codeowners-override, -bypass: these pass the guard (and the run goes on to PASS)."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, **extra)
+    assert r.returncode == 0 and "PASS" in r.stdout, r.stdout + r.stderr
+
+
+def test_v1_probe_guard_runs_before_the_auth_refresh():
+    """Nit from the PR #41 review: a refusal must not open a browser first; both scripts guard before
+    `gh auth refresh`, and the .ps1 compares case-sensitively."""
+    for name in ("v1-probe.sh", "v1-probe.ps1"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert text.index("codeowners/errors?ref=main") < text.index("gh auth refresh -h github.com"), name
+        assert text.index("rules/branches/main") < text.index("gh auth refresh -h github.com"), name
+    ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
+    assert "$coRules -cne '* @gn0sh' -and $coRules -cne '* @gn0sh|/data/'" in ps1
+    assert "$bypass -cne 'RepositoryRole:5:pull_request'" in ps1 and "$enforcement -cne 'active'" in ps1
+    assert "$ownerErrors -cne '0'" in ps1
+    sh = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
+    assert "'* @gn0sh'|'* @gn0sh|/data/') ;;" in sh and '"RepositoryRole:5:pull_request"' in sh
+    for text in (sh, ps1):
+        assert "--jq '.bypass_actors[] | [.actor_type, .actor_id, .bypass_mode] | @tsv'" in text
 
 
 def test_v1_probe_runs_when_one_ruleset_has_the_rule_off_and_another_on(tmp_path):
@@ -2834,49 +3149,83 @@ def test_v1_probe_runs_when_one_ruleset_has_the_rule_off_and_another_on(tmp_path
 
 def test_v1_probe_pass(tmp_path):
     r, made = _v1(tmp_path, _ALL_REFUSED)
-    assert r.returncode == 0 and "PASS" in r.stdout, r.stdout + r.stderr
+    assert r.returncode == 0 and "PASS (V1')" in r.stdout, r.stdout + r.stderr
     assert not _turned_off(made)
     review = next(c for c in made if any(str(x).endswith("/reviews") for x in c))
-    assert f"commit_id={'c' * 40}" in review                         # pinned to the older commit
-    # cleanup: the PR is closed and both probe branches deleted
-    assert any("state=closed" in c and "repos/gn0sh/clarksville-records/pulls/77" in c for c in made)
-    for b in ("probe/v1-target", "probe/v1-runner"):
-        assert sum(c[:3] == ["api", "-X", "DELETE"] and c[3].endswith(b) for c in made) >= 2   # before and after
+    assert f"commit_id={'c' * 40}" in review and "repos/gn0sh/clarksville-records/pulls/77/reviews" in review
+    # cleanup: every probe PR is closed and every probe branch deleted, before and after
+    for n in ("77", "78", "79"):
+        assert any("state=closed" in c and f"repos/gn0sh/clarksville-records/pulls/{n}" in c for c in made), n
+    for b in ("probe/v1-target", "probe/v1-target-n", "probe/v1-target-h1", "probe/v1-runner"):
+        assert sum(c[:3] == ["api", "-X", "DELETE"] and c[3].endswith("heads/" + b) for c in made) >= 2, b
     assert list(tmp_path.glob("v1-probe-results-*.txt"))
 
 
-_GQL_MERGED = (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
-               + "probe\tx\tt V1-RESULT graphql exit=0 {\"data\":{\"mergePullRequest\":{\"pullRequest\":"
-               "{\"merged\":true}}}}\nprobe\tx\tt V1-MERGED graphql\n")
+def test_v1_probe_builds_the_three_targets(tmp_path):
+    """M2 and H1 (security, PR #43): W adds a workflow file; N adds one non-workflow file outside data/ (sitegen/);
+    H1 only renames .github/CODEOWNERS into data/: a tree on main's tree that deletes the old path and adds the same
+    blob (read at main's sha) at the new one, one commit whose parent is main."""
+    r, made = _v1(tmp_path, _ALL_REFUSED)
+    assert r.returncode == 0, r.stdout + r.stderr
+    puts = [c for c in made if c[:3] == ["api", "-X", "PUT"] and "/contents/" in c[3]]
+    assert [c[3].split("/contents/")[1] for c in puts] == [".github/workflows/v1-canary.yml"] * 2 + [
+        "sitegen/v1-probe-canary.txt", ".github/workflows/v1-probe.yml"]
+    assert "branch=probe/v1-target-n" in puts[2]
+    tree = json.loads((tmp_path / "calls.tree").read_text())
+    assert tree == {"base_tree": "t" * 40, "tree": [
+        {"path": ".github/CODEOWNERS", "mode": "100644", "type": "blob", "sha": None},
+        {"path": "data/v1-probe-CODEOWNERS", "mode": "100644", "type": "blob", "sha": "b" * 40}]}
+    blob_read = [c for c in made if any("/contents/.github/CODEOWNERS?ref=" in str(x) and "ref=main" not in str(x)
+                                        for x in c)]
+    assert len(blob_read) == 1 and f"contents/.github/CODEOWNERS?ref={'1' * 40}" in " ".join(blob_read[0])
+    commit = next(c for c in made if c[:4] == ["api", "-X", "POST", "repos/gn0sh/clarksville-records/git/commits"])
+    assert f"tree={'a' * 40}" in commit and f"parents[]={'1' * 40}" in commit
+    ref = [c for c in made if c[:4] == ["api", "-X", "POST", "repos/gn0sh/clarksville-records/git/refs"]]
+    assert "ref=refs/heads/probe/v1-target-h1" in ref[2] and f"sha={'f' * 40}" in ref[2]
+    prs = [c for c in made if c[:4] == ["api", "-X", "POST", "repos/gn0sh/clarksville-records/pulls"]]
+    assert [next(x for x in c if x.startswith("head=")) for c in prs] == [
+        "head=probe/v1-target", "head=probe/v1-target-n", "head=probe/v1-target-h1"]
+    assert all("base=main" in c for c in prs)
+
+
+def _merged_line(t, m):
+    return _target(t, **{m: "0 {\"merged\":true}"})
 
 
 @pytest.mark.parametrize("log,extra", [
-    (_SOURCE + "probe\tx\tt V1-RESULT squash exit=0 {\"sha\":\"x\",\"merged\":true}\nprobe\tx\tt V1-MERGED squash\n",
-     {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),
-    (_GQL_MERGED, {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),         # any GraphQL merge is FAIL
-    (_GQL_MERGED, {}),                                                     # even before the PR reads merged
-    (_ALL_REFUSED, {"PR_MERGED": "true"}),                                 # the PR reads merged, whatever the log says
-    (_ALL_REFUSED, {"CANARY": "on-main"}),                                 # the canary reached main
-], ids=["merged", "graphql-merged", "graphql-answer-only", "pr-merged", "canary-on-main"])
+    (_run_log(W=_merged_line("W", "squash")), {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),
+    (_run_log(W=_merged_line("W", "graphql")), {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),
+    (_run_log(N=_merged_line("N", "graphql")), {}),                       # even before the PR reads merged
+    (_run_log(H1=_merged_line("H1", "squash")), {}),                      # H1: the rename merged
+    (_ALL_REFUSED, {"PR_MERGED": "true"}),                                # the PR reads merged, whatever the log says
+    (_ALL_REFUSED, {"PR_MERGED_H1": "true"}),
+    (_ALL_REFUSED, {"CANARY": "on-main"}),                                # a probe file reached main
+    (_ALL_REFUSED, {"CANARY_N": "on-main"}),
+    (_ALL_REFUSED, {"CANARY_H1": "on-main"}),
+], ids=["w-squash", "w-graphql", "n-graphql-answer-only", "h1-squash", "w-pr-merged", "h1-pr-merged", "w-on-main",
+        "n-on-main", "h1-on-main"])
 def test_v1_probe_fail_turns_the_actions_pr_setting_off(tmp_path, log, extra):
     r, made = _v1(tmp_path, log, **extra)
-    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
-    closed = any("state=closed" in c for c in made)
-    assert closed == (extra.get("PR_MERGED") != "true")                   # a merged PR is not closed again
+    assert r.returncode == 2 and "FAIL (V1' false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
+    closed = {n for n in ("77", "78", "79") if any("state=closed" in c and c[3].endswith("/pulls/" + n) for c in made)}
+    merged = {"77" if extra.get("PR_MERGED") == "true" else None, "79" if extra.get("PR_MERGED_H1") == "true" else None}
+    assert closed == {"77", "78", "79"} - merged                         # a merged PR is not closed again
 
 
 @pytest.mark.parametrize("extra", [
-    {"MAIN_AFTER": "2" * 40},              # main moved (another merge in the window), the probe PR unmerged
+    {"MAIN_AFTER": "2" * 40},              # main moved (another merge in the window), the probe PRs unmerged
     {"MAIN_AFTER": "EMPTY"},               # main could not be read after
-    {"PR_MERGED": "EMPTY"},                # the probe PR could not be read
-    {"CANARY": "error"},                   # the canary check failed (not a 404)
-], ids=["main-moved", "main-read-failed", "pr-read-failed", "canary-read-failed"])
+    {"PR_MERGED": "EMPTY"},                # a probe PR could not be read
+    {"PR_MERGED_N": "EMPTY"},
+    {"CANARY": "error"},                   # a probe file check failed (not a 404)
+    {"CANARY_H1": "error"},
+], ids=["main-moved", "main-read-failed", "pr-read-failed", "n-read-failed", "canary-read-failed", "h1-read-failed"])
 def test_v1_probe_main_moved_or_a_failed_read_is_inconclusive_and_leaves_r2_on(tmp_path, extra):
-    """v1-probe/verdict-from-main-sha: FAIL only when the probe PR merged or the canary is on main."""
+    """v1-probe/verdict-from-main-sha: FAIL only when a probe PR merged or a probe file is on main."""
     r, made = _v1(tmp_path, _ALL_REFUSED, **extra)
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and "is left on" in r.stdout, r.stdout + r.stderr
     assert not _turned_off(made) and "FAIL" not in r.stdout
-    assert any("state=closed" in c for c in made)                          # cleanup still closes the probe PR
+    assert sum("state=closed" in c for c in made) == 3                    # cleanup still closes every probe PR
 
 
 @pytest.mark.parametrize("status", ["in_progress", "queued", "EMPTY"])
@@ -2887,17 +3236,18 @@ def test_v1_probe_a_run_not_completed_is_inconclusive(tmp_path, status):
     assert not _turned_off(made)
 
 
-def test_v1_probe_a_merge_seen_after_cleanup_is_fail(tmp_path):
-    """L-c: the probe PR is closed first, then read again; merged by then means FAIL, never PASS."""
-    r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER="true")
-    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and "PASS" not in r.stdout and _turned_off(made)
-    closed = next(i for i, c in enumerate(made) if "state=closed" in c)
+@pytest.mark.parametrize("sfx", ["", "_N", "_H1"])
+def test_v1_probe_a_merge_seen_after_cleanup_is_fail(tmp_path, sfx):
+    """L-c: every probe PR is closed first, then read again; merged by then means FAIL, never PASS."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, **{"PR_MERGED_AFTER" + sfx: "true"})
+    assert r.returncode == 2 and "FAIL (V1' false)" in r.stdout and "PASS" not in r.stdout and _turned_off(made)
+    closed = max(i for i, c in enumerate(made) if "state=closed" in c)
     reads = [i for i, c in enumerate(made) if c[-2:] == ["--jq", ".merged"]]
-    assert len(reads) == 2 and reads[0] < closed < reads[1]
+    assert len(reads) >= 4 and reads[0] < closed < reads[-1]
 
 
 def test_v1_probe_pass_needs_the_read_after_cleanup(tmp_path):
-    r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER="EMPTY")
+    r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER_N="EMPTY")
     assert r.returncode == 1 and "could not be read again after cleanup" in r.stdout and "PASS" not in r.stdout
     assert not _turned_off(made)
 
@@ -2907,26 +3257,28 @@ import os, sys
 a = sys.argv[1:]
 with open(os.environ["GH_CALLS"], "a") as f:
     f.write(" ".join(a) + "\\n")
+nums = {"probe/v1-target": "77", "probe/v1-target-n": "78", "probe/v1-target-h1": "79"}
 if a[1].startswith("repos/o/r/pulls?state=open"):
-    print("77"); sys.exit(0)
-if a[1] == "repos/o/r/pulls/77" and a[-1] == ".head.sha":
-    print("h" * 40); sys.exit(0)
-if a[1] == "repos/o/r/pulls/77" and a[-1] == ".node_id":
+    print(nums[a[1].split("head=o:", 1)[1]]); sys.exit(0)
+if a[1].startswith("repos/o/r/pulls/") and a[-1] == ".head.sha":
+    print("e" * 40); sys.exit(0)
+if a[1].startswith("repos/o/r/pulls/") and a[-1] == ".node_id":
     if os.environ.get("NODE") == "FAIL":
         sys.exit(1)
     print(os.environ.get("NODE", "PR_node")); sys.exit(0)
+if "-X" in a and a[a.index("-X") + 1] == "POST" and a[a.index("-X") + 2].endswith("/reviews"):
+    assert "event=APPROVE" in a and "commit_id=" + "e" * 40 in a, a
+    print("APPROVED"); sys.exit(0)
+num = next(x for x in a if x.startswith("repos/o/r/pulls/")).split("/")[4] if a[1] != "graphql" else os.environ.get("GQL_PR", "")
 method = "graphql" if a[1] == "graphql" else next(x.split("=", 1)[1] for x in a if x.startswith("merge_method="))
-if os.environ.get("MERGE_OK") == method:
+if os.environ.get("MERGE_OK") == method and os.environ.get("MERGE_PR", "77") in (num, "any"):
     print('{"merged": true}'); sys.exit(0)
-sys.stderr.write("gh: refusing to allow a GitHub App to create or update workflow without `workflows` permission\\n")
+sys.stderr.write("gh: Repository rule violations found. Waiting on code owner review from gn0sh.\\n")
 sys.exit(1)
 """
 
 
-@pytest.mark.parametrize("ok", ["", "squash", "rebase", "graphql"])
-def test_the_v1_probe_step_tries_every_merge_under_bash_e(tmp_path, ok):
-    """v1-probe/step-exits-on-first-refusal: GitHub runs the step as `bash -e {0}`; a refused merge is printed and the
-    next one tried, so a refusing gh gives four V1-RESULT lines; the first merge that goes through stops it."""
+def _step(tmp_path, **env_over):
     step = yaml.safe_load((ROOT / "scripts" / "v1-probe" / "v1-probe.yml").read_text(encoding="utf-8"))
     run = next(iter(step["jobs"].values()))["steps"][0]["run"]
     bindir, calls = tmp_path / "bin", tmp_path / "calls"
@@ -2935,72 +3287,115 @@ def test_the_v1_probe_step_tries_every_merge_under_bash_e(tmp_path, ok):
     (bindir / "gh").chmod(0o755)
     (tmp_path / "step.sh").write_text(run)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "GH_TOKEN": "t",
-           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": ok}
+           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": "", **env_over}
     r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True)
+    return r, calls.read_text().splitlines()
+
+
+@pytest.mark.parametrize("ok", ["", "squash", "rebase"])
+def test_the_v1_probe_step_tries_every_target_and_merge_under_bash_e(tmp_path, ok):
+    """v1-probe/step-exits-on-first-refusal: GitHub runs the step as `bash -e {0}`; for W, N and H1 in turn the bot
+    approves at the head (M2), then a refused merge is printed and the next one tried; the first merge that goes
+    through (here on W) stops the whole run."""
+    r, calls = _step(tmp_path, MERGE_OK=ok)
     assert r.returncode == 0, r.stdout + r.stderr
-    results = [ln for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")]
+    out = r.stdout.splitlines()
+    results = [ln.split()[1:3] for ln in out if ln.startswith("V1-RESULT ")]
     tried = ["squash", "merge", "rebase", "graphql"]
-    tried = tried[:tried.index(ok) + 1] if ok else tried
-    assert [ln.split()[1] for ln in results] == tried, r.stdout
-    for ln in results:
-        want = "exit=0" if ln.split()[1] == ok else "exit=1"
-        assert ln.split()[2] == want and (want == "exit=0" or "without `workflows` permission" in ln), ln
-    merged = [ln for ln in r.stdout.splitlines() if ln.startswith("V1-MERGED ")]
-    assert merged == ([f"V1-MERGED {ok}"] if ok else [])
+    if ok:
+        assert results == [["W", m] for m in tried[:tried.index(ok) + 1]], out
+        assert [ln for ln in out if ln.startswith("V1-MERGED ")] == [f"V1-MERGED W {ok}"]
+    else:
+        assert results == [[t, m] for t in ("W", "N", "H1") for m in tried], out
+        assert not [ln for ln in out if ln.startswith("V1-MERGED ")]
+        assert [ln for ln in out if ln.startswith("V1-APPROVE ")] == [f"V1-APPROVE {t} exit=0 APPROVED"
+                                                                       for t in ("W", "N", "H1")]
+        for ln in out:
+            if ln.startswith("V1-RESULT "):
+                assert "exit=1" in ln and "code owner" in ln, ln
+    # the approval comes before every merge try of the same PR
+    for n in ("77", "78", "79"):
+        idx = [i for i, c in enumerate(calls) if f"pulls/{n}/" in c and ("/reviews" in c or "/merge" in c)]
+        if idx:
+            assert "/reviews" in calls[idx[0]], calls
 
 
 @pytest.mark.parametrize("node", ["FAIL", ""])
 def test_the_v1_probe_step_says_when_it_cannot_read_the_node_id(tmp_path, node):
     """v1-probe/node-read-under-e: a failed or empty node_id read prints V1-ERROR before the step exits, and no
     GraphQL merge is tried."""
-    step = yaml.safe_load((ROOT / "scripts" / "v1-probe" / "v1-probe.yml").read_text(encoding="utf-8"))
-    run = next(iter(step["jobs"].values()))["steps"][0]["run"]
-    bindir, calls = tmp_path / "bin", tmp_path / "calls"
-    bindir.mkdir()
-    (bindir / "gh").write_text(_STEP_GH)
-    (bindir / "gh").chmod(0o755)
-    (tmp_path / "step.sh").write_text(run)
-    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "GH_TOKEN": "t",
-           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": "", "NODE": node}
-    r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True)
+    r, calls = _step(tmp_path, NODE=node)
     assert r.returncode == 1 and r.stdout.splitlines()[-1] == "V1-ERROR: could not read node_id", r.stdout
-    assert [ln.split()[1] for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")] == ["squash", "merge", "rebase"]
-    assert not any(c.startswith("api graphql") for c in calls.read_text().splitlines())
+    assert [ln.split()[2] for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")] == ["squash", "merge", "rebase"]
+    assert not any(c.startswith("api graphql") for c in calls)
 
 
-def test_v1_probe_fail_says_to_close_every_open_pr_into_main(tmp_path):
-    """R2 governs creating PRs, not merging (security main-protect/r2-does-not-gate-merge): FAIL also says to close
-    every open pull request into main; sh and ps1 say it the same way."""
+def test_v1_probe_fail_keeps_actions_on_and_removes_the_canary_by_pr(tmp_path):
+    """T4.11.3 (ADR 0010, invariant "V1 is false" T1-T8): FAIL turns R2 off (kept), then says to remove the canary
+    by a person's PR and leave the baseline and MORNING_NOTE_SEND unset. "Turn off Actions" and "close every open
+    PR" are dropped: only a writer can start a workflow that merges. sh and ps1 say it the same way."""
     r, made = _v1(tmp_path, _ALL_REFUSED, CANARY="on-main")
-    assert r.returncode == 2 and "Close every open pull request into main now: https://github.com/gn0sh/" in r.stdout
-    # v1-probe/v1-fail-containment-incomplete: a closed PR whose branch exists can be reopened and merged
-    # Disable actions is required (public repo: anyone can open a PR); deleting closed PRs' branches is extra
-    # v1-fail-containment-order: Disable actions is the first manual step, before closing PRs and deleting branches
-    contain = ("First, now: turn off GitHub Actions (Settings > Actions > General > Disable actions); this stops the "
-               "daily data update until the architect re-plans.")
-    branch = "Then delete each closed pull request's head branch"
-    assert contain in r.stdout
+    assert r.returncode == 2 and _turned_off(made), r.stdout
+    keep = "Leave GitHub Actions on and open pull requests open: only someone with write access can start a workflow"
+    canary = "The canary is removed by a person's pull request"
+    unset = "Leave MAIN_PR_BASELINE and MORNING_NOTE_SEND unset."
     out = r.stdout
-    assert out.index(contain) < out.index("Close every open pull request into main now") < out.index(branch)
+    assert out.index("Turned off: workflows can no longer open pull requests") < out.index(keep) \
+        < out.index(canary) < out.index(unset), out
+    assert "data off main, goes to a Brain Trust (ADR 0010)" in out
     for name in ("v1-probe.sh", "v1-probe.ps1"):
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
-        assert "This setting does not stop merging" in text and "safe state" not in text, name
-        assert contain in text and text.index(contain) < text.index("Close every open pull request") \
-            < text.index(branch), name
-    for doc in ("docs/ops/morning-note.md", "docs/architecture/main-protect-invariant.md"):
-        flat = " ".join((ROOT / doc).read_text(encoding="utf-8").split())
-        assert "head branch" in flat and "Disable actions" in flat and "v1-fail-containment-incomplete" in flat, doc
-        assert "stops the daily data update until the architect re-plans" in flat and ", or turn off" not in flat, doc
-        sec = flat[flat.index("(V1 false)"):]                 # the V1-false steps: Disable actions comes first
-        assert sec.index("Disable actions") < sec.index("close every open") < sec.index("head branch"), doc
+        assert keep in text and canary in text and unset in text, name
+        for gone in ("Disable actions", "Close every open pull request", "head branch", "turn off GitHub Actions"):
+            assert gone not in text, (name, gone)
+    flat = " ".join((ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8").split())
+    sec = flat[flat.index("**V1 probe: FAIL on 2026-11-18"):flat.index("`github-pages` deploys from `main` only")]
+    assert "Actions stays on and open pull requests stay open" in sec and "Disable actions" not in sec
+    assert "close every open" not in sec.lower() and "Brain Trust" in sec
+
+
+_OTHER = '1 {"message":"Pull Request is not mergeable"}'
+
+
+@pytest.mark.parametrize("log,kept", [
+    (_run_log(W=_target("W", squash=_OTHER)), None),                                  # REST squash, other reason
+    (_run_log(N=_target("N", squash="1 " + _WORKFLOWS)), None),                       # workflows, not code owner
+    (_run_log(H1=_target("H1", graphql="1 GraphQL: Resource not accessible by integration (mergePullRequest)")), None),
+    (_run_log(W=_target("W", squash="1 " + _METHOD.replace("{m}", "squash"))), None),  # a rule, but not code owner
+    (_run_log(N=_target("N", approve=None)), None),                                   # no bot approval line
+    (_run_log(N=_target("N", approve="1 Resource not accessible by integration")), None),   # bot approval refused
+    (_run_log(H1=_target("H1", merge="SKIP")), None),                                 # merge not tried
+    (_run_log(W=_target("W", graphql="SKIP")), None),                                 # no GraphQL try
+    (_run_log(H1=""), None),                                                          # H1 never tried
+    (_ALL_REFUSED, "d" * 40),                                                         # commit_id moved
+    (_SOURCE, None),                                                                  # no answers
+], ids=["squash-other-reason", "squash-workflows-only", "graphql-other-reason", "squash-method-only",
+        "no-approval", "approval-refused", "merge-not-tried", "no-graphql", "h1-missing", "review-moved", "no-results"])
+def test_v1_probe_inconclusive(tmp_path, log, kept):
+    """M1 v1-probe/pass-not-proving-u1: PASS needs, for W, N and H1, the bot approval posted, REST squash and GraphQL
+    squash both refused naming code-owner review, and merge and rebase refused; anything else is INCONCLUSIVE."""
+    r, made = _v1(tmp_path, log, kept=kept)
+    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and not _turned_off(made), r.stdout + r.stderr
+    assert "PASS" not in r.stdout
+
+
+def test_v1_prime_probe_pass_names_each_target(tmp_path):
+    """T4.11.3, M1: merge and rebase may be refused for any reason (method refused); squash needs "code owner"
+    (case-insensitive) on every target."""
+    log = _run_log(N=_target("N", squash='1 {"message":"Waiting on CODE OWNER review"}', merge="1 " + _OWNER))
+    r, made = _v1(tmp_path, log)
+    assert r.returncode == 0 and "PASS (V1')" in r.stdout, r.stdout + r.stderr
+    second = tmp_path / "second"
+    second.mkdir()
+    r2, _ = _v1(second, _run_log(N=_target("N", squash=_OTHER)))
+    assert r2.returncode == 1 and "W:proven N:not-proven H1:proven" in r2.stdout, r2.stdout
 
 
 def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):
     """v1-probe/node-read-under-e: a V1-ERROR line from the run reaches Brian's output; the step's own echo text,
     which the log also shows, is not mistaken for one."""
     log = (_SOURCE + 'probe\tTry\t2026-11-18T09:00:00Z if [ -z "$node" ]; then echo "V1-ERROR: could not read '
-           'node_id"; exit 1; fi\n' + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
-           + "probe\tTry\t2026-11-18T09:00:02Z V1-ERROR: could not read node_id\n")
+           'node_id"; exit 1; fi\n' + _target("W", graphql="SKIP") + _line("V1-ERROR: could not read node_id"))
     r, made = _v1(tmp_path, log)
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
     assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not read node_id"]
@@ -3012,8 +3407,7 @@ def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
     """v1-probe/log-raw-to-console: colour codes and control characters in the run's log never reach the console or
     the results file, and the V1 lines are still found after stripping."""
     esc = "\x1b"
-    log = (_SOURCE + "".join(_REFUSED.format(m=m).replace("V1-RESULT", f"{esc}[36mV1-RESULT").replace("\n", "\r\n")
-                             for m in ("squash", "merge", "rebase"))
+    log = (_SOURCE + _target("W", graphql="SKIP").replace("V1-RESULT", f"{esc}[36mV1-RESULT").replace("\n", "\r\n")
            + f"probe\tTry\t2026-11-18T09:00:02Z {esc}[31mV1-ERROR: could not{esc}]0;title\x07 read node_id{esc}[0m\x08\n")
     r, made = _v1(tmp_path, log)
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
@@ -3028,33 +3422,19 @@ def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
 
 def test_v1_probe_ansi_strip_keeps_the_text_after_an_erase_code(tmp_path):
     """v1-probe/log-raw-to-console: ESC[K right before a V1 line leaves the whole line (a sed bracket range that
-    swallowed letters turned `V1-MERGED squash` into `quash`), and a carriage return is dropped."""
+    swallowed letters turned `V1-MERGED W squash` into `quash`), and a carriage return is dropped."""
     esc = "\x1b"
-    log = (_SOURCE + _REFUSED.format(m="squash").replace("V1-RESULT squash exit=1", "V1-RESULT squash exit=0")
-           + f"probe\tTry\t2026-11-18T09:00:01Z {esc}[KV1-MERGED squash\r\n")
+    log = (_SOURCE + _line("V1-APPROVE W exit=0 APPROVED") + _line("V1-RESULT W squash exit=0 {}")
+           + f"probe\tTry\t2026-11-18T09:00:01Z {esc}[KV1-MERGED W squash\r\n")
     r, made = _v1(tmp_path, log)
-    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
-    assert "V1-MERGED squash" in r.stdout.splitlines() and "\r" not in r.stdout and esc not in r.stdout
+    assert r.returncode == 2 and "FAIL (V1' false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
+    assert "V1-MERGED W squash" in r.stdout.splitlines() and "\r" not in r.stdout and esc not in r.stdout
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):
     r, made = _v1(tmp_path, _ALL_REFUSED, MAIN_BEFORE="EMPTY")
     assert r.returncode == 1 and "could not read main. Nothing was changed." in r.stdout
     assert not any("-X" in c for c in made)
-
-
-@pytest.mark.parametrize("log,kept", [
-    (_SOURCE + "probe\tx\tt V1-RESULT squash exit=1 {\"message\":\"Pull Request is not mergeable\"}\n"
-     + "".join(_REFUSED.format(m=m) for m in ("merge", "rebase")), None),
-    (_ALL_REFUSED, "d" * 40),                                                                      # commit_id moved
-    (_SOURCE, None),                                                                               # no answers
-    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")), None),        # no GraphQL try
-    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
-     + "probe\tx\tt V1-RESULT graphql exit=1 GraphQL: Resource not accessible by integration (workflow)\n", None),
-], ids=["other-refusal", "review-moved", "no-results", "three-of-four", "graphql-other-reason"])
-def test_v1_probe_inconclusive(tmp_path, log, kept):
-    r, made = _v1(tmp_path, log, kept=kept)
-    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and not _turned_off(made), r.stdout + r.stderr
 
 
 def test_v1_probe_needs_a_bot_merged_data_pr_first(tmp_path):
