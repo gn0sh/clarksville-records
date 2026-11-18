@@ -2859,12 +2859,16 @@ def test_the_v1_probe_workflows_are_inert_and_least_privilege():
     assert "secrets." not in text and "uses:" not in text                        # no secret, no action, no checkout
     run = job["steps"][0]["run"]
     assert "for method in squash merge rebase" in run and '-f sha="$head"' in run
+    # M2: three targets, and a GITHUB_TOKEN approval at the head before any merge try of each
+    assert "for pair in W:probe/v1-target N:probe/v1-target-n H1:probe/v1-target-h1; do" in run
+    assert run.index("event=APPROVE") < run.index("for method in squash merge rebase")
+    assert '-f commit_id="$head"' in run
     # security Info (2026-11-17): the GraphQL merge path too, after the REST tries, pinned to the head, squash
     assert run.index("for method in squash merge rebase") < run.index("gh api graphql")
     assert "mergePullRequest(input: {pullRequestId: $id, expectedHeadOid: $oid, mergeMethod: SQUASH})" in run
-    assert '-f oid="$head"' in run and 'if [ -z "$merged" ]; then' in run
+    assert '-f oid="$head"' in run
     # the verdict markers in the script's own text never match the probe script's patterns (the log shows the source)
-    assert not re.search(r"V1-(RESULT|MERGED) (squash|merge|rebase|graphql)", text)
+    assert not re.search(r"V1-(RESULT|MERGED|APPROVE) (W|N|H1) ", text)
     assert not (ROOT / ".github" / "workflows" / "v1-probe.yml").exists()
     assert not (ROOT / ".github" / "workflows" / "v1-canary.yml").exists()
     for name in ("v1-probe.sh", "v1-probe.ps1"):
@@ -2880,13 +2884,13 @@ def test_the_v1_probe_scripts_agree():
     sh = (ROOT / "scripts" / "v1-probe.sh").read_text(encoding="utf-8")
     ps1 = (ROOT / "scripts" / "v1-probe.ps1").read_text(encoding="utf-8")
     for s in (sh, ps1):
-        assert "V1-(RESULT|MERGED) (squash|merge|rebase|graphql)" in s
-        assert "^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]" in s
-        assert "^V1-MERGED (squash|merge|rebase|graphql)" in s
-        assert "without .workflows. permission" in s and "-ci \"workflow\"" not in s
-        assert "--jq '.merged'" in s
-        assert "contents/.github/workflows/v1-canary.yml?ref=main" in s and "HTTP 404" in s
-        assert "of 4" in s and "all four merges" in s and "is left on" in s
+        assert "V1-(RESULT|MERGED|APPROVE) (W|N|H1) .*" in s
+        assert "^V1-MERGED (W|N|H1) " in s and "code owner" in s and "-ci \"workflow\"" not in s
+        assert "--jq '.merged'" in s and "HTTP 404" in s
+        for part in (".github/workflows/v1-canary.yml", "sitegen/v1-probe-canary.txt", "data/v1-probe-CODEOWNERS",
+                     "probe/v1-target-n", "probe/v1-target-h1", "git/trees", "parents[]="):
+            assert part in s, part
+        assert "PASS (V1')" in s and "is left on" in s and "(method refused)" in s
         assert "INCONCLUSIVE: could not read main. Nothing was changed." in s
         # v1-probe/rerun-after-fail (ADR 0010): no new run until R1' is on, owned, active and error-free
         for part in ("rules/branches/main", "select(.parameters.require_code_owner_review == true) | .ruleset_id",
@@ -2961,15 +2965,20 @@ if path.endswith("/git/ref/heads/main"):
     if sha == "EMPTY":
         sys.stderr.write("gh: Bad gateway (HTTP 502)\\n"); sys.exit(1)
     print(sha); sys.exit(0)
-if path.endswith("/contents/.github/workflows/v1-canary.yml?ref=main"):
-    canary = os.environ.get("CANARY", "404")
+if path.endswith("?ref=main") and "/contents/" in path:
+    var = {"/contents/.github/workflows/v1-canary.yml?ref=main": "CANARY",
+           "/contents/sitegen/v1-probe-canary.txt?ref=main": "CANARY_N",
+           "/contents/data/v1-probe-CODEOWNERS?ref=main": "CANARY_H1"}[path[path.index("/contents/"):]]
+    canary = os.environ.get(var, "404")
     if canary == "on-main":
         print("e" * 40); sys.exit(0)
     sys.stderr.write("gh: Not Found (HTTP 404)\\n" if canary == "404" else "gh: Bad gateway (HTTP 502)\\n"); sys.exit(1)
-if path.endswith("/pulls/77") and "--jq" in a and a[a.index("--jq") + 1] == ".merged":
-    merged = os.environ.get("PR_MERGED", "false")
-    if count("merged") > 0:                  # the read after cleanup (L-c)
-        merged = os.environ.get("PR_MERGED_AFTER", merged)
+PRS = {"77": "", "78": "_N", "79": "_H1"}         # W, N, H1
+if path.rsplit("/", 1)[-1] in PRS and "/pulls/" in path and "--jq" in a and a[a.index("--jq") + 1] == ".merged":
+    sfx = PRS[path.rsplit("/", 1)[-1]]
+    merged = os.environ.get("PR_MERGED" + sfx, "false")
+    if count("merged" + sfx) > 0:            # the read after cleanup (L-c)
+        merged = os.environ.get("PR_MERGED_AFTER" + sfx, merged)
     if merged == "EMPTY":
         sys.exit(1)
     print(merged); sys.exit(0)
@@ -2982,19 +2991,57 @@ if "-X" in a and a[a.index("-X") + 1] == "PUT" and "/contents/" in path:
         print("d" * 40)
     sys.exit(0)
 if path.endswith("/pulls") and "POST" in a:
-    print("77"); sys.exit(0)
+    head = next(x.split("=", 1)[1] for x in a if x.startswith("head="))
+    print({"probe/v1-target": "77", "probe/v1-target-n": "78", "probe/v1-target-h1": "79"}[head]); sys.exit(0)
+if "/contents/.github/CODEOWNERS?ref=" in path:                 # the blob H1 renames, read at main_before
+    assert a[a.index("--jq") + 1] == ".sha", a
+    print("b" * 40); sys.exit(0)
+if "/git/commits/" in path:
+    print("t" * 40); sys.exit(0)
+if path.endswith("/git/trees"):
+    open(os.environ["GH_CALLS"] + ".tree", "w").write(sys.stdin.read())
+    print("a" * 40); sys.exit(0)
+if path.endswith("/git/commits"):
+    print("f" * 40); sys.exit(0)
 if path.endswith("/reviews"):
     print(os.environ.get("KEPT", "c" * 40)); sys.exit(0)
 sys.exit(0)
 '''
-_SOURCE = ('probe\\tTry\\t2026-11-18T09:00:00Z echo "V1-RESULT $method exit=$code $(printf ...)"\n'
-           'probe\\tTry\\t2026-11-18T09:00:00Z if [ "$code" = 0 ]; then echo "V1-MERGED $method"; break; fi\n')
-_REFUSED = ("probe\\tTry\\t2026-11-18T09:00:01Z V1-RESULT {m} exit=1 {{\"message\":\"refusing to allow a GitHub App to "
-            "create or update workflow `.github/workflows/v1-canary.yml` without `workflows` permission\"}}\n")
-_GQL_REFUSED = ("probe\tTry\t2026-11-18T09:00:02Z V1-RESULT graphql exit=1 GraphQL: refusing to allow a GitHub App to "
-                "create or update workflow `.github/workflows/v1-canary.yml` without `workflows` permission "
-                "(mergePullRequest)\n")
-_ALL_REFUSED = _SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")) + _GQL_REFUSED
+_SOURCE = ('probe\\tTry\\t2026-11-18T09:00:00Z echo "V1-RESULT $t $method exit=$code $(printf ...)"\n'
+           'probe\\tTry\\t2026-11-18T09:00:00Z if [ "$code" = 0 ]; then echo "V1-MERGED $t $method"; exit 0; fi\n'
+           'probe\\tTry\\t2026-11-18T09:00:00Z echo "V1-APPROVE $t exit=$code $(printf ...)"\n')
+_OWNER = '{"message":"Repository rule violations found\\n\\nWaiting on code owner review from gn0sh."}'
+_GQL_OWNER_MSG = "GraphQL: Repository rule violations found Waiting on code owner review from gn0sh. (mergePullRequest)"
+_METHOD = '{"message":"Merge method {m} is not allowed on this repository"}'
+_WORKFLOWS = ('{"message":"refusing to allow a GitHub App to create or update workflow '
+              '`.github/workflows/v1-canary.yml` without `workflows` permission"}')
+_TARGETS = ("W", "N", "H1")
+
+
+def _line(text):
+    return f"probe\tTry\t2026-11-18T09:00:01Z {text}\n"
+
+
+def _target(t, squash=None, graphql=None, merge=None, rebase=None, approve="0 APPROVED"):
+    """One target's lines as the runner prints them: the bot approval, then squash, merge, rebase, GraphQL."""
+    out = _line(f"V1-APPROVE {t} exit={approve}") if approve is not None else ""
+    for m, answer in (("squash", squash or "1 " + _OWNER), ("merge", merge or "1 " + _METHOD.replace("{m}", "merge")),
+                      ("rebase", rebase or "1 " + _METHOD.replace("{m}", "rebase")),
+                      ("graphql", graphql or "1 " + _GQL_OWNER_MSG)):
+        if answer == "SKIP":
+            continue
+        out += _line(f"V1-RESULT {t} {m} exit={answer}")
+        if answer.startswith("0"):
+            return out + _line(f"V1-MERGED {t} {m}")
+    return out
+
+
+def _run_log(**over):
+    """The whole run: every target refused for code-owner review, unless `over` gives a target's own lines."""
+    return _SOURCE + "".join(over.get(t, _target(t)) for t in _TARGETS)
+
+
+_ALL_REFUSED = _run_log()
 
 
 def _v1(tmp_path, log, main_after=None, kept=None, data_prs="1", **extra):
@@ -3102,49 +3149,83 @@ def test_v1_probe_runs_when_one_ruleset_has_the_rule_off_and_another_on(tmp_path
 
 def test_v1_probe_pass(tmp_path):
     r, made = _v1(tmp_path, _ALL_REFUSED)
-    assert r.returncode == 0 and "PASS" in r.stdout, r.stdout + r.stderr
+    assert r.returncode == 0 and "PASS (V1')" in r.stdout, r.stdout + r.stderr
     assert not _turned_off(made)
     review = next(c for c in made if any(str(x).endswith("/reviews") for x in c))
-    assert f"commit_id={'c' * 40}" in review                         # pinned to the older commit
-    # cleanup: the PR is closed and both probe branches deleted
-    assert any("state=closed" in c and "repos/gn0sh/clarksville-records/pulls/77" in c for c in made)
-    for b in ("probe/v1-target", "probe/v1-runner"):
-        assert sum(c[:3] == ["api", "-X", "DELETE"] and c[3].endswith(b) for c in made) >= 2   # before and after
+    assert f"commit_id={'c' * 40}" in review and "repos/gn0sh/clarksville-records/pulls/77/reviews" in review
+    # cleanup: every probe PR is closed and every probe branch deleted, before and after
+    for n in ("77", "78", "79"):
+        assert any("state=closed" in c and f"repos/gn0sh/clarksville-records/pulls/{n}" in c for c in made), n
+    for b in ("probe/v1-target", "probe/v1-target-n", "probe/v1-target-h1", "probe/v1-runner"):
+        assert sum(c[:3] == ["api", "-X", "DELETE"] and c[3].endswith("heads/" + b) for c in made) >= 2, b
     assert list(tmp_path.glob("v1-probe-results-*.txt"))
 
 
-_GQL_MERGED = (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
-               + "probe\tx\tt V1-RESULT graphql exit=0 {\"data\":{\"mergePullRequest\":{\"pullRequest\":"
-               "{\"merged\":true}}}}\nprobe\tx\tt V1-MERGED graphql\n")
+def test_v1_probe_builds_the_three_targets(tmp_path):
+    """M2 and H1 (security, PR #43): W adds a workflow file; N adds one non-workflow file outside data/ (sitegen/);
+    H1 only renames .github/CODEOWNERS into data/: a tree on main's tree that deletes the old path and adds the same
+    blob (read at main's sha) at the new one, one commit whose parent is main."""
+    r, made = _v1(tmp_path, _ALL_REFUSED)
+    assert r.returncode == 0, r.stdout + r.stderr
+    puts = [c for c in made if c[:3] == ["api", "-X", "PUT"] and "/contents/" in c[3]]
+    assert [c[3].split("/contents/")[1] for c in puts] == [".github/workflows/v1-canary.yml"] * 2 + [
+        "sitegen/v1-probe-canary.txt", ".github/workflows/v1-probe.yml"]
+    assert "branch=probe/v1-target-n" in puts[2]
+    tree = json.loads((tmp_path / "calls.tree").read_text())
+    assert tree == {"base_tree": "t" * 40, "tree": [
+        {"path": ".github/CODEOWNERS", "mode": "100644", "type": "blob", "sha": None},
+        {"path": "data/v1-probe-CODEOWNERS", "mode": "100644", "type": "blob", "sha": "b" * 40}]}
+    blob_read = [c for c in made if any("/contents/.github/CODEOWNERS?ref=" in str(x) and "ref=main" not in str(x)
+                                        for x in c)]
+    assert len(blob_read) == 1 and f"contents/.github/CODEOWNERS?ref={'1' * 40}" in " ".join(blob_read[0])
+    commit = next(c for c in made if c[:4] == ["api", "-X", "POST", "repos/gn0sh/clarksville-records/git/commits"])
+    assert f"tree={'a' * 40}" in commit and f"parents[]={'1' * 40}" in commit
+    ref = [c for c in made if c[:4] == ["api", "-X", "POST", "repos/gn0sh/clarksville-records/git/refs"]]
+    assert "ref=refs/heads/probe/v1-target-h1" in ref[2] and f"sha={'f' * 40}" in ref[2]
+    prs = [c for c in made if c[:4] == ["api", "-X", "POST", "repos/gn0sh/clarksville-records/pulls"]]
+    assert [next(x for x in c if x.startswith("head=")) for c in prs] == [
+        "head=probe/v1-target", "head=probe/v1-target-n", "head=probe/v1-target-h1"]
+    assert all("base=main" in c for c in prs)
+
+
+def _merged_line(t, m):
+    return _target(t, **{m: "0 {\"merged\":true}"})
 
 
 @pytest.mark.parametrize("log,extra", [
-    (_SOURCE + "probe\tx\tt V1-RESULT squash exit=0 {\"sha\":\"x\",\"merged\":true}\nprobe\tx\tt V1-MERGED squash\n",
-     {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),
-    (_GQL_MERGED, {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),         # any GraphQL merge is FAIL
-    (_GQL_MERGED, {}),                                                     # even before the PR reads merged
-    (_ALL_REFUSED, {"PR_MERGED": "true"}),                                 # the PR reads merged, whatever the log says
-    (_ALL_REFUSED, {"CANARY": "on-main"}),                                 # the canary reached main
-], ids=["merged", "graphql-merged", "graphql-answer-only", "pr-merged", "canary-on-main"])
+    (_run_log(W=_merged_line("W", "squash")), {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),
+    (_run_log(W=_merged_line("W", "graphql")), {"PR_MERGED": "true", "MAIN_AFTER": "2" * 40}),
+    (_run_log(N=_merged_line("N", "graphql")), {}),                       # even before the PR reads merged
+    (_run_log(H1=_merged_line("H1", "squash")), {}),                      # H1: the rename merged
+    (_ALL_REFUSED, {"PR_MERGED": "true"}),                                # the PR reads merged, whatever the log says
+    (_ALL_REFUSED, {"PR_MERGED_H1": "true"}),
+    (_ALL_REFUSED, {"CANARY": "on-main"}),                                # a probe file reached main
+    (_ALL_REFUSED, {"CANARY_N": "on-main"}),
+    (_ALL_REFUSED, {"CANARY_H1": "on-main"}),
+], ids=["w-squash", "w-graphql", "n-graphql-answer-only", "h1-squash", "w-pr-merged", "h1-pr-merged", "w-on-main",
+        "n-on-main", "h1-on-main"])
 def test_v1_probe_fail_turns_the_actions_pr_setting_off(tmp_path, log, extra):
     r, made = _v1(tmp_path, log, **extra)
-    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
-    closed = any("state=closed" in c for c in made)
-    assert closed == (extra.get("PR_MERGED") != "true")                   # a merged PR is not closed again
+    assert r.returncode == 2 and "FAIL (V1' false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
+    closed = {n for n in ("77", "78", "79") if any("state=closed" in c and c[3].endswith("/pulls/" + n) for c in made)}
+    merged = {"77" if extra.get("PR_MERGED") == "true" else None, "79" if extra.get("PR_MERGED_H1") == "true" else None}
+    assert closed == {"77", "78", "79"} - merged                         # a merged PR is not closed again
 
 
 @pytest.mark.parametrize("extra", [
-    {"MAIN_AFTER": "2" * 40},              # main moved (another merge in the window), the probe PR unmerged
+    {"MAIN_AFTER": "2" * 40},              # main moved (another merge in the window), the probe PRs unmerged
     {"MAIN_AFTER": "EMPTY"},               # main could not be read after
-    {"PR_MERGED": "EMPTY"},                # the probe PR could not be read
-    {"CANARY": "error"},                   # the canary check failed (not a 404)
-], ids=["main-moved", "main-read-failed", "pr-read-failed", "canary-read-failed"])
+    {"PR_MERGED": "EMPTY"},                # a probe PR could not be read
+    {"PR_MERGED_N": "EMPTY"},
+    {"CANARY": "error"},                   # a probe file check failed (not a 404)
+    {"CANARY_H1": "error"},
+], ids=["main-moved", "main-read-failed", "pr-read-failed", "n-read-failed", "canary-read-failed", "h1-read-failed"])
 def test_v1_probe_main_moved_or_a_failed_read_is_inconclusive_and_leaves_r2_on(tmp_path, extra):
-    """v1-probe/verdict-from-main-sha: FAIL only when the probe PR merged or the canary is on main."""
+    """v1-probe/verdict-from-main-sha: FAIL only when a probe PR merged or a probe file is on main."""
     r, made = _v1(tmp_path, _ALL_REFUSED, **extra)
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and "is left on" in r.stdout, r.stdout + r.stderr
     assert not _turned_off(made) and "FAIL" not in r.stdout
-    assert any("state=closed" in c for c in made)                          # cleanup still closes the probe PR
+    assert sum("state=closed" in c for c in made) == 3                    # cleanup still closes every probe PR
 
 
 @pytest.mark.parametrize("status", ["in_progress", "queued", "EMPTY"])
@@ -3155,17 +3236,18 @@ def test_v1_probe_a_run_not_completed_is_inconclusive(tmp_path, status):
     assert not _turned_off(made)
 
 
-def test_v1_probe_a_merge_seen_after_cleanup_is_fail(tmp_path):
-    """L-c: the probe PR is closed first, then read again; merged by then means FAIL, never PASS."""
-    r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER="true")
-    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and "PASS" not in r.stdout and _turned_off(made)
-    closed = next(i for i, c in enumerate(made) if "state=closed" in c)
+@pytest.mark.parametrize("sfx", ["", "_N", "_H1"])
+def test_v1_probe_a_merge_seen_after_cleanup_is_fail(tmp_path, sfx):
+    """L-c: every probe PR is closed first, then read again; merged by then means FAIL, never PASS."""
+    r, made = _v1(tmp_path, _ALL_REFUSED, **{"PR_MERGED_AFTER" + sfx: "true"})
+    assert r.returncode == 2 and "FAIL (V1' false)" in r.stdout and "PASS" not in r.stdout and _turned_off(made)
+    closed = max(i for i, c in enumerate(made) if "state=closed" in c)
     reads = [i for i, c in enumerate(made) if c[-2:] == ["--jq", ".merged"]]
-    assert len(reads) == 2 and reads[0] < closed < reads[1]
+    assert len(reads) >= 4 and reads[0] < closed < reads[-1]
 
 
 def test_v1_probe_pass_needs_the_read_after_cleanup(tmp_path):
-    r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER="EMPTY")
+    r, made = _v1(tmp_path, _ALL_REFUSED, PR_MERGED_AFTER_N="EMPTY")
     assert r.returncode == 1 and "could not be read again after cleanup" in r.stdout and "PASS" not in r.stdout
     assert not _turned_off(made)
 
@@ -3175,26 +3257,28 @@ import os, sys
 a = sys.argv[1:]
 with open(os.environ["GH_CALLS"], "a") as f:
     f.write(" ".join(a) + "\\n")
+nums = {"probe/v1-target": "77", "probe/v1-target-n": "78", "probe/v1-target-h1": "79"}
 if a[1].startswith("repos/o/r/pulls?state=open"):
-    print("77"); sys.exit(0)
-if a[1] == "repos/o/r/pulls/77" and a[-1] == ".head.sha":
-    print("h" * 40); sys.exit(0)
-if a[1] == "repos/o/r/pulls/77" and a[-1] == ".node_id":
+    print(nums[a[1].split("head=o:", 1)[1]]); sys.exit(0)
+if a[1].startswith("repos/o/r/pulls/") and a[-1] == ".head.sha":
+    print("e" * 40); sys.exit(0)
+if a[1].startswith("repos/o/r/pulls/") and a[-1] == ".node_id":
     if os.environ.get("NODE") == "FAIL":
         sys.exit(1)
     print(os.environ.get("NODE", "PR_node")); sys.exit(0)
+if "-X" in a and a[a.index("-X") + 1] == "POST" and a[a.index("-X") + 2].endswith("/reviews"):
+    assert "event=APPROVE" in a and "commit_id=" + "e" * 40 in a, a
+    print("APPROVED"); sys.exit(0)
+num = next(x for x in a if x.startswith("repos/o/r/pulls/")).split("/")[4] if a[1] != "graphql" else os.environ.get("GQL_PR", "")
 method = "graphql" if a[1] == "graphql" else next(x.split("=", 1)[1] for x in a if x.startswith("merge_method="))
-if os.environ.get("MERGE_OK") == method:
+if os.environ.get("MERGE_OK") == method and os.environ.get("MERGE_PR", "77") in (num, "any"):
     print('{"merged": true}'); sys.exit(0)
-sys.stderr.write("gh: refusing to allow a GitHub App to create or update workflow without `workflows` permission\\n")
+sys.stderr.write("gh: Repository rule violations found. Waiting on code owner review from gn0sh.\\n")
 sys.exit(1)
 """
 
 
-@pytest.mark.parametrize("ok", ["", "squash", "rebase", "graphql"])
-def test_the_v1_probe_step_tries_every_merge_under_bash_e(tmp_path, ok):
-    """v1-probe/step-exits-on-first-refusal: GitHub runs the step as `bash -e {0}`; a refused merge is printed and the
-    next one tried, so a refusing gh gives four V1-RESULT lines; the first merge that goes through stops it."""
+def _step(tmp_path, **env_over):
     step = yaml.safe_load((ROOT / "scripts" / "v1-probe" / "v1-probe.yml").read_text(encoding="utf-8"))
     run = next(iter(step["jobs"].values()))["steps"][0]["run"]
     bindir, calls = tmp_path / "bin", tmp_path / "calls"
@@ -3203,37 +3287,47 @@ def test_the_v1_probe_step_tries_every_merge_under_bash_e(tmp_path, ok):
     (bindir / "gh").chmod(0o755)
     (tmp_path / "step.sh").write_text(run)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "GH_TOKEN": "t",
-           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": ok}
+           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": "", **env_over}
     r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True)
+    return r, calls.read_text().splitlines()
+
+
+@pytest.mark.parametrize("ok", ["", "squash", "rebase"])
+def test_the_v1_probe_step_tries_every_target_and_merge_under_bash_e(tmp_path, ok):
+    """v1-probe/step-exits-on-first-refusal: GitHub runs the step as `bash -e {0}`; for W, N and H1 in turn the bot
+    approves at the head (M2), then a refused merge is printed and the next one tried; the first merge that goes
+    through (here on W) stops the whole run."""
+    r, calls = _step(tmp_path, MERGE_OK=ok)
     assert r.returncode == 0, r.stdout + r.stderr
-    results = [ln for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")]
+    out = r.stdout.splitlines()
+    results = [ln.split()[1:3] for ln in out if ln.startswith("V1-RESULT ")]
     tried = ["squash", "merge", "rebase", "graphql"]
-    tried = tried[:tried.index(ok) + 1] if ok else tried
-    assert [ln.split()[1] for ln in results] == tried, r.stdout
-    for ln in results:
-        want = "exit=0" if ln.split()[1] == ok else "exit=1"
-        assert ln.split()[2] == want and (want == "exit=0" or "without `workflows` permission" in ln), ln
-    merged = [ln for ln in r.stdout.splitlines() if ln.startswith("V1-MERGED ")]
-    assert merged == ([f"V1-MERGED {ok}"] if ok else [])
+    if ok:
+        assert results == [["W", m] for m in tried[:tried.index(ok) + 1]], out
+        assert [ln for ln in out if ln.startswith("V1-MERGED ")] == [f"V1-MERGED W {ok}"]
+    else:
+        assert results == [[t, m] for t in ("W", "N", "H1") for m in tried], out
+        assert not [ln for ln in out if ln.startswith("V1-MERGED ")]
+        assert [ln for ln in out if ln.startswith("V1-APPROVE ")] == [f"V1-APPROVE {t} exit=0 APPROVED"
+                                                                       for t in ("W", "N", "H1")]
+        for ln in out:
+            if ln.startswith("V1-RESULT "):
+                assert "exit=1" in ln and "code owner" in ln, ln
+    # the approval comes before every merge try of the same PR
+    for n in ("77", "78", "79"):
+        idx = [i for i, c in enumerate(calls) if f"pulls/{n}/" in c and ("/reviews" in c or "/merge" in c)]
+        if idx:
+            assert "/reviews" in calls[idx[0]], calls
 
 
 @pytest.mark.parametrize("node", ["FAIL", ""])
 def test_the_v1_probe_step_says_when_it_cannot_read_the_node_id(tmp_path, node):
     """v1-probe/node-read-under-e: a failed or empty node_id read prints V1-ERROR before the step exits, and no
     GraphQL merge is tried."""
-    step = yaml.safe_load((ROOT / "scripts" / "v1-probe" / "v1-probe.yml").read_text(encoding="utf-8"))
-    run = next(iter(step["jobs"].values()))["steps"][0]["run"]
-    bindir, calls = tmp_path / "bin", tmp_path / "calls"
-    bindir.mkdir()
-    (bindir / "gh").write_text(_STEP_GH)
-    (bindir / "gh").chmod(0o755)
-    (tmp_path / "step.sh").write_text(run)
-    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "GH_TOKEN": "t",
-           "GITHUB_REPOSITORY": "o/r", "OWNER": "o", "MERGE_OK": "", "NODE": node}
-    r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True)
+    r, calls = _step(tmp_path, NODE=node)
     assert r.returncode == 1 and r.stdout.splitlines()[-1] == "V1-ERROR: could not read node_id", r.stdout
-    assert [ln.split()[1] for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")] == ["squash", "merge", "rebase"]
-    assert not any(c.startswith("api graphql") for c in calls.read_text().splitlines())
+    assert [ln.split()[2] for ln in r.stdout.splitlines() if ln.startswith("V1-RESULT ")] == ["squash", "merge", "rebase"]
+    assert not any(c.startswith("api graphql") for c in calls)
 
 
 def test_v1_probe_fail_keeps_actions_on_and_removes_the_canary_by_pr(tmp_path):
@@ -3260,37 +3354,48 @@ def test_v1_probe_fail_keeps_actions_on_and_removes_the_canary_by_pr(tmp_path):
     assert "close every open" not in sec.lower() and "Brain Trust" in sec
 
 
-_OWNER_REFUSED = ("probe\tTry\t2026-11-18T09:00:01Z V1-RESULT {m} exit=1 {{\"message\":\"Repository rule violations "
-                  "found\\n\\nWaiting on code owner review from gn0sh.\"}}\n")
-_GQL_OWNER = ("probe\tTry\t2026-11-18T09:00:02Z V1-RESULT graphql exit=1 GraphQL: Repository rule violations found "
-              "Waiting on code owner review from gn0sh. (mergePullRequest)\n")
+_OTHER = '1 {"message":"Pull Request is not mergeable"}'
 
 
-@pytest.mark.parametrize("log,code,says", [
-    (_SOURCE + "".join(_OWNER_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")) + _GQL_OWNER, 0, "PASS (V1')"),
-    (_SOURCE + _OWNER_REFUSED.format(m="squash") + _REFUSED.format(m="merge") + _OWNER_REFUSED.format(m="rebase")
-     + _GQL_REFUSED, 0, "PASS (V1')"),
-    (_SOURCE + _OWNER_REFUSED.format(m="squash") + _OWNER_REFUSED.format(m="merge") + _OWNER_REFUSED.format(m="rebase")
-     + "probe\tTry\t2026-11-18T09:00:02Z V1-RESULT graphql exit=1 GraphQL: Pull request is not mergeable\n", 1,
-     "INCONCLUSIVE: refused 4 of 4, 3 naming the ruleset"),
-])
-def test_v1_prime_probe_pass_needs_four_refusals_naming_the_rule(tmp_path, log, code, says):
-    """T4.11.3: PASS = four refusals, each matching `code owner|rule` (case-insensitive) or the workflows permission;
-    a refusal for any other reason is INCONCLUSIVE and leaves R2 on."""
+@pytest.mark.parametrize("log,kept", [
+    (_run_log(W=_target("W", squash=_OTHER)), None),                                  # REST squash, other reason
+    (_run_log(N=_target("N", squash="1 " + _WORKFLOWS)), None),                       # workflows, not code owner
+    (_run_log(H1=_target("H1", graphql="1 GraphQL: Resource not accessible by integration (mergePullRequest)")), None),
+    (_run_log(W=_target("W", squash="1 " + _METHOD.replace("{m}", "squash"))), None),  # a rule, but not code owner
+    (_run_log(N=_target("N", approve=None)), None),                                   # no bot approval line
+    (_run_log(N=_target("N", approve="1 Resource not accessible by integration")), None),   # bot approval refused
+    (_run_log(H1=_target("H1", merge="SKIP")), None),                                 # merge not tried
+    (_run_log(W=_target("W", graphql="SKIP")), None),                                 # no GraphQL try
+    (_run_log(H1=""), None),                                                          # H1 never tried
+    (_ALL_REFUSED, "d" * 40),                                                         # commit_id moved
+    (_SOURCE, None),                                                                  # no answers
+], ids=["squash-other-reason", "squash-workflows-only", "graphql-other-reason", "squash-method-only",
+        "no-approval", "approval-refused", "merge-not-tried", "no-graphql", "h1-missing", "review-moved", "no-results"])
+def test_v1_probe_inconclusive(tmp_path, log, kept):
+    """M1 v1-probe/pass-not-proving-u1: PASS needs, for W, N and H1, the bot approval posted, REST squash and GraphQL
+    squash both refused naming code-owner review, and merge and rebase refused; anything else is INCONCLUSIVE."""
+    r, made = _v1(tmp_path, log, kept=kept)
+    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and not _turned_off(made), r.stdout + r.stderr
+    assert "PASS" not in r.stdout
+
+
+def test_v1_prime_probe_pass_names_each_target(tmp_path):
+    """T4.11.3, M1: merge and rebase may be refused for any reason (method refused); squash needs "code owner"
+    (case-insensitive) on every target."""
+    log = _run_log(N=_target("N", squash='1 {"message":"Waiting on CODE OWNER review"}', merge="1 " + _OWNER))
     r, made = _v1(tmp_path, log)
-    assert r.returncode == code and says in r.stdout, r.stdout + r.stderr
-    assert not _turned_off(made)
-    for name in ("v1-probe.sh", "v1-probe.ps1"):
-        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
-        assert "code owner|rule|without .workflows. permission" in text, name
+    assert r.returncode == 0 and "PASS (V1')" in r.stdout, r.stdout + r.stderr
+    second = tmp_path / "second"
+    second.mkdir()
+    r2, _ = _v1(second, _run_log(N=_target("N", squash=_OTHER)))
+    assert r2.returncode == 1 and "W:proven N:not-proven H1:proven" in r2.stdout, r2.stdout
 
 
 def test_v1_probe_prints_the_runs_v1_error_lines(tmp_path):
     """v1-probe/node-read-under-e: a V1-ERROR line from the run reaches Brian's output; the step's own echo text,
     which the log also shows, is not mistaken for one."""
     log = (_SOURCE + 'probe\tTry\t2026-11-18T09:00:00Z if [ -z "$node" ]; then echo "V1-ERROR: could not read '
-           'node_id"; exit 1; fi\n' + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
-           + "probe\tTry\t2026-11-18T09:00:02Z V1-ERROR: could not read node_id\n")
+           'node_id"; exit 1; fi\n' + _target("W", graphql="SKIP") + _line("V1-ERROR: could not read node_id"))
     r, made = _v1(tmp_path, log)
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
     assert [ln for ln in r.stdout.splitlines() if "V1-ERROR" in ln] == ["V1-ERROR: could not read node_id"]
@@ -3302,8 +3407,7 @@ def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
     """v1-probe/log-raw-to-console: colour codes and control characters in the run's log never reach the console or
     the results file, and the V1 lines are still found after stripping."""
     esc = "\x1b"
-    log = (_SOURCE + "".join(_REFUSED.format(m=m).replace("V1-RESULT", f"{esc}[36mV1-RESULT").replace("\n", "\r\n")
-                             for m in ("squash", "merge", "rebase"))
+    log = (_SOURCE + _target("W", graphql="SKIP").replace("V1-RESULT", f"{esc}[36mV1-RESULT").replace("\n", "\r\n")
            + f"probe\tTry\t2026-11-18T09:00:02Z {esc}[31mV1-ERROR: could not{esc}]0;title\x07 read node_id{esc}[0m\x08\n")
     r, made = _v1(tmp_path, log)
     assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout, r.stdout + r.stderr
@@ -3318,33 +3422,19 @@ def test_v1_probe_strips_ansi_and_control_characters_from_the_run_log(tmp_path):
 
 def test_v1_probe_ansi_strip_keeps_the_text_after_an_erase_code(tmp_path):
     """v1-probe/log-raw-to-console: ESC[K right before a V1 line leaves the whole line (a sed bracket range that
-    swallowed letters turned `V1-MERGED squash` into `quash`), and a carriage return is dropped."""
+    swallowed letters turned `V1-MERGED W squash` into `quash`), and a carriage return is dropped."""
     esc = "\x1b"
-    log = (_SOURCE + _REFUSED.format(m="squash").replace("V1-RESULT squash exit=1", "V1-RESULT squash exit=0")
-           + f"probe\tTry\t2026-11-18T09:00:01Z {esc}[KV1-MERGED squash\r\n")
+    log = (_SOURCE + _line("V1-APPROVE W exit=0 APPROVED") + _line("V1-RESULT W squash exit=0 {}")
+           + f"probe\tTry\t2026-11-18T09:00:01Z {esc}[KV1-MERGED W squash\r\n")
     r, made = _v1(tmp_path, log)
-    assert r.returncode == 2 and "FAIL (V1 false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
-    assert "V1-MERGED squash" in r.stdout.splitlines() and "\r" not in r.stdout and esc not in r.stdout
+    assert r.returncode == 2 and "FAIL (V1' false)" in r.stdout and _turned_off(made), r.stdout + r.stderr
+    assert "V1-MERGED W squash" in r.stdout.splitlines() and "\r" not in r.stdout and esc not in r.stdout
 
 
 def test_v1_probe_stops_before_changing_anything_when_main_cannot_be_read(tmp_path):
     r, made = _v1(tmp_path, _ALL_REFUSED, MAIN_BEFORE="EMPTY")
     assert r.returncode == 1 and "could not read main. Nothing was changed." in r.stdout
     assert not any("-X" in c for c in made)
-
-
-@pytest.mark.parametrize("log,kept", [
-    (_SOURCE + "probe\tx\tt V1-RESULT squash exit=1 {\"message\":\"Pull Request is not mergeable\"}\n"
-     + "".join(_REFUSED.format(m=m) for m in ("merge", "rebase")), None),
-    (_ALL_REFUSED, "d" * 40),                                                                      # commit_id moved
-    (_SOURCE, None),                                                                               # no answers
-    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase")), None),        # no GraphQL try
-    (_SOURCE + "".join(_REFUSED.format(m=m) for m in ("squash", "merge", "rebase"))
-     + "probe\tx\tt V1-RESULT graphql exit=1 GraphQL: Resource not accessible by integration (workflow)\n", None),
-], ids=["other-refusal", "review-moved", "no-results", "three-of-four", "graphql-other-reason"])
-def test_v1_probe_inconclusive(tmp_path, log, kept):
-    r, made = _v1(tmp_path, log, kept=kept)
-    assert r.returncode == 1 and "INCONCLUSIVE" in r.stdout and not _turned_off(made), r.stdout + r.stderr
 
 
 def test_v1_probe_needs_a_bot_merged_data_pr_first(tmp_path):

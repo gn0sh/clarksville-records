@@ -1,10 +1,12 @@
-# V1 probe runner (docs/architecture/main-protect-invariant.md "V1 probe"; runbook docs/ops/morning-note.md 2.0.4).
-# The probe script puts this file on the throwaway branch probe/v1-runner as .github/workflows/v1-probe.yml; that
-# push starts it. With GITHUB_TOKEN only, it tries to merge the open probe/v1-target pull request (which adds a
-# workflow file) into main with squash, then merge, then rebase (REST), then GraphQL mergePullRequest (squash), each
-# pinned to the PR's head, and prints GitHub's answer to each. Expected (V1 true): all four refused for lack of the
-# `workflows` permission. It stops at the first merge that goes through. It reads no secret and runs no file from
-# the repository.
+# V1' probe runner (docs/architecture/main-protect-invariant.md "V1 probe"; runbook docs/ops/morning-note.md 2.0.4;
+# ADR 0010 decision 5). The probe script puts this file on the throwaway branch probe/v1-runner as
+# .github/workflows/v1-probe.yml; that push starts it. With GITHUB_TOKEN only, for each of the three open probe pull
+# requests into main (W: adds a workflow file; N: changes a non-workflow file outside data/; H1: only renames
+# .github/CODEOWNERS into data/), it first posts an APPROVE review pinned to the PR's head (a bot's approval must not
+# count), then tries to merge it with squash, merge, rebase (REST), then GraphQL mergePullRequest (squash), each
+# pinned to the head, and prints GitHub's answer to each. Expected (V1'): every squash try refused for code-owner
+# review; merge and rebase refused (squash only). It stops everything at the first merge that goes through. It reads
+# no secret and runs no file from the repository.
 name: V1 probe (one time)
 on:
   push:
@@ -13,42 +15,48 @@ permissions: {}
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     permissions:
       contents: write        # what the daily push job has
       pull-requests: write   # what the daily push job has
     steps:
-      - name: Try to merge the canary pull request with GITHUB_TOKEN
+      - name: Try to merge the probe pull requests with GITHUB_TOKEN
         env:
           GH_TOKEN: ${{ github.token }}
           OWNER: ${{ github.repository_owner }}
         # GitHub runs this as `bash -e {0}`: every merge try keeps its own exit code (`|| code=$?`), so a refused
         # merge is printed and the next one is tried instead of ending the step (v1-probe/step-exits-on-first-refusal).
+        # The target and method names sit in variables, so the run's own text, which the log also shows, never
+        # matches the probe script's result pattern.
         run: |
           set -uo pipefail
           repo="$GITHUB_REPOSITORY"
-          num=$(gh api "repos/$repo/pulls?state=open&base=main&head=$OWNER:probe/v1-target" --jq '.[0].number // empty')
-          if ! [[ "$num" =~ ^[0-9]+$ ]]; then echo "V1-ERROR: no open pull request from probe/v1-target"; exit 1; fi
-          head=$(gh api "repos/$repo/pulls/$num" --jq '.head.sha')
-          echo "V1-PR #$num head $head"
-          merged=""
-          for method in squash merge rebase; do
+          q='mutation($id: ID!, $oid: GitObjectID!) { mergePullRequest(input: {pullRequestId: $id, expectedHeadOid: $oid, mergeMethod: SQUASH}) { pullRequest { merged } } }'
+          for pair in W:probe/v1-target N:probe/v1-target-n H1:probe/v1-target-h1; do
+            t=${pair%%:*}; branch=${pair#*:}
+            num=$(gh api "repos/$repo/pulls?state=open&base=main&head=$OWNER:$branch" --jq '.[0].number // empty') || num=""
+            if ! [[ "$num" =~ ^[0-9]+$ ]]; then echo "V1-ERROR: no open pull request from $branch"; exit 1; fi
+            head=$(gh api "repos/$repo/pulls/$num" --jq '.head.sha') || head=""
+            if ! [[ "$head" =~ ^[0-9a-f]{40}$ ]]; then echo "V1-ERROR: could not read the head of $branch"; exit 1; fi
+            echo "V1-PR $t #$num head $head"
+            # M2 (security, PR #43): a GITHUB_TOKEN approval first, so a PASS shows a bot's approval does not count.
             code=0
-            out=$(gh api -X PUT "repos/$repo/pulls/$num/merge" -f merge_method="$method" -f sha="$head" 2>&1) || code=$?
-            echo "V1-RESULT $method exit=$code $(printf '%s' "$out" | tr '\n' ' ')"
-            if [ "$code" = 0 ]; then echo "V1-MERGED $method"; merged=yes; break; fi
-          done
-          # The GraphQL merge path (security, 2026-11-17): a separate API that the REST refusals do not prove.
-          # Pinned to the same head (expectedHeadOid), squash. The method name sits in a variable so the run's own
-          # text, which the log also shows, never matches the probe script's result pattern.
-          if [ -z "$merged" ]; then
+            out=$(gh api -X POST "repos/$repo/pulls/$num/reviews" -f event=APPROVE -f commit_id="$head" \
+                  -f body="V1 probe: bot approval (must not count)." --jq '.state' 2>&1) || code=$?
+            echo "V1-APPROVE $t exit=$code $(printf '%s' "$out" | tr '\n' ' ')"
+            for method in squash merge rebase; do
+              code=0
+              out=$(gh api -X PUT "repos/$repo/pulls/$num/merge" -f merge_method="$method" -f sha="$head" 2>&1) || code=$?
+              echo "V1-RESULT $t $method exit=$code $(printf '%s' "$out" | tr '\n' ' ')"
+              if [ "$code" = 0 ]; then echo "V1-MERGED $t $method"; exit 0; fi
+            done
+            # The GraphQL merge path (security, 2026-11-17): a separate API that the REST refusals do not prove.
             method=graphql
             # v1-probe/node-read-under-e: under bash -e a failed read would end the step with no V1 line; say why.
             node=$(gh api "repos/$repo/pulls/$num" --jq '.node_id') || node=""
             if [ -z "$node" ]; then echo "V1-ERROR: could not read node_id"; exit 1; fi
-            q='mutation($id: ID!, $oid: GitObjectID!) { mergePullRequest(input: {pullRequestId: $id, expectedHeadOid: $oid, mergeMethod: SQUASH}) { pullRequest { merged } } }'
             code=0
             out=$(gh api graphql -f query="$q" -f id="$node" -f oid="$head" 2>&1) || code=$?
-            echo "V1-RESULT $method exit=$code $(printf '%s' "$out" | tr '\n' ' ')"
-            if [ "$code" = 0 ]; then echo "V1-MERGED $method"; fi
-          fi
+            echo "V1-RESULT $t $method exit=$code $(printf '%s' "$out" | tr '\n' ' ')"
+            if [ "$code" = 0 ]; then echo "V1-MERGED $t $method"; exit 0; fi
+          done
