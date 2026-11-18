@@ -203,6 +203,15 @@ def test_a_general_fund_row_that_differs_from_the_general_fund_bar_fails(city, c
         fund_split.split(bg, cfg, dollar)
 
 
+@pytest.mark.parametrize("key,value", [("book_id", "fy2027-presented"), ("col_amount", "2027 Proposed"),
+                                       ("fund", "Debt Service Fund")])
+def test_a_general_fund_bar_from_another_book_column_or_fund_fails(city, cfg, key, value):
+    """The two bars read one book, one column and one general fund: a mismatch stops the build, never skips the check."""
+    _, bg = city_budget()
+    with pytest.raises(fin_views.FinanceError, match="the general fund dollar reads book"):
+        fund_split.split(bg, cfg, dict(city[2], **{key: value}))
+
+
 # ---- no double count --------------------------------------------------------------------------------------------
 
 def test_every_spending_line_is_reached_once_and_no_run_total_is_a_row(city):
@@ -437,6 +446,24 @@ def test_the_bar_is_on_the_city_page_only_above_the_general_fund_dollar(site_out
     assert len(re.findall(r'\bid="city-funds-h"', page)) == 1 and len(re.findall(r'\bid="funds-h"', page)) == 1
 
 
+def test_the_new_template_lines_add_nothing_to_a_page_without_the_bar():
+    """The county Finance index stays byte for byte as before: the lines this feature adds to fin_index.html.j2 (from
+    its comment to its include) render to nothing when there is no fund bar, with the site's own Jinja settings."""
+    from sitegen.build import make_env
+    src = (config.TEMPLATE_DIR / "fin_index.html.j2").read_text(encoding="utf-8")
+    i = src.index("{#- the city budget dollar, by fund")
+    j = src.index("\n", src.index('{% include "_funds.html.j2" %}')) + 1
+    added = src[i:j]
+    before, after = src[:i], src[j:]
+    assert before.endswith('{% include "_proptax.html.j2" %}{% endif %}\n')
+    assert after.startswith('{% if dollar is defined and dollar %}')
+    env = make_env()
+    around = ('<div>\n{% if p is defined %}P{% endif %}\n', '{% if d is defined %}D{% endif %}\n<section>')
+    for ctx in ({}, {"p": 1}, {"d": 1}, {"p": 1, "d": 1}, {"p": 1, "d": 1, "fundsplit": None}):
+        assert env.from_string(around[0] + added + around[1]).render(**ctx) == \
+            env.from_string(around[0] + around[1]).render(**ctx), ctx
+
+
 def test_the_glance_reads_as_designed(page):
     """docs/architecture/city-funds-dollar.md section 4: the copy as it renders with today's data."""
     sec = section(page)
@@ -446,8 +473,8 @@ def test_the_glance_reads_as_designed(page):
             "cents of each dollar. A fund is a separate set of accounts the city keeps for one purpose. "
             + T["between"]) in g
     assert "74.9¢ General fund 6.9¢ Debt service 12.3¢ Health insurance" in g
-    assert ("Named here: each fund with 5 cents or more, left to right in the order the book prints them. The whole bar "
-            "is $221,059,845.77, the spending the book prints for these 14 funds.") in g
+    assert ("This bar is $221,059,845.77, the spending the book prints for these 14 funds. Funds that get 5 cents or "
+            "more of each dollar are named, left to right in the book's order.") in g
     assert "column" not in g and "rounded" not in g
 
 

@@ -547,7 +547,7 @@ def test_the_glance_is_plain_and_the_provenance_is_in_the_sources_block(pages, r
     sec = section(pages[rel])
     g, src = text_of(glance(sec)), sec[sec.index(SOURCES):]
     assert "general fund only" in g and "not property tax alone" in g and "in the book's order" in g
-    assert dollar_split.caption_amount(d["total"]) in g
+    assert d["total_line"] in g and "$" + d["total"].removesuffix(".00") in g
     assert d["col_amount"] not in g and "column" not in g and "rounded" not in g
     assert SOURCES + "\n<summary>" + T["sources_toggle"] + "</summary>" in sec and "<details open" not in sec
     s = text_of(src)
@@ -588,7 +588,9 @@ def test_county_caption_says_the_county(county):
     assert d["total_line"].endswith(".") and "dollars" not in d["total_line"]
 
 
-def test_caption_amount_drops_only_zero_cents():
-    assert dollar_split.caption_amount("165,631,658.00") == "165,631,658"
-    assert dollar_split.caption_amount("165,631,658.07") == "165,631,658.07"
-    assert dollar_split.caption_amount("1,234") == "1,234"
+def test_the_caption_amount_is_budget_views_usd_and_there_is_no_second_helper():
+    """finance-pages/duplicate-usd-helper: one helper writes an amount in running text for every bar."""
+    import inspect
+    assert not hasattr(dollar_split, "caption_amount")
+    assert "usd(" in inspect.getsource(dollar_split.split)
+    assert budget_views.usd(16_563_165_800) == "$165,631,658" and budget_views.usd(16_563_165_807) == "$165,631,658.07"

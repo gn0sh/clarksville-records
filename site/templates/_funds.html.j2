@@ -1,6 +1,6 @@
 {# The city budget dollar, by fund (sitegen/fund_split.py, docs/architecture/city-funds-dollar.md), above the general
    fund dollar and built from the same parts as the county property tax dollar (_proptax.html.j2, the .dollar styles):
-   a plain lede and what money moving between funds means; a bar 100 cents wide (aria-hidden) with a key and the total;
+   a plain lede and what money moving between funds means; a bar 100 cents wide (aria-hidden) with a key, then the total and the naming rule;
    every fund as one row, a real list in the book's order; a closed "Where these numbers come from" with the book and
    column, the total and its two TOTAL EXPENSE pages, the notes, the revenue lines other funds print as received from
    the general fund, and the full table (amount as printed, every printed spending total and its PDF page). Rows keep
@@ -20,7 +20,7 @@
 <div class="dollar-fig">
 <div class="dollar-bar" aria-hidden="true" title="{{ ft.bar_label }}">{% for r in p.rows %}<span class="dseg{% if r.labelled %} dseg-l{% endif %}{% if r.narrow %} dseg-narrow{% endif %}" style="--n: {{ r.cents }}" title="{{ r.name }}: {{ r.cents_words }}">{% if r.labelled %}<b class="dseg-t">{{ r.cents }}&cent;</b>{% endif %}</span>{% endfor %}</div>
 <ul class="dollar-key" role="list" aria-label="{{ ft.key_label }}">{% for r in p.key %}<li><b>{{ r.cents }}&cent;</b> {{ r.short }}</li>{% endfor %}</ul>
-<p class="dollar-keynote">{{ p.key_note }} {{ p.total_line }}</p>
+<p class="dollar-keynote">{{ p.total_line }} {{ p.key_note }}</p>
 </div>
 <h3 id="city-funds-list-h" class="dollar-list-h">{{ ft.list_heading }} <span class="dollar-list-order">{{ ft.list_order }}</span></h3>
 <ol class="dollar-rows" role="list" aria-labelledby="city-funds-list-h">

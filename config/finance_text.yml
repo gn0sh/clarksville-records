@@ -196,8 +196,8 @@ fund_split:
   lede: "How the city's FY{year} adopted budget splits across the {n} funds this site reads from its budget book, in cents of each dollar. A fund is a separate set of accounts the city keeps for one purpose."
   between: "When one of these funds pays another, such as the general fund paying into the health insurance fund, that money is in both funds' spending, as the book prints each fund's budget."
   key_label: "Funds named on the bar, left to right"
-  key_note: "Named here: each fund with {n} cents or more, left to right in the order the book prints them."
-  total_line: "The whole bar is {amount}, the spending the book prints for these {n} funds."
+  key_note: "Funds that get {n} cents or more of each dollar are named, left to right in the book's order."
+  total_line: "This bar is {amount}, the spending the book prints for these {n} funds."
   list_heading: Every fund
   list_order: in the book's order
   to_dollar: "How the general fund splits across departments"
@@ -240,7 +240,7 @@ dollar:
   lede: "How the {body}'s FY{year} adopted general fund budget splits across departments, in cents of each dollar. This is the general fund only, not all of the {body}'s spending, and not property tax alone."
   key_label: "Departments named on the bar, left to right"
   key_note: "Departments that get {n} cents or more of each dollar are named, left to right in the book's order."
-  total_line: "This bar is the general fund, the {body}'s main budget for everyday services: ${amount}."
+  total_line: "This bar is the general fund, the {body}'s main budget for everyday services: {amount}."
   total_amount: "{amount} dollars"
   list_heading: Every department
   list_order: in the book's order

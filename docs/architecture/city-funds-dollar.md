@@ -141,8 +141,8 @@ fund_split:
   lede: "How the city's FY{year} adopted budget splits across the {n} funds this site reads from its budget book, in cents of each dollar. A fund is a separate set of accounts the city keeps for one purpose."
   between: "When one of these funds pays another, such as the general fund paying into the health insurance fund, that money is in both funds' spending, as the book prints each fund's budget."
   key_label: "Funds named on the bar, left to right"
-  key_note: "Named here: each fund with {n} cents or more, left to right in the order the book prints them."
-  total_line: "The whole bar is {amount}, the spending the book prints for these {n} funds."
+  key_note: "Funds that get {n} cents or more of each dollar are named, left to right in the book's order."
+  total_line: "This bar is {amount}, the spending the book prints for these {n} funds."   # shown first, then key_note
   list_heading: Every fund
   list_order: in the book's order
   to_dollar: "How the general fund splits across departments"
@@ -179,9 +179,9 @@ How the copy renders with today's data (for review; the engineer checks the buil
 - Heading: "Where each dollar of the city budget goes, by fund"
 - Lede: "How the city's FY2026 adopted budget splits across the 14 funds this site reads from its budget book, in cents
   of each dollar. A fund is a separate set of accounts the city keeps for one purpose." then `between`.
-- Under the bar: key "74.9¢ General fund · 6.9¢ Debt service · 12.3¢ Health insurance"; keynote "Named here: each
-  fund with 5 cents or more, left to right in the order the book prints them. The whole bar is $221,059,845.77, the
-  spending the book prints for these 14 funds."
+- Under the bar: key "74.9¢ General fund · 6.9¢ Debt service · 12.3¢ Health insurance"; keynote, total first as
+  under the general fund bar (2026-11-18): "This bar is $221,059,845.77, the spending the book prints for these 14
+  funds. Funds that get 5 cents or more of each dollar are named, left to right in the book's order."
 - Sources: "From Fiscal Year 2026 Budget (Final Submission), column "2026 2nd Readin". ..."; "Total: $221,059,845.77,
   the book's own "TOTAL EXPENSE" lines of its 2 report runs added up (p. 137; p. 138). ..."; the FY2027 note from
   `dollar.newer_note`: "The newest book read here, FY2027 (as presented 5/29/2026), prints a proposed budget for that

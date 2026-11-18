@@ -192,10 +192,17 @@ def split(bg: Budget, cfg: dict | None, dollar: dict | None = None) -> dict | No
     if len(dollar_rows) != 1:
         raise FinanceError(f"fund split: dollar_fund {cfg['dollar_fund']!r} names {len(dollar_rows)} of the book's "
                            "funds, not one")
-    if dollar and dollar["book_id"] == book["id"] and dollar["col_amount"] == column \
-            and dollar["fund"] == cfg["dollar_fund"] and dollar["value_total"] != dollar_rows[0]["value"]:
-        raise FinanceError(f"fund split: the {dollar_rows[0]['cfg']['printed']!r} row is not the general fund "
-                           "dollar's total")
+    # The two bars on one page read one book, one column and one general fund, or the build stops: a general fund bar
+    # from another book or column would show a different general fund total right below this one.
+    if dollar:
+        theirs = (dollar["book_id"], dollar["col_amount"], dollar["fund"])
+        if theirs != (book["id"], column, cfg["dollar_fund"]):
+            raise FinanceError(f"fund split: the general fund dollar reads book {theirs[0]!r}, column {theirs[1]!r}, "
+                               f"fund {theirs[2]!r}; this bar reads {book['id']!r}, {column!r}, "
+                               f"{cfg['dollar_fund']!r}")
+        if dollar["value_total"] != dollar_rows[0]["value"]:
+            raise FinanceError(f"fund split: the {dollar_rows[0]['cfg']['printed']!r} row is not the general fund "
+                               "dollar's total")
 
     # fund-split/between-list: revenue lines other funds print as received from the general fund, checked both ways.
     fg = cfg["from_general_fund"]
