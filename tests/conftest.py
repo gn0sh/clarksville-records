@@ -46,7 +46,7 @@ def shipped_with(tmp_path, enabled=None, canary_only=None, mode=None, hosts="") 
                               count=1)
             assert n == 1, key
     if mode is not None:
-        text, n = re.subn(r"(?m)^(    mode: )(?:stamp|ids)\b", rf"\g<1>{mode}", text, count=1)
+        text, n = re.subn(r"(?m)^(    mode: )(?:all|stamp|ids)\b", rf"\g<1>{mode}", text, count=1)
         assert n == 1
     if hosts:
         text, n = re.subn(r'(?m)^(    link_hosts: ")', rf"\g<1>{hosts},", text, count=1)

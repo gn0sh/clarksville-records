@@ -1,17 +1,17 @@
-"""The plan stage, which is also the dry run (architecture "T4 sender", Plan stage; ADR 0004, decisions 2 and 3).
+"""The plan stage, which is also the dry run (architecture "T4 sender", Plan stage, and "One edition for everyone";
+ADR 0004, decisions 3 and 6).
 
-A pure function of one day's note and config/site.yml: it reads `<site>/morning/<D>.json`, and for every shape a
-subscriber can have (each non-empty set of lists x a district or none x a ward or none) takes exactly what
-sitegen.morning.select() returns. Shapes with the same non-empty result share one **edition**; shapes with an empty
-result are left out, so those people get nothing. It writes `<out>/<D>/plan.json` and, for a person to read,
-`edition-<key>.html` and `.txt` beside it. Two runs on the same note give byte-identical files.
+A pure function of one day's note and config/site.yml: it reads `<site>/morning/<D>.json` and, on a day with
+entries, writes **one edition** holding every entry of the note, in the note's order, each under its first list
+(invariant one-edition: every confirmed subscriber gets the same note). It writes `<out>/<D>/plan.json` and, for a
+person to read, `edition-<key>.html` and `.txt` beside it. Two runs on the same note give byte-identical files.
 
 Nothing here opens a connection, reads a secret or knows a subscriber: the plan holds no personal data.
 
 While `morning_note.sender.enabled` is false (the default) the plan is `send: false`, reason "disabled", with no
-edition and no signature, and the note is not even read. `rehearse=True` (`--rehearse`) is the dry run for a
-disabled sender: the editions are written for a person to read, and the plan still says `send: false`, which the
-deliver stage treats as "open no connection".
+edition, and the note is not even read. `rehearse=True` (`--rehearse`) is the dry run for a disabled sender: the
+edition is written for a person to read, and the plan still says `send: false`, which the deliver stage treats as
+"open no connection".
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 from sitegen import morning
 
 from . import common, deliver, render
-from .common import LIST_KEYS, NOTE_SCHEMA, PLAN_SCHEMA, signature
+from .common import LIST_KEYS, NOTE_SCHEMA, PLAN_SCHEMA
 
 
 class PlanError(Exception):
@@ -70,30 +70,16 @@ def read_note(site: Path, day: date) -> tuple[dict, bytes]:
     return note, raw
 
 
-def signatures(cfg: dict):
-    """Every shape a subscriber can have: (lists, district, ward), 15 x (district_count + 1) x (ward_count + 1)."""
-    subsets = [[k for n, k in enumerate(LIST_KEYS) if mask >> n & 1] for mask in range(1, 2 ** len(LIST_KEYS))]
-    for lists in subsets:
-        for district in [None, *range(1, int(cfg["district_count"]) + 1)]:
-            for ward in [None, *range(1, int(cfg["ward_count"]) + 1)]:
-                yield lists, district, ward
-
-
-def placed(note: dict, lists, seats: dict) -> list[tuple[str, str]]:
-    """[(entry id, the list key it stands under)] for one subscriber shape, in the email's order: select()'s entries,
-    each under the first of its own lists that the shape picked and that selected it, grouped by list in LIST_KEYS
-    order, the note's order kept within each list. So an entry on both the seats and the budget lists stands under
-    Budget for a reader who picked Budget but not My two seats (render/section-not-picked: it stood under the
-    entry's first list, a heading the reader never picked)."""
-    want = [k for k in LIST_KEYS if k in set(lists)]
-    rows = [(e["id"], next(k for k in e["lists"] if k in want and morning._seat_match(e, k, seats)))
-            for e in morning.select(note, lists, seats)]
-    return sorted(rows, key=lambda r: LIST_KEYS.index(r[1]))      # stable: the note's order within a list
+def one_edition(note: dict) -> list[tuple[str, str]]:
+    """[(entry id, the list key it stands under)] for the day's one edition: every entry of the note, none
+    filtered, in the note's order, each under its first list (`e["lists"][0]`). The note is already sorted by first
+    list in LIST_KEYS order (sitegen.morning.write), so email order = note order = the preview page's order."""
+    return [(e["id"], e["lists"][0]) for e in note["entries"]]
 
 
 def edition_key(day: str, rows: list[tuple[str, str]]) -> str:
-    """The first 12 hex of sha256 over the day and each (entry id, list) row: two shapes share an edition only when
-    their emails are the same, entries and headings alike."""
+    """The first 12 hex of sha256 over the day and each (entry id, list) row: the edition's name, which changes
+    whenever its entries or their headings do."""
     return hashlib.sha256((day + "\n" + "\n".join(f"{i}\t{k}" for i, k in rows)).encode("utf-8")).hexdigest()[:12]
 
 
@@ -108,7 +94,7 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
     s = sender_settings(cfg)
     tz = cfg["site_timezone"]
     plan = {"schema": PLAN_SCHEMA, "date": day.isoformat(), "note_sha256": "", "timezone": tz, "send": False,
-            "reason": "disabled", "send_at": "", "latest_send": "", "editions": [], "signatures": {}}
+            "reason": "disabled", "send_at": "", "latest_send": "", "editions": []}
     on = enabled(cfg)
     if not on and not rehearse:
         return {"plan": plan, "texts": {}}
@@ -122,36 +108,25 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
         plan["reason"] = "quiet"
         return {"plan": plan, "texts": {}}
     by_id = {e["id"]: e for e in note["entries"]}
-    editions: dict[str, list[tuple[str, str]]] = {}
-    for lists, district, ward in signatures(cfg):
-        rows = placed(note, lists, {"district": district, "ward": ward})
-        if not rows:
-            continue        # nothing on this shape's lists today: no email
-        key = edition_key(plan["date"], rows)
-        if editions.setdefault(key, rows) != rows:
-            raise PlanError(f"two different selections share the edition key {key}")
-        plan["signatures"][signature(lists, district, ward)] = key
+    rows = one_edition(note)
+    key = edition_key(plan["date"], rows)
     ctx = render.context(cfg)
     try:
-        render.subject(ctx, plan["date"])
+        subject = render.subject(ctx, plan["date"])
     except ValueError as exc:
         raise PlanError(str(exc)) from None
-    texts = {}
-    for key in sorted(editions):
-        rows, under = [by_id[i] for i, _ in editions[key]], dict(editions[key])
-        body = render.body_html(ctx, note, rows, under)
-        # render/clean-order: the deliver stage's own body check, here too, so any render/deliver gap fails the plan
-        # (the rehearsal's ::warning while the sender is off; a failed run once it is on), never a day lost at 7:00
-        if not deliver.body_ok(body, ctx["link_hosts"], ctx["link_urls"]):
-            raise PlanError(f"edition {key}: render wrote a body the deliver stage's body check refuses")
-        plan["editions"].append({"key": key, "subject": render.subject(ctx, plan["date"]),
-                                 "body": body, "entry_ids": [i for i, _ in editions[key]]})
-        texts[key] = render.body_text(ctx, note, rows, under)
-    plan["signatures"] = dict(sorted(plan["signatures"].items()))
+    entries, under = [by_id[i] for i, _ in rows], dict(rows)
+    body = render.body_html(ctx, note, entries, under)
+    # render/clean-order: the deliver stage's own body check, here too, so any render/deliver gap fails the plan
+    # (the rehearsal's ::warning while the sender is off; a failed run once it is on), never a day lost at 7:00
+    if not deliver.body_ok(body, ctx["link_hosts"], ctx["link_urls"]):
+        raise PlanError(f"edition {key}: render wrote a body the deliver stage's body check refuses")
+    plan["editions"].append({"key": key, "subject": subject, "body": body, "entry_ids": [i for i, _ in rows]})
+    texts = {key: render.body_text(ctx, note, entries, under)}
     plan["send"], plan["reason"] = (True, "ok") if on else (False, "disabled")
     built = {"plan": plan, "texts": texts}
-    # A size ceiling, not an edition count: only the deliver stage knows which editions have a recipient, and it
-    # applies max_editions to those.
+    # A size ceiling: a day over backfill.max_entries is a backfill day (never mailed), so the one body holds at
+    # most that many entries; a plan over the ceiling means the data is wrong.
     size = size_of(built)
     if size > common.MAX_PLAN_BYTES:
         raise PlanError(f"the plan's files would be {size} bytes, over the MAX_PLAN_BYTES ceiling "
@@ -175,8 +150,8 @@ def dumps(plan: dict) -> str:
 
 
 def write(out: Path, built: dict) -> Path:
-    """`<out>/<date>/plan.json` and one `edition-<key>.html` / `.txt` per edition. Edition files left by an
-    earlier run for the same day are removed first, so the folder always matches its plan."""
+    """`<out>/<date>/plan.json` and the edition's `edition-<key>.html` / `.txt` (none on a day with no edition).
+    Edition files left by an earlier run for the same day are removed first, so the folder always matches its plan."""
     plan = built["plan"]
     folder = Path(out) / plan["date"]
     folder.mkdir(parents=True, exist_ok=True)

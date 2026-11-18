@@ -16,9 +16,9 @@ from pathlib import Path
 
 from .common import MODES, TIME_RE, exact_url_ok, parse_hosts
 
-SCALARS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions", "max_recipients",
-           "canary_only", "link_hosts")
-_TOP = ("site_timezone", "district_count", "ward_count", "support_url", "site_name")    # support_url may be left out
+SCALARS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_recipients", "canary_only",
+           "link_hosts")
+_TOP = ("site_timezone", "support_url", "site_name")    # support_url may be left out
 # the one line read inside a sub-block of sender: text.subject (sender/plan-untrusted/subject-unchecked: the deliver
 # stage rebuilds each edition's subject from it and site_name, and refuses a plan whose subject differs)
 _SUB_READ = {"text": ("subject",)}
@@ -46,13 +46,10 @@ class Settings:
     mode: str
     send_at: str
     latest_send: str
-    max_editions: int
-    max_recipients: int
-    canary_only: bool
+    max_recipients: int     # stamp and ids only: an `all` run reads and writes no subscriber
+    canary_only: bool       # true needs mode stamp (deliver.run refuses it otherwise, "bad-config")
     link_hosts: tuple
     timezone: str
-    district_count: int
-    ward_count: int
     link_urls: tuple = ()       # URLs an email may link to exactly: the support link (Low (a))
     site_name: str = ""         # with subject_template: the subject every edition must carry (subject-unchecked)
     subject_template: str = ""
@@ -124,7 +121,7 @@ def parse(text: str) -> dict:
     """{"top": {key: value}, "sender": {key: value}} from the file's text.
 
     Strict only where it reads (settings-parity/too-strict-daily-outage): the top-level keys in _TOP
-    (`site_timezone`, `district_count`, `ward_count`, `support_url`, `site_name`), and the `morning_note:` ->
+    (`site_timezone`, `support_url`, `site_name`), and the `morning_note:` ->
     `sender:` block, whose direct lines must each be one plain `key: value` (or a `key:` with a sub-block, such as
     `text:`), at one indent, each key once, with no line continuing a value. Inside a sub-block only the lines
     _SUB_READ names are read (`text.subject`, at the sub-block's own indent, once); a `subject:` nested deeper or
@@ -289,14 +286,14 @@ def _whole(v, name: str, low: int = 1) -> int:
 def from_values(top: dict, sender: dict) -> Settings:
     """Checked settings. A missing or malformed value is an error: the deliver stage then sends nothing."""
     missing = [k for k in SCALARS + ("text.subject",) if k not in sender] + \
-              [k for k in ("site_timezone", "district_count", "ward_count", "site_name") if k not in top]
+              [k for k in ("site_timezone", "site_name") if k not in top]
     if missing:
         raise SettingsError(f"config is missing {', '.join(missing)}")
     for k in ("enabled", "canary_only"):
         if not isinstance(sender[k], bool):
             raise SettingsError(f"morning_note.sender.{k} must be true or false")
     if sender["mode"] not in MODES:
-        raise SettingsError("morning_note.sender.mode must be stamp or ids")
+        raise SettingsError(f"morning_note.sender.mode must be {', '.join(MODES[:-1])} or {MODES[-1]}")
     problem = api_base_problem(sender["provider"], sender["api_base"])
     if problem:
         raise SettingsError(problem)
@@ -322,12 +319,9 @@ def from_values(top: dict, sender: dict) -> Settings:
     return Settings(
         enabled=sender["enabled"], provider=sender["provider"], api_base=sender["api_base"], mode=sender["mode"],
         send_at=sender["send_at"], latest_send=sender["latest_send"],
-        max_editions=_whole(sender["max_editions"], "morning_note.sender.max_editions"),
         max_recipients=_whole(sender["max_recipients"], "morning_note.sender.max_recipients"),
-        canary_only=sender["canary_only"], link_hosts=hosts, timezone=top["site_timezone"],
-        district_count=_whole(top["district_count"], "district_count", 0),
-        ward_count=_whole(top["ward_count"], "ward_count", 0), link_urls=urls, site_name=top["site_name"],
-        subject_template=sender["text.subject"])
+        canary_only=sender["canary_only"], link_hosts=hosts, timezone=top["site_timezone"], link_urls=urls,
+        site_name=top["site_name"], subject_template=sender["text.subject"])
 
 
 def load(path) -> Settings:

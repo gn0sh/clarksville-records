@@ -5,18 +5,15 @@ import re
 import unicodedata
 from datetime import date
 
-PLAN_SCHEMA = "morning-send/1"
+PLAN_SCHEMA = "morning-send/2"                             # /2 (2026-11-18): at most one edition, no shape map
 NOTE_SCHEMA = "morning-note/1"                             # sitegen.morning.SCHEMA (a test keeps them equal)
 LIST_KEYS = ("zoning", "seats", "budget", "contracts")     # sitegen.morning.LIST_KEYS (a test keeps them equal)
-MODES = ("stamp", "ids")
-# The sign-up form's Buttondown tags (platform-facts "Morning note provider", 2026-11-16: on the free plan a new
-# sign-up carrying metadata__ fields was refused, so the form posts tags; metadata holds only the sender's stamp).
-# One fixed name per list and per seat, all under "note-", so the sender can tell its own tags from any other:
-# "note-zoning", "note-district-5", "note-ward-3". The form writes them (sitegen/morning_page.py), the deliver stage
-# reads them (deliver.recipient); every other tag is ignored.
+MODES = ("all", "stamp", "ids")                            # sitegen.morning.SENDER_MODES (a test keeps them equal)
+# The sign-up form's Buttondown tags (2026-11-16 design). Since one edition for everyone (2026-11-18, ADR 0004
+# decision 6) the sender reads no tag; these four stay only until the form stops posting tags (task N2), and the
+# second of N1 and N2 to merge deletes them (task N3).
 TAG_PREFIX = "note-"
 TAG_FIELD = "tag"                                          # the embed form's field name for a tag
-_SEAT_TAG = re.compile(r"note-(district|ward)-([1-9][0-9]{0,3})")
 
 
 def list_tag(key: str) -> str:
@@ -33,25 +30,14 @@ def seat_tag_prefix(seat: str) -> str:
     return f"{TAG_PREFIX}{seat}-"
 
 
-def read_tags(tags) -> tuple[tuple, list, list]:
-    """A subscriber's tag names -> (list keys in LIST_KEYS order, district numbers, ward numbers). Only the names
-    list_tag and seat_tag_prefix write count; every other tag, and every value that is not text, is ignored."""
-    got = {t for t in tags if isinstance(t, str)} if isinstance(tags, (list, tuple)) else set()
-    lists = tuple(k for k in LIST_KEYS if TAG_PREFIX + k in got)
-    seats = {"district": [], "ward": []}
-    for t in sorted(got):
-        m = _SEAT_TAG.fullmatch(t)
-        if m:
-            seats[m.group(1)].append(int(m.group(2)))
-    return lists, seats["district"], seats["ward"]
 KEY_RE = re.compile(r"[0-9a-f]{12}")
 # [0-9], never \d: in Python \d matches the digits of every script (Arabic-Indic, Devanagari, ...)
 DATE_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 TIME_RE = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
-SIGNATURE_RE = re.compile(r"[a-z]+(?:,[a-z]+)*\|(?:-|[1-9][0-9]{0,3})\|(?:-|[1-9][0-9]{0,3})")
 # The plan stage's ceiling on what it writes (plan.json plus the edition files), and the most the deliver stage
-# reads. A real RPC agenda day is about 2.7 MB over 191 editions; this is about twelve such days at once, so
-# hitting it means something is wrong with the data, not a busy morning.
+# reads. Since one edition for everyone (2026-11-18) a plan is one edition of at most backfill.max_entries (100)
+# entries, well under 1 MB; the ceiling (set when a busy day was 2.7 MB over 191 editions) is kept, so hitting it
+# means something is wrong with the data, not a busy morning.
 MAX_PLAN_BYTES = 32_000_000
 REASONS = ("ok", "quiet", "backfill", "disabled")          # plan.reason: "ok" exactly when send is true
 
@@ -110,13 +96,6 @@ def link_ok(url, hosts) -> bool:
         return False
     netloc = re.split(r"[/?#]", url[len("https://"):], maxsplit=1)[0]     # a user or port stays in it: no match
     return netloc in hosts
-
-
-def signature(lists, district, ward) -> str:
-    """One subscriber shape as the plan's `signatures` keys write it: "budget,zoning|7|-" (list keys in
-    alphabetical order, then the district and the ward, "-" for none). Unknown list keys are left out."""
-    picked = sorted(k for k in LIST_KEYS if k in set(lists))
-    return f"{','.join(picked)}|{district if district is not None else '-'}|{ward if ward is not None else '-'}"
 
 
 # sender/plan-untrusted/subject-unchecked: one rule for the subject, so the deliver stage can rebuild it from the

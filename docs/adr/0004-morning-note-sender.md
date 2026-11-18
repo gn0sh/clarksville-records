@@ -29,7 +29,8 @@ Actions logs are public. Sending, the account, the key and any cost are hard sto
    architecture "Switch-on: tags, and the security notes".
 6. **Amended 2026-11-18: one edition for every confirmed subscriber.** A real sign-up on the live form (a team
    address, every list ticked) became a confirmed subscriber by double opt-in with **no tags**; Buttondown documents
-   tags, and subscriber metadata, as paid (Basic plan; "Tagging & segmentation +$9/month"). Brian's decision, as
+   tags, and subscriber metadata, as paid (Basic plan; "Tagging & segmentation +$9/month"; the API accepted
+   metadata on the free plan anyway, so stamps work: T4.0 probe 2026-11-16). Brian's decision, as
    relayed by the manager on 2026-11-18: *"stay on the FREE plan: every confirmed subscriber gets ONE morning note
    edition with all topics; the topic picker and seat (district/ward) fields come off the form; per-topic choices
    may return later if people ask."* So decision 2 becomes: the plan writes **one edition holding every entry of
@@ -53,18 +54,21 @@ Actions logs are public. Sending, the account, the key and any cost are hard sto
   write token, and the provider's own record survives a lost runner.
 - **(2026-11-18) Keep `stamp` for the one edition** instead of `mode: all`. Strongest case: the sender confirms
   every recipient itself at run time, `max_recipients` stays an exact bound, and the canary path is the daily path,
-  so no new mode needs review. Not chosen: it rests on subscriber metadata, which Buttondown's settings call a
-  Basic-plan feature (the API accepted it on the free plan on 2026-11-16, much as the form accepted tags it then did
-  not keep), it keeps the key's subscriber write (threat point 2) and the stray-stamp machinery for no audience
-  benefit, and costs 2 requests per subscriber. It stays available by config for canary trials.
+  so no new mode needs review. Not chosen, for simplicity and a smaller key: it keeps the key's subscriber write
+  (threat point 2) and the listing, re-read, stamp and stray-stamp machinery for no audience benefit, and costs 2
+  requests per subscriber where `all` makes 2 or 3 a run. Stamps do work on the free plan (T4.0 probe 2026-11-16:
+  the metadata write and the filtered email both worked; platform-facts "Morning note provider"); the Settings
+  page's note that metadata is Basic-plan only is a residual risk for stamp trials alone, where a refused write
+  fails closed. It stays available by config for canary trials.
 - **(2026-11-18) Pay for tagging (+$9/month) and keep per-reader editions.** Brian declined (hard stop 3).
 
 ## Consequences
 - The key needs subscriber access (write for `stamp`, read for `ids`). This is the main thing the security review
   must weigh; `max_recipients` and `canary_only` bound a mistake. The canary list is subscriber ids in the `note`
   job's environment secret `MORNING_NOTE_CANARY_IDS`, never subscriber metadata (a subscriber can write their own).
-- `stamp` may need Buttondown's paid "Tagging & segmentation" add-on (+$9 a month as shown on 2026-11-10; unverified
-  for metadata filters). The free tier covers the first 100 subscribers. Both are Brian's spend decisions.
+- `stamp` works on the free plan (T4.0 probe 2026-11-16: metadata write and metadata filter, no paid-feature
+  refusal); the paid "Tagging & segmentation" add-on (+$9 a month) is needed only for per-reader tags, which Brian
+  declined. The free tier covers the first 100 subscribers. Spend past it is Brian's decision.
 - A document collected between the first send and 7:00 is not mailed that day or the next; it is on the site and feeds.
 - A run that finishes after `latest_send` skips the day rather than sending late.
 - (2026-11-18) In `mode: all` the key needs no subscriber area (Emails and Sending write only), no subscriber data

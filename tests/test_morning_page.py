@@ -101,7 +101,11 @@ def test_no_success_text_anywhere_while_disabled(site):
         m = SUCCESS.search(parse(_main(html)).all_text())
         assert m is None, (rel, m.group(0))
     assert SUCCESS.search(MORNING_JS.read_text(encoding="utf-8")) is None
-    assert SUCCESS.search(json.dumps(config.SITE["morning_note"])) is None
+    # every page text of the note's config; the sender's email text is not page text: it goes only to confirmed
+    # subscribers, and its why line truly says they signed up (architecture "One edition for everyone")
+    page_cfg = {**config.SITE["morning_note"], "sender": {k: v for k, v in config.SITE["morning_note"]["sender"].items()
+                                                          if k != "text"}}
+    assert SUCCESS.search(json.dumps(page_cfg)) is None
 
 
 def test_morning_js_makes_no_network_call_and_stores_nothing():
@@ -466,7 +470,7 @@ def test_committed_config_is_the_switch_on():
     assert mn["form_action"] == "https://buttondown.com/api/emails/embed-subscribe/daylight"
     assert mn["form_fields"] == {"email": "email", "lists": "tag", "district": "tag", "ward": "tag"}
     assert mn["privacy_url"].startswith("https://buttondown.com/")
-    assert mn["sender"]["enabled"] is True and mn["sender"]["canary_only"] is False and mn["sender"]["mode"] == "stamp"
+    assert mn["sender"]["enabled"] is True and mn["sender"]["canary_only"] is False and mn["sender"]["mode"] == "all"
     assert "daylight.gnoshcodes.com" in mn["sender"]["link_hosts"].split(",")
     assert config.SITE["alerts"]["site_url"] == "https://daylight.gnoshcodes.com/"
     assert morning_page.form_origin() == "https://buttondown.com" and morning_page.privacy() is not None

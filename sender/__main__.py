@@ -52,7 +52,7 @@ def _plan(args) -> int:
     path = plan_mod.write(Path(args.out), built)
     p = built["plan"]
     print(f"morning note plan {p['date']}: send {'true' if p['send'] else 'false'} ({p['reason']}); "
-          f"{len(p['editions'])} edition(s); {len(p['signatures'])} subscriber shape(s); wrote {path}")
+          f"{len(p['editions'])} edition(s); wrote {path}")
     return 0
 
 

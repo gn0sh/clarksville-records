@@ -30,11 +30,12 @@ def problems(sender=None, note=None, site_url="https://records.example.com/", dr
 
 
 def test_the_shipped_block_is_on_and_clean():
-    """The switch-on PR: the sender on in stamp mode, to every confirmed subscriber (Brian, 2026-11-16: no canary
-    week). The off state stays clean too (conftest.note_off)."""
+    """The switch-on PR: the sender on, to every confirmed subscriber (Brian, 2026-11-16: no canary week), in `all`
+    mode since one edition for everyone (ADR 0004 decision 6, 2026-11-18). The off state stays clean too
+    (conftest.note_off)."""
     s = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]["sender"]   # the file, not the env
     assert s == {"enabled": True, "provider": "buttondown", "api_base": "https://api.buttondown.com/v1",
-                 "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 400,
+                 "mode": "all", "send_at": "07:00", "latest_send": "10:00",
                  "max_recipients": 1000, "canary_only": False, "link_hosts": s["link_hosts"], "text": s["text"]}
     assert sorted(s["text"]) == ["open_site", "subject", "why"]
     assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []
@@ -89,7 +90,9 @@ def test_enabling_the_sender_needs_the_form_enabled_and_a_site_url():
     ({"send_at": "7:00"}, "send_at"), ({"send_at": "07:00:00"}, "send_at"), ({"send_at": 700}, "send_at"),
     ({"latest_send": "25:00"}, "latest_send"), ({"send_at": "10:00"}, "before latest_send"),
     ({"send_at": "11:00"}, "before latest_send"),
-    ({"max_editions": 0}, "max_editions"), ({"max_editions": "80"}, "max_editions"), ({"max_editions": True}, "max_editions"),
+    ({"max_editions": 400}, "max_editions is not a known key"),
+    ({"canary_only": True}, "canary_only: true needs mode: stamp"),
+    ({"canary_only": True, "mode": "ids"}, "canary_only: true needs mode: stamp"),
     ({"max_recipients": -1}, "max_recipients"), ({"max_recipients": 1.5}, "max_recipients"),
     ({"enabled": "false"}, "enabled"), ({"enabled": None}, "enabled"), ({"canary_only": "no"}, "canary_only"),
     ({"provider": ""}, "provider"), ({"text": "words"}, "text"),
@@ -122,13 +125,35 @@ def test_the_stdlib_reader_agrees_with_yaml_on_the_shipped_file():
     sender = full["morning_note"]["sender"]
     assert got["sender"] == {**{k: v for k, v in sender.items() if k != "text"},
                              "text.subject": sender["text"]["subject"]}      # text: its subject line only
-    assert got["top"] == {k: full[k] for k in ("site_timezone", "district_count", "ward_count", "support_url",
-                                               "site_name")}
+    assert got["top"] == {k: full[k] for k in ("site_timezone", "support_url", "site_name")}   # no seat counts
     s = settings_mod.load(SITE_YML)
     assert (s.enabled, s.canary_only, s.mode, s.max_recipients, s.timezone) == \
-        (sender["enabled"], sender["canary_only"], "stamp", 1000, "America/Chicago")
+        (sender["enabled"], sender["canary_only"], "all", 1000, "America/Chicago")
     assert isinstance(s.enabled, bool) and isinstance(s.canary_only, bool)
-    assert (s.district_count, s.ward_count, s.send_at, s.latest_send) == (21, 12, "07:00", "10:00")
+    assert (s.send_at, s.latest_send) == ("07:00", "10:00")
+
+
+def test_modes_parity_and_max_editions_gone():
+    """One list of modes for the build check, the deliver reader and the sender (ADR 0004 decision 6: `all` added);
+    max_editions is gone from the config, the build's keys and the deliver settings (a plan holds one edition)."""
+    from sender import common
+    assert common.MODES == morning.SENDER_MODES == ("all", "stamp", "ids")
+    for mode in common.MODES:
+        assert settings_mod.from_values(**settings_mod.parse(BASE.replace("    mode: stamp ", f"    mode: {mode} ", 1))).mode == mode
+        assert not any("mode" in p for p in problems({"mode": mode}))
+    assert "max_editions" not in morning.SENDER_KEYS and "max_editions" not in settings_mod.SCALARS
+    assert "max_editions" not in {f.name for f in __import__("dataclasses").fields(settings_mod.Settings)}
+    assert "max_editions" not in SITE_YML.read_text(encoding="utf-8")
+
+
+def test_canary_only_needs_stamp_mode():
+    """An `all` email has no filter a canary list could narrow, so `canary_only: true` would reach everyone: the build
+    refuses the pair (and deliver.run refuses it too, before any call: test_morning_sender_deliver)."""
+    assert problems({"canary_only": True, "mode": "stamp"}) == []
+    for mode in ("all", "ids"):
+        assert problems({"canary_only": True, "mode": mode}) == [
+            f"morning_note.sender.canary_only: true needs mode: stamp, got mode {mode!r}"]
+        assert problems({"canary_only": False, "mode": mode}) == []
 
 
 BASE = """site_timezone: America/Chicago   # a comment
@@ -149,7 +174,6 @@ morning_note:
     mode: stamp              # stamp | ids
     send_at: "07:00"
     latest_send: '10:00'     # late
-    max_editions: 80
     max_recipients: 2000
     canary_only: true
     link_hosts: "example.com,www.cmcrpc.com"
@@ -197,14 +221,14 @@ def test_only_text_subject_directly_under_sender_is_read(old, new):
     ("    enabled: false\n    provider", "    enabled: false\n    enabled: true\n    provider"),   # set twice
     ("    enabled: false\n    provider", "    enabled:\n    provider"),              # no value
     ("    canary_only: true", "    canary_only: [true]"),
-    ("    mode: stamp ", "    mode: all "), ("    max_recipients: 2000", "    max_recipients: 0"),
+    ("    mode: stamp ", "    mode: everyone "), ("    max_recipients: 2000", "    max_recipients: 0"),
     ("    max_recipients: 2000", "    max_recipients: lots"),
     ("https://api.buttondown.com/v1", "http://api.buttondown.com/v1"),
     ("https://api.buttondown.com/v1", "https://api.buttondown.com/v1?to=https://evil.example.com"),
     ("    send_at: \"07:00\"", "    send_at: \"7am\""), ("    send_at: \"07:00\"", "    send_at: \"12:00\""),
     ("    send_at: \"07:00\"", "    send_at: \"07:00"),                              # an open quote
     ("  sender:\n    enabled: false", "  sender: {enabled: false}\n  x:"),          # flow style: not read, so missing
-    ("district_count: 21", "district_count: many"), ("site_timezone: America/Chicago   # a comment\n", ""),
+    ("site_timezone: America/Chicago   # a comment\n", ""),
     # sender/plan-untrusted/subject-unchecked: site_name and text.subject are read now, and held as strictly
     ("site_name: Daylight\n", ""), ("site_name: Daylight", "site_name: two words"), ("site_name: Daylight", "site_name:"),
     ("      subject: \"{site_name} morning note, {date}\"\n", ""),
@@ -242,7 +266,7 @@ PAGE = "  page:\n"
     ("    max_recipients: 2000", "    max_recipients: 0100"),                     # PyYAML reads 64
     ("    max_recipients: 2000", "    max_recipients: 1_000"), ("    max_recipients: 2000", "    max_recipients: 0x10"),
     ("    max_recipients: 2000", "    max_recipients: 2000.0"), ("    max_recipients: 2000", "    max_recipients: +2000"),
-    ("    max_editions: 80", "    max_editions: 1:20"),                           # sexagesimal: PyYAML reads 80
+    ("    max_recipients: 2000", "    max_recipients: 33:20"),                    # sexagesimal: PyYAML reads 2000
     ("    send_at: \"07:00\"", "    send_at: 07:00"), ("    latest_send: '10:00'", "    latest_send: 10:00"),
     ("    provider: buttondown", "    provider: yes"), ("    provider: buttondown", "    provider: null"),
     ("    provider: buttondown", "    provider: ~"), ("    provider: buttondown", "    provider: On"),
@@ -292,7 +316,7 @@ def refused(text: str) -> bool:
     ("    provider: buttondown", "   provider: buttondown"), ("    send_at: \"07:00\"", "    send_at: \"07:00\n      \""),
     ("    enabled: false\n", "    enabled: false\n    enabled: true\n"),
     ("site_timezone: America/Chicago   # a comment", "site_timezone: America/Chicago\nsite_timezone: Europe/Paris"),
-    ("district_count: 21", "district_count: 021"), ("district_count: 21", "district_count: 21\u200b")])
+    ("site_name: Daylight", "site_name: 021"), ("site_name: Daylight", "site_name: Daylight\u200b")])
 def test_the_sender_block_and_its_top_level_keys_stay_strict(old, new):
     assert old in BASE
     with pytest.raises(settings_mod.SettingsError):
@@ -348,7 +372,7 @@ FLIP = object()     # the opposite of the shipped boolean, whichever it is
 @pytest.mark.parametrize("path, value", [
     (("morning_note", "sender", "enabled"), FLIP), (("morning_note", "sender", "canary_only"), FLIP),
     (("morning_note", "sender", "max_recipients"), 64), (("morning_note", "sender", "max_recipients"), "2000"),
-    (("morning_note", "sender", "enabled"), 0), (("ward_count",), 13), (("site_name",), "Elsewhere"),
+    (("morning_note", "sender", "enabled"), 0), (("site_timezone",), "Europe/Paris"), (("site_name",), "Elsewhere"),
     (("morning_note", "sender", "text", "subject"), "{site_name} other, {date}")])
 def test_parity_names_any_value_pyyaml_reads_differently(path, value):
     text = SITE_YML.read_text(encoding="utf-8")
@@ -478,8 +502,8 @@ def test_enabling_needs_the_site_host_among_the_link_hosts():
 
 
 def test_tag_names_are_fixed_and_shared_by_the_form_and_the_sender():
-    """The form posts and the sender reads one set of Buttondown tag names (sender/common.py): a list's tag, and a
-    seat's tag as its prefix plus the stored number. Anything else is not ours."""
+    """The form still posts one set of Buttondown tag names (sender/common.py) until task N2; the sender reads none
+    since one edition for everyone (read_tags is gone). Task N3 replaces this test once neither names a tag."""
     from sender import common
     assert [common.list_tag(k) for k in common.LIST_KEYS] == ["note-zoning", "note-seats", "note-budget", "note-contracts"]
     assert (common.seat_tag_prefix("district"), common.seat_tag_prefix("ward")) == ("note-district-", "note-ward-")
@@ -488,6 +512,4 @@ def test_tag_names_are_fixed_and_shared_by_the_form_and_the_sender():
             common.list_tag(bad)
     with pytest.raises(ValueError):
         common.seat_tag_prefix("council")
-    tags = [common.list_tag(k) for k in ("budget", "zoning")] + ["note-district-5", "note-ward-3", "vip", "note-ward-x"]
-    assert common.read_tags(tags) == (("zoning", "budget"), [5], [3])
-    assert common.read_tags(None) == ((), [], []) and common.read_tags("note-budget") == ((), [], [])
+    assert not hasattr(common, "read_tags") and not hasattr(common, "signature")

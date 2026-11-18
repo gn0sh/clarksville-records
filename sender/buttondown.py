@@ -6,8 +6,9 @@ What it may do, and nothing else:
 - GET    /v1/emails?creation_date__start=<yesterday>
                                           every page, reduced to {"id", "status", "metadata", "archival_mode"} per
                                           row (the day claim; sender/claim-listing-unbounded)
-- GET    /v1/subscribers                  every page, reduced to {"id", "type", "tags", "metadata"} per row: the address and
-                                          every other field are dropped here, at the boundary
+- GET    /v1/subscribers                  every page, reduced to {"id", "type", "metadata"} per row: the address, the
+                                          tags and every other field are dropped here, at the boundary (`stamp` and
+                                          `ids` only: an `all` run makes no subscriber request)
 - GET    /v1/subscribers/{id}             one subscriber, reduced the same way (None when there is none)
 - PATCH  /v1/subscribers/{id}             body exactly {"metadata": {"note_edition": <stamp>}} (it replaces the whole
                                           object, T4.0 probe): never type, address, tags or anything else
@@ -108,14 +109,11 @@ def retry_after(value, now: datetime | None = None) -> float:
 
 
 def _reduce_subscriber(row, method: str, template: str) -> dict:
-    """{"id", "type", "tags", "metadata"}: all deliver may know. The address, IP, notes and the rest stop here.
-    `tags` (the names the form posted; deliver reads only its own "note-" names) must be a list of text when
-    present: any other shape is not the documented one, so the run fails closed."""
+    """{"id", "type", "metadata"}: all deliver may know. The address, IP, notes, tags and the rest stop here. Since
+    one edition for everyone (2026-11-18) nothing reads a tag, so `tags` is dropped unread, whatever its shape."""
     if not isinstance(row, dict):
         raise _fail(method, template, "a subscriber that is not an object")
-    out = {k: row[k] for k in ("id", "type", "tags", "metadata") if k in row}
-    if "tags" in out and not (isinstance(out["tags"], list) and all(isinstance(t, str) for t in out["tags"])):
-        raise _fail(method, template, "a subscriber whose tags are not a list of names")
+    out = {k: row[k] for k in ("id", "type", "metadata") if k in row}
     if not (isinstance(out.get("id"), str) and _ID.fullmatch(out["id"])):
         raise _fail(method, template, "a subscriber without a usable id")
     if not isinstance(out.get("type"), str):

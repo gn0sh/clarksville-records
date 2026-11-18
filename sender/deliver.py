@@ -1,6 +1,6 @@
-"""The deliver stage: guards, the day claim and the per-edition delivery (architecture "T4 sender", Deliver stage;
-ADR 0004, decisions 2 to 4). Standard library only, and no `sitegen` import: this is what runs in the job that
-holds the mail key.
+"""The deliver stage: guards, the day claim and the delivery of the day's one edition (architecture "T4 sender",
+Deliver stage, and "One edition for everyone"; ADR 0004, decisions 3, 4 and 6). Standard library only, and no
+`sitegen` import: this is what runs in the job that holds the mail key.
 
 This module never opens a connection. It talks to a `Provider`: the real adapter is `buttondown.py` (the one module
 that opens a connection; `python -m sender deliver --live` builds it only when the config enables the sender and the
@@ -11,24 +11,27 @@ Order of work, each check stopping before the first write:
  0. not live: say what would happen; no provider call.
  1. `morning_note.sender.enabled` is not true (read from the repository, not from the plan): nothing.
  2. `plan.send` is false (a quiet day, a backfill day, a disabled or rehearsal plan): nothing.
- 3. the plan's date is not today in the site's zone, or now is past `latest_send` ("missed", exit 3): nothing.
+ 3. `canary_only` with a mode other than `stamp` ("bad-config", exit 2: an `all` email has no filter to narrow);
+    the plan's date is not today in the site's zone, or now is past `latest_send` ("missed", exit 3): nothing.
  4. day claim, read from the provider's own emails since yesterday (`metadata.note_date`, `note_sha256`,
     `note_plan`: the note's digest and the plan's, sender/claim-plan-identity): a day claimed by another plan, even
-    one from the same note, sends nothing; the same plan continues with the editions not yet created; a listing
-    that fails sends nothing and fails the run (fail closed).
- 5. recipients: confirmed (`type == "regular"`) subscribers only, each reduced at once to Recipient (id, and the
-    lists and seats its "note-" tags name); the address, every other tag and the metadata stop there. Confirmed
-    subscribers of whom none carries a "note-" tag end the run non-zero ("no-tags", sender/tags-silent-zero): the
-    form's tags did not arrive, and a green run would hide it. With
-    `canary_only`, only the subscriber ids listed in the note job's environment (`MORNING_NOTE_CANARY_IDS`); with
-    no list, nobody and no provider call. Never subscriber metadata or tags for that: a subscriber writes both
-    through the public form.
- 6. per edition, in key order, by `mode` (`stamp` or `ids`). The email the provider says it stored must echo the
-    status, claim metadata and filter that were sent (`ids`: no filter), or it is taken back to a draft and the run
-    fails before anything else is sent (audience/provider-echo).
+    one from the same note, sends nothing; the same plan creates nothing it has already created; a listing that
+    fails sends nothing and fails the run (fail closed).
+ 5. by `mode`:
+    - `all` (the daily mode): no subscriber call at all. One scheduled email with no filter, which the provider
+      sends to every confirmed subscriber (invariant one-edition). Nothing a subscriber or the form wrote (tags,
+      metadata) is read, so nothing of theirs can change who gets it or what it says.
+    - `stamp` (canary trials): confirmed (`type == "regular"`) subscribers only, each reduced at once to Recipient
+      (its id); the address, the tags and the metadata stop there. With `canary_only`, only the subscriber ids
+      listed in the note job's environment (`MORNING_NOTE_CANARY_IDS`); with no list, nobody and no provider call.
+      Never subscriber metadata or tags for that: a subscriber writes both through the public form. Each recipient
+      is stamped with the edition's HMAC stamp, then one scheduled email filtered on that stamp is created.
+    - `ids`: a draft sent to the recipients' ids (unusable on Buttondown: send-draft only previews).
+    The email the provider says it stored must echo the status, claim metadata and filter that were sent (`all`: no
+    filter or the empty one; `ids`: none), or it is taken back to a draft and the run fails (audience/provider-echo).
 
-Privacy: nothing here prints a subscriber id, an address, a signature, a per-edition count or any text that came
-back from the provider. A provider error is reported by the name of the step only. The summary line has totals.
+Privacy: nothing here prints a subscriber id, an address, a per-edition count or any text that came back from the
+provider. A provider error is reported by the name of the step only. The summary line has totals.
 """
 from __future__ import annotations
 
@@ -45,19 +48,21 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import unicodedata
 from html import unescape
 
-from .common import (ADDRESS, CREDIT_LINE, DATE_RE, KEY_RE, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
-                     exact_url_ok, link_ok, read_tags, signature, subject_line)
+from .common import (ADDRESS, CREDIT_LINE, DATE_RE, KEY_RE, MARKUP, PLAN_SCHEMA, REASONS, REFS, exact_url_ok,
+                     link_ok, subject_line)
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
-PUBLISH_MARGIN = timedelta(minutes=5)   # a stamp email is scheduled at least this far ahead of the run's clock
+PUBLISH_MARGIN = timedelta(minutes=5)   # a scheduled email leaves at least this far ahead of the run's clock
 MISSED_EXIT = 3            # "missed" (past latest_send): its own non-zero code, so the job fails and opens the issue
 TRIES = 3                  # a rate-limited call is tried this many times, then the run stops
 MAX_WAIT = 120              # seconds: the longest Retry-After that is obeyed in one wait
-MAX_LIST_VALUES = 16        # more of our tags (lists and seats) on one subscriber: not a picker's output, ignored
 MAX_BODY = 500_000
 MAX_SUBJECT = 300
 STAMP_FIELD = "subscriber.metadata.note_edition"
+# the one stored filter an `all` email may come back with: the empty shape a Buttondown email holds when none was
+# sent (T4.0 probe, 2026-11-16). Any rule in it would narrow, or widen, who the provider mails.
+EMPTY_FILTER = {"filters": [], "groups": [], "predicate": "and"}
 # "<day>.<edition key>.<mac>": the mac is HMAC-SHA256(secret, "<day>.<key>")[:16] with the provider's API key as the
 # secret, so nobody can compute a stamp from the public note (audience/stamp-self-set-race)
 STAMP_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9a-f]{12}\.[0-9a-f]{16}")
@@ -94,6 +99,11 @@ class EchoMismatch(ProviderError):
         self.email_id = email_id
 
 
+# the fields of a morning-send/2 plan, exactly (plan.build writes them; any other is refused)
+PLAN_FIELDS = frozenset({"schema", "date", "note_sha256", "timezone", "send", "reason", "send_at", "latest_send",
+                         "editions"})
+
+
 class PlanInvalid(Exception):
     """The plan file is not what the plan stage writes. The text names a field, never its content."""
 
@@ -122,7 +132,8 @@ class Provider:
         raise NotImplementedError
 
     def subscribers(self) -> list[dict]:
-        """Every subscriber as the provider returns it. deliver reduces each to Recipient at once."""
+        """Every subscriber as the provider returns it. deliver reduces each to Recipient at once. Never called in
+        `all` mode (nor are subscriber() and set_metadata())."""
         raise NotImplementedError
 
     def subscriber(self, subscriber_id: str) -> dict | None:
@@ -149,23 +160,20 @@ class Provider:
 
 @dataclass(frozen=True)
 class Recipient:
-    """All that is kept of a subscriber: the id and the shape its tags name. The address, the other tags and the
-    metadata are not kept (a `stamp` write replaces the metadata with the stamp alone, so it never needs them)."""
+    """All that is kept of a subscriber: the id. The address, the tags and the metadata are not kept (a `stamp`
+    write replaces the metadata with the stamp alone, so it never needs them)."""
     id: str
-    lists: tuple
-    district: int | None
-    ward: int | None
 
-    def __repr__(self) -> str:      # never the id or the shape, should one ever reach a traceback
+    def __repr__(self) -> str:      # never the id, should one ever reach a traceback
         return "Recipient(...)"
 
 
 @dataclass(frozen=True)
 class Outcome:
     code: int               # the process exit code
-    status: str             # dry-run | disabled | no-send | wrong-date | missed | claimed | no-tags | sent | failed | ...
+    status: str             # dry-run | disabled | no-send | bad-config | wrong-date | missed | claimed | sent | failed | ...
     editions: int = 0       # emails created by this run
-    recipients: int = 0     # recipients of those emails, in total
+    recipients: int = 0     # recipients of those emails, in total (`all` mode: 0, the run does not know them)
 
 
 # ------------------------------------------------------------------------------------------------ the plan file
@@ -237,7 +245,9 @@ def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
     """The plan as the plan stage writes it, or PlanInvalid. The file crosses from the job that parses untrusted
     documents to the job that holds the key, so every field deliver reads is checked here first, each body
     against the tags render writes and `link_hosts` (from the repository's config, not the plan), and, when
-    `subject` is given, each subject against exactly that text (sender/plan-untrusted/subject-unchecked)."""
+    `subject` is given, each subject against exactly that text (sender/plan-untrusted/subject-unchecked).
+    Invariant one-edition: at most one edition, exactly one when `send` is true (a rehearsal plan, send false,
+    carries its edition for a person to read), and no field but PLAN_FIELDS (schema /1's per-shape map is refused)."""
     if not isinstance(plan, dict) or plan.get("schema") != PLAN_SCHEMA:
         raise PlanInvalid("schema")
     if not (isinstance(plan.get("date"), str) and DATE_RE.fullmatch(plan["date"])):
@@ -249,10 +259,13 @@ def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
     # U+2028, escape or bidi control that could start a log line such as "::error ...")
     if plan.get("reason") not in REASONS or (plan["reason"] == "ok") != plan["send"]:
         raise PlanInvalid("reason")
-    editions, sigs = plan.get("editions"), plan.get("signatures")
-    if not isinstance(editions, list) or not isinstance(sigs, dict):
-        raise PlanInvalid("editions or signatures")
-    keys = []
+    if set(plan) != PLAN_FIELDS:
+        raise PlanInvalid("the plan's fields")
+    editions = plan.get("editions")
+    if not isinstance(editions, list):
+        raise PlanInvalid("editions")
+    if len(editions) > 1 or (plan["send"] and len(editions) != 1):
+        raise PlanInvalid("not one edition (send true needs exactly one; never more)")
     for ed in editions:
         if not isinstance(ed, dict) or sorted(ed) != ["body", "entry_ids", "key", "subject"]:
             raise PlanInvalid("an edition's fields")
@@ -269,46 +282,22 @@ def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
         if not (isinstance(ed["entry_ids"], list) and ed["entry_ids"]
                 and all(isinstance(i, str) for i in ed["entry_ids"])):
             raise PlanInvalid("an edition's entry_ids")
-        keys.append(ed["key"])
-    if len(set(keys)) != len(keys):
-        raise PlanInvalid("an edition key is used twice")
-    for sig, key in sigs.items():
-        if not SIGNATURE_RE.fullmatch(sig) or key not in keys:
-            raise PlanInvalid("a signature")
-    if plan["send"]:
-        if not (isinstance(plan.get("note_sha256"), str) and _SHA_RE.fullmatch(plan["note_sha256"])):
-            raise PlanInvalid("note_sha256")
-        if not editions or not sigs:
-            raise PlanInvalid("send is true with no edition")
+    if plan["send"] and not (isinstance(plan.get("note_sha256"), str) and _SHA_RE.fullmatch(plan["note_sha256"])):
+        raise PlanInvalid("note_sha256")
     return plan
 
 
 # ------------------------------------------------------------------------------------------------ recipients
-def _one_seat(values: list, most: int) -> int | None:
-    """The seat a subscriber's tags name: exactly one in-range number, else not set. Two district (or ward) tags are
-    not a picker's output (anyone can add a tag to an existing address through the public form), so neither
-    counts: the person then gets less zoning, never someone else's (sender/tags-ambiguous-seat)."""
-    got = {v for v in values if 1 <= v <= most}
-    return next(iter(got)) if len(got) == 1 and len(values) == 1 else None
-
-
-def recipient(raw, settings: Settings) -> Recipient | None:
+def recipient(raw) -> Recipient | None:
     """One subscriber as the provider returned it, reduced to what the sender may know: None unless it is a
-    confirmed (`type == "regular"`) subscriber with an id. The address and every field but the id and the tags
-    are dropped here. Lists, district and ward come from the sender's own tags (common.read_tags: "note-zoning",
-    "note-district-5"); every other tag is ignored, and metadata is never read for an audience (the public form
-    can write it; only held_stamps reads its note_edition). More than MAX_LIST_VALUES of our tags: not a picker's
-    output, so no lists. Out-of-range or repeated seats: not set."""
+    confirmed (`type == "regular"`) subscriber with an id. Everything but the id is dropped here: the tags and the
+    metadata are never read for an audience (the public form can write both; only held_stamps reads note_edition)."""
     if not isinstance(raw, dict) or raw.get("type") != "regular":
         return None
     sid = raw.get("id")
     if not isinstance(sid, str) or not sid:
         return None
-    lists, districts, wards = read_tags(raw.get("tags"))
-    if len(lists) + len(districts) + len(wards) > MAX_LIST_VALUES:
-        lists, districts, wards = (), [], []
-    return Recipient(id=sid, lists=lists, district=_one_seat(districts, settings.district_count),
-                     ward=_one_seat(wards, settings.ward_count))
+    return Recipient(id=sid)
 
 
 # ------------------------------------------------------------------------------------------------ provider calls
@@ -344,13 +333,17 @@ def stamp_filter(day: str, key: str, secret: bytes) -> dict:
 
 def _check_audience(mode: str, payload: dict, day: str, key: str, secret: bytes | None) -> None:
     """The last check before an email is created. An empty or malformed filter means everyone, so a `stamp` email
-    must carry exactly its edition's filter; an `ids` email is a draft with no audience of its own."""
+    must carry exactly its edition's filter; an `all` email is scheduled and carries no `filters` key at all
+    (everyone confirmed is its audience, and no filter is sent that a mistake could get wrong); an `ids` email is a
+    draft with no audience of its own."""
     if mode == "stamp":
         f = payload.get("filters")
         rules = f.get("filters") if isinstance(f, dict) else None
         ok = isinstance(rules, list) and len(rules) == 1 and rules[0] == {
             "field": STAMP_FIELD, "operator": "equals", "value": stamp_value(day, key, secret)} \
             and f.get("groups") == [] and f.get("predicate") == "and" and payload.get("status") == "scheduled"
+    elif mode == "all":
+        ok = payload.get("status") == "scheduled" and "filters" not in payload
     else:
         ok = payload.get("status") == "draft" and "filters" not in payload
     if not ok:
@@ -398,7 +391,8 @@ def _strays(held: list, by_key: dict, expected: dict, done: set) -> list[tuple[s
 
 def _check_echo(mode: str, payload: dict, stored) -> str:
     """audience/provider-echo: the email as the provider stored it decides who gets it, so it must carry exactly
-    the status, claim metadata and (in `stamp` mode) filter deliver sent, and an `ids` draft no filter at all. Its
+    the status, claim metadata and (in `stamp` mode) filter deliver sent; an `all` email no filter, or exactly the
+    empty one (EMPTY_FILTER: absent, null or that shape, never a rule); an `ids` draft no filter at all. Its
     archival mode, when it carries one, must be the one sent ("disabled": off the public archive); that the create
     answer carries it at all is unverified (render/archival-not-echoed, platform-facts).
     Returns its id; raises EchoMismatch (with the id when one came back) otherwise."""
@@ -409,6 +403,8 @@ def _check_echo(mode: str, payload: dict, stored) -> str:
         and ("archival_mode" not in stored or stored["archival_mode"] == payload["archival_mode"])
     if ok and mode == "stamp":
         ok = stored.get("filters") == payload["filters"]
+    elif ok and mode == "all":
+        ok = stored.get("filters") is None or stored["filters"] == EMPTY_FILTER
     elif ok:
         ok = stored.get("filters") is None          # a draft for send-draft carries no audience of its own
     if not ok:
@@ -429,10 +425,10 @@ def _call(sleep, fn, *args):
 
 
 def plan_digest(plan: dict) -> str:
-    """sha256 over what decides who gets which email: the note's digest, every edition (key, subject, body, entry
-    ids) and every signature. Two plans of one note made by different code or config differ here, so a re-run of
+    """sha256 over what decides what the email says: the note's digest and the edition (key, subject, body, entry
+    ids). Two plans of one note made by different code or config differ here, so a re-run of
     another plan can never take this plan's created editions as its own (sender/claim-plan-identity)."""
-    canon = {"note_sha256": plan["note_sha256"], "signatures": plan["signatures"],
+    canon = {"note_sha256": plan["note_sha256"],
              "editions": sorted(([e["key"], e["subject"], e["body"], e["entry_ids"]] for e in plan["editions"]))}
     return hashlib.sha256(json.dumps(canon, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
                           .encode("ascii")).hexdigest()
@@ -464,13 +460,19 @@ def _claim(emails, plan: dict, digest: str) -> tuple[str, set]:
 
 
 # ------------------------------------------------------------------------------------------------ run
+AUDIENCE = {"all": "every confirmed subscriber (no subscriber is read)",
+            "stamp": "the confirmed subscribers it stamps", "ids": "the confirmed subscribers' ids"}
+
+
 def describe(plan: dict, settings: Settings) -> list[str]:
     """What a live run would do, for the dry run. It names no subscriber: none has been read."""
+    emails = len(plan["editions"]) if plan["send"] else 0
     lines = [f"morning note {plan['date']}: dry run, no connection opened, nothing sent",
              f"sender enabled in config: {'yes' if settings.enabled else 'no'}; mode {settings.mode}; "
              f"canary only: {'yes' if settings.canary_only else 'no'}",
              f"plan: send {'true' if plan['send'] else 'false'} ({plan.get('reason', '')}); "
-             f"{len(plan['editions'])} edition(s); {len(plan['signatures'])} subscriber shape(s) would get one"]
+             f"{len(plan['editions'])} edition(s); a live run would create {emails} email(s), "
+             f"to {AUDIENCE.get(settings.mode, settings.mode)}"]
     lines += [f"edition {ed['key']}: {len(ed['entry_ids'])} entr{'y' if len(ed['entry_ids']) == 1 else 'ies'}; "
               f"subject: {ed['subject']}" for ed in plan["editions"]]
     return lines
@@ -494,8 +496,10 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
     day = plan["date"]
 
     def end(code: int, status: str, editions: int = 0, recipients: int = 0, why: str = "") -> Outcome:
-        out(f"morning note {day}: {status}{' (' + why + ')' if why else ''}; "
-            f"emails created {editions}; recipients in total {recipients}")
+        # `all` mode reads no subscriber, so it cannot count them (the provider's dashboard does)
+        who = (("recipients: every confirmed subscriber" if editions else "recipients: none from this run")
+               if settings.mode == "all" else f"recipients in total {recipients}")
+        out(f"morning note {day}: {status}{' (' + why + ')' if why else ''}; emails created {editions}; {who}")
         return Outcome(code, status, editions, recipients)
 
     if not live:
@@ -508,6 +512,8 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         return end(0, "no-send", why="the plan says send false")
     if provider is None:
         return end(2, "no-provider", why="no provider adapter was given")
+    if settings.canary_only and settings.mode != "stamp":
+        return end(2, "bad-config", why="canary_only needs mode stamp: an all-mode email has no filter to narrow")
     if plan["timezone"] != settings.timezone:
         return end(2, "bad-plan", why="the plan's time zone is not the site's")
     try:
@@ -561,21 +567,38 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         state, done = _claim(_call(sleep, provider.emails, (the_day - timedelta(days=1)).isoformat()), plan, digest)
         if state == "other":
             return end(0, "claimed", why="the day belongs to an earlier, different plan")
+        send_at, latest = at(settings.send_at), at(settings.latest_send)
+        if settings.mode == "all":
+            # invariant one-edition: one scheduled email with no filter; no subscriber listing, re-read or write
+            ed = plan["editions"][0]
+            if ed["key"] in done:
+                return end(0, "sent", why="an earlier run of this plan created the email")
+            meta = {"note_date": day, "note_edition": f"{day}.{ed['key']}", "note_sha256": plan["note_sha256"],
+                    "note_plan": digest}
+            publish = max(send_at, clock() + PUBLISH_MARGIN)       # never "now": the echo is checked first
+            if publish > latest:
+                return end(2, "late", why="the email could not be scheduled a margin ahead before latest_send")
+            payload = {"subject": ed["subject"], "body": ed["body"], "archival_mode": "disabled", "metadata": meta,
+                       "status": "scheduled",
+                       "publish_date": publish.astimezone(zone).isoformat(timespec="seconds")}
+            step = "email create"
+            _check_audience("all", payload, day, ed["key"], None)
+            stored = _call(sleep, provider.create_email, payload, idempotency_key(day, ed["key"], "email"))
+            step = "email check"
+            checked(payload, stored, ed["key"])
+            return end(0, "sent", 1)
         step = "subscriber listing"
         raw = _call(sleep, provider.subscribers)
         if not isinstance(raw, (list, tuple)):
             raise ProviderError("subscriber listing")
         held = held_stamps(raw)          # every row, before the type, dedupe and canary filters
         audience, seen = [], set()
-        for r in (recipient(x, settings) for x in raw):
+        for r in (recipient(x) for x in raw):
             if r is not None and r.id not in seen:      # a listing that repeats a row (paging overlap): once each
                 seen.add(r.id)
                 audience.append(r)
         del seen
         del raw
-        if audience and not any(r.lists or r.district is not None or r.ward is not None for r in audience):
-            return end(2, "no-tags", why="confirmed subscribers, and none carries a note- tag: the sign-up form's "
-                                         "tags did not arrive")
         if settings.canary_only:
             audience = [r for r in audience if r.id in canary_ids]
         if len(audience) > settings.max_recipients:
@@ -586,27 +609,18 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         expected = {stamp_value(day, ed["key"], stamp_secret): ed["key"] for ed in plan["editions"]} \
             if settings.mode == "stamp" else {}
         holds_created = {sid for sid, value in held if isinstance(value, str) and expected.get(value) in done}
-        by_key: dict[str, list[Recipient]] = {}
-        for r in audience:
-            if r.id in holds_created:
-                continue
-            key = plan["signatures"].get(signature(r.lists, r.district, r.ward)) if r.lists else None
-            if key is not None:
-                by_key.setdefault(key, []).append(r)
-        # max_editions bounds the emails a run creates: the editions that have a recipient (the plan holds every
-        # edition any shape could get), counted before the first write
-        if len(by_key) > settings.max_editions:
-            return end(2, "over-limit", why="more editions with a recipient than max_editions")
+        # invariant one-edition: every recipient gets the day's one edition (check_plan: exactly one)
+        to_all = [r for r in audience if r.id not in holds_created]
+        by_key: dict[str, list[Recipient]] = {plan["editions"][0]["key"]: to_all} if to_all else {}
 
         def stamp(r: Recipient, key: str, value: str) -> bool:
-            """Re-read one subscriber just before the write (L2), then stamp them; False (no write) when their type
-            or tags changed since the listing: they get nothing today."""
+            """Re-read one subscriber just before the write (L2), then stamp them; False (no write) when they are
+            gone or no longer confirmed (`type` other than "regular") since the listing: they get nothing today."""
             nonlocal step
             step = "subscriber re-read"
             raw = _call(sleep, provider.subscriber, r.id)
-            fresh = recipient(raw, settings)
-            if fresh is None or fresh.id != r.id or not fresh.lists or \
-                    signature(fresh.lists, fresh.district, fresh.ward) != signature(r.lists, r.district, r.ward):
+            fresh = recipient(raw)
+            if fresh is None or fresh.id != r.id:
                 return False
             # sender/stamp-idem-replay: the key carries the stamp held now, so a replay after someone changed it (the
             # form can write metadata) is a new write, not the provider's remembered answer to an old one
@@ -634,7 +648,6 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                                                      "audience changed again before it could be written over")
                 stamped_early.add(sid)
         del held
-        send_at, latest = at(settings.send_at), at(settings.latest_send)
         for ed in sorted(plan["editions"], key=lambda e: e["key"]):
             key, to = ed["key"], by_key.get(ed["key"], [])
             if key in done or not to:
@@ -643,11 +656,11 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             meta = {"note_date": day, "note_edition": edition_id, "note_sha256": plan["note_sha256"], "note_plan": digest}
             payload = {"subject": ed["subject"], "body": ed["body"], "archival_mode": "disabled", "metadata": meta}
             if settings.mode == "stamp":
-                # The T4.0 probe (2026-11-16) showed a metadata PATCH replaces the whole object, and the lists and
-                # seats now live in tags, so the write is exactly {"note_edition": <stamp>}: any other key (one the
+                # The T4.0 probe (2026-11-16) showed a metadata PATCH replaces the whole object, and the sender
+                # keeps nothing else there, so the write is exactly {"note_edition": <stamp>}: any other key (one the
                 # public form wrote, a forged note_edition, an old stamp) is dropped by it (sender/stamp-write-
-                # replaces). Each subscriber is read again just before the write (L2): someone whose type or tags
-                # changed since the listing is not stamped and gets nothing today.
+                # replaces). Each subscriber is read again just before the write (L2): someone whose type changed
+                # since the listing is not stamped and gets nothing today.
                 stamped = [r for r in to if r.id in stamped_early or stamp(r, key, meta["note_edition"])]
                 if not stamped:
                     continue

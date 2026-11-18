@@ -156,8 +156,9 @@ def test_every_word_outside_the_record_is_config_text():
     paras(html)                 # the credit is the site footer's fixed wording (note/credit-logo), not config text
     text = " ".join(t for node in parse(html[:-len(common.CREDIT_LINE) - 1]).walk() for t in node.text)
     words = re.sub(r"November 11, 2026|\d", "", text)
+    # the note's unplaced line is not printed since one edition for everyone (every zoning case is in the email)
     assert sorted(set(re.findall(r"[A-Za-z-]+", words))) == sorted(
-        ["SITE", "L-budget", "BODY", "REC", "TITLE", "OPEN", "SRC", "PG", "UNPLACED", "WHY", "NOTICE", "LINE",
+        ["SITE", "L-budget", "BODY", "REC", "TITLE", "OPEN", "SRC", "PG", "WHY", "NOTICE", "LINE",
          "SUPPORT", "TIPS"])
     assert render.subject(ctx, "2026-11-11") == "SITE S November 11, 2026"
 
@@ -200,38 +201,22 @@ def _preview_rows(html: str) -> list[dict]:
     return rows
 
 
-@pytest.mark.parametrize("lists, district, ward", [
-    (["zoning", "seats", "budget", "contracts"], 7, 3), (["seats"], 5, None), (["seats"], None, 2),
-    (["budget"], None, None), (["zoning"], 7, None), (["contracts", "budget"], None, None)])
-def test_an_editions_entries_and_order_equal_the_preview_pages(msite, lists, district, ward):  # noqa: F811
-    """The preview page (morning/index.html) shows the day the site was built on; the plan for that day, for the
-    same lists and seats, lists the same titles in the same order."""
+def test_an_editions_entries_and_order_equal_the_preview_pages(msite):  # noqa: F811
+    """Invariant one-edition: the preview page (morning/index.html) shows the day the site was built on, every
+    entry server-rendered; the plan for that day has one edition whose titles are the page's, in the page's order."""
     note = read_note(msite, NEXT)
     page = _preview_rows((msite / "morning" / "index.html").read_text(encoding="utf-8"))
     assert len(page) == len(note["entries"]) > 0
-    seats = {"district": district, "ward": ward}
-    shown = [r["title"] for r in page if any(k in r["lists"] and morning._seat_match(r, k, seats) for k in lists)]
     p = plan_mod.build(msite, NEXT, cfg_with())["plan"]
-    key = p["signatures"].get(common.signature(lists, district, ward))
-    if not shown:
-        assert key is None
-        return
-    body = next(e["body"] for e in p["editions"] if e["key"] == key)
-    got = [n.all_text() for n in parse(body).walk() if n.tag == "strong"]
-    # the same entries as the page; the email groups them under the list that selected each (plan.placed), keeping
-    # the page's order within a list
-    assert sorted(got) == sorted(shown)
-    by_id = {e["id"]: e for e in note["entries"]}
-    assert got == [by_id[i]["title"] for i, _ in plan_mod.placed(note, lists, seats)]
-    under = dict(plan_mod.placed(note, lists, seats))
-    for k in morning.LIST_KEYS:
-        assert [t for t in got if t in {by_id[i]["title"] for i, x in under.items() if x == k}] == \
-            [t for t in shown if t in {by_id[i]["title"] for i, x in under.items() if x == k}]
+    [ed] = p["editions"]
+    got = [n.all_text() for n in parse(ed["body"]).walk() if n.tag == "strong"]
+    assert got == [r["title"] for r in page]
+    assert ed["entry_ids"] == [e["id"] for e in note["entries"]]
 
 
 def test_at_least_one_preview_comparison_has_entries(msite):  # noqa: F811
     p = plan_mod.build(msite, NEXT, cfg_with())["plan"]
-    assert p["signatures"].get("seats|5|-") or p["signatures"].get("budget,contracts,seats,zoning|7|3")
+    assert len(p["editions"]) == 1 and len(p["editions"][0]["entry_ids"]) > 1
 
 
 def test_sections_follow_the_notes_order_under_config_labels(msite):  # noqa: F811
@@ -245,9 +230,13 @@ def test_sections_follow_the_notes_order_under_config_labels(msite):  # noqa: F8
 
 
 def test_unplaced_line_and_why_line_close_the_entries_then_the_notice():
-    html = html_of(entry(), unplaced_text="2 zoning cases printed no district or ward")
-    assert paras(html)[-3:] == ["2 zoning cases printed no district or ward", CTX["text"]["why"], CTX["notice"]]
-    assert paras(html_of(entry()))[-2:] == [CTX["text"]["why"], CTX["notice"]]
+    """No unplaced line (every zoning case is in the one edition, so it would explain nothing); the entries close
+    with the why line, which is config text (morning_note.sender.text.why), then the notice."""
+    unplaced = "2 zoning cases printed no district or ward"
+    html = html_of(entry(), unplaced_text=unplaced)
+    assert unplaced not in html and "printed no district or ward" not in html
+    assert paras(html)[-2:] == [CTX["text"]["why"], CTX["notice"]] == paras(html_of(entry()))[-2:]
+    assert CTX["text"]["why"] == config.SITE["morning_note"]["sender"]["text"]["why"]
     assert "unsubscribe" not in html.lower()                           # the provider's link, not ours
 
 
@@ -257,6 +246,7 @@ def test_the_text_version_reads_the_same_edition():
     assert "A title over two lines" in text and SITE_URL + "items/2026.html#i-x" in text
     assert "https://example.com/fixture/agenda.pdf#page=2" in text and text.rstrip().endswith(CTX["notice"])
     assert CTX["text"]["why"] in text and CTX["email_line"] in text
+    assert "printed no district or ward" not in text                   # no unplaced line in the text version either
 
 
 # ------------------------------------------------------------------ note/entry-meeting

@@ -348,14 +348,16 @@ morning_note:
   PDFs, so it may not carry them. Each value in the block must stay one plain value on its own line.
 - **`ids` mode: a draft is the claim.** A run that dies between creating a draft and sending it does not send that
   edition on a re-run (never twice before never missed).
-- **`max_editions` counts editions that have a recipient**, in the deliver stage, before the first write (exit 2,
+- (Superseded 2026-11-18 by "One edition for everyone": `max_editions` is gone, a plan holds one edition.)
+  **`max_editions` counts editions that have a recipient**, in the deliver stage, before the first write (exit 2,
   "over-limit"). The plan stage instead caps the size of what it writes (`MAX_PLAN_BYTES`, 32 MB), and the deliver
   command refuses a larger plan file. The fixture's real RPC agenda (27 cases printing 7 districts and 3 wards)
   gives 191 editions and about 2.7 MB of files (plan.json about 1.1 MB), so **T4.5's "under 2 MB" artifact check
   must be raised** (to `MAX_PLAN_BYTES`). `max_editions` was 80 for the canary weeks; it is **400** since
   2026-11-17 (see "Switch-on").
-- **Open: the unplaced line** is printed in every edition of a day that has one, as "Body" above says; the preview
-  page shows it only to a reader who picked zoning.
+- (Closed 2026-11-18: the unplaced line leaves the email; see "One edition for everyone".) **Open: the unplaced
+  line** is printed in every edition of a day that has one, as "Body" above says; the preview page shows it only to
+  a reader who picked zoning.
 - **Every edition says the site is independent and unofficial** (review `render/no-independence-line`): the
   `unofficial.email_line` under the date, the full `unofficial.notice` at the foot, then the note's `support_line`
   and link when the note carries them (the site's note does only while `support_enabled`). The subject may not
@@ -717,6 +719,26 @@ the schema is checked by `check_plan`.
 - Merge order: N1, N2 and `claude/front-signup` share `config/site.yml`, `sitegen/morning.py` and `index.html.j2`.
 - Brian approved a per-shape sample; the one edition is longer. The manager attaches a fresh rehearsal sample to the
   `MORNING_NOTE_SEND` go-ahead ask (not a separate ask).
+
+**As built (task N1, sender, 2026-11-18).** As designed above, with these deviations and details:
+- `check_plan` allows **at most one** edition and requires exactly one when `send` is true. A `send: false` plan may
+  carry its one edition: that is the rehearsal (`--rehearse`, sender off), whose dry run a person reads; "none
+  otherwise" would have refused it. It also refuses any field outside `deliver.PLAN_FIELDS` (the schema /2 fields
+  exactly), which covers `signatures` and anything else.
+- `canary_only: true` without `mode: stamp` is refused by `morning.sender_problems()` (the build and `sender plan`)
+  and by `deliver.run()` ("bad-config", exit 2, before any provider call), not by `settings.from_values()`, so the
+  deliver command still reaches `run()` and prints its one outcome line.
+- Log line: `all` mode prints "emails created 1; recipients: every confirmed subscriber", or "emails created 0;
+  recipients: none from this run" when the email already exists (a re-run); `Outcome.recipients` is 0 (the run
+  does not know the count). `stamp` and `ids` keep "recipients in total N". The dry run says "a live run would
+  create N email(s), to <audience>" (N is 0 for a `send: false` plan).
+- `district_count` and `ward_count` left the deliver reader (`settings._TOP`, `Settings`): only `_one_seat` used
+  them. They stay top-level config for the site. `MAX_PLAN_BYTES` stays 32 MB, now only a data sanity bound.
+- `_strays` is unchanged. With one edition its write-over branch cannot trigger inside `run()` (a holder of today's
+  stamp is either in the audience or outside it); it is kept and unit-tested, per "Still apply unchanged" above.
+- `tests/test_morning_page.py` (N2's file, two one-line hunks): the success-text scan of the `morning_note` config
+  skips `sender.text`, because the `why` wording above says "you signed up for it" (email text sent only to
+  confirmed subscribers, never page text); and the pinned mode is `all`.
 
 ### Threat points for the security review
 (2026-11-18: points 2 and 4 change with one edition, see "One edition for everyone", security notes.)

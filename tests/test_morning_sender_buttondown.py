@@ -30,7 +30,8 @@ from sender import deliver
 from sender import plan as plan_mod
 from sender import settings as settings_mod
 from test_morning import D, inputs  # noqa: F401
-from test_morning_sender_deliver import AT_5, DAY, SECRET_BODY, TZ, key_for, people, settings, stamp
+from test_morning_sender_deliver import (AT_5, CONFIRMED, DAY, EVERYONE, SECRET_BODY, TZ, key_of, people, settings,
+                                         stamp, stamp_mode)
 from test_morning_sender_plan import TEST_HOSTS, cfg_with, msite  # noqa: F401
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -153,8 +154,11 @@ class FakeHTTP:
             return Resp(200)
         return Resp(404, {"detail": "Not found."})
 
-    # what the provider would do with each created stamp email
+    # what the provider would do with each created email: no filter, every confirmed subscriber (documented); a
+    # stamp filter, whoever holds its value
     def audience(self, email_row) -> set:
+        if not (email_row.get("filters") or {}).get("filters"):
+            return {s["id"] for s in self.subs.values() if s["type"] == "regular"}
         value = email_row["filters"]["filters"][0]["value"]
         return {s["id"] for s in self.subs.values() if (s.get("metadata") or {}).get("note_edition") == value}
 
@@ -190,7 +194,7 @@ def test_the_default_opener_speaks_https_only_with_no_proxy_and_no_redirect():
 
 
 def test_every_request_is_https_to_the_pinned_host_with_the_key_header_and_a_timeout(plan):
-    http = FakeHTTP(people(plan))
+    http = FakeHTTP(people())
     assert live(plan, http)[0].status == "sent"
     assert http.requests
     for method, url, headers, _body, timeout in http.requests:
@@ -216,7 +220,7 @@ def test_the_key_is_not_in_the_clients_repr():
 
 
 def test_a_redirect_is_never_followed(plan):
-    http = FakeHTTP(people(plan), faults={("GET", "/emails"): [
+    http = FakeHTTP(people(), faults={("GET", "/emails"): [
         Resp(302, raw=b"", headers={"Location": "https://evil.example/v1/emails"})]})
     res, _ = live(plan, http)
     assert (res.code, res.status) == (1, "failed") and len(http.requests) == 1
@@ -293,12 +297,12 @@ def test_the_request_urllib_builds_must_agree_on_scheme_host_and_path(monkeypatc
 
 
 def test_a_listing_is_read_page_by_page_and_reduced_at_the_boundary(plan):
-    rows = people(plan)
+    rows = people()
     http = FakeHTTP(rows, page_size=2)
     got = client(http).subscribers()
     assert len(http.calls("GET", "/subscribers")) == 4            # 7 rows, 2 a page
     assert [g["id"] for g in got] == [r["id"] for r in rows]
-    assert all(set(g) == {"id", "type", "tags", "metadata"} for g in got)  # no address, IP or notes past the adapter
+    assert all(set(g) == {"id", "type", "metadata"} for g in got)  # no address, IP, notes or tags past the adapter
     assert "example.com" not in json.dumps(got)
 
 
@@ -385,7 +389,7 @@ def test_a_429_raises_rate_limited_with_its_retry_after():
 
 def test_429_through_the_adapter_is_obeyed_three_tries_then_stop(plan):
     limited = [Resp(429, raw=b"", headers={"Retry-After": "2"}) for _ in range(5)]
-    http = FakeHTTP(people(plan), faults={("GET", "/emails"): limited})
+    http = FakeHTTP(people(), faults={("GET", "/emails"): limited})
     sleeps = []
     res, _ = live(plan, http, sleeps=sleeps)
     assert (res.code, res.status, res.editions) == (1, "failed", 0)
@@ -509,21 +513,18 @@ def test_a_metadata_write_other_than_one_stamp_is_refused_before_any_request(bad
     assert str(e.value) == "PATCH /subscribers/{id}: metadata that is not exactly one stamp" and http.requests == []
 
 
-def test_a_subscriber_keeps_its_tag_names_and_a_tags_field_of_another_shape_fails_closed():
-    http = FakeHTTP([{"id": "s1", "type": "regular", "tags": ["note-budget", "vip"], "metadata": {},
-                      "email_address": "a@example.com"}])
-    assert client(http).subscriber("s1") == {"id": "s1", "type": "regular", "tags": ["note-budget", "vip"],
-                                             "metadata": {}}
-    for bad in ("note-budget", [{"name": "note-budget"}], [1], {"note-budget": True}):
-        http = FakeHTTP([{"id": "s1", "type": "regular", "tags": bad, "metadata": {}}])
-        with pytest.raises(deliver.ProviderError) as e:
-            client(http).subscribers()
-        assert str(e.value) == "GET /subscribers: a subscriber whose tags are not a list of names"
+def test_a_subscribers_tags_are_dropped_whatever_their_shape():
+    """One edition for everyone: nothing reads a tag, so `tags` stops at the adapter unread, and no shape of it
+    (the form's names, a string, objects, numbers) fails the run any more."""
+    for tags in (["note-budget", "vip"], "note-budget", [{"name": "note-budget"}], [1], {"note-budget": True}, None):
+        http = FakeHTTP([{"id": "s1", "type": "regular", "tags": tags, "metadata": {}, "email_address": "a@example.com"}])
+        assert client(http).subscriber("s1") == {"id": "s1", "type": "regular", "metadata": {}}
+        assert client(http).subscribers() == [{"id": "s1", "type": "regular", "metadata": {}}]
 
 
 def test_no_write_can_change_type_address_or_create_or_delete_a_subscriber(plan):
-    http = FakeHTTP(people(plan))
-    assert live(plan, http)[0].status == "sent"
+    http = FakeHTTP(people())
+    assert live(plan, http, s=stamp_mode())[0].status == "sent" and http.calls("PATCH", "/subscribers/{id}")
     for method, url, _h, body, _t in http.requests:
         assert method in ("GET", "PATCH", "POST")
         if urlsplit(url).path.startswith("/v1/subscribers"):
@@ -562,79 +563,100 @@ def test_unschedule_and_send_draft_send_exactly_their_one_field():
 
 # ------------------------------------------------------------------------------------------------ end to end
 def test_stamp_mode_end_to_end_reaches_exactly_each_editions_people(plan):
-    rows = people(plan)
+    """A canary trial through the adapter: the one edition, stamped on the confirmed canaries only, one scheduled
+    email filtered on that stamp."""
+    rows = people()
     http = FakeHTTP(rows)
-    res, text = live(plan, http)
-    assert (res.code, res.status, res.editions, res.recipients) == (0, "sent", 3, 4)
-    assert text == f"morning note {DAY}: sent; emails created 3; recipients in total 4"
-    made = [e for e in http.email_rows if e["metadata"].get("note_date") == DAY]
-    assert len(made) == 3 and all(e["status"] == "scheduled" for e in made)
-    want: dict = {}
-    for sid, shape in (("sub-0001-secret", (["budget"],)), ("sub-0002-secret", (["budget"], 7)),
-                       ("sub-0003-secret", (["contracts"],)), ("sub-0004-secret", (["budget", "contracts"], None, 3))):
-        want.setdefault(key_for(plan, *shape), set()).add(sid)
-    for e in made:
-        key = e["metadata"]["note_edition"].split(".")[1]
-        assert http.audience(e) == want[key]
-        assert e["filters"]["filters"][0]["value"] == stamp(key)
+    canaries = frozenset({"sub-0001-secret", "sub-0004-secret", "sub-0005-secret"})       # sub 5 is unconfirmed
+    res, text = live(plan, http, s=stamp_mode(canary_only=True), canary_ids=canaries)
+    assert (res.code, res.status, res.editions, res.recipients) == (0, "sent", 1, 2)
+    assert text == f"morning note {DAY}: sent; emails created 1; recipients in total 2"
+    [made] = [e for e in http.email_rows if e["metadata"].get("note_date") == DAY]
+    assert made["status"] == "scheduled" and made["filters"]["filters"][0]["value"] == stamp(key_of(plan))
+    assert http.audience(made) == {"sub-0001-secret", "sub-0004-secret"}
     # the write replaced the metadata with the stamp alone (other keys, such as "favourite", are gone)
-    assert http.subs["sub-0004-secret"]["metadata"] == {"note_edition": stamp(key_for(plan, ["budget", "contracts"]))}
+    assert http.subs["sub-0004-secret"]["metadata"] == {"note_edition": stamp(key_of(plan))}
+    patched = {urlsplit(u).path.rsplit("/", 1)[1] for m, u, *_ in http.calls("PATCH", "/subscribers/{id}")}
+    assert patched == {"sub-0001-secret", "sub-0004-secret"}
+
+
+def test_all_mode_end_to_end_makes_no_subscriber_request(plan):
+    """The daily mode through the adapter: an email listing and one POST /emails with no filter; not one request to
+    any /subscribers path, so the key needs no subscriber access and no subscriber data reaches the note job."""
+    http = FakeHTTP(people())
+    res, text = live(plan, http)
+    assert (res.code, res.status, res.editions) == (0, "sent", 1)
+    assert text == f"morning note {DAY}: sent; emails created 1; recipients: {EVERYONE}"
+    assert [(m, FakeHTTP.route(urlsplit(u).path)) for m, u, *_ in http.requests] == [("GET", "/emails"), ("POST", "/emails")]
+    assert not any("/subscribers" in u for _m, u, *_ in http.requests)
+    body = http.calls("POST", "/emails")[0][3]
+    assert "filters" not in body and body["status"] == "scheduled" and body["subject"] == plan["editions"][0]["subject"]
+    [made] = [e for e in http.email_rows if e["metadata"].get("note_date") == DAY]
+    assert http.audience(made) == CONFIRMED
 
 
 def test_ids_mode_end_to_end_drafts_then_sends_and_writes_no_subscriber(plan):
-    http = FakeHTTP(people(plan))
+    http = FakeHTTP(people())
     res, _ = live(plan, http, s=settings(mode="ids"))
-    assert (res.status, res.editions, res.recipients) == ("sent", 3, 4)
-    assert not http.calls("PATCH") and len(http.drafts_sent) == 3
-    assert sorted(i for _, ids in http.drafts_sent for i in ids) == [
-        "sub-0001-secret", "sub-0002-secret", "sub-0003-secret", "sub-0004-secret"]
+    assert (res.status, res.editions, res.recipients) == ("sent", 1, 5)
+    assert not http.calls("PATCH") and len(http.drafts_sent) == 1
+    assert sorted(i for _, ids in http.drafts_sent for i in ids) == sorted(CONFIRMED)
 
 
-@pytest.mark.parametrize("mode", ["stamp", "ids"])
+@pytest.mark.parametrize("mode", ["all", "stamp", "ids"])
 def test_never_twice_through_the_adapter(plan, mode):
-    http = FakeHTTP(people(plan))
-    assert live(plan, http, s=settings(mode=mode))[0].editions == 3
+    http = FakeHTTP(people())
+    assert live(plan, http, s=settings(mode=mode))[0].editions == 1
     before = len(http.calls("POST"))
     res, _ = live(plan, http, s=settings(mode=mode))
     assert (res.status, res.editions) == ("sent", 0) and len(http.calls("POST")) == before
 
 
 def test_a_run_that_died_after_edition_1_finishes_the_rest_through_the_adapter(plan):
-    http = FakeHTTP(people(plan), faults={("POST", "/emails"): [None, Resp(500, raw=b"")]})
-    assert live(plan, http)[0].editions == 1
+    """One edition now. stamp: the third stamp's PATCH fails, so no email; the re-run stamps the rest and creates
+    the one email. all: the create fails (nothing stored), and the re-run creates it once."""
+    http = FakeHTTP(people(), faults={("PATCH", "/subscribers/{id}"): [None, None, Resp(500, raw=b"")]})
+    assert live(plan, http, s=stamp_mode())[0].status == "failed" and not http.calls("POST", "/emails")
+    res, _ = live(plan, http, s=stamp_mode())
+    assert (res.status, res.editions, res.recipients) == ("sent", 1, 5)
+    assert len([e for e in http.email_rows if e["metadata"].get("note_date") == DAY]) == 1
+    http = FakeHTTP(people(), faults={("POST", "/emails"): [Resp(500, raw=b"")]})
+    assert live(plan, http)[0].status == "failed"
     res, _ = live(plan, http)
-    assert (res.status, res.editions) == ("sent", 2)
-    assert len([e for e in http.email_rows if e["metadata"].get("note_date") == DAY]) == 3
+    assert (res.status, res.editions) == ("sent", 1)
+    assert len([e for e in http.email_rows if e["metadata"].get("note_date") == DAY]) == 1
 
 
-def test_a_cut_short_email_listing_sends_nothing(plan):
-    http = FakeHTTP(people(plan), faults={("GET", "/emails"): [Resp(200, {"results": [], "next": None, "count": 4})]})
-    res, _ = live(plan, http)
+@pytest.mark.parametrize("mode", ["all", "stamp"])
+def test_a_cut_short_email_listing_sends_nothing(plan, mode):
+    http = FakeHTTP(people(), faults={("GET", "/emails"): [Resp(200, {"results": [], "next": None, "count": 4})]})
+    res, _ = live(plan, http, s=settings(mode=mode))
     assert (res.code, res.status) == (1, "failed") and not http.calls("POST") and not http.calls("PATCH")
 
 
-def test_an_email_echo_that_differs_is_taken_back_through_the_adapter(plan):
+@pytest.mark.parametrize("mode", ["all", "stamp"])
+def test_an_email_echo_that_differs_is_taken_back_through_the_adapter(plan, mode):
     def stored_wrong():
         return Resp(201, {"id": "em0001", "status": "scheduled", "metadata": {"note_date": DAY},
                           "filters": {"filters": [], "groups": [], "predicate": "and"}})
-    http = FakeHTTP(people(plan), faults={("POST", "/emails"): [stored_wrong()]})
+    http = FakeHTTP(people(), faults={("POST", "/emails"): [stored_wrong()]})
     http.email_rows.append({"id": "em0001", "status": "scheduled", "metadata": {}})   # what the PATCH finds
-    res, text = live(plan, http)
+    res, text = live(plan, http, s=settings(mode=mode))
     assert (res.code, res.status, res.editions) == (1, "failed", 0)
     assert http.calls("PATCH", "/emails/{id}") and "taken back to a draft" in text
 
 
 def test_canary_only_through_the_adapter_reaches_only_the_canaries(plan):
-    http = FakeHTTP(people(plan))
-    res, _ = live(plan, http, s=settings(canary_only=True), canary_ids=frozenset({"sub-0003-secret"}))
+    http = FakeHTTP(people())
+    res, _ = live(plan, http, s=stamp_mode(canary_only=True), canary_ids=frozenset({"sub-0003-secret"}))
     assert (res.editions, res.recipients) == (1, 1)
     patched = {urlsplit(u).path.rsplit("/", 1)[1] for m, u, *_ in http.calls("PATCH", "/subscribers/{id}")}
     assert patched == {"sub-0003-secret"}
 
 
 def test_over_max_recipients_writes_nothing_through_the_adapter(plan):
-    http = FakeHTTP(people(plan))
-    res, _ = live(plan, http, s=settings(max_recipients=3))
+    http = FakeHTTP(people())
+    res, _ = live(plan, http, s=stamp_mode(max_recipients=3))
     assert (res.code, res.status) == (2, "over-limit") and not http.calls("POST") and not http.calls("PATCH")
 
 
@@ -645,7 +667,7 @@ def _leaks(rows) -> list[str]:
     return out
 
 
-@pytest.mark.parametrize("mode", ["stamp", "ids"])
+@pytest.mark.parametrize("mode", ["all", "stamp", "ids"])
 @pytest.mark.parametrize("fault", [
     None,
     {("GET", "/emails"): [Resp(500, raw=SECRET_BODY.encode(), ctype="text/plain")]},
@@ -660,7 +682,7 @@ def _leaks(rows) -> list[str]:
     {("GET", "/emails"): [Resp(302, raw=b"", headers={"Location": "https://evil.example/" + SECRET_BODY})]},
 ])
 def test_no_address_id_key_or_response_body_reaches_the_output(plan, capsys, mode, fault):
-    rows = people(plan)
+    rows = people()
     http = FakeHTTP(rows, faults=fault)
     raised = ""
     try:
@@ -684,14 +706,14 @@ def plan_file(plan, tmp_path):
     return p
 
 
-def config_file(tmp_path, enabled: bool, canary_only=False, mode="stamp") -> Path:
+def config_file(tmp_path, enabled: bool, canary_only=False, mode="all") -> Path:
     """The shipped config with the switches set and the fixture's link hosts added (the shipped file is unchanged)."""
     text = (ROOT / "config" / "site.yml").read_text(encoding="utf-8")
     text, n1 = re.subn(r"(?m)^(    enabled: )(?:true|false)\b", rf"\g<1>{'true' if enabled else 'false'}", text, count=1)
     text, n2 = re.subn(r"(?m)^(    canary_only: )(?:true|false)\b", rf"\g<1>{'true' if canary_only else 'false'}", text,
                        count=1)
     text, n3 = re.subn(r'(?m)^(    link_hosts: ")', rf"\g<1>{TEST_HOSTS},", text, count=1)
-    text, n4 = re.subn(r"(?m)^(    mode: )stamp\b", rf"\g<1>{mode}", text, count=1)
+    text, n4 = re.subn(r"(?m)^(    mode: )(?:all|stamp|ids)\b", rf"\g<1>{mode}", text, count=1)
     assert (n1, n2, n3, n4) == (1, 1, 1, 1)
     p = tmp_path / "site.yml"
     p.write_text(text, encoding="utf-8")
@@ -705,7 +727,7 @@ def cli(monkeypatch, plan):
     """`python -m sender deliver` in process, with the clock at 05:00 on the plan's day and FakeHTTP as the opener
     (a live run that tried to build a real opener would fail the test)."""
     import sender.__main__ as main_mod
-    http = FakeHTTP(people(plan))
+    http = FakeHTTP(people())
     monkeypatch.setattr(deliver, "run", functools.partial(deliver.run, now=AT_5, sleep=lambda _s: None))
     monkeypatch.setattr(bd, "make_opener", lambda: http)
     monkeypatch.delenv("BUTTONDOWN_API_KEY", raising=False)
@@ -740,21 +762,34 @@ def test_all_three_switches_send_through_the_adapter(cli, plan, plan_file, tmp_p
     argv = ["deliver", "--plan", str(plan_file), "--config", str(config_file(tmp_path, True)), "--live"]
     assert main_mod.main(argv) == 0
     out = capsys.readouterr()
-    assert out.out.strip() == f"morning note {DAY}: sent; emails created 3; recipients in total 4"
-    assert len(http.calls("POST", "/emails")) == 3
-    # the key is the stamps' secret: the filter carries the HMAC the deliver stage computes with it
-    values = {e["filters"]["filters"][0]["value"] for e in http.email_rows if "filters" in e}
-    assert values == {stamp(k) for k in {e["metadata"]["note_edition"].split(".")[1] for e in http.email_rows}}
-    for leak in _leaks(people(plan)):
+    assert out.out.strip() == f"morning note {DAY}: sent; emails created 1; recipients: {EVERYONE}"
+    assert len(http.calls("POST", "/emails")) == 1 and not any("/subscribers" in r[1] for r in http.requests)
+    for leak in _leaks(people()):
         assert leak not in out.out + out.err
 
 
-def test_live_with_canary_only_and_no_canary_list_makes_no_request(cli, plan_file, tmp_path, monkeypatch):
+def test_a_stamp_trial_through_the_cli_uses_the_key_as_the_stamp_secret(cli, plan, plan_file, tmp_path, monkeypatch,
+                                                                        capsys):
     main_mod, http = cli
     monkeypatch.setenv("BUTTONDOWN_API_KEY", KEY)
-    argv = ["deliver", "--plan", str(plan_file), "--config", str(config_file(tmp_path, True, canary_only=True)),
-            "--live"]
-    assert main_mod.main(argv) == 0 and http.requests == []
+    argv = ["deliver", "--plan", str(plan_file), "--config", str(config_file(tmp_path, True, mode="stamp")), "--live"]
+    assert main_mod.main(argv) == 0
+    assert capsys.readouterr().out.strip() == f"morning note {DAY}: sent; emails created 1; recipients in total 5"
+    # the key is the stamps' secret: the filter carries the HMAC the deliver stage computes with it
+    assert [e["filters"]["filters"][0]["value"] for e in http.email_rows] == [stamp(key_of(plan))]
+
+
+@pytest.mark.parametrize("mode, code", [("stamp", 0), ("all", 2)])
+def test_live_with_canary_only_and_no_canary_list_makes_no_request(cli, plan_file, tmp_path, monkeypatch, capsys,
+                                                                  mode, code):
+    """stamp: no canary named, nobody (exit 0). all: canary_only cannot narrow an unfiltered email, so it is refused
+    ("bad-config", exit 2). Either way no request."""
+    main_mod, http = cli
+    monkeypatch.setenv("BUTTONDOWN_API_KEY", KEY)
+    argv = ["deliver", "--plan", str(plan_file), "--config",
+            str(config_file(tmp_path, True, canary_only=True, mode=mode)), "--live"]
+    assert main_mod.main(argv) == code and http.requests == []
+    assert ("bad-config" in capsys.readouterr().out) == (mode == "all")
 
 
 def test_live_past_latest_send_is_missed_with_no_request(cli, plan_file, tmp_path, monkeypatch):

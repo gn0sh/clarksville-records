@@ -171,9 +171,9 @@ def problems(cfg: dict) -> list[str]:
 
 
 # `morning_note.sender` (ADR 0004; package sender/): every key, and the placeholders each text must keep.
-SENDER_KEYS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions",
-               "max_recipients", "canary_only", "link_hosts", "text")
-SENDER_MODES = ("stamp", "ids")
+SENDER_KEYS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_recipients",
+               "canary_only", "link_hosts", "text")
+SENDER_MODES = ("all", "stamp", "ids")      # sender.common.MODES (a test keeps them equal)
 SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
 _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
@@ -214,12 +214,16 @@ def sender_problems(cfg: dict) -> list[str]:
         out += [p + f", got {s['api_base']!r}" for p in [api_base_problem(s["provider"], s["api_base"])] if p]
     if "mode" in s and s["mode"] not in SENDER_MODES:
         out.append(f"{at}.mode must be {' or '.join(SENDER_MODES)}, got {s['mode']!r}")
+    elif s.get("canary_only") is True and s.get("mode") != "stamp":
+        # one edition for everyone (ADR 0004 decision 6): an `all` email has no filter a canary list could narrow,
+        # so it would reach every confirmed subscriber; canaries are a `stamp` trial (deliver.run refuses it too)
+        out.append(f"{at}.canary_only: true needs mode: stamp, got mode {s.get('mode')!r}")
     times = {k: s[k] for k in ("send_at", "latest_send") if k in s}
     bad = [k for k, v in times.items() if not (isinstance(v, str) and _HHMM.fullmatch(v))]
     out += [f"{at}.{k} must be HH:MM, got {times[k]!r}" for k in bad]
     if len(times) == 2 and not bad and not times["send_at"] < times["latest_send"]:
         out.append(f"{at}.send_at must be before latest_send")
-    for k in ("max_editions", "max_recipients"):
+    for k in ("max_recipients",):
         if k in s and (not isinstance(s[k], int) or isinstance(s[k], bool) or s[k] < 1):
             out.append(f"{at}.{k} must be a whole number >= 1, got {s[k]!r}")
     text = s.get("text")

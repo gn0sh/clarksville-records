@@ -151,7 +151,7 @@ morning_note:
   privacy_url: "https://buttondown.com/legal/privacy"       # the provider's privacy policy, required when enabled (checked 2026-11-17, platform-facts)
   # The sender (ADR 0004; architecture "T4 sender"; package sender/). Switched on in this file; nothing is sent
   # until Brian sets the MORNING_NOTE_SEND variable and the BUTTONDOWN_API_KEY secret (runbook
-  # docs/ops/morning-note.md section 5; hard stops 1 and 5). `python -m sender plan --rehearse` writes the would-send editions as a dry run.
+  # docs/ops/morning-note.md section 5; hard stops 1 and 5). `python -m sender plan --rehearse` writes the would-send edition as a dry run.
   # The build refuses `enabled: true` unless morning_note.enabled is true and alerts.site_url is set. Going live
   # also needs Brian's repository variable and secret (hard stops 1 and 5). Keep each value below on its own line as
   # one plain value: the deliver stage reads this block without PyYAML (sender/settings.py).
@@ -159,18 +159,20 @@ morning_note:
     enabled: true
     provider: buttondown
     api_base: https://api.buttondown.com/v1
-    mode: stamp              # stamp | ids. T4.0 probe 2026-11-16: stamp works; ids cannot (send-draft only previews)
+    # all | stamp | ids. 2026-11-18 (ADR 0004 decision 6, Brian: free plan, one note with all topics for everyone):
+    # `all` sends one scheduled email with no filter, which the provider mails to every confirmed subscriber, and
+    # reads no subscriber, so the key needs no subscriber access. `stamp` also works on the free plan (T4.0 probe
+    # 2026-11-16) and stays for canary trials (canary_only: true needs it). `ids` cannot work (send-draft previews).
+    mode: all
     send_at: "07:00"         # site_timezone
     latest_send: "10:00"     # a run that ends later than this skips the day; a note is never sent late
-    # Emails one run may create (editions with a recipient). 2026-11-17, was 80: a busy real day plans up to 191
-    # editions, so 80 would have sent nothing. 400 is about twice that. Basis (architecture "max_editions"):
-    # Buttondown's documented 600 requests a minute (the client paces 5 a second), and no per-day email limit in
-    # the docs read or the probe. Run time (sender/run-time-budget): 2 listings, an email per edition and 2
-    # requests (re-read, stamp) per recipient, so at both caps (2 + 400 + 2 x 1000) x 0.2 s = 8 minutes, inside
-    # the note job's 15. max_recipients was 2000 (about 14 minutes); the free plan stops at 100 subscribers.
-    max_editions: 400
+    # A run creates at most one email (the plan holds one edition). Run time (sender/run-time-budget), at the
+    # client's 5 requests a second: `all` is an email listing and one create (plus a take-back on a bad echo), a few
+    # seconds. A `stamp` trial is 2 listings, the email and 2 requests (re-read, stamp) per recipient, so at
+    # max_recipients (3 + 2 x 1000) x 0.2 s = about 6.7 minutes, inside the note job's 15. max_recipients bounds
+    # stamp and ids runs only: an `all` run writes to no subscriber (its bound is the provider plan: free, 100).
     max_recipients: 1000
-    canary_only: false       # Brian, 2026-11-16: no canary week; every confirmed subscriber. true: only the ids in the note job's MORNING_NOTE_CANARY_IDS secret; none listed: nobody
+    canary_only: false       # Brian, 2026-11-16: no canary week. true (needs mode: stamp): only the ids in the note job's MORNING_NOTE_CANARY_IDS secret; none listed: nobody
     # The only hosts an email may link to (the plan stage drops any other link; the deliver stage refuses a body with
     # one): the collectors' source hosts. Add the site's own host before enabling. The support link is allowed as
     # exactly the top-level support_url, never its host: anyone can host a page there.
@@ -178,7 +180,7 @@ morning_note:
     # Every word of the email that is ours. Neutral connective text only: no summary, no claim about anyone.
     text:
       subject: "{site_name} morning note, {date}"
-      why: You get this note because a record on a list you picked was added to the site since yesterday morning.
+      why: You get this note because you signed up for it. It lists every record added to the site since yesterday morning.
       open_site: Open the page on the site
   # Every word the sign-up section (alerts.html#note) and the preview page (morning/index.html) print around the
   # records' own titles. Neutral connective text only: no summary, no claim about anyone.

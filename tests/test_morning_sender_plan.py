@@ -1,6 +1,6 @@
 # ruff: noqa: E501
-"""The morning note sender's plan stage, the dry run (T4.1: sender/plan.py, `python -m sender plan`; ADR 0004).
-FIXTURE data only: the notes test_morning.py builds from the fixture facts. No test opens a connection, and no
+"""The morning note sender's plan stage, the dry run (T4.1: sender/plan.py, `python -m sender plan`; ADR 0004,
+decision 6: one edition holding every entry of the note, for every confirmed subscriber). FIXTURE data only: the notes test_morning.py builds from the fixture facts. No test opens a connection, and no
 subscriber exists anywhere in this file: the plan stage knows none."""
 import copy
 import json
@@ -24,15 +24,14 @@ NEXT = D + timedelta(days=1)
 _CACHE: dict = {}
 
 
-def cfg_with(enabled=True, site_url=SITE_URL, max_editions=500, **sender) -> dict:
-    """The shipped config with the sender switched on and a site URL. Day D's RPC agenda (a real one, 27 cases
-    printing 7 districts and 3 wards) gives 191 editions; the plan stage no longer counts them (max_editions is the
-    deliver stage's, over editions that have a recipient)."""
+def cfg_with(enabled=True, site_url=SITE_URL, **sender) -> dict:
+    """The shipped config with the sender switched on and a site URL. Day D (a real RPC agenda among others) gives
+    one edition of every entry of its note."""
     cfg = copy.deepcopy(config.SITE)
     cfg["alerts"]["site_url"] = site_url
     # the made-up site and the fixture's sources join the shipped link hosts (plan-untrusted/body-unchecked)
     sender.setdefault("link_hosts", cfg["morning_note"]["sender"]["link_hosts"] + "," + TEST_HOSTS)
-    cfg["morning_note"]["sender"].update(enabled=enabled, max_editions=max_editions, **sender)
+    cfg["morning_note"]["sender"].update(enabled=enabled, **sender)
     return cfg
 
 
@@ -104,7 +103,7 @@ def test_a_disabled_sender_plans_nothing_and_does_not_read_the_note(tmp_path):
     got = plan_mod.build(tmp_path / "no-such-site", D, note_off(config.SITE))       # the sender off
     p = got["plan"]
     assert p["send"] is False and p["reason"] == "disabled"
-    assert p["editions"] == [] and p["signatures"] == {} and got["texts"] == {} and p["note_sha256"] == ""
+    assert p["editions"] == [] and "signatures" not in p and got["texts"] == {} and p["note_sha256"] == ""
 
 
 def test_a_disabled_sender_cli_writes_no_edition_and_delivers_nothing(msite, tmp_path, capsys, sender_off):
@@ -112,7 +111,7 @@ def test_a_disabled_sender_cli_writes_no_edition_and_delivers_nothing(msite, tmp
     assert main(["plan", "--date", D.isoformat(), "--site", str(msite), "--out", str(out)]) == 0
     assert sorted(p.name for p in (out / D.isoformat()).iterdir()) == ["plan.json"]
     p = json.loads((out / D.isoformat() / "plan.json").read_text(encoding="utf-8"))
-    assert p["send"] is False and p["reason"] == "disabled" and not p["editions"] and not p["signatures"]
+    assert p["send"] is False and p["reason"] == "disabled" and not p["editions"] and "signatures" not in p
     assert "send false (disabled); 0 edition(s)" in capsys.readouterr().out
     # even a live run with a provider at hand makes no call: neither on this plan nor on any plan, while disabled
     provider = CountingProvider()
@@ -131,9 +130,10 @@ def test_rehearsal_of_a_disabled_sender_writes_editions_but_never_send_true(msit
     out = tmp_path / "send"
     assert main(["plan", "--date", NEXT.isoformat(), "--site", str(msite), "--out", str(out), "--rehearse"]) == 0
     p = json.loads((out / NEXT.isoformat() / "plan.json").read_text(encoding="utf-8"))
-    assert p["send"] is False and p["reason"] == "disabled" and p["editions"] and p["signatures"]
+    assert p["send"] is False and p["reason"] == "disabled" and len(p["editions"]) == 1 and "signatures" not in p
     names = sorted(x.name for x in (out / NEXT.isoformat()).iterdir())
-    assert names == sorted(["plan.json"] + [f"edition-{e['key']}.{ext}" for e in p["editions"] for ext in ("html", "txt")])
+    key = p["editions"][0]["key"]
+    assert names == sorted(["plan.json", f"edition-{key}.html", f"edition-{key}.txt"])
     assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--config", str(sender_off)]) == 0
 
 
@@ -172,116 +172,96 @@ def test_the_plan_stage_runs_the_deliver_body_check_on_every_edition(msite, monk
 def test_plan_shape(built, msite):
     p = built["plan"]
     assert list(p) == ["schema", "date", "note_sha256", "timezone", "send", "reason", "send_at", "latest_send",
-                       "editions", "signatures"]
-    assert p["schema"] == "morning-send/1" and p["date"] == "2026-11-11" and p["timezone"] == "America/Chicago"
-    assert p["send"] is True and p["reason"] == "ok"
+                       "editions"]                                     # no `signatures`: schema /2
+    assert p["schema"] == common.PLAN_SCHEMA == "morning-send/2" and p["date"] == "2026-11-11"
+    assert p["timezone"] == "America/Chicago" and p["send"] is True and p["reason"] == "ok"
     assert p["send_at"] == "2026-11-11T07:00:00-06:00" and p["latest_send"] == "2026-11-11T10:00:00-06:00"
     import hashlib
     assert p["note_sha256"] == hashlib.sha256((msite / "morning" / "2026-11-11.json").read_bytes()).hexdigest()
-    assert p["editions"] and [e["key"] for e in p["editions"]] == sorted(e["key"] for e in p["editions"])
-    for e in p["editions"]:
-        assert sorted(e) == ["body", "entry_ids", "key", "subject"] and common.KEY_RE.fullmatch(e["key"])
-        assert e["entry_ids"] and len(set(e["entry_ids"])) == len(e["entry_ids"])   # key: the every-signature test
-    assert all(common.SIGNATURE_RE.fullmatch(s) for s in p["signatures"])
+    [e] = p["editions"]                                                # exactly one on a day with entries
+    assert sorted(e) == ["body", "entry_ids", "key", "subject"] and common.KEY_RE.fullmatch(e["key"])
+    assert e["entry_ids"] and len(set(e["entry_ids"])) == len(e["entry_ids"])
+    assert list(built["texts"]) == [e["key"]]
     hosts = common.parse_hosts(cfg_with()["morning_note"]["sender"]["link_hosts"])
     assert deliver.check_plan(p, hosts, (config.SITE["support_url"],)) is p     # deliver accepts what plan writes
 
 
 def test_shared_constants_match_the_digest():
     assert common.LIST_KEYS == morning.LIST_KEYS and common.NOTE_SCHEMA == morning.SCHEMA
-    assert common.MODES == morning.SENDER_MODES
-    assert common.signature(["zoning", "budget", "nope"], 7, None) == "budget,zoning|7|-"
+    assert common.MODES == morning.SENDER_MODES == ("all", "stamp", "ids")
 
 
-def test_every_signature_gets_exactly_what_select_returns(built, msite):
-    """All 15 x 22 x 13 shapes: in `signatures` only when select() is non-empty, and then its edition holds
-    exactly select()'s ids, in select()'s order."""
+def test_the_one_edition_holds_every_entry_of_the_note_in_order(built, msite):
+    """Invariant one-edition: every entry of morning/<D>.json, none filtered and none twice, in the note's order
+    (which sitegen.morning sorts by first list in LIST_KEYS order), under the key edition_key gives those rows."""
     p, note = built["plan"], read_note(msite)
-    editions = {e["key"]: e["entry_ids"] for e in p["editions"]}
-    n = with_mail = 0
-    for lists, district, ward in plan_mod.signatures(config.SITE):
-        n += 1
-        seats = {"district": district, "ward": ward}
-        ids = [e["id"] for e in morning.select(note, lists, seats)]
-        sig = common.signature(lists, district, ward)
-        if ids:
-            with_mail += 1
-            rows = plan_mod.placed(note, lists, seats)
-            key = p["signatures"][sig]
-            assert key == plan_mod.edition_key(p["date"], rows), sig
-            assert editions[key] == [i for i, _ in rows] and sorted(editions[key]) == sorted(ids), sig
-        else:
-            assert sig not in p["signatures"], sig
-    assert n == 15 * 22 * 13 == 4290 and len(p["signatures"]) == with_mail
-    assert 0 < with_mail < n                                           # the fixture has both kinds of shape
-
-
-def test_same_entries_share_an_edition_and_different_entries_do_not(built):
-    p = built["plan"]
-    editions = [(tuple(e["entry_ids"]), e["body"]) for e in p["editions"]]
-    assert len(set(editions)) == len(editions) > 1                     # no two editions are the same email
-    used = set(p["signatures"].values())
-    assert used == {e["key"] for e in p["editions"]}                   # every edition has a shape; none is spare
-    assert len(p["signatures"]) > len(used)                            # some shapes share one
-    # budget and contracts ignore seats: every seat pair of a budget-only reader shares one edition
-    assert len({k for s, k in p["signatures"].items() if s.startswith("budget|")}) == 1
-    assert p["signatures"]["budget|-|-"] != p["signatures"]["contracts|-|-"]
+    [e] = p["editions"]
+    assert e["entry_ids"] == [x["id"] for x in note["entries"]] and len(e["entry_ids"]) > 1
+    assert plan_mod.one_edition(note) == [(x["id"], x["lists"][0]) for x in note["entries"]]
+    assert e["key"] == plan_mod.edition_key(p["date"], plan_mod.one_edition(note))
+    firsts = [common.LIST_KEYS.index(x["lists"][0]) for x in note["entries"]]
+    assert firsts == sorted(firsts) and len(set(firsts)) > 1           # grouped by first list, several lists
+    # the same entries under other headings are another email, so another key
+    assert plan_mod.edition_key("2026-11-11", [("c", "budget")]) != plan_mod.edition_key("2026-11-11", [("c", "seats")])
 
 
 def _entry(eid, lists, district=None, ward=None, seat_body=None):
     return {"id": eid, "lists": lists, "district": district, "ward": ward, "seat_body": seat_body}
 
 
-def test_an_entry_stands_under_a_list_the_reader_picked_and_that_selected_it():
-    """render/section-not-picked: an entry stood under its first list even when the reader had not picked it (a
-    county budget item on the seats and budget lists, under "My two seats" for a Budget-only reader) or it had not
-    selected the entry (a zoning case in another district, under "Zoning near me", that reached the reader through
-    their county seat)."""
+def test_each_entry_stands_under_its_first_list():
+    """No reader's picks any more, so an entry on several lists stands once, under its first: a county budget item
+    on the seats and budget lists stands under the seats heading, a zoning case with a seat under zoning."""
     note = {"entries": [_entry("a", ["zoning", "seats"], district=7, seat_body="district"),
-                        _entry("b", ["zoning", "seats"], district=3, seat_body="district"),
+                        _entry("b", ["zoning"]),
                         _entry("c", ["seats", "budget"], seat_body="district"),
-                        _entry("d", ["budget"])]}
-    budget_only = plan_mod.placed(note, ["budget"], {"district": None, "ward": None})
-    assert budget_only == [("c", "budget"), ("d", "budget")]
-    near_7 = plan_mod.placed(note, ["zoning", "seats", "budget"], {"district": 7, "ward": None})
-    assert near_7 == [("a", "zoning"), ("b", "seats"), ("c", "seats"), ("d", "budget")]
-    near_3 = plan_mod.placed(note, ["zoning", "budget"], {"district": 3, "ward": None})
-    assert near_3 == [("b", "zoning"), ("c", "budget"), ("d", "budget")]
-    # the same entries under other headings are another email, so another edition
-    assert plan_mod.edition_key("2026-11-11", [("c", "budget")]) != plan_mod.edition_key("2026-11-11", [("c", "seats")])
+                        _entry("d", ["budget"]), _entry("e", ["contracts"])]}
+    assert plan_mod.one_edition(note) == [("a", "zoning"), ("b", "zoning"), ("c", "seats"), ("d", "budget"),
+                                          ("e", "contracts")]
+    assert not hasattr(plan_mod, "placed") and not hasattr(plan_mod, "signatures")
+
+
+def test_zoning_cases_with_no_printed_seat_are_in_the_edition(built, msite):
+    """"Zoning near me" has no address or seat to match, so it is all zoning: the cases that printed no district or
+    ward (the note's unplaced count) are in the email, and the unplaced line is not (it would explain nothing)."""
+    p, note = built["plan"], read_note(msite)
+    unseated = [x["id"] for x in note["entries"] if "zoning" in x["lists"] and x["district"] is None and x["ward"] is None]
+    assert unseated and note["unplaced_zoning"] > 0 and note["unplaced_text"]
+    assert set(unseated) <= set(p["editions"][0]["entry_ids"])
+    assert note["unplaced_text"] not in p["editions"][0]["body"] and note["unplaced_text"] not in built["texts"][p["editions"][0]["key"]]
 
 
 def test_editions_print_each_entry_under_its_placed_list(built, msite):
+    """The headings are the config's list labels (morning_note.lists; never hard-coded here), one per run of first
+    lists, in the note's order, each once; every entry's title is in the body once."""
     p, note = built["plan"], read_note(msite)
-    labels = {x["key"]: x["label"] for x in note["lists"]}
-    for lists, district, ward in plan_mod.signatures(config.SITE):
-        rows = plan_mod.placed(note, lists, {"district": district, "ward": ward})
-        if not rows:
-            continue
-        body = next(e["body"] for e in p["editions"] if e["key"] == p["signatures"][common.signature(lists, district, ward)])
-        heads = re.findall(r"(?m)^<h2>(.*)</h2>$", body)
-        want = [labels[k] for i, (_, k) in enumerate(rows) if i == 0 or rows[i - 1][1] != k]
-        assert heads == want and len(heads) == len(set(heads)), (lists, district, ward)
-        assert set(heads) <= {labels[k] for k in lists}                # never a list the reader did not pick
+    labels = {x["key"]: x["label"] for x in config.SITE["morning_note"]["lists"]}
+    assert labels == {x["key"]: x["label"] for x in note["lists"]}
+    body = p["editions"][0]["body"]
+    heads = re.findall(r"(?m)^<h2>(.*)</h2>$", body)
+    rows = plan_mod.one_edition(note)
+    want = [labels[k] for i, (_, k) in enumerate(rows) if i == 0 or rows[i - 1][1] != k]
+    assert heads == [plan_mod.render.inert(x) for x in want] and len(heads) == len(set(heads)) > 1
+    assert body.count("<li>") == len(note["entries"])
 
 
 def test_nobody_gets_two_emails_or_an_empty_one(built):
     p = built["plan"]
+    assert len(p["editions"]) == 1                                     # one email for everyone, never two
     assert all(e["entry_ids"] and e["body"].strip() and e["subject"].strip() for e in p["editions"])
-    assert len(p["signatures"]) == len(set(p["signatures"]))           # one edition per shape (a mapping)
 
 
 # ------------------------------------------------------------------ days that send nothing
 def test_a_quiet_day_plans_no_edition(msite, tmp_path):
     note = {**read_note(msite), "entries": [], "unplaced_zoning": 0, "unplaced_text": ""}
     p = plan_mod.build(site_with(tmp_path, note), D, cfg_with())["plan"]
-    assert p["send"] is False and p["reason"] == "quiet" and p["editions"] == [] and p["signatures"] == {}
+    assert p["send"] is False and p["reason"] == "quiet" and p["editions"] == [] and "signatures" not in p
 
 
 def test_a_backfill_day_plans_no_edition_even_if_entries_slipped_through(msite, tmp_path):
     note = {**read_note(msite), "backfill": True}                      # entries left in on purpose
     p = plan_mod.build(site_with(tmp_path, note), D, cfg_with())["plan"]
-    assert p["send"] is False and p["reason"] == "backfill" and p["editions"] == [] and p["signatures"] == {}
+    assert p["send"] is False and p["reason"] == "backfill" and p["editions"] == [] and "signatures" not in p
 
 
 @pytest.mark.parametrize("case", ["missing", "schema", "date", "not json", "no entries key", "duplicate id"])
@@ -325,8 +305,7 @@ def test_a_subject_naming_a_government_body_fails_the_run(msite):
 
 
 def test_a_plan_over_the_size_ceiling_fails_the_run(msite, built, monkeypatch, tmp_path):
-    """The plan stage caps the plan's size, not its edition count: only the deliver stage knows which editions
-    have a recipient (max_editions counts those)."""
+    """The plan stage caps the plan's size (a data sanity bound: the one edition holds at most max_entries)."""
     size = plan_mod.size_of(built)
     assert size == sum(p.stat().st_size for p in plan_mod.write(tmp_path, built).parent.iterdir())
     monkeypatch.setattr(common, "MAX_PLAN_BYTES", size)
@@ -337,19 +316,45 @@ def test_a_plan_over_the_size_ceiling_fails_the_run(msite, built, monkeypatch, t
 
 
 def test_the_fixtures_rpc_agenda_day_plans_with_the_shipped_config(msite, tmp_path, capsys):
-    """A real RPC agenda day (27 cases printing 7 districts and 3 wards) gives 191 editions and about 2.7 MB of
-    files: more than the old cap of 80 editions and the 2 MB artifact check, well under the ceiling. Every shape
-    of that day fits under the shipped max_editions (400 since 2026-11-17), so even a whole list of distinct
-    shapes is sent, not refused."""
+    """Day D (a real RPC agenda, 27 cases printing 7 districts and 3 wards, among other records), the busiest day in
+    the fixture, which planned 191 per-shape editions (2.7 MB) before one edition for everyone: now one edition of
+    every entry, well under the ceiling. The rehearsal (done-when) writes exactly one edition-*.html and .txt."""
     cfg = copy.deepcopy(config.SITE)
     cfg["alerts"]["site_url"] = SITE_URL
-    cfg["morning_note"]["sender"]["enabled"] = True       # the shipped max_editions and everything else
+    cfg["morning_note"]["sender"]["enabled"] = True       # the shipped config otherwise
     cfg["morning_note"]["sender"]["link_hosts"] += "," + TEST_HOSTS       # but the fixture's links
     built = plan_mod.build(msite, D, cfg)
-    assert 80 < len(built["plan"]["editions"]) == 191 < cfg["morning_note"]["sender"]["max_editions"]
-    assert 2_000_000 < plan_mod.size_of(built) < common.MAX_PLAN_BYTES
-    assert main(["plan", "--date", D.isoformat(), "--site", str(msite), "--out", str(tmp_path / "o"), "--rehearse"]) == 0
-    assert (tmp_path / "o" / D.isoformat() / "plan.json").is_file()
+    assert len(built["plan"]["editions"]) == 1
+    assert built["plan"]["editions"][0]["entry_ids"] == [e["id"] for e in read_note(msite)["entries"]]
+    assert plan_mod.size_of(built) < 1_000_000 < common.MAX_PLAN_BYTES
+    out = tmp_path / "o"
+    assert main(["plan", "--date", D.isoformat(), "--site", str(msite), "--out", str(out), "--rehearse"]) == 0
+    files = sorted(x.name for x in (out / D.isoformat()).iterdir())
+    assert len([f for f in files if re.fullmatch(r"edition-[0-9a-f]{12}\.html", f)]) == 1
+    assert len([f for f in files if re.fullmatch(r"edition-[0-9a-f]{12}\.txt", f)]) == 1 and len(files) == 3
+    assert "1 edition(s); wrote" in capsys.readouterr().out
+
+
+def test_a_100_entry_day_fits_one_body(msite, tmp_path):
+    """A day over backfill.max_entries (100) is a backfill day and never mailed, so the one body holds at most 100
+    entries. Built here at that size with every title at the MAX_TITLE cut: well under deliver.MAX_BODY, and the
+    deliver stage accepts it."""
+    assert config.SITE["morning_note"]["backfill"]["max_entries"] == 100
+    note = read_note(msite)
+    base = note["entries"]
+    entries = []
+    for n in range(100):
+        e = copy.deepcopy(base[n % len(base)])
+        e["id"] = f"{e['id']}#copy-{n:03d}"
+        e["title"] = ("A long agenda title, as a PDF may print one; " * 20)[:common.MAX_TITLE + 50]
+        entries.append(e)
+    entries.sort(key=lambda e: common.LIST_KEYS.index(e["lists"][0]))
+    p = plan_mod.build(site_with(tmp_path, {**note, "entries": entries}), D, cfg_with())["plan"]
+    [e] = p["editions"]
+    assert len(e["entry_ids"]) == 100 and len(e["body"]) < deliver.MAX_BODY / 2
+    s = settings_mod.load(ROOT / "config" / "site.yml")
+    assert deliver.check_plan(p, s.link_hosts + tuple(TEST_HOSTS.split(",")), s.link_urls,
+                              subject=deliver.expected_subject(s, p["date"])) is p
 
 
 def test_a_bad_date_argument_exits_2(msite, tmp_path):

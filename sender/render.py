@@ -1,11 +1,13 @@
-"""Subject and body of one edition of the morning note (architecture "T4 sender", Body). Pure: no clock, no file,
-no connection.
+"""Subject and body of the morning note's edition (architecture "T4 sender", Body, and "One edition for everyone").
+Pure: no clock, no file, no connection.
 
 The body is the site name and the date, then per list its config label and that list's entries (body name, the
-connective text, the record's own title, a link to the site's page and a link to the source document), then the
-note's unplaced line when set, then one config line saying why the reader got this. The site's independence
-line (`unofficial.email_line`) stands under the date and its full notice (`unofficial.notice`) at the foot, then the
-note's support line and link when the note carries them (render/no-independence-line). It adds nothing the preview
+connective text, the record's own title, a link to the site's page and a link to the source document), then one
+config line saying why the reader got this. Since one edition for everyone (2026-11-18) every zoning case is in it,
+so the note's unplaced line ("N zoning cases printed no district or ward") is not printed: it would explain nothing.
+The site's independence line (`unofficial.email_line`) stands under the date and its full notice
+(`unofficial.notice`) at the foot, then the note's support line and link when the note carries them
+(render/no-independence-line). It adds nothing the preview
 page (morning/index.html) does not show: no outcome, no tally, no person's name outside a verbatim title, no
 summary. Every word that is ours is config text (`morning_note.sender.text`, `morning_note.page`, `unofficial:`,
 `support_line`, the list labels). The subject never names a government body or says "official" (AUTHORITY).
@@ -130,9 +132,9 @@ def support_of(ctx: dict, note: dict) -> tuple[str, str, str] | None:
 
 
 def sections(note: dict, entries: list[dict], under: dict | None = None) -> list[tuple[str, list[dict]]]:
-    """[(list label, entries)] in the given order. An entry stands once, under `under[id]` (plan.placed: the first
-    of its lists the reader picked and that selected it), else under the first of its lists (the key the note is
-    sorted by). The edition key covers both, so an edition reads the same for every subscriber who shares it."""
+    """[(list label, entries)] in the given order. An entry stands once, under `under[id]` when given (the plan's
+    one edition gives each entry its first list), else under the first of its lists (the key the note is sorted
+    by). The edition key covers the headings, so the edition's name changes whenever they do."""
     labels = {x["key"]: x["label"] for x in note["lists"]}
     out: list[tuple[str, list[dict]]] = []
     for e in entries:
@@ -180,8 +182,6 @@ def body_html(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
             parts = [inert(who_when(ctx, e)), inert(e.get("recorded")), f"<strong>{inert(e.get('title'))}</strong>"]
             out.append("<li>" + "<br>".join(parts + ([" &middot; ".join(links)] if links else [])) + "</li>")
         out.append("</ul>")
-    if note.get("unplaced_text"):
-        out.append(f"<p>{inert(note['unplaced_text'])}</p>")
     out += [f"<p>{inert(ctx['text']['why'])}</p>", f"<p>{inert(ctx['notice'])}</p>"]
     support = support_of(ctx, note)
     if support:
@@ -202,8 +202,6 @@ def body_text(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
             out += [f"  {clean(ctx['text']['open_site'])}: {page_url}"] if page_url else []
             out += [f"  {clean(_source_words(ctx, page))}: {src}"] if src else []
             out.append("")
-    if note.get("unplaced_text"):
-        out += [clean(note["unplaced_text"]), ""]
     out += [clean(ctx["text"]["why"]), "", clean(ctx["notice"])]
     support = support_of(ctx, note)
     if support:
