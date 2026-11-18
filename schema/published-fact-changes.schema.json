@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarksville-records/published-fact-changes/1.0",
+  "title": "config/published-fact-changes.yml",
+  "description": "The reviewed list of published facts a deploy may change or remove (I-pub, ADR 0011 decision 4). The content tripwire holds any deploy that changes or drops a vote, roll call or outcome already on the live site unless it is listed here. Changed only by a person's reviewed pull request; allow_shrink never counts. An empty list means no published fact may change.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["fact_id", "change", "listed_on", "reason"],
+    "properties": {
+      "fact_id": {
+        "description": "The id of the published roll call (facts roll_calls[].id; its votes and outcome are what may change) or motion, exactly as in the live data.",
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+        "maxLength": 200
+      },
+      "change": {
+        "description": "changed: its votes, tally or outcome may differ from the live site. removed: it may disappear.",
+        "enum": ["changed", "removed"]
+      },
+      "listed_on": {
+        "description": "The day the entry was added (YYYY-MM-DD).",
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "reason": {
+        "description": "Why the published fact may change, in plain words (e.g. the county corrected its minutes, a rollback).",
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500,
+        "pattern": "\\S"
+      },
+      "source_url": {
+        "description": "Optional: the https page that shows the corrected fact.",
+        "type": "string",
+        "pattern": "^https://[^\\s/]+(/\\S*)?$"
+      }
+    }
+  }
+}
