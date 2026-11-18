@@ -1,7 +1,7 @@
 {# The general fund dollar (sitegen/dollar_split.py, architecture finance-contracts 11): a bar 100 cents wide, then the
    same figures as a table. The bar is hidden from screen readers and adds nothing the table does not hold. Every
    segment is the one data ink, told apart by the gap between segments and the cents printed on it, never by colour.
-   Rows keep the book's order (no amount sort). Every amount links to its printed total; every page to the PDF. #}
+   Rows keep the book's order, never ordered by amount. Every amount links to its printed total; every page to the PDF. #}
 {% from "_fin_macros.html.j2" import fin_cites, fin_cite, fin_link %}
 {% macro member_links(members, pdf=false) -%}
 {% for m in members %}<a href="{{ m.href }}">{{ m.heading }}</a> {{ m.amount }}{% if pdf %} ({{ fin_link(m.src) }}){% else %} (p. {{ m.page }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}
