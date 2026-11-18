@@ -137,7 +137,7 @@ def county(tmp_path, monkeypatch):
     return state
 
 
-def collect(tmp_path, city=0, county=0, run_log=None, event="schedule", allow=""):
+def collect(tmp_path, city=0, county=0, run_log=None, event="schedule", allow="", actor="gn0sh"):
     """The Collect step's own script, the two collector calls replaced; returns (exit, outputs, county args)."""
     work = tmp_path / "collect"
     (work / "build").mkdir(parents=True, exist_ok=True)
@@ -150,7 +150,8 @@ def collect(tmp_path, city=0, county=0, run_log=None, event="schedule", allow=""
         COUNTY_LINE, f'printf "%s\\n" "${{shrink[@]}}" > "{args}"; county={county}')
     assert script != COLLECT["run"] and str(args) in script
     r = subprocess.run(["bash", "-c", script], cwd=work, capture_output=True, text=True,
-                       env={**os.environ, "GITHUB_OUTPUT": str(out), "GITHUB_EVENT_NAME": event, "ALLOW_SHRINK": allow})
+                       env={**os.environ, "GITHUB_OUTPUT": str(out), "GITHUB_EVENT_NAME": event, "ALLOW_SHRINK": allow,
+                            "TRIGGERING_ACTOR": actor})
     outputs = dict(ln.split("=", 1) for ln in out.read_text().split())
     return r.returncode, outputs, args.read_text().split()
 
@@ -350,6 +351,11 @@ def test_allow_shrink_dispatch_only(county, tmp_path):
                                  ("workflow_dispatch", "true", True)):
         code, _, args = collect(tmp_path, event=event, allow=allow)
         assert code == 0 and args == (["--allow-shrink"] if passed else []), (event, allow)
+    # data-prov/dispatch-actor: honoured only for a run gn0sh triggered (anyone with actions: write can dispatch)
+    assert COLLECT["env"]["TRIGGERING_ACTOR"] == "${{ github.triggering_actor }}"
+    for actor in ("github-actions[bot]", "someone", "", "gn0sh2", "Gn0sh"):
+        code, _, args = collect(tmp_path, event="workflow_dispatch", allow="true", actor=actor)
+        assert code == 0 and args == [], actor
     push_if = WF["jobs"]["push"]["if"]
     assert "github.ref == 'refs/heads/main'" in push_if and "allow_shrink" not in push_if   # commits from main only
     new = copy.deepcopy(committed())

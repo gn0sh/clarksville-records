@@ -134,7 +134,7 @@ def test_rebuild_only_run_still_deploys_without_a_push():
     assert not _holds(cond, _ctx(**{**rebuild, "needs__push__result": "failure"}))
     assert not _holds(cond, _ctx(**{**rebuild, "needs__update__result": "failure"}))
     push_if = WF["jobs"]["push"]["if"]                    # the push job is skipped exactly when deploy allows 'skipped'
-    assert not _holds(push_if, _ctx(**rebuild)) and _holds(push_if, _ctx())
+    assert not _holds(push_if, _ctx(**rebuild)) and _holds(push_if, _ctx(needs__gate__outputs__verified="true"))
 
 
 def test_the_lock_and_main_only_hold_in_every_case():
@@ -210,6 +210,7 @@ def test_untrusted_parse_job_has_no_write_token():
 
 COMMIT_STEP = "Commit refreshed data on records-data"
 ATTEST_STEP = "Attest the records-data listing"
+PUSH_STEP = "Push the data commit to records-data"
 ATTEST_USES = "actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f"     # v3.2.0
 HELPER_START = "# ---- data-tree helper: the same text in the gate and the push job"
 HELPER_END = "# ---- end of the data-tree helper ----"
@@ -230,10 +231,12 @@ def test_push_commits_on_the_gates_records_data_head():
     checkout = [s for s in jobs["push"]["steps"] if "actions/checkout@" in s.get("uses", "")]
     assert len(checkout) == 1 and checkout[0]["with"] == {"ref": "${{ needs.gate.outputs.data_sha }}"}
     assert _push_steps()[COMMIT_STEP]["env"] == {"ALLOWED": "${{ needs.update.outputs.allowed }}",
-                                                 "D": "${{ needs.gate.outputs.data_sha }}"}
+                                                 "D": "${{ needs.gate.outputs.data_sha }}",
+                                                 "TRIGGERING_ACTOR": "${{ github.triggering_actor }}"}
     run = _push_run_text()
     assert (run.index("git commit") < run.index('data_check HEAD "$listing"')
             < run.index('git push origin "HEAD:refs/heads/records-data"'))
+    assert "git push" not in _push_steps()[COMMIT_STEP]["run"]                      # the push is its own step
     pushes = [ln.strip() for ln in run.splitlines() if "git push" in ln]
     assert pushes == ['git push origin "HEAD:refs/heads/records-data"']          # one push, to records-data only
     assert not any("--force" in ln or " -f" in ln or "+" in ln for ln in pushes)
@@ -343,8 +346,8 @@ def test_push_failure_opens_an_issue():
                                    "issues": "write"}
     last = push["steps"][-1]
     assert last["if"] == "failure()" and "Daily update failed" in last["run"] and "gh issue" in last["run"]
-    assert "data not on records-data, or not attested" in last["run"] and "not on main" not in last["run"]
-    assert "restores the last attested tree on it whole" in last["run"]
+    assert "data not on records-data" in last["run"] and "not on main" not in last["run"]
+    assert "attested before it is pushed, so a failed check or attestation pushed nothing" in last["run"]
     runbook = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
     assert "A failure in `update` or `push` opens" in runbook
     assert "`deploy` needs both" in runbook               # pipeline/deploy-independent-of-push: the text is now true
@@ -357,6 +360,22 @@ def test_push_and_deploy_run_on_main_only():
     assert "github.event_name == 'schedule' || inputs.collect" in WF["jobs"]["push"]["if"]
 
 
+def test_the_push_job_runs_only_after_a_verified_gate():
+    """main-protect/phase0-attest: in phase 0 (verified false), or with a refused gate, nothing is attested or
+    pushed; on main with a verified gate the daily and collecting runs push."""
+    push_if = WF["jobs"]["push"]["if"]
+    assert "needs.gate.outputs.verified == 'true'" in " ".join(push_if.split())
+    for verified, ref, event, collect, ok in (
+            ("true", "refs/heads/main", "schedule", None, True), ("true", "refs/heads/main", "workflow_dispatch", True,
+                                                                  True),
+            ("false", "refs/heads/main", "schedule", None, False), ("", "refs/heads/main", "schedule", None, False),
+            ("TRUE", "refs/heads/main", "schedule", None, False), ("true", "refs/heads/x", "schedule", None, False),
+            ("true", "refs/heads/main", "workflow_dispatch", False, False)):
+        ctx = _ctx(needs__gate__outputs__verified=verified, github__ref=ref, github__event_name=event,
+                   inputs__collect=collect)
+        assert _holds(push_if, ctx) is ok, (verified, ref, event, collect)
+
+
 # ------------------------------------------------------------------ ADR 0011 (rows J2, T): the push job
 # The push job commits on D, pushes records-data (fast-forward only) and attests the listing. It opens no pull request
 # and never touches main: no workflow token can merge into main (I-main'').
@@ -366,9 +385,9 @@ def test_the_push_job_pushes_records_data_only_and_opens_no_pull_request():
     assert "gh api" not in run and "/pulls" not in run and "merge" not in run.lower()
     names = [s.get("name") for s in WF["jobs"]["push"]["steps"]]
     assert names == ["Check out the records-data head the gate checked", "Download refreshed data",
-                     "Validate refreshed data", COMMIT_STEP, ATTEST_STEP, "Open an issue on failure"]
+                     "Validate refreshed data", COMMIT_STEP, ATTEST_STEP, PUSH_STEP, "Open an issue on failure"]
     attest = _push_steps()[ATTEST_STEP]
-    assert attest == {"name": ATTEST_STEP, "if": "steps.commit.outputs.pushed == 'yes'",
+    assert attest == {"name": ATTEST_STEP, "if": "steps.commit.outputs.committed == 'yes'",
                       "uses": ATTEST_USES, "with": {"subject-path": "${{ runner.temp }}/records-data-listing"}}
     assert "${{" not in _push_steps()[COMMIT_STEP]["run"]
     assert "pull_request_target" not in TEXT and "workflows: write" not in TEXT
@@ -418,7 +437,9 @@ def _records_repo(tmp_path, moved=None):
     return origin, work, d
 
 
-def _run_commit_step(tmp_path, work, d, new_data: dict, allowed=""):
+def _run_commit_step(tmp_path, work, d, new_data: dict, allowed="no", actor="github-actions[bot]", push=True):
+    """The commit step over an artifact of work's data/ with `new_data` changed; then, when it committed and `push`
+    (standing for a successful attest step), the push step. Returns (the last step's result, outputs)."""
     runner = tmp_path / "runner"
     art = runner / "records-data"
     shutil.copytree(work / "data", art)
@@ -434,10 +455,13 @@ def _run_commit_step(tmp_path, work, d, new_data: dict, allowed=""):
     out = tmp_path / "github-output"
     out.write_text("")
     env = {**os.environ, "RUNNER_TEMP": str(runner), "GITHUB_OUTPUT": str(out), "ALLOWED": allowed, "D": d,
-           "GIT_CONFIG_GLOBAL": "/dev/null"}
+           "TRIGGERING_ACTOR": actor, "GIT_CONFIG_GLOBAL": "/dev/null"}
     r = subprocess.run(["bash", "-c", _push_steps()[COMMIT_STEP]["run"]], cwd=work, env=env, capture_output=True,
                        text=True)
     outputs = dict(ln.split("=", 1) for ln in out.read_text().splitlines() if "=" in ln)
+    if r.returncode == 0 and outputs.get("committed") == "yes" and push:
+        r = subprocess.run(["bash", "-c", _push_steps()[PUSH_STEP]["run"]], cwd=work, capture_output=True, text=True,
+                           env={**env, "SHA": outputs["sha"]})
     return r, outputs
 
 
@@ -455,7 +479,7 @@ def test_the_data_commit_is_one_commit_on_d_pushed_to_records_data(tmp_path):
     assert set(after) == {"refs/heads/main", "refs/heads/records-data"}                # no data/<date> branch
     assert after["refs/heads/main"] == before["refs/heads/main"]                         # main untouched
     sha = after["refs/heads/records-data"]
-    assert out == {"pushed": "yes", "sha": sha} and _git(origin, "rev-parse", f"{sha}^") == d   # one commit on D
+    assert out == {"committed": "yes", "sha": sha} and _git(origin, "rev-parse", f"{sha}^") == d  # one commit on D
     assert _git(origin, "diff", "--name-only", d, sha).split() == ["data/new/z.json", "data/x.json", "data/y.json"]
     assert _git(origin, "ls-tree", "--name-only", sha) == "data"                         # the tree is data/ only
     import datetime
@@ -501,7 +525,7 @@ def test_a_concurrent_push_to_records_data_fails_loudly(tmp_path):
     origin, work, d = _records_repo(tmp_path, [{"data/x.json": "other\n"}])
     moved = _refs(origin)["refs/heads/records-data"]
     r, out = _run_commit_step(tmp_path, work, d, {"x.json": "run\n"})
-    assert r.returncode != 0 and "pushed" not in out
+    assert r.returncode != 0 and out["committed"] == "yes"                     # committed and attested, push refused
     assert _refs(origin)["refs/heads/records-data"] == moved
 
 
@@ -516,8 +540,40 @@ def test_the_checkout_must_be_the_gates_records_data_head(tmp_path):
 
 def test_the_allow_shrink_override_is_named_in_the_commit_message(tmp_path):
     origin, work, d = _records_repo(tmp_path)
-    r, out = _run_commit_step(tmp_path, work, d, {"x.json": "2\n"}, allowed="yes")
+    r, out = _run_commit_step(tmp_path, work, d, {"x.json": "2\n"}, allowed="yes", actor="gn0sh")
     assert r.returncode == 0 and "allow_shrink" in _git(origin, "log", "-1", "--format=%s", out["sha"])
+
+
+@pytest.mark.parametrize("allowed,actor", [("yes", "github-actions[bot]"), ("yes", "someone"), ("yes", ""),
+                                           ("yes", "gn0sh2"), ("", "gn0sh"), ("maybe", "gn0sh")])
+def test_an_allow_shrink_result_not_triggered_by_gn0sh_is_never_pushed(tmp_path, allowed, actor):
+    """data-prov/dispatch-actor: any token with actions: write can dispatch the workflow, so a result that replaced
+    kept documents is committed only for a run gn0sh triggered (and an unreadable value is refused)."""
+    origin, work, d = _records_repo(tmp_path)
+    r, out = _run_commit_step(tmp_path, work, d, {"x.json": "2\n"}, allowed=allowed, actor=actor)
+    assert r.returncode == 1 and out == {} and "not triggered by gn0sh" in r.stdout
+    assert _refs(origin)["refs/heads/records-data"] == d
+
+
+def test_the_listing_is_attested_before_anything_is_pushed(tmp_path):
+    """data-prov/attest-after-push: the commit step pushes nothing; the push step runs only after the attest step
+    succeeded (no status function in its `if`, so a failed attestation skips it), and pushes only the attested
+    commit."""
+    steps = WF["jobs"]["push"]["steps"]
+    names = [s.get("name") for s in steps]
+    assert names.index(COMMIT_STEP) < names.index(ATTEST_STEP) < names.index(PUSH_STEP)
+    push = _push_steps()[PUSH_STEP]
+    assert push["if"] == "steps.commit.outputs.committed == 'yes'" and set(push) == {"name", "if", "env", "run"}
+    assert push["env"] == {"SHA": "${{ steps.commit.outputs.sha }}"} and "${{" not in push["run"]
+    origin, work, d = _records_repo(tmp_path)
+    r, out = _run_commit_step(tmp_path, work, d, {"x.json": "2\n"}, push=False)      # the attest step failed
+    assert r.returncode == 0 and out["committed"] == "yes"
+    assert _refs(origin)["refs/heads/records-data"] == d                               # nothing pushed
+    _git(work, "commit", "-q", "--allow-empty", "-m", "after the attestation")
+    r = subprocess.run(["bash", "-c", push["run"]], cwd=work, capture_output=True, text=True,
+                       env={**os.environ, "SHA": out["sha"]})
+    assert r.returncode == 1 and "not the attested data commit" in r.stdout
+    assert _refs(origin)["refs/heads/records-data"] == d
 
 
 def test_the_listing_the_push_job_attests_is_the_listing_the_gate_verifies(tmp_path):
@@ -630,6 +686,8 @@ def test_no_untrusted_triggers_and_no_echoed_credentials(path):
     on = wf.get("on") or wf[True]
     # T2 (main-protect invariant, ADR 0010): no trigger that runs a workflow on an event someone without write
     # access can cause (V1 is false, so such a run's write token could merge into main)
+    if path.name == "daily-update.yml":
+        assert set(on) == {"schedule", "workflow_dispatch"}, sorted(on)             # exactly these two triggers
     banned = {"pull_request_target", "workflow_run", "pull_request", "issue_comment", "issues"}
     assert not set(on) & banned, sorted(set(on) & banned)
     assert not [t for t in on if str(t).startswith(("discussion", "pull_request_review"))], list(on)
@@ -1332,7 +1390,7 @@ def _gate_steps():
 IDENTITY = "https://github.com/gn0sh/clarksville-records/.github/workflows/daily-update.yml@refs/heads/main"
 SLSA = "https://slsa.dev/provenance/v1"
 VERIFY_ARGS = ["--repo", "gn0sh/clarksville-records", "--cert-identity", IDENTITY, "--source-ref", "refs/heads/main",
-               "--predicate-type", SLSA, "--deny-self-hosted-runners"]
+               "--predicate-type", SLSA, "--deny-self-hosted-runners", "--limit", "1000"]
 SEED_RECORDS = [("seed", "R0", {"data/manifest.json": "[]\n"})]
 
 

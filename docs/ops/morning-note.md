@@ -544,13 +544,14 @@ one of:
   the last attested tree whole on `records-data` (below).
 - "records-data is not attested by daily-update.yml on main, and is not the seed (I-prov): head <sha>, ..." The
   head's tree listing has no attestation by `daily-update.yml` at `refs/heads/main` (predicate SLSA provenance v1,
-  GitHub-hosted runner), and it is not the parentless seed with the pinned digest. Either the push job pushed and its
-  attestation step failed (the push job's issue says so), a hand edit, or a write-token workflow on another branch
+  GitHub-hosted runner), and it is not the parentless seed with the pinned digest. The push job attests before it
+  pushes, so its own commits are always attested: this is a hand edit, or a write-token workflow on another branch
   pushed it (treat that as an incident). To recover, restore the last attested tree whole on `records-data`: find the
   newest commit whose tree is attested (`git fetch origin records-data`, then for each candidate `<good>`:
   `git ls-tree -r -z <good> -- data > listing && gh attestation verify listing --repo gn0sh/clarksville-records
   --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/daily-update.yml@refs/heads/main
-  --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners`); then on
+  --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners
+  --limit 1000`); then on
   a checkout of `origin/records-data`: `git rm -r -q data; git checkout <good> -- data`, commit "Restore records-data
   to <good>", and `git push origin HEAD:records-data` (a fast-forward; never force). Then run the workflow with
   `collect = false`. The seed itself is never attested: once records-data has moved past it, its tree is refused.

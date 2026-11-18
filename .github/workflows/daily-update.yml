@@ -9,8 +9,8 @@
 #              as artifacts. It parses
 #              untrusted downloaded PDFs, so it has read-only repo access and no persisted token. It never publishes.
 # push job   : commits the refreshed data/ (from the update job's artifact) as one commit on the gate's D, checks
-#              it against I-data'' with the gate's own helper, pushes it to records-data (fast-forward only: a
-#              concurrent push fails loudly), then attests its tree listing (actions/attest-build-provenance). It
+#              it against I-data'' with the gate's own helper, attests its tree listing (actions/attest-build-provenance), and only
+#              then pushes it to records-data (fast-forward only: a concurrent push fails loudly). Phase 0: no push. It
 #              opens no pull request and never touches main. The only job with contents: write or attestations:
 #              write; id-token: write is held by it and deploy only. It parses nothing.
 # deploy job : publishes that artifact to GitHub Pages, only after the gate succeeded. LOCKED: it runs only when the
@@ -184,7 +184,8 @@ jobs:
             echo "records-data $D is the seed (no parents; listing sha256 $digest = RECORDS_DATA_SEED_DIGEST)."
           elif gh attestation verify "$listing" --repo gn0sh/clarksville-records \
                  --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/daily-update.yml@refs/heads/main \
-                 --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners; then
+                 --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners \
+                 --limit 1000; then
             echo "records-data $D: its listing (sha256 $digest) is attested by daily-update.yml on main."
           else
             refuse "records-data is not attested by daily-update.yml on main, and is not the seed (I-prov): head $D, $n_parents parent(s), listing sha256 $digest."
@@ -344,6 +345,7 @@ jobs:
           RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
           RECORDS_BUILD_TARGET: pages
           ALLOW_SHRINK: ${{ inputs.allow_shrink }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}   # data-prov/dispatch-actor: who started or re-ran it
         run: |
           set +e
           # City first: it rewrites data/localities/clarksville-tn/*. The county run then builds facts, finance and
@@ -382,11 +384,16 @@ jobs:
           # step below opens or comments on one issue for it. Unreadable (no run log or no exit, when the county run
           # itself failed) is not reported here: that run's own failure is.
           # allow_shrink (workflow_dispatch input, read through env, never interpolated here): --allow-shrink on a
-          # manual run only, and only when the value is exactly true.
+          # manual run only, only when the value is exactly true, and only when the run was triggered by gn0sh
+          # (data-prov/dispatch-actor: any token with actions: write can dispatch; the guard then stays on).
           shrink=()
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$ALLOW_SHRINK" = true ]; then
-            shrink=(--allow-shrink)
-            echo "::warning::allow_shrink: the county and RPC results replace committed verified roll calls and confirmed motions."
+            if [ "${TRIGGERING_ACTOR:-}" = gn0sh ]; then
+              shrink=(--allow-shrink)
+              echo "::warning::allow_shrink: the county and RPC results replace committed verified roll calls and confirmed motions."
+            else
+              echo "::warning::allow_shrink ignored: only gn0sh may set it, and this run was triggered by someone else. The shrink guard stays on."
+            fi
           fi
           python -m collector city run --agendas; city=$?
           python -m collector run "${shrink[@]}"; county=$?
@@ -817,10 +824,14 @@ jobs:
   push:
     needs: [gate, update]
     # main only (pipeline/dispatch-non-main-ref): a manual run on another branch must never move records-data.
-    if: (github.event_name == 'schedule' || inputs.collect) && github.ref == 'refs/heads/main'
+    # main-protect/phase0-attest: only after the gate verified main's history (never in phase 0), so no attestation
+    # is ever signed by a workflow file the history check has not passed.
+    if: >-
+      (github.event_name == 'schedule' || inputs.collect) && github.ref == 'refs/heads/main'
+      && needs.gate.outputs.verified == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # ADR 0011 (row J2): commits on the gate's D, pushes records-data (fast-forward only), then attests the listing.
+    # ADR 0011 (row J2): commits on the gate's D, attests the listing, then pushes records-data (fast-forward only).
     # No pull-requests permission: no workflow opens or merges anything into main. The only job with
     # attestations: write; id-token: write is held only here (to sign the attestation) and by deploy (deploy-pages).
     permissions:
@@ -870,13 +881,14 @@ jobs:
           [ "$bad" = 0 ]
 
       # One commit on D with the refreshed data/, checked against I-data'' with the gate's own helper (a test keeps the
-      # two copies equal), then pushed to records-data: never forced, so a non-fast-forward fails the job. The listing
-      # it writes is the attestation's subject: the same bytes the gate rebuilds from the pushed head.
+      # two copies equal). The listing it writes is the attestation's subject: the same bytes the gate rebuilds from
+      # the pushed head. Nothing leaves the runner here: the attest step, then the push step, follow.
       - name: Commit refreshed data on records-data
         id: commit
         env:
           ALLOWED: ${{ needs.update.outputs.allowed }}
           D: ${{ needs.gate.outputs.data_sha }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
         run: |
           set -euo pipefail
           # ---- data-tree helper: the same text in the gate and the push job (a test keeps the two copies equal) ----
@@ -920,6 +932,10 @@ jobs:
           if ! [[ "$D" =~ ^[0-9a-f]{40}$ ]] || [ "$(git rev-parse HEAD)" != "$D" ]; then
             echo "::error::the checkout is not the records-data head the gate checked. Nothing pushed."; exit 1
           fi
+          # data-prov/dispatch-actor: a result that replaced kept documents is pushed only for a run gn0sh triggered
+          if [ "$ALLOWED" != no ] && { [ "$ALLOWED" != yes ] || [ "${TRIGGERING_ACTOR:-}" != gn0sh ]; }; then
+            echo "::error::an allow_shrink result from a run not triggered by gn0sh ('$ALLOWED'). Nothing pushed."; exit 1
+          fi
           # data/ in the checkout of D is the whole tree, so replacing it whole keeps deletions too. Only data/ is staged.
           rm -rf data
           cp -a "$RUNNER_TEMP/records-data" data
@@ -942,17 +958,31 @@ jobs:
           fi
           listing="$RUNNER_TEMP/records-data-listing"
           if ! data_check HEAD "$listing"; then echo "::error::$why Nothing pushed."; exit 1; fi
-          git push origin "HEAD:refs/heads/records-data"
-          { echo "pushed=yes"; echo "sha=$(git rev-parse HEAD)"; } >> "$GITHUB_OUTPUT"
+          { echo "committed=yes"; echo "sha=$(git rev-parse HEAD)"; } >> "$GITHUB_OUTPUT"
 
       # I-prov: the attestation binds the listing's sha256 to this workflow file at refs/heads/main on a GitHub-hosted
       # runner. Pinned by sha (v3.2.0, the last release that generates the SLSA provenance predicate itself; its own
-      # actions are pinned by sha inside it).
+      # actions are pinned by sha inside it). data-prov/attest-after-push: it runs BEFORE the push, so a failed
+      # attestation pushes nothing; an attested tree that never got pushed is harmless (the gate verifies only the
+      # listing of the head it reads).
       - name: Attest the records-data listing
-        if: steps.commit.outputs.pushed == 'yes'
+        if: steps.commit.outputs.committed == 'yes'
         uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
         with:
           subject-path: ${{ runner.temp }}/records-data-listing
+
+      # Only after the attestation: the checked, attested commit goes to records-data, never forced, so a
+      # non-fast-forward (records-data moved since the gate read it) fails the job.
+      - name: Push the data commit to records-data
+        if: steps.commit.outputs.committed == 'yes'
+        env:
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || [ "$(git rev-parse HEAD)" != "$SHA" ]; then
+            echo "::error::HEAD is not the attested data commit. Nothing pushed."; exit 1
+          fi
+          git push origin "HEAD:refs/heads/records-data"
 
       - name: Open an issue on failure
         if: failure()
@@ -961,7 +991,7 @@ jobs:
         run: |
           title="Daily update failed"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
-          body="The push job failed (data not on records-data, or not attested): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. If records-data moved during the run, the push was refused (non-fast-forward) and the next run collects again on top of it. If the push went through but the attestation step failed, the next run's gate refuses records-data until a person restores the last attested tree on it whole (runbook, rollback of records-data). The last deployed site is unchanged."
+          body="The push job failed (data not on records-data): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The commit is attested before it is pushed, so a failed check or attestation pushed nothing and records-data is unchanged; the next run collects again on top of it. If records-data moved during the run, the push was refused (non-fast-forward), with the same result. The last deployed site is unchanged."
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
           else
