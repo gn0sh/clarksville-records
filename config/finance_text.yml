@@ -186,12 +186,22 @@ budget_city:
   words: [actual, adopted-budget, amended-budget, fund, proposed-budget]
 
 # The general fund dollar on each Finance index (sitegen/dollar_split.py, finance-contracts 11; owner's request
-# 2026-11-11). Plain and factual: what the bar measures, where every figure comes from, how the cents are rounded.
-# No evaluation words. {year}: the column's fiscal year; {fund}: the fund as printed; {book}: the book's title;
-# {header}: the column as printed; {amount}: the fund total in the book's unit; {label}: the printed total line; {cite}: its page link.
+# 2026-11-11). Plain and factual. First what a reader needs at a glance (one plain lede, the bar, its key, the list of
+# every department); where every figure comes from and how the cents are rounded sit in the closed "Where these numbers
+# come from" block. No evaluation words. {year}: the column's fiscal year; {body}: county or city; {fund}: the fund as
+# printed; {book}: the book's title; {header}: the column as printed; {amount}: the fund total in the book's unit;
+# {label}: the printed total line; {cite}: its page link; {n} in key_note: the cents from which a bar segment is named.
 dollar:
   heading: Where each dollar of the general fund budget goes
-  lede: "The FY{year} adopted budget of the {fund}, split by department: how many cents of each dollar of the general fund budget each department is budgeted. From {book}, column \"{header}\"."
+  lede: "How the {body}'s FY{year} adopted general fund budget splits across departments, in cents of each dollar. This is the general fund only, not all of the {body}'s spending, and not property tax alone."
+  key_label: "Departments named on the bar, left to right"
+  key_note: "Named here: each department with {n} cents or more, left to right in the order the book prints them."
+  total_line: "The whole bar is the general fund budget: {amount} dollars."
+  total_amount: "{amount} dollars"
+  list_heading: Every department
+  list_order: in the book's order
+  sources_toggle: Where these numbers come from
+  source: "From {book}, column \"{header}\", the fund the book prints as \"{fund}\". Each department's amount is a total printed in the book, and each links to its page."
   total_printed: "Total: {amount} dollars, the book's own \"{label}\" line {cite}. The department totals add up to it exactly."
   total_net: "Total: {amount} dollars, the {n} department totals the book prints for this fund, added up here. The book prints no spending-only total for the fund; this sum and the fund's printed revenue totals together give its printed \"{label}\" line {cite} to the cent."
   measures: "This is the general fund only, not every fund in the book (the funds are listed below), so it is not all of the {body}'s spending."
@@ -206,11 +216,12 @@ dollar:
   most_down: rounded down the most
   way_less: less
   way_more: more
-  order: "Departments are in the order the book prints them, with Other last. The bar shows the same rows, left to right."
+  order: "Departments are in the order the book prints them, with Other last. The bar, the list and the table show the same rows in that order."
   transfers: "Operating transfers to other funds are part of this fund's printed spending total, so they are a row here under the heading the book prints."
   other_name: "Other ({n} departments under half a cent each)"
-  other_list: "In Other:"
-  other_sources: "Each department's page is in its list."
+  other_short: Other
+  other_list: "The {n} departments in Other"
+  other_sources: "Each department and its page are in the list under Other, above the table."
   zero: "Printed with no amount in \"{header}\" ({n}):"
   printed_as: "Printed as:"
   printed_as_n: "Printed as {n} totals"
@@ -222,7 +233,7 @@ dollar:
   total_row: General fund total
   cent_one: 1 cent
   cents_many: "{n} cents"
-  bar_label: "The general fund dollar as a bar, 100 cents wide. The table below holds the same figures."
+  bar_label: "The general fund dollar as a bar, 100 cents wide. The list below holds the same figures."
 
 # Design 3: alphabetical, one sentence each, no evaluation words. id = the anchor on glossary.html.
 glossary:

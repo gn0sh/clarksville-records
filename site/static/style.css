@@ -1009,44 +1009,77 @@ table.budget td.c-source { min-width: 9rem; }
 .fin-flagged .flag-block { margin: 0 0 16px; }
 .fin-flagged .flag-block table.budget caption { font-weight: 600; color: var(--fg); font-size: var(--t-sm); }
 
-/* The general fund dollar (sitegen/dollar_split.py, finance-contracts 11): a bar 100 cents wide in the one data ink,
-   segments told apart by a paper-coloured gap and the cents printed on them (never by colour); Other is hatched.
-   The bar is aria-hidden: the table under it holds every figure. Each row's small bar is its cents out of 100. */
+/* The general fund dollar (sitegen/dollar_split.py, finance-contracts 11; design finance-contracts 6).
+   At a glance: a bar 100 cents wide in the one data ink, each segment set off by a paper-coloured gap; a segment of
+   five cents or more carries its cents and the key under the bar names it, in the same order (never by colour; Other
+   is hatched). Then every department as one compact row whose rule is the dollar and whose thick part is its cents.
+   The bar is aria-hidden: the list of rows holds every share, and the closed "Where these numbers come from" block
+   holds the amounts, pages and notes. */
 .dollar { margin: 20px 0 28px; }
+.dollar-lede { max-width: 44rem; }
+.dollar-fig { margin: 14px 0 6px; }
 .dollar-bar {
-  display: flex; gap: 2px; height: 40px; margin: 12px 0 8px; border: 1px solid var(--mark); border-radius: 4px;
+  display: flex; gap: 2px; height: 48px; border: 1px solid var(--mark); border-radius: var(--radius);
   overflow: hidden; background: var(--bg);
 }
-.dseg { flex: var(--n) 0 0; min-width: 0; background: var(--mark); color: var(--bg); overflow: hidden;
-  display: flex; align-items: center; }
+.dseg { flex: var(--n) 0 0; min-width: 0; background: var(--mark-soft); color: var(--bg); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; }
+.dseg-l { background: var(--mark); }
 .dseg-other { background: repeating-linear-gradient(45deg, var(--mark) 0 4px, var(--mark-soft) 4px 8px); }
-.dseg-t { display: block; padding: 0 4px 0 6px; font-size: var(--t-xs); line-height: 1.2; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; background: var(--mark); }
-.dseg-t b { font-variant-numeric: tabular-nums; }
-.dollar-total { font-size: var(--t-sm); }
+.dseg-t { font-size: var(--t-sm); font-weight: 700; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums;
+  background: var(--mark); padding: 3px 1px; border-radius: 2px; }
+.dollar-key { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 18px; font-size: var(--t-md); line-height: 1.45; }
+.dollar-key li { margin: 0; }
+.dollar-key b { font-variant-numeric: tabular-nums; }
+.dollar-keynote { margin: 8px 0 0; font-size: var(--t-sm); color: var(--muted); max-width: 44rem; }
+.dollar-list-h { font-size: var(--t-md); margin: 22px 0 6px; }
+.dollar-list-order { font-family: var(--font-body); font-weight: 400; font-size: var(--t-sm); color: var(--muted); letter-spacing: 0; white-space: nowrap; }
+/* One row per department: name, cents, and a track the width of one dollar whose filled part is the row's cents.
+   A phone puts the track under the name; a wider screen puts it between the name and the cents. */
+.dollar-rows { list-style: none; margin: 0; padding: 2px 0 0; max-width: 52rem; border-top: 2px solid var(--fg); }
+.drow { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: baseline; padding: 7px 0 6px; margin: 0; }
+.drow-name { min-width: 0; overflow-wrap: break-word; line-height: 1.35; }
+.drow-name a { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.drow-c { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; min-width: 2.8em; }
+.drow-bar { grid-column: 1 / -1; display: block; height: 6px; margin-top: 6px; border-radius: 1px;
+  background: linear-gradient(var(--mark), var(--mark)) left top / max(2px, calc(var(--n) * 1%)) 100% no-repeat var(--border); }
+.drow-other .drow-bar { background: repeating-linear-gradient(45deg, var(--mark) 0 3px, var(--mark-soft) 3px 6px) left top / max(2px, calc(var(--n) * 1%)) 100% no-repeat var(--border); }
+.drow-total { font-weight: 700; margin-top: 4px; padding-top: 9px; border-top: 2px solid var(--fg); }
+.drow-sub { display: block; font-weight: 400; font-size: var(--t-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.drow details.dollar-list { grid-column: 1 / -1; margin: 0; }
+@media (min-width: 641px) {
+  .drow { grid-template-columns: minmax(0, 19rem) minmax(0, 1fr) auto; align-items: center; padding: 6px 0; }
+  .drow-name { grid-column: 1; grid-row: 1; }
+  .drow-bar { grid-column: 2; grid-row: 1; margin: 0; height: 10px; }
+  .drow-c { grid-column: 3; grid-row: 1; }
+  .drow details.dollar-list { grid-row: 2; }
+}
+details.dollar-src { margin: 14px 0 0; max-width: 64rem; }
+details.dollar-src > summary { cursor: pointer; min-height: 44px; padding: 10px 0; box-sizing: border-box; font-weight: 600; color: var(--link);
+  width: max-content; max-width: 100%; border-radius: var(--radius); }
+.dollar-src-body { padding: 0 0 4px; }
+.dollar-src-body > p { font-size: var(--t-sm); max-width: 52rem; margin: 6px 0; }
 .dollar-total .cite { font-size: var(--t-sm); }
+table.dollar-table { margin-top: 10px; }
 table.dollar-table th.c-dept { min-width: 12rem; }
 table.dollar-table .dollar-printed { display: block; font-size: var(--t-xs); font-weight: 400; color: var(--muted); }
 table.dollar-table details.dollar-printed > summary { cursor: pointer; min-height: 32px; padding: 6px 0; }
 @media (pointer: coarse) { table.dollar-table details.dollar-printed > summary { min-height: 44px; padding: 12px 0; } }
 table.dollar-table details.dollar-printed > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 table.dollar-table td.c-source { min-width: 9rem; }
-table.dollar-table td.c-cents { min-width: 12rem; }
-.dmini { display: inline-block; vertical-align: middle; height: 10px; width: calc(var(--n) * 0.2rem); min-width: 2px;
-  margin-right: 8px; background: var(--mark); }
 table.dollar-table tr.d-total > * { border-top: 2px solid var(--fg); font-weight: 700; }
-table.dollar-table tr.d-other .dmini { background: repeating-linear-gradient(45deg, var(--mark) 0 3px, var(--mark-soft) 3px 6px); }
 details.dollar-list { margin: 4px 0; font-size: var(--t-sm); font-weight: 400; }
-details.dollar-list > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+details.dollar-list > summary { cursor: pointer; min-height: 44px; padding: 10px 0; box-sizing: border-box; color: var(--link); width: max-content; max-width: 100%; }
 details.dollar-list > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 details.dollar-list ul { margin: 0 0 8px; padding-left: 1.2em; }
 details.dollar-list li { margin: 4px 0; }
+.dollar-list .dollar-printed { color: var(--muted); }
 .dollar-notes { font-size: var(--t-sm); color: var(--muted); padding-left: 1.2em; max-width: 52rem; }
 .dollar-notes li { margin: 4px 0; }
 @media (max-width: 640px) {
-  .dollar-bar { height: 32px; gap: 1px; }
-  .dseg-t { padding: 0 2px 0 3px; }
-  .dseg-n { display: none; }   /* a phone shows each labelled segment's cents only; the table names it */
+  .dollar-bar { height: 44px; gap: 1px; }
+  .dseg-t { font-size: var(--t-xs); padding: 3px 0; }
+  .dollar-key { gap: 2px 14px; }
   table.dollar-table tbody td.c-amt::before { content: attr(data-label) ": "; color: var(--muted); }
   table.dollar-table tbody tr.d-total > * { border-top: 0; }
   table.dollar-table tbody tr.d-total { border: 2px solid var(--fg); }

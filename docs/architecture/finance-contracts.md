@@ -236,7 +236,9 @@ keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
 ## 11. The general fund dollar (added 2026-11-18, backend-engineer; owner's request 2026-11-11)
 On each body's Finance index (`finance/index.html`, `city/finance/index.html`), "Where each dollar of the general fund
 budget goes": the general fund's adopted budget split by department, in whole cents that add up to 100, as a bar
-(aria-hidden) and the same figures as a table. `sitegen/dollar_split.py`, template `_dollar.html.j2`, words
+(aria-hidden) with a key, the same shares as a list of rows, and (in the closed "Where these numbers come from" block)
+the same figures as a table with every amount and page (layout: design finance-contracts 6; frontend 2026-11-18, the
+view gained display fields only: `key`, `key_note`, `total_line`, `source`, a row's `short`). `sitegen/dollar_split.py`, template `_dollar.html.j2`, words
 `config/finance_text.yml` `dollar`, per body `config/localities/<locality>/dollar-split.yml` (book, adopted column,
 fund key, grouping rule; the city's department names by org code). No schema change: it reads `finance.json` as is.
 This is the one place a Finance index shows amounts, and it changes design 6's "no amounts, no chart" for that block.

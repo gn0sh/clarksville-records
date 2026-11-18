@@ -93,7 +93,8 @@ def test_county_uses_the_adopted_fy2027_column_of_fund_101(county):
     fin, d = county
     assert d["book_id"] == "fy2027-approved" and d["fund"] == "101" and d["col_amount"] == "FY 2027 Budget"
     assert d["kind"] == "Adopted budget"
-    assert "FY2027 adopted budget of the COUNTY GENERAL FUND" in d["lede"]
+    assert "the county's FY2027 adopted general fund budget" in d["lede"]
+    assert 'column "FY 2027 Budget", the fund the book prints as "COUNTY GENERAL FUND"' in d["source"]
 
 
 def test_county_departments_add_up_to_the_books_printed_general_fund_total(county):
@@ -295,21 +296,96 @@ def text_of(s):
     return html_mod.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", s)))
 
 
-@pytest.mark.parametrize("rel,which", [("finance/index.html", "county"), ("city/finance/index.html", "city")])
+BOTH = [("finance/index.html", "county"), ("city/finance/index.html", "city")]
+SOURCES = '<details class="dollar-src" id="dollar-sources">'
+
+
+def glance(sec):
+    """What shows before a reader opens "Where these numbers come from": lede, bar, key, the list of rows."""
+    return sec[:sec.index(SOURCES)]
+
+
+@pytest.mark.parametrize("rel,which", BOTH)
 def test_page_shows_the_bar_and_its_table(pages, rel, which, request):
     _, d = request.getfixturevalue(which)
     sec = section(pages[rel])
     assert f"<h2 id=\"dollar-h\">{T['heading']}</h2>" in sec
-    assert '<div class="dollar-bar" aria-hidden="true"' in sec            # the table carries every figure
+    assert '<div class="dollar-bar" aria-hidden="true"' in sec            # the list and the table carry every figure
     segs = re.findall(r'<span class="dseg[^"]*" style="--n: (\d+)"', sec)
     assert [int(s) for s in segs] == [r["cents"] for r in d["rows"]]
     rows = re.findall(r'<tr class="fact[^"]*" data-fact-id="(dollar/[^"]+)">', sec)
     assert rows == [r["fact_id"] for r in d["rows"]] + [f"dollar/{d['book_id']}/total"]
+    # the table: every row's cents in words and its amount as the page prints it, in the book's order, then the total
+    cells = re.findall(r'<td class="num c-cents"[^>]*>([^<]+)</td>\s*<td class="num c-amt"[^>]*>([^<]+)</td>', sec)
+    assert cells == [(r["cents_words"], r["amount"]) for r in d["rows"]] + [("100 cents", d["total"])]
     txt = text_of(sec)
     assert "100 cents" in txt and d["total"] in txt
     assert "general fund only" in txt and "not property tax alone" in txt
     assert "in the order the book prints them" in txt
     assert '<caption>' in sec and '<th scope="row"' in sec               # a real table for screen readers
+
+
+@pytest.mark.parametrize("rel,which", BOTH)
+def test_the_list_names_every_row_with_its_cents_in_the_books_order(pages, rel, which, request):
+    """What a reader sees without opening anything, and what a screen reader reads: a real list, one item per row of
+    the split, name and cents (in words for a screen reader), in the book's order, then the total: 100 cents."""
+    _, d = request.getfixturevalue(which)
+    g = glance(section(pages[rel]))
+    assert '<ol class="dollar-rows" role="list" aria-labelledby="dollar-list-h">' in g
+    items = re.findall(r'<li class="drow[^"]*" style="--n: (\d+)">\s*<span class="drow-name">(.*?)</span>\s*'
+                       r'<span class="drow-c"><span aria-hidden="true">(\d+)&cent;</span>'
+                       r'<span class="sr-only">([^<]+)</span></span>', g, re.S)
+    assert [(int(n), int(c), w) for n, _, c, w in items] == \
+        [(r["cents"], r["cents"], r["cents_words"]) for r in d["rows"]] + [(100, 100, "100 cents")]
+    names = [text_of(name).strip() for _, name, _, _ in items]
+    assert names[:-1] == [r["name"] for r in d["rows"]]
+    assert names[-1].startswith(T["total_row"]) and d["total"] in names[-1]
+    for (_, name, _, _), r in zip(items, d["rows"]):                     # each name leads to its printed total's row
+        anchor = re.search(r'href="(?:\.\./)+(?:city/)?finance/[a-z0-9-]+\.html#(l-[^"]+)"', name)
+        assert (anchor is not None) == (r["key"] != "other"), r["name"]
+        assert anchor is None or anchor.group(1) == r["href"].split("#")[1], r["name"]
+    # Other's departments, each with its amount and its pages, are listed under its row
+    other = g[g.index('<details class="dollar-list" id="dollar-other">'):]
+    other = other[:other.index("</details>")]
+    for dep in d["other"]["departments"]:
+        assert f'<li>{html_mod.escape(dep["name"])}: {dep["amount"]} ' in other.replace("&#39;", "&#x27;"), dep["name"]
+        for m in dep["members"]:
+            assert f'{m["src"]["url"]}' in html_mod.unescape(other), m["heading"]
+
+
+@pytest.mark.parametrize("rel,which", BOTH)
+def test_the_key_names_the_segments_that_carry_their_cents(pages, rel, which, request):
+    """Bar and key agree: the segments that print their cents are the rows of five cents or more, and the key under
+    the bar names exactly those, in the bar's order (the book's), never by colour alone."""
+    _, d = request.getfixturevalue(which)
+    g = glance(section(pages[rel]))
+    want = [r for r in d["rows"] if r["cents"] >= dollar_split.T_LABEL_MIN]
+    assert want and d["key"] == want
+    on_bar = re.findall(r'<span class="dseg dseg-l[^"]*" style="--n: (\d+)"[^>]*><b class="dseg-t">(\d+)&cent;</b>', g)
+    assert on_bar == [(str(r["cents"]), str(r["cents"])) for r in want]
+    assert g.count('<b class="dseg-t">') == len(want)
+    key = g[g.index('<ul class="dollar-key"'):]
+    key = re.findall(r"<li><b>(\d+)&cent;</b> ([^<]+)</li>", key[:key.index("</ul>")])
+    assert [(int(c), html_mod.unescape(n)) for c, n in key] == [(r["cents"], r["short"]) for r in want]
+    assert f"{dollar_split.T_LABEL_MIN} cents or more" in text_of(g)
+
+
+@pytest.mark.parametrize("rel,which", BOTH)
+def test_the_glance_is_plain_and_the_provenance_is_in_the_sources_block(pages, rel, which, request):
+    """Up front: one plain lede that says what this is and is not, and the fund total. The column as printed, the
+    book, how the total was checked, the rounding and the full table are in the closed sources block."""
+    _, d = request.getfixturevalue(which)
+    sec = section(pages[rel])
+    g, src = text_of(glance(sec)), sec[sec.index(SOURCES):]
+    assert "general fund only" in g and "not property tax alone" in g and "in the order the book prints them" in g
+    assert d["total"] in g
+    assert d["col_amount"] not in g and "column" not in g and "rounded" not in g
+    assert SOURCES + "\n<summary>" + T["sources_toggle"] + "</summary>" in sec and "<details open" not in sec
+    s = text_of(src)
+    assert f'column "{d["col_amount"]}"' in s and "rounded to the nearest whole cent" in s
+    assert d["total_before"].strip() in s and d["total_after"].strip() in s
+    assert '<table class="fin-stack dollar-table">' in src and src.rstrip().endswith("</details>")
+    assert f'href="{d["total_src"]["url"]}"' in html_mod.unescape(src)   # the total's own page
 
 
 @pytest.mark.parametrize("rel", ["finance/index.html", "city/finance/index.html"])

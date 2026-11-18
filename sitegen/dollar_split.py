@@ -26,7 +26,7 @@ from .fin_views import FinanceError
 T = config.FIN_TEXT["dollar"]
 GROUP_RULES = ("heading_prefix", "org_code")
 OTHER_BELOW = 200   # a department under 1/200 of the fund (half a cent of each dollar) goes to Other
-T_LABEL_MIN = 5     # a bar segment of this many cents or more carries its cents (and as much of its name as fits)
+T_LABEL_MIN = 5     # a bar segment of this many cents or more carries its cents, and the key under the bar names it
 
 
 def slug(key: str) -> str:
@@ -189,6 +189,7 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
         r["moved"] = i in moved
         r["cents_words"] = T["cent_one"] if c == 1 else T["cents_many"].format(n=c)
         r["labelled"] = c >= T_LABEL_MIN
+        r["short"] = T["other_short"] if r is other else r["name"]
     ft = basis["line"]
     fsrc = bg.src(ft)
     total_text = (T["total_printed"] if basis["kind"] == "printed" else T["total_net"]).format(
@@ -201,7 +202,13 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
     rev_pages = sorted({x["page"] for x in lines if x["statement"] == "revenue" and x["row_role"] == "detail"})
     out = {
         "heading": T["heading"],
-        "lede": T["lede"].format(year=year, fund=ft["fund_name"] or cfg["fund"], book=book["title"], header=column),
+        "lede": T["lede"].format(year=year, body=cfg["body"]),
+        # the key under the bar: the rows whose segment carries its cents, in the bar's (the book's) order
+        "key": [r for r in rows if r["labelled"]],
+        "key_note": T["key_note"].format(n=T_LABEL_MIN),
+        "total_line": T["total_line"].format(amount=money(total)),
+        "total_amount": T["total_amount"].format(amount=money(total)),
+        "source": T["source"].format(book=book["title"], header=column, fund=ft["fund_name"] or cfg["fund"]),
         "rows": rows, "other": other, "total": money(total), "total_cents": total_of(shares),
         "total_src": fsrc, "total_href": href_of(ft["id"]),
         "total_before": total_text[0], "total_after": total_text[1],
