@@ -991,7 +991,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         # is at its file cap.
         try:
             bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
-            docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
+            past = morning_mod.past_record_urls()       # a backfill of past meetings is never news (RPC-3)
+            docs = [d for d in morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first) if d["url"] not in past]
             # every source's fetch day in every file the note reads (minutes, councils, RPC, county agendas,
             # finance), as the pages print them (localdates.days: site_timezone days when every source has its
             # recorded instant, else stored UTC days and data_as_of_utc says so: morning-digest/as-of-contract);

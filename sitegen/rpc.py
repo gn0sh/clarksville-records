@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.parse
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
@@ -298,9 +299,14 @@ class Rpc:
                                       "label": COUNTY_LABEL} if it else None)})
         minutes = self.sources.get(m.get("minutes_source_id") or "")
         kinds_linked = {d["kind"] for d in m["documents"]}
+        # RPC-3: a meeting listed somewhere other than the RPC's own page (2019-2021, the city's CivicClerk portal)
+        listed = m.get("listing_url")
+        listed_on = ({"url": listed, "label": (self.cfg.get("civicclerk") or {}).get("listing_label")
+                      or urllib.parse.urlsplit(listed).netloc}
+                     if listed and listed != self.cfg["listing_url"] else None)
         return {"id": m["id"], "date": m["date"], "date_text": _date_text(m["date"]),
                 "kind_label": self.cfg["kind_labels"].get(m["kind"], m["kind"]), "printed": m["printed"],
-                "cancelled": m["cancelled"],
+                "cancelled": m["cancelled"], "listed_on": listed_on,
                 "docs": [self._doc(d) for d in m["documents"] if d["kind"] != "video"],
                 "not_posted": [DOC_LABELS.get(k, k) for k in ("agenda", "minutes")
                                if k not in kinds_linked],

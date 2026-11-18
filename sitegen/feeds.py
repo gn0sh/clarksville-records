@@ -257,11 +257,16 @@ def _topic_entries(topic: str, key: str, ix: views.Index, first: dict | None = N
 
 
 def _rpc_cases(rpc, cfg: dict) -> list[tuple[dict, dict]]:
-    """(case, meeting) for each RPC agenda case of a zoning prefix."""
+    """(case, meeting) for each RPC agenda case of a zoning prefix. A case printed on a past record's agenda
+    (morning_note.backfill.past_records: the RPC's 2019-2021 meetings from CivicClerk, RPC-3) is no feed entry: a
+    backfill of old meetings is not news, here as in the morning note."""
+    from .morning import past_record_urls
     want = zoning_prefixes(cfg)
+    past = past_record_urls(cfg)
     meetings = {m["id"]: m for m in rpc.facts["meetings"]}
     return [(c, meetings[c["meeting_id"]]) for c in rpc.facts["cases"]
-            if c["prefix"] in want and c["meeting_id"] in meetings]
+            if c["prefix"] in want and c["meeting_id"] in meetings
+            and (rpc.sources.get(c["source_id"]) or {}).get("url") not in past]
 
 
 def _rpc_entries(rpc, cases: list[tuple[dict, dict]], first: dict | None = None) -> list[dict]:

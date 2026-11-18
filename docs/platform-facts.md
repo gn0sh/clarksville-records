@@ -108,6 +108,37 @@
   agendas); the 23 unmatched are 2020-2021 cases (before the RPC listing starts) and CZ-1 to CZ-6-2024 and CZO-1-2024,
   which are on no RPC agenda we read (why not checked).
 
+## RPC 2019-2021 on CivicClerk (verified 2026-11-18 by the collector's fetcher, 10 s apart; RPC-3)
+- How verified: one listing read and all 67 files fetched with `PoliteFetcher` (robots.txt first, our UA, no 403/429)
+  into a scratch store (not committed), then read with `rpc_agenda.build` (text layer, tesseract 300 dpi). 701 s for
+  the listing and 67 files (about 10.5 s a file).
+- Listing: `GET https://clarksvilletn.api.civicclerk.com/v1/Events?$filter=categoryName eq 'Regional Planning
+  Commission' and startDateTime ge 2019-01-01T00:00:00Z and startDateTime lt 2022-01-01T00:00:00Z&$orderby=startDateTime asc`
+  (category id 38). The API honours `lt` and keeps it in `@odata.nextLink`: 41 events in 3 pages (15, 15, 11),
+  2019-04-24 to 2021-12-28. cmcrpc.com lists from 2022-01-25, so the two sources do not overlap.
+- Kept 38 meetings (34 regular, 1 of them cancelled; 1 special called; 3 CDRB; the 2021-07-14 agenda prints only a
+  zoning-ordinance item). Left out: 2021-06-04 "Metropolitan Planning Organization Agenda" (another body) and
+  2021-09-24 "Regional Planning Zoning Review Notice" (a letter, file "RPC LTR 9-28-2021"). 2019-09-25 is two events:
+  the agenda, and a "Minutes" event whose only file is typed Agenda and named "297a-RPC Minutes 9-25-19"; read as one
+  meeting with its minutes. 2020-04-06 is named as a regular agenda; its file name and its page 1 say "Special Called
+  Meeting" (online). No public video: 5 events carry only bare `stream/CLARKSVILLETN/...` paths.
+- Files: 38 agendas and 29 minutes (67, 852 pages; the largest 2.9 MB). 35 agendas have a text layer; the 3 CDRB agendas
+  and 28 of 29 minutes are scans (502 pages, OCR about 16 min on 4 cores here, cached after). OCR reads them as well as
+  the 2022-2024 scans, e.g. "Mr. Rocconi moved to recommend approval ... The motion was seconded by Mr. Garrett and
+  carried unanimously." (2019-04-24 minutes p. 2).
+- Agenda layout: the 2022-2023 one ("1. CASE NUMBER: Z-6-2019 APPLICANT(S): ...", asterisk rules, "ZONING - 1"
+  footers), plus forms the reader now takes (each counted by the completeness check): "1) CASE NUMBER: S-111-2021
+  (VARIANCE ONLY)" (2021 variance sections, the same case again under Subdivisions), "8    CASE NUMBER: CZO-4-2020"
+  (no period, 2020-11-24), lettered "a. CASE NUMBER: SR-32-2020" (2020-09-23), a "CASE" left at the end of the rule
+  line above "NUMBER: Z-38-2021" (2020-09-23, 2021-07-27), and OCR dropping the colon ("CASE NUMBER HZ - 2 - 2020",
+  2021-01-25 CDRB). Read: 798 cases (S 308, Z 211, SR 154, CZ 83, AB 10, ZO 10, CZO 9, DDR/MSCD/HZ), no agenda short
+  of its printed count. The same reader re-read all 79 committed 2022-2026 agendas with no change.
+- Seen and kept as printed: the 2020-03-25 event (CANCELLED) carries a postponement notice dated March 18, 2020; the
+  2021-01-25 CDRB agenda's date is read by OCR as "Januarv" (so its first readable date is the minutes it approves);
+  the first 2019 agenda's hearing line breaks "CITY / COUNCIL PUBLIC HEARING" over two lines, so that one date is
+  not read. All 29 minutes print their own meeting's date. Motions: 543 read, 92 by the rules confirmed; all held
+  (rpc.yml hold_motions).
+
 ## Existing services
 - soar.com "Citizen Portal": AI summaries of Clarksville council meetings with overall tallies, no per-member votes, paywalled video/transcripts.
 
