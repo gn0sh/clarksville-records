@@ -21,9 +21,11 @@
 # --apps: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App token: HTTP 403
 #   for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and passes the Apps
 #   that can write this repository (or none). Without --apps that check is NOT OK, never a silent pass. Only the Claude
-#   App ($allowed_app, through which the team pushes branches) may be listed: one App adds at most one approving
-#   identity, so 2 approvals stay out of reach with R2 off, and no App may hold Administration write (it could edit the
-#   rulesets). That no App can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must equal the files.
+#   App ($allowed_app, through which the team pushes branches) may be listed. With R2 off it is then the only approver
+#   besides gn0sh, so any 2 approvals include gn0sh's (invariant I-person, ADR 0011 Amendment 2026-11-18 (b): at most
+#   one non-gn0sh approver counts; two Apps, or R2 on plus one, would make 2 without gn0sh). No App may hold
+#   Administration write (it could edit the rulesets) or bypass, and only J2 on main stores attestations. That no App
+#   can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must equal the files.
 # Needs: gh signed in as gn0sh (gh auth login) and jq. Run: bash scripts/protect-main.sh [--check] [--apps <names>|none]
 set -uo pipefail
 check=0

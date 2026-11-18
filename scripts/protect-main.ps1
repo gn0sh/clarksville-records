@@ -25,10 +25,12 @@
 #   -Apps <names>|none: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App
 #   token: HTTP 403 for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and
 #   passes the Apps that can write this repository (or none). Without -Apps that check is NOT OK, never a silent pass.
-#   Only the Claude App ($allowedApp, through which the team pushes branches) may be listed: one App adds at most one
-#   approving identity, so 2 approvals stay out of reach with R2 off, and no App may hold Administration write (it
-#   could edit the rulesets). That no App can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must
-#   equal the files.
+#   Only the Claude App ($allowedApp, through which the team pushes branches) may be listed. With R2 off it is then
+#   the only approver besides gn0sh, so any 2 approvals include gn0sh's (invariant I-person, ADR 0011 Amendment
+#   2026-11-18 (b): at most one non-gn0sh approver counts; two Apps, or R2 on plus one, would make 2 without gn0sh).
+#   No App may hold Administration write (it could edit the rulesets) or bypass, and only J2 on main stores
+#   attestations. That no App can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must equal the
+#   files.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
 param([switch]$Check, [string]$Apps = '')
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
