@@ -98,6 +98,11 @@ place_name: Murfreesboro           # header name plate and the named footer line
 The registry validates the block: unknown keys fail, `seats` is one of three words, `titles` is a list of plain
 words, and `seat_basis.url` is https or `UNVERIFIED`. A `pages` build refuses an `UNVERIFIED` `seat_basis`. A
 fixture build may use a fixture URL (`https://example.org/...`).
+*(PR #62 review note: a city's file may set only `registry.CITY_SITE_KEYS` (`place_name`, `corrections_log`,
+`primary`, `unofficial.bodies`, `item_types`, `alerts.feed_id`/`max_entries`/`topics`); anything else, e.g.
+`corrections.github_repo`, `analytics`, geocoder URLs, `alerts.site_url` or `locality`, fails naming the key. Its
+paths stay inside `config/cities/<slug>/`, no URL it sets may point at a denied host, and a `pages` build refuses a
+city whose status is not `live`.)*
 
 ### 3. What a city-only build leaves out, and what it keeps
 "Leaves out" means the page is not written, and no menu entry, door, card or link points at it. A test asserts
