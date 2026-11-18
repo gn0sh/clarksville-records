@@ -1,6 +1,6 @@
 # U3 positive control: does the team's `merge-reviewed` merge go through as a bypass under R1''?
 
-Owner: devops-engineer (script), manager (session). Gates ADR 0011. Analysis: `docs/architecture/v1-fail-2026-11-18.md`.
+Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and verdict). Gates ADR 0011. Analysis: `docs/architecture/v1-fail-2026-11-18.md`.
 
 ## Choice: scripted live toggle on this repository, not a throwaway repository
 - A throwaway repository needs Brian to create it and to give the team's GitHub access to it: two asks. It would
@@ -26,17 +26,18 @@ Owner: devops-engineer (script), manager (session). Gates ADR 0011. Analysis: `d
      `docs/`);
    - `current_user_can_bypass` isn't `pull_requests_only` or `always`.
 
-   It records `main`'s sha and saves the live ruleset json to a backup file outside the repo.
-2. **Apply R1''.** It PUTs ruleset 27502319 with the R1'' `pull_request` parameters (ADR 0011 decision 5). All other
-   rules, conditions and bypass actors stay identical. It reads the ruleset back and stops (and restores) unless it
-   matches exactly. It prints `U3 WINDOW OPEN <utc time>`. From here on, the restore runs on every exit (`trap` /
+   It records `main`'s sha and saves the live ruleset json to a backup file outside the repo, and prints that
+   file's full path (`BACKUP <path>`). Every restore and failure message repeats it.
+2. **Apply R1''.** One body builder makes every PUT (apply, restore, `--restore`). It copies only the whitelisted
+   fields `name`, `target`, `enforcement`, `conditions`, `rules` and `bypass_actors`, drops anything else (ids,
+   timestamps, links), and here changes only the `pull_request` parameters to R1'' (ADR 0011 decision 5). It reads
+   the ruleset back and stops (and restores) unless those fields match the body it sent exactly. It prints `U3 WINDOW OPEN <utc time>`. From here on, the restore runs on every exit (`trap` /
    `try { } finally { }`).
-3. **Merge.** If the team runs the script, it calls `scripts/merge-reviewed.sh <P> <head>` itself. If Brian runs
-   it, it waits for `main` to move, checking every 15 s for up to 20 minutes, while the manager runs
+3. **Merge.** It waits for `main` to move, checking every 15 s for up to 20 minutes, while the manager runs
    `merge-reviewed` in the team session after Brian types `U3 go`.
 4. **Read the verdict.** It reads PR P (`merged`, `merged_by`, `merge_commit_sha`) and the rule suite whose
    `after_sha` is that merge commit (`GET rulesets/rule-suites?ref=main`, then `rule-suites/<id>`).
-5. **Restore R1'.** It PUTs the backup json, reads it back, and stops loudly if it doesn't match. It prints
+5. **Restore R1'.** It PUTs the backup json through the same builder, reads it back, and stops loudly if it doesn't match. It prints
    `RESTORED <utc time>` and the verdict.
 
 | Verdict | Condition | Meaning, next step |
@@ -48,18 +49,17 @@ Owner: devops-engineer (script), manager (session). Gates ADR 0011. Analysis: `d
 
 ## Abort
 - At any time, press Ctrl+C (Brian) or stop the step (team). The `finally`/`trap` restores R1' and verifies it.
-- If the restore fails, run `u3-toggle --restore`, which PUTs `scripts/main-ruleset.json` (R1'), or run
-  `scripts/protect-main`.
+- If the restore fails, run `u3-toggle --restore`, which PUTs `scripts/main-ruleset.json` (R1') through the same
+  builder, or run `scripts/protect-main`. The backup at the printed `BACKUP` path is the exact pre-U3 body.
 - If neither can run, `main` stays on R1'': the 09:07 data PR's merge fails loudly, the data stays on its
   `data/<date>` branch and the site skips one refresh. Team merges need the bypass. Nothing is lost. Restore it
   before the next run.
 - The team doesn't merge P outside the window.
 
 ## Who runs it
-- Task U3-0 checks whether the team's token may write this ruleset: one no-op PUT of the identical live body,
-  read back unchanged.
-- If yes, the team runs the whole control alone and there is **no ask for Brian**.
-- If no, Brian gets one card: "U3 test today, about 20 minutes, any time outside 08:00-10:30 UTC? **yes** / no."
+- U3-0 = **no**: the team's cloud session got a proxy 403 on the no-op ruleset PUT at 17:37 UTC 2026-11-18 (read-back
+  unchanged). So Brian runs the script from his PC, and the manager runs the merge.
+- Brian gets one card: "U3 test today, about 20 minutes, any time outside 08:00-10:30 UTC? **yes** / no."
   His steps:
   1. In PowerShell in the repo folder, run `.\scripts\u3-toggle.ps1 -Pr <P>`. He should see `U3 WINDOW OPEN`.
   2. Type `U3 go` in the thread.

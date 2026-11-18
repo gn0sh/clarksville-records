@@ -21,3 +21,8 @@ Hard stop: C1 cutover is a production change (hard stop 1): explicit "Cut over D
 Checked and holding: no administration scope on GITHUB_TOKEN; R1'' blocks direct push/merge; no PR reaches 2
 approvals with gn0sh sole writer and R2 off (subject to 1); bypass admin-role only; triggers schedule+dispatch only;
 gate reads D once; caches outside D; public Sigstore log fine.
+
+## Delta re-review (cb8488f..778c7a7, PR #56): APPROVE
+8 of 9 closed. Still open: F8 wording ("moot" -> proxy policy is the anchor). New: L main-protect/v1pp-scope (tag item
+in arch section 4, probe tag not `main`), L main-protect/var-read-fail-closed (failed variables read = "set"), info
+main-protect/seed-restore (seed never attested; roll back to seed fails closed). All four folded into PR #56.
