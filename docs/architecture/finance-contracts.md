@@ -278,7 +278,7 @@ This is the one place a Finance index shows amounts, and it changes design 6's "
   of the fund exactly once; each used total adds up to its lines exactly in that column and is not held; the column's
   kind is `adopted`; no negative department; the departments add up exactly to the fund's printed spending total, or,
   where the book prints only a revenue-plus-spending fund total (the city), departments plus the printed revenue
-  totals add up to that printed total to the cent; every org code has a name. Adding is only in
+  totals add up to that printed total to the cent; every org code has a name; every total read is adopted, of one fiscal year; no newer book in the file prints an adopted budget for its own year (the note on why an older book is used is built from the data); a real build whose config names a book or fund the file lacks fails (no silent hide). Adding is only in
   `collector/fin_checks.py` (`total_of`, `parts_add_up`, `cents_of_dollar`).
 - **Rounding (`cents_of_dollar`):** nearest whole cent (a half rounds up, so half a cent or more is never 0); if the
   rounded cents do not add up to 100, the |sum - 100| rows rounded the most that way move one cent back (never below

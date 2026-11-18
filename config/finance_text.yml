@@ -212,6 +212,10 @@ dollar:
   # rounding, then rounding_exact or rounding_moved ({sum}: the rounded cents before the move; {n}: rows moved;
   # {names}: those rows; {way}: way_less or way_more; {most}: most_up or most_down)
   rounding: "Cents are each department's share of the total, rounded to the nearest whole cent, and always less than one cent from the exact share."
+  # a newer book in the file that prints no adopted budget for its own year ({what}: its own-year column kinds,
+  # e.g. "proposed budget"); {used}: the year the bar shows
+  newer_note: "The newest book read here, FY{year} ({edition}), prints a {what} for that year, not an adopted one, so this uses the FY{used} adopted budget."
+  newer_no_budget: "budget column of another kind"
   rounding_exact: "Rounded that way they add up to 100."
   rounding_moved: "Rounded that way they add up to {sum}, so the {n} rows {most} each show one cent {way}, and the cents add up to 100: {names}."
   rounding_moved_one: "Rounded that way they add up to {sum}, so the row {most} shows one cent {way}, and the cents add up to 100: {names}."

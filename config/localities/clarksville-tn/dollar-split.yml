@@ -46,5 +46,5 @@ names:
   "1047000": Other Financing Uses
   "1049100": Transit System
   "1049200": Museum
-# Said once under the bar: the newest city book is a proposal, not an adopted budget.
-note: "The newest city book read here, FY2027, prints the Mayor's proposed budget as presented 5/29/2026, not the adopted one, so this uses the FY2026 adopted budget."
+# Under the bar, sitegen/dollar_split.py says from the data why this is not the newest book (FY2027 prints a proposed
+# budget); a newer book that prints an adopted budget for its own year fails the build until `book` moves to it.

@@ -849,6 +849,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             dollar = dollar_split.split(bg, dollar_cfg)
         except fin_views.FinanceError as exc:
             raise BuildError(f"{bg.index}: {exc}") from exc
+        if dollar_cfg is not None and dollar is None:   # dollar-split/silent-hide: a real build never drops the bar
+            raise BuildError(f"{bg.index}: dollar-split.yml names book {dollar_cfg['book']!r} and fund "
+                             f"{dollar_cfg['fund']!r}, which this finance file does not hold")
         render("fin_index.html.j2", bg.index, title, sctx, **budget_views.finance_index(bg, export=export),
                body_note=body_note, dollar=dollar)
         for tpl, name, make, parts, paths, part_of, by_id in planned:

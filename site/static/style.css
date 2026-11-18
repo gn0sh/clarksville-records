@@ -1079,6 +1079,7 @@ details.dollar-list li { margin: 4px 0; }
 @media (max-width: 640px) {
   .dollar-bar { height: 44px; gap: 1px; }
   .dseg-t { font-size: var(--t-xs); padding: 3px 0; }
+  .dseg-narrow .dseg-t { display: none; }   /* too narrow for its cents at 375 (a11y/clipped-label); the key names it */
   .dollar-key { gap: 2px 14px; }
   table.dollar-table tbody td.c-amt::before { content: attr(data-label) ": "; color: var(--muted); }
   table.dollar-table tbody tr.d-total > * { border-top: 0; }
