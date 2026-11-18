@@ -19,11 +19,11 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PINNED_COMMIT = "b5a3638"
+PINNED_COMMIT = "b35f129"   # data/ of main after PR #33; the facts and wards are as at b5a3638
 SNAPSHOT = ROOT / "tests" / "fixtures" / f"real-data-{PINNED_COMMIT}.json.gz"
 CITY_DATA = Path("data") / "localities" / "clarksville-tn"
-# The budget fund of the city's books the pinned page tests read (the whole file is 13 MB): every line of it.
-CITY_FUNDS = ("parking-commission",)
+# The budget funds of the city's books the pinned page tests read (the whole file is 13 MB): every line of them.
+CITY_FUNDS = ("parking-commission", "vehicle-replacement-fund")
 # The county budget lines the pinned tests read (data/finance.json is 5.6 MB): these lines only.
 COUNTY_LINES = ("fy2027-approved/p47/r37",)
 # repo-relative file -> the snapshot key it is stored under

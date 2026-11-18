@@ -13,7 +13,8 @@ def test_the_snapshot_holds_the_named_files_as_projected():
 
 
 def test_the_pinned_city_is_the_data_the_seat_tests_were_written_against():
-    """At b5a3638 the latest city list is 2026-07-06 and the 2026-07-02 minutes are not read (hit 2 read them)."""
+    """At the pin (city facts as at b5a3638) the latest city list is 2026-07-06 and the 2026-07-02 minutes are not read
+    (hit 2 read them)."""
     facts, wards = pinned_data.city()
     read = sorted(m["date"] for m in facts["meetings"] if m["minutes_status"] == "read" and m.get("attendance"))
     assert read[-1] == max(w["date"] for w in wards) == "2026-07-06"

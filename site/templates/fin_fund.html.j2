@@ -8,6 +8,7 @@
 <h1>{{ title }}{% if fund_no %} <span class="h1-sub">{{ b.fund_no }} {{ fund_no }}</span>{% endif %}</h1>
 <p class="coverage">{{ coverage_sentence }}</p>
 <p class="sol-meta">{{ b.fund_name }}: {% for n in printed %}{{ n.name }} {% for s in n.srcs %}{{ fin_cite(s) }}{% if not loop.last %} {% endif %}{% endfor %}{% if not loop.last %}; {% endif %}{% endfor %}</p>
+{% for n in name_notes %}<p class="note">{{ n }}</p>{% endfor %}
 <p class="note">{{ notes.e }}</p>
 {% if capital_href %}<p><a href="{{ capital_href }}">{{ b.capital_title }}</a></p>{% endif %}
 {{ parts_nav(parts, "Parts of this fund page", "This fund is on {n} pages, by book and heading:") }}

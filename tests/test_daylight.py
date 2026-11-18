@@ -1,5 +1,6 @@
-"""Daylight M1 (docs/design/daylight): the name plate on every page, the landing sky (static/sky.js: the sun by the
-viewer's clock, today's date, hidden without the script), self-hosted brand fonts and Daylight tokens in both themes."""
+"""Daylight M1 (docs/design/daylight): the name plate and the sky on every page (static/sky.js: the sun, today's date,
+hidden without the script; the sun and the moon over Clarksville are in tests/test_moon.py, the one header in
+tests/test_header.py), self-hosted brand fonts and Daylight tokens in both themes."""
 import json
 import os
 import re
@@ -40,27 +41,33 @@ def test_every_page_has_the_name_plate_and_keeps_the_footer_lines(site):
             assert page + '"' in nav, (name, page)
 
 
-def test_only_the_landing_has_the_date_line_and_it_waits_for_the_script(site):
+def test_every_page_has_the_date_line_and_it_waits_for_the_script(site):
+    """Owner, 2026-11-18: the date at the top is on every page, not the landing alone. It is hidden until the script
+    fills it (a static page cannot know today's date), and static/js-flag.js in every head keeps its space."""
     pages = _pages(site)
-    html = pages["index.html"]
-    hero = next(n for n in parse(html).walk() if n.attrs.get("id") == "sky-hero")
-    assert "hidden" in hero.attrs                                   # no script, no (stale) date
-    assert re.search(r'<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div>', html)
-    assert f'<span class="sky-in"> in {config.SITE["today_place"]}</span>' in html
-    assert re.search(r'<time class="sky-date" id="sky-date"></time>', html)
-    assert '<script src="static/sky.js" defer></script>' in html
-    # the welcome h1 still leads the main content (front-page-v2); the sky lives in the header
-    assert html.index('id="sky-hero"') < html.index('<main id="main">') < html.index('<h1 id="welcome-h"')
-    for name, other in pages.items():
-        if name != "index.html":
-            assert "sky-hero" not in other, name                      # the date line is the landing's alone
-            # the sun (and its script) is on every page: full size on each "Show records from" target, the
-            # switch's own pages, and small (sky-small) on every other (onceover/header/sun-on-every-page)
-            here = re.search(r'<nav class="body-switch"[^>]*data-here="([^"]*)"', other)
-            target = bool(here and here.group(1))
-            assert other.count('id="sky-sun"') == 1 and other.count("static/sky.js") == 1, name
-            assert ('class="site-header has-sky"' in other) == target, name
-            assert ('class="site-header has-sky sky-small"' in other) == (not target), name
+    assert len(pages) > 20
+    for name, html in pages.items():
+        depth = "../" * name.count("/")
+        assert html.count('id="sky-hero"') == 1, name
+        hero = next(n for n in parse(html).walk() if n.attrs.get("id") == "sky-hero")
+        assert "hidden" in hero.attrs, name                              # no script, no (stale) date
+        assert hero.attrs["data-tz"] == config.SITE["site_timezone"] == "America/Chicago", name
+        assert re.search(r'<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div>', html)
+        assert f'<span class="sky-in"> in {config.SITE["today_place"]}</span>' in html, name
+        assert f'<a class="sky-link" href="{depth}today.html"><time class="sky-date" id="sky-date"></time>' in html, name
+        assert html.count(f'<script src="{depth}static/sky.js" defer></script>') == 1, name
+        head = html[:html.index("</head>")]
+        assert head.count(f'<script src="{depth}static/js-flag.js"></script>') == 1, name
+        assert html.count("static/js-flag.js") == 1, name
+        assert '<header class="site-header has-sky">' in html and "sky-small" not in html, name
+        # the date line closes the header, right above the "Show records from" switch and the page's own words
+        assert html.index('<div class="masthead">') < html.index('id="sky-hero"') < html.index("</header>") \
+            < html.index('<main id="main">'), name
+    index = pages["index.html"]
+    assert index.index('id="sky-hero"') < index.index('<main id="main">') < index.index('<h1 id="welcome-h"')
+    css = CSS.read_text(encoding="utf-8")
+    assert ".sky-hero[hidden] { display: none; }" in css
+    assert ".js .sky-hero[hidden] { display: block; visibility: hidden; }" in css       # its space is kept
 
 
 def test_no_inline_script_or_handlers_and_no_outside_fonts(site):
@@ -203,6 +210,8 @@ def node():
 
 
 def test_sun_altitude_follows_the_clock(node):
+    """The rough day a page with no place falls back on (a page with a place draws that place's real sun:
+    tests/test_moon.py)."""
     probe = ("const s = require(process.argv[1]);"
              "console.log(JSON.stringify([0, 3, 6, 9, 12.5, 16, 19, 22, NaN, '12'].map(s.altitude)));")
     res = subprocess.run([node, "-e", probe, str(SKY_JS)], capture_output=True, text=True, check=True)

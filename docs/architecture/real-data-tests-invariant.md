@@ -35,18 +35,19 @@ be published breaks a rule, and the update should stop.
 last / the first" of the real records reads the **pinned snapshot**, never `data/`. "Latest" and "last" are counts in
 disguise: (1) and (2) move them.
 
-**The pinned snapshot** is `tests/fixtures/real-data-b5a3638.json.gz` (`tests/pinned_data.py`): the data files exactly
-as committed at `PINNED_COMMIT = b5a3638`, in one byte-stable gzip (mtime 0, sorted keys), read offline:
+**The pinned snapshot** is `tests/fixtures/real-data-b35f129.json.gz` (`tests/pinned_data.py`): the data files exactly
+as committed at `PINNED_COMMIT = b35f129` (main after PR #33; re-pinned from b5a3638 at the merge, below), in one
+byte-stable gzip (mtime 0, sorted keys), read offline:
 
-| key | file at b5a3638 | kept |
+| key | file at b35f129 | kept |
 |---|---|---|
 | `city_facts` | `data/localities/clarksville-tn/facts.json` | whole |
 | `city_wards` | `data/localities/clarksville-tn/wards.json` | whole |
 | `county_facts` | `data/facts.json` | whole |
-| `city_finance` | `data/localities/clarksville-tn/finance.json` | books, sources, coverage; budget lines of `CITY_FUNDS` (parking commission) only |
+| `city_finance` | `data/localities/clarksville-tn/finance.json` | books, sources, coverage; budget lines of `CITY_FUNDS` (parking commission, vehicle replacement) only |
 | `county_finance` | `data/finance.json` | budget lines `COUNTY_LINES` only |
 
-574 KB compressed. A committed copy, not `git show b5a3638:...`: the update job's checkout is shallow, and a copy keeps
+584 KB compressed. A committed copy, not `git show b35f129:...`: the update job's checkout is shallow, and a copy keeps
 every run offline and identical. `pinned_data.get()` returns deep copies, so no test changes what another reads.
 
 **Precedent kept.** `tests/test_city_verify_data.py` already does this for its counts and digests
@@ -70,6 +71,14 @@ its module. A new live seat test is added to `LIVE_TESTS` and so proven against 
 Only by a deliberate pull request: check out the commit whose data the pinned tests should read, run
 `pinned_data.write()`, change `PINNED_COMMIT` and the file name, and update the pinned tests' expected values in the
 same PR. Never re-pin to make a daily update pass.
+
+**Re-pin 1 (2026-11-18, merge of main into PR #34).** PR #33 read the FY2025 city budget book (Type 3 glyphs) and
+changed only `data/localities/clarksville-tn/finance.json`; its tests name the four books, FY2025's report date and the
+Vehicle Replacement Fund's name completed from FY2024. The snapshot was re-pinned at b35f129: `city_finance` now holds
+four books and adds the vehicle replacement fund; `city_facts`, `city_wards`, `county_facts` and `county_finance` are
+byte-for-byte what b5a3638 held (checked). PR #33's fund-name test was split: the rule (every completed name has its
+one sentence, no other fund page has it) stays live on the books as collected; the named Vehicle Replacement case,
+the four book ids, the FY2025 report date and the hub card's book list read the pinned books.
 
 ### Residual risks
 - **Privacy scrub.** The snapshot holds published records only (what `data/` publishes). `qa/pii_scan.py` reads
@@ -117,8 +126,8 @@ scope and passed the growth run below unchanged.
 | test_transcript_privacy.py | `site`, `_import` (through test_transcripts' pinned `city_facts()` and `city_wards()`) | city facts, wards | P |
 | test_transcript_privacy.py | committed transcripts masked at rest; QA rule agrees with the masker | transcripts | L |
 | test_transcript_privacy.py | the source-text needle: now any item title long enough, not `items[0]` | county facts | L |
-| test_city_budget_pages.py | `site`, `fin` → one page per fund, every total's check state, every row's source, report totals, county and city link each other, official record, books phrase from the data, preview over its cap | city finance, all data/ (real build) | L |
-| test_city_budget_pages.py | `pinned_pages`, `pinned_fin` → books listed (FY2027 as presented 5/29/2026, FY2025 linked only), FY2027 proposed, report-date columns, amounts and source page, the books phrase's wording | city finance, county and city facts | P |
+| test_city_budget_pages.py | `site`, `fin` → one page per fund, every total's check state, every row's source, report totals, county and city link each other, official record, books phrase from the data, every completed fund name disclosed once (PR #33's rule), preview over its cap | city finance, all data/ (real build) | L |
+| test_city_budget_pages.py | `pinned_pages`, `pinned_fin` → the four books listed (FY2025 read, report date 06/27/2024), FY2027 proposed, report-date columns, amounts and source page, the books phrase's wording, the Vehicle Replacement name completed from FY2024 | city finance, county and city facts | P |
 | test_budget_pages.py | `test_real_trustee_note_text` (line fy2027-approved/p47/r37) | county finance | P |
 | test_map_seats.py | `test_committed_seats_pass_the_seat_check`, `..._after_one_new_meeting` | county facts | P |
 | test_map_seats.py | `test_committed_seats_pass_the_seat_check_on_the_live_facts_they_are_read_to` (seat_check on the roll calls up to `read_to`; a later meeting with an unknown voter is outside it) | county facts | L |

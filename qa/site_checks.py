@@ -2187,6 +2187,61 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
                       f"{n_coming} coming cards, each tagged and linked to an official page")
 
 
+SITE_HEADER = re.compile(r'<header class="site-header[^"]*">.*?</header>', re.S)
+
+
+def site_header(raw: str, rel: str) -> str | None:
+    """The page's site header as written, less the way back to the site's top folder in its links (the one part that
+    depends on how deep the page is), so the headers of two pages can be compared. None unless the page has exactly
+    one."""
+    found = SITE_HEADER.findall(raw)
+    if len(found) != 1:
+        return None
+    return found[0].replace('href="' + "../" * rel.count("/"), 'href="')
+
+
+def check_header(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) -> tuple[list[str], str]:
+    """header/same-on-every-page (owner, 2026-11-18: "the header pane should be consistent across the whole site"):
+    every built page has one site header, and it is the same markup on every page (site/templates/_header.html.j2):
+    the sky's sun (and the moon's place, when the config names one), the Menu button, the name plate, the unofficial
+    tag and the date line, whose link leads to the day page from wherever the page is. Every page also loads the two
+    scripts the header needs: static/js-flag.js in its head and static/sky.js."""
+    cfg = _site_cfg() if cfg is None else cfg
+    problems, seen = [], {}
+    want = ['<header class="site-header has-sky">', '<div class="sky-sun" id="sky-sun">', 'id="nav-open"',
+            'class="plate-name"', 'class="unofficial-tag"', '<div class="sky-hero" id="sky-hero" data-tz="',
+            '<span id="sky-weekday"></span>', '<time class="sky-date" id="sky-date"></time>']
+    if cfg.get("sky_place"):
+        want.append('<span class="sky-moon" id="sky-moon" data-lat="')
+    for rel in sorted(pages):
+        raw = (site / rel).read_text(encoding="utf-8")
+        header = site_header(raw, rel)
+        if header is None:
+            problems.append(f"{rel}: {len(SITE_HEADER.findall(raw))} site headers (want 1)")
+            continue
+        seen.setdefault(header, []).append(rel)
+        root = "../" * rel.count("/")
+        head = raw[:raw.index("</head>")] if "</head>" in raw else ""
+        if f'<script src="{root}static/js-flag.js"></script>' not in head:
+            problems.append(f"{rel}: static/js-flag.js is not in the page's head (the date line would jump in)")
+        if raw.count(f'<script src="{root}static/sky.js" defer></script>') != 1:
+            problems.append(f"{rel}: static/sky.js is not loaded once (no date, no sun by the hour, no moon)")
+        m = re.search(r'<a class="sky-link" href="([^"]*)"', SITE_HEADER.search(raw).group(0))
+        if not m or resolve(rel, m.group(1)) != "today.html":
+            problems.append(f"{rel}: the header's date does not link the day page")
+    if not seen:
+        return problems, "no page has a site header"
+    usual = max(seen, key=lambda h: len(seen[h]))
+    for header, rels in seen.items():
+        if header != usual:
+            problems.append(f"{rels[0]}: its header differs from the one on {seen[usual][0]}"
+                            + (f" (and {len(rels) - 1} more pages like it)" if len(rels) > 1 else ""))
+    problems += [f"{seen[usual][0]}: the header has no {part!r}" for part in want if part not in usual]
+    if "today.html" not in pages:
+        problems.append("today.html: the day page the header's date links is not built")
+    return problems, f"one header on {len(seen[usual])} of {len(pages)} pages, with the sky and the date line"
+
+
 NOT_COLLECTED_BLOCKS = re.compile(
     r'<p class="coming-note">.*?</p>|<li class="hub-card[^"]*"[^>]*>.*?</li>|<p class="door-coming[^"]*">.*?</p>', re.S)
 
@@ -3653,6 +3708,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("unofficial/notice-on-every-page", problems, note)
     problems, note = check_switch(site, pages, cfg)
     rep.add("switch/on-every-page", problems, note)
+    problems, note = check_header(site, pages, cfg)
+    rep.add("header/same-on-every-page", problems, note)
     problems, note = check_not_collected(site, pages, cfg)
     rep.add("notcollected/never-coming", problems, note)
     problems, note = check_about(site, cs, cfg, county=facts)

@@ -35,8 +35,9 @@ STAGE_KIND = {"bid_tab": "bid_tab", "award_letter": "award_letter", "partial_awa
 ARCHIVE_KIND = "archive_index"
 BOOK_KIND = "budget_book"
 # Problems that stop `fin build` (exit 2, nothing written): a value from a non-text source, a shared URL read, a value
-# citing no source, a configured budget book missing from the store.
-GUARD_KEYS = ("scan-values", "award-source", "cites no", "provenance/book-missing")
+# citing no source, a configured budget book missing from the store, a book read through a glyph table that does not
+# read exactly (fin_facts.GLYPH_KEY: a glyph not in its table, or a total that is not exact to the cent).
+GUARD_KEYS = ("scan-values", "award-source", "cites no", "provenance/book-missing", "glyph-decode")
 
 
 def _today() -> str:
