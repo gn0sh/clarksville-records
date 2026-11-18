@@ -30,7 +30,7 @@ def table(path: Path, chars=("1", ".", "A", "-", " ", "Z")) -> Path:
     return path
 
 
-def build_pdf(path: Path, text: str, type3: bool = True) -> Path:
+def build_pdf(path: Path, text: str, type3: bool = True, fontmatrix: bytes = b"1 0 0 1 0 0") -> Path:
     """One page: `text` at 10 pt from (72, 700), one glyph per Tj and a 0.6 em TD after it."""
     objs = []
 
@@ -41,7 +41,7 @@ def build_pdf(path: Path, text: str, type3: bool = True) -> Path:
         procs = {c: add(b"<< /Length %d >>\nstream\n" % len(D1 + DRAWINGS[c]) + D1 + DRAWINGS[c] + b"\nendstream")
                  for c in CHARS}
         cp = b" ".join(b"/%d %d 0 R" % (i, procs[c]) for i, c in enumerate(CHARS))
-        font = add(b"<< /Type /Font /Subtype /Type3 /FontBBox [-10 -10 10 10] /FontMatrix [1 0 0 1 0 0] "
+        font = add(b"<< /Type /Font /Subtype /Type3 /FontBBox [-10 -10 10 10] /FontMatrix [" + fontmatrix + b"] "
                    b"/CharProcs << " + cp + b" >> /Encoding << /Type /Encoding /Differences [0 " +
                    b" ".join(b"/%d" % i for i in range(len(CHARS))) + b"] >> /FirstChar 0 /LastChar %d "
                    b"/Widths [%s] /Resources << /ProcSet [/PDF] >> >>" % (len(CHARS) - 1,
@@ -103,6 +103,14 @@ def test_a_glyph_not_in_the_table_reads_nothing(tmp_path):
     assert f"glyph {sha('Z')[:12]} (code 5) is not in the table" in r.stderr.decode()
 
 
+def test_a_font_scale_other_than_1_to_1_is_refused(tmp_path):
+    # the table's advances are in the text space units of a 1:1 font; a 0.001 font (the usual Type 3 scale) is refused
+    pdf = build_pdf(tmp_path / "b.pdf", "1A", fontmatrix=b"0.001 0 0 0.001 0 0")
+    r = run_decoder(pdf, 1, 1, table(tmp_path / "t.json"), tmp_path / "out.pdf")
+    assert r.returncode == type3_decode.UNKNOWN and not (tmp_path / "out.pdf").exists()
+    assert b"FontMatrix [0.001, 0.0, 0.0, 0.001, 0.0, 0.0] is not [1 0 0 1 0 0]" in r.stderr
+
+
 def test_pages_with_no_type3_font_are_refused(tmp_path):
     pdf = build_pdf(tmp_path / "b.pdf", "11.1", type3=False)
     with pytest.raises(type3_decode.DecodeError, match="use no Type 3 font"):
@@ -145,3 +153,24 @@ def test_a_decoder_timeout_is_a_reported_limit_and_reads_nothing(tmp_path, monke
     assert fin_facts.glyph_words(pdf, _spec(tmp_path), pdf_words, problems) is None
     assert "glyph decode failed" in problems[0] and problems[0].endswith("(glyph-decode)")
     assert limits.tripped(since) == ["limit fin_facts.DECODE_TIMEOUT: b.pdf 0.001s+ > 0.001s"]
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="RLIMIT_AS is set on Linux only")
+def test_the_decoder_runs_under_an_address_space_cap_and_reads_nothing_past_it(tmp_path, monkeypatch):
+    # pipeline/parser-dos-unbounded-memory: a decoder that needs more than DECODE_MAX_AS fails, the book is not read
+    pdf = build_pdf(tmp_path / "b.pdf", "11")
+    assert fin_facts.glyph_words(pdf, _spec(tmp_path), pdf_words, []) is not None   # fits under the real cap
+    monkeypatch.setattr(fin_facts, "DECODE_MAX_AS", 32 * 1024 ** 2)                 # too small to load pypdf
+    problems = []
+    assert fin_facts.glyph_words(pdf, _spec(tmp_path), pdf_words, problems) is None
+    assert len(problems) == 1 and problems[0].endswith(f"not read ({fin_facts.GLYPH_KEY})")
+    assert len(problems[0]) < 400                                                   # the stderr tail, one line
+
+
+def test_only_the_tail_of_the_decoder_stderr_is_read(tmp_path, monkeypatch):
+    noisy = tmp_path / "noisy.py"
+    noisy.write_text("import sys\nsys.stderr.write('x' * 1_000_000 + '\\nlast line\\n')\nsys.exit(3)\n")
+    monkeypatch.setattr(fin_facts, "DECODER", noisy)
+    problems = []
+    assert fin_facts.glyph_words(build_pdf(tmp_path / "b.pdf", "11"), _spec(tmp_path), pdf_words, problems) is None
+    assert problems == [f"book fy-test: last line, not read ({fin_facts.GLYPH_KEY})"]

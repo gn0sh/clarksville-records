@@ -180,6 +180,24 @@ def test_hub_card_names_the_books_from_the_data_and_index_says_what_is_not_read(
     assert 'id="not-covered"' not in pages["finance/index.html"]          # the county's index names none
 
 
+def test_a_fund_name_completed_from_another_book_is_disclosed_on_its_fund_page(pages, fin):
+    # provenance/fund-name-cross-book: a name the FY2025 book prints cut short is completed from another book only
+    # with one fixed sentence on the fund page, and the book is listed under the name as it prints it
+    done = {(x["fund_name"], x["fund_name_from"]["book_id"], x["fund_name_from"]["printed"])
+            for x in fin["budget_lines"] if x.get("fund_name_from")}
+    assert ("Vehicle Replacement Fund", "fy2024-adopted", "Vehicle Replaceme") in done
+    books = {b["id"]: f"FY{b['fiscal_year']} ({b['edition']})" for b in fin["books"]}
+    for name, src, cut in done:
+        page = text_of(main_of(pages[f"city/finance/{budget_views.fund_key({'fund_no': None, 'fund_name': name})}.html"]))
+        sentence = B["fund_name_cut"].format(book="FY2025 (adopted)", printed=cut, from_book=books[src])
+        assert page.count(sentence) == 1, name
+        assert f"{cut} " in page                                     # listed as printed, with its cite
+    veh = text_of(main_of(pages["city/finance/vehicle-replacement-fund.html"]))
+    assert ('The FY2025 (adopted) book prints this fund\'s name cut short, as "Vehicle Replaceme"; the full name is '
+            'from the FY2024 (adopted) book.') in veh
+    assert "cut short" not in text_of(main_of(pages["city/finance/general-fund.html"]))   # only where it applies
+
+
 def test_books_phrase_lists_books_by_fiscal_year():
     books = [{"id": "b", "fiscal_year": 2027, "edition": "proposed"}, {"id": "a", "fiscal_year": 2024,
                                                                          "edition": "adopted"}]

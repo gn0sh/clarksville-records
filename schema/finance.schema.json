@@ -255,6 +255,7 @@
         "fund_name": { "type": ["string", "null"], "minLength": 1, "description": "null only on a report-run total (city books: TOTAL REVENUE, TOTAL EXPENSE, GRAND TOTAL over every fund of one report run)" },
         "statement": { "enum": ["revenue", "expenditure", "fund_balance", "net"], "description": "UX section = statement + tags. net: a total over revenue and expense together (city books: a fund total, GRAND TOTAL)" },
         "heading_as_printed": { "type": ["string", "null"] },
+        "fund_name_from": { "type": "object", "additionalProperties": false, "required": ["book_id", "printed"], "properties": { "book_id": { "$ref": "#/$defs/book_id" }, "printed": { "type": "string", "minLength": 1 } }, "description": "present only when this book prints the fund name cut short (on the total label of a fund that opens and closes on one page) and fund_name was completed from the page header of another book read in the same run: book_id is that book, printed is the name as this book prints it. The fund page discloses it" },
         "heading_from_total": { "type": "boolean", "description": "heading taken from the scope's total label minus \"Total \" (capital projects with no heading); never a key" },
         "department": { "type": ["string", "null"], "description": "expenditure heading or null" },
         "account_code": { "type": ["string", "null"], "pattern": "^\\d+$", "description": "UX account_no" },

@@ -430,10 +430,16 @@ def test_fy2025_a_cut_fund_name_is_completed_from_a_header_of_another_book():
     veh = next(pl for pl in r25.lines if pl.label == "TOTAL 2240 Vehicle Replaceme")
     assert veh.fund_name == "Vehicle Replaceme" and veh.fund_from_total            # as cut on the page
     fin_budget.complete_cut_fund_names([r25])
-    assert veh.fund_name == "Vehicle Replaceme"                                    # no full name read: kept
+    assert veh.fund_name == "Vehicle Replaceme" and veh.fund_name_from is None    # no full name read: kept
+    assert all("fund_name_from" not in x for x in fin_budget.to_records(r25, RULES))
     r26 = fin_budget.read_book(words_of("fy2026-final", [138]), BOOK["fy2026-final"], RULES)
     fin_budget.complete_cut_fund_names([r25, r26])
     assert veh.fund_name == "Vehicle Replacement Fund" and veh.label == "TOTAL 2240 Vehicle Replaceme"
+    # provenance/fund-name-cross-book: every completed line says which book the name came from and how it is printed
+    marked = [x for x in fin_budget.to_records(r25, RULES) if x["fund_name"] == "Vehicle Replacement Fund"]
+    assert marked and all(x["fund_name_from"] == {"book_id": "fy2026-final", "printed": "Vehicle Replaceme"}
+                          for x in marked)
+    assert all("fund_name_from" not in x for x in fin_budget.to_records(r26, RULES))
     lines = {x["id"]: x for x in fin_budget.to_records(r25, RULES)}
     fin_checks.reconcile(list(lines.values()), RULES.run_totals)
     v = by_label(lines, "TOTAL 2240 Vehicle Replaceme")
@@ -445,9 +451,11 @@ def test_fy2025_a_cut_fund_name_is_completed_from_a_header_of_another_book():
     assert "END OF REPORT" not in text and "Staff" not in text
 
 
-def _gate_line(i, state=None, held=None):
-    return {"id": f"b/p1/r{i}", "book_id": "b", "held": held,
-            "check": {"state": state, "per_cell": []} if state else None}
+def _gate_line(i, state=None, held=None, scope=(1,), cents=100):
+    """Line r<i>; a total (state set) sums the lines r<n> for n in scope."""
+    return {"id": f"b/p1/r{i}", "book_id": "b", "held": held, "cells": [{"cents": cents, "dollars": None}],
+            "check": {"state": state, "per_cell": []} if state else None,
+            "scope_line_ids": [f"b/p1/r{n}" for n in scope] if state else None}
 
 
 @pytest.mark.parametrize("lines,ok", [
@@ -456,6 +464,9 @@ def _gate_line(i, state=None, held=None):
     ([_gate_line(1), _gate_line(2, "not_checked")], False),
     ([_gate_line(1, held="column-align"), _gate_line(2, "exact")], False),
     ([_gate_line(1)], False),                                       # no printed total: nothing proves the reading
+    ([_gate_line(1), _gate_line(3), _gate_line(2, "exact")], False),   # r3 has an amount no exact total sums
+    ([_gate_line(1), _gate_line(3, cents=0), _gate_line(2, "exact")], True),   # a line of zeros proves nothing
+    ([_gate_line(1), _gate_line(3), _gate_line(2, "exact"), _gate_line(4, "exact", scope=(3,))], True),
 ])
 def test_a_glyph_decoded_book_is_kept_only_when_every_total_is_exact(lines, ok):
     problems = fin_facts.glyph_book_problems("b", lines)
@@ -466,6 +477,21 @@ def test_a_glyph_decoded_book_is_kept_only_when_every_total_is_exact(lines, ok):
 def test_glyph_decode_problems_stop_the_build():
     from collector.fin_run import GUARD_KEYS
     assert fin_facts.GLYPH_KEY in GUARD_KEYS
+
+
+def test_the_committed_glyph_table_has_one_drawing_per_amount_character():
+    """glyph-table/no-invariant-test: every character an amount is made of (0-9 . , -) has exactly one drawing, in
+    the face the amounts print in, and no face has two drawings for one character (an edit that maps a second
+    drawing to a digit, or a digit's drawing to another digit, fails here before any book is read)."""
+    import collections
+    spec = next(b for b in fin_config.load_books(CITY).budget.books if b.glyph_map)
+    glyphs = json.loads((fin_config.ROOT / spec.glyph_map).read_text(encoding="utf-8"))["glyphs"]
+    pairs = collections.Counter((g["face"], g["char"]) for g in glyphs.values())
+    assert [p for p, n in pairs.items() if n > 1] == []
+    amount_chars = set("0123456789.,-")
+    drawn = collections.Counter(g["char"] for g in glyphs.values() if g["char"] in amount_chars)
+    assert drawn == {c: 1 for c in amount_chars}
+    assert {g["face"] for g in glyphs.values() if g["char"] in amount_chars} == {"Lucida Console"}
 
 
 # ------------------------------------------------------------------ fin-books build on a fake store

@@ -34,7 +34,8 @@ CURRENT YEAR BUDGET ANALYSIS", report date 06/27/2024). Earlier status: fetched,
 A decoded copy (never stored) gives each Type 3 font a ToUnicode map, the table's widths and a sizing glyph `m` (so
 poppler sizes words at the page's point size); then the usual `pdftotext -bbox` reader. Word positions match the
 FY2026 book's to 0.01 pt (same report program). Fail closed: a glyph not in the table stops the book, and the book is
-kept only if every printed total is exact to the cent and no line is held (`glyph-decode`, a guard: nothing written).
+kept only if every printed total is exact to the cent, no line is held and every non-zero detail line is summed by
+an exact total (`glyph-decode`, a guard: nothing written).
 
 ## Accuracy evidence (build of all four books, 2026-11-18)
 | Check | Result |
@@ -59,6 +60,7 @@ p102 4214 Disability Insura; p43 31119 Property Tax 201; p66 4111 Full-Time Empl
   short one).
 - Fund numbers are printed in this book only; they are not stored (`fund_no` null, as in the other city books), so the
   four editions group and compare by fund name. The two cut fund names are completed from the other books' headers
-  ("Traffic Camera Parks SRF", "Vehicle Replacement Fund"); the total's label stays as printed.
+  ("Traffic Camera Parks SRF", "Vehicle Replacement Fund"); the total's label stays as printed, each completed line carries
+  `fund_name_from` and its fund page says so in one fixed sentence (provenance/fund-name-cross-book).
 - If the city replaces the file, the daily run keeps the committed reading (sha256 rule); new drawings would stop the
   book until the table is extended by hand.

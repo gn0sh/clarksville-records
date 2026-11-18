@@ -169,33 +169,58 @@ def glyph_words(pdf: Path, spec, book_words, problems: list) -> list | None:
     the book's table or the decoder fails: no word of the book is read."""
     import tempfile
     with tempfile.TemporaryDirectory(prefix="type3-") as tmp:
-        out = Path(tmp) / "decoded.pdf"
+        out, err = Path(tmp) / "decoded.pdf", Path(tmp) / "stderr.txt"
         try:
-            r = limits.run("fin_facts.DECODE_TIMEOUT",
-                           [sys.executable, "-I", str(DECODER), str(pdf), str(spec.first_page), str(spec.last_page),
-                            str(ROOT / spec.glyph_map), str(out)],
-                           file=pdf, capture_output=True, timeout=DECODE_TIMEOUT)
+            with open(err, "wb") as fh:          # stderr to a file, only its tail read back (bounded)
+                r = limits.run("fin_facts.DECODE_TIMEOUT",
+                               [sys.executable, "-I", str(DECODER), str(pdf), str(spec.first_page),
+                                str(spec.last_page), str(ROOT / spec.glyph_map), str(out)],
+                               file=pdf, stdout=subprocess.DEVNULL, stderr=fh, timeout=DECODE_TIMEOUT,
+                               preexec_fn=_decoder_limits if sys.platform == "linux" else None)
         except (OSError, subprocess.SubprocessError) as ex:
             problems.append(f"book {spec.id}: glyph decode failed ({type(ex).__name__}: {ex}), not read ({GLYPH_KEY})")
             return None
         if r.returncode != 0 or not out.is_file():
-            why = r.stderr.decode("utf-8", "replace").strip().splitlines()[-1:] or [f"exit {r.returncode}"]
+            with open(err, "rb") as fh:
+                fh.seek(max(0, err.stat().st_size - STDERR_TAIL))
+                tail = fh.read().decode("utf-8", "replace")
+            why = tail.strip().splitlines()[-1:] or [f"exit {r.returncode}"]
             problems.append(f"book {spec.id}: {why[0][:300]}, not read ({GLYPH_KEY})")
             return None
         return book_words(out, spec.first_page, spec.last_page)
 
 
+# Measured 2026-11-18: peak RSS of the FY2025 decode 100 MB (pypdf 6.21.4). A larger address space fails the decoder
+# (MemoryError, exit 1): the book is not read, a guard problem (pipeline/parser-dos-unbounded-memory).
+DECODE_MAX_AS = 2 * 1024 ** 3    # bytes of address space for the decoder process (20x)
+STDERR_TAIL = 4096               # bytes of the decoder's stderr read back for the problem line
+
+
+def _decoder_limits() -> None:
+    """preexec_fn: cap the decoder's address space (Linux only, where the daily run runs; RLIMIT_AS is not
+    enforced on macOS)."""
+    import resource
+    resource.setrlimit(resource.RLIMIT_AS, (DECODE_MAX_AS, DECODE_MAX_AS))
+
+
 def glyph_book_problems(book_id: str, lines: list[dict]) -> list[str]:
     """A book read through its glyph table is kept only when it reads exactly: at least one printed total, every
     total `exact` to the cent, no held line. A wrong glyph in an amount breaks the totals it is in, so any other
-    outcome is a guard problem and nothing is written (no value from a doubtful reading is shown)."""
+    outcome is a guard problem and nothing is written (no value from a doubtful reading is shown). A detail line
+    with an amount that no exact total sums (outside every exact total's scope_line_ids) is not proved by any total,
+    so it fails the book too (glyph-gate/uncovered-detail)."""
     mine = [x for x in lines if x["book_id"] == book_id]
     totals = [x for x in mine if x["check"]]
-    bad = sorted({x["id"] for x in totals if x["check"]["state"] != "exact"} | {x["id"] for x in mine if x["held"]})
+    covered = {i for x in totals if x["check"]["state"] == "exact" for i in (x.get("scope_line_ids") or [])}
+    uncovered = {x["id"] for x in mine if not x["check"] and x["id"] not in covered
+                 and any(c.get("cents") or c.get("dollars") for c in x["cells"])}
+    bad = sorted({x["id"] for x in totals if x["check"]["state"] != "exact"} | {x["id"] for x in mine if x["held"]}
+                 | uncovered)
     if totals and not bad:
         return []
-    return [f"book {book_id}: read through its glyph table, but {len(bad)} lines are held or totals not exact "
-            f"({len(totals)} totals): {', '.join(bad[:5]) or 'no total printed'}; not read ({GLYPH_KEY})"]
+    return [f"book {book_id}: read through its glyph table, but {len(bad)} lines are held, not summed by an exact "
+            f"total, or totals not exact ({len(totals)} totals): {', '.join(bad[:5]) or 'no total printed'}; "
+            f"not read ({GLYPH_KEY})"]
 
 
 def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache: Path | None = META_CACHE,

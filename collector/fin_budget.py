@@ -113,6 +113,7 @@ class ParsedLine:
     scope_line_ids: list
     held: str | None
     fund_from_total: bool = False  # a fund opened and closed on one page: its name is read from its total label
+    fund_name_from: dict | None = None  # {book_id, printed}: the cut name completed from another book's header
 
 
 @dataclass
@@ -627,13 +628,20 @@ def complete_cut_fund_names(reads: list[BookRead]) -> None:
     """A fund named only by its total label (fund_from_total: it opened and closed on one page, and the label is cut
     to the report's width, "TOTAL 2240 Vehicle Replaceme") takes the one fund name printed in a page header of the
     books read in the same run that starts with it ("Vehicle Replacement Fund"), so its lines group with that fund's
-    in the other editions. No such name, or several: the name stays as cut. The total's own label is never changed."""
-    full = {pl.fund_name for r in reads for pl in r.lines if pl.fund_name and not pl.fund_from_total}
+    in the other editions. No such name, or several: the name stays as cut. The total's own label is never changed.
+    A completed line records where the name came from (fund_name_from: the first book, in config order, whose header
+    prints it, and the name as this book prints it), and the fund page says so (provenance/fund-name-cross-book)."""
+    full = {}
+    for r in reads:
+        for pl in r.lines:
+            if pl.fund_name and not pl.fund_from_total:
+                full.setdefault(pl.fund_name, r.spec.id)
     for r in reads:
         for pl in r.lines:
             if pl.fund_from_total and pl.fund_name not in full:
                 hits = sorted(n for n in full if n.startswith(pl.fund_name))
                 if len(hits) == 1:
+                    pl.fund_name_from = {"book_id": full[hits[0]], "printed": pl.fund_name}
                     pl.fund_name = hits[0]
 
 
@@ -660,5 +668,6 @@ def to_records(read: BookRead, rules: BudgetRules) -> list[dict]:
             "department": heading if pl.statement == "expenditure" else None,
             "account_code": pl.account_code, "label_as_printed": pl.label, "row_role": pl.row_role,
             "tags": tags_for(pl, rules), "cells": pl.cells, "page": pl.page,
-            "scope_line_ids": pl.scope_line_ids, "check": None, "edition_differs": [], "held": pl.held})
+            "scope_line_ids": pl.scope_line_ids, "check": None, "edition_differs": [], "held": pl.held,
+            **({"fund_name_from": pl.fund_name_from} if pl.fund_name_from else {})})
     return out

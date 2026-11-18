@@ -13,7 +13,8 @@ decode() writes a copy of the PDF in which every Type 3 font used on pages first
   without this a word's right edge, which the budget reader aligns columns on, would sit too far right);
 - one extra code named `m`, an empty drawing 0.6 em wide that no page draws: poppler sizes a Type 3 font's words from
   its `m` glyph's width / 0.6, so this makes the size the one the page sets (a 6 pt row is 6 pt high).
-Fail closed: a glyph on those pages that is not in the table, or a Type 3 font that is not built from /Differences and
+Fail closed: a glyph on those pages that is not in the table, a font whose FontMatrix is not 1:1 (the table's advances
+are in its text space units), or a Type 3 font that is not built from /Differences and
 /CharProcs, stops the whole copy (exit 3, the reason on stderr); the caller reads nothing from the book.
 
 Run as a separate process under a timeout (pipeline/parser-dos-untimed): fin_facts runs
@@ -96,6 +97,11 @@ def decode(pdf: str, first: int, last: int, table: dict, out: str) -> dict:
             if key in done:
                 continue
             done.add(key)
+            fm = [float(x) for x in font.get("/FontMatrix", [])]
+            if fm != [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]:
+                # the table's advances are in text space units of a 1:1 font (the FY2025 book's FontMatrix); another
+                # scale would put every width and word edge in the wrong place
+                raise DecodeError(f"page {pn} font {name}: FontMatrix {fm} is not [1 0 0 1 0 0]")
             codes = font_codes(font)
             procs = font["/CharProcs"].get_object()
             pairs, widths = [], {}
