@@ -17,8 +17,15 @@
 # branch (F2). Any refused or failed read is NOT OK, never skipped (the review's "settings drift").
 # Run it after any settings change and right before MAIN_PR_BASELINE is set; it must print OK.
 # Prints "Main before the rulesets: <sha>" first (main read before any write). Exit 0 OK, 1 refused or NOT OK.
-# Needs: gh signed in as gn0sh (gh auth login) and jq. Run: bash scripts/protect-main.sh
+# --check: no writes, only the checks (for a settings-drift re-check, or a dry look before the cutover).
+# Needs: gh signed in as gn0sh (gh auth login) and jq. Run: bash scripts/protect-main.sh [--check]
 set -uo pipefail
+check=0
+case "${1:-}" in
+  "") ;;
+  --check) check=1 ;;
+  *) echo "Usage: bash scripts/protect-main.sh [--check]"; exit 1 ;;
+esac
 repo=gn0sh/clarksville-records
 owner=gn0sh
 here=$(cd "$(dirname "$0")" && pwd)
@@ -53,34 +60,38 @@ ids_of() {   # $1 ruleset file: the ids of the rulesets with its name (any targe
 }
 
 # ---------------------------------------------------------------------------------------------- writes
-# main is read before anything is written, so the printed sha is where main stood when protection began.
-main_sha=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') || main_sha=""
-[[ "$main_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Could not read main's commit. Nothing was changed. Run this again; send this output to the team if it repeats."; exit 1; }
-echo "Main before the rulesets: $main_sha"
-for s in $sets; do
-  label=${s%%|*}; file=${s#*|}
-  ids=$(ids_of "$here/$file") || stop "Could not list the rulesets (signed in as $owner?). $label was not written."
-  if [ -z "$ids" ]; then
-    echo "$label: no ruleset yet, creating it from scripts/$file."
-    gh api -X POST "repos/$repo/rulesets" --input "$here/$file" --silent \
-      || stop "Creating $label failed (see the message above)."
-  else
-    for id in $ids; do
-      echo "$label: ruleset $id exists, updating it from scripts/$file."
-      gh api -X PUT "repos/$repo/rulesets/$id" --input "$here/$file" --silent \
-        || stop "Updating $label (ruleset $id) failed (see the message above); it may be unchanged."
-    done
-  fi
-done
-r2=$(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') || r2=""
-if [ "$r2" = false ]; then
-  echo "R2 already off"
-elif [ "$r2" = true ]; then
-  gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
-    || stop "Turning off 'Allow GitHub Actions to create and approve pull requests' (R2) failed (see above); the rulesets are written."
-  echo "R2 was on: turned off"
+if [ "$check" = 1 ]; then
+  echo "CHECK ONLY: nothing is written; the checks below read the live settings."
 else
-  stop "Could not read 'Allow GitHub Actions to create and approve pull requests' (R2) ('$r2'); it was not changed (the rulesets are written)."
+  # main is read before anything is written, so the printed sha is where main stood when protection began.
+  main_sha=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') || main_sha=""
+  [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Could not read main's commit. Nothing was changed. Run this again; send this output to the team if it repeats."; exit 1; }
+  echo "Main before the rulesets: $main_sha"
+  for s in $sets; do
+    label=${s%%|*}; file=${s#*|}
+    ids=$(ids_of "$here/$file") || stop "Could not list the rulesets (signed in as $owner?). $label was not written."
+    if [ -z "$ids" ]; then
+      echo "$label: no ruleset yet, creating it from scripts/$file."
+      gh api -X POST "repos/$repo/rulesets" --input "$here/$file" --silent \
+        || stop "Creating $label failed (see the message above)."
+    else
+      for id in $ids; do
+        echo "$label: ruleset $id exists, updating it from scripts/$file."
+        gh api -X PUT "repos/$repo/rulesets/$id" --input "$here/$file" --silent \
+          || stop "Updating $label (ruleset $id) failed (see the message above); it may be unchanged."
+      done
+    fi
+  done
+  r2=$(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') || r2=""
+  if [ "$r2" = false ]; then
+    echo "R2 already off"
+  elif [ "$r2" = true ]; then
+    gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
+      || stop "Turning off 'Allow GitHub Actions to create and approve pull requests' (R2) failed (see above); the rulesets are written."
+    echo "R2 was on: turned off"
+  else
+    stop "Could not read 'Allow GitHub Actions to create and approve pull requests' (R2) ('$r2'); it was not changed (the rulesets are written)."
+  fi
 fi
 
 # ---------------------------------------------------------------------------------------------- checks

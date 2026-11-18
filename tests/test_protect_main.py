@@ -372,6 +372,29 @@ def test_protect_main_a_failed_ruleset_put_stops(tmp_path):
     assert not any("post_body" in c for c in made) and not any("r2_put" in c for c in made)
 
 
+def _pm_args(tmp_path, args, st):
+    r = subprocess.run(["bash", str(PM_SH), *args], env=_env(tmp_path, st), capture_output=True, text=True, timeout=120)
+    return r, _calls(tmp_path)
+
+
+def test_protect_main_check_only_writes_nothing(tmp_path):
+    """--check (settings-drift re-check, or a dry look before the cutover): the same checks, no write at all."""
+    done = _pm_state(rulesets=[_live("R1''", 27502319), _live("R-D", 5), _live("R-T", 6)], r2=False)
+    r, made = _pm_args(tmp_path, ["--check"], done)
+    _ok(r)
+    assert not _writes(made) and r.stdout.splitlines()[0].startswith("CHECK ONLY: nothing is written")
+    sub = tmp_path / "before"
+    sub.mkdir()
+    r, made = _pm_args(sub, ["--check"], _pm_state(rulesets=[{"id": 27502319, **json.loads(json.dumps(R1P))}]))
+    _not_ok(r, "R1'': ruleset 27502319 does not match scripts/main-ruleset.json")   # today's R1', R2 on
+    assert "R-D: 0 rulesets named" in r.stdout and "R2 is on" in r.stdout and not _writes(made)
+
+
+def test_protect_main_refuses_an_unknown_argument(tmp_path):
+    r, made = _pm_args(tmp_path, ["--force"], _pm_state())
+    assert r.returncode == 1 and "Usage: bash scripts/protect-main.sh [--check]" in r.stdout and made == []
+
+
 @pytest.mark.parametrize("var", CLOUD)
 def test_protect_main_refuses_in_a_cloud_session_or_ci(tmp_path, var):
     """All ruleset and settings writes are Brian's, from his PC (U3-0 = no): never from the cloud or a workflow."""
@@ -426,6 +449,8 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
         assert ln in ps1.replace("${label}", "$label"), ln
     for var in CLOUD:
         assert var in sh and f"'{var}'" in ps1
+    assert "param([switch]$Check)" in ps1 and "if ($Check) {" in ps1 and 'if [ "$check" = 1 ]; then' in sh
+    assert "CHECK ONLY: nothing is written; the checks below read the live settings." in sh and "CHECK ONLY" in ps1
     for want in ("$'false\\ttrue'", "$'main\\tbranch'", "$'2\\tfalse'"):
         assert want in sh, want
     for want in ('"false`ttrue"', '"main`tbranch"', '"2`tfalse"'):

@@ -21,8 +21,9 @@
 # Needs: GitHub CLI (winget install GitHub.cli), signed in as gn0sh: gh auth login
 # Run (PowerShell, in the repository folder):
 #   powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
+#   -Check: no writes, only the checks (for a settings-drift re-check, or a dry look before the cutover).
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
-
+param([switch]$Check)
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
 $repo = 'gn0sh/clarksville-records'
 $owner = 'gn0sh'
@@ -107,38 +108,42 @@ function IdsOf($file) {
 }
 
 # ---------------------------------------------------------------------------------------------- writes
-# main is read before anything is written, so the printed sha is where main stood when protection began.
-$mainSha = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
-if ($LASTEXITCODE -ne 0 -or $mainSha -cnotmatch '^[0-9a-f]{40}$') {
-    Write-Host "Could not read main's commit. Nothing was changed. Run this again; send this output to the team if it repeats."; exit 1
-}
-Write-Host "Main before the rulesets: $mainSha"
-foreach ($s in $sets) {
-    $label = $s[0]; $file = Join-Path $PSScriptRoot $s[1]
-    $ids = IdsOf $file
-    if ($null -eq $ids) { Stop-Run "Could not list the rulesets (signed in as ${owner}?). $label was not written." }
-    if ($ids.Count -eq 0) {
-        Write-Host "${label}: no ruleset yet, creating it from scripts\$($s[1])."
-        gh api -X POST "repos/$repo/rulesets" --input $file --silent
-        if ($LASTEXITCODE -ne 0) { Stop-Run "Creating $label failed (see the message above)." }
-    } else {
-        foreach ($id in $ids) {
-            Write-Host "${label}: ruleset $id exists, updating it from scripts\$($s[1])."
-            gh api -X PUT "repos/$repo/rulesets/$id" --input $file --silent
-            if ($LASTEXITCODE -ne 0) { Stop-Run "Updating $label (ruleset $id) failed (see the message above); it may be unchanged." }
+if ($Check) {
+    Write-Host 'CHECK ONLY: nothing is written; the checks below read the live settings.'
+} else {
+    # main is read before anything is written, so the printed sha is where main stood when protection began.
+    $mainSha = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
+    if ($LASTEXITCODE -ne 0 -or $mainSha -cnotmatch '^[0-9a-f]{40}$') {
+        Write-Host "Could not read main's commit. Nothing was changed. Run this again; send this output to the team if it repeats."; exit 1
+    }
+    Write-Host "Main before the rulesets: $mainSha"
+    foreach ($s in $sets) {
+        $label = $s[0]; $file = Join-Path $PSScriptRoot $s[1]
+        $ids = IdsOf $file
+        if ($null -eq $ids) { Stop-Run "Could not list the rulesets (signed in as ${owner}?). $label was not written." }
+        if ($ids.Count -eq 0) {
+            Write-Host "${label}: no ruleset yet, creating it from scripts\$($s[1])."
+            gh api -X POST "repos/$repo/rulesets" --input $file --silent
+            if ($LASTEXITCODE -ne 0) { Stop-Run "Creating $label failed (see the message above)." }
+        } else {
+            foreach ($id in $ids) {
+                Write-Host "${label}: ruleset $id exists, updating it from scripts\$($s[1])."
+                gh api -X PUT "repos/$repo/rulesets/$id" --input $file --silent
+                if ($LASTEXITCODE -ne 0) { Stop-Run "Updating $label (ruleset $id) failed (see the message above); it may be unchanged." }
+            }
         }
     }
-}
-$r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
-if ($LASTEXITCODE -ne 0) { $r2 = '' }
-if ($r2 -ceq 'false') {
-    Write-Host 'R2 already off'
-} elseif ($r2 -ceq 'true') {
-    gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
-    if ($LASTEXITCODE -ne 0) { Stop-Run "Turning off 'Allow GitHub Actions to create and approve pull requests' (R2) failed (see above); the rulesets are written." }
-    Write-Host 'R2 was on: turned off'
-} else {
-    Stop-Run "Could not read 'Allow GitHub Actions to create and approve pull requests' (R2) ('$r2'); it was not changed (the rulesets are written)."
+    $r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
+    if ($LASTEXITCODE -ne 0) { $r2 = '' }
+    if ($r2 -ceq 'false') {
+        Write-Host 'R2 already off'
+    } elseif ($r2 -ceq 'true') {
+        gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
+        if ($LASTEXITCODE -ne 0) { Stop-Run "Turning off 'Allow GitHub Actions to create and approve pull requests' (R2) failed (see above); the rulesets are written." }
+        Write-Host 'R2 was on: turned off'
+    } else {
+        Stop-Run "Could not read 'Allow GitHub Actions to create and approve pull requests' (R2) ('$r2'); it was not changed (the rulesets are written)."
+    }
 }
 
 # ---------------------------------------------------------------------------------------------- checks
