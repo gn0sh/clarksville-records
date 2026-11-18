@@ -2532,6 +2532,18 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3149,plainText=false)"
   },
   {
+    "bytes": 273854,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-18T10:08:49+00:00",
+    "kind": "minutes",
+    "label": "Finance Committee: Finance Committee Meeting (minutes)",
+    "last_modified": null,
+    "meeting_date": "2026-06-22",
+    "sha256": "228f88bd81fd14a07b9de63d495dbb3816c6c8a4d2342801882d6969910cc1f6",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3357,plainText=false)"
+  },
+  {
     "bytes": 228105,
     "content_type": "application/pdf",
     "etag": null,
@@ -2544,6 +2556,18 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3205,plainText=false)"
   },
   {
+    "bytes": 250310,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-18T10:09:09+00:00",
+    "kind": "minutes",
+    "label": "Finance Committee: Finance Committee Meeting (minutes)",
+    "last_modified": null,
+    "meeting_date": "2026-07-27",
+    "sha256": "48fd6e7b7d543af999ceec9905e99327709818825c946a69548c484f75520c3f",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3358,plainText=false)"
+  },
+  {
     "bytes": 215678,
     "content_type": "application/pdf",
     "etag": null,
@@ -2554,6 +2578,18 @@
     "meeting_date": "2026-09-21",
     "sha256": "1eed8c6ea60a4d0976317a1dd8fb8d2b090c97cedfb25cc359659056cd8b4062",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3296,plainText=false)"
+  },
+  {
+    "bytes": 230429,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-18T10:09:29+00:00",
+    "kind": "minutes",
+    "label": "Finance Committee: Finance Committee Meeting (minutes)",
+    "last_modified": null,
+    "meeting_date": "2026-09-21",
+    "sha256": "2d3a9b0d11007c68f422691155329aac035b66076e942504c4a4622dbd3eacba",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3360,plainText=false)"
   },
   {
     "bytes": 204736,
