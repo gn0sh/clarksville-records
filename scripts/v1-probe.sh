@@ -2,19 +2,23 @@
 # V1 probe, one time (docs/architecture/main-protect-invariant.md "V1 probe"; runbook docs/ops/morning-note.md 2.0.4;
 # task T4.10.1). The bash twin of scripts/v1-probe.ps1, which is the one Brian runs.
 #
-# Question: does GitHub refuse GITHUB_TOKEN merging a pull request that adds a workflow file? The gate job's design
-# rests on it. The script, signed in as the owner (gh auth login, with the `workflow` scope):
-#   1. checks a daily data PR was merged by GitHub Actions (so bot merges work: a refusal below is about workflows);
-#   2. pushes the throwaway branch probe/v1-target (main plus an inert .github/workflows/v1-canary.yml, two commits)
-#      and opens its pull request into main (author: you);
-#   3. posts a COMMENT review on it pinned to the OLDER commit and checks GitHub keeps that commit_id (step 4);
-#   4. pushes probe/v1-runner (main plus .github/workflows/v1-probe.yml), which starts a run that tries to merge the
-#      pull request with GITHUB_TOKEN: squash, then merge, then rebase (REST), then GraphQL mergePullRequest;
-#   5. reads the run's answers, whether the probe PR merged, whether v1-canary.yml is on main, and main's sha before
-#      and after; prints PASS, FAIL or INCONCLUSIVE, and cleans up (closes the PR, deletes both probe branches).
-# FAIL means the probe PR merged (the run's own merge answer, or the PR reads merged) or v1-canary.yml is on main
-# (v1-probe/verdict-from-main-sha): then it turns "Allow GitHub Actions to create and approve pull requests" off at
-# once. main moving for another reason, or a read that failed, is INCONCLUSIVE and leaves that setting on.
+# Question (V1', ADR 0010 decision 5): with the code-owner rule R1' on, does GitHub refuse GITHUB_TOKEN merging a pull
+# request that changes anything outside data/, even after the bot approved it? Signed in as the owner (gh auth login,
+# with the workflow scope; asked for only after the guard below passed), the script:
+#   1. checks R1' is on (guard) and a daily data PR was merged by GitHub Actions (so bot merges work);
+#   2. pushes three throwaway branches and opens their pull requests into main (author: you): W probe/v1-target
+#      (an inert .github/workflows/v1-canary.yml, two commits), N probe/v1-target-n (sitegen/v1-probe-canary.txt),
+#      H1 probe/v1-target-h1 (only renames .github/CODEOWNERS to data/v1-probe-CODEOWNERS);
+#   3. posts a COMMENT review on W pinned to the OLDER commit and checks GitHub keeps that commit_id (step 4);
+#   4. pushes probe/v1-runner (main plus .github/workflows/v1-probe.yml), which starts a run that, for each target,
+#      posts a GITHUB_TOKEN APPROVE review, then tries squash, merge, rebase (REST) and GraphQL mergePullRequest;
+#   5. reads the run's answers, whether each probe PR merged, whether each probe file is on main, and main's sha
+#      before and after; prints PASS, FAIL or INCONCLUSIVE, and cleans up (closes every probe PR, deletes every
+#      probe branch).
+# PASS: for every target, both squash tries refused naming code-owner review, merge and rebase refused. FAIL means a
+# probe PR merged or a probe file is on main (v1-probe/verdict-from-main-sha): then it turns "Allow GitHub Actions to
+# create and approve pull requests" off at once. main moving for another reason, or a read that failed, is
+# INCONCLUSIVE and leaves that setting on.
 # v1-probe/verdict-race (L-c): the run must read `completed` before its answers count (else INCONCLUSIVE), and a PASS
 # or INCONCLUSIVE stands only if the probe PR, read again after cleanup closed it, is still unmerged.
 # Writes the result to v1-probe-results-<time>.txt in RESULTS_DIR (default: the home folder). Nothing is sent.

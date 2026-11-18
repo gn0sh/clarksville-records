@@ -1,19 +1,23 @@
 # V1 probe, one time (docs/architecture/main-protect-invariant.md "V1 probe"; runbook docs/ops/morning-note.md 2.0.4;
 # task T4.10.1). Brian runs this one; scripts/v1-probe.sh is its tested bash twin (same steps, same verdicts).
 #
-# Question: does GitHub refuse GITHUB_TOKEN merging a pull request that adds a workflow file? The gate job's design
-# rests on it. Signed in as the owner (gh auth login, with the workflow scope; the script asks for it if missing):
-#   1. checks a daily data PR was merged by GitHub Actions (so bot merges work: a refusal below is about workflows);
-#   2. pushes the throwaway branch probe/v1-target (main plus an inert .github/workflows/v1-canary.yml, two commits)
-#      and opens its pull request into main (author: you);
-#   3. posts a COMMENT review on it pinned to the OLDER commit and checks GitHub keeps that commit_id;
-#   4. pushes probe/v1-runner (main plus .github/workflows/v1-probe.yml), which starts a run that tries to merge the
-#      pull request with GITHUB_TOKEN: squash, then merge, then rebase (REST), then GraphQL mergePullRequest;
-#   5. reads the run's answers, whether the probe PR merged, whether v1-canary.yml is on main, and main's sha before
-#      and after; prints PASS, FAIL or INCONCLUSIVE, and cleans up (closes the PR, deletes both probe branches).
-# FAIL means the probe PR merged (the run's own merge answer, or the PR reads merged) or v1-canary.yml is on main
-# (v1-probe/verdict-from-main-sha): then it turns "Allow GitHub Actions to create and approve pull requests" off at
-# once. main moving for another reason, or a read that failed, is INCONCLUSIVE and leaves that setting on.
+# Question (V1', ADR 0010 decision 5): with the code-owner rule R1' on, does GitHub refuse GITHUB_TOKEN merging a pull
+# request that changes anything outside data/, even after the bot approved it? Signed in as the owner (gh auth login,
+# with the workflow scope; asked for only after the guard below passed), the script:
+#   1. checks R1' is on (guard) and a daily data PR was merged by GitHub Actions (so bot merges work);
+#   2. pushes three throwaway branches and opens their pull requests into main (author: you): W probe/v1-target
+#      (an inert .github/workflows/v1-canary.yml, two commits), N probe/v1-target-n (sitegen/v1-probe-canary.txt),
+#      H1 probe/v1-target-h1 (only renames .github/CODEOWNERS to data/v1-probe-CODEOWNERS);
+#   3. posts a COMMENT review on W pinned to the OLDER commit and checks GitHub keeps that commit_id (step 4);
+#   4. pushes probe/v1-runner (main plus .github/workflows/v1-probe.yml), which starts a run that, for each target,
+#      posts a GITHUB_TOKEN APPROVE review, then tries squash, merge, rebase (REST) and GraphQL mergePullRequest;
+#   5. reads the run's answers, whether each probe PR merged, whether each probe file is on main, and main's sha
+#      before and after; prints PASS, FAIL or INCONCLUSIVE, and cleans up (closes every probe PR, deletes every
+#      probe branch).
+# PASS: for every target, both squash tries refused naming code-owner review, merge and rebase refused. FAIL means a
+# probe PR merged or a probe file is on main (v1-probe/verdict-from-main-sha): then it turns "Allow GitHub Actions to
+# create and approve pull requests" off at once. main moving for another reason, or a read that failed, is
+# INCONCLUSIVE and leaves that setting on.
 # v1-probe/verdict-race (L-c): the run must read `completed` before its answers count (else INCONCLUSIVE), and a PASS
 # or INCONCLUSIVE stands only if the probe PR, read again after cleanup closed it, is still unmerged.
 # Writes the result to Documents\v1-probe-results-<time>.txt. Nothing is sent to anyone.
@@ -24,19 +28,24 @@
 $ErrorActionPreference = 'Continue'   # exit codes are checked
 $repo = 'gn0sh/clarksville-records'
 $target = 'probe/v1-target'
+$targetN = 'probe/v1-target-n'
+$targetH = 'probe/v1-target-h1'
 $runner = 'probe/v1-runner'
+$branches = @($target, $targetN, $targetH, $runner)
+$fileW = '.github/workflows/v1-canary.yml'
+$fileN = 'sitegen/v1-probe-canary.txt'
+$fileH = 'data/v1-probe-CODEOWNERS'
 $results = Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('v1-probe-results-' + (Get-Date -Format 'yyyyMMdd-HHmm') + '.txt')
-$script:num = ''
+$script:nums = @()
 function Log([string]$line) { Write-Host $line; Add-Content -Path $results -Value $line }
 function Quiet { gh api @args --silent *> $null }
-function Cleanup {
-    if ($script:num) { Quiet -X PATCH "repos/$repo/pulls/$($script:num)" -f state=closed }
-    Quiet -X DELETE "repos/$repo/git/refs/heads/$target"
-    Quiet -X DELETE "repos/$repo/git/refs/heads/$runner"
+function Cleanup {   # every probe pull request closed, every probe branch deleted
+    foreach ($n in $script:nums) { Quiet -X PATCH "repos/$repo/pulls/$n" -f state=closed }
+    foreach ($b in $branches) { Quiet -X DELETE "repos/$repo/git/refs/heads/$b" }
 }
 function B64([string]$text) { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text)) }
 function TurnR2Off {
-    Log 'FAIL (V1 false): GITHUB_TOKEN merged a workflow change into main. Turning off Allow GitHub Actions to create and approve pull requests now.'
+    Log "FAIL (V1' false): GITHUB_TOKEN merged a probe pull request into main. Turning off Allow GitHub Actions to create and approve pull requests now."
     gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
     if ($LASTEXITCODE -eq 0) { Log 'Turned off: workflows can no longer open pull requests, so the daily update stops saving data.' }
     else { Log 'Could NOT turn it off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now.' }
@@ -107,27 +116,57 @@ Set-Content -Path $results -Value ''
 $mainBefore = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join ''
 Log ("V1 probe " + (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') + ". main before: $mainBefore")
 if ($mainBefore -notmatch '^[0-9a-f]{40}$') { Log 'INCONCLUSIVE: could not read main. Nothing was changed.'; exit 1 }
-Quiet -X DELETE "repos/$repo/git/refs/heads/$target"     # leftovers of an earlier try
-Quiet -X DELETE "repos/$repo/git/refs/heads/$runner"
+foreach ($b in $branches) { Quiet -X DELETE "repos/$repo/git/refs/heads/$b" }     # leftovers of an earlier try
+
+function OpenPr([string]$branch, [string]$name) {
+    (gh api -X POST "repos/$repo/pulls" -f head=$branch -f base=main -f "title=V1 probe $name (do not merge)" `
+        -f "body=One-time V1' probe (runbook 2.0.4). Closed by the probe script; never merge it." --jq '.number') -join ''
+}
+function SetupFailed {
+    Log 'INCONCLUSIVE: could not set up the probe branches or pull requests (see the messages above). Send this output to the team.'
+    exit 1
+}
 
 $code = 1
 try {
     $canaryText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'v1-probe\v1-canary.yml'))
     $probeText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'v1-probe\v1-probe.yml'))
+    # W: an inert workflow file, two commits (the older one carries the step 4 review)
     gh api -X POST "repos/$repo/git/refs" -f ref=refs/heads/$target -f sha=$mainBefore --silent
-    $first = (gh api -X PUT "repos/$repo/contents/.github/workflows/v1-canary.yml" -f 'message=V1 probe: inert canary workflow' `
+    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    $first = (gh api -X PUT "repos/$repo/contents/$fileW" -f 'message=V1 probe: inert canary workflow' `
               -f content=$(B64 $canaryText) -f branch=$target --jq '[.commit.sha, .content.sha] | @tsv') -join ''
     $c1, $blob = $first -split "`t"
-    $c2 = (gh api -X PUT "repos/$repo/contents/.github/workflows/v1-canary.yml" -f 'message=V1 probe: second commit' `
+    $c2 = (gh api -X PUT "repos/$repo/contents/$fileW" -f 'message=V1 probe: second commit' `
            -f content=$(B64 ($canaryText + "# second commit of the probe`n")) -f sha=$blob -f branch=$target --jq '.commit.sha') -join ''
-    $script:num = (gh api -X POST "repos/$repo/pulls" -f head=$target -f base=main -f 'title=V1 probe (do not merge)' `
-                   -f 'body=One-time V1 probe (runbook 2.0.4). Closed by the probe script; never merge it.' --jq '.number') -join ''
-    if ($script:num -notmatch '^[0-9]+$' -or $c1 -notmatch '^[0-9a-f]{40}$' -or $c2 -notmatch '^[0-9a-f]{40}$') {
-        Log 'INCONCLUSIVE: could not set up the probe branch or pull request (see the messages above). Send this output to the team.'
-        exit 1
-    }
-    Log "Probe pull request #$($script:num): commits $c1 (older) and $c2 (head)"
-    $kept = (gh api -X POST "repos/$repo/pulls/$($script:num)/reviews" -f commit_id=$c1 -f event=COMMENT `
+    $num = OpenPr $target 'W'
+    $script:nums += $num
+    # N (M2): one non-workflow file outside data/
+    gh api -X POST "repos/$repo/git/refs" -f ref=refs/heads/$targetN -f sha=$mainBefore --silent
+    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    gh api -X PUT "repos/$repo/contents/$fileN" -f 'message=V1 probe: inert non-workflow file' `
+        -f content=$(B64 "V1 probe: inert, never merge.`n") -f branch=$targetN --silent
+    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    $script:nums += (OpenPr $targetN 'N')
+    # H1 (main-protect/codeowners-rename-vacuous): only renames .github/CODEOWNERS into data/ (same blob, new path)
+    $coBlob = (gh api "repos/$repo/contents/.github/CODEOWNERS?ref=$mainBefore" --jq '.sha') -join ''
+    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    $baseTree = (gh api "repos/$repo/git/commits/$mainBefore" --jq '.tree.sha') -join ''
+    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    # the tree goes in on stdin (no double quotes in any argument: Windows PowerShell 5.1 mangles them)
+    $treeJson = '{"base_tree":"' + $baseTree + '","tree":[{"path":".github/CODEOWNERS","mode":"100644","type":"blob","sha":null},{"path":"' + $fileH + '","mode":"100644","type":"blob","sha":"' + $coBlob + '"}]}'
+    $tree = ($treeJson | gh api -X POST "repos/$repo/git/trees" --input - --jq '.sha') -join ''
+    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    $commitH = (gh api -X POST "repos/$repo/git/commits" -f 'message=V1 probe: rename CODEOWNERS into data/' -f tree=$tree `
+                -f "parents[]=$mainBefore" --jq '.sha') -join ''
+    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    gh api -X POST "repos/$repo/git/refs" -f ref=refs/heads/$targetH -f sha=$commitH --silent
+    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    $script:nums += (OpenPr $targetH 'H1')
+    foreach ($n in $script:nums) { if ($n -cnotmatch '^[0-9]+$') { SetupFailed } }
+    if ($script:nums.Count -ne 3 -or $c1 -cnotmatch '^[0-9a-f]{40}$' -or $c2 -cnotmatch '^[0-9a-f]{40}$') { SetupFailed }
+    Log "Probe pull requests: W #$num (commits $c1 older, $c2 head), N #$($script:nums[1]), H1 #$($script:nums[2])"
+    $kept = (gh api -X POST "repos/$repo/pulls/$num/reviews" -f commit_id=$c1 -f event=COMMENT `
              -f 'body=V1 probe step 4: a review pinned to the older commit.' --jq '.commit_id') -join ''
     $reviewOk = if ($kept -eq $c1) { 'yes' } else { 'no' }
     Log "Step 4, review commit_id: asked $c1, GitHub kept $kept ($reviewOk)"
@@ -156,7 +195,7 @@ try {
         $logText = @(gh run view $run --repo $repo --log 2>$null | ForEach-Object {
             ($_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
         $lines = @($logText | ForEach-Object {
-            if ($_ -match 'V1-(RESULT|MERGED) (squash|merge|rebase|graphql).*') { $Matches[0] } })
+            if ($_ -cmatch 'V1-(RESULT|MERGED|APPROVE) (W|N|H1) .*') { $Matches[0] } })
         # v1-probe/node-read-under-e: the run's own V1-ERROR lines reach Brian too (not the step's echo text the log shows).
         $errors = @($logText | Where-Object { $_ -notmatch 'echo "V1-ERROR' } | ForEach-Object {
             if ($_ -match 'V1-ERROR: .*') { $Matches[0] } })
@@ -164,52 +203,80 @@ try {
         foreach ($l in $lines) { Log $l }
         foreach ($l in $errors) { Log $l }
         Log "main after: $mainAfter"
-        # The verdict comes from the probe PR and the canary file, not from main's sha (any other merge moves main).
-        $prMerged = (gh api "repos/$repo/pulls/$($script:num)" --jq '.merged' 2>$null) -join ''
-        $canaryOut = (gh api "repos/$repo/contents/.github/workflows/v1-canary.yml?ref=main" --jq '.sha' 2>&1) -join ' '
-        $canaryRc = $LASTEXITCODE
-        $canary = 'unread'
-        if ($canaryRc -eq 0) { if ($canaryOut -match '^[0-9a-f]{40}$') { $canary = 'on-main' } }
-        elseif ($canaryOut -match 'HTTP 404') { $canary = 'absent' }
-        $prShown = if ($prMerged) { $prMerged } else { 'unread' }
-        Log "Probe pull request merged: $prShown. v1-canary.yml on main: $canary"
+        # The verdict comes from the probe PRs and the probe files, not from main's sha (any other merge moves main).
+        $anyMerged = $false; $allUnmerged = $true; $notMerged = @()
+        foreach ($n in $script:nums) {
+            $m = (gh api "repos/$repo/pulls/$n" --jq '.merged' 2>$null) -join ''
+            $mShown = if ($m) { $m } else { 'unread' }
+            Log "Probe pull request #$n merged: $mShown"
+            if ($m -ceq 'true') { $anyMerged = $true } else { $notMerged += $n }
+            if ($m -cne 'false') { $allUnmerged = $false }
+        }
+        $onMain = $false; $allAbsent = $true
+        foreach ($f in @($fileW, $fileN, $fileH)) {
+            $out = (gh api "repos/$repo/contents/$($f)?ref=main" --jq '.sha' 2>&1) -join ' '
+            $rc = $LASTEXITCODE
+            $state = 'unread'
+            if ($rc -eq 0) { if ($out -cmatch '^[0-9a-f]{40}$') { $state = 'on-main' } }
+            elseif ($out -match 'HTTP 404') { $state = 'absent' }
+            Log "$f on main: $state"
+            if ($state -ceq 'on-main') { $onMain = $true }
+            if ($state -cne 'absent') { $allAbsent = $false }
+        }
 
-        $refusedLines = @($lines | Where-Object { $_ -match '^V1-RESULT (squash|merge|rebase|graphql) exit=[1-9]' })
-        # V1' (ADR 0010, T4.11.3): a refusal counts when it names the ruleset or code-owner review, or the workflows permission
-        $named = @($refusedLines | Where-Object { $_ -match 'code owner|rule|without .workflows. permission' }).Count
-        $merged = @($lines | Where-Object { $_ -match '^V1-MERGED (squash|merge|rebase|graphql)' }).Count
-        if ($merged -gt 0 -or $prMerged -eq 'true' -or $canary -eq 'on-main') {
+        $merged = @($lines | Where-Object { $_ -cmatch '^V1-MERGED (W|N|H1) ' }).Count
+        if ($merged -gt 0 -or $anyMerged -or $onMain) {
             TurnR2Off
-            if ($prMerged -eq 'true') { $script:num = '' }   # the pull request is merged: nothing to close
+            $script:nums = $notMerged   # a merged pull request is not closed again
             $code = 2
-        } elseif ($status -ne 'completed') {
+        } elseif ($status -cne 'completed') {
             $verdict = "INCONCLUSIVE: the probe run had not finished ($statusShown), so its answers are not final. Allow GitHub Actions to create and approve pull requests is left on. Send this output to the team."
             $code = 1
-        } elseif ($prMerged -ne 'false' -or $canary -ne 'absent' -or $mainAfter -notmatch '^[0-9a-f]{40}$' -or $mainAfter -ne $mainBefore) {
-            $verdict = 'INCONCLUSIVE: the probe pull request is not shown merged, but main moved during the probe or a read failed (see above). Allow GitHub Actions to create and approve pull requests is left on. Send this output to the team.'
+        } elseif (-not $allUnmerged -or -not $allAbsent -or $mainAfter -cnotmatch '^[0-9a-f]{40}$' -or $mainAfter -cne $mainBefore) {
+            $verdict = 'INCONCLUSIVE: no probe pull request is shown merged, but main moved during the probe or a read failed (see above). Allow GitHub Actions to create and approve pull requests is left on. Send this output to the team.'
             $code = 1
-        } elseif ($refusedLines.Count -eq 4 -and $named -eq 4 -and $reviewOk -eq 'yes') {
-            $verdict = "PASS (V1'): all four merges (squash, merge, rebase, GraphQL) refused, each naming the ruleset, code-owner review or the workflows permission; main unchanged, the probe pull request unmerged, the canary not on main, review commit_id kept. Send this output to the team."
-            $code = 0
         } else {
-            $verdict = "INCONCLUSIVE: refused $($refusedLines.Count) of 4, $named naming the ruleset, code-owner review or the workflows permission, review commit_id kept: $reviewOk. Send this output to the team."
-            $code = 1
+            # V1' (ADR 0010 decision 5; M1 v1-probe/pass-not-proving-u1): for every target, the bot's approval was
+            # posted, REST squash and GraphQL squash were both refused naming code-owner review, and merge and rebase
+            # were refused (method refused: squash only). Anything else is INCONCLUSIVE.
+            $proven = 0; $summary = ''
+            foreach ($t in @('W', 'N', 'H1')) {
+                $ok = @($lines | Where-Object { $_ -cmatch "^V1-APPROVE $t exit=0( |$)" }).Count -gt 0
+                foreach ($m in @('squash', 'graphql')) {
+                    if (@($lines | Where-Object { $_ -cmatch "^V1-RESULT $t $m exit=[1-9]" -and $_ -match 'code owner' }).Count -eq 0) { $ok = $false }
+                }
+                foreach ($m in @('merge', 'rebase')) {
+                    if (@($lines | Where-Object { $_ -cmatch "^V1-RESULT $t $m exit=[1-9]" }).Count -eq 0) { $ok = $false }
+                }
+                if ($ok) { $proven++; $summary += " ${t}:proven" } else { $summary += " ${t}:not-proven" }
+            }
+            if ($proven -eq 3 -and $reviewOk -ceq 'yes') {
+                $verdict = "PASS (V1'): for W, N and H1, the bot's approval did not count: REST squash and GraphQL squash refused for code-owner review, merge and rebase refused (method refused); main unchanged, every probe pull request unmerged, no probe file on main, review commit_id kept. Send this output to the team."
+                $code = 0
+            } else {
+                $verdict = "INCONCLUSIVE:$summary (each needs the bot approval posted, both squash tries refused naming code-owner review, merge and rebase refused); review commit_id kept: $reviewOk. Send this output to the team."
+                $code = 1
+            }
         }
     }
 } finally {
     Cleanup
 }
-# v1-probe/verdict-race (L-c): a PASS or INCONCLUSIVE is final only after cleanup closed the probe pull request and
-# a fresh read still shows it unmerged; a merge that landed meanwhile turns it into FAIL.
-if ($code -ne 2 -and $script:num) {
-    $again = (gh api "repos/$repo/pulls/$($script:num)" --jq '.merged' 2>$null) -join ''
-    $againShown = if ($again) { $again } else { 'unread' }
-    Log "Probe pull request merged, read again after cleanup: $againShown"
-    if ($again -eq 'true') {
+# v1-probe/verdict-race (L-c): a PASS or INCONCLUSIVE is final only after cleanup closed every probe pull request and
+# a fresh read still shows each unmerged; a merge that landed meanwhile turns it into FAIL.
+if ($code -ne 2) {
+    $unread = $false
+    foreach ($n in $script:nums) {
+        $again = (gh api "repos/$repo/pulls/$n" --jq '.merged' 2>$null) -join ''
+        $againShown = if ($again) { $again } else { 'unread' }
+        Log "Probe pull request #$n merged, read again after cleanup: $againShown"
+        if ($again -ceq 'true') { $code = 2 }
+        elseif ($again -cne 'false') { $unread = $true }
+    }
+    if ($code -eq 2) {
         TurnR2Off
-        $code = 2
-    } elseif ($code -eq 0 -and $again -ne 'false') {
-        Log 'INCONCLUSIVE: the probe pull request could not be read again after cleanup. Send this output to the team.'
+    } elseif ($code -eq 0 -and $unread) {
+        Log 'INCONCLUSIVE: a probe pull request could not be read again after cleanup. Send this output to the team.'
         $code = 1
     } else {
         Log $verdict

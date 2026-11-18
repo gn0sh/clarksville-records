@@ -2914,7 +2914,7 @@ def test_the_v1_probe_scripts_agree():
     fail_ps1 = next(ln for ln in ps1.splitlines() if "$merged -gt 0" in ln)
     for ln in (fail_sh, fail_ps1):
         assert "main_after" not in ln and "mainAfter" not in ln, ln
-        assert "merged" in ln.lower() and "canary" in ln, ln
+        assert "merged" in ln.lower() and ("on_main" in ln or "onMain" in ln), ln
 
 
 _V1_STUB = '''#!/usr/bin/env python3

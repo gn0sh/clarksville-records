@@ -227,24 +227,30 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       powershell -NoProfile -File scripts\v1-probe.ps1
       ```
       (bash: `bash scripts/v1-probe.sh`.) It may open a browser once to add the `workflow` scope to your GitHub CLI
-      sign-in (it pushes two throwaway branches holding workflow files, `probe/v1-target` with an inert canary and
-      `probe/v1-runner`, which starts a run that tries to merge the canary's pull request with `GITHUB_TOKEN`:
-      squash, merge, rebase, then GraphQL `mergePullRequest`). It takes about 3 minutes, cleans up after itself (closes the PR, deletes both
-      branches), saves `Documents\v1-probe-results-<time>.txt`, and ends with one of:
-      - **PASS**: all four merges refused, each with a message naming the ruleset or code-owner review (or the
-        `workflows` permission: that is a refusal too), `main` unchanged, the probe pull request unmerged after
-        cleanup, the canary not on `main`, and the review's `commit_id` kept. Send the output to the team; they
-        record it in `docs/platform-facts.md` "Main protection", with the two positive controls (the next data PR
-        merged by `github-actions` under R1', U2; the next 2.0.3 merge went through, U3), and set the baseline
-        (section 4 item 7).
-      - **FAIL**: the probe pull request merged, or `v1-canary.yml` is on `main`. The script has already turned R2
+      sign-in. It pushes three throwaway target branches and opens their pull requests into `main` (ADR 0010
+      decision 5): **W** `probe/v1-target` (an inert workflow file), **N** `probe/v1-target-n` (one inert file in
+      `sitegen/`) and **H1** `probe/v1-target-h1` (only renames `.github/CODEOWNERS` into `data/`); then
+      `probe/v1-runner`, which starts a run that, for each target, posts a `GITHUB_TOKEN` approval and then tries to
+      merge it: squash, merge, rebase, then GraphQL `mergePullRequest`. It takes about 3 minutes, cleans up after
+      itself (closes every probe pull request, deletes all four branches), saves
+      `Documents\v1-probe-results-<time>.txt`, and ends with one of:
+      - **PASS (V1')**: for W, N and H1, the bot's approval was posted and did not count: REST squash and GraphQL
+        squash were both refused with a message naming code-owner review, merge and rebase were refused ("method
+        refused": squash only); `main` unchanged, every probe pull request unmerged after cleanup, no probe file
+        on `main`, and the review's `commit_id` kept. Send the output to the team; they record it in
+        `docs/platform-facts.md` "Main protection", with the two positive controls (the next data PR merged by
+        `github-actions` under R1', U2; the next 2.0.3 merge went through with `merged_by` gn0sh, U3) and Brian's
+        two hand checks (Settings > Collaborators: no other admin; the ruleset page shows **Require review from
+        Code Owners** and the repository's CODEOWNERS view shows no errors), and set the baseline (section 4 item 7).
+      - **FAIL**: a probe pull request merged, or a probe file is on `main`. The script has already turned R2
         off (the daily data stops saving). Leave `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the
-        output to the team; the canary is removed by a person's PR, and the fallback "data off `main`" goes to a
+        output to the team; what merged is removed by a person's PR, and the fallback "data off `main`" goes to a
         Brain Trust (ADR 0010). Actions stays on and open pull requests stay open: only a writer can start a
         workflow that merges (invariant "V1 is false", T1-T8).
-      - **INCONCLUSIVE**: refused for another reason, the run did not start or had not finished, the probe pull
+      - **INCONCLUSIVE**: a squash try refused for another reason than code-owner review, an answer missing, the
+        bot approval not posted, the run did not start or had not finished, a probe pull
         request could not be read again after cleanup, `main` moved during the probe while
-        the probe pull request stayed unmerged (another merge in the window), or a read failed: the Actions setting
+        the probe pull requests stayed unmerged (another merge in the window), or a read failed: the Actions setting
         is left on. Send the output; the team fixes the cause and you run it again.
       `MORNING_NOTE_SEND` waits on the V1' PASS (section 4 item 6a).
    5. **`github-pages` deploys from `main` only (T4.10.5; Brian, one click; the live site keeps deploying).** The
