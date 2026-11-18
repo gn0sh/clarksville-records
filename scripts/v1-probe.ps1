@@ -189,10 +189,21 @@ try {
     if ($LASTEXITCODE -ne 0) { SetupFailed }
     $baseTree = (gh api "repos/$repo/git/commits/$mainBefore" --jq '.tree.sha') -join ''
     if ($LASTEXITCODE -ne 0) { SetupFailed }
-    # the tree goes in on stdin (no double quotes in any argument: Windows PowerShell 5.1 mangles them)
+    # the tree goes in as a file (no double quotes in any argument: Windows PowerShell 5.1 mangles them)
     $treeJson = '{"base_tree":"' + $baseTree + '","tree":[{"path":".github/CODEOWNERS","mode":"100644","type":"blob","sha":null},{"path":"' + $fileH + '","mode":"100644","type":"blob","sha":"' + $coBlob + '"}]}'
-    $tree = ($treeJson | gh api -X POST "repos/$repo/git/trees" --input - --jq '.sha') -join ''
-    if ($LASTEXITCODE -ne 0) { SetupFailed }
+    # v1-probe/ps51-stdin-bom: do NOT pipe text into a native command. Windows PowerShell 5.1 prepends a UTF-8 BOM
+    # (EF BB BF) and appends CRLF to piped strings, so GitHub answers "Problems parsing JSON (HTTP 400)". Write the
+    # file as BOM-less UTF-8 and pass --input <path> instead.
+    $treeFile = Join-Path ([IO.Path]::GetTempPath()) ('v1-probe-tree-' + [Guid]::NewGuid().ToString('N') + '.json')
+    $tree = ''; $treeExit = 1
+    try {
+        [IO.File]::WriteAllText($treeFile, $treeJson, (New-Object Text.UTF8Encoding $false))
+        $tree = (gh api -X POST "repos/$repo/git/trees" --input $treeFile --jq '.sha') -join ''
+        $treeExit = $LASTEXITCODE
+    } finally {
+        Remove-Item -LiteralPath $treeFile -Force -ErrorAction SilentlyContinue
+    }
+    if ($treeExit -ne 0) { SetupFailed }
     $commitH = (gh api -X POST "repos/$repo/git/commits" -f 'message=V1 probe: rename CODEOWNERS into data/' -f tree=$tree `
                 -f "parents[]=$mainBefore" --jq '.sha') -join ''
     if ($LASTEXITCODE -ne 0) { SetupFailed }
