@@ -106,6 +106,12 @@ def problems(cfg: dict) -> list[str]:
     if "manifests" in mn:
         out.append("morning_note.manifests is gone: the note reads fetch_manifests (dates/two-manifest-lists)")
     man = cfg.get("fetch_manifests")
+    past = bf.get("past_records", []) if isinstance(bf, dict) else []
+    if not isinstance(past, list) or not all(
+            isinstance(x, dict) and set(x) == {"manifest", "before"} and x["manifest"] in (man or [])
+            and isinstance(x["before"], str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", x["before"]) for x in past):
+        out.append("morning_note.backfill.past_records must be a list of {manifest: one of fetch_manifests, "
+                   "before: YYYY-MM-DD}")
     if not isinstance(man, list) or not man or not all(isinstance(p, str) and p for p in man):
         out.append("fetch_manifests must list the collectors' manifest files (the morning note reads them)")
     text = mn.get("text")
@@ -303,6 +309,22 @@ def bulk_urls(paths, hours: int) -> frozenset[str]:
             continue
         start = min(w for _, w in whens)
         out |= {u for u, w in whens if w < start + timedelta(hours=hours)}
+    return frozenset(out)
+
+
+def past_record_urls(cfg: dict | None = None) -> frozenset[str]:
+    """morning_note.backfill.past_records ([{manifest, before}]): the source URLs of that manifest whose meeting_date
+    is before `before`, a collector's later backfill of past meetings (the RPC's 2019-2021 from CivicClerk, RPC-3).
+    They are not news: build.py leaves their documents out of the note, so they make no entry on any day and do not
+    make a day a backfill day (which would hold back that day's real news). A row with no meeting_date is kept."""
+    mn = settings(cfg) or {}
+    out: set[str] = set()
+    for x in (mn.get("backfill") or {}).get("past_records") or []:
+        manifest_rows(x["manifest"])                     # the same row checks as every manifest the note reads
+        p = Path(x["manifest"])
+        rows = json.loads((p if p.is_absolute() else config.REPO_ROOT / p).read_text(encoding="utf-8"))
+        out |= {r["url"] for r in rows if isinstance(r.get("meeting_date"), str) and r["meeting_date"]
+                and r["meeting_date"] < x["before"]}
     return frozenset(out)
 
 

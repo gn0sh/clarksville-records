@@ -3,6 +3,7 @@
 Polite (robots.txt first, the crawl-delay between requests, our User-Agent), stopped by the first 403/429 with no
 further request to the host, and all or nothing on the committed files: listing.json, manifest.json, changes.jsonl
 and rpc.json change only on a complete run. No network: every request goes to a fake opener."""
+import dataclasses
 import json
 import re
 from pathlib import Path
@@ -17,7 +18,9 @@ from collector.tests.test_fetch import Clock, FakeNet
 
 ROOT = Path(__file__).resolve().parent.parent
 FIX = ROOT / "collector" / "tests" / "fixtures" / "rpc"
-CFG = rpc.load_config()
+# the listing page alone: the CivicClerk backfill (rpc.yml `civicclerk`, RPC-3) has its own tests in
+# tests/test_rpc_backfill.py, which run this same step with it on
+CFG = dataclasses.replace(rpc.load_config(), backfill=None)
 LISTING = CFG.listing_url
 ROBOTS = "https://www.cmcrpc.com/robots.txt"
 ROBOTS_TXT = b"User-agent: *\ncrawl-delay: 10\n"

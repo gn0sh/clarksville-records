@@ -99,6 +99,7 @@ _HEARING = {"date": "derived: the printed date read as a date", "printed": _S, "
 _JSON = {
     "meetings": {**{k: _MEETING[k] for k in ("id", "date", "date_printed", "kind", "kind_label", "label", "cancelled",
                                               "cases", "motions_confirmed", "motions_not_confirmed")},
+                 "listing_url": _MEETING["source_url"],
                  "agenda_source_id": _ID, "minutes_source_id": _ID, "documents": "derived: the listing row's links",
                  "hearings": _S},
     "meetings.documents": _DOC,
@@ -166,7 +167,10 @@ def public_facts(rpx, internal: bool = False) -> dict:
         meetings.append({
             "id": m["id"], "date": m["date"], "date_printed": m["printed"], "kind": m["kind"],
             "kind_label": rpx.cfg["kind_labels"].get(m["kind"], m["kind"]), "label": m["label"],
-            "cancelled": m["cancelled"], "agenda_source_id": m.get("agenda_source_id"),
+            "cancelled": m["cancelled"],
+            # the RPC's page, or (RPC-3, 2019-2021) the city's CivicClerk portal
+            "listing_url": m.get("listing_url") or rpx.cfg["listing_url"],
+            "agenda_source_id": m.get("agenda_source_id"),
             "minutes_source_id": m.get("minutes_source_id"),
             "documents": [{"kind": d["kind"], "link_text": d["link_text"], "url": d["url"], "host": d["host"],
                            "collected": bool(d["fetched"]), "source_id": d.get("source_id")}
@@ -225,7 +229,8 @@ def tables(pub: dict, internal: bool = False) -> dict[str, str]:
         return "; ".join(names) if names else None
 
     out = {}
-    out["meetings"] = _csv([dict(m, source_url=pub["listing_url"], **doc(m, "agenda"), **doc(m, "minutes"))
+    out["meetings"] = _csv([dict(m, source_url=m.get("listing_url") or pub["listing_url"], **doc(m, "agenda"),
+                                 **doc(m, "minutes"))
                             for m in pub["meetings"]], MEETING_COLS)
     out["cases"] = _csv([dict(c, date=dates[c["meeting_id"]], **cite(c["source_id"], c["page"]))
                          for c in pub["cases"]], CASE_COLS)

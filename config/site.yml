@@ -112,7 +112,14 @@ morning_note:
   # Backfill guard: a day holding a document from a collector's initial run (first fetched within initial_run_hours of
   # the earliest row of its manifest) or more than max_entries entries is written with "backfill": true and no
   # entries (its counts kept), so a first collection never becomes a mail.
-  backfill: {initial_run_hours: 48, max_entries: 100}
+  backfill:
+    initial_run_hours: 48
+    max_entries: 100
+    # A later backfill of past meetings into a collector's manifest is never news: documents of meetings before
+    # `before` in that manifest make no entry (sitegen/morning.py past_record_urls). RPC-3: the RPC's 2019-2021
+    # meetings from CivicClerk (cmcrpc.com, collected since 2026-11-10, lists from 2022-01-25).
+    past_records:
+      - {manifest: data/localities/cmc-rpc/manifest.json, before: "2022-01-01"}
   # The collectors' manifests: the one list `fetch_manifests` above (dates/two-manifest-lists). Every document the
   # note reads must have a row in one.
   # Every connective word of the note (entries otherwise carry only the record's own words).
