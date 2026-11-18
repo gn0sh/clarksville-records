@@ -213,6 +213,10 @@ morning_note:
     # note/credit-logo-privacy: the email's footer logo (sender/common.py CREDIT_IMAGE) is loaded from this site.
     method_logo: "Each morning note ends with the gnoshcodes logo, as this site's footer does. The logo is loaded from this site when your email app shows images, so GitHub Pages, which hosts this site, may see your IP address and when the image was loaded."
     method_signup_link: Sign up on the Alerts page
+    # The front page's invitation (front-signup, 2026-11-18; owner: the sign-up was only in the menu). Enabled state
+    # only: one sentence saying what the note is, and the link to the form on the Alerts page (alerts.html#note).
+    front_pitch: Get a short email by 7:00 AM on days when something new is posted on the topics you pick.
+    front_button: Sign up for the morning note
     preview_title: Today's morning note
     preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."
     preview_mine: The lists you pick stay in this page's address on this device; nothing is sent.
