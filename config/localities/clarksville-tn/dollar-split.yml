@@ -1,0 +1,50 @@
+# The general fund dollar on city/finance/index.html (docs/architecture/finance-contracts.md 11,
+# sitegen/dollar_split.py): how each dollar of the general fund budget splits across departments, in one adopted column
+# of one book. Owner's request 2026-11-11 ("where every tax dollar goes"), confirmed 2026-11-18.
+#
+# book: the newest book read that prints an adopted budget for its own year. The FY2027 file is the Mayor's proposal
+# as presented 5/29/2026 (column "2027 Mayor", kind proposed), so FY2026 is used: "2026 2nd Readin" is the amount at
+# the budget ordinance's second reading (kind adopted). The FY2027 file's "2026 ORIG BUD" column prints the same
+# department amounts (tests/test_dollar_split.py checks every department both files print).
+book: fy2026-final
+column: "2026 2nd Readin"
+fund: general-fund
+body: city
+# A department is the org code of its printed sections without the last digit (the object class: 1 salaries and wages,
+# 3 operating, 4 property): 10421001 / 10421003 / 10421004 are the Police sections. The book prints each section's
+# heading cut to 30 characters ("Operating Expenditures-Mayor's"), so each department's name is written out here and
+# every printed heading it groups is listed under it on the page. An org code missing here fails the build.
+group_by: org_code
+org_digits: 7
+names:
+  "1041100": Legislative
+  "1041245": City Court
+  "1041250": Legal
+  "1041310": Mayor's Office
+  "1041330": Boards
+  "1041510": Finance
+  "1041511": Parking
+  "1041518": Purchasing
+  "1041521": Internal Audit
+  "1041550": Human Resources
+  "1041551": Security
+  "1041910": Building and Codes
+  "1041920": Information Technology
+  "1041940": Building Maintenance
+  "1041960": Garage
+  "1041970": Municipal Property
+  "1041980": Retirees
+  "1042100": Police
+  "1042110": Dispatch
+  "1042200": Fire Rescue
+  "1043100": Highways and Streets
+  "1045100": Parks and Recreation
+  "1045610": MR Golf Course
+  "1045620": SL Golf Course
+  "1046000": Other Appropriations
+  "1046200": Miscellaneous Community Agency
+  "1047000": Other Financing Uses
+  "1049100": Transit System
+  "1049200": Museum
+# Under the bar, sitegen/dollar_split.py says from the data why this is not the newest book (FY2027 prints a proposed
+# budget); a newer book that prints an adopted budget for its own year fails the build until `book` moves to it.

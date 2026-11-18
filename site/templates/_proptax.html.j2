@@ -1,0 +1,68 @@
+{# The county property tax dollar (sitegen/property_tax.py, architecture finance-contracts 12), above the general fund
+   dollar and built from the same parts (_dollar.html.j2, the .dollar styles): a plain lede and the rate; a bar 100
+   cents wide (aria-hidden) with a key; every fund as one row, a real list in the resolution's order; a closed "Where
+   these numbers come from" with the resolution, the check against the book and the full table (rate as printed, the
+   page). Rows keep the resolution's order, never ordered by amount. #}
+{% from "_fin_macros.html.j2" import fin_cites, fin_link %}
+{% set p = proptax %}
+{% set pt = proptax.t %}
+<section aria-labelledby="proptax-h" class="dollar proptax" id="property-tax-dollar">
+<h2 id="proptax-h">{{ p.heading }}</h2>
+<p class="dollar-lede">{{ p.lede }} {{ p.other_money }}</p>
+<p class="proptax-rate"><b>{{ p.rate_line }}</b> <span class="cite">({{ fin_link(p.src) }})</span></p>
+<div class="dollar-fig">
+<div class="dollar-bar" aria-hidden="true" title="{{ pt.bar_label }}">{% for r in p.rows %}<span class="dseg{% if r.labelled %} dseg-l{% endif %}{% if r.narrow %} dseg-narrow{% endif %}" style="--n: {{ r.cents }}" title="{{ r.name }}: {{ r.cents_words }}">{% if r.labelled %}<b class="dseg-t">{{ r.cents }}&cent;</b>{% endif %}</span>{% endfor %}</div>
+<ul class="dollar-key" role="list" aria-label="{{ pt.key_label }}">{% for r in p.key %}<li><b>{{ r.cents }}&cent;</b> {{ r.short }}</li>{% endfor %}</ul>
+<p class="dollar-keynote">{{ p.key_note }} {{ p.city }}</p>
+</div>
+<h3 id="proptax-list-h" class="dollar-list-h">{{ pt.list_heading }} <span class="dollar-list-order">{{ pt.list_order }}</span></h3>
+<ol class="dollar-rows" role="list" aria-labelledby="proptax-list-h">
+{% for r in p.rows %}
+  <li class="drow" style="--n: {{ r.cents }}">
+    <span class="drow-name">{% if r.to_dollar and dollar is defined and dollar %}<a href="#general-fund-dollar">{{ r.name }}</a> <span class="drow-sub">{{ pt.to_dollar }}</span>{% else %}{{ r.name }}{% endif %}</span>
+    <span class="drow-c"><span aria-hidden="true">{{ r.cents }}&cent;</span><span class="sr-only">{{ r.cents_words }}</span></span>
+    <span class="drow-bar" aria-hidden="true"></span>
+  </li>
+{% endfor %}
+  <li class="drow drow-total" style="--n: {{ p.total_cents }}">
+    <span class="drow-name">{{ pt.total_row }} <span class="drow-sub">{{ p.rate_line }}</span></span>
+    <span class="drow-c"><span aria-hidden="true">{{ p.total_cents }}&cent;</span><span class="sr-only">{{ pt.cents_many.format(n=p.total_cents) }}</span></span>
+    <span class="drow-bar" aria-hidden="true"></span>
+  </li>
+</ol>
+<details class="dollar-src" id="proptax-sources">
+<summary>{{ pt.sources_toggle }}</summary>
+<div class="dollar-src-body">
+<p>{{ p.source }} <span class="cite">({{ fin_link(p.src) }})</span></p>
+<ul class="dollar-notes">
+  <li>{{ p.check }} {% for c in p.check_cites %}<a href="{{ c.href }}">{{ c.label }}</a> {{ c.amount }} ({{ fin_link(c.src) }}){% if not loop.last %}; {% else %}.{% endif %}{% endfor %}{% if p.per_dollar %} {{ p.per_dollar }}{% endif %}</li>
+  <li>{{ p.rounding }}</li>
+  <li>{{ p.order }}</li>
+</ul>
+<div class="table-scroll fin-scroll">
+<table class="fin-stack dollar-table">
+  <caption>{{ p.caption }}</caption>
+  <thead>
+    <tr><th scope="col">{{ pt.col_fund }}</th><th scope="col" class="num">{{ pt.col_cents }}</th><th scope="col" class="num">{{ p.column }}</th><th scope="col">{{ pt.col_source }}</th></tr>
+  </thead>
+  <tbody>
+  {% for r in p.rows %}
+    <tr class="fact" data-fact-id="{{ r.fact_id }}">
+      <th scope="row" class="c-dept">{{ r.name }}{% if r.printed_as %}<span class="dollar-printed">{{ pt.printed_as }} {{ r.printed }}</span>{% endif %}</th>
+      <td class="num c-cents" data-label="{{ pt.col_cents }}">{{ r.cents_words }}</td>
+      <td class="num c-amt" data-label="{{ p.column }}">{{ r.rate }}</td>
+      <td class="c-source cite" data-label="{{ pt.col_source }}">{{ fin_cites([r.src], root, r.fact_id) }}</td>
+    </tr>
+  {% endfor %}
+    <tr class="fact d-total" data-fact-id="{{ p.total_fact_id }}">
+      <th scope="row" class="c-dept">{{ pt.total_row }}</th>
+      <td class="num c-cents" data-label="{{ pt.col_cents }}">{{ pt.cents_many.format(n=p.total_cents) }}</td>
+      <td class="num c-amt" data-label="{{ p.column }}">{{ p.total }}</td>
+      <td class="c-source cite" data-label="{{ pt.col_source }}">{{ fin_cites([p.src], root, p.total_fact_id) }}</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+</details>
+</section>

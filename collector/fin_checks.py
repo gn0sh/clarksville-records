@@ -228,6 +228,62 @@ def parts_add_up(parts: list[int | None], total: int) -> bool:
     return bool(parts) and None not in parts and sum(parts) == total
 
 
+# ------------------------------------------------------------------ the general fund dollar (finance-contracts 11)
+def total_of(amounts: list[int]) -> int:
+    """The sum of printed amounts in one book's unit (whole dollars or cents): a department's printed section totals,
+    or every department of one fund. The only adding the dollar bar does; every amount is a printed total."""
+    if any(not isinstance(a, int) for a in amounts):
+        raise ValueError("total_of: every amount must be a printed whole number (dollars or cents)")
+    return sum(amounts)
+
+
+def cents_of_dollar(amounts: list[int], total: int) -> tuple[list[int], int, list[int]]:
+    """Whole cents of each dollar for each amount, adding up to exactly 100: (cents, nearest_sum, adjusted).
+
+    Each share is first rounded to the nearest whole cent (a half rounds up), so a share of half a cent or more is
+    never shown as 0. Those add up to `nearest_sum`. When that is not 100, the |nearest_sum - 100| shares rounded the
+    most in that direction move one cent back (ties to the one listed first; a share is never taken below 1 cent):
+    `adjusted` lists them. Every share shown is then less than one cent from its exact share; when no such split
+    exists (too few shares rounded that way), ValueError, so a page never shows one that breaks it. Integer arithmetic
+    only, so the result does not depend on float rounding. `amounts` must be zero or more and add up to `total`."""
+    if total <= 0 or any(a < 0 for a in amounts) or total_of(amounts) != total:
+        raise ValueError("cents_of_dollar: amounts must be zero or more and add up to a total above zero")
+    nearest = [(200 * a + total) // (2 * total) for a in amounts]
+    err = [n * total - 100 * a for n, a in zip(nearest, amounts)]   # > 0: rounded up, in 1/total of a cent
+    s = total_of(nearest)
+    if s > 100:
+        cand = sorted((i for i in range(len(amounts)) if nearest[i] >= 2 and err[i] > 0), key=lambda i: (-err[i], i))
+    else:
+        cand = sorted((i for i in range(len(amounts)) if err[i] < 0), key=lambda i: (err[i], i))
+    need = abs(s - 100)
+    if need > len(cand):
+        raise ValueError("cents_of_dollar: too few shares to move a cent without taking one below 1 cent")
+    cents = list(nearest)
+    adjusted = sorted(cand[:need])
+    for i in adjusted:
+        cents[i] += -1 if s > 100 else 1
+    return cents, s, adjusted
+
+
+
+def tenths_of_dollar(amounts: list[int], total: int) -> tuple[list[int], int, list[int]]:
+    """Tenths of a cent of each dollar for each amount, adding up to exactly 1000 (100.0 cents): (tenths, nearest_sum,
+    moved). Largest remainder: each share is cut to the tenth below, and the tenths left over go one each to the
+    shares with the largest remainders; a tie goes to the larger exact share (the larger amount), then to the one
+    listed first. Every share is then less than a tenth of a cent from its exact share. `nearest_sum`: what the shares
+    rounded to the nearest tenth (a half up) would add up to; `moved`: the shares shown other than that nearest tenth,
+    so the page can name them. Integer arithmetic only. `amounts` must be zero or more and add up to `total`."""
+    if total <= 0 or any(a < 0 for a in amounts) or total_of(amounts) != total:
+        raise ValueError("tenths_of_dollar: amounts must be zero or more and add up to a total above zero")
+    floor = [1000 * a // total for a in amounts]
+    rem = [1000 * a % total for a in amounts]
+    need = 1000 - total_of(floor)
+    up = sorted(range(len(amounts)), key=lambda i: (-rem[i], -amounts[i], i))[:need]
+    tenths = [f + (1 if i in up else 0) for i, f in enumerate(floor)]
+    nearest = [(2000 * a + total) // (2 * total) for a in amounts]
+    moved = [i for i, (t, n) in enumerate(zip(tenths, nearest)) if t != n]
+    return tenths, total_of(nearest), moved
+
 # ------------------------------------------------------------------ coverage and parity
 def coverage(fin: dict) -> dict:
     """Live counts for every page and the report (schema coverage)."""

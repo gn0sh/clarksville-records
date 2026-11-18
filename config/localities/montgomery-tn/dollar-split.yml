@@ -1,0 +1,16 @@
+# The general fund dollar on finance/index.html (docs/architecture/finance-contracts.md 11, sitegen/dollar_split.py):
+# how each dollar of the general fund budget splits across departments, in one adopted column of one book.
+# Owner's request 2026-11-11 ("where every tax dollar goes"), confirmed 2026-11-18.
+#
+# book: the newest adopted book read (finance.json books[].id). column: its adopted column, as printed.
+# fund: the fund's page key (sitegen/budget_views.fund_key: the county prints fund numbers).
+book: fy2027-approved
+column: "FY 2027 Budget"
+fund: "101"
+# the body whose spending this is, in "not all of the {body}'s spending"
+body: county
+# A department is one printed spending heading with its printed "Total <heading>" line. Headings the book prints as
+# "<department> - <program>" (JAIL - SCAAP 2023, SPECIAL PATROLS - SCHOOL RESOURCE OFFICERS) are grouped under the
+# part before the first separator, which is how the book names them; each printed total is listed under its group.
+group_by: heading_prefix
+heading_separator: " - "

@@ -254,3 +254,65 @@ keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
   prints it and adds one fixed sentence (`budget.fund_name_cut` in config/finance_text.yml): "The FY2025 (adopted)
   book prints this fund's name cut short, as "Vehicle Replaceme"; the full name is from the FY2024 (adopted) book."
   Frontend: built by sitegen (budget_views.name_notes, fin_fund.html.j2); no other new field.
+
+## 11. The general fund dollar (added 2026-11-18, backend-engineer; owner's request 2026-11-11)
+On each body's Finance index (`finance/index.html`, `city/finance/index.html`), "Where each dollar of the general fund
+budget goes": the general fund's adopted budget split by department, in whole cents that add up to 100, as a bar
+(aria-hidden) with a key, the same shares as a list of rows, and (in the closed "Where these numbers come from" block)
+the same figures as a table with every amount and page (layout: design finance-contracts 6; frontend 2026-11-18, the
+view gained display fields only: `key`, `key_note`, `total_line`, `source`, a row's `short`). `sitegen/dollar_split.py`, template `_dollar.html.j2`, words
+`config/finance_text.yml` `dollar`, per body `config/localities/<locality>/dollar-split.yml` (book, adopted column,
+fund key, grouping rule; the city's department names by org code). No schema change: it reads `finance.json` as is.
+This is the one place a Finance index shows amounts, and it changes design 6's "no amounts, no chart" for that block.
+- **What it measures:** general fund appropriations by department in one adopted column, not spending across all
+  funds, and not property tax alone (the books do not tie a revenue to a department; said on the page).
+- **Books:** county FY2027 approved, "FY 2027 Budget", fund 101 (total 169,501,833, its printed
+  "Total Expenditures COUNTY GENERAL FUND 101", p. 78). City FY2026 final submission, "2026 2nd Readin", General Fund
+  (165,631,658.00; the FY2027 file is the Mayor's proposal, so it is not used).
+- **Departments:** printed department totals (`row_role` total, statement expenditure, `department` set), in book
+  order (no amount sort). County: grouped by the heading's part before " - " (JAIL - SCAAP 2023 under JAIL). City:
+  grouped by org code minus its last digit (salaries / operating / property sections of one department); names from
+  config, every printed heading listed under its row. Under half a cent: one "Other" row that lists them. Printed
+  "-" / .00: listed apart.
+- **Invariants (dollar-split/*; the build fails otherwise):** the department totals cover every spending detail line
+  of the fund exactly once; each used total adds up to its lines exactly in that column and is not held; the column's
+  kind is `adopted`; no negative department; the departments add up exactly to the fund's printed spending total, or,
+  where the book prints only a revenue-plus-spending fund total (the city), departments plus the printed revenue
+  totals add up to that printed total to the cent; every org code has a name; every total read is adopted, of one fiscal year; no newer book in the file prints an adopted budget for its own year (the note on why an older book is used is built from the data); a real build whose config names a book or fund the file lacks fails (no silent hide). Adding is only in
+  `collector/fin_checks.py` (`total_of`, `parts_add_up`, `cents_of_dollar`).
+- **Rounding (`cents_of_dollar`):** nearest whole cent (a half rounds up, so half a cent or more is never 0); if the
+  rounded cents do not add up to 100, the |sum - 100| rows rounded the most that way move one cent back (never below
+  1). Every row is then less than one cent from its exact share; the page names the moved rows. Integer arithmetic.
+
+## 12. The county property tax dollar (added 2026-11-18, backend-engineer; owner's request 2026-11-18)
+On the county Finance index (`finance/index.html`), above the general fund dollar: "Where a county property tax dollar
+goes", each fund's share of the county property tax rate, schools included, in whole cents (rate_fund / total rate),
+with the rate itself ("$2.10 per $100 of assessed value"). `sitegen/property_tax.py`, template `_proptax.html.j2`
+(the section 11 component and styles), words `config/finance_text.yml` `property_tax`, data
+`config/localities/montgomery-tn/property-tax-split.yml`. No schema change. The city has no config, so no bar.
+- **Source:** Resolution 26-6-11 (FY2027 levy), FY 2027 column, as the FY2027 Approved Budget prints it (book
+  `fy2027-approved`, source src-f6538dd0321b, PDF p. 20). The rates are copied into the config as printed;
+  `tests/fixtures/fy2027-tax-levy-p20.txt` (the page's text layer) and `tests/test_property_tax.py` read them back.
+  Rows in the resolution's order, plain names (County general fund, Roads, Schools, Debt service, Capital projects,
+  School transportation); every row and the total cite p. 20. The County general fund row links to `#general-fund-dollar`.
+- **Invariants (property-tax-split/*; the build fails otherwise):** every config key present; each rate a printed
+  three-decimal rate above zero; the rates add up exactly to the printed Total Tax Rate and to Section 1's rate; the
+  book and its source are in `finance.json`; every fund the book budgets account 40110 (CURRENT PROPERTY TAX) for in
+  the adopted column is one config row and vice versa, each printed once, not held, and each amount the same multiple of
+  its rate (integer cross-products; FY2027: 91,200,000 x rate). Adding only via `collector/fin_checks.total_of`.
+  The config's year is its book's; a newer book that prints an adopted budget for its own year fails the build
+  (stale-book, as section 11). A set config never yields a hidden bar: a missing book raises, and the build stops if
+  no bar was built (silent-hide). Segments under 10 cents hide their label on a phone (the key names them).
+- **Rounding (`tenths_of_dollar`):** tenths of a cent, largest remainder: each share cut to the tenth below, the
+  leftover tenths to the largest remainders (a tie to the larger exact share, then the first listed); they add up to
+  exactly 100.0 and each is within a tenth of its exact share. Rows shown other than their nearest tenth are named
+  (FY2027: 53.8 / 6.6 / 17.6 / 18.6 / 1.9 / 1.5; nearest would add up to 100.1, so Roads 6.667 shows 6.6). Whole
+  cents tied Schools and Debt service and showed Schools a cent low (review, tie-understates-schools).
+- **Copy:** "as printed in the FY2027 Approved Budget" until the June 8, 2026 minutes are collected (TODO in the
+  config: then "as adopted" with the vote linked); one neutral sentence for every fund: "Each fund also has money
+  from sources other than property tax, not shown here."
+- **Fact ids:** `proptax/<book>/<printed fund slug>` and `proptax/<book>/total`, from `property_tax.fact_ids`, known to
+  `qa/site_checks.finance_fact_ids`.
+- **Updating for a new year:** add the new book, then edit the config (book, page, column, rates as printed, fixture
+  text). The config names its book and year, so the page always says which year's rates it shows; pointing the
+  config at a new book without new rates fails the 40110 check.

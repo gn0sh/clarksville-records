@@ -66,7 +66,8 @@ def pinned_pages(tmp_path_factory):
     out = d / "site"
     res = build(d / "county" / "facts.json", out, target="pages", finance_path=None, councils=[cfg], rpc=None,
                 county_agendas=None, county_committees=None, city_committees=None, transcripts=False, export=False,
-                morning_manifests=None, fetch_manifests=None, vote_lists=False)
+                morning_manifests=None, fetch_manifests=None, vote_lists=False,
+                general_fund_dollar=False)   # the snapshot holds two funds, not the general fund the dollar reads
     assert res["city_budget"] is True
     return {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8") for p in out.rglob("*.html")}
 

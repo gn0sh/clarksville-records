@@ -1,0 +1,40 @@
+# The county property tax dollar on finance/index.html (docs/architecture/finance-contracts.md 12,
+# sitegen/property_tax.py): how each dollar of the county property tax splits across the funds the tax rate resolution
+# levies it for, schools included. Owner's request 2026-11-18 ("how much of a county property tax dollar goes to the
+# schools").
+#
+# The rates are the FY 2027 column of Resolution 26-6-11, "Resolution to Levy a Tax Rate in Montgomery County,
+# Tennessee, for the Fiscal Year Beginning July 1, 2026", as the FY2027 Approved Budget prints it (book fy2027-approved,
+# source src-f6538dd0321b, PDF page 20, the book's "Tax Levy Resolution", printed page 18). Copied by hand from the
+# page's text layer (pdftotext -layout), each figure exactly as printed; the same table is on PDF page 155 of the
+# 2026-06-08 formal agenda packet (src-65e9d5c3208e, a scan). tests/fixtures/fy2027-tax-levy-p20.txt holds that page's
+# text layer and tests/test_property_tax.py reads the rates back from it, so this file cannot drift from the page.
+#
+# The build checks these against the book itself (sitegen/property_tax.py): the rates add up to the printed total and
+# to Section 1's rate exactly, and every fund the book budgets "CURRENT PROPERTY TAX" (account 40110) for in the adopted
+# column is one row here, each amount the same multiple of its rate. Anything else fails the build.
+# TODO(provenance/as-adopted): the page says "as printed in the FY2027 Approved Budget". Once the June 8, 2026
+# commission minutes are collected (the clerk's minutes page listed only up to May 2026 on 2026-11-18), switch the
+# lede to "as adopted" and link the 26-6-11 vote from the minutes.
+book: fy2027-approved
+page: 20
+resolution: "26-6-11"
+title: "Resolution to Levy a Tax Rate in Montgomery County, Tennessee, for the Fiscal Year Beginning July 1, 2026"
+# as the page prints them: Section 1's combined rate, the column header, its Total Tax Rate cell
+rate_as_printed: "$2.10"
+column: "FY 2027 Rate"
+total_as_printed: "$2.100"
+fiscal_year: 2027
+# the book's revenue lines that must match the rates: account code and adopted column, as printed
+check_account: "40110"
+check_column: "FY 2027 Budget"
+# In the order the resolution prints them. printed: the fund as printed; name: the plain name on the page;
+# fund: the book's fund number (budget_views.fund_key) where the book prints the fund, else null (the book does not
+# carry the school funds).
+funds:
+  - {printed: "County General", rate: "$1.130", name: "County general fund", fund: "101"}
+  - {printed: "General Roads", rate: "0.140", name: "Roads", fund: "131"}
+  - {printed: "General Purpose School", rate: "0.369", name: "Schools", fund: null}
+  - {printed: "Debt Service", rate: "0.390", name: "Debt service", fund: "151"}
+  - {printed: "General Purpose Capital Projects", rate: "0.040", name: "Capital projects", fund: "171"}
+  - {printed: "School Transportation", rate: "0.031", name: "School transportation", fund: null}
