@@ -422,7 +422,9 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
              "not read by this script; none with Administration write)",
              "alone can write this repository (",
              "remove its access to clarksville-records, or the team amends ADR 0011 first",
-             "takes App names from github.com/apps/<name>, comma-separated, or none",
+             "takes one value, claude or none (", "(not claude or none)",
+             "none (one value; any other App must first lose its access to clarksville-records, or the team amends "
+             "ADR 0011).",
              "^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$",
              "Deploy keys with write: ", "a deploy key with write: ",
              "must use custom deployment policies only (not protected branches, not all)",
@@ -636,10 +638,11 @@ def test_protect_main_records_the_hand_confirmed_apps(tmp_path, apps):
 @pytest.mark.parametrize("apps,says", [
     ("claude,other-app", "an installed App other than claude alone can write this repository (claude,other-app)"),
     ("other-app", "an installed App other than claude alone can write this repository (other-app)"),
-    ("Claude App", "--apps takes App names from github.com/apps/<name>, comma-separated, or none"),
-    ("", "--apps takes App names from github.com/apps/<name>, comma-separated, or none"),
+    ("Claude App", "--apps takes one value, claude or none ('Claude App' is not one)"),
+    ("", "--apps takes one value, claude or none ('' is not one)"),
+    ("claude other-app", "--apps takes one value, claude or none ('claude other-app' is not one)"),
     ("none,claude", "an installed App other than claude alone can write this repository (none,claude)"),
-], ids=["claude-plus-another", "another", "display-name", "empty", "none-and-claude"])
+], ids=["claude-plus-another", "another", "display-name", "empty", "space-joined", "none-and-claude"])
 def test_protect_main_not_ok_for_other_apps(tmp_path, apps, says):
     r, _ = _pm(tmp_path, args=("--apps", apps))
     _not_ok(r, says)
@@ -667,3 +670,4 @@ def test_protect_main_ps1_takes_apps_the_same_way():
     assert "param([switch]$Check, [string]$Apps = '')" in ps1 and "$PSBoundParameters.ContainsKey('Apps')" in ps1
     assert "$allowedApp = 'claude'" in ps1 and "allowed_app=claude" in PM_SH.read_text(encoding="utf-8")
     assert "$Apps -cne 'none' -and $Apps -cne $allowedApp" in ps1 and "-Apps none" in ps1
+    assert "typed at a PowerShell prompt, a,b arrives as 'a b')" in ps1

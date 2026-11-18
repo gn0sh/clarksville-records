@@ -231,10 +231,10 @@ if ($null -eq $inv) { Unread 'the pending invitations' } else {
 # installed Apps: confirmed by hand (-Apps), never read (no read an OAuth token can make lists them)
 if (-not $appsGiven) {
     Write-Host 'Installed Apps with write on this repository: not confirmed'
-    Problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with -Apps <their names from github.com/apps/<name>, comma-separated> or -Apps none. Only $allowedApp may be listed, and only if its Administration permission is not Read and write"
+    Problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with -Apps claude or -Apps none (one value; any other App must first lose its access to clarksville-records, or the team amends ADR 0011). Only $allowedApp may be listed, and only if its Administration permission is not Read and write"
 } elseif ($Apps -cnotmatch '^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$') {
-    Write-Host "Installed Apps with write on this repository: '$Apps' (not a list of App names)"
-    Problem '-Apps takes App names from github.com/apps/<name>, comma-separated, or none'
+    Write-Host "Installed Apps with write on this repository: '$Apps' (not claude or none)"
+    Problem "-Apps takes one value, claude or none ('$Apps' is not one; typed at a PowerShell prompt, a,b arrives as 'a b')"
 } else {
     $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
     Write-Host "Installed Apps with write on this repository: $Apps (confirmed by hand by $owner on $today, not read by this script; none with Administration write)"

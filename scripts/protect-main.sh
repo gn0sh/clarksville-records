@@ -174,10 +174,10 @@ else unread "the pending invitations"; fi
 # installed Apps: confirmed by hand (--apps), never read (no read an OAuth token can make lists them)
 if [ "$apps_given" = 0 ]; then
   echo "Installed Apps with write on this repository: not confirmed"
-  problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with --apps <their names from github.com/apps/<name>, comma-separated> or --apps none. Only $allowed_app may be listed, and only if its Administration permission is not Read and write"
+  problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with --apps claude or --apps none (one value; any other App must first lose its access to clarksville-records, or the team amends ADR 0011). Only $allowed_app may be listed, and only if its Administration permission is not Read and write"
 elif ! [[ "$apps" =~ ^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$ ]]; then
-  echo "Installed Apps with write on this repository: '$apps' (not a list of App names)"
-  problem "--apps takes App names from github.com/apps/<name>, comma-separated, or none"
+  echo "Installed Apps with write on this repository: '$apps' (not claude or none)"
+  problem "--apps takes one value, claude or none ('$apps' is not one)"
 else
   echo "Installed Apps with write on this repository: $apps (confirmed by hand by $owner on $(date -u +%Y-%m-%d), not read by this script; none with Administration write)"
   if [ "$apps" != none ] && [ "$apps" != "$allowed_app" ]; then

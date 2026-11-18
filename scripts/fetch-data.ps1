@@ -35,6 +35,16 @@ $names = (@(git ls-tree --name-only $d)) -join ','
 if ($names -cne 'data') {
     Write-Host "records-data $d holds '$names', not only data/. Nothing was changed. Send this output to the team."; exit 1
 }
+# data must be a real folder, and nothing under it a symlink (120000) or a submodule (160000): a symlinked data/ or
+# file would point the site build, the tests or the collector outside the checkout
+$topMode = ((@(git ls-tree $d data)) -join '').Split(' ')[0]
+if ($topMode -cne '040000') {
+    Write-Host "records-data $d has data as mode $topMode, not a folder (040000). Nothing was changed. Send this output to the team."; exit 1
+}
+$links = (@(git ls-tree -r $d -- data) | Where-Object { $_ -cmatch '^(120000|160000) ' } | ForEach-Object { $_.Split("`t", 2)[1] } | Select-Object -First 5) -join ','
+if ($links) {
+    Write-Host "records-data $d holds a symlink or submodule under data/ ($links). Nothing was changed. Send this output to the team."; exit 1
+}
 $want = @(git ls-tree -r --name-only $d -- data).Count
 $gd = (git rev-parse --absolute-git-dir) -join ''
 if ($LASTEXITCODE -ne 0 -or -not $gd) { Write-Host 'Could not find the git folder. Nothing was changed.'; exit 1 }
@@ -56,6 +66,9 @@ if ($got -ne $want) {
 }
 if (Test-Path -LiteralPath 'data') {
     Remove-Item -LiteralPath $previous -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $previous) {
+        Write-Host "Could not remove the old $previous. Nothing was changed. Send this output to the team."; exit 1
+    }
     Move-Item -LiteralPath 'data' -Destination $previous
     if (-not $?) { Write-Host 'Could not move the current data/ aside. Nothing was changed.'; exit 1 }
     Write-Host "The data/ that was here is now at $previous (replaced on the next run)."
