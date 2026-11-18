@@ -101,7 +101,7 @@ def test_clarksville_primary_equals_todays_literals():
         "record": {"url": "https://montgomerytn.gov/clerk/county-commission-minutes",
                    "label": "Montgomery County clerk, commission minutes"},
         "kind_labels": {"formal": "Formal meeting", "informal": "Informal meeting", "special": "Special meeting"},
-        "held_sentences": None, "seats": "districts"}
+        "held_sentences": None, "seats": "districts", "titles": [], "member_title": None}
     assert tuple(config.PRIMARY) == config.PRIMARY_KEYS
 
 

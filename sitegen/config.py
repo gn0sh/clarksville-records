@@ -126,7 +126,8 @@ OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}
 
 # The site's primary body (ADR 0012 decision 1): the one the top-level pages are built for. Clarksville's is the
 # County Commission, filled from today's keys so every word is the same; a city-only site's is its `primary:` block.
-PRIMARY_KEYS = ("key", "name", "label", "meeting_title_body", "record", "kind_labels", "held_sentences", "seats")
+PRIMARY_KEYS = ("key", "name", "label", "meeting_title_body", "record", "kind_labels", "held_sentences", "seats",
+                "titles", "member_title")
 
 
 def _primary(site: dict) -> dict:
@@ -135,10 +136,12 @@ def _primary(site: dict) -> dict:
         return {"key": site["county_key"], "name": site["county_body"], "label": site["meeting_title_body"],
                 "meeting_title_body": site["meeting_title_body"],
                 "record": (site.get("official_records") or {}).get("county"), "kind_labels": KIND_LABELS,
-                "held_sentences": None, "seats": "districts"}
+                "held_sentences": None, "seats": "districts", "titles": [], "member_title": None}
     return {"key": p["key"], "name": p["name"], "label": p["label"], "meeting_title_body": p["label"],
             "record": p.get("record"), "kind_labels": p.get("kind_labels") or KIND_LABELS,
-            "held_sentences": p.get("held_sentences"), "seats": p["seats"]}
+            "held_sentences": p.get("held_sentences"), "seats": p["seats"],
+            # decision 5: the printed words that are titles (never who holds them) and every member's facts title
+            "titles": list(p.get("titles") or []), "member_title": p.get("member_title")}
 
 
 PRIMARY = _primary(SITE)
