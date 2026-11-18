@@ -171,8 +171,85 @@ def test_lit_shape_is_a_half_disc_closed_by_an_elliptical_terminator(node):
     arc = "M0 -10A10 10 0 0 1 0 10"                                      # the bright edge: the disc's right half
     assert crescent == arc + "A5 10 0 0 0 0 -10Z"                         # terminator bows toward the bright edge
     assert gibbous == arc + "A5 10 0 0 1 0 -10Z"                          # and away from it past half
-    assert half == arc + "A0 10 0 0 0 0 -10Z"                             # a straight line at the quarters
+    assert half == arc + "Z"                                              # a straight line at the quarters
     assert new == arc + "A10 10 0 0 0 0 -10Z" and full == arc + "A10 10 0 0 1 0 -10Z"   # nothing lit, all lit
+
+
+def _edges(d, steps=360):
+    """The edges of an SVG path of M, A, L and Z commands, each a list of (x, y) points along it, worked by the SVG
+    rules apart from the script: an arc from its end points, radii, x-axis turn of 0 and two flags (SVG 1.1, F.6.5);
+    Z is the straight line back to the start, when there is any way to go."""
+    tokens = re.findall(r"[MALZ]|-?\d+(?:\.\d+)?(?:e-?\d+)?", d)
+    edges, at, start, i = [], None, None, 0
+    while i < len(tokens):
+        cmd = tokens[i]
+        if cmd == "M":
+            at = start = (float(tokens[i + 1]), float(tokens[i + 2]))
+            i += 3
+        elif cmd in ("L", "Z"):
+            to = start if cmd == "Z" else (float(tokens[i + 1]), float(tokens[i + 2]))
+            if math.dist(at, to) > 1e-9:                      # a Z where the path is already home draws nothing
+                edges.append(("line", [(at[0] + (to[0] - at[0]) * s / steps, at[1] + (to[1] - at[1]) * s / steps)
+                                       for s in range(steps + 1)]))
+            at, i = to, i + (1 if cmd == "Z" else 3)
+        else:
+            assert cmd == "A", d
+            rx, ry, turn, large, sweep, x2, y2 = (float(v) for v in tokens[i + 1:i + 8])
+            assert turn == 0 and rx > 0 and ry > 0, d
+            (x1, y1), i = at, i + 8
+            hx, hy = (x1 - x2) / 2, (y1 - y2) / 2
+            grow = math.sqrt(max(1, hx * hx / (rx * rx) + hy * hy / (ry * ry)))       # radii too small are scaled up
+            rx, ry = rx * grow, ry * grow
+            under = rx * rx * hy * hy + ry * ry * hx * hx
+            coef = math.sqrt(max(0, (rx * rx * ry * ry - under) / under)) * (1 if large != sweep else -1)
+            cx_, cy_ = coef * rx * hy / ry, -coef * ry * hx / rx
+            cx, cy = cx_ + (x1 + x2) / 2, cy_ + (y1 + y2) / 2
+            a1 = math.atan2((hy - cy_) / ry, (hx - cx_) / rx)
+            da = math.atan2((-hy - cy_) / ry, (-hx - cx_) / rx) - a1
+            if sweep == 0 and da > 0:
+                da -= 2 * math.pi
+            if sweep == 1 and da < 0:
+                da += 2 * math.pi
+            edges.append(("arc", [(cx + rx * math.cos(a1 + da * s / steps), cy + ry * math.sin(a1 + da * s / steps))
+                                  for s in range(steps + 1)]))
+            at = (x2, y2)
+    return edges
+
+
+def test_the_outer_edge_is_the_moons_own_circle_and_the_terminator_is_straight_at_half(node):
+    """Manager review, 2026-11-18 (moon-shape/terminator): whatever the phase, the drawn shape's outer edge is half
+    of one circle of radius r, from pole to pole; the terminator joins the same two poles, as half an ellipse r high
+    and r * |1 - 2k| wide that bows toward the bright edge for a crescent and away from it past half, and as a
+    straight line at half; nothing is drawn outside the circle; and the drawn area is the lit share of the disc. The
+    points are worked from the path by the SVG rules here, not by the script."""
+    cases = [(k, 10) for k in (0.01, 0.029, 0.124, 0.25, 0.4, 0.493, 0.5, 0.507, 0.553, 0.644, 0.75, 0.841, 0.993, 1)]
+    cases += [(0.2, 7), (0.5, 7), (0.8, 7)]
+    paths = run(node, "const s = require(process.argv[1]);"
+                      "console.log(JSON.stringify(JSON.parse(process.argv[2]).map(c => s.moonPath(c[0], c[1]))));",
+                json.dumps(cases))
+    for (k, r), d in zip(cases, paths):
+        edges = _edges(d)
+        assert len(edges) == 2, (k, d)
+        (kind, limb), (shape, term) = edges
+        # the limb: the right half of the circle of radius r, top pole to bottom pole through the bright side
+        assert kind == "arc" and math.dist(limb[0], (0, -r)) < 1e-9, (k, d)
+        assert math.dist(limb[-1], (0, r)) < 1e-9 and math.dist(limb[len(limb) // 2], (r, 0)) < 1e-9, (k, d)
+        assert all(abs(math.hypot(x, y) - r) < 1e-9 and x > -1e-9 for x, y in limb), (k, d)
+        # the terminator: back from the bottom pole to the top pole
+        assert math.dist(term[0], (0, r)) < 1e-9 and math.dist(term[-1], (0, -r)) < 1e-9, (k, d)
+        wide = r * abs(1 - 2 * k)
+        for x, y in term:
+            assert math.hypot(x, y) < r + 1e-9, (k, d)                              # never outside the moon's circle
+            assert abs(abs(x) - wide * math.sqrt(max(0, 1 - (y / r) ** 2))) < 0.006, (k, d, x, y)   # the half ellipse
+            assert (x > -1e-9) if k < 0.5 else (x < 1e-9), (k, d, x, y)             # crescent: toward the bright edge
+        if k == 0.5:
+            assert shape == "line" and all(x == 0 for x, _ in term), d              # half lit: a straight line
+        if abs(k - 0.5) < 0.01:
+            assert max(abs(x) for x, _ in term) <= 0.015 * r, (k, d)                # and all but straight beside it
+        # the drawn area is the lit share of the disc (the shoelace sum over the outline)
+        pts = limb + term
+        area = abs(sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(pts, pts[1:] + pts[:1]))) / 2
+        assert abs(area / (math.pi * r * r) - k) < 0.002, (k, d, area)
 
 
 def test_free_rect_is_the_largest_open_rectangle_clear_of_every_block(node):
@@ -511,10 +588,24 @@ for (const r of ['', ...roots]) {
       }
       texts.menu = box(document.getElementById('nav-open').getBoundingClientRect());
       const lit = document.getElementById('sky-moon-lit'), ms = getComputedStyle(moon);
+      // the drawn path as the browser measures it, in its own units (a disc of radius 10): `far` the farthest point
+      // of its outline from the centre, `limb` the length of outline on the disc's circle, `bow` how far the rest
+      // of the outline (the terminator) strays from the straight line between the poles
+      let outline = null;
+      if (lit && !moon.hasAttribute('hidden')) {
+        const len = lit.getTotalLength(), n = 1440;
+        let far = 0, on = 0, bow = 0;
+        for (let i = 0; i <= n; i += 1) {
+          const p = lit.getPointAtLength(len * i / n), d = Math.hypot(p.x, p.y);
+          far = Math.max(far, d);
+          if (d > 9.98) { on += 1; } else { bow = Math.max(bow, Math.abs(p.x)); }
+        }
+        outline = { far, limb: len * on / (n + 1), bow, len };
+      }
       return { hidden: moon.hasAttribute('hidden'), moon: box(moon.getBoundingClientRect()), air, header, texts,
                size: parseFloat(ms.width), svgs: moon.querySelectorAll('svg').length,
                shapes: [...moon.querySelectorAll('svg *')].map(n => n.tagName.toLowerCase()),
-               litPath: lit ? lit.getAttribute('d') : null,
+               litPath: lit ? lit.getAttribute('d') : null, outline,
                moonBox: [ms.boxShadow, ms.backgroundColor, ms.borderTopWidth],
                sunAt: sun.getAttribute('data-at'), sunSeen: getComputedStyle(sun).visibility !== 'hidden',
                sunAlt: sun.style.getPropertyValue('--sun-alt'), sunBox: box(sun.getBoundingClientRect()),
@@ -571,6 +662,7 @@ SKIES = [
     ("2026-11-12T23:20:00Z", "moon", "November 12"),          # 5:20 PM, after sunset: the crescent low in the west
     ("2026-11-27T03:00:00Z", "moon", "November 26"),          # 9 PM: a gibbous moon in the east
     ("2026-03-26T00:30:00Z", "moon", "March 25"),             # 7:30 PM, after sunset: the half moon overhead
+    ("2026-08-20T01:10:00Z", "moon", "August 19"),            # 8:10 PM: first quarter, 49.6% lit, lit on the right
     ("2026-08-24T07:00:00Z", "moon", "August 24"),            # 2 AM: low in the west, over the sun's daytime column
     ("2026-11-20T21:30:00Z", "sun", "November 20"),           # 3:30 PM: the gibbous moon is up too, and not drawn
     ("2026-12-01T13:30:00Z", "sun", "December 1"),            # 7:30 AM: the half moon is high, and not drawn
@@ -610,7 +702,7 @@ def test_in_a_browser_the_sky_holds_the_sun_or_the_moon_never_both_and_the_moon_
     rows = got["rows"]
     assert len(rows) == 2 * 3 * len(SKIES)
     want = {iso: (sky, date) for iso, sky, date in SKIES}
-    crescents = 0
+    crescents = halves = 0
     for r in rows:
         where = (r["width"], r["rel"], r["iso"])
         sky, date = want[r["iso"]]
@@ -635,10 +727,17 @@ def test_in_a_browser_the_sky_holds_the_sun_or_the_moon_never_both_and_the_moon_
         h = r["header"]
         assert h["left"] <= m["left"] and m["right"] <= h["right"], where
         assert h["top"] <= m["top"] and m["bottom"] <= h["bottom"], where
+        # the browser's own measure of the drawn outline: nothing outside the disc's circle (radius 10), and the
+        # whole bright half of that circle is on it (31.4 long), at every phase
+        o = r["outline"]
+        assert o["far"] <= 10.01 and o["limb"] >= 31.2, (where, o)
+        if r["iso"] == "2026-08-20T01:10:00Z":                # first quarter: a half disc, its terminator straight
+            halves += 1
+            assert o["bow"] <= 0.15 and abs(o["len"] - (10 * math.pi + 20)) < 0.2, (where, o, r["litPath"])
         if r["iso"] == "2026-11-12T23:20:00Z":                # 12% lit: the drawing is a crescent, not a disc
             crescents += 1
             assert re.fullmatch(r"M0 -10A10 10 0 0 1 0 10A7\.\d+ 10 0 0 0 0 -10Z", r["litPath"]), where
-    assert crescents == 6
+    assert crescents == 6 and halves == 6
     # what is painted: about the lit share of the disc and no more, and the unlit side is plain sky ("not a whole
     # moon with a shadow"): the faint disc this replaced stood about 30 levels off the sky there
     assert [p["iso"] for p in got["paint"]] == list(painted)

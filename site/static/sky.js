@@ -114,12 +114,20 @@
     return Math.round(Math.max(0, Math.min(1, (az - AZ_LEFT) / (AZ_RIGHT - AZ_LEFT))) * 1000) / 1000;
   }
 
-  /* The lit part of a disc of radius r about (0, 0), bright edge on the right, as an SVG path: the right half of the
-     circle, closed by the terminator, which is half an ellipse (the lit/dark line seen at an angle). */
+  /* The lit part of a disc of radius r about (0, 0), bright edge on the right, as an SVG path. Two edges that meet at
+     the disc's two poles, (0, -r) and (0, r):
+       the limb        the right half of the moon's own circle, radius r, whatever the phase;
+       the terminator  the lit/dark line: half an ellipse through the same two poles, r high and r * |1 - 2k| wide
+                       (r * |cos| of the phase angle). For a crescent it bows toward the limb (the half disc less
+                       the half ellipse), past half it bows away from it (the half disc plus the half ellipse), and
+                       at half it is a straight line from pole to pole, drawn as one.
+     So the outer edge is always part of one circle, and the drawn area is the lit fraction of the disc. */
   function moonPath(fraction, r) {
     r = r || 10;
     var k = Math.max(0, Math.min(1, fraction)), rx = Math.round(Math.abs(1 - 2 * k) * r * 100) / 100;
-    return "M0 " + (-r) + "A" + r + " " + r + " 0 0 1 0 " + r + "A" + rx + " " + r + " 0 0 " + (k > 0.5 ? 1 : 0) + " 0 " + (-r) + "Z";
+    var limb = "M0 " + (-r) + "A" + r + " " + r + " 0 0 1 0 " + r;
+    if (rx === 0) { return limb + "Z"; }                       /* half lit: the straight line back to the top pole */
+    return limb + "A" + rx + " " + r + " 0 0 " + (k > 0.5 ? 1 : 0) + " 0 " + (-r) + "Z";
   }
 
   /* ---- Where the moon may sit: open sky only (manager's design call, 2026-11-14) --------------------------------

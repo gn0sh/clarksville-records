@@ -114,6 +114,13 @@ page at the same time, and the moon should be represented as it looks.. not a wh
   real lit fraction and turned to the real bright edge. The unlit part is not drawn: no faint disc and no ring
   around the whole moon. The shape is never padded (a thin crescent is thin; it was 6% at least), and under 1% lit,
   the day or so around new moon, nothing is drawn, as nothing can be seen in the real sky.
+- The shape (manager review, 2026-11-18): the outer edge is always half of the moon's own circle, pole to pole. The
+  terminator joins the same two poles: half an ellipse as tall as the disc and `|1 - 2 x lit fraction|` of its
+  radius wide, bowing toward the bright edge for a crescent and away from it past half, and a straight line at
+  half (a half disc). The drawn area is the lit share of the disc. The whole shape is then turned to the real
+  bright edge, so a quarter moon is a half disc that leans toward where the sun is: nearly upright on an August
+  evening (2026-08-19, bright edge 98 degrees from up), lit from below (a bowl) when a last quarter rises after
+  midnight (2026-12-01, 2 AM, 164 degrees the other way; PyEphem agrees, `tests/test_moon.py` REFERENCE).
 - Look: 28px on a phone, 40px at 1280. The lit part is `--moon` with a hairline `--moon-edge` (white with a navy
   edge on the light sky, pale on the dark one) and a soft glow that follows its shape (`--moon-ring`, a drop
   shadow). No animation; the sun slides only under `prefers-reduced-motion: no-preference`. Decorative:
