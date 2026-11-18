@@ -63,9 +63,15 @@ and may be labelled differently. Record what each screen really says in `docs/pl
 
 ## 2. GitHub settings (Brian, once; nothing runs yet)
 0. **Brian: protect `main` first** (security-note-workflow M1, main-protect/actions-bypass-reopens-M1,
-   note-key/writer-reach-whole-list). **Changed 2026-11-17: the ruleset has no bypass.** The daily `data/` commit
-   now reaches `main` by its own pull request (the "Fallback" below is what the team built), so nobody, GitHub
-   Actions included, can push `main` directly.
+   note-key/writer-reach-whole-list). **Changed 2026-11-18 (ADR 0010): the ruleset is R1'.** The daily `data/`
+   commit reaches `main` by its own pull request, and nobody, GitHub Actions included, can push `main` directly.
+   R1' adds: **code-owner review** (`.github/CODEOWNERS`: `* @gn0sh`, then `/data/` with no owner, so every path
+   outside `data/` is owned and `data/` is not), **squash only**, and one bypass, the **Repository admin role in
+   "pull request" mode** (an admin may merge a pull request without its requirements; nobody may push `main`).
+   So a pull request that changes anything outside `data/` merges only by an admin's bypass merge, i.e. by a
+   person: `GITHUB_TOKEN` is no code owner and holds no admin role, and nobody approves (gn0sh authors the pull
+   requests and cannot approve his own). A pull request that changes only `data/` needs no review, so the `push`
+   job merges it as before.
    **Plainly: anyone with write or admin access to this repository can reach the Buttondown key.** The ruleset
    below does not change that. With 0 required approvals a writer can open a pull request that changes the workflow
    and merge it themselves. The `morning-note` environment's "main only" rule (step 2.2) only says *which branch*
@@ -73,13 +79,14 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    - **Keep collaborators to the minimum** (https://github.com/gn0sh/clarksville-records/settings/access): every
      person or app with write access is someone who can reach the key. Add nobody for the morning note.
    - **The ruleset is accident prevention plus an audit trail**, not a lock: it stops every direct push and force
-     push (no bypass), and it makes every change to `main` show up as a pull request. The `gate` job adds a check
+     push (its one bypass is for pull requests only), and it makes every change to `main` show up as a pull
+     request. The `gate` job adds a check
      on top, before anything is built, deployed or sent (step "Check every change outside data/ reached main by a reviewed pull request a person merged"): **every** commit on `main`'s first-parent
      line after the baseline `MAIN_PR_BASELINE` that touches anything outside `data/` must be the merge of exactly
      one pull request into `main`, **merged by a person**, with **a person's review of the PR's head commit** (the owner's
      or a collaborator's) posted before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
      workflow using `GITHUB_TOKEN`, which the setting below allows) is refused. The baseline is set once, the day
-     the V1 probe passes (2.0.4, section 4 item 7); until then it is empty, the gate checks nothing and the note
+     the V1' probe passes (2.0.4, section 4 item 7); until then it is empty, the gate checks nothing and the note
      never runs. The team merged earlier work without pull requests; **from the baseline on, every change outside
      `data/` reaches `main` by `scripts/merge-reviewed.ps1` (2.0.3)**, never the Merge button, never auto-merge,
      never "Rebase and merge" (a rebased commit other than the last one is refused).
@@ -102,15 +109,18 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    - What stops a writer who goes around all of this (merging their own code PR with a review of their own, or a
      pushed workflow that drops the gate) is a person: the optional required reviewer on the `morning-note` environment (section 5,
      step 0), which holds every job that would get the key until Brian approves it.
-   - **Gap closed by the no-bypass ruleset (main-protect/ff-push-marks-pr-merged):** GitHub may mark an open pull
-     request as merged when its head commit is pushed straight to `main`. With no bypass nobody can push `main`, and
-     a commit GitHub marked that way after a push by the Actions bot is refused by the gate's "merged by a person"
-     test. It reopens only if the ruleset is disabled or a bypass is put back: then treat a pull request shown as
-     merged that nobody merged on its page as a direct push ("When the gate fails").
-   - **What the gate cannot hold (V1, unverified):** the gate runs inside the workflow it judges, so it relies on
-     GitHub refusing `GITHUB_TOKEN` any change under `.github/workflows/`, by push and by merging a pull request.
-     For pushes GitHub documents it; for merges it is not yet seen. The V1 probe (2.0.4) tests it, and must pass
-     before `MAIN_PR_BASELINE` or `MORNING_NOTE_SEND` is set.
+   - **Gap closed by the ruleset (main-protect/ff-push-marks-pr-merged):** GitHub may mark an open pull
+     request as merged when its head commit is pushed straight to `main`. The only bypass is in "pull request"
+     mode, so nobody can push `main`, and a commit GitHub marked that way after a push by the Actions bot is refused
+     by the gate's "merged by a person" test. It reopens only if the ruleset is disabled or a bypass in "always"
+     mode is added: then treat a pull request shown as merged that nobody merged on its page as a direct push
+     ("When the gate fails").
+   - **V1 is false (2026-11-18), so the code-owner rule holds the workflows.** The gate runs inside the workflow it
+     judges, so it cannot hold its own file: a bot merge that rewrote `daily-update.yml` would remove the check
+     before it ran. The team had relied on V1 (GitHub refuses `GITHUB_TOKEN` a workflow change by merge too); the
+     V1 probe showed GitHub does not (2.0.4). What keeps a workflow's merge out of `main` now is R1' above (V1',
+     ADR 0010): outside `data/` only a person's bypass merge goes through. The V1' probe (2.0.4) checks it, and
+     must pass before `MAIN_PR_BASELINE` or `MORNING_NOTE_SEND` is set.
    `main` takes changes by pull request only; the daily `data/` commit is a pull request too.
    **Order:** the pull request that made the `push` job open data PRs must be on `main` first (the scripts below
    check this and change nothing otherwise); the old job pushed `main` directly and would fail under this ruleset.
@@ -124,20 +134,24 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       ```
       (Local scripts are allowed in Windows Settings > For developers; never add `-ExecutionPolicy Bypass`.)
       (macOS or Linux: `bash scripts/protect-main.sh`.) It (a) stops with "Main does not have the data pull request
-      change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly; (b) reads `main`'s commit
+      change yet. Nothing was changed." if `main`'s workflow still pushes `main` directly, and with "Main has no
+      .github/CODEOWNERS yet" or "Main's .github/CODEOWNERS is not '* @gn0sh' then '/data/'" or "GitHub lists
+      errors in main's .github/CODEOWNERS" (each "Nothing was changed") unless `main` has exactly the reviewed
+      CODEOWNERS and GitHub found no error in it (a line GitHub cannot read is silently dropped); (b) reads `main`'s commit
       before touching anything and prints **`Main before the ruleset: <sha>`** (it stops, changing nothing, if
       that read fails); then creates the ruleset
-      from `scripts/main-ruleset.json` (no bypass), or, if a ruleset named `main: pull request required` already
-      exists, updates that one, which also removes any bypass it had (running it twice never makes a second
-      ruleset); (c) then turns on **Allow GitHub Actions to create and approve pull requests** (Settings > Actions >
+      from `scripts/main-ruleset.json` (R1'), or, if a ruleset named `main: pull request required` already
+      exists, updates that one to R1', which also replaces any bypass it had with the admin role in pull request
+      mode (running it twice never makes a second ruleset); (c) then turns on **Allow GitHub Actions to create and approve pull requests** (Settings > Actions >
       General > Workflow permissions) and prints **`R2 was off; main was <sha>`** (or `R2 already on`), where
       `<sha>` is the one read in (b), before the ruleset was written: send both lines to the team; they record it
       in `docs/platform-facts.md` "Main protection" as `R2 first on: <sha>`, the start of the 4.7.1 window (L-b).
       If it needed more than one run, send every run's output: the start is the `Main before the ruleset` sha of
       the **first** run (main-protect/window-start-gap); (d) prints **OK: main is protected** (rules on main
       `deletion,non_fast_forward,pull_request`, `GitHub Actions may create pull requests: true`, `Auto-merge
-      allowed: false`, and the ruleset `active, bypass none, required approvals 0`), or **NOT OK** with what it
-      found: send that output to the team.
+      allowed: false`, the ruleset `active, bypass RepositoryRole:5:pull_request, required approvals 0` and
+      `Code-owner review: true, merge methods: squash`), or **NOT OK** with what it found: send that output to the
+      team. (U4 of ADR 0010: the bypass line shows the owner's admin role is the one that bypasses.)
    2. **Or by hand, in the browser** (only if the terminal is not an option). First, before 2, open
       https://github.com/gn0sh/clarksville-records/commits/main and send the team the first commit's full sha (the
       copy button), as `R2 was off; main was <sha>` (L-b; main-protect/window-start-gap: read before the ruleset is
@@ -145,12 +159,13 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       1. https://github.com/gn0sh/clarksville-records/settings/actions > **Workflow permissions** > tick **Allow
          GitHub Actions to create and approve pull requests** > **Save**.
       2. https://github.com/gn0sh/clarksville-records/settings/rules: if `main: pull request required` is listed,
-         open it, and under **Bypass list** remove **GitHub Actions** (the **...** or **x** next to it) so the list
-         is empty, then **Save changes**. If it is not listed: **New ruleset** > **New branch ruleset**, name
-         `main: pull request required`, **Enforcement status** **Active**, **Bypass list** left empty, **Target
-         branches** > **Add target** > **Include default branch**, tick **Restrict deletions**, **Block force
-         pushes** and **Require a pull request before merging** (required approvals: **0**, see L-E above; the
-         team's review is the PR review, recorded by 2.0.3). Leave every other rule off (no required
+         open it; if it is not listed: **New ruleset** > **New branch ruleset**, name `main: pull request
+         required`, **Enforcement status** **Active**, **Target branches** > **Add target** > **Include default
+         branch**. Either way: **Bypass list** holds only **Repository admin** with **For pull requests only**
+         (remove anything else, such as **GitHub Actions**); tick **Restrict deletions**, **Block force pushes**
+         and **Require a pull request before merging** (required approvals: **0**, see L-E above; tick **Require
+         review from Code Owners**; **Allowed merge methods**: **Squash** only; the team's review is the PR
+         review, recorded by 2.0.3). `.github/CODEOWNERS` must already be on `main`. Leave every other rule off (no required
          status checks: the data PR, opened by `GITHUB_TOKEN`, starts no workflow, so a required check would never
          report and the PR could never merge). **Create**.
    Check run: **Actions** > **Daily update** > **Run workflow** (collect on): the `push` job must go green, its log
@@ -170,10 +185,12 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      Also unverified: that the REST field `can_approve_pull_request_reviews` is the **Allow GitHub Actions to create
      and approve pull requests** box (GitHub's docs say the box controls whether `GITHUB_TOKEN` can create and
      approve pull requests). The check run above settles both; record what was seen in `docs/platform-facts.md`.
-   - **If the merge is refused under the ruleset:** set the ruleset's Enforcement to **Disabled** (data collection
-     resumes: the PR is still opened, and can be merged by hand), and tell the team. CODEOWNERS plus "require review
-     from Code Owners" on its own is **not** a fix: it only applies to pull requests. A write-access deploy key as a
-     bypass actor would also work but is a new secret (hard stop 5); not recommended.
+   - **If the data PR's merge is refused under R1' (U2 of ADR 0010: an unowned `data/` path should need no
+     review):** the `push` job fails loudly ("Daily update failed" issue). Re-apply the previous ruleset json from
+     git (`git show eda3835:scripts/main-ruleset.json > $env:TEMP\r1.json`, then `gh api -X PUT
+     repos/gn0sh/clarksville-records/rulesets/<id> --input $env:TEMP\r1.json`), re-run the failed job, and tell
+     the architect. A write-access deploy key as a bypass actor would also work but is a new secret (hard stop 5);
+     not recommended.
    - Until this check passes, the note job must stay off (`MORNING_NOTE_SEND` unset): section 4 item 6.
    3. **Merging every pull request that changes anything outside `data/` (team, from now on; S2, main-protect L-D).**
       After code review, security (when the rules call for it) and QA pass at the PR's head commit `<sha>`
