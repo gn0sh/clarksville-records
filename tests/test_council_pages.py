@@ -7,12 +7,12 @@ import re
 
 import pytest
 
+import pinned_data
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, parse
 from qa import site_checks
 from sitegen import config, council, views
 from sitegen.build import BuildError, build
 
-CITY = ROOT / "data" / "localities" / "clarksville-tn"
 MEETINGS = ("2016-01-04-executive", "2018-05-30-special", "2018-06-07-special", "2019-01-03-regular",
             "2022-02-15-special")
 CFG = config.load_council("clarksville-tn")
@@ -34,14 +34,21 @@ def subset(facts: dict, meeting_ids) -> dict:
             "items": items, "sources": [s for s in facts["sources"] if s["id"] in src], "corrections": []}
 
 
+def pinned_subset() -> tuple[dict, list]:
+    """(facts, wards) of MEETINGS from the city data pinned at pinned_data.PINNED_COMMIT (real-data-tests/: a sample
+    of real records, never data/ as today's collection left it)."""
+    facts, wards = pinned_data.city()
+    return subset(facts, MEETINGS), [w for w in wards if w["meeting_id"] in MEETINGS]
+
+
 @pytest.fixture(scope="module")
 def city_facts():
-    return subset(json.loads((CITY / "facts.json").read_text(encoding="utf-8")), MEETINGS)
+    return pinned_subset()[0]
 
 
 @pytest.fixture(scope="module")
 def city_wards():
-    return [w for w in json.loads((CITY / "wards.json").read_text(encoding="utf-8")) if w["meeting_id"] in MEETINGS]
+    return pinned_subset()[1]
 
 
 @pytest.fixture(scope="module")
@@ -176,8 +183,11 @@ def test_real_city_pages_fit_the_file_budget():
     year of meetings and of items (more parts when a year is over config.PAGE_BYTES, about 20 more today), plus the
     home. With CivicClerk (2024 on) this upper bound is 205; pack_years puts consecutive years of a member's history
     on one page (about 60 fewer pages), and with the county's pages the built site stays under config.MAX_FILES
-    (469 files on 2026-11-09; BuildError and qa/site_checks.py check the built site)."""
-    facts = json.loads((CITY / "facts.json").read_text(encoding="utf-8"))
+    (469 files on 2026-11-09; BuildError and qa/site_checks.py check the built site).
+    real-data-tests/: on the city data pinned at pinned_data.PINNED_COMMIT (207 by this count). Each new year of
+    meetings adds about 15, so on the live data the bound would fail a daily update in a later year; the live site's
+    file count is guarded by the build (BuildError over config.max_files) and the site checks, which this run does."""
+    facts = pinned_data.city()[0]
     years = {o["id"]: set() for o in facts["officials"]}
     dates = {m["id"]: m["date"][:4] for m in facts["meetings"]}
     for rc in facts["roll_calls"]:

@@ -155,12 +155,13 @@ def test_no_wording_about_people_on_the_day_page(html):
 
 
 def test_council_cards_show_votes_when_read_and_the_agenda_when_not(tmp_path):
-    from test_council_pages import CFG, CITY, subset
-    facts = json.loads((CITY / "facts.json").read_text(encoding="utf-8"))
+    import pinned_data
+    from test_council_pages import CFG, subset
+    facts, all_wards = pinned_data.city()       # real-data-tests/: the pinned city data, never today's collection
     read = "2019-01-03-regular"
     agenda_only = next(m for m in facts["meetings"] if m.get("minutes_status") == "not_posted" and m.get("agenda_source_id"))
     sub = subset(facts, [read, agenda_only["id"]])
-    wards = [w for w in json.loads((CITY / "wards.json").read_text(encoding="utf-8")) if w["meeting_id"] == read]
+    wards = [w for w in all_wards if w["meeting_id"] == read]
     (tmp_path / "facts.json").write_text(json.dumps(sub), encoding="utf-8")
     (tmp_path / "wards.json").write_text(json.dumps(wards), encoding="utf-8")
     cfg = {**CFG, "facts_path": tmp_path / "facts.json", "wards_path": tmp_path / "wards.json"}

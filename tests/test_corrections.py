@@ -13,7 +13,7 @@ import yaml
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, parse
 from qa import site_checks
 from sitegen import build as sitegen_build, config, views
-from test_council_pages import CFG, CITY, MEETINGS, subset
+from test_council_pages import CFG, pinned_subset
 from test_fin_pages import FIN
 from test_site_neutrality import BANNED
 
@@ -28,8 +28,7 @@ ON = {"github_repo": "example-owner/example-records", "email": "corrections@exam
 def full(tmp_path_factory):
     """The fixture county with the finance fixture and the council fixture: every fact-bearing page type."""
     d = tmp_path_factory.mktemp("corr")
-    city = subset(json.loads((CITY / "facts.json").read_text(encoding="utf-8")), MEETINGS)
-    wards = [w for w in json.loads((CITY / "wards.json").read_text(encoding="utf-8")) if w["meeting_id"] in MEETINGS]
+    city, wards = pinned_subset()           # real-data-tests/: the pinned city data, never today's collection
     (d / "facts.json").write_text(json.dumps(city), encoding="utf-8")
     (d / "wards.json").write_text(json.dumps(wards), encoding="utf-8")
     cfg = {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json"}
