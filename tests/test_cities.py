@@ -1,6 +1,7 @@
 """The multi-city template (cities/, config/cities/, config/brand.yml; docs/adr/0007-multi-city-template.md).
 Synthetic cities in tmp_path only; nothing here touches the network."""
 import json
+import re
 import shutil
 import socket
 from datetime import date
@@ -33,6 +34,7 @@ timezone: America/Los_Angeles
 status: draft
 domain: testville.daylight.gnoshcodes.com
 platform_facts: config/cities/testville-or/platform-facts.md
+site_file: config/cities/testville-or/site.yml
 sources:
   - {portal: legistar, config: config/cities/testville-or/legistar.yml}
 allowed_hosts:
@@ -44,14 +46,39 @@ district_lookup: {url: "https://example.org/lookup", label: Example lookup}
 geocoder_places: [Testville]
 """
 
+READY_SITE = """\
+place_name: Testville
+corrections_log: config/cities/testville-or/corrections-log.json
+primary:
+  key: council
+  name: Testville City Council
+  label: City Council
+  record: {url: "https://example.org/testville/minutes", label: Testville minutes}
+  kind_labels: {regular: Regular meeting, other: Other meeting}
+  held_sentences: {other: "Not confirmed: the automatic checks did not pass."}
+  seats: at_large
+  titles: [Mayor, Vice Mayor]
+  member_title: Councilmember
+  seat_basis:
+    url: "https://example.org/testville/charter"
+    label: Testville charter
+    sentence: "Every member is elected at large."
+unofficial:
+  bodies: [{name: the City of Testville, short: Testville, label: City of Testville, url: "https://example.org/"}]
+"""
+
 
 def make_root(tmp_path: Path, city_text: str = READY_CITY, slug: str = "testville-or") -> Path:
-    """A tiny repo root: the real brand file, one synthetic city with a Legistar source and a facts stub."""
+    """A tiny repo root: the real brand file and shared settings (config/site.yml), one synthetic city with a
+    Legistar source, its site file, an empty corrections log and a facts stub."""
     (tmp_path / "config").mkdir()
     shutil.copy(ROOT / "config" / "brand.yml", tmp_path / "config" / "brand.yml")
+    shutil.copy(ROOT / "config" / "site.yml", tmp_path / "config" / "site.yml")
     d = tmp_path / "config" / "cities" / slug
     d.mkdir(parents=True)
     (d / "city.yml").write_text(city_text, encoding="utf-8")
+    (d / "site.yml").write_text(READY_SITE.replace("testville-or", slug), encoding="utf-8")
+    (d / "corrections-log.json").write_text("[]\n", encoding="utf-8")
     (d / "platform-facts.md").write_text("# facts\n", encoding="utf-8")
     src = (ROOT / "config" / "cities" / "salem-or" / "legistar.yml").read_text(encoding="utf-8")
     src = "\n".join(line.split(" #")[0] for line in src.splitlines() if not line.startswith("#"))
@@ -269,10 +296,10 @@ def test_an_invalid_city_exits_2(tmp_path):
 
 # ------------------------------------------------------------------ scaffolder (F)
 @pytest.mark.parametrize("portal,files", [
-    ("legistar", {"city.yml", "platform-facts.md", "legistar.yml"}),
-    ("agenda_center", {"city.yml", "platform-facts.md", "agenda_center.yml"}),
-    ("civicclerk", {"city.yml", "platform-facts.md", "civicclerk.yml"}),
-    ("municode", {"city.yml", "platform-facts.md"}),
+    ("legistar", {"city.yml", "platform-facts.md", "site.yml", "corrections-log.json", "legistar.yml"}),
+    ("agenda_center", {"city.yml", "platform-facts.md", "site.yml", "corrections-log.json", "agenda_center.yml"}),
+    ("civicclerk", {"city.yml", "platform-facts.md", "site.yml", "corrections-log.json", "civicclerk.yml"}),
+    ("municode", {"city.yml", "platform-facts.md", "site.yml", "corrections-log.json"}),
 ])
 def test_new_city_scaffold_loads_and_is_not_ready(tmp_path, portal, files):
     root = make_root(tmp_path)
@@ -538,3 +565,186 @@ def test_one_city_with_bad_windows_is_left_out_not_the_whole_plan():
     p = plan.plan_run([bad, city("ok-or", launch=False)], {"bad-or": None}, date(2026, 11, 16), 60)
     assert [(j.slug, j.kind) for j in p.jobs] == [("ok-or", "daily")]
     assert len(p.errors) == 1 and p.errors[0].startswith("bad-or: ") and "no launch window" in p.errors[0]
+
+
+# ------------------------------------------------------------------ site file (ADR 0012 decisions 1-3, task T2)
+def edit_site(root: Path, old: str, new: str, slug: str = "testville-or") -> None:
+    p = root / "config" / "cities" / slug / "site.yml"
+    text = p.read_text(encoding="utf-8")
+    assert old in text, old
+    p.write_text(text.replace(old, new), encoding="utf-8")
+
+
+def append_site(root: Path, line: str, slug: str = "testville-or") -> None:
+    p = root / "config" / "cities" / slug / "site.yml"
+    p.write_text(p.read_text(encoding="utf-8") + line, encoding="utf-8")
+
+
+def test_clarksville_load_city_is_unchanged():
+    """Clarksville stays a legacy city: no site_file, its settings exactly config/site.yml, the same keys as before."""
+    c = registry.load_city("clarksville-tn")
+    assert sorted(c) == ["_path", "allowed_hosts", "denied_hosts", "district_lookup", "domain", "geocoder_places",
+                         "launch", "name", "platform_facts", "settings", "settings_data", "sky_place", "slug",
+                         "sources", "state", "status", "timezone", "verification_notes"]
+    site = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    assert c["settings_data"] == site and list(c["settings_data"]) == list(site)
+    text, _ = check.render("clarksville-tn")
+    assert "site:" not in text and "seat basis" not in text
+
+
+def test_shared_keys_exist_and_name_no_place():
+    site = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    for dotted in registry.SHARED_SITE_KEYS:
+        value = brand.get(site, dotted, KeyError)
+        assert value is not KeyError, dotted
+        for word in ("Clarksville", "Montgomery", "CMCSS", "RPC", "Regional Planning"):
+            assert word.lower() not in json.dumps(value).lower(), (dotted, word)
+    assert not set(registry.SHARED_SITE_KEYS) & set(brand.LOCKED)
+
+
+@pytest.mark.parametrize("old,new", [
+    ("tag: Independent, unofficial", "tag: Independent, unofficial Clarksville"),
+    ("short: \"Not affiliated with or endorsed by {bodies}.\"", "short: \"Not affiliated with Montgomery County.\""),
+])
+def test_a_shared_key_that_names_a_place_fails(tmp_path, old, new):
+    root = make_root(tmp_path)
+    p = root / "config" / "site.yml"
+    text = p.read_text(encoding="utf-8")
+    assert old in text
+    p.write_text(text.replace(old, new), encoding="utf-8")
+    with pytest.raises(CityError, match="shared key unofficial.(tag|short) names a place"):
+        registry.load_city("testville-or", root)
+
+
+def test_new_city_settings_are_shared_then_site_file_then_city_then_brand(tmp_path):
+    root = make_root(tmp_path)
+    s = registry.site_settings(registry.load_city("testville-or", root), brand.load_brand())
+    site = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    assert s["unofficial"]["notice"] == site["unofficial"]["notice"] and s["days"] == site["days"]
+    assert s["unofficial"]["bodies"][0]["label"] == "City of Testville"         # the city's own part of the block
+    assert s["primary"]["seats"] == "at_large" and s["place_name"] == "Testville"
+    assert s["live"] is False and s["site_timezone"] == "America/Los_Angeles"
+    assert s["support_url"] == brand.BMAC_URL and "alerts" not in s and "item_types" not in s
+    for absent in ("county_body", "district_count", "councils", "rpc", "switch", "county_agendas", "morning_note",
+                   "analytics", "locality"):
+        assert absent not in s, absent
+
+
+def test_live_comes_from_status_and_alerts_site_url_from_domain(tmp_path):
+    root = make_root(tmp_path, READY_CITY.replace("status: draft", "status: live")
+                     + "go_ahead: {date: 2026-11-16, by: test}\n")
+    append_site(root, "alerts: {feed_id: \"tag:testville.daylight.gnoshcodes.com,2026-11-18:\", max_entries: 50}\n")
+    s = registry.site_settings(registry.load_city("testville-or", root), brand.load_brand())
+    assert s["live"] is True and s["alerts"]["site_url"] == "https://testville.daylight.gnoshcodes.com/"
+
+
+@pytest.mark.parametrize("old,new,match", [
+    ("  key: council\n", "  key: council\n  colour: blue\n", "primary: unknown keys colour"),
+    ("seats: at_large", "seats: at-large", "primary.seats must be one of districts, wards, at_large"),
+    ("seats: at_large", "seats: everyone", "primary.seats must be one of"),
+    ("place_name: Testville", "place_name: <b>Testville</b>", "place_name must be a plain name"),
+    ("place_name: Testville", "place_name: Testville{x}", "place_name must be a plain name"),
+    ("place_name: Testville", "place_name: " + "A" * 41, "at most 40 characters"),
+    ("  name: Testville City Council", "  name: <i>Testville</i>", "primary.name must be plain text"),
+    ("titles: [Mayor, Vice Mayor]", "titles: [Mayor, <b>Chair</b>]", "primary.titles is a list of plain words"),
+    ("titles: [Mayor, Vice Mayor]", "titles: Mayor", "primary.titles is a list"),
+    ("url: \"https://example.org/testville/charter\"", "url: \"http://example.org/charter\"",
+     "seat_basis.url must be an https URL or UNVERIFIED"),
+    ("key: council", "key: City Council", "primary.key must be a lowercase word"),
+    ("held_sentences: {other: \"Not confirmed: the automatic checks did not pass.\"}",
+     "held_sentences: {other: The checks did not pass.}", "held_sentences must map checks"),
+    ("  label: City Council\n", "", "primary: missing label"),
+    ("corrections_log: config/cities/testville-or/corrections-log.json", "corrections_log: config/none.json",
+     "corrections_log config/none.json is not a JSON file"),
+])
+def test_a_bad_site_file_names_the_key(tmp_path, old, new, match):
+    root = make_root(tmp_path)
+    edit_site(root, old, new)
+    with pytest.raises(CityError, match=match):
+        registry.load_city("testville-or", root)
+
+
+@pytest.mark.parametrize("line,match", [
+    ("support_url: https://example.org/tip\n", "support_url is a shared brand setting"),
+    ("site_name: Other\n", "site_name is a shared brand setting"),
+    ("corrections: {email: x@example.org}\n", "corrections.email is a shared brand setting"),
+    ("days: {weeks_before: 1, weeks_after: 1, week_start: monday}\n", "days is a shared setting of every city"),
+    ("video_link: Play\n", "video_link is a shared setting of every city"),
+    ("site_timezone: America/Chicago\n", "site_timezone comes from city.yml"),
+    ("live: true\n", "live comes from city.yml"),
+])
+def test_a_city_site_file_may_not_set_a_brand_shared_or_city_key(tmp_path, line, match):
+    root = make_root(tmp_path)
+    append_site(root, line)
+    with pytest.raises(CityError, match=f"config/cities/testville-or/site.yml: {match}"):
+        registry.load_city("testville-or", root)
+
+
+def test_a_city_site_file_may_not_set_a_shared_path_inside_a_mixed_block(tmp_path):
+    root = make_root(tmp_path)
+    edit_site(root, "unofficial:\n", "unofficial:\n  tag: Other words\n")
+    with pytest.raises(CityError, match="unofficial.tag is a shared setting of every city"):
+        registry.load_city("testville-or", root)
+
+
+def test_a_missing_site_file_or_both_settings_kinds_fail(tmp_path):
+    root = make_root(tmp_path)
+    (root / "config" / "cities" / "testville-or" / "site.yml").unlink()
+    with pytest.raises(CityError, match="site_file config/cities/testville-or/site.yml not found"):
+        registry.load_city("testville-or", root)
+    (tmp_path / "b").mkdir()
+    root2 = make_root(tmp_path / "b", READY_CITY + "settings: config/site.yml\n")
+    with pytest.raises(CityError, match="and site_file can't both be set"):
+        registry.load_city("testville-or", root2)
+
+
+def test_an_unverified_or_missing_seat_basis_is_not_ready(tmp_path):
+    root = make_root(tmp_path)
+    edit_site(root, "url: \"https://example.org/testville/charter\"", "url: UNVERIFIED")
+    text, code = check.render("testville-or", root)
+    assert code == 1 and "[ ] seat basis: not recorded" in text, text
+    (tmp_path / "b").mkdir()
+    root2 = make_root(tmp_path / "b")
+    edit_site(root2, "  seat_basis:\n    url: \"https://example.org/testville/charter\"\n    label: Testville charter\n"
+                     "    sentence: \"Every member is elected at large.\"\n", "")
+    text, code = check.render("testville-or", root2)
+    assert code == 1 and "[ ] seat basis: not recorded" in text, text
+
+
+def test_a_city_without_a_site_file_is_not_ready(tmp_path):
+    root = make_root(tmp_path, READY_CITY.replace("site_file: config/cities/testville-or/site.yml\n", ""))
+    text, code = check.render("testville-or", root)
+    assert code == 1 and "[ ] site: no site_file yet" in text
+
+
+def test_murfreesboro_site_file_is_all_unverified_and_not_ready():
+    c = registry.load_city("murfreesboro-tn")
+    assert c["site_file"] == "config/cities/murfreesboro-tn/site.yml"
+    p = c["settings_data"]["primary"]
+    assert p["seats"] == "at_large" and p["key"] == "council"
+    assert p["seat_basis"]["url"] == p["seat_basis"]["label"] == registry.UNVERIFIED
+    assert c["settings_data"]["place_name"] == "Murfreesboro" and c["settings_data"]["live"] is False
+    assert json.loads((ROOT / "config" / "cities" / "murfreesboro-tn" / "corrections-log.json").read_text()) == []
+    text, code = check.render("murfreesboro-tn")
+    assert code == 1 and text.splitlines()[-1].startswith("NOT READY")
+    assert "[ ] seat basis: not recorded" in text
+    assert "[x] site: config/cities/murfreesboro-tn/site.yml, primary body council" in text
+    site_lines = [ln for ln in text.splitlines() if "murfreesboro-tn/site.yml line" in ln]
+    for key in ("name: Murfreesboro City Council", "label: City Council", "seats: at_large", "member_title:",
+                "titles: [Mayor, Vice Mayor]", "url: UNVERIFIED", "label: City of Murfreesboro Agenda Center",
+                "url: https://www.murfreesborotn.gov/agendacenter", "kind_labels:", "item_types:"):
+        assert any(key in ln for ln in site_lines), key
+    # No county or Clarksville word reaches the city's settings (family city-only/no-county-leak).
+    s = registry.site_settings(c, brand.load_brand())
+    assert not re.search(r"(?i)clarksville|montgomery|county", json.dumps(s))
+
+
+def test_scaffold_site_file_loads_and_lists_its_unverified_values(tmp_path):
+    root = make_root(tmp_path)
+    scaffold.new_city("killeen-tx", "Killeen", "TX", "legistar", "America/Chicago", root, date(2026, 11, 16))
+    c = registry.load_city("killeen-tx", root)
+    assert c["settings_data"]["place_name"] == "Killeen" and c["settings_data"]["primary"]["seats"] == "UNVERIFIED"
+    text, code = check.render("killeen-tx", root)
+    assert code == 1 and "missing: config/cities/killeen-tx/site.yml line" in text and "seats: UNVERIFIED" in text
+    assert "[ ] seat basis: not recorded" in text
+    assert "$" not in (root / "config" / "cities" / "killeen-tx" / "site.yml").read_text()

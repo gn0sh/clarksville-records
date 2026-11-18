@@ -3,12 +3,15 @@
 A city file holds who and where the city is, its sources (portal type + config file), the hosts its collection may
 ask (each with its robots.txt and terms check), its launch plan and its site settings. Brand keys are locked
 (cities/brand.py). Clarksville's file points at today's files (config/site.yml, config/localities/...) instead of
-copying them, so its live build is unchanged. Nothing here fetches anything.
+copying them, so its live build is unchanged. A new city keeps its site settings in its own `site_file`
+(config/cities/<slug>/site.yml: the primary body, the place name; ADR 0012 decisions 1-2), laid over the place-free
+keys of config/site.yml (SHARED_SITE_KEYS). Nothing here fetches anything.
 """
 from __future__ import annotations
 
 import re
 from datetime import date
+from urllib.parse import urlsplit
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -34,9 +37,30 @@ DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)?daylight\.gnoshcodes\.com$")
 SITE_FIELDS = {"sky_place": "sky_place", "geocoder_places": "geocoder_places"}
 KEYS = {"slug", "name", "state", "timezone", "status", "domain", "settings", "platform_facts", "sources",
         "allowed_hosts", "denied_hosts", "launch", "sky_place", "district_lookup", "geocoder_places",
-        "verification_notes", "site", "go_ahead"}
+        "verification_notes", "site", "site_file", "go_ahead"}
 REQUIRED = ("slug", "name", "state", "timezone", "status", "domain", "platform_facts", "sources", "allowed_hosts")
 FROM_SETTINGS = ("sky_place", "district_lookup", "geocoder_places")   # read from a legacy settings file instead
+# The place-free keys of config/site.yml, as dotted paths: a new city's settings start from them, so the shared
+# wording has one copy (ADR 0012 decision 1). None may hold a place (SHARED_PLACE_WORDS) and no city file may set one.
+# Mixed blocks are split by path: unofficial.bodies and item_types (the county's CZ- prefixes) are each city's own.
+SHARED_SITE_KEYS = ("purpose", "purpose_plus", "welcome_lede", "welcome_lede_parts", "welcome_lede_phone", "days",
+                    "video_link", "video_label", "video_recording", "unofficial.tag", "unofficial.notice",
+                    "unofficial.correction_label", "unofficial.differ", "unofficial.not_advice",
+                    "unofficial.email_line", "unofficial.short")
+SHARED_PLACE_WORDS = re.compile(r"(?i:clarksville|montgomery|cmcss|regional planning)|\bRPC\b")
+SHARED_SOURCE = "config/site.yml"
+# Settings a new city's site file may not set: they come from city.yml (one place) or from the status.
+FROM_CITY_FILE = ("site_timezone", "today_place", "sky_place", "geocoder_places", "district_lookup_url",
+                  "district_lookup_label", "live")
+# The `primary:` block (ADR 0012 decision 2): the body a city-only site is built around.
+PRIMARY_KEYS = ("key", "name", "label", "record", "kind_labels", "held_sentences", "seats", "titles", "member_title",
+                "seat_basis")
+PRIMARY_REQUIRED = ("key", "name", "label", "seats")
+SEATS = ("districts", "wards", "at_large")
+BODY_KEY_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+PLACE_NAME_RE = re.compile(r"^[A-Za-z](?:[A-Za-z .-]*[A-Za-z.])?$")    # letters, spaces, hyphens, periods
+PLACE_NAME_MAX = 40
+TITLE_RE = re.compile(r"^[A-Za-z][A-Za-z -]*$")
 
 
 def is_unverified(value) -> bool:
@@ -114,7 +138,9 @@ def may_fetch(city: dict, host: str) -> bool:
 
 
 def site_settings(city: dict, brand: dict) -> dict:
-    """The city's site settings with the shared brand laid over them (brand keys locked)."""
+    """The city's site settings with the shared brand laid over them (brand keys locked). For a new city these are,
+    in order: the SHARED_SITE_KEYS of config/site.yml, its site_file, its `site:` block, the fields of city.yml
+    (time zone, today_place, sky_place, geocoder_places, district_lookup), `live` from its status, then the brand."""
     s = dict(city["settings_data"])
     if city.get("settings"):                       # legacy file: its brand duplicates already equal the brand
         s = {k: v for k, v in s.items() if k not in brand_mod.LOCKED}
@@ -148,7 +174,10 @@ def _check_identity(city: dict, slug: str, where: str) -> None:
 
 def _settings(city: dict, root: Path, brand: dict, where: str) -> dict:
     """Legacy (Clarksville): the settings file it points at, whose brand duplicates must equal config/brand.yml and
-    whose time zone must equal the city's. New cities: built from city.yml's own fields and `site:` block."""
+    whose time zone must equal the city's. New cities: the shared keys of config/site.yml, then the city's own
+    site_file and `site:` block, then city.yml's own fields (ADR 0012 decision 1)."""
+    if city.get("settings") and city.get("site_file"):
+        raise CityError(f"{where}: settings (a legacy settings file) and site_file can't both be set")
     if city.get("settings"):
         doubled = [k for k in FROM_SETTINGS if k in city]
         if doubled:
@@ -167,11 +196,21 @@ def _settings(city: dict, root: Path, brand: dict, where: str) -> dict:
                                    "label": site.get("district_lookup_label") or ""}
         city["geocoder_places"] = site.get("geocoder_places") or []
         return site
-    site = dict(city.get("site") or {})
-    site.update({"site_timezone": city["timezone"], "today_place": city["name"]})
+    site = _shared(root)
+    if city.get("site_file"):
+        site = _deep_merge(site, _site_file(city, root))
+    block = city.get("site") or {}
+    if not isinstance(block, dict):
+        raise CityError(f"{where}: site is a mapping of site settings")
+    _refuse_owned(block, f"{where} site")
+    site = _deep_merge(site, block)
+    _check_site(site, root, where)
+    site.update({"site_timezone": city["timezone"], "today_place": city["name"], "live": city["status"] == "live"})
     for k, sk in SITE_FIELDS.items():
-        if k in city:
+        if k in city and not is_unverified(city[k]):
             site[sk] = city[k]
+    if isinstance(site.get("alerts"), dict):
+        site["alerts"].setdefault("site_url", f"https://{city['domain']}/")
     lookup = city.get("district_lookup") or {}
     if is_unverified(lookup):
         lookup = {}
@@ -190,6 +229,154 @@ def _settings(city: dict, root: Path, brand: dict, where: str) -> dict:
             isinstance(places, list) and len(places) <= 5 and all(isinstance(p, str) for p in places)):
         raise CityError(f"{where}: geocoder_places is a list of at most 5 mailing places")
     return site
+
+
+_MISSING = object()
+
+
+def _get(d: dict, dotted: str):
+    for part in dotted.split("."):
+        if not isinstance(d, dict) or part not in d:
+            return _MISSING
+        d = d[part]
+    return d
+
+
+def _deep_merge(base: dict, over: dict) -> dict:
+    """`over` laid on `base`; a mapping in both is merged key by key, anything else is replaced."""
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _deep_merge(out[k], v) if isinstance(out.get(k), dict) and isinstance(v, dict) else v
+    return out
+
+
+def _strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for v in value.values():
+            yield from _strings(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from _strings(v)
+
+
+def _shared(root: Path) -> dict:
+    """The SHARED_SITE_KEYS of config/site.yml, nested as there. Each must exist and name no place."""
+    p = root / SHARED_SOURCE
+    if not p.is_file():
+        raise CityError(f"{SHARED_SOURCE} not found: a new city's shared site settings come from it")
+    src = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    out: dict = {}
+    for dotted in SHARED_SITE_KEYS:
+        value = _get(src, dotted)
+        if value is _MISSING:
+            raise CityError(f"{SHARED_SOURCE}: shared key {dotted} (registry.SHARED_SITE_KEYS) is missing")
+        named = [w for t in _strings(value) for w in SHARED_PLACE_WORDS.findall(t)]
+        if named:
+            raise CityError(f"{SHARED_SOURCE}: shared key {dotted} names a place ({', '.join(sorted(set(named)))}); "
+                            "a shared key is the same for every city, so move it to each city's site file")
+        node = out
+        *parents, leaf = dotted.split(".")
+        for part in parents:
+            node = node.setdefault(part, {})
+        node[leaf] = value
+    return out
+
+
+def _refuse_owned(data: dict, where: str) -> None:
+    """A city's own settings may not set a brand key, a shared key, or a key that comes from city.yml."""
+    brand_mod.refuse(brand_mod.locked_keys_set(data), where)
+    shared = [k for k in SHARED_SITE_KEYS if _get(data, k) is not _MISSING]
+    if shared:
+        raise CityError(f"{where}: {', '.join(shared)} {'is a' if len(shared) == 1 else 'are'} shared setting"
+                        f"{'s' if len(shared) > 1 else ''} of every city, set once in {SHARED_SOURCE}. "
+                        "Remove it from the city's file.")
+    owned = [k for k in FROM_CITY_FILE if k in data]
+    if owned:
+        raise CityError(f"{where}: {', '.join(owned)} come{'s' if len(owned) == 1 else ''} from city.yml (live from "
+                        "its status); set them in one place")
+
+
+def _site_file(city: dict, root: Path) -> dict:
+    rel = city["site_file"]
+    if not isinstance(rel, str) or not (root / rel).is_file():
+        raise CityError(f"{city['_path'].relative_to(root)}: site_file {rel} not found")
+    data = yaml.safe_load((root / rel).read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        raise CityError(f"{rel}: must be a mapping")
+    _refuse_owned(data, rel)
+    return data
+
+
+def _https_or_unverified(value) -> bool:
+    if is_unverified(value):
+        return True
+    if not isinstance(value, str) or any(c.isspace() or c in "\"'<>`\\" for c in value):
+        return False
+    return value.startswith("https://") and bool(urlsplit(value).netloc)
+
+
+def _plain(value) -> bool:
+    return isinstance(value, str) and bool(value.strip()) and not any(c in value for c in "<>&{}")
+
+
+def _check_site(site: dict, root: Path, where: str) -> None:
+    """The keys of ADR 0012 a new city's settings may carry: place_name, corrections_log and the primary block."""
+    if "place_name" in site:
+        name = site["place_name"]
+        if not (isinstance(name, str) and len(name) <= PLACE_NAME_MAX and PLACE_NAME_RE.match(name)):
+            raise CityError(f"{where}: place_name must be a plain name (letters, spaces, hyphens, periods), at most "
+                            f"{PLACE_NAME_MAX} characters")
+    if "corrections_log" in site:
+        log = site["corrections_log"]
+        if not (isinstance(log, str) and log.endswith(".json") and (root / log).is_file()):
+            raise CityError(f"{where}: corrections_log {log} is not a JSON file in the repository")
+    if "primary" in site:
+        _check_primary(site["primary"], where)
+
+
+def _check_primary(p, where: str) -> None:
+    w = f"{where}: primary"
+    if not isinstance(p, dict):
+        raise CityError(f"{w} is a mapping ({', '.join(PRIMARY_KEYS)})")
+    unknown = sorted(set(p) - set(PRIMARY_KEYS))
+    if unknown:
+        raise CityError(f"{w}: unknown keys {', '.join(unknown)} (known: {', '.join(PRIMARY_KEYS)})")
+    missing = [k for k in PRIMARY_REQUIRED if k not in p]
+    if missing:
+        raise CityError(f"{w}: missing {', '.join(missing)}")
+    if not (isinstance(p["key"], str) and BODY_KEY_RE.match(p["key"])):
+        raise CityError(f"{w}.key must be a lowercase word (the search body key), e.g. council")
+    for k in ("name", "label", "member_title"):
+        if k in p and not _plain(p[k]):
+            raise CityError(f"{w}.{k} must be plain text (no markup or braces)")
+    if not (p["seats"] in SEATS or is_unverified(p["seats"])):
+        raise CityError(f"{w}.seats must be one of {', '.join(SEATS)} (or UNVERIFIED), got {p['seats']!r}")
+    for k in ("record", "seat_basis"):
+        if k not in p:
+            continue
+        v = p[k]
+        need = ("url", "label") + (("sentence",) if k == "seat_basis" else ())
+        if not (isinstance(v, dict) and set(v) == set(need) and all(_plain(v[x]) for x in need)):
+            raise CityError(f"{w}.{k} is {{{', '.join(need)}}}, each plain text")
+        if not _https_or_unverified(v["url"]):
+            raise CityError(f"{w}.{k}.url must be an https URL or UNVERIFIED")
+    if "kind_labels" in p:
+        kl = p["kind_labels"]
+        if not (isinstance(kl, dict) and kl and "other" in kl
+                and all(isinstance(k, str) and _plain(v) for k, v in kl.items())):
+            raise CityError(f"{w}.kind_labels maps each meeting kind (and `other`) to plain words")
+    if "held_sentences" in p:        # the rule of sitegen/config.py load_council, for council.yml
+        held = p["held_sentences"]
+        if not (isinstance(held, dict) and "other" in held and all(
+                isinstance(v, str) and v.startswith("Not confirmed: ") and v.endswith(".") for v in held.values())):
+            raise CityError(f"{w}.held_sentences must map checks (and `other`) to 'Not confirmed: ...' sentences")
+    if "titles" in p:
+        t = p["titles"]
+        if not (isinstance(t, list) and all(isinstance(x, str) and TITLE_RE.match(x) for x in t)):
+            raise CityError(f"{w}.titles is a list of plain words (the printed titles, e.g. Mayor), never who holds "
+                            "them")
 
 
 def _sources(city: dict, root: Path, where: str) -> list[dict]:

@@ -1,0 +1,43 @@
+# Murfreesboro, TN: the site settings of a DRAFT city-only Daylight site (ADR 0012 decisions 1-3). The registry lays
+# them over the shared keys of config/site.yml (cities/registry.py SHARED_SITE_KEYS) and the fields of city.yml, then
+# the brand. Brand keys, shared keys, the time zone and `live` can't be set here. Nothing below has been checked
+# against the city's own documents yet: every value still to check is marked UNVERIFIED, and
+# `python -m cities check murfreesboro-tn` lists each one. No fact about any official is typed here.
+place_name: Murfreesboro             # header name plate and the named footer lines (decision 9)
+corrections_log: config/cities/murfreesboro-tn/corrections-log.json   # the city's own corrections log (empty)
+primary:
+  key: council                       # search body key ("b") and the export's body folder
+  name: Murfreesboro City Council    # as the minutes print it (UNVERIFIED)
+  label: City Council                # menu and door label (UNVERIFIED: what the city calls the body)
+  record:                            # "Unofficial copy. Official record:" on the body's pages
+    url: https://www.murfreesborotn.gov/agendacenter   # the Agenda Center (CEO, 2026-11-16; UNVERIFIED: not opened)
+    label: City of Murfreesboro Agenda Center          # (UNVERIFIED: the page's own title)
+  kind_labels:                       # meeting kinds as the minutes name them (UNVERIFIED: no minutes read yet)
+    regular: Regular meeting
+    special: Special meeting
+    work-session: Workshop
+    other: Other meeting
+  held_sentences:                    # why a held roll call is not confirmed: our fixed wording, as config.load_council
+    one_vote_per_present_member: "Not confirmed: the minutes list a member as present but give no vote for them here."
+    names_resolve: "Not confirmed: a name in this vote does not match a member on the official record."
+    attendance_verified: "Not confirmed: this meeting's attendance list could not be matched to the official record."
+    outcome_consistent: "Not confirmed: the stated outcome could not be matched to the votes listed."
+    other: "Not confirmed: the automatic checks did not pass."
+  seats: at_large                    # (UNVERIFIED until seat_basis names the official page)
+  titles: [Mayor, Vice Mayor]        # printed words that are titles, never who holds them (UNVERIFIED)
+  member_title: Councilmember        # what every official's facts `title` is (UNVERIFIED)
+  seat_basis:                        # the official page that says the council is elected at large
+    url: UNVERIFIED
+    label: UNVERIFIED
+    sentence: "Every member of the Murfreesboro City Council is elected at large, by voters across the city."
+# The bodies the "independent, unofficial" notice names (the shared wording is in config/site.yml unofficial).
+unofficial:
+  bodies:
+    - {name: the City of Murfreesboro, short: the City of Murfreesboro, label: City of Murfreesboro, url: "https://www.murfreesborotn.gov/"}   # (UNVERIFIED: the city's own home page)
+# Item type rule (design 5.4): the words are the shared ones; no number prefixes until the minutes are read.
+item_types:                          # (UNVERIFIED: the city's item number prefixes)
+  - {key: rezoning, label: Rezoning, prefixes: [], words: ["rezone", "rezoning", "zoning"]}
+  - {key: budget, label: Budget and finance, prefixes: [], words: ["budget", "appropriat"]}
+  - {key: resolution, label: Resolution, prefixes: [], words: ["resolution"]}
+  - {key: ordinance, label: Ordinance, prefixes: [], words: ["ordinance"]}
+  - {key: appointment, label: Appointment, prefixes: [], words: ["appoint", "nominat"]}

@@ -1,0 +1,37 @@
+# $name, $state: the site settings of a DRAFT Daylight city (made by `python -m cities new` on $today; ADR 0012
+# decisions 1-3). The registry lays them over the shared keys of config/site.yml (cities/registry.py SHARED_SITE_KEYS)
+# and the fields of city.yml, then the brand. Brand keys, shared keys, the time zone and `live` can't be set here.
+# Every value still to check against the city's own documents is marked UNVERIFIED; `python -m cities check $slug`
+# lists each one. Never type a fact about an official here.
+place_name: $name                    # header name plate and the named footer lines (UNVERIFIED: the name the city uses)
+corrections_log: config/cities/$slug/corrections-log.json   # the city's own corrections log (starts empty)
+primary:
+  key: council                       # search body key ("b") and the export's body folder
+  name: UNVERIFIED                   # the body as its minutes print it, e.g. "$name City Council"
+  label: City Council                # menu and door label (UNVERIFIED: what the city calls the body)
+  record: {url: UNVERIFIED, label: UNVERIFIED}   # the body's official minutes listing
+  kind_labels:                       # meeting kinds as the minutes name them (UNVERIFIED: no minutes read yet)
+    regular: Regular meeting
+    special: Special meeting
+    other: Other meeting
+  held_sentences:                    # why a held roll call is not confirmed: our fixed wording, as config.load_council
+    one_vote_per_present_member: "Not confirmed: the minutes list a member as present but give no vote for them here."
+    names_resolve: "Not confirmed: a name in this vote does not match a member on the official record."
+    attendance_verified: "Not confirmed: this meeting's attendance list could not be matched to the official record."
+    outcome_consistent: "Not confirmed: the stated outcome could not be matched to the votes listed."
+    other: "Not confirmed: the automatic checks did not pass."
+  seats: UNVERIFIED                  # districts, wards or at_large: how members are elected
+  titles: [Mayor]                    # printed words that are titles, never who holds them (UNVERIFIED)
+  member_title: UNVERIFIED           # what every official's facts `title` is, e.g. Councilmember
+  seat_basis: {url: UNVERIFIED, label: UNVERIFIED, sentence: UNVERIFIED}   # the official page on how members are elected
+# The bodies the "independent, unofficial" notice names (the shared wording is in config/site.yml unofficial).
+unofficial:
+  bodies:
+    - {name: the City of $name, short: the City of $name, label: City of $name, url: UNVERIFIED}
+# Item type rule (design 5.4): the shared words; no number prefixes until the minutes are read.
+item_types:                          # (UNVERIFIED: the city's item number prefixes)
+  - {key: rezoning, label: Rezoning, prefixes: [], words: ["rezone", "rezoning", "zoning"]}
+  - {key: budget, label: Budget and finance, prefixes: [], words: ["budget", "appropriat"]}
+  - {key: resolution, label: Resolution, prefixes: [], words: ["resolution"]}
+  - {key: ordinance, label: Ordinance, prefixes: [], words: ["ordinance"]}
+  - {key: appointment, label: Appointment, prefixes: [], words: ["appoint", "nominat"]}

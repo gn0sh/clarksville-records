@@ -1,7 +1,7 @@
 """`python -m cities new`: a draft city folder from cities/templates, every unchecked value marked UNVERIFIED.
 
-Writes config/cities/<slug>/city.yml, the portal's source file (when the portal has one) and platform-facts.md, then
-loads the result with the registry's own checks. Fetches nothing."""
+Writes config/cities/<slug>/city.yml, site.yml, an empty corrections-log.json, the portal's source file (when the
+portal has one) and platform-facts.md, then loads the result with the registry's own checks. Fetches nothing."""
 from __future__ import annotations
 
 import shutil
@@ -58,11 +58,14 @@ def new_city(slug: str, name: str, state: str, portal: str, tz: str, root: Path 
     folder.mkdir(parents=True)
     written = []
     try:
-        for fname, tmpl in [("city.yml", "city.yml.tmpl"), ("platform-facts.md", "platform-facts.md.tmpl")] + (
-                [(f"{portal}.yml", src_tmpl)] if has_src else []):
+        for fname, tmpl in [("city.yml", "city.yml.tmpl"), ("platform-facts.md", "platform-facts.md.tmpl"),
+                            ("site.yml", "site.yml.tmpl")] + ([(f"{portal}.yml", src_tmpl)] if has_src else []):
             p = folder / fname
             p.write_text(_render(tmpl, **values), encoding="utf-8")
             written.append(p)
+        log = folder / "corrections-log.json"           # the city's own corrections log, empty (ADR 0012 decision 3)
+        log.write_text("[]\n", encoding="utf-8")
+        written.append(log)
         load_city(slug, root)
     except Exception:
         shutil.rmtree(folder)                      # only the folder this call just made
