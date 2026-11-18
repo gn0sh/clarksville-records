@@ -27,6 +27,7 @@ T = config.FIN_TEXT["dollar"]
 GROUP_RULES = ("heading_prefix", "org_code")
 OTHER_BELOW = 200   # a department under 1/200 of the fund (half a cent of each dollar) goes to Other
 T_LABEL_MIN = 5     # a bar segment of this many cents or more carries its cents, and the key under the bar names it
+T_PHONE_MIN = 10    # on a phone a segment under this many cents is too narrow for its label (the key still names it)
 
 
 def slug(key: str) -> str:
@@ -67,7 +68,9 @@ def _exact_in_column(line: dict, column: str) -> None:
     if line["held"]:
         raise FinanceError(f"dollar split: total {line['id']} is held ({line['held']})")
     chk = line["check"]
-    i = next(i for i, c in enumerate(line["cells"]) if c["header_as_printed"] == column)
+    i = next((i for i, c in enumerate(line["cells"]) if c["header_as_printed"] == column), None)
+    if i is None:
+        raise FinanceError(f"dollar split: total {line['id']} prints no column {column!r}")
     if chk is None or chk["state"] == "not_checked" or chk["per_cell"][i]["diff"] != 0:
         raise FinanceError(f"dollar split: total {line['id']} does not add up to its lines in {column!r} exactly")
 
@@ -86,6 +89,28 @@ def _group_key(line: dict, cfg: dict) -> tuple[str, str]:
     if not name:
         raise FinanceError(f"dollar split: org code {key} ({heading!r}, {line['id']}) has no name in dollar-split.yml")
     return key, name
+
+
+def _own_kinds(book: dict) -> set[str]:
+    """The kinds of a book's own budget-year columns (fiscal year = the book's): {"adopted"}, {"proposed"}, ..."""
+    return {c["kind"] for c in book["columns"] if c["fiscal_year"] == book["fiscal_year"]}
+
+
+def _newer_books_note(bg: Budget, book: dict, year: int) -> str | None:
+    """Why the bar uses this book when the file has a newer one (dollar-split/stale-book-note): built from the data,
+    so it cannot go stale. A newer book that prints an adopted budget for its own year fails the build: the config
+    must move to it (a bar of an older year beside a newer adopted book would mislead)."""
+    newer = [b for b in bg.books if b["fiscal_year"] > year]
+    for b in newer:
+        if "adopted" in _own_kinds(b):
+            raise FinanceError(f"dollar split: {b['id']} prints an adopted FY{b['fiscal_year']} budget, newer than "
+                               f"{book['id']} (FY{year}): point dollar-split.yml at it")
+    if not newer:
+        return None
+    b = max(newer, key=lambda b: (b["fiscal_year"], b["id"]))
+    kinds = config.FIN_TEXT["budget"]["kinds"]
+    what = " and ".join(kinds[k].lower() for k in sorted(_own_kinds(b))) or T["newer_no_budget"]
+    return T["newer_note"].format(year=b["fiscal_year"], edition=b["edition"], what=what, used=year)
 
 
 def split(bg: Budget, cfg: dict | None) -> dict | None:
@@ -112,8 +137,12 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
         raise FinanceError(f"dollar split: {book['id']} fund {cfg['fund']}: the department totals do not cover every "
                            "spending line exactly once")
     first = _cell(dept_totals[0], column, cents)
-    if first["kind"] != "adopted":
-        raise FinanceError(f"dollar split: column {column!r} of {book['id']} is {first['kind']}, not adopted")
+    for t in dept_totals:   # every total the bar reads: the adopted budget of one fiscal year
+        c = _cell(t, column, cents)
+        if c["kind"] != "adopted" or c["fiscal_year"] != first["fiscal_year"]:
+            raise FinanceError(f"dollar split: {t['id']} column {column!r} is {c['kind']} FY{c['fiscal_year']}, not "
+                               f"adopted FY{first['fiscal_year']}")
+    note = _newer_books_note(bg, book, first["fiscal_year"])
     for t in dept_totals:
         _exact_in_column(t, column)
     amounts = [_cell(t, column, cents)["value"] for t in dept_totals]
@@ -189,6 +218,7 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
         r["moved"] = i in moved
         r["cents_words"] = T["cent_one"] if c == 1 else T["cents_many"].format(n=c)
         r["labelled"] = c >= T_LABEL_MIN
+        r["narrow"] = c < T_PHONE_MIN
         r["short"] = T["other_short"] if r is other else r["name"]
     ft = basis["line"]
     fsrc = bg.src(ft)
@@ -220,7 +250,7 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
         "rounding": T["rounding"] + " " + rounding,
         "order": T["order"],
         "transfers": T["transfers"] if any("transfer" in t["tags"] for t in dept_totals) else None,
-        "note": cfg.get("note"),
+        "note": note,
         "zero": [{"name": g["name"], "members": [member(t, a) for t, a in zip(g["members"], g["amounts"])]}
                  for g in zero],
         "zero_heading": T["zero"].format(header=column, n=len(zero)),

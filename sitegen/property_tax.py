@@ -21,7 +21,7 @@ from collector.fin_checks import cents_of_dollar, total_of
 
 from . import config
 from .budget_views import Budget, dollars, fund_key
-from .dollar_split import T_LABEL_MIN, slug
+from .dollar_split import T_LABEL_MIN, T_PHONE_MIN, slug
 from .fin_views import Finance, FinanceError
 
 T = config.FIN_TEXT["property_tax"]
@@ -123,7 +123,8 @@ def _check_against_book(bg: Budget, book: dict, cfg: dict, rates: list[int]) -> 
 
 def split(bg: Budget, cfg: dict | None, dollar_fund: str | None = None) -> dict | None:
     """The view of the county property tax dollar, or None when there is no config (a body without one, or a FIXTURE
-    build). `dollar_fund`: the fund the general fund dollar on the same page splits; its row links down to that bar."""
+    build; a config whose book is missing raises, never None: property-tax-split/silent-hide). `dollar_fund`: the
+    fund the general fund dollar on the same page splits; its row links down to that bar."""
     if cfg is None:
         return None
     book = bg.book.get(cfg["book"])
@@ -131,6 +132,14 @@ def split(bg: Budget, cfg: dict | None, dollar_fund: str | None = None) -> dict 
         raise FinanceError(f"property tax split: book {cfg['book']} is not in finance.json")
     if book["source_id"] not in bg.fx.sources:
         raise FinanceError(f"property tax split: source {book['source_id']} of {book['id']} is not in finance.json")
+    if book["fiscal_year"] != cfg["fiscal_year"]:
+        raise FinanceError(f"property tax split: {book['id']} is FY{book['fiscal_year']}, the config says "
+                           f"FY{cfg['fiscal_year']}")
+    for b in bg.books:   # property-tax-split/stale-book: a newer adopted book means a newer levy to show
+        if b["fiscal_year"] > cfg["fiscal_year"] and any(
+                c["kind"] == "adopted" and c["fiscal_year"] == b["fiscal_year"] for c in b["columns"]):
+            raise FinanceError(f"property tax split: {b['id']} prints an adopted FY{b['fiscal_year']} budget, newer "
+                               f"than FY{cfg['fiscal_year']}: point property-tax-split.yml at its tax rate resolution")
     rates = [_thousandths(f["rate"], RATE_RE, f"rate of {f['printed']}") for f in cfg["funds"]]
     if any(r <= 0 for r in rates):
         raise FinanceError("property tax split: every rate must be above zero")
@@ -150,7 +159,8 @@ def split(bg: Budget, cfg: dict | None, dollar_fund: str | None = None) -> dict 
     for i, (f, r, c) in enumerate(zip(cfg["funds"], rates, shares)):
         rows.append({
             "key": slug(f["printed"]), "name": f["name"], "printed": f["printed"], "rate": f["rate"], "value": r,
-            "cents": c, "moved": i in moved, "labelled": c >= T_LABEL_MIN, "short": f["name"],
+            "cents": c, "moved": i in moved, "labelled": c >= T_LABEL_MIN, "narrow": c < T_PHONE_MIN,
+            "short": f["name"],
             "cents_words": T["cent_one"] if c == 1 else T["cents_many"].format(n=c),
             "printed_as": f["printed"] != f["name"], "src": src, "fact_id": f"{base}/{slug(f['printed'])}",
             "fund": f["fund"], "to_dollar": bool(dollar_fund) and f["fund"] == dollar_fund,

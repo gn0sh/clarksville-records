@@ -150,7 +150,9 @@ def test_city_uses_the_fy2026_adopted_column_never_the_fy2027_proposal(city):
     assert d["book_id"] == "fy2026-final" and d["col_amount"] == "2026 2nd Readin" and d["kind"] == "Adopted budget"
     book = next(b for b in fin["books"] if b["id"] == "fy2026-final")
     assert next(c for c in book["columns"] if c["header_as_printed"] == "2026 2nd Readin")["kind"] == "adopted"
-    assert "Mayor's proposed budget" in d["note"]
+    # built from the data (dollar-split/stale-book-note), not a fixed sentence
+    assert d["note"] == ("The newest book read here, FY2027 (as presented 5/29/2026), prints a proposed budget for that "
+                         "year, not an adopted one, so this uses the FY2026 adopted budget.")
 
 
 def test_city_departments_with_revenue_give_the_printed_general_fund_total(city):
@@ -263,6 +265,118 @@ def test_a_book_not_in_the_file_shows_no_bar():
     fin = json.loads((ROOT / "site" / "fixtures" / "finance.sample.json").read_text(encoding="utf-8"))
     bg = budget_views.Budget(fin_views.Finance(fin, []), None)
     assert dollar_split.split(bg, dollar_split.load("montgomery-tn")) is None
+
+
+# ---- dollar-split/untested-invariants: each rule the split rests on fails the build when broken ----------------------
+
+def county_split(change):
+    """The county split over a copy of the committed finance.json after `change(lines by id)`."""
+    fin = json.loads(COUNTY_FIN.read_text(encoding="utf-8"))
+    change({x["id"]: x for x in fin["budget_lines"]}, fin)
+    return dollar_split.split(budget_views.Budget(fin_views.Finance(fin, []), None), dollar_split.load("montgomery-tn"))
+
+
+def city_split(change):
+    fin = json.loads(CITY_FIN.read_text(encoding="utf-8"))
+    change({x["id"]: x for x in fin["budget_lines"]}, fin)
+    return dollar_split.split(budget_views.Budget(fin_views.Finance(fin, []), None, prefix="city/"),
+                              dollar_split.load("clarksville-tn"))
+
+
+def col(line, header):
+    return next(i for i, c in enumerate(line["cells"]) if c["header_as_printed"] == header)
+
+
+AMB, JAIL, FUND_TOTAL = "fy2027-approved/p72/r34", "fy2027-approved/p63/r17", "fy2027-approved/p78/r37"
+
+
+def test_a_held_department_total_fails_the_split():
+    def change(by, fin):
+        by[AMB]["held"] = "column-align"
+    with pytest.raises(fin_views.FinanceError, match="is held"):
+        county_split(change)
+
+
+def test_a_negative_department_total_fails_the_split():
+    def change(by, fin):
+        i = col(by[JAIL], "FY 2027 Budget")
+        by[JAIL]["cells"][i]["dollars"] = -1
+    with pytest.raises(fin_views.FinanceError, match="negative department total"):
+        county_split(change)
+
+
+@pytest.mark.parametrize("how", ["omitted", "counted-twice"])
+def test_a_spending_line_left_out_or_counted_twice_fails_the_split(how):
+    def change(by, fin):
+        line = by[AMB]["scope_line_ids"][0]
+        if how == "omitted":
+            by[AMB]["scope_line_ids"].remove(line)
+        else:
+            by[JAIL]["scope_line_ids"].append(line)
+    with pytest.raises(fin_views.FinanceError, match="cover every spending line exactly once"):
+        county_split(change)
+
+
+@pytest.mark.parametrize("field,value", [("kind", "amended"), ("fiscal_year", 2026)])
+def test_a_total_not_in_the_adopted_column_of_the_year_fails_the_split(field, value):
+    """Every total read is checked, not only the first (nit kind-first-only): the jail total is far down the list."""
+    def change(by, fin):
+        by[JAIL]["cells"][col(by[JAIL], "FY 2027 Budget")][field] = value
+    with pytest.raises(fin_views.FinanceError, match="not adopted FY2027"):
+        county_split(change)
+
+
+def test_a_fund_with_no_printed_total_fails_the_split():
+    def change(by, fin):
+        fin["budget_lines"].remove(by[FUND_TOTAL])
+    with pytest.raises(fin_views.FinanceError, match="prints no fund total"):
+        county_split(change)
+
+
+def test_city_revenue_that_does_not_give_the_printed_fund_total_fails_the_split():
+    def change(by, fin):
+        taxes = by["fy2026-final/p34/r28"]                       # TOTAL Taxes, a revenue section total
+        assert taxes["label_as_printed"] == "TOTAL Taxes"
+        taxes["cells"][col(taxes, "2026 2nd Readin")]["cents"] -= 1
+    with pytest.raises(fin_views.FinanceError, match="revenue and department totals do not add up"):
+        city_split(change)
+
+
+def test_a_total_without_the_column_is_a_finance_error_not_stopiteration():
+    def change(by, fin):
+        for c in by[AMB]["cells"]:
+            if c["header_as_printed"] == "FY 2027 Budget":
+                c["header_as_printed"] = "FY 2027 Budgte"
+    with pytest.raises(fin_views.FinanceError):
+        county_split(change)
+
+
+def test_a_newer_adopted_book_fails_the_split():
+    """dollar-split/stale-book-note: an adopted book newer than the pinned one means the config must move."""
+    def change(by, fin):
+        b = next(b for b in fin["books"] if b["id"] == "fy2027-presented")
+        for c in b["columns"]:
+            if c["fiscal_year"] == 2027:
+                c["kind"] = "adopted"
+    with pytest.raises(fin_views.FinanceError, match="fy2027-presented prints an adopted FY2027 budget"):
+        city_split(change)
+
+
+def test_the_county_has_no_newer_book_and_no_note(county):
+    assert county[1]["note"] is None
+
+
+def test_a_real_build_never_hides_the_bar(tmp_path, monkeypatch):
+    """dollar-split/silent-hide: a config naming a book the file does not hold fails a real build."""
+    from sitegen.build import BuildError
+    real = dollar_split.load
+
+    def load(locality):
+        cfg = real(locality)
+        return {**cfg, "book": "fy2099-adopted"} if locality == "montgomery-tn" else cfg
+    monkeypatch.setattr(dollar_split, "load", load)
+    with pytest.raises(BuildError, match="fy2099-adopted"):
+        build(ROOT / "data" / "facts.json", tmp_path / "site", target="pages")
 
 
 def test_no_sum_or_amount_sort_in_dollar_split():

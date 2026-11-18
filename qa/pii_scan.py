@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import argparse
 import bisect
+import gzip
+import io
 import json
 import re
 import subprocess
@@ -41,6 +43,10 @@ from collector import privacy, rpc_agenda
 ROOT = Path(__file__).resolve().parent.parent
 TEXT_SUFFIXES = {".html", ".js", ".json", ".csv", ".xml", ".txt", ".ics", ".md", ".py", ".yml", ".yaml", ".j2",
                  ".css", ".toml", ".cfg", ".ini", ".sh", ".ps1", ".svg", ".tsv", ".lock", ".jsonl", ".geojson", ""}
+# Compressed text the scan reads by decompressing it (privacy/pii-scan-gzip-blind): the pinned test data
+# (tests/fixtures/*.json.gz, docs/architecture/real-data-tests-invariant.md) is a gzip of published records.
+GZIP_SUFFIXES = (".json.gz", ".jsonl.gz", ".txt.gz", ".csv.gz")
+GZIP_MAX = 512 * 1024 * 1024   # decompressed bytes read at most; a larger member is refused, never skipped
 SHORT = 8           # a needle with no letters under this many characters carries context
 # Government buildings (where the bodies meet or keep office), already in tracked fixtures and tests: never a resident.
 PUBLIC_PLACES = ("106 public square", "350 pageant lane")
@@ -183,11 +189,23 @@ def scan_text(body: str, texts: set[str], phone_rx: list[re.Pattern]) -> list[in
     return sorted(hits)
 
 
+def _is_gzip(p: Path) -> bool:
+    return p.name.lower().endswith(GZIP_SUFFIXES)
+
+
 def _read(p: Path) -> str | None:
     try:
         data = p.read_bytes()
     except OSError:
         return None
+    if _is_gzip(p):
+        try:
+            with gzip.GzipFile(fileobj=io.BytesIO(data)) as g:
+                data = g.read(GZIP_MAX + 1)
+        except (OSError, EOFError) as exc:
+            raise ScanError(f"{p.name}: not a readable gzip ({type(exc).__name__})") from exc
+        if len(data) > GZIP_MAX:
+            raise ScanError(f"{p.name}: decompresses past {GZIP_MAX} bytes; refused, not skipped")
     if b"\x00" in data[:8192]:
         return None
     return data.decode("utf-8", errors="replace")
@@ -214,7 +232,7 @@ def scan(raw: Path, site: Path | None = None, root: Path = ROOT, out=sys.stdout)
     for label, base, files in groups:
         n = 0
         for p in files:
-            if p.suffix.lower() not in TEXT_SUFFIXES or not p.is_file():
+            if (p.suffix.lower() not in TEXT_SUFFIXES and not _is_gzip(p)) or not p.is_file():
                 continue
             body = _read(p)
             if body is None:

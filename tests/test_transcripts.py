@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+import pinned_data
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT
 from collector import transcripts as ctx
 from qa import site_checks
@@ -35,6 +36,17 @@ def kind_of(title: str) -> str:
 
 
 def city_facts() -> dict:
+    """The city facts pinned at pinned_data.PINNED_COMMIT (real-data-tests/): MEETING's record as the input of the
+    import and page tests, never data/ as today's collection left it."""
+    return pinned_data.city()[0]
+
+
+def city_wards() -> list:
+    return pinned_data.city()[1]
+
+
+def live_city_facts() -> dict:
+    """data/ as this run collected it: only for the rules every committed transcript must keep against it."""
     return json.loads((CITY / "facts.json").read_text(encoding="utf-8"))
 
 
@@ -211,7 +223,7 @@ def test_import_removes_transcripts_that_no_longer_match(tmp_path):
 
 
 def test_committed_transcripts_match_their_meetings():
-    facts = city_facts()
+    facts = live_city_facts()
     loaded = tx.load(CITY / "facts.json", facts)
     assert loaded, "at least one transcript is committed"
     by_id = {m["id"]: m for m in facts["meetings"]}
@@ -251,7 +263,7 @@ def test_no_timestamp_link_to_a_video_the_rule_does_not_allow(url):
 
 def test_a_disallowed_video_shows_times_as_text_only(tmp_path):
     facts = city_facts()
-    wards = json.loads((CITY / "wards.json").read_text(encoding="utf-8"))
+    wards = city_wards()
     bad = "https://evil.example/clarksvilletn/x.mp4"
     facts = {**facts, "meetings": [{**x, "video_url": bad} if x["id"] == MEETING else x for x in facts["meetings"]]}
     cix = council.load(CFG, facts, wards)
@@ -390,11 +402,16 @@ def test_no_roster_no_link():
     assert tx.resolve("Smith", None)[0] is None
 
 
-def test_every_resolved_call_on_is_on_the_meetings_own_shown_attendance():
+@pytest.mark.parametrize("data", ["live", "pinned"])
+def test_every_resolved_call_on_is_on_the_meetings_own_shown_attendance(data):
     """The invariant over the real data: a call-on links a member only if that member is on the meeting's own
-    attendance as shown, and no other entry there has the surname."""
-    facts = city_facts()
-    wards = json.loads((CITY / "wards.json").read_text(encoding="utf-8"))
+    attendance as shown, and no other entry there has the surname. The rule holds on data/ as collected (live) and on
+    the pinned data; the named call-ons of MEETING are checked on the pinned data only (real-data-tests/)."""
+    if data == "live":
+        facts = live_city_facts()
+        wards = json.loads((CITY / "wards.json").read_text(encoding="utf-8"))
+    else:
+        facts, wards = city_facts(), city_wards()
     cix = council.load(CFG, facts, wards)
     m = cix.meetings[MEETING]
     t = {"meeting_id": MEETING, "video_url": m["video_url"], "segments": segs()}
@@ -408,15 +425,16 @@ def test_every_resolved_call_on_is_on_the_meetings_own_shown_attendance():
             same = [a for a in meet["attendance"] if (cix.officials.get(a["official_id"]) or {}).get("surname", a["raw_name"]
                     .split()[-1]).casefold() == sur]
             assert len(same) == 1
-    got = {(d["name"], d["official_id"]) for d in cix.tx.call_ons[MEETING]}
-    # not "holloman" (near spelling), not Chandler (listed absent in this meeting's minutes)
-    assert got == {("Smith", "city-wanda-smith"), ("Brown", "city-jimmy-brown"), ("Lovato", "city-keri-lovato")}
-    assert next(a["status"] for a in m["attendance"] if a["official_id"] == "city-tim-chandler") == "absent"
     for mid, calls in cix.tx.call_ons.items():   # no call-on ever links a member listed absent
         absent = {a["official_id"] for a in cix.meetings[mid]["attendance"] if a["status"] == "absent"}
         assert not {d["official_id"] for d in calls} & absent
-    # the 2026-11-05 transcript: no minutes read yet, so nothing links
+    # a transcript of a meeting whose minutes are not read yet (the 2026-11-05 one at the pin): nothing links
     assert all(not v for k, v in cix.tx.call_ons.items() if k != MEETING and not council.views.attendance_shown(cix.meetings[k]))
+    if data == "pinned":
+        got = {(d["name"], d["official_id"]) for d in cix.tx.call_ons[MEETING]}
+        # not "holloman" (near spelling), not Chandler (listed absent in this meeting's minutes)
+        assert got == {("Smith", "city-wanda-smith"), ("Brown", "city-jimmy-brown"), ("Lovato", "city-keri-lovato")}
+        assert next(a["status"] for a in m["attendance"] if a["official_id"] == "city-tim-chandler") == "absent"
 
 
 # ------------------------------------------------------------------------------------------------------ pages
@@ -428,7 +446,7 @@ def city_dir(tmp_path_factory):
     sub = subset(facts, ("2019-01-03-regular", MEETING))
     d = tmp_path_factory.mktemp("city")
     (d / "facts.json").write_text(json.dumps(sub), encoding="utf-8")
-    wards = [w for w in json.loads((CITY / "wards.json").read_text()) if w["meeting_id"] in ("2019-01-03-regular", MEETING)]
+    wards = [w for w in city_wards() if w["meeting_id"] in ("2019-01-03-regular", MEETING)]
     (d / "wards.json").write_text(json.dumps(wards), encoding="utf-8")
     m = next(x for x in sub["meetings"] if x["id"] == MEETING)
     write_raw(d / "raw", raw_transcript(m, SEGMENTS))

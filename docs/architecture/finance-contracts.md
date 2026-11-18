@@ -278,7 +278,7 @@ This is the one place a Finance index shows amounts, and it changes design 6's "
   of the fund exactly once; each used total adds up to its lines exactly in that column and is not held; the column's
   kind is `adopted`; no negative department; the departments add up exactly to the fund's printed spending total, or,
   where the book prints only a revenue-plus-spending fund total (the city), departments plus the printed revenue
-  totals add up to that printed total to the cent; every org code has a name. Adding is only in
+  totals add up to that printed total to the cent; every org code has a name; every total read is adopted, of one fiscal year; no newer book in the file prints an adopted budget for its own year (the note on why an older book is used is built from the data); a real build whose config names a book or fund the file lacks fails (no silent hide). Adding is only in
   `collector/fin_checks.py` (`total_of`, `parts_add_up`, `cents_of_dollar`).
 - **Rounding (`cents_of_dollar`):** nearest whole cent (a half rounds up, so half a cent or more is never 0); if the
   rounded cents do not add up to 100, the |sum - 100| rows rounded the most that way move one cent back (never below
@@ -300,6 +300,9 @@ with the rate itself ("$2.10 per $100 of assessed value"). `sitegen/property_tax
   book and its source are in `finance.json`; every fund the book budgets account 40110 (CURRENT PROPERTY TAX) for in
   the adopted column is one config row and vice versa, each printed once, not held, and each amount the same multiple of
   its rate (integer cross-products; FY2027: 91,200,000 x rate). Adding only via `collector/fin_checks.total_of`.
+  The config's year is its book's; a newer book that prints an adopted budget for its own year fails the build
+  (stale-book, as section 11). A set config never yields a hidden bar: a missing book raises, and the build stops if
+  no bar was built (silent-hide). Segments under 10 cents hide their label on a phone (the key names them).
 - **Rounding:** `cents_of_dollar`, as section 11 (FY2027: 101 rounded, Schools moves one cent, named on the page).
 - **Fact ids:** `proptax/<book>/<printed fund slug>` and `proptax/<book>/total`, from `property_tax.fact_ids`, known to
   `qa/site_checks.finance_fact_ids`.

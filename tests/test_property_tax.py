@@ -152,6 +152,30 @@ def test_a_missing_property_tax_line_in_the_book_fails(cfg):
         split_with(cfg, fin=fin)
 
 
+def test_a_newer_adopted_book_fails_until_the_config_moves_to_its_levy(cfg):
+    """property-tax-split/stale-book: a newer book printing an adopted budget for its own year means a newer tax rate
+    resolution; the bar must not keep showing the old year's rates beside it."""
+    fin = json.loads(COUNTY_FIN.read_text(encoding="utf-8"))
+    new = copy.deepcopy(next(b for b in fin["books"] if b["id"] == "fy2027-approved"))
+    new.update(id="fy2028-approved", fiscal_year=2028, title="Fiscal Year 2028 Approved Budget")
+    for c in new["columns"]:
+        c["fiscal_year"] += 1
+    fin["books"].append(new)
+    with pytest.raises(fin_views.FinanceError, match="fy2028-approved prints an adopted FY2028"):
+        split_with(cfg, fin=fin)
+    with pytest.raises(fin_views.FinanceError, match="the config says FY2026"):
+        split_with(cfg, change=lambda c: c.update(fiscal_year=2026))
+
+
+def test_labels_too_narrow_for_a_phone_are_marked(county):
+    """As the general fund dollar: a labelled segment under 10 cents hides its label on a phone; the key names it."""
+    _, d = county
+    from sitegen import dollar_split
+    assert [r["name"] for r in d["rows"] if r["labelled"] and r["narrow"]] == ["Roads"]
+    assert all(r["narrow"] == (r["cents"] < dollar_split.T_PHONE_MIN) for r in d["rows"])
+    assert "Roads" in [r["short"] for r in d["key"]]
+
+
 @pytest.mark.parametrize("edit,match", [
     (lambda c: c.pop("resolution"), "`resolution`"),
     (lambda c: c.pop("page"), "`page`"),
