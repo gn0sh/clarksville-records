@@ -1,0 +1,76 @@
+# ADR 0011: Collector data moves off `main`; no workflow can merge into `main`
+
+Status: proposed (software-architect, 2026-11-18), **gated on U3** (`docs/ops/u3-positive-control.md`). Supersedes
+ADR 0010 decisions 1 (CODEOWNERS), 2 (ruleset R1') and 5 (the V1' probe). ADR 0010 decisions 3 (R2 on, now
+interim), 4 (canary removal, done by #52) and 6 (the gate stands) remain. Analysis, invariant and every consumer:
+`docs/architecture/v1-fail-2026-11-18.md`. Panel: `docs/reviews/brain-trust-data-off-main.md` (Fix First, 5-1).
+Tasks: `docs/tasks/data-off-main.md`.
+
+## Context
+The V1' probe (run 44354265953) FAILED. `GITHUB_TOKEN` squash-merged #49, which adds a workflow file, under
+`require_code_owner_review: true` with 0 required approvals. Rule suites show the `pull_request` rule read `pass`,
+not `bypass`, for #48, #49 and #52, so the code-owner requirement never applied. This is the second failed fix in
+the `main-protect` family. With data on `main` and merged by a bot, I-main needs a path-aware merge rule that this
+repository (public, user-owned, GitHub Free) doesn't offer: a branch ruleset's PR rule has no path condition, and
+push rules are for private Team or internal Enterprise repositories. Verified on Brian's PC (2026-11-18): both
+environments allow `main` only (custom policy), Pages build_type is workflow, and `morning-note` has no required
+reviewer.
+
+## Decision
+1. **Collector output lives on branch `records-data`** (tree = `data/` only). Ruleset R-D: `deletion` and
+   `non_fast_forward`, no bypass, no PR rule. The push job fast-forwards it with `GITHUB_TOKEN`. `main` tracks no
+   `data/` (gitignored). The gate refuses a tracked `data/` on `S`.
+2. **Curated inputs are code** (Brain Trust change 1). `data/names.yml`, `data/procedural-titles.yml` and
+   `data/corrections-log.json` move to `config/`, reviewed like any code. `data/` keeps only what the collector
+   writes. `SHAPE''` narrows to `*.json` and `changes.jsonl`, and the gate refuses the curated names in `D`. An
+   inventory task confirms each remaining file's writer.
+3. **Provenance** (change 2). After pushing, the push job attests the new tree listing (`git ls-tree -r -z D -- data`
+   as a file) with `actions/attest-build-provenance`. The gate reads the `records-data` head once (`D`) and accepts
+   it only if that listing verifies (`gh attestation verify`, signer workflow `daily-update.yml`, source ref
+   `refs/heads/main`, no self-hosted runners) or equals `RECORDS_DATA_SEED_DIGEST`, pinned by the cutover PR.
+   **No `data_sha` input.** Rollback: a person restores an earlier attested tree whole on `records-data`, then runs
+   `collect=false`.
+4. **Content tripwire** (change 2). J1 compares the votes, roll calls and outcomes in the `D` recorded in the live
+   site's `build-info.json` with what this run will deploy. Any change or removal not listed in the reviewed
+   `config/published-fact-changes.yml` opens one fixed-title issue and holds the deploy (`held=yes`). The data push
+   still happens. This extends ADR 0006's guards, which see only one run's collection.
+5. **Ruleset R1'' on `main`:** `required_approving_review_count: 2`, `dismiss_stale_reviews_on_push: true`,
+   `require_last_push_approval: true`, `require_code_owner_review: false`, squash only, bypass Repository admin role
+   in `pull_request` mode. `.github/CODEOWNERS` is deleted. Every merge into `main` is a person's bypass merge via
+   `merge-reviewed`, which refuses PRs not authored by gn0sh or with a head in another repository.
+6. **R2 off from the cutover on, and load-bearing.** R1'' is unreachable for a bot only while there are exactly
+   two writers (gn0sh and github-actions[bot]) and R2 is off. `protect-main` writes R1'' and R-D, turns R2 off, and
+   reports NOT OK if R2 is on or if any collaborator besides gn0sh has write or more.
+7. **Order** (change 3). U3 runs first, as a scripted live toggle, before any rework. If it fails, this ADR is
+   rejected and the fallback below applies. The cutover is one scripted session in the Operator's order (task list
+   C-series). After it, the V1'' probe (architecture note section 4) must pass before `MAIN_PR_BASELINE` or
+   `MORNING_NOTE_SEND` is set.
+
+## Alternatives considered
+- **Required approvals 1-2 with data still on `main`:** the bot's data PR can't approve itself. A second identity
+  is a new credential (hard stop 5). Rejected.
+- **Push rule restricting paths outside `data/`:** the ideal fix, but not available for a public Free repository
+  (GitHub changelog 2024-09-10). Rejected for now. Revisit if GitHub extends it.
+- **B (status quo, R2 on, approvals 0, gate only) plus a separate sender repository holding the note's key**
+  (Budget Hawk, Skeptic, Strategist): about 1 day versus 3-4. It loses because T7 needs only a branch push carrying
+  an `on: push` workflow, which a prompt-injected agent could make. A bot-merged rewrite of `daily-update.yml` then
+  runs on `main` with both environments, so the site stays deployable by that path (Opponent; medium confidence).
+  **This is the fallback if U3 fails.**
+- **Don't build; defer the note** (Skeptic): the site keeps T7 open, as above.
+- **Throwaway repository for U3:** needs Brian to create a repository and grant the team access to it, and it
+  tests a different ruleset and token. Rejected in favour of the scripted live toggle.
+
+## Consequences
+- I-main becomes simpler (no data exception). I-run gains `D`, read once by the gate and attested.
+- New residuals: (a) attested but wrong new facts from `main`'s own pipeline (a hostile PDF, T5) when they don't
+  touch published facts. (b) Every merge is a bypass, so the bypass log stops being a signal; the gate's
+  person-merge check and the rule-suite read in `merge-reviewed` replace it. (c) Brian is the sole admin, so `main`
+  freezes if the team's bypass stops working.
+- The push job gains `id-token: write` and `attestations: write`, and loses `pull-requests: write`. The gate gains
+  `attestations: read`.
+- Local runs and preflight need `scripts/fetch-data`. The multi-city template inherits the two-branch setup through
+  `protect-main`.
+- Cost: about 3-4 engineer days plus security review. Brian: one U3 session if the team's token can't write
+  rulesets, then one cutover session.
+- Reversal: `scripts/cutover-data-off-main --rollback` re-applies R1' json, restores `data/` on `main` by a
+  reviewed PR from `records-data`'s head, and turns R2 on. The `records-data` branch is kept.
