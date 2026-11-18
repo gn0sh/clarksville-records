@@ -215,7 +215,7 @@ morning_note:
     method_signup_link: Sign up on the Alerts page
     # The front page's invitation (front-signup, 2026-11-18; owner: the sign-up was only in the menu). Enabled state
     # only: one sentence saying what the note is, and the link to the form on the Alerts page (alerts.html#note).
-    front_pitch: Get a short email by 7:00 AM on days when something new is posted on the topics you pick.
+    front_pitch: Get one short email at 7 AM on days when something new is posted.
     front_button: Sign up for the morning note
     preview_title: Today's morning note
     preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."

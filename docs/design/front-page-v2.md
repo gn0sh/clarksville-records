@@ -186,7 +186,7 @@ that opportunity needs to be on the main page, probably near the top."
 Right under the address card, at every width, while the sign-up form is enabled (`morning_note.enabled`; off or
 absent, nothing is drawn): one sentence and one link, drawn as the site's blue button, to the form on the Alerts page
 (`alerts.html#note`). Words are config text, `morning_note.page.front_pitch` and `front_button`:
-"Get a short email by 7:00 AM on days when something new is posted on the topics you pick." and
+"Get one short email at 7 AM on days when something new is posted." and
 "Sign up for the morning note". A link, not a second email field: the form's list picks, its saved-seats box and the
 line saying what is sent to the provider stay in one place, and the landing's CSP gains no form origin. No support
 ask and nothing counted. On a phone it keeps its place under the address card (CSS `order`, with the card), the
