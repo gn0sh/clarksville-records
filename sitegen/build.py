@@ -24,7 +24,8 @@ from . import county_committees as cmx_mod
 from . import rpc as rpc_mod
 from . import freshness as fresh_mod
 from . import morning_page
-from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
+from . import budget_views, config, council as council_mod, days as days_mod, dollar_split, feeds as feeds_mod, \
+    fin_views, \
     georef as georef_mod, localdates, morning as morning_mod, unofficial as unofficial_mod, \
     transcripts as transcripts_mod, watch as watch_mod, \
     seats as seats_mod, views
@@ -816,10 +817,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             ctx = fin_views.solicitation(sol["id"], fx)
             render("fin_solicitation.html.j2", f"contracts/{sol['slug']}.html", f"{title}: {sol['title']}", **ctx)
         render("glossary.html.j2", "glossary.html", "Glossary", **fin_views.glossary())
-    def render_budget(bg, title, body_note, sctx=None):
-        """Finance index, one page per fund (and the capital page): the county's, or the city's under city/."""
-        render("fin_index.html.j2", bg.index, title, sctx, **budget_views.finance_index(bg, export=export),
-               body_note=body_note)
+    def render_budget(bg, title, body_note, sctx=None, dollar_cfg=None):
+        """Finance index, one page per fund (and the capital page): the county's, or the city's under city/. The index
+        is rendered once every fund page is planned, so its general fund dollar links each total to its page part."""
         # Fund and capital pages over config.PAGE_BYTES are split in parts by heading (finance-pages/page-weight):
         # every fund is planned first, so each line's row has its part before any page links to it.
         split = []
@@ -845,6 +845,12 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                     for line_id in by_id[gid]["lines"]:
                         bg.line_pages[line_id] = path
             planned.append((tpl, name, make, parts, paths, part_of, by_id))
+        try:
+            dollar = dollar_split.split(bg, dollar_cfg)
+        except fin_views.FinanceError as exc:
+            raise BuildError(f"{bg.index}: {exc}") from exc
+        render("fin_index.html.j2", bg.index, title, sctx, **budget_views.finance_index(bg, export=export),
+               body_note=body_note, dollar=dollar)
         for tpl, name, make, parts, paths, part_of, by_id in planned:
             nav = [{"href": posixpath.basename(p), "label": budget_views.part_label([by_id[i] for i in ids])}
                    for ids, p in zip(parts, paths)] if len(parts) > 1 else []
@@ -855,12 +861,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     if bg is not None:
         render_budget(bg, config.FIN_TEXT["budget"]["title"],
-                      bodies_mod.finance_note(rpx, sibling=city_bg.index if city_bg is not None else None))
+                      bodies_mod.finance_note(rpx, sibling=city_bg.index if city_bg is not None else None),
+                      dollar_cfg=None if fixture else dollar_split.load(config.LOCALITY))
     if city_bg is not None:
         render_budget(city_bg, config.FIN_TEXT["budget_city"]["title"],
                       bodies_mod.finance_note(rpx, key="city_finance_note",
                                               sibling=budget_views.INDEX if bg is not None else None),
-                      council_mod.site_for(site, city_council))
+                      council_mod.site_for(site, city_council),
+                      dollar_cfg=dollar_split.load(Path(city_council.cfg["facts_path"]).parent.name))
     for o in facts["officials"]:
         if vote_lists:   # first, so the official page knows how many pages the list is on
             render_vote_list(ix, o, None)

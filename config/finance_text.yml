@@ -173,7 +173,7 @@ budget_city:
   books_heading: City budget books
   funds_heading: Funds
   fund_name: Fund as printed
-  note_e: "Amounts are dollars and cents as printed in the book; revenue prints as a negative number, as the book prints it. Each book prints its line-item report one report run at a time, and its fund totals and report totals add revenue and spending together, as printed. Every total shown is printed in the book; none is added up here."
+  note_e: "Amounts are dollars and cents as printed in the book; revenue prints as a negative number, as the book prints it. Each book prints its line-item report one report run at a time, and its fund totals and report totals add revenue and spending together, as printed. Every total on the fund pages is printed in the book; none is added up there. The general fund dollar below says what it adds."
   run_totals_name: "Report totals (TOTAL REVENUE, TOTAL EXPENSE, GRAND TOTAL of each report run)"
   # one fixed sentence on city/finance/index.html: what the reader does not read (docs/research/
   # city-budget-build-2026-11-16.md item 5), then the official link (a config path, as switch notes use)
@@ -184,6 +184,45 @@ budget_city:
   not_read:
     fy2025-adopted: "Linked only, not read: its line-item pages have no usable text layer. Its FY2025 figures (2025 ORIG BUD, 2025 REVISED BUD, 2025 ACTUAL, 2025 PROJECTION) are printed in the columns of the Fiscal Year 2026 Budget (Final Submission), which is read here."
   words: [actual, adopted-budget, amended-budget, fund, proposed-budget]
+
+# The general fund dollar on each Finance index (sitegen/dollar_split.py, finance-contracts 11; owner's request
+# 2026-11-11). Plain and factual: what the bar measures, where every figure comes from, how the cents are rounded.
+# No evaluation words. {year}: the column's fiscal year; {fund}: the fund as printed; {book}: the book's title;
+# {header}: the column as printed; {amount}: the fund total in the book's unit; {label}: the printed total line; {cite}: its page link.
+dollar:
+  heading: Where each dollar of the general fund budget goes
+  lede: "The FY{year} adopted budget of the {fund}, split by department: how many cents of each dollar of the general fund budget each department is budgeted. From {book}, column \"{header}\"."
+  total_printed: "Total: {amount} dollars, the book's own \"{label}\" line {cite}. The department totals add up to it exactly."
+  total_net: "Total: {amount} dollars, the {n} department totals the book prints for this fund, added up here. The book prints no spending-only total for the fund; this sum and the fund's printed revenue totals together give its printed \"{label}\" line {cite} to the cent."
+  measures: "This is the general fund only, not every fund in the book (the funds are listed below), so it is not all of the {body}'s spending."
+  tax: "Property tax is one of the revenues the book lists for this fund, and the book does not say which revenue pays for which department, so this splits the whole general fund budget, not property tax alone. The fund's revenues:"
+  # rounding, then rounding_exact or rounding_moved ({sum}: the rounded cents before the move; {n}: rows moved;
+  # {names}: those rows; {way}: way_less or way_more; {most}: most_up or most_down)
+  rounding: "Cents are each department's share of the total, rounded to the nearest whole cent, and always less than one cent from the exact share."
+  rounding_exact: "Rounded that way they add up to 100."
+  rounding_moved: "Rounded that way they add up to {sum}, so the {n} rows {most} each show one cent {way}, and the cents add up to 100: {names}."
+  rounding_moved_one: "Rounded that way they add up to {sum}, so the row {most} shows one cent {way}, and the cents add up to 100: {names}."
+  most_up: rounded up the most
+  most_down: rounded down the most
+  way_less: less
+  way_more: more
+  order: "Departments are in the order the book prints them, with Other last. The bar shows the same rows, left to right."
+  transfers: "Operating transfers to other funds are part of this fund's printed spending total, so they are a row here under the heading the book prints."
+  other_name: "Other ({n} departments under half a cent each)"
+  other_list: "In Other:"
+  other_sources: "Each department's page is in its list."
+  zero: "Printed with no amount in \"{header}\" ({n}):"
+  printed_as: "Printed as:"
+  printed_as_n: "Printed as {n} totals"
+  printed_as_1: "Printed as"
+  caption: "Cents of each general fund dollar, by department, FY{year} adopted budget"
+  col_dept: Department
+  col_cents: Cents of each dollar
+  col_source: Source
+  total_row: General fund total
+  cent_one: 1 cent
+  cents_many: "{n} cents"
+  bar_label: "The general fund dollar as a bar, 100 cents wide. The table below holds the same figures."
 
 # Design 3: alphabetical, one sentence each, no evaluation words. id = the anchor on glossary.html.
 glossary:

@@ -232,3 +232,30 @@ keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
   time, page number and login are never stored). One entry per distinct date, `{as_printed, page}` (first page that
   prints it). Each city book prints one date. The pages show it next to the year-in-progress ACTUAL column (the ACTUAL
   column for the year before the book's budget year): "as of <date> (report date)". County books: absent.
+
+## 11. The general fund dollar (added 2026-11-18, backend-engineer; owner's request 2026-11-11)
+On each body's Finance index (`finance/index.html`, `city/finance/index.html`), "Where each dollar of the general fund
+budget goes": the general fund's adopted budget split by department, in whole cents that add up to 100, as a bar
+(aria-hidden) and the same figures as a table. `sitegen/dollar_split.py`, template `_dollar.html.j2`, words
+`config/finance_text.yml` `dollar`, per body `config/localities/<locality>/dollar-split.yml` (book, adopted column,
+fund key, grouping rule; the city's department names by org code). No schema change: it reads `finance.json` as is.
+This is the one place a Finance index shows amounts, and it changes design 6's "no amounts, no chart" for that block.
+- **What it measures:** general fund appropriations by department in one adopted column, not spending across all
+  funds, and not property tax alone (the books do not tie a revenue to a department; said on the page).
+- **Books:** county FY2027 approved, "FY 2027 Budget", fund 101 (total 169,501,833, its printed
+  "Total Expenditures COUNTY GENERAL FUND 101", p. 78). City FY2026 final submission, "2026 2nd Readin", General Fund
+  (165,631,658.00; the FY2027 file is the Mayor's proposal, so it is not used).
+- **Departments:** printed department totals (`row_role` total, statement expenditure, `department` set), in book
+  order (no amount sort). County: grouped by the heading's part before " - " (JAIL - SCAAP 2023 under JAIL). City:
+  grouped by org code minus its last digit (salaries / operating / property sections of one department); names from
+  config, every printed heading listed under its row. Under half a cent: one "Other" row that lists them. Printed
+  "-" / .00: listed apart.
+- **Invariants (dollar-split/*; the build fails otherwise):** the department totals cover every spending detail line
+  of the fund exactly once; each used total adds up to its lines exactly in that column and is not held; the column's
+  kind is `adopted`; no negative department; the departments add up exactly to the fund's printed spending total, or,
+  where the book prints only a revenue-plus-spending fund total (the city), departments plus the printed revenue
+  totals add up to that printed total to the cent; every org code has a name. Adding is only in
+  `collector/fin_checks.py` (`total_of`, `parts_add_up`, `cents_of_dollar`).
+- **Rounding (`cents_of_dollar`):** nearest whole cent (a half rounds up, so half a cent or more is never 0); if the
+  rounded cents do not add up to 100, the |sum - 100| rows rounded the most that way move one cent back (never below
+  1). Every row is then less than one cent from its exact share; the page names the moved rows. Integer arithmetic.

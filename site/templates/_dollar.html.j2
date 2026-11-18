@@ -1,0 +1,50 @@
+{# The general fund dollar (sitegen/dollar_split.py, architecture finance-contracts 11): a bar 100 cents wide, then the
+   same figures as a table. The bar is hidden from screen readers and adds nothing the table does not hold. Every
+   segment is the one data ink, told apart by the gap between segments and the cents printed on it, never by colour.
+   Rows keep the book's order (no amount sort). Every amount links to its printed total; every page to the PDF. #}
+{% from "_fin_macros.html.j2" import fin_cites, fin_cite, fin_link %}
+{% macro member_links(members, pdf=false) -%}
+{% for m in members %}<a href="{{ m.href }}">{{ m.heading }}</a> {{ m.amount }}{% if pdf %} ({{ fin_link(m.src) }}){% else %} (p. {{ m.page }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}
+{%- endmacro %}
+{% set t = dollar.t %}
+<section aria-labelledby="dollar-h" class="dollar" id="general-fund-dollar">
+<h2 id="dollar-h">{{ dollar.heading }}</h2>
+<p>{{ dollar.lede }}</p>
+<div class="dollar-bar" aria-hidden="true" title="{{ t.bar_label }}">{% for r in dollar.rows %}<span class="dseg{% if r.key == 'other' %} dseg-other{% endif %}" style="--n: {{ r.cents }}" title="{{ r.name }}: {{ r.cents_words }}">{% if r.labelled %}<span class="dseg-t"><b>{{ r.cents }}&cent;</b><span class="dseg-n"> {{ r.name }}</span></span>{% endif %}</span>{% endfor %}</div>
+<p class="dollar-total">{{ dollar.total_before }}{{ fin_cite(dollar.total_src) }}{{ dollar.total_after }}</p>
+<div class="table-scroll fin-scroll">
+<table class="fin-stack dollar-table">
+  <caption>{{ dollar.caption }}</caption>
+  <thead>
+    <tr><th scope="col">{{ t.col_dept }}</th><th scope="col" class="num">{{ t.col_cents }}</th><th scope="col" class="num">{{ dollar.col_amount }}<br><span class="kind"><a href="{{ root }}glossary.html#adopted-budget">{{ dollar.kind }}</a></span></th><th scope="col">{{ t.col_source }}</th></tr>
+  </thead>
+  <tbody>
+  {% for r in dollar.rows %}
+    <tr class="fact{% if r.key == 'other' %} d-other{% endif %}" data-fact-id="{{ r.fact_id }}">
+      <th scope="row" class="c-dept">{% if r.key == 'other' %}{{ r.name }}
+        <details class="dollar-list"><summary>{{ t.other_list }}</summary><ul>{% for d in r.departments %}<li>{{ d.name }}: {{ d.amount }}{% if d.members | length > 1 or d.members[0].heading != d.name %} <span class="dollar-printed">({{ t.printed_as }} {{ member_links(d.members, true) }})</span>{% else %} <span class="dollar-printed">(<a href="{{ d.members[0].href }}">{{ d.members[0].label }}</a>, {{ fin_link(d.members[0].src) }})</span>{% endif %}</li>{% endfor %}</ul></details>
+      {%- else %}<a href="{{ r.href }}">{{ r.name }}</a>{% if r.printed_as %}<details class="dollar-printed"><summary>{{ t.printed_as_n.format(n=r.members | length) if r.members | length > 1 else t.printed_as_1 }}</summary>{{ member_links(r.members) }}</details>{% endif %}{% endif %}</th>
+      <td class="num c-cents" data-label="{{ t.col_cents }}"><span class="dmini" style="--n: {{ r.cents }}" aria-hidden="true"></span>{{ r.cents_words }}</td>
+      <td class="num c-amt" data-label="{{ dollar.col_amount }}">{{ r.amount }}</td>
+      <td class="c-source cite" data-label="{{ t.col_source }}">{% if r.key == 'other' %}{{ t.other_sources }}{% else %}{{ fin_cites(r.srcs, root, r.fact_id) }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+    <tr class="fact d-total" data-fact-id="dollar/{{ dollar.book_id }}/total">
+      <th scope="row" class="c-dept"><a href="{{ dollar.total_href }}">{{ t.total_row }}</a></th>
+      <td class="num c-cents" data-label="{{ t.col_cents }}">{{ t.cents_many.format(n=dollar.total_cents) }}</td>
+      <td class="num c-amt" data-label="{{ dollar.col_amount }}">{{ dollar.total }}</td>
+      <td class="c-source cite" data-label="{{ t.col_source }}">{{ fin_cites([dollar.total_src], root, "dollar/" ~ dollar.book_id ~ "/total") }}</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+{% if dollar.zero %}<details class="dollar-list dollar-zero"><summary>{{ dollar.zero_heading }}</summary><ul>{% for d in dollar.zero %}<li>{{ d.name }}{% if d.members | length > 1 or d.members[0].heading != d.name %} <span class="dollar-printed">({{ t.printed_as }} {{ member_links(d.members, true) }})</span>{% else %} <span class="dollar-printed">(<a href="{{ d.members[0].href }}">{{ d.members[0].label }}</a>, {{ fin_link(d.members[0].src) }})</span>{% endif %}</li>{% endfor %}</ul></details>{% endif %}
+<ul class="dollar-notes">
+  <li>{{ dollar.measures }}</li>
+  {% if dollar.tax %}<li>{{ dollar.tax }} <a href="{{ dollar.tax_src.url }}" target="_blank" rel="noopener noreferrer">{{ dollar.tax_pages }}<span class="sr-only"> (opens the budget book PDF in a new tab)</span></a>.</li>{% endif %}
+  <li>{{ dollar.rounding }}</li>
+  <li>{{ dollar.order }}</li>
+  {% if dollar.transfers %}<li>{{ dollar.transfers }}</li>{% endif %}
+  {% if dollar.note %}<li>{{ dollar.note }}</li>{% endif %}
+</ul>
+</section>
