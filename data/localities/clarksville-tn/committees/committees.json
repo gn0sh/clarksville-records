@@ -5233,7 +5233,29 @@
       "video_url": null
     },
     {
-      "attendance": null,
+      "attendance": {
+        "absent": null,
+        "confirmed": true,
+        "page": 1,
+        "present": [
+          {
+            "name": "Streetman"
+          },
+          {
+            "name": "Lovato"
+          },
+          {
+            "name": "Peters"
+          },
+          {
+            "name": "Shakeenab"
+          },
+          {
+            "name": "Zacharias"
+          }
+        ],
+        "source_id": "src-228f88bd81fd"
+      },
       "body": "Finance Committee",
       "cancelled": false,
       "committee": "finance",
@@ -5246,17 +5268,49 @@
           "sha256": "5954faa521603bfbe8f9076312619a0e8672c17b6e6994bc9dde9ea583e5c4f9",
           "source_id": "src-5954faa52160",
           "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3149,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-18",
+          "kind": "minutes",
+          "name": "Minutes",
+          "pages": 4,
+          "sha256": "228f88bd81fd14a07b9de63d495dbb3816c6c8a4d2342801882d6969910cc1f6",
+          "source_id": "src-228f88bd81fd",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3357,plainText=false)"
         }
       ],
       "event_id": 3059,
       "id": "2026-06-22-finance",
-      "minutes_printed_date": null,
-      "minutes_read": false,
+      "minutes_printed_date": "2026-06-22",
+      "minutes_read": true,
       "title": "Finance Committee Meeting",
       "video_url": null
     },
     {
-      "attendance": null,
+      "attendance": {
+        "absent": [
+          {
+            "name": "Shakeenab"
+          }
+        ],
+        "confirmed": true,
+        "page": 1,
+        "present": [
+          {
+            "name": "Streetman"
+          },
+          {
+            "name": "Lovato"
+          },
+          {
+            "name": "Peters"
+          },
+          {
+            "name": "Zacharias"
+          }
+        ],
+        "source_id": "src-48fd6e7b7d54"
+      },
       "body": "Finance Committee",
       "cancelled": false,
       "committee": "finance",
@@ -5269,17 +5323,32 @@
           "sha256": "429026fba9fcc12bcc411aa08138910a7a8cca80cdac98950e7a5fa184eefd8b",
           "source_id": "src-429026fba9fc",
           "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3205,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-18",
+          "kind": "minutes",
+          "name": "Minutes",
+          "pages": 3,
+          "sha256": "48fd6e7b7d543af999ceec9905e99327709818825c946a69548c484f75520c3f",
+          "source_id": "src-48fd6e7b7d54",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3358,plainText=false)"
         }
       ],
       "event_id": 3060,
       "id": "2026-07-27-finance",
-      "minutes_printed_date": null,
-      "minutes_read": false,
+      "minutes_printed_date": "2026-07-27",
+      "minutes_read": true,
       "title": "Finance Committee Meeting",
       "video_url": null
     },
     {
-      "attendance": null,
+      "attendance": {
+        "absent": null,
+        "confirmed": false,
+        "page": null,
+        "present": null,
+        "source_id": "src-2d3a9b0d1100"
+      },
       "body": "Finance Committee",
       "cancelled": false,
       "committee": "finance",
@@ -5292,12 +5361,21 @@
           "sha256": "1eed8c6ea60a4d0976317a1dd8fb8d2b090c97cedfb25cc359659056cd8b4062",
           "source_id": "src-1eed8c6ea60a",
           "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3296,plainText=false)"
+        },
+        {
+          "fetched_at": "2026-11-18",
+          "kind": "minutes",
+          "name": "Minutes",
+          "pages": 4,
+          "sha256": "2d3a9b0d11007c68f422691155329aac035b66076e942504c4a4622dbd3eacba",
+          "source_id": "src-2d3a9b0d1100",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3360,plainText=false)"
         }
       ],
       "event_id": 3062,
       "id": "2026-09-21-finance",
-      "minutes_printed_date": null,
-      "minutes_read": false,
+      "minutes_printed_date": "2026-09-21",
+      "minutes_read": true,
       "title": "Finance Committee Meeting",
       "video_url": null
     },
@@ -13058,6 +13136,443 @@
       "words_withheld": [
         "subject_printed",
         "motion_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-06-22-finance-motion-1",
+      "item": "A",
+      "meeting_id": "2026-06-22-finance",
+      "motion_printed": "to approve the May 26, 2026 minutes",
+      "mover": "Shakeenab",
+      "mover_printed": "Councilman Shakeenab",
+      "page": 1,
+      "reasons": [],
+      "seconder": "Peters",
+      "seconder_printed": "Councilman Peters",
+      "section": "3. Approval of Minutes",
+      "source_id": "src-228f88bd81fd",
+      "subject_printed": "May 26, 2026",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion was approved."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-06-22-finance-motion-2",
+      "item": "A",
+      "meeting_id": "2026-06-22-finance",
+      "motion_printed": null,
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 2,
+      "reasons": [
+        "seconder-not-one-member",
+        "name-not-on-roster"
+      ],
+      "seconder": null,
+      "seconder_printed": null,
+      "section": "5. Committee Action Required",
+      "source_id": "src-228f88bd81fd",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion was approved."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed",
+        "motion_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-06-22-finance-motion-3",
+      "item": "A",
+      "meeting_id": "2026-06-22-finance",
+      "motion_printed": "to approve ORDINANCE 93-2025-26 (FIRST READING)",
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Shakeenab",
+      "seconder_printed": "Councilman Shakeenab",
+      "section": "6. City Council Action Required",
+      "source_id": "src-228f88bd81fd",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-06-22-finance-motion-4",
+      "item": "B",
+      "meeting_id": "2026-06-22-finance",
+      "motion_printed": "to approve ORDINANCE 94-2025-26 (FIRST READING)",
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 3,
+      "reasons": [],
+      "seconder": "Shakeenab",
+      "seconder_printed": "Councilman Shakeenab",
+      "section": "6. City Council Action Required",
+      "source_id": "src-228f88bd81fd",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-06-22-finance-motion-5",
+      "item": "C",
+      "meeting_id": "2026-06-22-finance",
+      "motion_printed": "to postpone until the July Finance Committee meeting",
+      "mover": "Shakeenab",
+      "mover_printed": "Councilman Shakeenab",
+      "page": 3,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-228f88bd81fd",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-06-22-finance-motion-6",
+      "item": null,
+      "meeting_id": "2026-06-22-finance",
+      "motion_printed": null,
+      "mover": "Streetman",
+      "mover_printed": "Councilman Streetman",
+      "page": 4,
+      "reasons": [
+        "outcome-not-read",
+        "words-not-read"
+      ],
+      "seconder": "Lovato",
+      "seconder_printed": "Councilman Lovato",
+      "section": null,
+      "source_id": "src-228f88bd81fd",
+      "subject_printed": null,
+      "vote": null,
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "section",
+        "subject_printed",
+        "motion_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-07-27-finance-motion-1",
+      "item": "A",
+      "meeting_id": "2026-07-27-finance",
+      "motion_printed": "to adopt the June 22, 2026 minutes",
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 1,
+      "reasons": [
+        "outcome-not-read",
+        "words-not-read"
+      ],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "3. Approval of Minutes",
+      "source_id": "src-48fd6e7b7d54",
+      "subject_printed": "June 22, 2026",
+      "vote": null
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-07-27-finance-motion-2",
+      "item": "A",
+      "meeting_id": "2026-07-27-finance",
+      "motion_printed": null,
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 2,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "5. Committee Action Required",
+      "source_id": "src-48fd6e7b7d54",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed",
+        "motion_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": true,
+      "id": "2026-07-27-finance-motion-3",
+      "item": "B",
+      "meeting_id": "2026-07-27-finance",
+      "motion_printed": "to approve Resolution 01-2026-27",
+      "mover": "Lovato",
+      "mover_printed": "Councilman Lovato",
+      "page": 3,
+      "reasons": [],
+      "seconder": "Zacharias",
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-48fd6e7b7d54",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-09-21-finance-motion-1",
+      "item": "A",
+      "meeting_id": "2026-09-21-finance",
+      "motion_printed": "to approve the August 24, 2026 minutes",
+      "mover": null,
+      "mover_printed": "Councilman Shakeenab",
+      "page": 1,
+      "reasons": [
+        "attendance-not-read",
+        "mover-not-one-member",
+        "seconder-not-one-member"
+      ],
+      "seconder": null,
+      "seconder_printed": "Councilman Zacharias",
+      "section": "3. Approval of Minutes",
+      "source_id": "src-2d3a9b0d1100",
+      "subject_printed": "August 24, 2026",
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken, and the motion passed."
+      }
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-09-21-finance-motion-2",
+      "item": "A",
+      "meeting_id": "2026-09-21-finance",
+      "motion_printed": null,
+      "mover": null,
+      "mover_printed": "Councilman Lovato",
+      "page": 2,
+      "reasons": [
+        "attendance-not-read",
+        "mover-not-one-member",
+        "seconder-not-one-member"
+      ],
+      "seconder": null,
+      "seconder_printed": "Councilman Zacharias",
+      "section": "5. Committee Action Required",
+      "source_id": "src-2d3a9b0d1100",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed",
+        "motion_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-09-21-finance-motion-3",
+      "item": "E",
+      "meeting_id": "2026-09-21-finance",
+      "motion_printed": "to approve ORDINANCE 11-2026-26 (FIRST READING)",
+      "mover": null,
+      "mover_printed": "Councilman Lovato",
+      "page": 3,
+      "reasons": [
+        "attendance-not-read",
+        "mover-not-one-member",
+        "seconder-not-one-member",
+        "words-not-read"
+      ],
+      "seconder": null,
+      "seconder_printed": "Councilman Peters",
+      "section": "6. City Council Action Required",
+      "source_id": "src-2d3a9b0d1100",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken, and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-09-21-finance-motion-4",
+      "item": "E",
+      "meeting_id": "2026-09-21-finance",
+      "motion_printed": "to approve ORDINANCE 15-2026-27 (FIRST READING)",
+      "mover": null,
+      "mover_printed": "Councilman Shakeenab",
+      "page": 3,
+      "reasons": [
+        "attendance-not-read",
+        "mover-not-one-member",
+        "seconder-not-one-member",
+        "words-not-read"
+      ],
+      "seconder": null,
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-2d3a9b0d1100",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken, and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-09-21-finance-motion-5",
+      "item": "E",
+      "meeting_id": "2026-09-21-finance",
+      "motion_printed": "to approve RESOLUTION 12-2026-27",
+      "mover": null,
+      "mover_printed": "Councilman Zacharias",
+      "page": 3,
+      "reasons": [
+        "attendance-not-read",
+        "mover-not-one-member",
+        "seconder-not-one-member",
+        "words-not-read"
+      ],
+      "seconder": null,
+      "seconder_printed": "Councilman Shakeenab",
+      "section": "6. City Council Action Required",
+      "source_id": "src-2d3a9b0d1100",
+      "subject_printed": null,
+      "vote": {
+        "method": "voice vote",
+        "outcome": "passed",
+        "outcome_printed": "A voice vote was taken, and the motion passed."
+      },
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-09-21-finance-motion-6",
+      "item": "E",
+      "meeting_id": "2026-09-21-finance",
+      "motion_printed": "to approve RESOLUTION 16-2026-27",
+      "mover": null,
+      "mover_printed": "Councilman Zacharias",
+      "page": 3,
+      "reasons": [
+        "attendance-not-read",
+        "mover-not-one-member",
+        "seconder-not-one-member",
+        "outcome-not-read",
+        "words-not-read"
+      ],
+      "seconder": null,
+      "seconder_printed": "Councilman Shakeenab",
+      "section": "6. City Council Action Required",
+      "source_id": "src-2d3a9b0d1100",
+      "subject_printed": null,
+      "vote": null,
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
+      ]
+    },
+    {
+      "committee": "finance",
+      "confirmed": false,
+      "id": "2026-09-21-finance-motion-7",
+      "item": "E",
+      "meeting_id": "2026-09-21-finance",
+      "motion_printed": "to approve RESOLUTION 17-2026-27",
+      "mover": null,
+      "mover_printed": "Councilman Shakeenab",
+      "page": 4,
+      "reasons": [
+        "attendance-not-read",
+        "mover-not-one-member",
+        "seconder-not-one-member",
+        "outcome-not-read",
+        "words-not-read"
+      ],
+      "seconder": null,
+      "seconder_printed": "Councilman Zacharias",
+      "section": "6. City Council Action Required",
+      "source_id": "src-2d3a9b0d1100",
+      "subject_printed": null,
+      "vote": null,
+      "words_note": "Item words not shown (may name a private person); see the minutes",
+      "words_withheld": [
+        "subject_printed"
       ]
     }
   ]
