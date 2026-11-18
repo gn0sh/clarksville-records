@@ -1048,9 +1048,9 @@ def council_record_urls(cfg: dict) -> set[str]:
 
 
 def corrections_log_urls(path: Path | None = None) -> set[str]:
-    """The https source_url of each row of the public corrections log (data/corrections-log.json). A malformed log
+    """The https source_url of each row of the public corrections log (config/corrections-log.json). A malformed log
     adds nothing: the sitegen build rejects it first."""
-    p = Path(path) if path else ROOT / "data" / "corrections-log.json"
+    p = Path(path) if path else ROOT / "config" / "corrections-log.json"
     if not p.is_file():
         return set()
     try:
