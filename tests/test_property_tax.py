@@ -253,7 +253,7 @@ def test_page_shows_rate_rows_and_table(page, county):
     txt = text_of(sec)
     assert "$2.10 per $100 of assessed value" in txt
     assert "as printed in the Fiscal Year 2027 Approved Budget" in txt and "as adopted" not in txt
-    assert txt.count("Each fund also has money from sources other than property tax, not shown here.") == 1
+    assert txt.count("This shows property tax only; funds can also get money from other sources, not shown here.") == 1
     assert "state and federal" not in txt
     segs = re.findall(r'<span class="dseg[^"]*" style="--n: ([\d.]+)"', sec)
     assert segs == [r["cents"] for r in d["rows"]]

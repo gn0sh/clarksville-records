@@ -248,7 +248,7 @@ property_tax:
   heading: Where a county property tax dollar goes
   lede: "The county property tax rate for FY{year} is {rate} per $100 of assessed value. The county commission's tax rate resolution splits that rate across {n} funds. This is that split as printed in the {book}, in cents of each county property tax dollar."
   rate_line: "{rate} per $100 of assessed value"
-  other_money: "Each fund also has money from sources other than property tax, not shown here."
+  other_money: "This shows property tax only; funds can also get money from other sources, not shown here."
   city: "This is the county's property tax only. The City of Clarksville's property tax is separate and not shown here."
   key_label: "Funds named on the bar, left to right"
   key_note: "Named here: each fund with {n} cents or more, left to right in the order the resolution prints them."
