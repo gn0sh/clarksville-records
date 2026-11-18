@@ -63,3 +63,34 @@ case_types:
   DDR: Design review
   DO: Design review       # CDRB agendas from 2025-11: corridor overlay design review ("DO - 2 - 2026")
   HZ: Historic zoning     # CDRB agendas: Historic Zoning Commission cases ("HZ-3- 2025")
+
+# RPC-3: the RPC's meetings before cmcrpc.com's listing starts (2022-01-25), from the City of Clarksville's CivicClerk
+# portal, which files them under category "Regional Planning Commission" (id 38) from 2019-04-24. Same API, URL
+# templates and checks as config/localities/clarksville-tn/civicclerk.yml (collector/civicclerk.py parse_config; robots
+# and the reference-use judgment: docs/adr/0003). Facts: docs/platform-facts.md, "RPC 2019-2021 on CivicClerk".
+# Every event dated before to_date is one listed meeting; its agenda and minutes files are fetched from the API host
+# (at most BACKFILL_FETCH_CAP requests a run, collector/rpc.py) and read like the RPC's own (the same agenda and minutes
+# readers, hold_motions above). The newer CivicClerk rows are left out: cmcrpc.com is the source from 2022 on.
+civicclerk:
+  api_host: clarksvilletn.api.civicclerk.com
+  category_name: Regional Planning Commission
+  from_date: "2019-01-01"
+  to_date: "2022-01-01"           # before this day only; events_url must print the same bound (load_config checks)
+  events_url: "https://{host}/v1/Events?$filter=categoryName%20eq%20%27{category}%27%20and%20startDateTime%20ge%20{from_date}T00:00:00Z%20and%20startDateTime%20lt%202022-01-01T00:00:00Z&$orderby=startDateTime%20asc"
+  file_url: "https://{host}/v1/Meetings/GetMeetingFileStream(fileId={file_id},plainText=false)"
+  agenda_types: [Agenda]
+  minutes_types: [Minutes]
+  video_hosts: [cpmedia.azureedge.net]     # required by parse_config; no RPC video is kept (none was seen)
+  # Where these meetings are listed, for the meeting pages ("Listed as: ... on <listing_label>") and the export's
+  # source_url. The portal is never fetched (ADR 0003): only the API host is.
+  listing_url: https://clarksvilletn.portal.civicclerk.com/
+  listing_label: City of Clarksville's CivicClerk portal
+  # The event name is shown as printed ("Listed as") only when it matches this pattern in full (case-insensitive,
+  # whitespace collapsed): the portal's free text, so anything else is shown as "<kind label>, <date>" and reported.
+  printed_names: '(Regional Planning Commission|Common Design Review Board)( Meeting)?( Agenda| Minutes)?( -)? (\d{1,2}-\d{1,2}-\d{2}|[A-Z][a-z]+ \d{1,2}, \d{4})( CANCELLED)?'
+  # Events filed under the category that are not an RPC meeting: left out and reported (event id and date only).
+  skip_events:
+    - event_name: 'Metropolitan Planning Organization\b.*'      # 2021-06-04: another body's agenda
+      reason: another body (Metropolitan Planning Organization)
+    - event_name: 'Regional Planning Zoning Review Notice\b.*'  # 2021-09-24: a notice letter ("RPC LTR"), no meeting
+      reason: a notice, not a meeting

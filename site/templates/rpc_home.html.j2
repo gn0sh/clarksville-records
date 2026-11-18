@@ -33,7 +33,7 @@ Meetings, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span c
     <div class="meet-what">
       <h3 class="item-h"><a href="{{ root }}{{ m.href }}"><span class="nowrap">{{ m.date | day_words }}</span></a>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</h3>
       <p class="meet-kind">{{ m.kind_label }}</p>
-      <p class="muted">Listed as: {{ m.printed }}.{% if m.cases %} {{ m.cases | length }} {{ "case" if m.cases | length == 1 else "cases" }} on the agenda.{% endif %}</p>
+      <p class="muted">Listed as: {{ m.printed }}{% if m.listed_on %}, on the <a data-ext="record" href="{{ m.listed_on.url }}" target="_blank" rel="noopener noreferrer">{{ m.listed_on.label }}<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}.{% if m.cases %} {{ m.cases | length }} {{ "case" if m.cases | length == 1 else "cases" }} on the agenda.{% endif %}</p>
       {{ rpc_docs(m) }}
     </div>
   </div>

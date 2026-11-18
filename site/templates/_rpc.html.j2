@@ -4,9 +4,9 @@
 {% macro rpc_docs(m) -%}
 <ul class="doc-links">
   {% for d in m.docs %}
-  <li>{{ d.label }}: {% if d.collected %}<a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">{{ d.what }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">fetched {{ d.fetched }}{% if d.no_text and d.ocr %}; a scanned image, read by OCR{% elif d.no_text %}; a scanned image with no readable text, not read{% endif %}</span>{% else %}<a data-ext="listed" href="{{ d.url }}" target="_blank" rel="noopener noreferrer">link on {{ d.host }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">listed on the RPC page; not collected or read</span>{% endif %}</li>
+  <li>{{ d.label }}: {% if d.collected %}<a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">{{ d.what }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">fetched {{ d.fetched }}{% if d.no_text and d.ocr %}; a scanned image, read by OCR{% elif d.no_text %}; a scanned image with no readable text, not read{% endif %}</span>{% else %}<a data-ext="listed" href="{{ d.url }}" target="_blank" rel="noopener noreferrer">link on {{ d.host }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">listed on the {% if m.listed_on %}{{ m.listed_on.label }}{% else %}RPC page{% endif %}; not collected or read</span>{% endif %}</li>
   {% endfor %}
-  {% for k in m.not_posted %}<li>{{ k }}: <span class="doc-note">not linked on the RPC page</span></li>{% endfor %}
+  {% for k in m.not_posted %}<li>{{ k }}: <span class="doc-note">{% if m.listed_on %}not posted on the {{ m.listed_on.label }}{% else %}not linked on the RPC page{% endif %}</span></li>{% endfor %}
 </ul>
 {%- endmacro %}
 

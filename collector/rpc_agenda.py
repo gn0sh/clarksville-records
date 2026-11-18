@@ -33,13 +33,21 @@ from .extract import MIN_CHARS_PER_PAGE, extract_pages
 # A case starts at its number: a numbered agenda paragraph "1. Z - 19 - 2026", "12. S - 44 - 2026",
 # "7. ZO - 2A - 2026", 2025 agendas "1.   CASE NUMBER: Z - 29 - 2025", or a "CASE NUMBER:" line with no item number
 # on it (2022-2024: the number is on a line of its own before or after it, or not printed at all; a variance section
-# may letter it "I. CASE NUMBER: V-1-2023."). Group 1 the agenda's item number (None when not on the line), 2 the
-# prefix, 3 the case's number, 4 the year.
-ITEM = re.compile(r"^\s*(?:(\d{1,3})\s*\.\s+(?:CASE\s+NUMBER\s*:\s*)?|(?:[IVX]{1,5}\s*\.\s+)?CASE\s+NUMBER\s*:\s*)"
+# may letter it "I. CASE NUMBER: V-1-2023."). The 2019-2021 agendas (RPC-3, from CivicClerk) also print, each only with
+# "CASE NUMBER:" right after it: "1) CASE NUMBER: S-111-2021 (VARIANCE ONLY)" (2021 variance sections), "8    CASE
+# NUMBER: CZO-4-2020" (an item number with no period, 2020-11-24) and "a.   CASE NUMBER: SR-32-2020" (lettered
+# site reviews, 2020-09-23; no item number is recorded for a letter); the OCR of a scanned CDRB agenda may drop the
+# colon of a line-leading label ("CASE NUMBER HZ - 2 - 2020", 2021-01-25). Group 1 the agenda's item number (None when
+# not on the line), 2 the prefix, 3 the case's number, 4 the year.
+ITEM = re.compile(r"^\s*(?:(\d{1,3})\s*(?:\.\s+(?:CASE\s+NUMBER\s*:\s*)?|(?:\)\s*|\s)\s*CASE\s+NUMBER\s*:\s*)"
+                  r"|(?:(?:[IVX]{1,5}|[a-z])\s*\.\s+)?CASE\s+NUMBER\s*:?\s*)"
                   r"([A-Z]{1,4})\s*-\s*([0-9]{1,3}[A-Z]?)\s*-\s*((?:19|20)\d\d)\b")
 # Every printed "CASE NUMBER:", loosely (anywhere on a line, any number after it): the completeness check counts
 # these against the cases read, so a case the reader misses is reported, never dropped silently.
 CASE_NUMBER_LOOSE = re.compile(r"CASE\s+NUMBER\s*:", re.I)
+# "******** CASE" / "NUMBER: Z-38-2021 APPLICANT(S): ..." (2021-07-27; blank lines between on 2020-09-23): the
+# label split across a rule line by the text layer (counted once by CASE_NUMBER_LOOSE, which spans the line break)
+SPLIT_LABEL = re.compile(r"(\*{5,})[ \t]*CASE[ \t]*\n((?:[ \t]*\n)*)([ \t]*)NUMBER([ \t]*:)")
 # An item number on a line of its own ("5.", 2022 "4.   *****"): the next case's, or the current case's when it
 # follows that case's unnumbered "CASE NUMBER:" line. TRAILING_ITEM: "10. REQUEST: ..." under such a line.
 LONE_ITEM = re.compile(r"^\s*(\d{1,3})\s*\.\s*(?:\*{5,})?\s*$")
@@ -178,8 +186,10 @@ def parse_pages(pages: list[str]) -> dict:
     agenda's page texts (1-based pages). For the completeness check (build): case_numbers_printed is the loose count of
     "CASE NUMBER:" in the text, case_numbers_read the cases read from a "CASE NUMBER:" line."""
     # a text layer's control characters (a symbol-font bullet "\x14" before "CASE NUMBER:", "LOCATION:\x03East") are
-    # spaces
-    lines = [(n, CONTROL.sub(" ", line)) for n, p in enumerate(pages, 1) for line in p.splitlines()]
+    # spaces; a "CASE" the text layer put at the end of the rule above its "NUMBER:" line (2020-09-23, 2021-07-27) is
+    # moved down to it, so the rule stays a rule and the case starts at its own line
+    lines = [(n, CONTROL.sub(" ", line)) for n, p in enumerate(pages, 1)
+             for line in SPLIT_LABEL.sub(r"\1\n\2\3CASE NUMBER\4", p).splitlines()]
     printed_date = None
     for n, line in lines[:15]:
         d = iso_date(line)
@@ -445,6 +455,8 @@ def build(cfg, rows: list[dict], store, extract=extract_pages, ocr=ocr_document,
                          "source_id": sid, "link_text": d.get("link_text") or d["kind"].capitalize()})
         m = {"id": r["id"], "date": r["date"], "kind": r["kind"], "label": r["label"], "printed": r["printed"],
              "cancelled": r["cancelled"], "documents": docs, "not_linked": r.get("no_doc") or [],
+             # where the meeting is listed: the RPC's page, or (RPC-3, 2019-2021) the city's CivicClerk portal
+             "listing_url": r.get("listing_url") or cfg.listing_url,
              "agenda_source_id": agenda_src, "agenda_date": None, "hearings": [], "case_count": 0,
              "case_numbers_printed": None, "case_numbers_read": None, "agenda_read_by": None,
              "minutes_source_id": None, "minutes_date": None, "minutes_read_by": None,
