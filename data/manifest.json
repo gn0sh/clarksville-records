@@ -47,6 +47,19 @@
     "last_modified": null,
     "meeting_date": null,
     "sha256": "a21b49c8920610c12ac1da51c028ebf7d61bb27ac5350cf949f0c7b8371f21d6",
+    "superseded_by": "77a25e92ee385ab8eb3b027aaddabbf2e2fdfb6363efd7c08c77e3cc6d09b576",
+    "url": "https://montgomerytn.gov/purchasing/archive"
+  },
+  {
+    "bytes": 261709,
+    "content_type": "text/html; charset=UTF-8",
+    "etag": null,
+    "first_fetched_at": "2026-11-18T04:58:14+00:00",
+    "kind": "archive_index",
+    "label": "purchasing archive",
+    "last_modified": null,
+    "meeting_date": null,
+    "sha256": "77a25e92ee385ab8eb3b027aaddabbf2e2fdfb6363efd7c08c77e3cc6d09b576",
     "url": "https://montgomerytn.gov/purchasing/archive"
   },
   {
@@ -708,6 +721,18 @@
     "meeting_date": null,
     "sha256": "78da795b8a667ab3c8678bc6e49e08d9b5fa9a07cef533c859b625ecea277343",
     "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/2026-09-01%20Courts%20Center%20Generator%20Replacement%20Project%20Bid%20Tab.pdf"
+  },
+  {
+    "bytes": 139961,
+    "content_type": "application/pdf",
+    "etag": "\"6ad77634-222b9\"",
+    "first_fetched_at": "2026-11-18T04:58:24+00:00",
+    "kind": "bid",
+    "label": "Bid Advertisement",
+    "last_modified": "Tue, 20 Oct 2026 14:09:56 GMT",
+    "meeting_date": null,
+    "sha256": "5a5e1fc768fafff29ada07afed16642a901becedc9cc346ac831ba8876537e95",
+    "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/2026-10-20%20Bid%20Advertisement%20for%20Stokes%20Field%20Electrical%20Alteration.pdf"
   },
   {
     "bytes": 181678,
