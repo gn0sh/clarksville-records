@@ -304,7 +304,11 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   Brian's PC, exit 0: `Main before the ruleset` and `R2 was off; main was` both this sha). Ruleset 27502319 active, bypass
   none, rules deletion, non_fast_forward, pull_request (0 approvals); Actions may create pull requests: true;
   auto-merge allowed: false. The baseline window (runbook 4.7.1) starts here.
-- Not run yet. When it runs (runbook 2.0.4): the run link, the four merge answers (REST squash, merge, rebase; GraphQL), the review `commit_id` result,
+- Check run under R2 (runbook 2.0.2 check run): Daily update run 44238545517 (manual dispatch 2026-11-18 04:36 UTC on main
+  b966b42, collect on) succeeded: gate, update, push, deploy green; note skipped (manual run). Its data PR #39 was squash-merged
+  by `github-actions[bot]` at 05:56:24 UTC as 551a483 under ruleset 27502319. Collect took 41 min (first RPC 2019-2021
+  backfill), Tests 24.5 min (05:30:40-05:55:11 UTC). https://github.com/gn0sh/clarksville-records/actions/runs/44238545517
+- V1 probe: not run yet. When it runs (runbook 2.0.4): the run link, the four merge answers (REST squash, merge, rebase; GraphQL), the review `commit_id` result,
   and `main`'s sha before and after go here.
 - `github-pages` deployment branches after runbook 2.0.5 (2026-11-17 ~4:25 PM CT, `gh api` on Brian's PC): `gh-pages` policy
   66107711 deleted; the list now holds only `main` (66542479).
