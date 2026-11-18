@@ -405,6 +405,13 @@ function WaitRun([string]$id, [int]$minutes) {   # its conclusion once completed
         Start-Sleep -Seconds 30
     }
 }
+function Step8Wait {   # minutes step 8 may wait: at most 360, and the wait ends before 09:00 UTC (data-off-main/window-vs-duration)
+    $now = [DateTime]::UtcNow
+    $left = ((540 - ($now.Hour * 60 + $now.Minute) + 1440) % 1440) - 1
+    if ($left -lt 1) { $left = 1 }
+    if ($left -lt 360) { return $left }
+    return 360
+}
 function JobConclusion([string]$id, [string]$job) {
     $env:CO_JOB = $job
     $c = (gh api "repos/$repo/actions/runs/$id/jobs?per_page=100" --jq '.jobs[] | select(.name == $ENV.CO_JOB) | .conclusion') -join ''
@@ -620,6 +627,9 @@ if ($Rollback) {
         Write-Host "Restore PR #$Merge at $Sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE."
     } elseif ($CutoverMerge -cmatch '^[0-9a-f]{40}$' -and (GitRun @('merge-base', '--is-ancestor', $CutoverMerge, $m)).Code -eq 0) {
         $path = 'open'
+        # main-protect/rollback-cutover-merge-unverified: the sha must look like the cutover merge itself
+        if (TracksData $CutoverMerge) { Refuse "$CutoverMerge tracks data/: that is not the cutover merge (run $me -Rollback -CutoverMerge <sha> with the merge sha step 5 printed)" }
+        if ((GitRun @('cat-file', '-e', "${CutoverMerge}:.github/CODEOWNERS")).Code -eq 0) { Refuse "$CutoverMerge holds .github/CODEOWNERS: that is not the cutover merge (run $me -Rollback -CutoverMerge <sha> with the merge sha step 5 printed)" }
         $before = GitText @('rev-parse', '--verify', '-q', "$CutoverMerge^1")
         if (-not $before) { Refuse "could not read $CutoverMerge's parent" }
         if (-not (RestoreOk $before)) { Refuse "the commit before the cutover merge $CutoverMerge does not give R2 what it needs: $($script:why) (F4; is $CutoverMerge the cutover merge?)" }
@@ -857,8 +867,10 @@ $script:step = 8
 $id = DispatchRun 'true'
 if (-not $id) { Fail 'could not dispatch daily-update collect=true, or find its run' }
 Write-Host "Step 8: run $id (collect=true): https://github.com/$repo/actions/runs/$id"
-$c = WaitRun $id 360
-if ($null -eq $c) { Fail "run $id did not complete within 6 hours (later: $me -CheckAttested)" }
+$w = Step8Wait
+Write-Host "Step 8: waiting up to $w minutes, so the wait ends before 09:00 UTC (the 09:07 daily run)."
+$c = WaitRun $id $w
+if ($null -eq $c) { Fail "run $id did not complete within $w minutes, and the wait ends before 09:00 UTC so it can't meet the 09:07 daily run (later: $me -CheckAttested)" }
 Write-Host "Run $id ended $c."
 if (-not (GateVerified $id $base)) { Fail "run $id's gate did not verify exactly the cutover commit after MAIN_PR_BASELINE $base" }
 if (-not (CheckAttestedNow $seed)) { Fail $script:why }

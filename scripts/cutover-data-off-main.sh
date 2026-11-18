@@ -310,6 +310,14 @@ wait_run() {   # $1 run id, $2 minutes: waits until it completes; prints its con
     sleep 30
   done
 }
+step8_wait() {   # minutes step 8 may wait: at most 360, and the wait ends before 09:00 UTC (data-off-main/window-vs-duration)
+  local hm left
+  hm=$(date -u +%H%M)
+  [[ "$hm" =~ ^[0-9]{4}$ ]] || return 1
+  left=$(( (540 - (10#${hm:0:2} * 60 + 10#${hm:2:2}) + 1440) % 1440 - 1 ))
+  [ "$left" -ge 1 ] || left=1
+  [ "$left" -lt 360 ] && echo "$left" || echo 360
+}
 job_conclusion() { CO_JOB=$2 gh api "repos/$repo/actions/runs/$1/jobs?per_page=100" --jq '.jobs[] | select(.name == $ENV.CO_JOB) | .conclusion'; }
 put_r1p() {   # PUT scripts/main-ruleset-r1p.json (whitelisted) into main's ruleset, read it back
   local ids
@@ -469,6 +477,9 @@ if [ "$mode" = rollback ]; then
     echo "Restore PR #$rpr at $sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE."
   elif [[ "$cmerge" =~ ^[0-9a-f]{40}$ ]] && git merge-base --is-ancestor "$cmerge" "$m" 2>/dev/null; then
     path=open
+    # main-protect/rollback-cutover-merge-unverified: the sha must look like the cutover merge itself
+    tracks_data "$cmerge" && refuse "$cmerge tracks data/: that is not the cutover merge (run $me --rollback --cutover-merge <sha> with the merge sha step 5 printed)"
+    git cat-file -e "$cmerge:.github/CODEOWNERS" 2>/dev/null && refuse "$cmerge holds .github/CODEOWNERS: that is not the cutover merge (run $me --rollback --cutover-merge <sha> with the merge sha step 5 printed)"
     before=$(git rev-parse --verify -q "$cmerge^1") || refuse "could not read $cmerge's parent"
     restore_ok "$before" || refuse "the commit before the cutover merge $cmerge does not give R2 what it needs: $why (F4; is $cmerge the cutover merge?)"
     d=$(fetch_rd) || refuse "could not read records-data"
@@ -680,7 +691,9 @@ echo "Step 7 OK: run $id deployed; $site/build-info.json names the seed $seed."
 step=8
 id=$(dispatch_run true) || fail "could not dispatch daily-update collect=true, or find its run"
 echo "Step 8: run $id (collect=true): https://github.com/$repo/actions/runs/$id"
-c=$(wait_run "$id" 360) || fail "run $id did not complete within 6 hours (later: $me --check-attested)"
+w=$(step8_wait) || w=1   # an unreadable clock: a 1-minute wait, which then stops with the --check-attested line
+echo "Step 8: waiting up to $w minutes, so the wait ends before 09:00 UTC (the 09:07 daily run)."
+c=$(wait_run "$id" "$w") || fail "run $id did not complete within $w minutes, and the wait ends before 09:00 UTC so it can't meet the 09:07 daily run (later: $me --check-attested)"
 echo "Run $id ended $c."
 gate_verified "$id" "$base" || fail "run $id's gate did not verify exactly the cutover commit after MAIN_PR_BASELINE $base"
 check_attested "$seed" || fail "$why"

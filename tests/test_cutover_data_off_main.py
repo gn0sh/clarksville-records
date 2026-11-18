@@ -785,7 +785,7 @@ def _commit_on(fx, ref, files, msg, push_to=None):
     for rel, text in files.items():
         p = d / rel
         if text is None:
-            _git(d, "rm", "-q", rel, env=fx.genv)
+            _git(d, "rm", "-q", "-r", rel, env=fx.genv)
         else:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(text)
@@ -834,10 +834,38 @@ def test_rollback_open_refuses_when_the_commit_before_the_merge_sets_the_baselin
     """main-protect/f4-wrong-workflow, call 1: R restores the workflow of the merge's parent, so that one is checked."""
     fx = Fx(tmp_path)
     x = _commit_on(fx, "refs/heads/main", {".github/workflows/daily-update.yml": SET_WF}, "set", "refs/heads/main")
-    y = _commit_on(fx, x, {"README": "y\n"}, "after", "refs/heads/main")
+    y = _commit_on(fx, x, {"data": None, ".github/CODEOWNERS": None}, "a cutover-like squash", "refs/heads/main")
     r = fx.run(["--rollback", "--cutover-merge", y])
     assert r.returncode == 1 and "the commit before the cutover merge" in r.stdout and "MAIN_PR_BASELINE" in r.stdout
     assert _writes(fx.calls()) == []
+
+
+@pytest.mark.parametrize("case", ["tracks-data", "has-codeowners"])
+def test_rollback_open_refuses_a_cutover_merge_sha_that_is_not_the_cutover_merge(tmp_path, case):
+    """main-protect/rollback-cutover-merge-unverified: the --cutover-merge sha itself must track no data/ and hold no
+    .github/CODEOWNERS (the cutover squash), not just have a parent that passes."""
+    fx = Fx(tmp_path)
+    if case == "tracks-data":            # before the cutover: a later commit on main whose parent M passes
+        y = _commit_on(fx, "refs/heads/main", {"README": "y\n"}, "later", "refs/heads/main")
+        text = y + " tracks data/: that is not the cutover merge"
+    else:                                # after the cutover: a commit that puts CODEOWNERS back, data/ still off main
+        assert fx.cut().returncode == 0
+        y = _commit_on(fx, "refs/heads/main", {".github/CODEOWNERS": CODEOWNERS}, "codeowners", "refs/heads/main")
+        text = y + " holds .github/CODEOWNERS: that is not the cutover merge"
+    open(tmp_path / "calls", "w").close()
+    r = fx.run(["--rollback", "--cutover-merge", y])
+    assert r.returncode == 1 and text in r.stdout and "Nothing was changed." in r.stdout, r.stdout + r.stderr
+    assert _writes(fx.calls()) == []
+
+
+@pytest.mark.parametrize("hm,minutes", [("0430", 269), ("0459", 240), ("0300", 359), ("1400", 360), ("2330", 360)])
+def test_step8_waits_at_most_until_before_0900_utc(tmp_path, hm, minutes):
+    """data-off-main/window-vs-duration: step 8's wait is capped so it ends before 09:00 UTC (the 09:07 run)."""
+    fx = Fx(tmp_path)
+    r = fx.cut(hm=hm)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert f"Step 8: waiting up to {minutes} minutes, so the wait ends before 09:00 UTC" in r.stdout
+    assert 'fail "run $id did not complete within $w minutes, and the wait ends before 09:00 UTC' in SH.read_text()
 
 
 def _opened_restore(fx):
@@ -984,7 +1012,10 @@ def test_ps1_has_the_same_steps_refusals_and_calls():
     # Amendment (c) and the D3 review fixes, the same in both
     for s in ("BASELINE ", "pinned MAIN_PR_BASELINE", "R2 stays off", "--is-ancestor",
               "Every commit on main after ", "was merged by a person, reviewed at its head: ", "/logs",
-              "refs/cutover/rollback", "--force-remove", "byte for byte"):
+              "refs/cutover/rollback", "--force-remove", "byte for byte",
+              "Step 8: waiting up to ", "the wait ends before 09:00 UTC so it can't meet the 09:07 daily run",
+              "(540 - (", "% 1440", "tracks data/: that is not the cutover merge",
+              "holds .github/CODEOWNERS: that is not the cutover merge"):
         assert s in ps1 and s in sh, s
     # every refusal of the .sh is in the .ps1 (the fixed text before any variable)
     for msg in set(re.findall(r'refuse "([^"$]{16,})', sh)) - {"could not read the UTC time"}:   # Get-Date can't fail
