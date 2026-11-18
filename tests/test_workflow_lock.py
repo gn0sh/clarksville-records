@@ -14,6 +14,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from collector import data_shape
+
 ROOT = Path(__file__).resolve().parent.parent
 TEXT = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
 WF = yaml.safe_load(TEXT)
@@ -258,9 +260,9 @@ def test_tracked_data_files_fit_the_allowlist():
     or changes.jsonl), and there is at least one. (Once main tracks no data/, the seed test reads records-data.)"""
     out = subprocess.run(["git", "ls-tree", "-r", "-z", "HEAD", "--", "data"], cwd=ROOT, capture_output=True,
                          check=True).stdout
-    entries = [e for e in out.split(b"\0") if e and e.rsplit(b"/", 1)[-1] not in CURATED_NAMES]
+    entries = [e for e in out.split(b"\0") if e]
     shape = re.compile(_gate_shape())
-    assert entries
+    assert entries and not [e for e in entries if e.rsplit(b"/", 1)[-1] in CURATED_NAMES]
     for e in entries:
         assert shape.fullmatch(e), e
 
@@ -1661,7 +1663,7 @@ def _shape_literal(run: str) -> bytes:
 
 
 GATE_SHAPE = None     # filled lazily: _gate_steps() needs WF, defined above
-CURATED_NAMES = (b"names.yml", b"procedural-titles.yml", b"corrections-log.json")   # B1 moves them to config/
+CURATED_NAMES = tuple(n.encode("ascii") for n in data_shape.CURATED_NAMES)     # B1: in config/, never in data/
 
 
 def _gate_shape() -> bytes:
@@ -1719,6 +1721,7 @@ TREE_BAD = {
     "curated-nested": [MANIFEST, ("100644", b"data/localities/c-tn/corrections-log.json")],
     "curated-names": [MANIFEST, ("100644", b"data/names.yml")],
     "curated-procedural-titles": [MANIFEST, ("100644", b"data/procedural-titles.yml")],
+    "curated-published-fact-changes": [MANIFEST, ("100644", b"data/a/published-fact-changes.yml")],
 }
 D_BAD = {**SHAPE_BAD, **TREE_BAD}
 # the gate's step under a UTF-8 locale (where S-1 failed open), under C, and with LC_ALL unset (LANG UTF-8)
@@ -1888,6 +1891,29 @@ def test_a_refusal_names_at_most_20_entries_cleaned(tmp_path):
     assert len(listed) == 20 and all(b"??.html" in ln for ln in listed), listed
     assert b"1 of 31 entries fit, 0 curated" in r.stdout
     _error_lines_are_printable(r.stdout)
+
+
+def test_the_workflow_helper_equals_collector_data_shape():
+    """B1's collector/data_shape.py is the one definition outside the workflow: the helper's SHAPE line is SHAPE_BASH
+    byte for byte, its bytes are SHAPE_ERE, and CURATED names exactly CURATED_NAMES (at any depth); the gate and
+    data_shape.problems give the same verdict on every case here."""
+    run = _gate_steps()[GATE_STEP]["run"]
+    assert [ln.strip() for ln in run.splitlines() if ln.strip().startswith("SHAPE=")] == [
+        f"SHAPE=$'{data_shape.SHAPE_BASH}'"]
+    assert _gate_shape() == data_shape.SHAPE_ERE
+    curated = [ln.strip() for ln in run.splitlines() if ln.strip().startswith("CURATED=")]
+    # in the bash source a literal dot is written \\. (bash's $'...' makes it \.)
+    names = "|".join(n.replace(".", r"\\.") for n in data_shape.CURATED_NAMES)
+    assert curated == [r"CURATED=$'\tdata/([^/]*/)*(" + names + r")$'"], curated
+    sha = b"a" * 40
+    for case, entries in {**SHAPE_OK, **SHAPE_BAD, **TREE_BAD}.items():
+        kind = {"160000": b" commit ", "040000": b" tree "}
+        listing = b"".join(m.encode() + kind.get(m, b" blob ") + sha + b"\t" + p + b"\0" for m, p in entries
+                           if p.startswith(b"data/"))
+        if case in SHAPE_OK:
+            assert data_shape.problems(listing) == [], case
+        elif not case.startswith("outside-data"):          # outside data/: the gate's tree check, not the listing's
+            assert data_shape.problems(listing), case
 
 
 def test_the_gate_shape_is_the_architects_literal_and_python_agrees():

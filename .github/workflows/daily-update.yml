@@ -121,7 +121,7 @@ jobs:
             refuse "the checkout is not this run's commit."
           fi
           # ---- data-tree helper: the same text in the gate and the push job (a test keeps the two copies equal) ----
-          # I-data'' (ADR 0011; B1 owns the curated-file move to config/): the commit's tree is data/ only; data/ holds
+          # I-data'' (ADR 0011; collector/data_shape.py, a test keeps both equal): the tree is data/ only; data/ holds
           # regular files (mode 100644) with plain ASCII names ending .json, or named changes.jsonl (SHAPE'', no .yml),
           # at least one, and none of the curated names (CURATED, at any depth). Passes only by counting entries that
           # fit (matched == total >= 1), compared as bytes (LC_ALL=C, grep -a: under a UTF-8 locale grep withholds a
@@ -129,7 +129,7 @@ jobs:
           # one record and fails. Tree objects only: works on a blob:none partial clone. data_listing writes the bytes
           # the push job attests and the gate verifies (I-prov). data_check sets $why when it returns 1.
           SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.json|changes\\.jsonl)$'
-          CURATED=$'\tdata/([^/]*/)*(names\\.yml|procedural-titles\\.yml|corrections-log\\.json)$'
+          CURATED=$'\tdata/([^/]*/)*(names\\.yml|procedural-titles\\.yml|corrections-log\\.json|published-fact-changes\\.yml)$'
           TOP=$'^040000 tree [0-9a-f]{40}\tdata$'
           data_listing() { git ls-tree -r -z "$1" -- data; }
           data_check() {
@@ -880,7 +880,7 @@ jobs:
         run: |
           set -euo pipefail
           # ---- data-tree helper: the same text in the gate and the push job (a test keeps the two copies equal) ----
-          # I-data'' (ADR 0011; B1 owns the curated-file move to config/): the commit's tree is data/ only; data/ holds
+          # I-data'' (ADR 0011; collector/data_shape.py, a test keeps both equal): the tree is data/ only; data/ holds
           # regular files (mode 100644) with plain ASCII names ending .json, or named changes.jsonl (SHAPE'', no .yml),
           # at least one, and none of the curated names (CURATED, at any depth). Passes only by counting entries that
           # fit (matched == total >= 1), compared as bytes (LC_ALL=C, grep -a: under a UTF-8 locale grep withholds a
@@ -888,7 +888,7 @@ jobs:
           # one record and fails. Tree objects only: works on a blob:none partial clone. data_listing writes the bytes
           # the push job attests and the gate verifies (I-prov). data_check sets $why when it returns 1.
           SHAPE=$'^100644 blob [0-9a-f]{40}\tdata/([A-Za-z0-9_][A-Za-z0-9._-]*/)*([A-Za-z0-9_][A-Za-z0-9._-]*\\.json|changes\\.jsonl)$'
-          CURATED=$'\tdata/([^/]*/)*(names\\.yml|procedural-titles\\.yml|corrections-log\\.json)$'
+          CURATED=$'\tdata/([^/]*/)*(names\\.yml|procedural-titles\\.yml|corrections-log\\.json|published-fact-changes\\.yml)$'
           TOP=$'^040000 tree [0-9a-f]{40}\tdata$'
           data_listing() { git ls-tree -r -z "$1" -- data; }
           data_check() {
