@@ -465,7 +465,8 @@ def test_held_and_not_checked_totals_get_no_numbers(fin):
 
 
 def test_real_trustee_note_text():
-    real = json.loads((ROOT / "data" / "finance.json").read_text(encoding="utf-8"))
+    import pinned_data      # real-data-tests/: one real line as committed at PINNED_COMMIT, never today's books
+    real = pinned_data.get("county_finance")
     x = next(x for x in real["budget_lines"] if x["id"] == "fy2027-approved/p47/r37")
     assert budget_views.diff_notes(x) == [
         "FY 2025 Actuals: the book prints 1,039,953. The lines printed above it add up to 1,039,952. "
