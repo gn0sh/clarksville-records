@@ -262,7 +262,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         request could not be read again after cleanup, `main` moved during the probe while
         the probe pull requests stayed unmerged (another merge in the window), or a read failed: the Actions setting
         is left on. Send the output; the team fixes the cause and you run it again.
-      `MORNING_NOTE_SEND` waits on the V1' PASS (section 4 item 6a).
+      `MORNING_NOTE_SEND` waits on the V1'' PASS (section 4 item 6a).
    5. **`github-pages` deploys from `main` only (T4.10.5; Brian, one click; the live site keeps deploying).** The
       site deploys today from the `deploy` job on `main` (Pages source: GitHub Actions, since go-live 2026-11-13);
       the old `gh-pages` branch preview is no longer served, but the `github-pages` environment may still allow
@@ -350,7 +350,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.1) prints "OK: main is protected" (R1':
    code-owner review, squash only, admin bypass for pull requests only, approvals 0, auto-merge off), and the last scheduled run's `push` job merged its `data/` pull request
    into `main` under the ruleset. Link the check output and that PR in the go-live PR.
-6a. **V1' probe passed (link)** (step 2.0.4, T4.11.7; the 2026-11-18 V1 probe was FAIL): the PASS output, the
+6a. **V1'' probe passed (link)** (ADR 0011 section 4; step 2.0.4, T4.11.7; the 2026-11-18 V1 probe was FAIL): the PASS output, the
    run link and the U2 and U3 positive controls are in `docs/platform-facts.md` "Main protection". Without the
    V1'' PASS (ADR 0011), `MORNING_NOTE_SEND` stays unset. The probe no longer gates `MAIN_PR_BASELINE`: the cutover PR
    sets it (item 7; ADR 0011 Amendment (c) item 6).
@@ -466,7 +466,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    5. To stop approving later: same page, untick **Required reviewers** > **Save protection rules**.
    Check: `gh api repos/gn0sh/clarksville-records/environments/morning-note --jq '.protection_rules[].type'`
    prints `required_reviewers` (and `branch_policy`).
-1. **Brian**, only after section 4 is done (6a V1' PASS and 7 checked last), and after he approved the
+1. **Brian**, only after section 4 is done (6a V1'' PASS and 7 checked last), and after he approved the
    sample note: https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository
    variable** > name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
 2. The next scheduled run (09:07 UTC) schedules the day's emails for 7:00 (site time zone) to every confirmed

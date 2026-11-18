@@ -4,7 +4,8 @@ decisions 2a and 4). Each is a YAML list, changed only by a person's reviewed pu
 - config/fin-books-accepted.yml (schema/fin-books-accepted.schema.json): city budget book readings a person accepted;
   collector/fin_books.py worse_than_committed reads it. Key: (locality, book_id, source_sha256).
 - config/published-fact-changes.yml (schema/published-fact-changes.schema.json): published facts a deploy may change
-  or remove; the content tripwire (task B4) reads it. Key: fact_id.
+  or remove; the content tripwire (task B4) reads it. Key: (path, fact_id); each entry pins one exact change
+  (path, fact_id, change, value_sha256), so it is spent once the live site shows that value.
 
 load() applies the schema with the date format checked (listed_on must be a real day, not only YYYY-MM-DD) and refuses
 a key listed twice. Any problem raises ReviewedListError naming the file and the entry index, never a value, so a
@@ -21,7 +22,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 ROOT = Path(__file__).resolve().parent.parent
 FIN_BOOKS_ACCEPTED = "fin-books-accepted"
 PUBLISHED_FACT_CHANGES = "published-fact-changes"
-KEYS = {FIN_BOOKS_ACCEPTED: ("locality", "book_id", "source_sha256"), PUBLISHED_FACT_CHANGES: ("fact_id",)}
+KEYS = {FIN_BOOKS_ACCEPTED: ("locality", "book_id", "source_sha256"), PUBLISHED_FACT_CHANGES: ("path", "fact_id")}
 
 
 class ReviewedListError(ValueError):

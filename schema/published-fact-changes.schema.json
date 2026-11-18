@@ -1,14 +1,27 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "clarksville-records/published-fact-changes/1.0",
+  "$id": "clarksville-records/published-fact-changes/2.0",
   "title": "config/published-fact-changes.yml",
-  "description": "The reviewed list of published facts a deploy may change or remove (I-pub, ADR 0011 decision 4). The content tripwire holds any deploy that changes or drops a vote, roll call or outcome already on the live site unless it is listed here. Changed only by a person's reviewed pull request; allow_shrink never counts. An empty list means no published fact may change. Each fact_id appears at most once, and listed_on must be a real day (collector/reviewed_lists.py applies both).",
+  "description": "The reviewed list of published facts a deploy may change or remove (I-pub, ADR 0011 decision 4). The content tripwire holds any deploy that changes or drops a vote, roll call or outcome already on the live site unless that exact change is listed here: path, fact_id, change and value_sha256 must all match (ADR 0011 B4 notes, S2), so an entry is spent once the live site shows that value. Changed only by a person's reviewed pull request; allow_shrink never counts. An empty list means no published fact may change. Each (path, fact_id) appears at most once, and listed_on must be a real day (collector/reviewed_lists.py applies both).",
   "type": "array",
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["fact_id", "change", "listed_on", "reason"],
+    "required": [
+      "path",
+      "fact_id",
+      "change",
+      "value_sha256",
+      "listed_on",
+      "reason"
+    ],
     "properties": {
+      "path": {
+        "description": "The facts file the fact is in, exactly as the tripwire prints it (e.g. data/facts.json, data/localities/cmc-rpc/rpc.json).",
+        "type": "string",
+        "pattern": "^data/([A-Za-z0-9_][A-Za-z0-9._-]*/)*(facts|rpc)\\.json$",
+        "maxLength": 300
+      },
       "fact_id": {
         "description": "The id of the published roll call (facts roll_calls[].id; its votes and outcome are what may change) or motion, exactly as in the live data.",
         "type": "string",
@@ -17,7 +30,15 @@
       },
       "change": {
         "description": "changed: its votes, tally or outcome may differ from the live site. removed: it may disappear.",
-        "enum": ["changed", "removed"]
+        "enum": [
+          "changed",
+          "removed"
+        ]
+      },
+      "value_sha256": {
+        "description": "The value_sha256 the tripwire prints for this fact's hit: for changed, the sha256 of the new value this run would publish; for removed, of the value that disappears (collector/tripwire.py value_view). Only that exact change passes.",
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
       },
       "listed_on": {
         "description": "The day the entry was added (YYYY-MM-DD).",

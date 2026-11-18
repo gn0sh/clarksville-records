@@ -197,12 +197,15 @@ def test_published_fact_changes_is_an_empty_valid_list(pfc_validator):
     assert reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES) == []
 
 
-GOOD = {"fact_id": "rc-09962951-p101-0", "change": "changed", "listed_on": "2026-11-18",
-        "reason": "The county corrected the vote in its amended minutes."}
+# S2 (ADR 0011 B4 notes): an entry pins one exact change: path, fact_id, change and the new value's sha256
+GOOD = {"path": "data/facts.json", "fact_id": "rc-09962951-p101-0", "change": "changed", "value_sha256": "a" * 64,
+        "listed_on": "2026-11-18", "reason": "The county corrected the vote in its amended minutes."}
 
 
 @pytest.mark.parametrize("entry", [GOOD, {**GOOD, "change": "removed"},
-                                   {**GOOD, "source_url": "https://www.mcgtn.org/minutes.pdf"}])
+                                   {**GOOD, "source_url": "https://www.mcgtn.org/minutes.pdf"},
+                                   {**GOOD, "path": "data/localities/cmc-rpc/rpc.json"},
+                                   {**GOOD, "path": "data/localities/clarksville-tn/facts.json"}])
 def test_published_fact_change_entries_pass(pfc_validator, entry):
     assert list(pfc_validator.iter_errors([entry])) == []
 
@@ -213,7 +216,11 @@ def test_published_fact_change_entries_pass(pfc_validator, entry):
     {**GOOD, "change": "added"}, {**GOOD, "fact_id": ""}, {**GOOD, "fact_id": "rc 1"}, {**GOOD, "reason": "  "},
     {**GOOD, "listed_on": "18 Nov 2026"}, {**GOOD, "listed_on": "2026-02-30"}, {**GOOD, "listed_on": "2026-13-01"},
     {**GOOD, "listed_on": "２０２６-11-18"}, {**GOOD, "source_url": "http://example.org/x"},
-    {**GOOD, "allow_shrink": True}, "rc-09962951-p101-0"])
+    {**GOOD, "allow_shrink": True}, "rc-09962951-p101-0",
+    {k: v for k, v in GOOD.items() if k != "path"}, {k: v for k, v in GOOD.items() if k != "value_sha256"},
+    {**GOOD, "value_sha256": "A" * 64}, {**GOOD, "value_sha256": "a" * 63}, {**GOOD, "value_sha256": "sha256:" + "a" * 64},
+    {**GOOD, "path": "facts.json"}, {**GOOD, "path": "data/manifest.json"}, {**GOOD, "path": "data/../facts.json"},
+    {**GOOD, "path": "data/a b/facts.json"}, {**GOOD, "path": "/data/facts.json"}])
 def test_published_fact_change_entries_refused(pfc_validator, entry):
     assert list(pfc_validator.iter_errors([entry]))
 
@@ -223,21 +230,25 @@ def test_published_fact_changes_must_be_a_list(pfc_validator):
 
 
 def test_a_fact_listed_twice_is_refused(tmp_path):
-    """pfc-schema/duplicate-fact-id: one entry per fact; a second entry for the same fact_id (even with another change
-    or reason) is refused, and so is an unreal day, both naming the entry index, never a value."""
-    twice = [GOOD, {**GOOD, "change": "removed", "reason": "Another reason."}]
+    """pfc-schema/duplicate-fact-id: one entry per fact (path, fact_id); a second entry for the same fact (even with
+    another change, value or reason) is refused, and so is an unreal day, both naming the entry index, never a value.
+    The same id in another facts file is another fact."""
+    twice = [GOOD, {**GOOD, "change": "removed", "value_sha256": "b" * 64, "reason": "Another reason."}]
     assert reviewed_lists.problems(reviewed_lists.PUBLISHED_FACT_CHANGES, twice) == [
-        "entry 1: lists the same fact_id as entry 0"]
+        "entry 1: lists the same path, fact_id as entry 0"]
     assert reviewed_lists.problems(reviewed_lists.PUBLISHED_FACT_CHANGES,
                                    [GOOD, {**GOOD, "fact_id": "rc-09962951-p101-1"}]) == []
+    assert reviewed_lists.problems(reviewed_lists.PUBLISHED_FACT_CHANGES,
+                                   [GOOD, {**GOOD, "path": "data/localities/clarksville-tn/facts.json"}]) == []
     f = tmp_path / "published-fact-changes.yml"
     f.write_text(yaml.safe_dump(twice), encoding="utf-8")
-    with pytest.raises(reviewed_lists.ReviewedListError, match="entry 1: lists the same fact_id as entry 0"):
+    with pytest.raises(reviewed_lists.ReviewedListError, match="entry 1: lists the same path, fact_id as entry 0"):
         reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES, path=f)
     f.write_text(yaml.safe_dump([{**GOOD, "listed_on": "2026-02-30"}]), encoding="utf-8")
     with pytest.raises(reviewed_lists.ReviewedListError, match="entry 0/listed_on: format check failed") as e:
         reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES, path=f)
     assert "2026-02-30" not in str(e.value)
-    f.write_text("- fact_id: x\n  change: changed\n  listed_on: 2026-11-18\n  reason: r\n", encoding="utf-8")
+    f.write_text("- path: data/facts.json\n  fact_id: x\n  change: changed\n  value_sha256: " + "a" * 64
+                 + "\n  listed_on: 2026-11-18\n  reason: r\n", encoding="utf-8")
     with pytest.raises(reviewed_lists.ReviewedListError, match="listed_on: type check failed"):   # unquoted: a date
         reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES, path=f)

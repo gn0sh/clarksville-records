@@ -554,7 +554,16 @@ jobs:
           env -u GITHUB_OUTPUT -u GITHUB_ENV python -m collector.tripwire check \
             --url https://daylight.gnoshcodes.com/build-info.json --seed "$seed" > "$RUNNER_TEMP/tripwire.txt" 2>&1
           rc=$?
-          cat "$RUNNER_TEMP/tripwire.txt"
+          # N1: the report is replayed with workflow commands stopped (a random token, never in the report), so no
+          # line in it can set an output, mask a value or end the hold.
+          token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+          if [[ "$token" =~ ^[0-9a-f]{32}$ ]] && ! grep -qF -- "$token" "$RUNNER_TEMP/tripwire.txt"; then
+            echo "::stop-commands::$token"
+            cat "$RUNNER_TEMP/tripwire.txt"
+            echo "::$token::"
+          else
+            echo "The check's report is not shown here (no token to replay it safely); the issue below carries it."
+          fi
           held=yes
           case "$rc" in
             0) held=no; kind=pass ;;
@@ -570,11 +579,12 @@ jobs:
           echo "kind=$kind" >> "$GITHUB_OUTPUT"
           exit 0
 
+      # main only (a branch run never deploys, so its hold is no signal), as the stale-source step above.
       # One open issue with a fixed title while the deploy is held, a comment each later day. The text is fixed per
       # kind; only the tripwire's own "tripwire: " lines (plain-ASCII fact ids and paths, collector/tripwire.py) are
       # added, backticks dropped, from a file, passed with --body-file, never through the shell or an expression.
       - name: Open or update the deploy-held issue
-        if: always() && steps.tripwire.outputs.held == 'yes'
+        if: always() && steps.tripwire.outputs.held == 'yes' && github.ref == 'refs/heads/main'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload or push
         env:
           GH_TOKEN: ${{ github.token }}
@@ -597,7 +607,9 @@ jobs:
               not-read)
                 echo "The check could not read the live site's build-info.json, the records-data tree it names, or this run's"
                 echo "facts files, so it held (fail closed). A missing build-info.json passes only while records-data is the"
-                echo "seed. If the site or GitHub was down, the next run checks again." ;;
+                echo "seed. If the site or GitHub was down, the next run checks again. If it repeats, a rebuild-only run"
+                echo "(collect = false) does not help: it runs the same check. The way out is a reviewed code pull request that"
+                echo "fixes the cause, merged with scripts/merge-reviewed; the next run then checks again." ;;
               bad-list)
                 echo "config/published-fact-changes.yml is not valid (schema/published-fact-changes.schema.json), so no listed"
                 echo "change counts and the deploy holds. Fix the file by a reviewed pull request." ;;

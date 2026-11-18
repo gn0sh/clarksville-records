@@ -14,11 +14,15 @@ Published facts, per file (every facts.json and rpc.json under data/, keyed by p
   no longer verified or its outcome, tally or votes (official, value) differ.
 - rpc.json motions (the Regional Planning Commission): the same, "confirmed" standing for verified; outcome, tally,
   nays and abstentions are its values.
-A new fact is never a hit. A listed fact_id with change "changed" lets that fact change; "removed" lets it disappear.
+A new fact is never a hit. An id that appears more than once keeps every copy: a copy that disappears is a removal.
+A listed entry lets through exactly one change (ADR 0011 B4 notes, S2): its path, fact_id, change and value_sha256 must
+all match, where value_sha256 is the sha256 of the fact's view (value_view: the number of copies and the shown values)
+after a "changed", or of the view that disappears for a "removed". The hit line prints that digest. Once the live site
+shows that value the entry matches nothing new, so a later change of the same fact needs a new entry (it is spent).
 
 Finding the live tree: build-info.json names D (the records-data head the live run started from) and the sha256 of
-the listing it deployed. That is D itself on a rebuild-only run or one with no data change, or the push job's commit
-on D on a collecting run, so the live tree is the first commit on records-data from D on whose listing digest matches.
+the listing it deployed. That is always D itself (a rebuild-only run, or no data change) or D+1, the push job's one
+commit on D (a collecting run): the live tree is whichever of those two has the listing digest, never a later commit.
 
     python -m collector.tripwire check --url https://<site>/build-info.json --seed yes|no [--data data] [--repo .]
         exit 0 deploy (no hit, or the seed bootstrap), 1 hit, 3 build-info.json, the live tree or this run's facts
@@ -49,7 +53,7 @@ PASS, HIT, BAD_CALL, NOT_READ, BAD_LIST = 0, 1, 2, 3, 4
 SCHEMA = "build-info/1"
 KEYS = {"schema", "sha", "data_sha", "listing_sha256"}
 MAX_BUILD_INFO = 4096
-MAX_WALK = 200            # commits on records-data searched from D for the live listing
+MAX_WALK = 2              # D and D+1 (the push job's one commit on D): the only commits a live site is built from
 _SHA1 = re.compile(r"[0-9a-f]{40}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}")
@@ -120,17 +124,19 @@ def _git(repo: Path, *args: str) -> bytes:
 
 
 def live_tree(repo: Path, info: dict) -> str:
-    """The records-data commit the live site was built from: D or a descendant of it whose data listing has the
-    recorded digest. Reads records-data once (trees only; the facts files' blobs come lazily from the same remote)."""
+    """The records-data commit the live site was built from: D or D+1 (the first commit after D on records-data),
+    whichever has the recorded listing digest. Reads records-data once (trees only; the facts files' blobs come lazily
+    from the same remote)."""
     _git(repo, "fetch", "--no-tags", "--filter=blob:none", "origin", f"+refs/heads/records-data:{RC}")
     d = info["data_sha"]
-    if subprocess.run(["git", "merge-base", "--is-ancestor", d, RC], cwd=repo, capture_output=True).returncode != 0:
+    on_branch = subprocess.run(["git", "merge-base", "--is-ancestor", d, RC], cwd=repo, capture_output=True)
+    if on_branch.returncode != 0:
         raise NotRead("the live data_sha is not on records-data")
     later = _git(repo, "rev-list", "--reverse", "--ancestry-path", f"{d}..{RC}").decode().split()
     for sha in [d, *later][:MAX_WALK]:
         if hashlib.sha256(_git(repo, "ls-tree", "-r", "-z", sha, "--", "data")).hexdigest() == info["listing_sha256"]:
             return sha
-    raise NotRead("no records-data commit from the live data_sha has the live listing")
+    raise NotRead("neither the live data_sha nor the commit after it on records-data has the live listing")
 
 
 def _fact_paths(names) -> list[str]:
@@ -174,46 +180,55 @@ def read_disk(data_dir: Path) -> dict[str, object]:
     return out
 
 
-def published(files: dict[str, object]) -> dict[tuple[str, str], list]:
-    """{(path, fact id): sorted [shown values]} for every published roll call and RPC motion: one item per instance
-    that shows its values (verified, or confirmed), so a key listed with [] is on the site with no values shown. An
-    id that appears twice keeps both instances (a duplicate never hides a change). A file of the wrong shape holds."""
-    out: dict[tuple[str, str], list] = {}
+def published(files: dict[str, object]) -> dict[tuple[str, str], tuple[int, list]]:
+    """{(path, fact id): (copies, sorted [shown values])} for every published roll call and RPC motion: one shown
+    value per copy that shows its values (verified, or confirmed). Every copy of an id that appears twice is kept, so a
+    duplicate never hides a change, and a copy that disappears is a removal. A file of the wrong shape holds."""
+    out: dict[tuple[str, str], tuple[int, list]] = {}
+
+    def add(key, shown, values):
+        n, vals = out.get(key, (0, []))
+        out[key] = (n + 1, vals + ([json.dumps(values, sort_keys=True)] if shown else []))
     try:
         for path, doc in files.items():
             if not isinstance(doc, dict):
                 raise TypeError(path)
             for rc in doc.get("roll_calls") or []:
                 votes = sorted((str(v.get("official_id")), str(v.get("value"))) for v in rc.get("votes") or [])
-                shown = (rc.get("verification") or {}).get("status") == "verified"
-                values = out.setdefault((path, str(rc.get("id"))), [])
-                if shown:
-                    values.append(json.dumps([rc.get("outcome"), rc.get("stated_tally"), votes], sort_keys=True))
+                add((path, str(rc.get("id"))), (rc.get("verification") or {}).get("status") == "verified",
+                    [rc.get("outcome"), rc.get("stated_tally"), votes])
             for mo in (doc.get("motions") or []) if path.endswith("rpc.json") else []:
-                values = out.setdefault((path, str(mo.get("id"))), [])
-                if mo.get("confirmed") is True:
-                    values.append(json.dumps([mo.get("outcome"), mo.get("tally"), sorted(map(str, mo.get("nays") or [])),
-                                              sorted(map(str, mo.get("abstained") or []))], sort_keys=True))
+                add((path, str(mo.get("id"))), mo.get("confirmed") is True,
+                    [mo.get("outcome"), mo.get("tally"), sorted(map(str, mo.get("nays") or [])),
+                     sorted(map(str, mo.get("abstained") or []))])
     except (AttributeError, TypeError) as exc:
         raise NotRead("a facts file does not have the expected shape") from exc
-    return {k: sorted(v) for k, v in out.items()}
+    return {k: (n, sorted(v)) for k, (n, v) in out.items()}
 
 
-def hits(live: dict[str, object], new: dict[str, object], listed: list[dict]) -> list[tuple[str, str, str]]:
-    """[(change, path, fact id)] for each published fact that changed or disappeared and is not listed for it."""
-    allowed = {(e["fact_id"], e["change"]) for e in listed}
+def value_view(view: tuple[int, list] | None) -> str:
+    """The sha256 a published-fact-changes.yml entry pins: of the fact's (copies, shown values), canonical JSON."""
+    n, shown = view if view is not None else (0, [])
+    return hashlib.sha256(json.dumps({"copies": n, "shown": shown}, sort_keys=True,
+                                     separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def hits(live: dict[str, object], new: dict[str, object], listed: list[dict]) -> list[tuple[str, str, str, str]]:
+    """[(change, path, fact id, value_sha256)] for each published fact that changed, lost a copy or disappeared and
+    is not listed for exactly that change (path, fact_id, change and value_sha256)."""
+    allowed = {(e["path"], e["fact_id"], e["change"], e["value_sha256"]) for e in listed}
     before, after = published(live), published(new)
     out = []
-    for key, shown in sorted(before.items()):
+    for key, (copies, shown) in sorted(before.items()):
         path, fid = key
-        if key not in after:
-            change = "removed"
-        elif shown and after[key] != shown:
-            change = "changed"
+        if key not in after or after[key][0] < copies:
+            change, digest = "removed", value_view(before[key])
+        elif shown and after[key][1] != shown:
+            change, digest = "changed", value_view(after[key])
         else:
             continue
-        if (fid, change) not in allowed:
-            out.append((change, path, fid))
+        if (path, fid, change, digest) not in allowed:
+            out.append((change, path, fid, digest))
     return out
 
 
@@ -246,9 +261,9 @@ def _check_main(args) -> int:
         print(f"tripwire: held: the check stopped ({type(exc).__name__})")
         return NOT_READ
     unprintable = 0
-    for change, path, fid in found:
+    for change, path, fid, digest in found:
         if _ID.fullmatch(fid) and re.fullmatch(r"[A-Za-z0-9/._-]+", path):
-            print(f"tripwire: {change}: {fid} ({path})")
+            print(f"tripwire: {change}: {fid} ({path}) value_sha256 {digest}")
         else:
             unprintable += 1
     if unprintable:

@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -219,6 +220,7 @@ def _env(tmp_path, st, stub=_GH):
         (bindir / name).write_text(text)
         (bindir / name).chmod(0o755)
     (tmp_path / "state.json").write_text(json.dumps(st))
+    (tmp_path / "calls").write_text("")     # made here, so a calls file gone later is an error, never "no calls"
     env = {k: v for k, v in os.environ.items() if k not in CLOUD + ("GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN")}
     env.update({"PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(tmp_path / "calls"),
                 "GH_STATE": str(tmp_path / "state.json"), "HOME": str(tmp_path)})
@@ -226,8 +228,11 @@ def _env(tmp_path, st, stub=_GH):
 
 
 def _calls(tmp_path):
+    """The stub's call log. _env makes the file, so a missing one means something else removed it (another session
+    sharing this --basetemp, main-protect/test-flake): an error, never read as "no calls"."""
     p = tmp_path / "calls"
-    return [json.loads(ln) for ln in p.read_text().splitlines()] if p.exists() else []
+    assert p.is_file(), f"{p} is gone: another pytest session shares this --basetemp (conftest.py basetemp lock)"
+    return [json.loads(ln) for ln in p.read_text().splitlines()]
 
 
 def _pm(tmp_path, st=None, args=("--apps", "claude"), **env_over):
@@ -374,6 +379,38 @@ _READS = [
     f"GET {R}/environments/morning-note/deployment-branch-policies?per_page=100",
     f"GET {WF_PATH}",
 ]
+
+
+def test_a_calls_log_that_is_gone_is_an_error_never_no_calls(tmp_path):
+    """main-protect/test-flake: the 403 test once read 0 writes because a second pytest session with the same
+    --basetemp emptied this test's folder after the script ran. _env makes the log, so _calls refuses a missing one."""
+    _env(tmp_path, _pm_state())
+    assert _calls(tmp_path) == []
+    (tmp_path / "calls").unlink()
+    with pytest.raises(AssertionError, match="another pytest session shares this --basetemp"):
+        _calls(tmp_path)
+
+
+def test_a_second_session_with_the_same_basetemp_stops(tmp_path):
+    """The root cause of main-protect/test-flake, closed in conftest.py: while one session holds --basetemp X, a
+    second session given X stops with a usage error before it empties X (exit 4), and X's files stay."""
+    fcntl = pytest.importorskip("fcntl")
+    bt = tmp_path / "bt"
+    (bt / "keep").mkdir(parents=True)
+    lock = bt.with_name("bt.lock")                               # conftest.basetemp_lock_path: beside, not inside
+    with open(lock, "a+") as f:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--basetemp={bt}",
+                            "tests/test_protect_main.py::test_protect_main_creates_r1pp_rd_rt_and_turns_r2_off"],
+                           cwd=ROOT, capture_output=True, text=True, timeout=120)
+    assert r.returncode == 4, r.stdout + r.stderr
+    assert "another pytest session is using --basetemp=" in r.stdout + r.stderr and f"(lock {lock})" in r.stdout + r.stderr
+    assert (bt / "keep").is_dir()                                # not emptied
+    r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--basetemp={bt}",
+                        "tests/test_protect_main.py::test_protect_main_creates_r1pp_rd_rt_and_turns_r2_off"],
+                       cwd=ROOT, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr                # free again: it runs, and releases the lock
+    assert not lock.exists()
 
 
 @pytest.mark.parametrize("key", _READS + ["checks: rulesets list", "checks: R2"])
@@ -591,9 +628,7 @@ sys.stderr.write("stub: unexpected %r\n" % a); sys.exit(9)
 def _mr(tmp_path, args, st=None):
     env = _env(tmp_path, st or _mr_state(), stub=_MR_GH)
     r = subprocess.run(["bash", str(MR_SH), *args], env=env, capture_output=True, text=True, timeout=60)
-    p = tmp_path / "calls"
-    made = [json.loads(ln) for ln in p.read_text().splitlines()] if p.exists() else []
-    return r, [c for c in made if c[0] == "api"]
+    return r, [c for c in _calls(tmp_path) if c[0] == "api"]
 
 
 def test_merge_reviewed_reviews_merges_deletes_then_prints_the_bypass_rule_suite(tmp_path):

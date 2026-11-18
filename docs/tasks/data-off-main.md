@@ -154,6 +154,19 @@ only later commit verifies; on a branch the gate passes with `verified=false` an
 is skipped whenever `verified` isn't `'true'`, including `collect=false`; no tripwire code path outputs `held=no`
 after a hit.
 
+**B4 notes (review of 2bfd7eb9, decisions).**
+- S2 `data-off-main/ipub-list-never-spent` (manager's decision, 2026-11-18): each `config/published-fact-changes.yml`
+  entry is pinned to `path` + `fact_id` + `change` + `value_sha256` (the sha256 of the fact's view after the change,
+  or of the view that disappears for `removed`; `collector/tripwire.py` `value_view`) and lets through only that exact
+  change. Once the live `build-info.json` shows that value, the entry matches nothing new; a later change of the same
+  fact needs a new entry. The hit line prints the four values to copy. One entry per (`path`, `fact_id`). Residual: a
+  `removed` entry would match again only if the same fact comes back with the very same value and is removed again;
+  spent entries are deleted in any later PR.
+- S1b: the live tree is always `D` or `D+1` (`MAX_WALK` 2). A stuck "could not read" hold is left by a reviewed code
+  PR, not by a rebuild-only run (which runs the same check).
+- S1: the deploy-held issue opens on `main` only. N1: the report is replayed between `::stop-commands::<token>` and
+  `::<token>::`. N2: a duplicate id's lost copy is a removal.
+
 ## D1: `protect-main` and `merge-reviewed` (rows R1, R-D, R2, S1, S2)
 - `protect-main` writes R1'' (`scripts/main-ruleset.json`), R-D (`scripts/records-data-ruleset.json`) and R-T
   (`scripts/main-tag-ruleset.json`: blocks creating, updating or deleting a tag named `main`, F2) and turns R2 off.

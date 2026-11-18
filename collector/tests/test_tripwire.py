@@ -8,6 +8,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -139,7 +140,8 @@ def test_a_changed_outcome_holds(repo, monkeypatch, capsys):
     repo.run_data(_tree(facts=facts))
     assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
     out = capsys.readouterr().out
-    assert "tripwire: changed: rc-1 (data/facts.json)" in out and "tripwire: held: 1 published fact(s)" in out
+    assert re.search(r"^tripwire: changed: rc-1 \(data/facts\.json\) value_sha256 [0-9a-f]{64}$", out, re.M)
+    assert "tripwire: held: 1 published fact(s)" in out
 
 
 @pytest.mark.parametrize("edit", ["vote", "tally", "unverified", "rpc-outcome", "rpc-unconfirmed", "rpc-nays",
@@ -183,34 +185,92 @@ def test_a_removed_roll_call_holds(repo, monkeypatch, capsys, which):
     assert "tripwire: removed: " in capsys.readouterr().out
 
 
-def test_a_listed_change_passes(repo, monkeypatch):
+def _hit_lines(out: str) -> list[dict]:
+    """The entries a person copies from the hit lines ("tripwire: <change>: <id> (<path>) value_sha256 <hex>")."""
+    found = re.findall(r"^tripwire: (changed|removed): (\S+) \((\S+)\) value_sha256 ([0-9a-f]{64})$", out, re.M)
+    return [{"path": p, "fact_id": f, "change": c, "value_sha256": v, "listed_on": "2026-11-18", "reason": "r"}
+            for c, f, p, v in found]
+
+
+def test_a_listed_change_passes(repo, monkeypatch, capsys):
+    """The hit lines carry exactly what an entry pins; listing them lets this run's change through, one by one."""
     facts = copy.deepcopy(FACTS)
     facts["roll_calls"][0]["outcome"] = "failed"
     del facts["roll_calls"][1]
     repo.run_data(_tree(facts=facts))
-    repo.listed([{"fact_id": "rc-1", "change": "changed", "listed_on": "2026-11-18", "reason": "amended minutes"}])
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
+    entries = _hit_lines(capsys.readouterr().out)
+    assert [(x["change"], x["fact_id"], x["path"]) for x in entries] == [
+        ("changed", "rc-1", "data/facts.json"), ("removed", "rc-2", "data/facts.json")]
+    repo.listed(entries[:1])
     assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT            # rc-2's removal is not listed
-    repo.listed([{"fact_id": "rc-1", "change": "changed", "listed_on": "2026-11-18", "reason": "amended minutes"},
-                 {"fact_id": "rc-2", "change": "removed", "listed_on": "2026-11-18", "reason": "a duplicate"}])
+    repo.listed(entries)
     assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.PASS
 
 
-def test_a_listing_is_for_its_kind_of_change_only(repo, monkeypatch):
-    """"changed" does not let the fact disappear, and "removed" does not let it change."""
-    facts = copy.deepcopy(FACTS)
-    del facts["roll_calls"][0]
-    repo.run_data(_tree(facts=facts))
-    repo.listed([{"fact_id": "rc-1", "change": "changed", "listed_on": "2026-11-18", "reason": "r"}])
-    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
+@pytest.mark.parametrize("field,value", [("change", "removed"), ("path", "data/localities/clarksville-tn/facts.json"),
+                                         ("value_sha256", "0" * 64), ("fact_id", "rc-2")])
+def test_an_entry_lets_through_only_its_exact_change(repo, monkeypatch, capsys, field, value):
+    """S2 (ADR 0011 B4 notes): path, fact_id, change and value_sha256 must all match the hit."""
     facts = copy.deepcopy(FACTS)
     facts["roll_calls"][0]["outcome"] = "failed"
     repo.run_data(_tree(facts=facts))
-    repo.listed([{"fact_id": "rc-1", "change": "removed", "listed_on": "2026-11-18", "reason": "r"}])
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
+    entry = _hit_lines(capsys.readouterr().out)[0]
+    repo.listed([{**entry, field: value}])
     assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
 
 
+def test_an_entry_is_spent_once_the_live_site_shows_its_value(repo, monkeypatch, capsys):
+    """S2 (data-off-main/ipub-list-never-spent): an entry listed for one change never lets a later change of the same
+    fact through, before or after the live site shows the listed value."""
+    first = copy.deepcopy(FACTS)
+    first["roll_calls"][0]["outcome"] = "failed"
+    repo.run_data(_tree(facts=first))
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
+    repo.listed(_hit_lines(capsys.readouterr().out))
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.PASS
+    second = copy.deepcopy(first)
+    second["roll_calls"][0]["votes"][2]["value"] = "yes"          # the same fact changes again, before the deploy
+    repo.run_data(_tree(facts=second))
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
+    d1 = repo.commit(_tree(facts=first))                          # the listed value deploys: the live tree is D+1
+    raw = repo.info(repo.d, files=_tree(facts=first))
+    assert json.loads(raw)["listing_sha256"] == json.loads(repo.info(d1))["listing_sha256"]
+    repo.run_data(_tree(facts=first))
+    assert repo.main(monkeypatch, raw) == tripwire.PASS           # no change from the live site: nothing to match
+    repo.run_data(_tree(facts=second))
+    assert repo.main(monkeypatch, raw) == tripwire.HIT            # the spent entry lets no new change through
+    back = copy.deepcopy(FACTS)
+    repo.run_data(_tree(facts=back))                              # even a change back to the old value
+    assert repo.main(monkeypatch, raw) == tripwire.HIT
+
+
+def test_a_listing_is_for_its_kind_of_change_only(repo, monkeypatch, capsys):
+    """"changed" does not let the fact disappear, and "removed" does not let it change."""
+    facts = copy.deepcopy(FACTS)
+    facts["roll_calls"][0]["outcome"] = "failed"
+    repo.run_data(_tree(facts=facts))
+    repo.main(monkeypatch, repo.info(repo.d))
+    changed = _hit_lines(capsys.readouterr().out)
+    facts = copy.deepcopy(FACTS)
+    del facts["roll_calls"][0]
+    repo.run_data(_tree(facts=facts))
+    repo.main(monkeypatch, repo.info(repo.d))
+    removed = _hit_lines(capsys.readouterr().out)
+    repo.listed(changed)
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT     # removed, but only "changed" listed
+    repo.listed(removed)
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.PASS
+    facts = copy.deepcopy(FACTS)
+    facts["roll_calls"][0]["outcome"] = "failed"
+    repo.run_data(_tree(facts=facts))
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT     # changed, but only "removed" listed
+
+
 def test_an_invalid_list_holds(repo, monkeypatch, capsys):
-    repo.listed([{"fact_id": "rc-1", "change": "changed", "listed_on": "2026-02-30", "reason": "r"}])
+    repo.listed([{"path": "data/facts.json", "fact_id": "rc-1", "change": "changed", "value_sha256": "a" * 64,
+                  "listed_on": "2026-02-30", "reason": "r"}])
     assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.BAD_LIST
     assert "tripwire: held: published-fact-changes.yml" in capsys.readouterr().out
 
@@ -239,6 +299,29 @@ def test_a_duplicate_id_never_hides_a_change(repo, monkeypatch):
     facts["roll_calls"][-1]["outcome"] = "failed"
     repo.run_data(_tree(facts=facts))
     assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
+
+
+@pytest.mark.parametrize("status", ["verified", "unverified"])
+def test_removing_one_copy_of_a_duplicate_id_holds(tmp_path, monkeypatch, capsys, status):
+    """N2: the live site shows an id twice; this run keeps one copy (the same values). That copy's removal is a hit,
+    shown or not, and its entry pins the view that disappears."""
+    live = copy.deepcopy(FACTS)
+    live["roll_calls"] += [_rc("rc-9", status=status), _rc("rc-9", status=status)]
+    r = Repo(tmp_path, _tree(facts=live))
+    one = copy.deepcopy(live)
+    one["roll_calls"].pop()
+    r.run_data(_tree(facts=one))
+    assert r.main(monkeypatch, r.info(r.d)) == tripwire.HIT
+    out = capsys.readouterr().out
+    entries = _hit_lines(out)
+    assert [(x["change"], x["fact_id"]) for x in entries] == [("removed", "rc-9")], out
+    view = tripwire.published({"data/facts.json": live})[("data/facts.json", "rc-9")]
+    assert view[0] == 2 and entries[0]["value_sha256"] == tripwire.value_view(view)
+    r.listed(entries)
+    assert r.main(monkeypatch, r.info(r.d)) == tripwire.PASS
+    r.run_data(_tree(facts=live))                                  # both copies kept: no hit
+    r.listed([])
+    assert r.main(monkeypatch, r.info(r.d)) == tripwire.PASS
 
 
 @pytest.mark.parametrize("why", ["error", "http-500", "not-json", "bad-fields", "d-not-on-records-data",
@@ -284,6 +367,22 @@ def test_the_seed_bootstrap_passes_and_only_the_seed(repo, monkeypatch, capsys):
     assert repo.main(monkeypatch, None, seed="yes") == tripwire.PASS
     assert repo.main(monkeypatch, None, seed="no") == tripwire.NOT_READ
     assert "build-info.json is missing and this run's D is not the seed" in capsys.readouterr().out
+
+
+def test_the_live_tree_is_only_d_or_d_plus_1(repo, monkeypatch, capsys):
+    """S1b: build-info.json names the gate's D, and the site is built from D or the push job's one commit on it. A
+    listing that matches only a later commit (D+2) is not the live site's: held, never compared with it."""
+    facts = copy.deepcopy(FACTS)
+    facts["roll_calls"].append(_rc("rc-4"))
+    repo.commit(_tree(facts=facts))                               # D+1
+    later = copy.deepcopy(facts)
+    later["roll_calls"].append(_rc("rc-5"))
+    d2 = repo.commit(_tree(facts=later))                          # D+2
+    raw = json.dumps({**json.loads(repo.info(repo.d)), "listing_sha256": json.loads(repo.info(d2))["listing_sha256"]})
+    repo.run_data(_tree(facts=later))
+    assert repo.main(monkeypatch, raw.encode()) == tripwire.NOT_READ
+    assert "neither the live data_sha nor the commit after it" in capsys.readouterr().out
+    assert tripwire.MAX_WALK == 2
 
 
 def test_the_live_tree_is_found_after_the_push(repo, monkeypatch):
@@ -523,7 +622,9 @@ def _issue_body(tmp_path, step_name: str, env: dict, files: dict[str, str] | Non
                                        ("error", "did not finish")])
 def test_the_held_issue_has_one_fixed_title_and_its_own_text_per_kind(tmp_path, kind, says):
     step = UPDATE[HELD_ISSUE_STEP]
-    assert step["if"] == "always() && steps.tripwire.outputs.held == 'yes'"
+    # S1 (data-off-main/held-issue-branch-runs): main only, as the stale-source issue step
+    assert step["if"] == "always() && steps.tripwire.outputs.held == 'yes' && github.ref == 'refs/heads/main'"
+    assert "github.ref == 'refs/heads/main'" in UPDATE["Open, update or close stale-source issues"]["if"]
     assert step["continue-on-error"] is True
     assert step["env"]["HELD_TITLE"] == "Daily update: deploy held (published facts)"
     assert step["env"]["KIND"] == "${{ steps.tripwire.outputs.kind }}" and "${{" not in step["run"]
@@ -535,6 +636,37 @@ def test_the_held_issue_has_one_fixed_title_and_its_own_text_per_kind(tmp_path, 
     if kind in ("hit", "not-read"):
         assert "tripwire: changed: rc-1 (data/facts.json)" in body and "not ours" not in body
     assert "`evil`" not in body
+    if kind == "not-read":
+        # S1b: the way out of a stuck hold is a reviewed code PR; a rebuild-only run runs the same check
+        assert "a rebuild-only run (collect = false) does not help" in " ".join(body.split())
+        assert "reviewed code pull request" in " ".join(body.split())
+
+
+def test_the_report_is_replayed_with_workflow_commands_stopped(tmp_path):
+    """N1: the tripwire's own output (fact ids from parsed documents) is printed between ::stop-commands::<token> and
+    ::<token>::, a fresh random token each run, so no line in it can act as a workflow command."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    (bindir / "python").write_text("#!/bin/sh\necho '::set-output name=held::no'\necho '::add-mask::x'\nexit 1\n")
+    (bindir / "python").chmod(0o755)
+    tokens = []
+    for _ in range(2):
+        (tmp_path / "out").write_text("")
+        env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GITHUB_OUTPUT": str(tmp_path / "out"),
+               "SEED": "no", "RUNNER_TEMP": str(tmp_path)}
+        r = subprocess.run(["bash", "-e", "-c", UPDATE[TRIPWIRE_STEP]["run"]], env=env, capture_output=True,
+                           text=True, cwd=tmp_path)
+        lines = r.stdout.splitlines()
+        start = next(i for i, ln in enumerate(lines) if ln.startswith("::stop-commands::"))
+        token = lines[start].split("::stop-commands::", 1)[1]
+        assert re.fullmatch(r"[0-9a-f]{32}", token)
+        end = lines.index(f"::{token}::")
+        assert lines[start + 1:end] == ["::set-output name=held::no", "::add-mask::x"]
+        assert all(not ln.startswith("::") for ln in lines[:start])
+        assert any(ln.startswith("::warning::") for ln in lines[end + 1:])       # commands work again after it
+        assert "held=yes" in (tmp_path / "out").read_text()
+        tokens.append(token)
+    assert tokens[0] != tokens[1]
 
 
 def test_the_city_books_issue_names_the_accepted_list_and_asks_for_no_data_commit(tmp_path):
