@@ -231,6 +231,8 @@ Choices the reviewers should check:
 - The cutover PR's own change (B2 refuses a tracked `data/`): `--prepare` on its branch stages `git rm -r --cached
   data`, `data/` in `.gitignore` and CODEOWNERS deleted; then `--plan` gives the pin, the sha256 of `git ls-tree -r -z
   <seed> -- data` (the gate's bytes). Step 1 refuses a head that tracks or does not ignore `data/`.
+- Step 4 runs `protect-main --pre-cutover --apps` (`-PreCutover -Apps`); after the merge, step 5 runs a plain
+  `protect-main --check --apps` (no writes, main's new workflow), which must print OK before the workflow is re-enabled.
 - Contract with B4: the site's `build-info.json` names `D` as `data_sha` (`build_info_data_sha`).
 
 ## S1: security review

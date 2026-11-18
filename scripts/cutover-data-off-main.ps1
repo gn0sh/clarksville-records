@@ -38,9 +38,11 @@
 #      python -m collector.data_shape, its data/localities/cmc-rpc/rpc.json passes
 #      python -m tools.scrub_rpc_phones --check --path, and its sha256 equals the PR's RECORDS_DATA_SEED_DIGEST.
 #      Pushes it to refs/heads/records-data (never forced) and reads it back.
-#   4. Runs scripts\protect-main.ps1 -Apps <answer>; its last line must start "OK: main is protected".
+#   4. Runs scripts\protect-main.ps1 -PreCutover -Apps <answer> (the .sh: --pre-cutover); its last line must start
+#      "OK: main is protected".
 #   5. Merges the cutover PR with scripts\merge-reviewed.ps1; its last line must be
-#      "Rule suite <id> for <merge sha>: bypass", and main must then track no data/.
+#      "Rule suite <id> for <merge sha>: bypass", and main must then track no data/. Then a plain
+#      scripts\protect-main.ps1 -Check -Apps <answer> (no writes, main's new workflow) must print OK too.
 #   6. Re-enables daily-update and reads it back.
 #   7. Dispatches collect=false; the deploy job must succeed and build-info.json must name the seed as data_sha.
 #   8. Dispatches collect=true; records-data must then have moved past the seed and its listing must verify with
@@ -167,9 +169,17 @@ function PyRun([string[]]$PyArgs) {
 
 # ---------------------------------------------------------------------------------------------- named calls
 # Each call to another script or another branch's contract is one function, so a change there is one edit here.
-function RunProtectMain([string]$a) {    # D1: last line "OK: main is protected..."
-    $out = @(& powershell -NoProfile -File (Join-Path $here 'protect-main.ps1') -Apps $a 2>&1 | ForEach-Object { "$_" })
+function RunProtectMain([string]$a) {    # D1, before the merge: last line "OK: main is protected..."
+    $out = @(& powershell -NoProfile -File (Join-Path $here 'protect-main.ps1') -PreCutover -Apps $a 2>&1 | ForEach-Object { "$_" })
     return New-Object PSObject -Property @{ Code = $LASTEXITCODE; Lines = $out }
+}
+function RunProtectCheck([string]$a) {   # D1, after the merge: no writes, same OK line
+    $out = @(& powershell -NoProfile -File (Join-Path $here 'protect-main.ps1') -Check -Apps $a 2>&1 | ForEach-Object { "$_" })
+    return New-Object PSObject -Property @{ Code = $LASTEXITCODE; Lines = $out }
+}
+function IsOkLine($lines) {
+    $l = @($lines | Where-Object { $_ -match '\S' })
+    return ($l.Count -gt 0 -and $l[-1].StartsWith('OK: main is protected', [StringComparison]::Ordinal))
 }
 function RunMergeReviewed([string]$p, [string]$s, [string[]]$r) {   # D1: last line "Rule suite <id> for <sha>: bypass"
     $out = @(& powershell -NoProfile -File (Join-Path $here 'merge-reviewed.ps1') $p $s @r 2>&1 | ForEach-Object { "$_" })
@@ -650,11 +660,10 @@ if ($got -cne $seed -or (Parents $got) -ne 0 -or $null -eq $gl -or (Sha256Hex $g
 Write-Host "Step 3 OK: records-data = seed $seed (parentless, $($script:nSeed) files, listing sha256 $pinned), from main $m."
 
 $script:step = 4
-Write-Host "Step 4: scripts\protect-main.ps1 -Apps $Apps (R1'', R-D, R-T, R2 off)."
+Write-Host "Step 4: scripts\protect-main.ps1 -PreCutover -Apps $Apps (R1'', R-D, R-T, R2 off; the .sh: --pre-cutover)."
 $res = RunProtectMain $Apps
 $res.Lines | ForEach-Object { Write-Host $_ }
-$last = @($res.Lines | Where-Object { $_ -match '\S' })
-if ($res.Code -ne 0 -or $last.Count -eq 0 -or -not $last[-1].StartsWith('OK: main is protected', [StringComparison]::Ordinal)) { Fail 'protect-main did not print OK' }
+if ($res.Code -ne 0 -or -not (IsOkLine $res.Lines)) { Fail 'protect-main did not print OK' }
 Write-Host 'Step 4 OK: protect-main printed OK.'
 
 $script:step = 5
@@ -675,7 +684,11 @@ $m = FetchMain
 if (-not $m) { Fail 'could not fetch main after the merge' }
 if ($m -cne $ms) { Fail "main is at $m, not the merge $ms" }
 if (TracksData $m) { Fail "main $m still tracks data/ after the merge" }
-Write-Host "Step 5 OK: PR #$Pr merged as $ms (rule suite bypass); main tracks no data/."
+Write-Host "Step 5: scripts\protect-main.ps1 -Check -Apps $Apps (main's new workflow, no writes; the .sh: --check)."
+$res = RunProtectCheck $Apps
+$res.Lines | ForEach-Object { Write-Host $_ }
+if ($res.Code -ne 0 -or -not (IsOkLine $res.Lines)) { Fail 'protect-main --check did not print OK after the merge' }
+Write-Host "Step 5 OK: PR #$Pr merged as $ms (rule suite bypass); main tracks no data/; protect-main --check printed OK."
 Write-Host "The undo from here on: $($script:undo)"
 
 $script:step = 6

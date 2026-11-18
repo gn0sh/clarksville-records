@@ -37,10 +37,11 @@
 #      <seed> -- data) holds no transcripts/ folder, nothing under data/maps/ and no curated name, passes
 #      python -m collector.data_shape, its rpc.json passes python -m tools.scrub_rpc_phones --check, and its
 #      sha256 equals the PR's RECORDS_DATA_SEED_DIGEST. Pushes it (never forced) and reads it back.
-#   4. Runs scripts/protect-main.sh --apps <answer> (R1'', R-D, R-T, R2 off); its last line must start
-#      "OK: main is protected".
+#   4. Runs scripts/protect-main.sh --pre-cutover --apps <answer> (R1'', R-D, R-T, R2 off; main still holds the old
+#      workflow); its last line must start "OK: main is protected".
 #   5. Merges the cutover PR with scripts/merge-reviewed.sh (main must not have moved since the seed); its last line
-#      must be "Rule suite <id> for <merge sha>: bypass", and main must then track no data/.
+#      must be "Rule suite <id> for <merge sha>: bypass", and main must then track no data/. Then a plain
+#      scripts/protect-main.sh --check --apps <answer> (no writes, main's new workflow) must print OK too.
 #   6. Re-enables daily-update and reads it back.
 #   7. Dispatches collect=false; the run's deploy job must succeed and the site's build-info.json must name the
 #      seed as data_sha.
@@ -128,7 +129,8 @@ done
 
 # ---------------------------------------------------------------------------------------------- named calls
 # Each call to another script or another branch's contract is one function, so a change there is one edit here.
-run_protect_main() { bash "$here/protect-main.sh" --apps "$1"; }             # D1: last line "OK: main is protected..."
+run_protect_main() { bash "$here/protect-main.sh" --pre-cutover --apps "$1"; }   # D1, before the merge: last line "OK: main is protected..."
+run_protect_check() { bash "$here/protect-main.sh" --check --apps "$1"; }      # D1, after the merge: no writes, same OK line
 run_merge_reviewed() { bash "$here/merge-reviewed.sh" "$@"; }                 # D1: last line "Rule suite <id> for <sha>: bypass"
 run_data_shape() { "$py" -B -m collector.data_shape "$1"; }                   # B1/B1b: exit 0 = the listing passes
 run_scrub_check() { "$py" -B -m tools.scrub_rpc_phones --check --path "$1"; } # B1b: read-only, exit 1 on a phone
@@ -499,7 +501,7 @@ got=$(fetch_rd) || fail "could not read records-data back"
 echo "Step 3 OK: records-data = seed $seed (parentless, $n_seed files, listing sha256 $pinned), from main $m."
 
 step=4
-echo "Step 4: scripts/protect-main.sh --apps $apps (R1'', R-D, R-T, R2 off)."
+echo "Step 4: scripts/protect-main.sh --pre-cutover --apps $apps (R1'', R-D, R-T, R2 off)."
 out=$(run_protect_main "$apps" 2>&1); prc=$?
 printf '%s\n' "$out"
 last=$(printf '%s\n' "$out" | grep . | tail -n 1)
@@ -520,7 +522,12 @@ undo="$me --rollback --cutover-merge $ms"
 m=$(fetch_main) || fail "could not fetch main after the merge"
 [ "$m" = "$ms" ] || fail "main is at $m, not the merge $ms"
 tracks_data "$m" && fail "main $m still tracks data/ after the merge"
-echo "Step 5 OK: PR #$pr merged as $ms (rule suite bypass); main tracks no data/."
+echo "Step 5: scripts/protect-main.sh --check --apps $apps (main's new workflow, no writes)."
+out=$(run_protect_check "$apps" 2>&1); prc=$?
+printf '%s\n' "$out"
+last=$(printf '%s\n' "$out" | grep . | tail -n 1)
+[ "$prc" = 0 ] && [ "${last#OK: main is protected}" != "$last" ] || fail "protect-main --check did not print OK after the merge"
+echo "Step 5 OK: PR #$pr merged as $ms (rule suite bypass); main tracks no data/; protect-main --check printed OK."
 echo "The undo from here on: $undo"
 
 step=6

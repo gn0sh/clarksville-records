@@ -148,7 +148,12 @@ print(json.dumps({"sha": "s", "data_sha": st.get("build_info", "")}))
 _PROTECT = r'''#!/usr/bin/env bash
 python3 -c 'import json,os,sys; open(os.environ["GH_CALLS"],"a").write(json.dumps({"method":"SCRIPT","path":"protect-main","argv":sys.argv[1:]})+"\n")' "$@"
 echo "Main before the rulesets: $(git --git-dir "$STUB_ORIGIN" rev-parse refs/heads/main)"
-if [ "${STUB_PM:-ok}" = ok ]; then echo "OK: main is protected (stub)."; exit 0; fi
+old=$(git --git-dir "$STUB_ORIGIN" ls-tree --name-only refs/heads/main -- data)
+pre=0; for a in "$@"; do [ "$a" = --pre-cutover ] && pre=1; done
+if [ "$pre" = 1 ] && [ -z "$old" ]; then echo "  NOT OK: --pre-cutover, but the cutover is merged"; echo "NOT OK: 1 problem(s) above."; exit 1; fi
+if [ "$pre" = 0 ] && [ -n "$old" ]; then echo "  NOT OK: main's workflow still opens data pull requests"; echo "NOT OK: 1 problem(s) above."; exit 1; fi
+want=ok; [ "$pre" = 1 ] && want=${STUB_PM:-ok}; [ "$pre" = 0 ] && want=${STUB_PM_CHECK:-ok}
+if [ "$want" = ok ]; then echo "OK: main is protected (stub)."; exit 0; fi
 echo "  NOT OK: R2 is on"; echo "NOT OK: 1 problem(s) above."; exit 1
 '''
 
@@ -312,10 +317,13 @@ def test_dry_run_walks_every_step_in_the_operators_order(tmp_path):
     assert idx == sorted(idx) and "CUTOVER DONE" in out
     # the order of the writes: disable, seed (before protect-main), protect-main, merge, enable, dispatch x2
     seq = [(c["method"], c["path"].rsplit("/", 1)[-1]) for c in _writes(fx.calls())]
-    assert seq == [("PUT", "disable"), ("SCRIPT", "protect-main"), ("SCRIPT", "merge-reviewed"), ("PUT", "enable"),
-                   ("POST", "dispatches"), ("POST", "dispatches")], seq
+    assert seq == [("PUT", "disable"), ("SCRIPT", "protect-main"), ("SCRIPT", "merge-reviewed"),
+                   ("SCRIPT", "protect-main"), ("PUT", "enable"), ("POST", "dispatches"), ("POST", "dispatches")], seq
     pm = [c for c in fx.calls() if c["path"] == "protect-main"]
-    assert [c["argv"] for c in pm] == [["--apps", "none"]]
+    assert [c["argv"] for c in pm] == [["--pre-cutover", "--apps", "none"], ["--check", "--apps", "none"]]
+    # the pre-cutover run comes before the merge, the plain --check after it and before the workflow is on again
+    names = [c["path"] for c in _writes(fx.calls())]
+    assert names.index("protect-main") < names.index("merge-reviewed") < len(names) - 1 - names[::-1].index("protect-main")
     seed = re.search(r"Step 3 OK: records-data = seed ([0-9a-f]{40})", out).group(1)
     # F5: main is protected before the cutover merge; the seed was pushed before protect-main ran
     disable_i = next(i for i, c in enumerate(fx.calls()) if c["path"].endswith("/disable"))
@@ -477,7 +485,17 @@ def test_the_apps_answer_reaches_protect_main(tmp_path):
     fx = Fx(tmp_path)
     r = fx.cut(apps="claude", STUB_PM="notok")
     assert "by Brian's hand check at https://github.com/settings/installations: claude." in r.stdout
-    assert [c["argv"] for c in fx.calls() if c["path"] == "protect-main"] == [["--apps", "claude"]]
+    assert [c["argv"] for c in fx.calls() if c["path"] == "protect-main"] == [["--pre-cutover", "--apps", "claude"]]
+
+
+def test_step5_stops_when_the_plain_check_after_the_merge_is_not_ok(tmp_path):
+    """After the merge, protect-main runs without --pre-cutover (main's new workflow) and must print OK."""
+    fx = Fx(tmp_path)
+    r = fx.cut(STUB_PM_CHECK="notok")
+    assert r.returncode == 2 and "STOPPED at step 5" in r.stdout and "protect-main --check did not print OK" in r.stdout
+    assert [c["argv"] for c in fx.calls() if c["path"] == "protect-main"][-1] == ["--check", "--apps", "none"]
+    assert fx.state["wf_state"] == "disabled_manually"           # step 6 never ran
+    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge " in r.stdout
 
 
 def test_step1_refuses_a_checkout_not_at_the_reviewed_head(tmp_path):
@@ -718,6 +736,8 @@ def test_ps1_has_the_same_steps_refusals_and_calls():
               "data/localities/cmc-rpc/rpc.json", "fin-books-accepted", ".github/CODEOWNERS", "--cutover-merge"):
         assert s in ps1, s
         assert s in sh, s
+    assert "-PreCutover -Apps $a" in ps1 and "-Check -Apps $a" in ps1
+    assert 'protect-main.sh" --pre-cutover --apps "$1"' in sh and 'protect-main.sh" --check --apps "$1"' in sh
     for s in ("[switch]$Rollback", "[switch]$Plan", "[switch]$CheckAttested", "-CutoverMerge", "$hm -ge 800 -and $hm -le 1030",
               "protect-main.ps1", "merge-reviewed.ps1", "New-Object Text.UTF8Encoding $false"):
         assert s in ps1, s
