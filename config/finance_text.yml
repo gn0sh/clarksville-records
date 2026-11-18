@@ -239,8 +239,8 @@ dollar:
   heading: Where each dollar of the general fund budget goes
   lede: "How the {body}'s FY{year} adopted general fund budget splits across departments, in cents of each dollar. This is the general fund only, not all of the {body}'s spending, and not property tax alone."
   key_label: "Departments named on the bar, left to right"
-  key_note: "Named here: each department with {n} cents or more, left to right in the order the book prints them."
-  total_line: "The whole bar is the general fund budget: {amount} dollars."
+  key_note: "Departments that get {n} cents or more of each dollar are named, left to right in the book's order."
+  total_line: "This bar is the general fund, the {body}'s main budget for everyday services: ${amount}."
   total_amount: "{amount} dollars"
   list_heading: Every department
   list_order: in the book's order

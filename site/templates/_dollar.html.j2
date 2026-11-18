@@ -26,7 +26,7 @@
 <div class="dollar-fig">
 <div class="dollar-bar" aria-hidden="true" title="{{ t.bar_label }}">{% for r in dollar.rows %}<span class="dseg{% if r.labelled %} dseg-l{% endif %}{% if r.key == 'other' %} dseg-other{% endif %}{% if r.narrow %} dseg-narrow{% endif %}" style="--n: {{ r.cents }}" title="{{ r.name }}: {{ r.cents_words }}">{% if r.labelled %}<b class="dseg-t">{{ r.cents }}&cent;</b>{% endif %}</span>{% endfor %}</div>
 <ul class="dollar-key" role="list" aria-label="{{ t.key_label }}">{% for r in dollar.key %}<li><b>{{ r.cents }}&cent;</b> {{ r.short }}</li>{% endfor %}</ul>
-<p class="dollar-keynote">{{ dollar.key_note }} {{ dollar.total_line }}</p>
+<p class="dollar-keynote">{{ dollar.total_line }} {{ dollar.key_note }}</p>
 </div>
 <h3 id="dollar-list-h" class="dollar-list-h">{{ t.list_heading }} <span class="dollar-list-order">{{ t.list_order }}</span></h3>
 <ol class="dollar-rows" role="list" aria-labelledby="dollar-list-h">
