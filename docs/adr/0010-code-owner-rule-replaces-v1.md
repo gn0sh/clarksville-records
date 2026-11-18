@@ -1,6 +1,6 @@
 # ADR 0010: A code-owner rule on main, not V1, keeps workflows from changing main
 
-Status: proposed (software-architect, 2026-11-18), feature `morning-note` (T4.11). Amends ADR 0009 (decision 3 and
+Status: **partly superseded by ADR 0011** (decisions 1, 2 and 5; 3, 4 and 6 stand). Was: proposed (software-architect, 2026-11-18), feature `morning-note` (T4.11). Amends ADR 0009 (decision 3 and
 the V1 premise; the gate itself stands). Invariant, threat list and consumers: `docs/architecture/main-protect-invariant.md`
 ("V1 is false"). Facts: `docs/platform-facts.md` "Main protection".
 

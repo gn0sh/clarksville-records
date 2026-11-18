@@ -2,15 +2,17 @@
 
 **Feature:** Daylight public-records site. **LIVE (soft opening) at https://daylight.gnoshcodes.com/ since 2026-11-13 ~1:08 AM CT.** No marketing until Brian's formal launch in January 2027 (after his council term); friends and family only.
 **Stage:** Live. Brian typed "launch" in thread "Launch the Daylight records site" (2026-11-13 12:40 AM CT), did go-live steps 1-6 (Pages source Actions, custom domain, Porkbun CNAME, HTTPS enforced, RECORDS_DEPLOY_ENABLED=true). PR #12 (live: true) merged; deploy run 43381404639 green. Report an error emails brian@gnoshcodes.com first (PR #18). Uptime: gnosh-uptime monitor.config.json (PR #15) + Better Stack (Brian). gh-pages preview no longer served (Pages source is Actions); removing gh-pages from the env branch policy is optional hygiene, not asked.
-**Now (Nov 17, thread "Finish Clarksville Daylight by Wednesday"):** round 2 (PR #25), morning note switch-on + gate (PR #26) and the Pillow-free test fix (PR #27) are live since run 44055540243 (dispatched by hand 09:26 UTC; GitHub's 09:07 schedule had not fired). Gate/probe security follow-ups merged as PR #28 (819c397); rebuild run 44080352930 green (gate, update, deploy). The three baseline follow-ups and the Bypass removal merged early as PR #29 (9225294). CI test step speed-up merged as PR #30 (2c0ea91). Only L-1 rides with the baseline PR (docs/tasks/morning-note.md T4.10.8).
+**Now (Nov 18, thread "Finish Clarksville Daylight by Wednesday", recycled 11:35 AM CT):** V1' probe FAILED (run 44354265953): the code-owner rule (R1') never binds because the pull_request rule reads "pass" for every PR, so GITHUB_TOKEN merged workflow PR #49. R2 back ON (Brian typed "R2 on", 11:22 AM CT); daily data PR #45 merged and live. Brain Trust (6) on data-off-main: Fix First. Re-plan = ADR 0011 (data off main), gated on the U3 positive control. Morning note slips past Wed until ADR 0011 is built and probed. Shipped today: PR #48 (BOM fix), #52 (canary removed), #53 (probe scripts locked; 2b20704 = 2nd known bot merge).
+**Earlier (Nov 17, thread "Finish Clarksville Daylight by Wednesday"):** round 2 (PR #25), morning note switch-on + gate (PR #26) and the Pillow-free test fix (PR #27) are live since run 44055540243 (dispatched by hand 09:26 UTC; GitHub's 09:07 schedule had not fired). Gate/probe security follow-ups merged as PR #28 (819c397); rebuild run 44080352930 green (gate, update, deploy). The three baseline follow-ups and the Bypass removal merged early as PR #29 (9225294). CI test step speed-up merged as PR #30 (2c0ea91). Only L-1 rides with the baseline PR (docs/tasks/morning-note.md T4.10.8).
 **Morning note:** nothing sends until, in order: Brian's runbook 2.0 steps, V1 probe PASS, baseline PR (T4.10.8), MORNING_NOTE_SEND set by Brian (hard stop). Sample approved; no test week.
 **Next:** Brian's 2.0 steps one at a time; after Wed: CMCSS meeting videos + transcripts (big PC), RPC 2019-2021 backfill, FY2025 city book, property-tax split.
 **Backlog (Nov 17):** confirm the CI Tests step time on the next daily run after PR #30; GitHub's scheduled trigger fires late or not at all (Nov 16 ran 19:29 UTC; Nov 17 none by 09:26): consider a backup check; low follow-up schema-memo/digest-alias (key the schema memo on parsed JSON only; unreachable today).
 
 ## Waiting on the CEO
-- Runbook 2.0 steps (protect main, env branch policy, run Daily update, V1 probe) | docs/ops/morning-note-brian-steps.md | step 1 (protect-main; reply `go` = we run it through Remote Control) | asked Nov 17 ~6:35 AM CT in thread "Finish Clarksville Daylight by Wednesday" | default: no sends
+- None open (Nov 18 11:35 AM CT). Possible later ask, only if U3-0 shows the team token can't write the ruleset: "U3 test today, about 20 minutes, outside 3-5:30 AM CT? yes / no". Big PC needs typed replies.
 
-## Problem keys (Nov 16-17)
+## Problem keys (Nov 16-18)
+- Nov 18: main-protect/v1-probe family hit again (V1' FAIL, code-owner rule never binds); ADR 0011 is the architect's re-plan. Two more failures of that re-plan escalate to Brian. Open follow-ups: v1-probe/window-second-known-untested (should-fix, PR #53), v1-probe/ps51-stdin-bom-throw (low, PR #48).
 - main-protect/: 3 hits (M1; V1 bot-merge family; S-1 shape-check-locale-fail-open). Invariant re-stated twice: docs/architecture/main-protect-invariant.md (I-data, Baseline window check). A 4th hit escalates to Brian per the loop rule.
 - v1-probe/ (Nov 17 PR #29): v1-fail-containment-incomplete (M), v1-fail-containment-order (L), log-raw-to-console (L, sed range bug) all fixed. main-protect/window-start-first-run (L) fixed: counted as review findings on a follow-up PR, not new hits on the main-protect invariant (the change implements its Baseline window check).
 - test-cache/ (PR #30): unkeyed-inputs, recursive-build-signature fixed; coverage/run-preview-export-skip fixed; test-hermetic/online-run-real-fetch hardened (real fetch not reproduced).
@@ -19,6 +21,10 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-18 | software-architect | opus/high | V1' fail root cause + ADR 0011, U3 plan, task list (claude/v1-fail-plan c62e4a9) | done |
+| 2026-11-18 | brain-trust x6 | opus/high | data off main | Fix First; 4 changes taken into ADR 0011 |
+| 2026-11-18 | code-reviewer / security-engineer | per PR | PRs #48, #52, #53 | approve with follow-ups; merged |
+| 2026-11-18 | devops (probe) | n/a | V1' probe run 44354265953 | FAIL (bot merged PR #49) |
 | 2026-11-17 | devops-engineer | opus/high | baseline follow-ups + no Bypass (PR #29) | done; 3 fix rounds; 428 pass |
 | 2026-11-17 | code-reviewer | sonnet/medium | PR #29 cda8462, delta 6da99fb | approve; should-fix V1-ERROR not shown (fixed) |
 | 2026-11-17 | security-engineer | opus/high | PR #29 cda8462, fresh 6da99fb, delta e83fdbc | approve; M containment + 4 lows, all fixed; merged 9225294 |

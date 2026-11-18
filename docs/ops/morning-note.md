@@ -391,7 +391,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
         echo "$c PR #$pr merged_by.type=$t"
         if [ "$t" = Bot ] && { { [ "$c" = "$known" ] && [ "$pr" = "$known_pr" ]; } || { [ "$c" = "$known2" ] && [ "$pr" = "$known_pr2" ]; }; } \
            && [ "$(git show --format= --name-only "$c")" = .github/workflows/v1-canary.yml ]; then
-          echo "KNOWN EXCEPTION: $c is PR #$pr, the V1 probe canary (only .github/workflows/v1-canary.yml); name it in the baseline PR"
+          echo "KNOWN EXCEPTION: $c is PR #$pr, a V1/V1' probe canary (only .github/workflows/v1-canary.yml); name it in the baseline PR"
           continue
         fi
         [ "$t" = User ] || { echo "STOP: $c was not merged by a person"; exit 1; }
