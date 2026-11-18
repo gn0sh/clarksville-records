@@ -546,8 +546,8 @@ def test_the_glance_is_plain_and_the_provenance_is_in_the_sources_block(pages, r
     _, d = request.getfixturevalue(which)
     sec = section(pages[rel])
     g, src = text_of(glance(sec)), sec[sec.index(SOURCES):]
-    assert "general fund only" in g and "not property tax alone" in g and "in the order the book prints them" in g
-    assert d["total"] in g
+    assert "general fund only" in g and "not property tax alone" in g and "in the book's order" in g
+    assert dollar_split.caption_amount(d["total"]) in g
     assert d["col_amount"] not in g and "column" not in g and "rounded" not in g
     assert SOURCES + "\n<summary>" + T["sources_toggle"] + "</summary>" in sec and "<details open" not in sec
     s = text_of(src)
@@ -570,3 +570,25 @@ def test_every_department_links_to_its_row_and_its_pdf_page(pages, rel):
     links = re.findall(r'href="([^"]+#l-[^"]+)"', sec)
     assert links and all(re.match(r"(\.\./)+(city/)?finance/[a-z0-9-]+\.html#l-", h) for h in links)
     assert re.search(r'href="https://[^"]+#page=\d+"', sec)
+
+
+# ---- the caption under the bar -------------------------------------------------------------------------------------
+
+def test_city_caption_names_the_general_fund_first_then_the_department_rule(city):
+    _, d = city
+    assert d["total_line"] == ("This bar is the general fund, the city's main budget for everyday services: "
+                               "$165,631,658.")
+    assert d["key_note"] == ("Departments that get 5 cents or more of each dollar are named, left to right in the "
+                             "book's order.")
+
+
+def test_county_caption_says_the_county(county):
+    _, d = county
+    assert d["total_line"].startswith("This bar is the general fund, the county's main budget for everyday services: $")
+    assert d["total_line"].endswith(".") and "dollars" not in d["total_line"]
+
+
+def test_caption_amount_drops_only_zero_cents():
+    assert dollar_split.caption_amount("165,631,658.00") == "165,631,658"
+    assert dollar_split.caption_amount("165,631,658.07") == "165,631,658.07"
+    assert dollar_split.caption_amount("1,234") == "1,234"

@@ -113,6 +113,11 @@ def _newer_books_note(bg: Budget, book: dict, year: int) -> str | None:
     return T["newer_note"].format(year=b["fiscal_year"], edition=b["edition"], what=what, used=year)
 
 
+def caption_amount(text: str) -> str:
+    """The amount for the bar's caption: ".00" is dropped when the cents are zero; any other cents stay."""
+    return text[:-3] if text.endswith(".00") else text
+
+
 def split(bg: Budget, cfg: dict | None) -> dict | None:
     """The view of the general fund dollar for one body's Finance index, or None when the config names a book or
     fund that is not in this file (a FIXTURE build). `href_of` links each printed total to its row on the fund page,
@@ -236,7 +241,7 @@ def split(bg: Budget, cfg: dict | None) -> dict | None:
         # the key under the bar: the rows whose segment carries its cents, in the bar's (the book's) order
         "key": [r for r in rows if r["labelled"]],
         "key_note": T["key_note"].format(n=T_LABEL_MIN),
-        "total_line": T["total_line"].format(amount=money(total)),
+        "total_line": T["total_line"].format(body=cfg["body"], amount=caption_amount(money(total))),
         "total_amount": T["total_amount"].format(amount=money(total)),
         "source": T["source"].format(book=book["title"], header=column, fund=ft["fund_name"] or cfg["fund"]),
         "rows": rows, "other": other, "total": money(total), "total_cents": total_of(shares),
