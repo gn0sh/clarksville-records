@@ -1,12 +1,19 @@
 """City of Clarksville budget books (finance-contracts 10): city/finance/ built from the committed
 data/localities/clarksville-tn/finance.json with the county's budget templates. Problem-key families:
-budget-reconcile/*, provenance/*, neutrality/*, budget-edition/*."""
+budget-reconcile/*, provenance/*, neutrality/*, budget-edition/*.
+
+real-data-tests/ (docs/architecture/real-data-tests-invariant.md): the daily update runs these tests on the books it
+just collected. Tests of what holds for any books (`site`, `fin`: every fund has its page, every row its source) read
+data/ as collected; tests that name a book, an edition, a fund's printed column or a source read the city books pinned
+at pinned_data.PINNED_COMMIT (`pinned_pages`, `pinned_fin`: the parking commission and vehicle replacement funds,
+the books and their sources), so a new or re-posted book never fails the update."""
 import html as html_mod
 import json
 import re
 
 import pytest
 
+import pinned_data
 from conftest import ROOT
 from sitegen import budget_views, config
 from sitegen.build import build
@@ -41,6 +48,29 @@ def pages(site):
     return {p.relative_to(site).as_posix(): p.read_text(encoding="utf-8") for p in site.rglob("*.html")}
 
 
+@pytest.fixture(scope="module")
+def pinned_fin():
+    return pinned_data.get("city_finance")
+
+
+@pytest.fixture(scope="module")
+def pinned_pages(tmp_path_factory):
+    """The county and city as committed at pinned_data.PINNED_COMMIT (the city's books with the funds in
+    pinned_data.CITY_FUNDS only), built for pages without the parts these tests do not read (no county finance,
+    agendas, committees, RPC, transcripts, export, fetch days or vote lists)."""
+    d = tmp_path_factory.mktemp("pinned-budget")
+    city = pinned_data.city_dir(d)
+    (d / "county").mkdir()
+    (d / "county" / "facts.json").write_text(json.dumps(pinned_data.county_facts()), encoding="utf-8")
+    cfg = {**config.load_council("clarksville-tn"), "facts_path": city / "facts.json", "wards_path": city / "wards.json"}
+    out = d / "site"
+    res = build(d / "county" / "facts.json", out, target="pages", finance_path=None, councils=[cfg], rpc=None,
+                county_agendas=None, county_committees=None, city_committees=None, transcripts=False, export=False,
+                morning_manifests=None, fetch_manifests=None, vote_lists=False)
+    assert res["city_budget"] is True
+    return {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8") for p in out.rglob("*.html")}
+
+
 def city_pages(pages):
     return {k: v for k, v in pages.items() if k.startswith("city/finance/")}
 
@@ -58,7 +88,8 @@ def test_one_page_per_fund_by_printed_name_and_one_for_the_report_totals(pages, 
         assert f'href="../../city/finance/{k}.html"' in idx
 
 
-def test_books_listed_with_report_date_and_all_four_read(pages, fin):
+def test_books_listed_with_report_date_and_all_four_read(pinned_pages, pinned_fin):
+    pages, fin = pinned_pages, pinned_fin
     idx = text_of(main_of(pages["city/finance/index.html"]))
     assert "Fiscal Year 2027 Budget, as presented 5/29/2026" in idx
     assert "Fiscal Year 2026 Budget (Final Submission)" in idx and "Fiscal Year 2024 Budget" in idx
@@ -73,7 +104,8 @@ def test_books_listed_with_report_date_and_all_four_read(pages, fin):
     assert "Linked only, not read" not in idx
 
 
-def test_fy2027_is_proposed_and_never_called_adopted(pages):
+def test_fy2027_is_proposed_and_never_called_adopted(pinned_pages):
+    pages = pinned_pages
     gf = main_of(pages["city/finance/parking-commission.html"])
     assert re.search(r'2027 Mayor<br><span class="kind"><a href="../../glossary.html#proposed-budget">Proposed budget</a>',
                      gf)
@@ -82,7 +114,8 @@ def test_fy2027_is_proposed_and_never_called_adopted(pages):
     assert not re.search(r"2027 Mayor<br><span class=\"kind\">(<a[^>]*>)?Adopted", gf)
 
 
-def test_year_in_progress_actual_shows_the_report_date(pages):
+def test_year_in_progress_actual_shows_the_report_date(pinned_pages):
+    pages = pinned_pages
     p = main_of(pages["city/finance/parking-commission.html"])
     for header, date in (("2026 ACTUAL", "05/29/2026"), ("2025 ACTUAL", "07/08/2025"), ("2023 ACTUAL", "06/28/2023")):
         assert re.search(rf'{header}<br><span class="kind">(<a[^>]*>)?Actual(</a>)?</span><br><span class="kind">'
@@ -106,7 +139,8 @@ def test_every_printed_total_shows_its_check_state(pages, fin):
         assert B["check"][x["check"]["state"]] in row and any(w in row for w in words), x["id"]
 
 
-def test_amounts_are_cents_as_printed_with_source_page(pages, fin):
+def test_amounts_are_cents_as_printed_with_source_page(pinned_pages, pinned_fin):
+    pages, fin = pinned_pages, pinned_fin
     x = next(x for x in fin["budget_lines"] if x["book_id"] == "fy2027-presented"
              and budget_views.fund_key(x) == "parking-commission" and x["row_role"] == "detail"
              and any(c["as_printed"].startswith("-") for c in x["cells"]))
@@ -163,13 +197,15 @@ def test_city_budget_official_record_is_the_city_page(pages):
     assert rec not in pages["finance/index.html"]
 
 
-def test_hub_card_names_the_books_from_the_data_and_index_says_what_is_not_read(pages, fin):
+def test_hub_card_names_the_books_from_the_data_and_index_says_what_is_not_read(pages, fin, pinned_pages):
     # city-budget/coverage-undisclosed: one fixed sentence of what the reader does not read, with the official page
     hub = pages["city/index.html"]
     card = text_of(re.search(r'<li class="hub-card" data-card="finance" id="card-finance">.*?</li>', hub, re.S).group(0))
     assert budget_views.books_phrase(fin["books"]) in card and "{books}" not in card
+    pinned = text_of(re.search(r'<li class="hub-card" data-card="finance" id="card-finance">.*?</li>',
+                               pinned_pages["city/index.html"], re.S).group(0))
     assert ("FY2024 (adopted), FY2025 (adopted), FY2026 (final submission) and FY2027 (as presented 5/29/2026)"
-            in card)
+            in pinned)
     idx = main_of(pages["city/finance/index.html"])
     note = re.search(r'<p class="note" id="not-covered">.*?</p>', idx, re.S).group(0)
     nc = config.FIN_TEXT["budget_city"]["not_covered"]["text"]
@@ -180,22 +216,37 @@ def test_hub_card_names_the_books_from_the_data_and_index_says_what_is_not_read(
     assert 'id="not-covered"' not in pages["finance/index.html"]          # the county's index names none
 
 
-def test_a_fund_name_completed_from_another_book_is_disclosed_on_its_fund_page(pages, fin):
-    # provenance/fund-name-cross-book: a name the FY2025 book prints cut short is completed from another book only
-    # with one fixed sentence on the fund page, and the book is listed under the name as it prints it
-    done = {(x["fund_name"], x["fund_name_from"]["book_id"], x["fund_name_from"]["printed"])
-            for x in fin["budget_lines"] if x.get("fund_name_from")}
-    assert ("Vehicle Replacement Fund", "fy2024-adopted", "Vehicle Replaceme") in done
+def _cut_names(pages, fin):
+    """provenance/fund-name-cross-book: every name a book prints cut short and completed from another book has one
+    fixed sentence on its fund page, and the book is listed under the name as it prints it; a fund page with no such
+    name has no such sentence. Returns {(fund name, book, from book, printed)}."""
     books = {b["id"]: f"FY{b['fiscal_year']} ({b['edition']})" for b in fin["books"]}
-    for name, src, cut in done:
+    done = {(x["fund_name"], x["book_id"], x["fund_name_from"]["book_id"], x["fund_name_from"]["printed"])
+            for x in fin["budget_lines"] if x.get("fund_name_from")}
+    for name, book, src, cut in done:
         page = text_of(main_of(pages[f"city/finance/{budget_views.fund_key({'fund_no': None, 'fund_name': name})}.html"]))
-        sentence = B["fund_name_cut"].format(book="FY2025 (adopted)", printed=cut, from_book=books[src])
+        sentence = B["fund_name_cut"].format(book=books[book], printed=cut, from_book=books[src])
         assert page.count(sentence) == 1, name
         assert f"{cut} " in page                                     # listed as printed, with its cite
-    veh = text_of(main_of(pages["city/finance/vehicle-replacement-fund.html"]))
+    cut_keys = {budget_views.fund_key({"fund_no": None, "fund_name": n}) for n, *_ in done}
+    for k in {budget_views.fund_key(x) for x in fin["budget_lines"]} - cut_keys:
+        assert "prints this fund's name cut short" not in text_of(main_of(pages[f"city/finance/{k}.html"])), k
+    return done
+
+
+def test_a_fund_name_completed_from_another_book_is_disclosed_on_its_fund_page(pages, fin):
+    """The rule on the books as collected (real-data-tests/ I-live)."""
+    _cut_names(pages, fin)
+
+
+def test_the_fy2025_vehicle_replacement_name_is_completed_from_fy2024(pinned_pages, pinned_fin):
+    """The named case, on the books pinned at pinned_data.PINNED_COMMIT (real-data-tests/ I-pin)."""
+    done = _cut_names(pinned_pages, pinned_fin)
+    assert ("Vehicle Replacement Fund", "fy2025-adopted", "fy2024-adopted", "Vehicle Replaceme") in done
+    veh = text_of(main_of(pinned_pages["city/finance/vehicle-replacement-fund.html"]))
     assert ('The FY2025 (adopted) book prints this fund\'s name cut short, as "Vehicle Replaceme"; the full name is '
             'from the FY2024 (adopted) book.') in veh
-    assert "cut short" not in text_of(main_of(pages["city/finance/general-fund.html"]))   # only where it applies
+    assert "cut short" not in text_of(main_of(pinned_pages["city/finance/parking-commission.html"]))
 
 
 def test_books_phrase_lists_books_by_fiscal_year():
