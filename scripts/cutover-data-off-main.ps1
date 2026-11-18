@@ -8,9 +8,12 @@
 # an execution-policy bypass) from a checkout of the cutover PR at its reviewed head, so the checks run reviewed code:
 #   git fetch origin pull/<P>/head
 #   git checkout --detach <reviewed head>
-#   powershell -NoProfile -File scripts\cutover-data-off-main.ps1 -Pr <P> -Sha <reviewed head> -Apps <names>|none -Report <review>[,<review>]
-#     -Apps: passed to protect-main (D1): the Apps https://github.com/settings/installations shows with write on this
-#     repository, comma-separated, or none (no token Brian holds can list them).
+#   powershell -NoProfile -File scripts\cutover-data-off-main.ps1 -Pr <P> -Sha <reviewed head> -Apps claude|none -Report <review>
+#     -Apps: first open https://github.com/settings/installations and click Configure on each App: claude if the
+#     Claude App (github.com/apps/claude) is the only one reaching this repository with any Read and write
+#     permission and Administration is not Read and write; none if no App does. No token Brian holds can list Apps,
+#     so this is his hand check (ADR 0011 Amendment 2026-11-18 (b), invariant I-person). Any other answer is refused
+#     before anything changes; protect-main gets it in step 4.
 #   ... -Plan [-Ref <git rev>]    read-only: the seed step 3 would push from origin/main's data/, its checks and
 #                                 "SEED DIGEST <sha256>" for the cutover PR's RECORDS_DATA_SEED_DIGEST. No gh call.
 #   ... -Rollback [-CutoverMerge <sha>]   undo (the .sh twin's --rollback --cutover-merge)
@@ -533,16 +536,17 @@ if ($Rollback) {
 
 # ---------------------------------------------------------------------------------------------- the cutover
 if ($Pr -notmatch '^[0-9]+$' -or $Sha -cnotmatch '^[0-9a-f]{40}$' -or $Report.Count -lt 1) {
-    Write-Host "Usage: $me -Pr <P> -Sha <reviewed head> -Apps <names>|none -Report <review>[,<review>] | -Plan [-Ref <rev>] | -Rollback [-CutoverMerge <sha>] | -Rollback -Merge <R> -Sha <sha> -Report <review> | -CheckAttested"
+    Write-Host "Usage: $me -Pr <P> -Sha <reviewed head> -Apps claude|none -Report <review> | -Plan [-Ref <rev>] | -Rollback [-CutoverMerge <sha>] | -Rollback -Merge <R> -Sha <sha> -Report <review> | -CheckAttested"
     exit 1
 }
 NeedGh
 NeedPython
 $script:step = 1
 Write-Host "Step 1 ($(Utc)): refusals and the planned seed (read-only)."
-if ($Apps -cnotmatch '^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$') {
-    Refuse '--apps takes the App names https://github.com/settings/installations shows with write on this repository, comma-separated, or none (protect-main needs them in step 4; -Apps here)'
+if (@('claude', 'none') -cnotcontains $Apps) {
+    Refuse '--apps must be claude or none: first open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records with any Read and write permission (ADR 0011 Amendment (b); -Apps here; protect-main needs the answer in step 4)'
 }
+Write-Host "Installed Apps with write on this repository, by Brian's hand check at https://github.com/settings/installations: $Apps."
 $hm = [int][DateTime]::UtcNow.ToString('HHmm')
 if ($hm -ge 800 -and $hm -le 1030) {
     Refuse ("it is {0:D4} UTC, inside the daily run's window (08:00-10:30); run it later" -f $hm)

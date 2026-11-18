@@ -7,9 +7,12 @@
 #
 # Run it from a checkout of the cutover PR at its reviewed head (so the checks below run reviewed code):
 #   git fetch origin pull/<P>/head && git checkout --detach <reviewed head>
-#   bash scripts/cutover-data-off-main.sh --pr <P> --sha <reviewed head> --apps <App names>|none --report <review> [...]
-#        --apps: passed to protect-main (D1): the Apps https://github.com/settings/installations shows with write on
-#        this repository, comma-separated, or none (no token Brian holds can list them).
+#   bash scripts/cutover-data-off-main.sh --pr <P> --sha <reviewed head> --apps claude|none --report <review> [...]
+#        --apps: first open https://github.com/settings/installations and click Configure on each App: claude if the
+#        Claude App (github.com/apps/claude) is the only one reaching this repository with any Read and write
+#        permission and Administration is not Read and write; none if no App does. No token Brian holds can list
+#        Apps, so this is his hand check (ADR 0011 Amendment 2026-11-18 (b), invariant I-person). Any other answer
+#        is refused before anything changes; protect-main gets it in step 4.
 #   bash scripts/cutover-data-off-main.sh --plan [--ref <git rev>]   read-only: the seed step 3 would push from
 #        origin/main's data/, its checks and "SEED DIGEST <sha256>" for the cutover PR's RECORDS_DATA_SEED_DIGEST
 #        (--ref: the cutover head whose config/ holds the moved inputs; default HEAD). No gh call, no push.
@@ -72,7 +75,7 @@ wl='def wl: {name, target, enforcement, conditions,
   bypass_actors: ([.bypass_actors[]? | {actor_id, actor_type, bypass_mode}] | sort_by(.actor_type, .actor_id, .bypass_mode)),
   rules: ([.rules[]? | if .parameters == null then {type} else {type, parameters} end] | sort_by(.type))}; wl'
 
-usage="Usage: $me --pr <P> --sha <reviewed head> --apps <names>|none --report <review> [...] | --plan [--ref <rev>] | --rollback [--cutover-merge <sha>] | --rollback --merge <R> --sha <sha> --report <review> [...] | --check-attested"
+usage="Usage: $me --pr <P> --sha <reviewed head> --apps claude|none --report <review> [...] | --plan [--ref <rev>] | --rollback [--cutover-merge <sha>] | --rollback --merge <R> --sha <sha> --report <review> [...] | --check-attested"
 mode=cutover; pr=""; sha=""; reports=(); ref=HEAD; cmerge=""; rpr=""; apps=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -397,8 +400,11 @@ need_gh
 need_python
 step=1
 echo "Step 1 ($(utc)): refusals and the planned seed (read-only)."
-[[ "$apps" =~ ^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$ ]] \
-  || refuse "--apps takes the App names https://github.com/settings/installations shows with write on this repository, comma-separated, or none (protect-main needs them in step 4)"
+case "$apps" in
+  claude|none) ;;
+  *) refuse "--apps must be claude or none: first open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records with any Read and write permission (ADR 0011 Amendment (b); protect-main needs the answer in step 4)" ;;
+esac
+echo "Installed Apps with write on this repository, by Brian's hand check at https://github.com/settings/installations: $apps."
 hm=$(date -u +%H%M)
 [[ "$hm" =~ ^[0-9]{4}$ ]] || refuse "could not read the UTC time"
 if [ $((10#$hm)) -ge 800 ] && [ $((10#$hm)) -le 1030 ]; then

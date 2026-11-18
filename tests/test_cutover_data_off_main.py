@@ -424,10 +424,25 @@ def test_step1_refuses_a_pr_that_is_not_the_reviewed_one(tmp_path, change, text)
     _refused(fx.cut(), fx, text)
 
 
-@pytest.mark.parametrize("apps", ["", "Claude", "a,,b", "x;y"])
-def test_step1_refuses_without_a_well_formed_apps_answer(tmp_path, apps):
+@pytest.mark.parametrize("apps", ["", "Claude", "claude,other", "other-app", "none,claude", "x;y"])
+def test_step1_refuses_unless_apps_is_claude_or_none(tmp_path, apps):
+    """ADR 0011 Amendment (b): Brian's installations hand check is claude or none; anything else stops at once."""
     fx = Fx(tmp_path)
-    _refused(fx.cut(apps=apps), fx, "--apps takes the App names")
+    r = fx.cut(apps=apps)
+    _refused(r, fx, "--apps must be claude or none: first open https://github.com/settings/installations")
+
+
+def test_step1_refuses_without_apps(tmp_path):
+    fx = Fx(tmp_path)
+    r = fx.run(["--pr", "60", "--sha", fx.head, "--report", "x"])
+    _refused(r, fx, "--apps must be claude or none")
+
+
+def test_the_apps_answer_reaches_protect_main(tmp_path):
+    fx = Fx(tmp_path)
+    r = fx.cut(apps="claude", STUB_PM="notok")
+    assert "by Brian's hand check at https://github.com/settings/installations: claude." in r.stdout
+    assert [c["argv"] for c in fx.calls() if c["path"] == "protect-main"] == [["--apps", "claude"]]
 
 
 def test_step1_refuses_a_checkout_not_at_the_reviewed_head(tmp_path):

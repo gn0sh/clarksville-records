@@ -205,7 +205,9 @@ Choices the reviewers should check:
   has its `config/` copy as the same blob; otherwise it stays in and the I-in guard refuses it (no silent drop).
 - Brian runs it from a checkout of the cutover PR at the reviewed sha (the python checks are then reviewed code).
   `--plan` (read-only, no gh) prints `SEED DIGEST` for the PR's pin: run it after the day's run, cut over the same day.
-- `--apps <answer>` is passed to `protect-main` (D1). Brian's PC needs Python 3.10+ with `requirements.txt`.
+- `--apps claude|none` (Amendment (b)): Brian reads https://github.com/settings/installations first; any other
+  answer is refused before anything changes, and it is passed to `protect-main`. His PC needs Python 3.10+ with
+  `requirements.txt`.
 - Rollback order: after the cutover merge it is two calls. `--rollback --cutover-merge <sha>` opens the restore PR
   (also restores the workflow and CODEOWNERS from before the merge, else the gate would refuse every run);
   `--rollback --merge <R> --sha <head> --report <r>` merges it, then R1', then R2 on, then the workflow, so R2 never
