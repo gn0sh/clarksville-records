@@ -366,7 +366,7 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
 - **U1 false: rule suites read pass for PRs #48, #49, #52 (2026-11-18).** U1 is ADR 0010's assumption that
   code-owner review binds at 0 approvals. GitHub's rule suites for 2bba3b1 (#48), 2b20704 (#49) and e3cb819 (#52)
   read `pull_request` **pass**, not bypass, so the code-owner rule of R1' never applied. The cause is unconfirmed:
-  two readings, both leave R1' ineffective (`docs/architecture/v1-fail-2026-11-18.md` section 1) (`docs/architecture/v1-fail-2026-11-18.md`; ADR 0011).
+  two readings, both leave R1' ineffective (`docs/architecture/v1-fail-2026-11-18.md` section 1; ADR 0011).
 - **U3-0: the team's cloud session cannot write rulesets (proxy 403, 2026-11-18 17:37 UTC); Brian runs
   u3-toggle.** The no-op PUT of ruleset 27502319 from the team's session was refused by the proxy (read-back unchanged), so the U3 control
   (`docs/ops/u3-positive-control.md`) runs as `scripts/u3-toggle.ps1` on Brian's PC, with the team's merge from its
@@ -378,4 +378,5 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   `scripts/u3-toggle.ps1 -Pr 58 -Merge` (the first real run of the .ps1; a rehearsal at 19:08:51Z also restored).
   The `-Report` string passed was `docs/ops/u3-positive-control.md`. Meaning: R1'' (2 approvals, last-push approval)
   binds (`pull_request=fail`), and the team's merge-reviewed path merges through admin bypass. PR #58 head 4f2aa8c0
-  was reviewed first (`docs/reviews/pr58-code-review.md`, approve with nits). The gate is open for B1..D2.
+  was reviewed just after the merge, not before (`docs/reviews/pr58-code-review.md`, approve with nits; its 3 nits
+  are applied above). The gate is open for B1..D2.
