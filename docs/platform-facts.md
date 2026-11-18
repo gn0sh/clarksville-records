@@ -363,3 +363,10 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
 - Re-plan: ADR 0010 (code-owner rule R1' replaces V1). Next facts here: the V1' probe (run link, four answers,
   `main` before and after), the first data PR merged under R1' and the first S2 merge under R1'.
 - `github-pages` deployment branches after runbook 2.0.5: not checked yet.
+- **U1 false: rule suites read pass for PRs #48, #49, #52 (2026-11-18).** GitHub's rule suites for 2bba3b1 (#48),
+  2b20704 (#49) and e3cb819 (#52) read `pull_request` **pass**, not bypass, so the code-owner rule of R1' never
+  applied (`docs/architecture/v1-fail-2026-11-18.md`; ADR 0011).
+- **U3-0: the team's cloud session cannot write rulesets (proxy 403, 2026-11-18 17:37 UTC); Brian runs
+  u3-toggle.** The no-op PUT of ruleset 27502319 from the team's session was refused by the proxy, so the U3 control
+  (`docs/ops/u3-positive-control.md`) runs as `scripts/u3-toggle.ps1` on Brian's PC, with the team's merge from its
+  session after Brian types `U3 go`.
