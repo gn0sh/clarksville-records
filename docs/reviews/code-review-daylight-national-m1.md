@@ -91,3 +91,12 @@
 - B4 delta (309d957a): APPROVE. Switch OFF byte-identical to main 1922fda3 in three builds (fixture pages, real-data
   preview, real-data pages). Freshness, links-from-entry and morning gate closed; no `href=""` in the on build.
   Note: JSON `checked_at` holds the newest record's first fetch; M2/M4 must not print it as "last checked" until C3.
+
+## F2 (73893f19, 6d77211a), code-reviewer opus/high: APPROVE with one should-fix
+- should-fix `national-storage/forget-then-late-write`: Forget during an in-flight post/count lets the key be rewritten
+  when the promise resolves (reproduced in Chromium).
+- nits: Try again moves focus twice; second post possible after Cancel + reopen; election-office line missing (now in
+  UX v1.2); "Request the ones you want" without a form; saved list ignores later gov-flags hides.
+- Held in Chromium with all outside hosts stubbed: address only in the Census request (not URL, title, history,
+  Referer); post body exactly email + own/ticked tags; native fallback clean; counter guards; double submit; hostile
+  stored values drawn as text; timeout; failed post stores nothing; no CSP violations; one focus move per result.
