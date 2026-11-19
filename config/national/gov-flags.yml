@@ -1,0 +1,133 @@
+# Daylight Digest government flags (docs/architecture/daylight-national.md 3.3, 4.1 governments()). Curated
+# corrections to what the Census geographies answer returns, applied in the browser after the FUNCSTAT filter:
+#   hide:  ids never shown as a card (by id)
+#   show:  ids always kept, whatever their FUNCSTAT (by id); an id may not be both hidden and shown
+#   rules: by state FIPS code and layer (`show: false` hides every unit of that layer in that state)
+#   lines: a fixed line for an id (`line` must have a `note.<line>` label in labels.yml). The line is added when the
+#          Census returns that id for the address, whether the id is kept or hidden here; a hidden id with a line
+#          adds that line instead of the "no county" line.
+# Every entry needs `why` and an https `source`. Sources are Census documentation; what each says, and whether the
+# team could read it, is in docs/platform-facts.md "Census TIGER/Line codes" (2026-11-19: the team's network refused
+# the Census hosts, so every entry below is unverified until someone reads its source; task B2).
+schema: daylight-govflags/1
+
+hide:
+  # Massachusetts: seven county governments abolished by state acts, 1997-2000; the state took over their offices. Suffolk County has no county commission: the City of Boston carries out its functions.
+  # Barnstable, Bristol, Dukes, Norfolk and Plymouth keep county governments and are not listed. Nantucket (25019,
+  # county and town are one) is left to the default until checked.
+  - {id: county-25003, why: "Berkshire County, MA: county government abolished (2000)", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+  - {id: county-25009, why: "Essex County, MA: county government abolished (1999)", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+  - {id: county-25011, why: "Franklin County, MA: county government abolished (1997)", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+  - {id: county-25013, why: "Hampden County, MA: county government abolished (1998)", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+  - {id: county-25015, why: "Hampshire County, MA: county government abolished (1999)", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+  - {id: county-25017, why: "Middlesex County, MA: county government abolished (1997)", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+  - {id: county-25025, why: "Suffolk County, MA: no county commission; the City of Boston carries out county functions", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+  - {id: county-25027, why: "Worcester County, MA: county government abolished (1998)", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+
+  # Nashville: the "(balance)" place is the part of the consolidated Metro government outside the separately
+  # incorporated cities (Belle Meade, Berry Hill, ...). It is the same government as county-47037, so it gets no card
+  # of its own; its line says the city and county are one. An address in Belle Meade gets Belle Meade and Metro, no line.
+  - {id: place-4752006, why: "Nashville-Davidson metropolitan government (balance): same government as county-47037 (PLACECC C8, balance of a consolidated city)", source: "https://www.census.gov/library/reference/code-lists/class-codes.html"}
+
+  # Independent cities: the Census lists each as a county equivalent (COUNTYCC C7) and as an incorporated place. The
+  # place card is the city; the county-equivalent copy is hidden and carries the independent-city line (lines below).
+  # Pattern: in Virginia (state 51) county codes 510 and up are independent cities, counties are odd codes 001-199.
+  # Bedford city (51515) became a town in Bedford County in 2013 and is not listed. Outside Virginia: Baltimore city,
+  # St. Louis city, Carson City.
+  - {id: county-51510, why: "Alexandria city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51520, why: "Bristol city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51530, why: "Buena Vista city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51540, why: "Charlottesville city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51550, why: "Chesapeake city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51570, why: "Colonial Heights city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51580, why: "Covington city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51590, why: "Danville city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51595, why: "Emporia city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51600, why: "Fairfax city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51610, why: "Falls Church city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51620, why: "Franklin city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51630, why: "Fredericksburg city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51640, why: "Galax city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51650, why: "Hampton city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51660, why: "Harrisonburg city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51670, why: "Hopewell city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51678, why: "Lexington city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51680, why: "Lynchburg city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51683, why: "Manassas city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51685, why: "Manassas Park city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51690, why: "Martinsville city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51700, why: "Newport News city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51710, why: "Norfolk city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51720, why: "Norton city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51730, why: "Petersburg city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51735, why: "Poquoson city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51740, why: "Portsmouth city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51750, why: "Radford city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51760, why: "Richmond city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51770, why: "Roanoke city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51775, why: "Salem city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51790, why: "Staunton city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51800, why: "Suffolk city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51810, why: "Virginia Beach city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51820, why: "Waynesboro city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51830, why: "Williamsburg city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51840, why: "Winchester city, VA: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-24510, why: "Baltimore city, MD: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-29510, why: "St. Louis city, MO: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-32510, why: "Carson City, NV: independent city (COUNTYCC C7)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+
+show:
+  # The Metro government is the county's card for every address in Davidson County, including the separately
+  # incorporated cities. Kept whatever its FUNCSTAT (a consolidated government may carry C, not A).
+  - {id: county-47037, why: "Nashville-Davidson metropolitan government: consolidated city-county (COUNTYCC H6)", source: "https://www.census.gov/library/reference/code-lists/class-codes.html"}
+
+rules:
+  # Connecticut: county governments abolished in 1960; since 2022 the Census uses nine planning regions
+  # (09110-09190) as county equivalents. Neither the old counties nor the regions are governments that post agendas.
+  - {state: "09", layer: county, show: false, why: "Connecticut has no county governments (abolished 1960); planning regions are county equivalents since 2022", source: "https://www.census.gov/programs-surveys/geography/technical-documentation/county-changes.html"}
+  # Rhode Island: counties are geographic areas only, with no county government.
+  - {state: "44", layer: county, show: false, why: "Rhode Island counties have no county government", source: "https://www.census.gov/library/publications/2019/econ/2017isd.html"}
+
+lines:
+  - {id: place-4752006, line: consolidated, why: "Nashville and Davidson County are one Metro government", source: "https://www.census.gov/library/reference/code-lists/class-codes.html"}
+  - {id: county-51510, line: independent-city, why: "Alexandria city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51520, line: independent-city, why: "Bristol city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51530, line: independent-city, why: "Buena Vista city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51540, line: independent-city, why: "Charlottesville city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51550, line: independent-city, why: "Chesapeake city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51570, line: independent-city, why: "Colonial Heights city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51580, line: independent-city, why: "Covington city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51590, line: independent-city, why: "Danville city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51595, line: independent-city, why: "Emporia city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51600, line: independent-city, why: "Fairfax city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51610, line: independent-city, why: "Falls Church city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51620, line: independent-city, why: "Franklin city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51630, line: independent-city, why: "Fredericksburg city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51640, line: independent-city, why: "Galax city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51650, line: independent-city, why: "Hampton city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51660, line: independent-city, why: "Harrisonburg city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51670, line: independent-city, why: "Hopewell city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51678, line: independent-city, why: "Lexington city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51680, line: independent-city, why: "Lynchburg city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51683, line: independent-city, why: "Manassas city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51685, line: independent-city, why: "Manassas Park city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51690, line: independent-city, why: "Martinsville city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51700, line: independent-city, why: "Newport News city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51710, line: independent-city, why: "Norfolk city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51720, line: independent-city, why: "Norton city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51730, line: independent-city, why: "Petersburg city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51735, line: independent-city, why: "Poquoson city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51740, line: independent-city, why: "Portsmouth city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51750, line: independent-city, why: "Radford city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51760, line: independent-city, why: "Richmond city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51770, line: independent-city, why: "Roanoke city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51775, line: independent-city, why: "Salem city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51790, line: independent-city, why: "Staunton city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51800, line: independent-city, why: "Suffolk city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51810, line: independent-city, why: "Virginia Beach city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51820, line: independent-city, why: "Waynesboro city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51830, line: independent-city, why: "Williamsburg city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-51840, line: independent-city, why: "Winchester city, VA", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-24510, line: independent-city, why: "Baltimore city, MD", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-29510, line: independent-city, why: "St. Louis city, MO", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-32510, line: independent-city, why: "Carson City, NV", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
