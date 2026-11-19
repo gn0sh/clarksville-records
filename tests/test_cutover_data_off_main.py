@@ -3,8 +3,9 @@ docs/tasks/data-off-main.md D3; PR #54 security review: drift, F4, F5, F7).
 
 The .sh runs here against a stub gh, a stub curl and stub protect-main / merge-reviewed scripts (no GitHub call is
 ever made: the stubs are first on PATH, the tokens are removed, and "origin" is a bare repository in tmp_path). The
-seed is built for real with git, and its checks run the real collector.data_shape and tools.scrub_rpc_phones. The
-.ps1 twin (no PowerShell here) is pinned to the same steps, filters and lines text by text."""
+seed is built for real with git, and its checks run the real collector.data_shape and tools.scrub_rpc_phones. With
+PWSH set, every test that runs the script also runs the .ps1 twin against the same stubs (tests/pwsh_twin.py); the
+.ps1 is also pinned to the same steps, filters and lines text by text."""
 import hashlib
 import json
 import os
@@ -16,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from collector import data_shape
+import pwsh_twin
 
 ROOT = Path(__file__).resolve().parent.parent
 SH = ROOT / "scripts" / "cutover-data-off-main.sh"
@@ -26,6 +28,25 @@ CLOUD = ("CLAUDE_CODE_REMOTE", "GITHUB_ACTIONS", "CI")
 R1P = json.loads((ROOT / "scripts" / "main-ruleset-r1p.json").read_text(encoding="utf-8"))
 
 pytestmark = pytest.mark.skipif(shutil.which("jq") is None, reason="jq is needed by the script and the stub")
+
+
+def pytest_generate_tests(metafunc):
+    """Each test that runs the script (it takes tmp_path) runs once per twin: "sh", and "ps1" when PWSH is set."""
+    if "tmp_path" in metafunc.fixturenames:
+        metafunc.parametrize("twin", pwsh_twin.TWINS, indirect=True)
+
+
+@pytest.fixture(autouse=True)
+def twin(request):
+    Fx.twin_default = getattr(request, "param", "sh")
+    yield Fx.twin_default
+    Fx.twin_default = "sh"
+
+
+# the .sh's flags as the .ps1's parameters
+PS_FLAGS = {"--plan": "-Plan", "--prepare": "-Prepare", "--rollback": "-Rollback", "--cutover-merge": "-CutoverMerge",
+            "--data-from": "-DataFrom", "--merge": "-Merge", "--sha": "-Sha", "--report": "-Report", "--pr": "-Pr",
+            "--apps": "-Apps", "--ref": "-Ref", "--check-attested": "-CheckAttested"}
 
 # ---------------------------------------------------------------------------------------------- stubs
 _GH = r'''#!/usr/bin/env python3
@@ -202,6 +223,21 @@ if [ "${STUB_MR}" = garbled ]; then echo "gh: HTTP 502"; exit 1; fi
 echo "Rule suite 9 for $m: pass"; echo "The merge was not a bypass (pass): tell the team."; exit 2
 '''
 
+# the .ps1 twin calls protect-main.ps1 and merge-reviewed.ps1: these bind as the real ones (their param blocks) and
+# run the stubs above with the .sh's arguments
+_PROTECT_PS1 = pwsh_twin.param_block(ROOT / "scripts" / "protect-main.ps1") + r'''
+$a = @()
+if ($PreCutover) { $a += '--pre-cutover' }
+if ($Check) { $a += '--check' }
+if ($PSBoundParameters.ContainsKey('Apps')) { $a += @('--apps', $Apps) }
+& bash (Join-Path $PSScriptRoot 'protect-main.sh') @a
+exit $LASTEXITCODE
+'''
+_MERGE_PS1 = pwsh_twin.param_block(ROOT / "scripts" / "merge-reviewed.ps1") + r'''
+& bash (Join-Path $PSScriptRoot 'merge-reviewed.sh') $Pr $Sha @Reports
+exit $LASTEXITCODE
+'''
+
 _DATE = r'''#!/bin/sh
 for x in "$@"; do [ "$x" = "+%H%M" ] && { echo "$FAKE_HM"; exit 0; }; done
 exec /bin/date "$@"
@@ -249,10 +285,13 @@ def _seed_listing(work, rev, moved):
 
 
 class Fx:
-    """origin (bare), and a checkout at the cutover PR's head P (child of main M)."""
+    """origin (bare), and a checkout at the cutover PR's head P (child of main M). twin: run the .sh or the .ps1."""
+    twin_default = "sh"
 
     def __init__(self, tmp_path, main_extra=None, pr_extra=None, pin=None, skip_config=(), baseline=None,
                  window=None, pr_off_main=False):
+        self.twin = Fx.twin_default
+        self.script = SH if self.twin == "sh" else PS1
         self.tmp = tmp_path
         self.origin = tmp_path / "origin.git"
         self.work = tmp_path / "work"
@@ -274,6 +313,10 @@ class Fx:
         assert re.search(r"(?m)^WINDOW_START=[0-9a-f]{40}$", text)
         (w / "scripts" / SH.name).write_text(
             re.sub(r"(?m)^WINDOW_START=.*$", "WINDOW_START=" + (self.start if window is None else window), text))
+        if self.twin == "ps1":
+            self.set_window(self.start if window is None else window)
+            for name, text in (("protect-main.ps1", _PROTECT_PS1), ("merge-reviewed.ps1", _MERGE_PS1)):
+                (w / "scripts" / name).write_text(text)
         shutil.copy(ROOT / "scripts" / "main-ruleset-r1p.json", w / "scripts")
         for name, text in (("protect-main.sh", _PROTECT), ("merge-reviewed.sh", _MERGE)):
             (w / "scripts" / name).write_text(text)
@@ -306,10 +349,29 @@ class Fx:
         for name, text in (("gh", _GH), ("curl", _CURL), ("date", _DATE), ("sleep", "#!/bin/sh\nexit 0\n")):
             (self.bindir / name).write_text(text)
             (self.bindir / name).chmod(0o755)
+        if self.twin == "ps1":
+            pwsh_twin.install(tmp_path, self.bindir)
         self.state = {"vars": [], "runs": [{"id": 1, "status": "completed", "event": "schedule"}],
                       "wf_state": "active", "r2": True,
                       "pr": {"number": 60, "state": "open", "base": {"ref": "main"}, "user": {"login": "gn0sh"},
                              "draft": False, "head": {"sha": self.head, "repo": {"full_name": REPO}}}}
+
+    def set_window(self, sha):
+        """The twin's WINDOW_START in this checkout's copy of the script."""
+        if self.twin == "sh":
+            p = self.work / "scripts" / SH.name
+            p.write_text(re.sub(r"(?m)^WINDOW_START=.*$", "WINDOW_START=" + sha, p.read_text()))
+        else:
+            p = self.work / "scripts" / PS1.name
+            src = p.read_text(encoding="utf-8") if p.exists() else PS1.read_text(encoding="utf-8")
+            p.write_bytes(re.sub(r"(?m)^\$WINDOW_START = '.*'$", "$WINDOW_START = '%s'" % sha, src).encode("ascii"))
+
+    def cmd(self, text):
+        """A command line the .sh prints (its undo or next line), as the twin under test prints it."""
+        if self.twin == "sh":
+            return text
+        text = text.replace("bash scripts/cutover-data-off-main.sh", "powershell -NoProfile -File scripts\\" + PS1.name)
+        return re.sub(r"--[a-z-]+", lambda m: PS_FLAGS.get(m.group(0), m.group(0)), text)
 
     def og(self, *args):
         return _git(self.tmp, "--git-dir", str(self.origin), *args, env=self.genv).decode().strip()
@@ -320,8 +382,12 @@ class Fx:
         env.update({"PATH": f"{self.bindir}:{os.environ['PATH']}", "GH_CALLS": str(self.tmp / "calls"),
                     "GH_STATE": str(self.tmp / "state.json"), "STUB_ORIGIN": str(self.origin), "FAKE_HM": hm,
                     "HOME": str(self.tmp)}, **env_over)
-        r = subprocess.run(["bash", "scripts/" + SH.name, *args], cwd=self.work, env=env, capture_output=True,
-                           text=True, timeout=180)
+        if self.twin == "sh":
+            cmd = ["bash", "scripts/" + SH.name, *args]
+        else:
+            env = pwsh_twin.env(env)
+            cmd = pwsh_twin.argv("scripts/" + PS1.name, pwsh_twin.flags(args, PS_FLAGS))
+        r = subprocess.run(cmd, cwd=self.work, env=env, capture_output=True, text=True, timeout=300)
         self.state = json.loads((self.tmp / "state.json").read_text())
         return r
 
@@ -399,7 +465,7 @@ def test_dry_run_walks_every_step_in_the_operators_order(tmp_path):
         assert flag in att, flag
     head = fx.rd()
     assert head != seed and fx.og("rev-parse", head + "^") == seed
-    assert "--rollback --cutover-merge " in out
+    assert fx.cmd("--rollback --cutover-merge ") in out
 
 
 def test_the_left_out_inputs_are_exactly_the_moved_ones(tmp_path):
@@ -552,7 +618,7 @@ def test_step5_stops_when_the_plain_check_after_the_merge_is_not_ok(tmp_path):
     assert r.returncode == 2 and "STOPPED at step 5" in r.stdout and "protect-main --check did not print OK" in r.stdout
     assert [c["argv"] for c in fx.calls() if c["path"] == "protect-main"][-1] == ["--check", "--apps", "none"]
     assert fx.state["wf_state"] == "disabled_manually"           # step 6 never ran
-    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge " in r.stdout
+    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ") in r.stdout
 
 
 def test_step1_refuses_a_checkout_not_at_the_reviewed_head(tmp_path):
@@ -622,9 +688,8 @@ def test_step1_refuses_a_pr_head_that_does_not_contain_main(tmp_path):
 def test_step1_refuses_a_bad_window_start(tmp_path, window, text):
     fx = Fx(tmp_path, window=window if window is not None else "MAIN")
     if window is None:   # main's sha is known only after the fixture's commit: edit the copy, hide it from status
-        p = fx.work / "scripts" / SH.name
-        p.write_text(p.read_text().replace("WINDOW_START=MAIN", "WINDOW_START=" + fx.main))
-        _git(fx.work, "update-index", "--assume-unchanged", "scripts/" + SH.name, env=fx.genv)
+        fx.set_window(fx.main)
+        _git(fx.work, "update-index", "--assume-unchanged", "scripts/" + fx.script.name, env=fx.genv)
     _refused(fx.cut(), fx, text)
 
 
@@ -672,7 +737,7 @@ def test_step3_stops_when_main_moved_after_step1(tmp_path, extra):
                               f"&& git push -q origin HEAD:main"]
     r = fx.cut()
     assert r.returncode == 2 and "STOPPED at step 3" in r.stdout and "off the PR's MAIN_PR_BASELINE " + fx.main in r.stdout
-    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback\n" in r.stdout
+    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback\n") in r.stdout
     assert fx.rd() == "" and [c["path"] for c in _writes(fx.calls())] == [R + "/actions/workflows/daily-update.yml/disable"]
 
 
@@ -680,7 +745,7 @@ def test_step2_stops_when_a_run_started_before_the_disable(tmp_path):
     fx = Fx(tmp_path)
     fx.state["run_starts_on_disable"] = True
     r = fx.cut()
-    assert r.returncode == 2 and "STOPPED at step 2" in r.stdout and "--rollback" in r.stdout and fx.rd() == ""
+    assert r.returncode == 2 and "STOPPED at step 2" in r.stdout and fx.cmd("--rollback") in r.stdout and fx.rd() == ""
 
 
 def test_step4_stops_unless_protect_main_prints_ok(tmp_path):
@@ -688,7 +753,7 @@ def test_step4_stops_unless_protect_main_prints_ok(tmp_path):
     r = fx.cut(STUB_PM="notok")
     assert r.returncode == 2 and "STOPPED at step 4" in r.stdout and "protect-main did not print OK" in r.stdout
     assert not [c for c in fx.calls() if c["path"] == "merge-reviewed"]
-    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback\n" in r.stdout
+    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback\n") in r.stdout
 
 
 def test_step5_stops_unless_the_merge_is_a_bypass(tmp_path):
@@ -697,14 +762,14 @@ def test_step5_stops_unless_the_merge_is_a_bypass(tmp_path):
     assert r.returncode == 2 and "STOPPED at step 5" in r.stdout and "bypass" in r.stdout
     assert fx.state["wf_state"] == "disabled_manually"
     # data-off-main/undo-line-after-merge: main moved in the call, so the undo names the new main
-    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge " + fx.og("rev-parse", "refs/heads/main") in r.stdout
+    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ") + fx.og("rev-parse", "refs/heads/main") in r.stdout
 
 
 def test_step5_undo_names_the_new_main_when_the_merge_output_is_not_understood(tmp_path):
     fx = Fx(tmp_path)
     r = fx.cut(STUB_MR="garbled")
     assert r.returncode == 2 and "STOPPED at step 5" in r.stdout
-    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge " + fx.og("rev-parse", "refs/heads/main") in r.stdout
+    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ") + fx.og("rev-parse", "refs/heads/main") in r.stdout
 
 
 def test_step5_stops_when_the_squash_parent_is_not_the_pinned_baseline(tmp_path):
@@ -712,7 +777,7 @@ def test_step5_stops_when_the_squash_parent_is_not_the_pinned_baseline(tmp_path)
     r = fx.cut(STUB_MR_MOVE="1")
     m = fx.og("rev-parse", "refs/heads/main")
     assert r.returncode == 2 and "STOPPED at step 5" in r.stdout and f"not the pinned MAIN_PR_BASELINE {fx.main}" in r.stdout
-    assert f"Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge {m}" in r.stdout
+    assert fx.cmd(f"Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge {m}") in r.stdout
     assert fx.state["wf_state"] == "disabled_manually"
 
 
@@ -723,7 +788,7 @@ def test_step7_stops_unless_the_gate_verified_exactly_one_commit(tmp_path, over)
     fx.state.update(over)
     r = fx.cut()
     assert r.returncode == 2 and "STOPPED at step 7" in r.stdout and "gate did not verify exactly the cutover commit" in r.stdout
-    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge " in r.stdout
+    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ") in r.stdout
     assert [x["collect"] for x in fx.state["runs"] if x.get("event") == "workflow_dispatch"] == ["false"]
 
 
@@ -732,7 +797,7 @@ def test_step7_stops_when_the_deploy_did_not_succeed(tmp_path):
     fx.state["deploy"] = "skipped"
     r = fx.cut()
     assert r.returncode == 2 and "STOPPED at step 7" in r.stdout and "'skipped', not success" in r.stdout
-    assert "--rollback --cutover-merge " in r.stdout.split("STOPPED")[1]
+    assert fx.cmd("--rollback --cutover-merge ") in r.stdout.split("STOPPED")[1]
 
 
 def test_step8_stops_when_records_data_is_not_attested(tmp_path):
@@ -817,7 +882,7 @@ def test_rollback_without_the_merge_sha_refuses_when_main_has_no_codeowners(tmp_
     fx = Fx(tmp_path)
     r = fx.cut()
     assert r.returncode == 0
-    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    merge = re.search(fx.cmd("--rollback --cutover-merge ") + "([0-9a-f]{40})", r.stdout).group(1)
     _commit_on(fx, "refs/heads/main", {"data/late.json": "{}\n"}, "late data", "refs/heads/main")
     assert fx.og("ls-tree", "--name-only", "refs/heads/main", "--", "data") == "data"
     fx.state["r2"] = False
@@ -875,7 +940,7 @@ def test_step8_waits_at_most_until_before_0900_utc(tmp_path, hm, minutes):
 def _opened_restore(fx):
     r = fx.cut()
     assert r.returncode == 0, r.stdout + r.stderr
-    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    merge = re.search(fx.cmd("--rollback --cutover-merge ") + "([0-9a-f]{40})", r.stdout).group(1)
     fx.state["r2"] = False
     r = fx.run(["--rollback", "--cutover-merge", merge])
     assert r.returncode == 0, r.stdout + r.stderr
@@ -919,7 +984,7 @@ def _cut_then_unattested_push(fx):
     """A full cutover, then a writer fast-forwards records-data with a tree no run attested (S1-3's case)."""
     r = fx.cut()
     assert r.returncode == 0, r.stdout + r.stderr
-    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    merge = re.search(fx.cmd("--rollback --cutover-merge ") + "([0-9a-f]{40})", r.stdout).group(1)
     good = fx.rd()
     bad = _commit_on(fx, "refs/heads/records-data", {"data/facts.json": '{"meetings": ["forged"]}\n'}, "forged",
                      "refs/heads/records-data")
@@ -934,7 +999,7 @@ def test_s1_3_rollback_refuses_an_unattested_records_data_head(tmp_path):
     merge, good, bad = _cut_then_unattested_push(fx)
     r = fx.run(["--rollback", "--cutover-merge", merge])
     assert r.returncode == 1 and f"records-data's head {bad} is neither attested by daily-update.yml on main nor the " \
-        "pinned seed (S1-3)" in r.stdout and f"--cutover-merge {merge} --data-from <sha>" in r.stdout, r.stdout
+        "pinned seed (S1-3)" in r.stdout and fx.cmd(f"--cutover-merge {merge} --data-from <sha>") in r.stdout, r.stdout
     assert _writes(fx.calls()) == [] and fx.state["wf_state"] == "active"
 
 
@@ -971,7 +1036,7 @@ def test_s1_3_the_pinned_seed_is_accepted_as_r_data(tmp_path):
     fx.state["deploy"] = "skipped"
     r = fx.cut()
     assert r.returncode == 2 and "STOPPED at step 7" in r.stdout
-    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    merge = re.search(fx.cmd("--rollback --cutover-merge ") + "([0-9a-f]{40})", r.stdout).group(1)
     seed = fx.rd()
     assert fx.og("cat-file", "-p", seed).count("parent ") == 0
     r = fx.run(["--rollback", "--cutover-merge", merge])
@@ -1032,7 +1097,7 @@ def test_n1_merge_accepts_the_seed_pinned_on_main(tmp_path):
     fx.state["deploy"] = "skipped"
     r = fx.cut()
     assert r.returncode == 2 and "STOPPED at step 7" in r.stdout
-    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    merge = re.search(fx.cmd("--rollback --cutover-merge ") + "([0-9a-f]{40})", r.stdout).group(1)
     fx.state["r2"] = False
     r = fx.run(["--rollback", "--cutover-merge", merge])
     assert r.returncode == 0, r.stdout + r.stderr
@@ -1257,7 +1322,7 @@ def test_s1_5_step5_stops_when_records_data_moved_after_the_seed(tmp_path):
     assert "no longer the seed " in r.stdout and "pushed in step 3 (S1-5): nothing is merged" in r.stdout
     assert not [c for c in fx.calls() if c["path"] == "merge-reviewed"]
     assert fx.og("rev-parse", "refs/heads/main") == fx.main
-    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback\n" in r.stdout
+    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback\n") in r.stdout
 
 
 def test_ps1_checks_return_only_the_exit_code():
@@ -1289,7 +1354,7 @@ def test_rollback_after_the_merge_opens_a_restore_pr_then_merges_it(tmp_path):
     fx = Fx(tmp_path)
     r = fx.cut()
     assert r.returncode == 0
-    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    merge = re.search(fx.cmd("--rollback --cutover-merge ") + "([0-9a-f]{40})", r.stdout).group(1)
     rd = fx.rd()
     fx.state["r2"] = False
     open(tmp_path / "calls", "w").close()
@@ -1297,6 +1362,7 @@ def test_rollback_after_the_merge_opens_a_restore_pr_then_merges_it(tmp_path):
     assert r.returncode == 1 and "--cutover-merge <sha>" in r.stdout and _writes(fx.calls()) == []
     r = fx.run(["--rollback", "--cutover-merge", merge])
     assert r.returncode == 0 and "ROLLBACK PR #99 opened" in r.stdout, r.stdout + r.stderr
+    assert r.stderr == "", r.stderr       # data-off-main/ps-fatal-noise: no git "fatal:" line on a correct rollback
     br = re.search(r"pushed branch (rollback/data-on-main-\S+) at ([0-9a-f]{40})", r.stdout)
     c = br.group(2)
     assert fx.state["wf_state"] == "disabled_manually" and fx.state["r2"] is False      # nothing else yet
@@ -1308,11 +1374,12 @@ def test_rollback_after_the_merge_opens_a_restore_pr_then_merges_it(tmp_path):
     assert fx.og("show", c + ":.gitignore") == "build/"
     assert fx.og("rev-parse", c + ":config") == fx.og("rev-parse", merge + ":config")
     assert fx.og("rev-parse", c + "^") == merge
-    assert f"--rollback --merge 99 --sha {c} --cutover-merge {merge} --report <review>" in r.stdout
+    assert fx.cmd(f"--rollback --merge 99 --sha {c} --cutover-merge {merge} --report <review>") in r.stdout
     # phase 2: merge (bypass), then R1', then R2 on, then the workflow
     open(tmp_path / "calls", "w").close()
     r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "docs/reviews/rb.md"])
     assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout, r.stdout + r.stderr
+    assert r.stderr == "", r.stderr
     seq = [c2["path"].rsplit("/", 1)[-1] for c2 in _writes(fx.calls())]
     assert seq == ["disable", "merge-reviewed", "27502319", "workflow", "enable"], seq
     assert fx.og("ls-tree", "--name-only", "refs/heads/main", "--", "data") == "data"

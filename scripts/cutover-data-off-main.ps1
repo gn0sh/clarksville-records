@@ -446,7 +446,7 @@ function WaitRun([string]$id, [int]$minutes) {   # its conclusion once completed
     }
 }
 function Step8Wait {   # minutes step 8 may wait: at most 360, and the wait ends before 09:00 UTC (data-off-main/window-vs-duration)
-    $now = [DateTime]::UtcNow
+    $now = (Get-Date).ToUniversalTime()
     $left = ((540 - ($now.Hour * 60 + $now.Minute) + 1440) % 1440) - 1
     if ($left -lt 1) { $left = 1 }
     if ($left -lt 360) { return $left }
@@ -838,7 +838,7 @@ if (@('claude', 'none') -cnotcontains $Apps) {
     Refuse '--apps must be claude or none: first open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records with any Read and write permission; claude only if none of its Administration, Variables, Secrets and Environments permissions is Read and write (ADR 0011 Amendment (b), S1-2; -Apps here; protect-main needs the answer in step 4)'
 }
 Write-Host "Installed Apps with write on this repository, by Brian's hand check at https://github.com/settings/installations: $Apps."
-$hm = [int][DateTime]::UtcNow.ToString('HHmm')
+$hm = [int](Get-Date).ToUniversalTime().ToString('HHmm')
 if ($hm -ge 500 -and $hm -le 1030) {
     Refuse ("it is {0:D4} UTC, inside the daily run's window (05:00-10:30, so steps 7 and 8 end before the 09:07 run); run it later" -f $hm)
 }
