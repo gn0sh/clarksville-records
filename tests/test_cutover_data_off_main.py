@@ -1179,8 +1179,9 @@ def test_m1_rollback_refuses_when_the_fetch_of_main_fails(tmp_path):
 
 
 def test_m1_ps1_fetchmain_returns_null_on_a_failed_fetch_and_no_git_exit_code_is_dropped():
-    """pwsh is not installed here, so the .ps1 is pinned by text: FetchMain checks the fetch's exit code (the .sh's
-    `git fetch ... && git rev-parse`), every caller refuses on $null, and no GitRun result goes to Out-Null."""
+    """Without PWSH the M1 test above runs only the .sh, so the .ps1 is also pinned by text: FetchMain checks the
+    fetch's exit code (the .sh's `git fetch ... && git rev-parse`), every caller refuses on $null, and no GitRun result
+    goes to Out-Null."""
     ps1 = PS1.read_text(encoding="utf-8")
     fm = ps1[ps1.index("function FetchMain"):ps1.index("function FetchRd")]
     assert "if ((GitRun @('fetch', '--quiet', '--no-tags', 'origin', '+refs/heads/main:refs/cutover/main')).Code -ne 0) " \
