@@ -343,7 +343,8 @@ wf_set() {   # $1 disable|enable, $2 expected state: the PUT once, then its read
   local s0
   # GitHub refuses to disable a workflow that is not active (HTTP 403, cutover run 5): one already in the wanted state
   # (a rerun after a stop, whose disable stays in force) is left as it is
-  if s0=$(wf_state) && [ "$s0" = "$2" ]; then echo "daily-update already reads $2."; return 0; fi
+  # (disable only: every enable follows this run's own disable, and a lagged pre-read could skip it; code review)
+  if [ "$1" = disable ] && s0=$(wf_state) && [ "$s0" = "$2" ]; then echo "daily-update already reads $2."; return 0; fi
   gh api -X PUT "repos/$repo/actions/workflows/$wfname/$1" --silent || return 1
   read_until daily-update "$2" wf_state
 }
@@ -822,6 +823,10 @@ got=$(fetch_rd) || fail "could not read records-data before the merge"
 [ "$got" = "$seed" ] && [ "$(parents "$got")" = 0 ] \
   || fail "records-data reads ${got:-nothing}, no longer the seed $seed pushed in step 3 (S1-5): nothing is merged"
 echo "records-data is still the seed $seed."
+# security cutover/wf-skip-stale-preread: step 2 may have skipped its disable on a (lagged) read; minutes later, with
+# no lag left, daily-update must still read disabled_manually, or nothing is merged
+w5=$(wf_state) || fail "could not read daily-update's state before the merge: nothing is merged"
+[ "$w5" = disabled_manually ] || fail "daily-update reads '$w5' before the merge, not disabled_manually: nothing is merged"
 echo "Step 5: scripts/merge-reviewed.sh $pr $sha (main $now = the pinned baseline)."
 merge_from=$now
 out=$(run_merge_reviewed "$pr" "$sha" "${reports[@]}" 2>&1); mrc=$?

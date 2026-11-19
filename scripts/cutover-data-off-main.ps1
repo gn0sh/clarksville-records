@@ -476,8 +476,10 @@ function WfState {   # the workflow's state, or $null on a failed read
 function WfSet([string]$verb, [string]$state) {   # the PUT once, then its read-back (row 1; cutover run 4, 2026-11-19)
     # GitHub refuses to disable a workflow that is not active (HTTP 403, cutover run 5): one already in the wanted
     # state (a rerun after a stop, whose disable stays in force) is left as it is
-    $s0 = WfState
-    if ($null -ne $s0 -and $s0 -ceq $state) { Write-Host "daily-update already reads $state."; return $true }
+    $s0 = $null
+    if ($verb -ceq 'disable') { $s0 = WfState }
+    # (disable only: every enable follows this run's own disable, and a lagged pre-read could skip it; code review)
+    if ($verb -ceq 'disable' -and $null -ne $s0 -and $s0 -ceq $state) { Write-Host "daily-update already reads $state."; return $true }
     gh api -X PUT "repos/$repo/actions/workflows/$wfname/$verb" --silent
     if ($LASTEXITCODE -ne 0) { return $false }
     return (ReadUntil 'daily-update' $state { WfState })
@@ -1048,6 +1050,11 @@ $got = FetchRd
 if ($null -eq $got) { Fail 'could not read records-data before the merge' }
 if ($got -cne $seed -or (Parents $got) -ne 0) { Fail "records-data reads $got, no longer the seed $seed pushed in step 3 (S1-5): nothing is merged" }
 Write-Host "records-data is still the seed $seed."
+# security cutover/wf-skip-stale-preread: step 2 may have skipped its disable on a (lagged) read; minutes later, with
+# no lag left, daily-update must still read disabled_manually, or nothing is merged
+$w5 = WfState
+if ($null -eq $w5) { Fail "could not read daily-update's state before the merge: nothing is merged" }
+if ($w5 -cne 'disabled_manually') { Fail "daily-update reads '$w5' before the merge, not disabled_manually: nothing is merged" }
 Write-Host "Step 5: scripts\merge-reviewed.ps1 $Pr $Sha (main $now = the pinned baseline)."
 $script:mergeFrom = $now
 $res = RunMergeReviewed $Pr $Sha $Report

@@ -125,6 +125,11 @@ def handle():
             runs = [r for r in runs if r.get("event") == "workflow_dispatch"]
         out({"workflow_runs": sorted(runs, key=lambda r: -r["id"])})
     if path == W and method == "GET":
+        if st.get("wf_reenable_after"):   # someone re-enables daily-update after this many reads (stale-preread)
+            st["wf_reenable_after"] -= 1
+            if st["wf_reenable_after"] == 0:
+                st["wf_state"] = "active"
+            save()
         out({"state": st["wf_state"]})
     if path in (W + "/disable", W + "/enable") and method == "PUT":
         if path.endswith("/disable") and st["wf_state"] != "active":   # as GitHub (cutover run 5, 2026-11-19)
@@ -943,6 +948,25 @@ def test_a_rerun_with_daily_update_already_disabled_goes_on(tmp_path):
     assert "daily-update already reads disabled_manually." in r.stdout
     assert _n(fx, "PUT", R + "/actions/workflows/daily-update.yml/disable") == 0
     assert fx.state["wf_state"] == "active"
+
+
+def test_step5_stops_when_daily_update_is_active_again_before_the_merge(tmp_path):
+    """Security cutover/wf-skip-stale-preread: step 2 may skip its disable on a lagged read, so step 5 reads the
+    state once more before the merge: here someone re-enabled it after step 2's checks. Nothing is merged."""
+    fx = Fx(tmp_path)
+    fx.state["wf_state"] = "disabled_manually"
+    fx.state["wf_reenable_after"] = 2     # step 2's pre-read sees disabled_manually; the next read (step 5) active
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 5" in r.stdout, r.stdout + r.stderr
+    assert "daily-update reads 'active' before the merge, not disabled_manually: nothing is merged" in r.stdout
+    assert not [c for c in fx.calls() if c["path"] == "merge-reviewed"]
+
+
+def test_an_enable_is_always_sent(tmp_path):
+    """Code review: every enable follows this run's own disable, so a lagged pre-read must not skip it."""
+    fx = Fx(tmp_path)
+    r = fx.cut()
+    assert r.returncode == 0 and _n(fx, "PUT", R + "/actions/workflows/daily-update.yml/enable") == 1
 
 
 def test_step2_stops_when_the_workflow_state_never_reads_disabled(tmp_path):
