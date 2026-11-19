@@ -20,3 +20,8 @@ Every T5b test case listed in the task exists and tests what it claims.
 2. should-fix (T6) `at-large/seat-single-holder` seats.py:364, :420: `current_of_seat` / `held_over_of_seat` return one record; T6 must never call them for the at-large seat. **Action: added to T6 in the task list.**
 3. nit `at-large/conflict-null-id-untested` tests/test_at_large_seats.py:110. **Action: test added in the follow-up.**
 4. nit `at-large/title-last-source` council.py:369: a title record's `last_source` is the first print at the last list. Unchanged behaviour. **Action: none (no ADR requirement).**
+
+## Delta re-review of 0843c85 (2026-11-19): REQUEST CHANGES
+1. must-fix `at-large/short-confirm-blesses-cutoffs` sitegen/council.py `_complete_lists`: confirming after any 3 short lists in a row, whatever their members, still lets 2 cut-off lists split a member (counterexamples: a real vacancy plus 2 cut-offs of D; three short lists missing D, D, E). Suggested: confirm only when 3 consecutive short lists resolve the same set.
+2. Process: 3rd hit in `at-large/*`; the architect states the completeness rule in ADR 0012 decision 5 before the next code change. **Action: software-architect running.**
+Not weakened: the four edited gap tests keep their assertions. Old findings 2 and 3: done.
