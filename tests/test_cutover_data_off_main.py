@@ -159,8 +159,8 @@ def handle():
             env = {**os.environ, "GIT_INDEX_FILE": idx}
             subprocess.run(["git", "--git-dir", origin, "read-tree", head], env=env, check=True)
             blob = git("hash-object", "-w", "--stdin", input='{"new": 1}\n')
-            subprocess.run(["git", "--git-dir", origin, "update-index", "--add", "--cacheinfo", "100644,%s,data/new.json" % blob],
-                           env=env, check=True)
+            subprocess.run(["git", "--git-dir", origin, "update-index", "--add", "--cacheinfo",
+                            "100644,%s,data/new.json" % blob], env=env, check=True)
             tree = subprocess.run(["git", "--git-dir", origin, "write-tree"], env=env, capture_output=True, text=True,
                                   check=True).stdout.strip()
             c = git("-c", "user.name=bot", "-c", "user.email=bot@x", "commit-tree", tree, "-p", head, "-m", "data")
@@ -195,6 +195,9 @@ def handle():
     if path == R + "/pulls" and method == "POST":
         if st.get("pulls_post"):          # read-after-write row 12: answers before the 2xx (422: the branch not seen yet)
             code = st["pulls_post"].pop(0); save()
+            if code == "exists":        # a pull request from this branch is already open (GitHub's 422 says so)
+                out_text = '{"message":"Validation Failed","errors":[{"message":"A pull request already exists for x."}]}'
+                sys.stdout.write(out_text + "\n"); sys.stderr.write("gh: Validation Failed (HTTP 422)\n"); sys.exit(1)
             sys.stderr.write("gh: Validation Failed (HTTP 422)\n" if code == 422 else "gh: HTTP %d\n" % code); sys.exit(1)
         st["opened"] = [x for x in a if x.startswith(("head=", "base="))]
         st["prs_created"] = st.get("prs_created", 0) + 1; save()
@@ -1113,12 +1116,12 @@ def _open_rollback(fx, **state):
     return fx.run(["--rollback", "--cutover-merge", merge])
 
 
-@pytest.mark.parametrize("case", ["422x9", "422x10", "502", "wrong-head"])
+@pytest.mark.parametrize("case", ["422x9", "422x10", "502", "wrong-head", "exists"])
 def test_raw_row12_the_rollback_pr_post_is_sent_again_on_422_only(tmp_path, case):
     """Rule 6: a 422 (GitHub can't see the new branch yet) created nothing, so only it is sent again; a 2xx must name
     the pushed commit; any other failure may have opened a pull request, so it stops and says to check."""
     over = {"422x9": {"pulls_post": [422] * 9}, "422x10": {"pulls_post": [422] * 10}, "502": {"pulls_post": [502]},
-            "wrong-head": {"pull_head_sha": "0" * 40}}[case]
+            "wrong-head": {"pull_head_sha": "0" * 40}, "exists": {"pulls_post": [422, "exists"]}}[case]
     fx = Fx(tmp_path)
     r = _open_rollback(fx, **over)
     posts = _n(fx, "POST", R + "/pulls")
@@ -1131,6 +1134,9 @@ def test_raw_row12_the_rollback_pr_post_is_sent_again_on_422_only(tmp_path, case
     if case == "422x10":
         assert posts == 10 and made == 0 and fx.sleeps() == 9
         assert "GitHub answered 422 (the branch not visible yet) 10 times, 3 s apart" in r.stdout
+    elif case == "exists":   # security review data-off-main/rollback-pr-422-message: stop at once, say it is open
+        assert posts == 2 and made == 0 and fx.sleeps() == 1
+        assert "is already open: check it at https://github.com/gn0sh/clarksville-records/pulls" in r.stdout
     elif case == "502":
         assert posts == 1 and made == 0 and fx.sleeps() == 0
         assert "and one may be open anyway: check https://github.com/gn0sh/clarksville-records/pulls" in r.stdout

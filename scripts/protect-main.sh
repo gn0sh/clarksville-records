@@ -47,7 +47,7 @@
 #   with --check every read is read once.
 # Run: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <names>|none] [--main <sha>]
 set -uo pipefail
-check=0; pre=0
+check=0; pre=0; r2_put=0
 apps=""; apps_given=0; main_pin=""
 usage="Usage: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <App names>|none] [--main <sha>]"
 while [ "$#" -gt 0 ]; do

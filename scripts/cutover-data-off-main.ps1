@@ -884,6 +884,10 @@ if ($Rollback) {
                 if ($n -cnotmatch '^[0-9]+$' -or $h -cne $c) { Fail "the pull request opened for $br (#$n) has head.sha '$h', not the pushed ${c}: close it and check the branch before running this again" }
                 break
             }
+            if (@($res | Where-Object { "$_" -match 'already exists' }).Count -gt 0) {
+                $res | ForEach-Object { Write-Host ('  ' + (Shown $_)) }
+                Fail "a pull request from $br is already open: check it at https://github.com/$repo/pulls and close it before running this again"
+            }
             if (@($res | Where-Object { $_ -match '[(]HTTP 422[)]' }).Count -eq 0) {
                 $res | ForEach-Object { Write-Host ('  ' + (Shown $_)) }
                 Fail "could not open the pull request for $br, and one may be open anyway: check https://github.com/$repo/pulls for a pull request from $br before running this again"

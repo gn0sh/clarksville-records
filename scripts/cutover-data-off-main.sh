@@ -668,6 +668,10 @@ data/ out of .gitignore. Every config/ input and its readers stay as the cutover
           || fail "the pull request opened for $br (#${n:-unread}) has head.sha '${h:-}', not the pushed $c: close it and check the branch before running this again"
         break
       fi
+      if grep -q 'already exists' "$work/pr.err" 2>/dev/null || printf '%s' "${pr_out:-}" | grep -q 'already exists'; then
+        sed 's/^/  /' "$work/pr.err" 2>/dev/null | shown
+        fail "a pull request from $br is already open: check it at https://github.com/$repo/pulls and close it before running this again"
+      fi
       if ! grep -q '(HTTP 422)' "$work/pr.err" 2>/dev/null; then
         sed 's/^/  /' "$work/pr.err" 2>/dev/null | shown
         fail "could not open the pull request for $br, and one may be open anyway: check https://github.com/$repo/pulls for a pull request from $br before running this again"

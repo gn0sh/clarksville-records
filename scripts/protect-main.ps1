@@ -432,11 +432,11 @@ function WfShape($lines) {
 $wfOk = $false
 for ($i = 1; $i -le $tries; $i++) {
     $wf = @(gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=$wref" -H 'Accept: application/vnd.github.raw')
-    $wfOk = ($LASTEXITCODE -eq 0 -and $wf.Count -gt 0)
+    $wfOk = ($LASTEXITCODE -eq 0)
     if ($wfOk) { break }
     if ($i -lt $tries) { Start-Sleep -Seconds 3 }
 }
-if (-not $wfOk) { Unread "main's .github/workflows/daily-update.yml" } else {
+if (-not $wfOk -or $wf.Count -eq 0) { Unread "main's .github/workflows/daily-update.yml" } else {
     $w = WfShape $wf
     $top = $w.top; $g = $w.gate; $aw = $w.attw; $cw = $w.contw; $pw = $w.prw; $ip = $w.inl; $op = $w.oldpr; $pn = $w.pn
     Write-Host "Main's daily-update.yml: workflow '$top'; gate step in '$g'; attestations: write in '$aw'; contents: write in '$cw'; pull-requests: write in '$pw'; inline job permissions in '$ip'; data pull request step in '$op'; push needs '$pn'"
