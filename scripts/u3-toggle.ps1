@@ -356,7 +356,7 @@ function RunWindow {
     }
     if ((PutVerify (ReadJsonFile $r1pp)) -cne 'ok') { $script:why = "R1'' did not read back as written; the window closed at once"; return }
     $opened = Utc
-    $deadline = [DateTime]::UtcNow.AddMinutes(20)   # main-protect/u3-window-bound: rule-suite reads included
+    $deadline = (Get-Date).ToUniversalTime().AddMinutes(20)   # main-protect/u3-window-bound: rule-suite reads included
     $env:U3_OPENED = $opened
     Write-Host "U3 WINDOW OPEN $opened BACKUP $($script:backup)"
     Write-Host "If this window ever closes without a RESTORED line: gh api -X PUT repos/$repo/rulesets/$rid --input '$($script:backup)'"
@@ -380,7 +380,7 @@ function RunWindow {
         Write-Host 'Waiting for main to move (checked every 15 s, up to 20 minutes). Now type U3 go in the team thread.'
         $moved = $false; $fails = 0; $refused = ''
         for ($i = 1; $i -le 80; $i++) {
-            if ([DateTime]::UtcNow -ge $deadline) { break }
+            if ((Get-Date).ToUniversalTime() -ge $deadline) { break }
             Start-Sleep -Seconds 15
             $cur = ReadMain
             if (-not $cur) {
@@ -414,7 +414,7 @@ function RunWindow {
     for ($i = 1; $i -le 8; $i++) {
         $ids = @(gh api "repos/$repo/rulesets/rule-suites?ref=main&time_period=hour&per_page=100" --jq '.[] | select(.after_sha == $ENV.U3_AFTER) | .id' 2> $null)
         if ($LASTEXITCODE -eq 0 -and $ids.Count -ge 1 -and [string]$ids[0] -match '^[0-9]+$') { $script:suiteId = [string]$ids[0]; break }
-        if ([DateTime]::UtcNow -ge $deadline) { break }
+        if ((Get-Date).ToUniversalTime() -ge $deadline) { break }
         if ($i -lt 8) { Start-Sleep -Seconds 15 }
     }
     if (-not $script:suiteId) { $script:why = "PR #$Pr merged by $owner as $mergeSha, but no rule suite listed it within the window"; return }

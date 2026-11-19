@@ -1,7 +1,8 @@
 """scripts/u3-toggle.{sh,ps1}: the U3 positive control (docs/ops/u3-positive-control.md, ADR 0011 decision 5).
 
-The .sh runs here against a stub gh (no GitHub call is ever made); the .ps1 (no PowerShell here) is pinned to the
-same filters, lines and refusals text by text."""
+The .sh runs here against a stub gh (no GitHub call is ever made). With PWSH set, every test that runs the script also
+runs the .ps1 twin against the same stub (tests/pwsh_twin.py); the .ps1 is also pinned to the same filters, lines and
+refusals text by text."""
 import base64
 import json
 import os
@@ -13,6 +14,8 @@ import time
 from pathlib import Path
 
 import pytest
+
+import pwsh_twin
 
 ROOT = Path(__file__).resolve().parent.parent
 SH = ROOT / "scripts" / "u3-toggle.sh"
@@ -29,6 +32,34 @@ READ_ONLY = {"id": RID, "source_type": "Repository", "source": REPO, "node_id": 
              "current_user_can_bypass": "pull_requests_only"}
 
 pytestmark = pytest.mark.skipif(shutil.which("jq") is None, reason="jq is needed by the script and the stub")
+TWIN = {"now": "sh"}
+
+
+def pytest_generate_tests(metafunc):
+    """Each test that runs the script (it takes tmp_path) runs once per twin: "sh", and "ps1" when PWSH is set."""
+    if "tmp_path" in metafunc.fixturenames:
+        metafunc.parametrize("twin", pwsh_twin.TWINS, indirect=True)
+
+
+@pytest.fixture(autouse=True)
+def twin(request):
+    TWIN["now"] = getattr(request, "param", "sh")
+    yield TWIN["now"]
+    TWIN["now"] = "sh"
+
+
+PS_FLAGS = {"--pr": "-Pr", "--merge": "-Merge", "--report": "-Report", "--restore": "-Restore", "--noop": "-Noop",
+            "--rehearse": "-Rehearse", "--show-body": "-ShowBody"}
+
+
+def _cmd(script, args):
+    """The command that runs <script> (a u3-toggle.sh) with the .sh's <args>, or its .ps1 twin with the same ones."""
+    if TWIN["now"] == "sh":
+        return ["bash", str(script), *args]
+    a = pwsh_twin.flags(args, PS_FLAGS)
+    if a[:1] == ["-Restore"] and len(a) > 1:          # the .sh's --restore <file> is -Restore -From <file>
+        a = ["-Restore", "-From", *a[1:]]
+    return pwsh_twin.argv(Path(script).with_suffix(".ps1"), a)
 
 _GH = r'''#!/usr/bin/env python3
 import json, os, subprocess, sys
@@ -174,13 +205,24 @@ def _env(tmp_path, st, hm="1400"):
     (tmp_path / "state.json").write_text(json.dumps(st))
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
-    return {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(tmp_path / "calls"),
-            "GH_STATE": str(tmp_path / "state.json"), "FAKE_HM": hm, "HOME": str(home)}
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(tmp_path / "calls"),
+           "GH_STATE": str(tmp_path / "state.json"), "FAKE_HM": hm, "HOME": str(home)}
+    if TWIN["now"] == "ps1":
+        pwsh_twin.install(home, bindir)
+        _docs(tmp_path).mkdir(exist_ok=True)
+        env = pwsh_twin.env(env)
+    return env
+
+
+def _docs(tmp_path):
+    """Where the backup goes: the .sh's $HOME, the .ps1's Documents folder (on Linux .NET gives $HOME/Documents, and
+    only when it exists)."""
+    return tmp_path / "home" / ("Documents" if TWIN["now"] == "ps1" else "")
 
 
 def _run(tmp_path, args, st=None, hm="1400", timeout=60, script=SH, **env_over):
     env = {**_env(tmp_path, st or _state(), hm), **env_over}
-    r = subprocess.run(["bash", str(script), *args], env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(_cmd(script, args), env=env, capture_output=True, text=True, timeout=timeout)
     return r, _calls(tmp_path)
 
 
@@ -264,8 +306,9 @@ def test_the_whitelist_drops_every_read_only_field(tmp_path):
     get["bypass_actors"] = [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
     get["rules"] = list(reversed(get["rules"]))                        # GitHub's order does not matter
     (tmp_path / "get.json").write_text(json.dumps(get))
-    r = subprocess.run(["bash", str(SH), "--show-body", str(tmp_path / "get.json")], capture_output=True, text=True,
-                       env={**os.environ, "PATH": f"/nonexistent-gh:{os.environ['PATH']}"})
+    env = {**os.environ, "PATH": f"/nonexistent-gh:{os.environ['PATH']}"}
+    r = subprocess.run(_cmd(SH, ["--show-body", str(tmp_path / "get.json")]), capture_output=True, text=True,
+                       env=pwsh_twin.env(env) if TWIN["now"] == "ps1" else env)
     assert r.returncode == 0, r.stderr
     body = json.loads(r.stdout)
     assert body == _wl(R1P)
@@ -283,7 +326,7 @@ def test_every_put_body_is_whitelisted(tmp_path):
     for c in made:
         if c.get("method") == "PUT" and c["path"].endswith("/rulesets/27502319"):
             assert "--input" in c["argv"] and not any(x.startswith(("-f", "-F")) for x in c["argv"]), c
-    backup = next(Path(p) for p in (tmp_path / "home").iterdir() if p.name.startswith("u3-ruleset-backup-"))
+    backup = next(Path(p) for p in _docs(tmp_path).iterdir() if p.name.startswith("u3-ruleset-backup-"))
     assert json.loads(backup.read_text()) == _wl(R1P)
     assert re.search(rf"^U3 WINDOW OPEN \d{{4}}-\d\d-\d\dT\d\d:\d\d:\d\dZ BACKUP {re.escape(str(backup))}$", r.stdout, re.M)
     assert f"\nBACKUP {backup}\n" in r.stdout
@@ -450,7 +493,8 @@ def test_a_refused_r1pp_put_is_still_restored(tmp_path):
 
 def test_a_failed_restore_is_loud_and_never_pass(tmp_path):
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], _state(put_fail=[2, 3, 4]))
-    assert "RESTORE FAILED" in r.stdout and "--restore" in r.stdout and r.returncode == 3
+    restore = "--restore" if TWIN["now"] == "sh" else "-Restore -From"
+    assert "RESTORE FAILED" in r.stdout and restore in r.stdout and r.returncode == 3
     failed = next(ln for ln in r.stdout.splitlines() if ln.startswith("RESTORE FAILED"))
     assert re.search(r"BACKUP \S+u3-ruleset-backup-\d{8}-\d{6}\.json", failed), failed
     line = _verdict(r.stdout)
@@ -460,7 +504,7 @@ def test_a_failed_restore_is_loud_and_never_pass(tmp_path):
 def test_ctrl_c_in_the_window_restores(tmp_path):
     env = _env(tmp_path, _state(), "1400")
     env["STUB_SLEEP"] = "0.2"
-    p = subprocess.Popen(["bash", str(SH), "--pr", "60"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    p = subprocess.Popen(_cmd(SH, ["--pr", "60"]), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          text=True)
     seen = []
     deadline = time.time() + 30
@@ -469,7 +513,7 @@ def test_ctrl_c_in_the_window_restores(tmp_path):
         seen.append(ln)
         if ln.startswith("U3 WINDOW OPEN"):
             break
-    for b in (tmp_path / "home").glob("u3-ruleset-backup-*"):     # u3-restore-source: memory, not the file
+    for b in _docs(tmp_path).glob("u3-ruleset-backup-*"):     # u3-restore-source: memory, not the file
         b.unlink()
     time.sleep(0.3)
     p.send_signal(signal.SIGINT)
@@ -668,7 +712,8 @@ def test_ps1_has_the_same_steps_lines_and_refusals():
     sh = SH.read_text(encoding="utf-8")
     for s in ("U3 WINDOW OPEN $opened BACKUP $($script:backup)", "RESTORED ", "U3 VERDICT ", "RESTORE FAILED",
               "U3 REHEARSAL WINDOW OPEN ", "U3 REHEARSAL DONE", "U3 REHEARSAL FAILED", "[switch]$Rehearse",
-              "BACKUP $($script:backup)", "[DateTime]::UtcNow.AddMinutes(20)", "[DateTime]::UtcNow -ge $deadline",
+              "BACKUP $($script:backup)", "(Get-Date).ToUniversalTime().AddMinutes(20)",
+              "(Get-Date).ToUniversalTime() -ge $deadline",
               "$hm -ge 730 -and $hm -le 1030", "if (-not (PinOk))", "$script:backupObj = $live",
               "$suiteResult -ceq 'bypass' -and $prEval -ceq 'fail'", "$prEnf -cne 'active'", "$ev.Count -ne 3",
               "$script:prSt[3] -cne $head", "'(?i)approving review'", "$m -cne $mainBefore", "startswith($ENV.U3_REFUSED)", "$env:U3_REFUSED = 'U3 merge refused'",
@@ -695,7 +740,9 @@ def test_ps1_has_the_same_steps_lines_and_refusals():
     # the restore runs in finally, after RunWindow, and the window is armed before the first PUT
     body = ps1[ps1.index("function RunWindow"):]
     assert body.index("$script:armed = $true") < body.index("PutVerify (ReadJsonFile $r1pp)")
-    assert re.search(r"try \{\s*RunWindow\s*\} finally \{\s*if \(\$script:armed\) \{ CloseWindow \}\s*\}", ps1)
+    fin = ps1[ps1.index("try {\n    RunWindow"):]
+    assert re.match(r"try \{\s*RunWindow\s*\$script:ran = \$true\s*\} finally \{\s*if \(\$script:armed\) \{", fin), fin
+    assert fin.index("CloseWindow") < fin.index("exit $script:code") < fin.index("\n}\n")   # the exit is inside finally
     close = ps1[ps1.index("function CloseWindow"):]
     assert close.index("RestoreFrom $src $label") < close.index("U3 REHEARSAL DONE") < close.index("U3 VERDICT")
     assert "$src = $script:backupObj" in close and "$src = ReadJsonFile $r1p" in close
@@ -733,7 +780,7 @@ def test_refused_unless_r1pp_is_pinned_to_adr_0011(tmp_path, change):
     """v1-probe/u3-r1pp-pin: the preflight itself checks R1'' = R1' plus exactly the three decision-5 values."""
     sdir = tmp_path / "scripts"
     sdir.mkdir()
-    for name in ("u3-toggle.sh", "main-ruleset-r1p.json", "merge-reviewed.sh"):
+    for name in ("u3-toggle.sh", "main-ruleset-r1p.json", "merge-reviewed.sh", "u3-toggle.ps1", "merge-reviewed.ps1"):
         shutil.copy(ROOT / "scripts" / name, sdir / name)
     rs = json.loads(json.dumps(R1PP))
     change([x for x in rs["rules"] if x["type"] == "pull_request"][0]["parameters"])
@@ -766,7 +813,7 @@ def test_rehearsal_runs_the_same_preflight(tmp_path):
 def test_rehearsal_ctrl_c_restores(tmp_path):
     env = _env(tmp_path, _state(), "1400")
     env["STUB_SLEEP"] = "0.3"
-    p = subprocess.Popen(["bash", str(SH), "--pr", "60", "--rehearse"], env=env, stdout=subprocess.PIPE,
+    p = subprocess.Popen(_cmd(SH, ["--pr", "60", "--rehearse"]), env=env, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, text=True)
     seen = []
     while True:
