@@ -175,6 +175,10 @@ Search. No door names a body this build does not make. The overview of hub cards
   close a record). N is a module constant (`AT_LARGE_GAP_LISTS = 2`), not a setting. The tail (after a member's last
   print, up to L) keeps the existing rule: the record reads "seen to" its last print, or is `held_over` when L's
   list is incomplete. A reprint after a one-list tail gap rejoins the same record on the next build.
+- **Short lists (T5b review, `at-large/complete-list-truncated`).** A list that resolves fewer officials than the
+  latest complete list before it is cut off, so it is not complete, unless `AT_LARGE_SHORT_CONFIRM` (= N + 1 = 3)
+  short lists in a row confirm a smaller council (a vacancy); then that run is complete and its size is the new
+  reference. So two cut-off lists never split a record, and a vacancy of three or more lists still does.
 - **Review nits 3-5 (T5b).** (3) A print with `pro_tem: true` never carries a `title`. The collector never writes
   both, and `at_large_rows` refuses a prints file that has both (SeatsError naming the meeting), so "Mayor Pro Tem"
   can never become a Mayor title record. (4) `registry._check_primary` refuses two `primary.titles` with the same

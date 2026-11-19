@@ -243,6 +243,10 @@ TITLE_CONFLICT = "at-large/title-conflict"
 # before the gap, and a later print starts a new record (ADR 0012 decision 5, member gaps; must-fix at-large/member-gap).
 # One missing list never splits a record (holder_rows' one-list-drop rule). A module constant, not a setting.
 AT_LARGE_GAP_LISTS = 2
+# A list that resolves fewer officials than the latest complete list before it is short (cut off), unless this many
+# consecutive short lists confirm the smaller council (a vacancy). One more than AT_LARGE_GAP_LISTS, so the short
+# lists of one gap can never confirm themselves (_complete_lists; at-large/complete-list-truncated).
+AT_LARGE_SHORT_CONFIRM = AT_LARGE_GAP_LISTS + 1
 # The end of the lists in the title-run loop: a private object, so no list key (a print's meeting_id may be null) can
 # ever be read as the end (review nit 5).
 _END = object()
@@ -260,16 +264,41 @@ def _lists(prints: list[dict]) -> list[tuple[str, str]]:
 
 
 def _complete_lists(prints: list[dict], facts: dict) -> set[tuple[str, str]]:
-    """The lists that can show a member is missing: every name the list prints resolves to an official (no unresolved
-    print, and no attendance entry of that date's meetings without an official). An incomplete list in a member's
-    gap neither counts toward AT_LARGE_GAP_LISTS nor breaks the streak. Attendance is matched by date, as in
-    latest_list_incomplete, so a doubt about one list of a day leaves every list of that day incomplete (fewer
-    splits, never a wrong one)."""
+    """The lists that can show a member is missing. A list is complete when
+    1. every name it prints resolves to an official (no unresolved print, and no attendance entry of that date's
+       meetings without an official; attendance is matched by date, as in latest_list_incomplete), and
+    2. it is not short (at-large/complete-list-truncated): it resolves at least as many officials as the latest
+       complete list before it. A run of consecutive short lists is a cut-off page, not a departure, unless it lasts
+       AT_LARGE_SHORT_CONFIRM lists: then the smaller council is confirmed (a vacancy), the whole run counts as complete,
+       and its size is the new reference. A run that ends sooner (a list as large as the reference again) stays
+       incomplete, so a member missing only from it keeps one record.
+    Lists failing rule 1 are skipped: they neither join nor break a run of short lists. An incomplete list in a
+    member's gap neither counts toward AT_LARGE_GAP_LISTS nor breaks the streak. The cost of the rule: a vacancy
+    shorter than AT_LARGE_SHORT_CONFIRM lists, with the member back after it, reads as one record; and that many
+    consecutive cut-off lists missing the same member would still split (judged rare enough to accept)."""
     officials = {o["id"] for o in facts["officials"]}
     unread_dates = {m.get("date") for m in facts.get("meetings", [])
                     for a in m.get("attendance") or [] if a.get("official_id") not in officials}
     unresolved = {_list_key(p) for p in prints if not p.get("configured") and p.get("official_id") not in officials}
-    return {k for k in _lists(prints) if k not in unresolved and k[0] not in unread_dates}
+    size: dict[tuple[str, str], set] = defaultdict(set)
+    for p in prints:
+        if not p.get("configured") and p.get("official_id") in officials:
+            size[_list_key(p)].add(p["official_id"])
+    complete: set[tuple[str, str]] = set()
+    ref, short = None, []
+    for k in _lists(prints):
+        if k in unresolved or k[0] in unread_dates:
+            continue
+        n = len(size[k])
+        if ref is None or n >= ref:
+            complete.add(k)
+            ref, short = n, []          # an unconfirmed short run stays incomplete
+            continue
+        short.append(k)
+        if len(short) >= AT_LARGE_SHORT_CONFIRM:
+            complete.update(short)
+            ref, short = n, []
+    return complete
 
 
 def _member_runs(member_prints: list[dict], lists: list[tuple[str, str]], complete: set) -> list[list[dict]]:

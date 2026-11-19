@@ -160,6 +160,9 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
   with a current record, in ward order, then the Mayor, and the `district_lookup` link only when verified; no address
   context. `officials_page.seat_key` never orders by a title seat: by surname for `at_large`, by ward then other
   seats for `wards` (decision 5's consumer table).
+- **One holder per seat (review finding `at-large/seat-single-holder`):** `Seats.current_of_seat` and
+  `held_over_of_seat` (sitegen/seats.py) return one record, so T6 never calls them for `AT_LARGE_SEAT` (e.g. as
+  `council.seat_list` does per seat); every member holds `at-large` at once.
 - **Collision (2026-11-19):** B1b also edits `sitegen/build.py` and `sitegen/config.py` (small hunks). Start after
   B1 and B1b merge.
 - Tests: new `tests/test_city_only_build.py` (subprocess builds of T4b and T4) asserts the pages written and not
