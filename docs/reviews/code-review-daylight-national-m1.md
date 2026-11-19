@@ -55,3 +55,8 @@
 - should-fix `council-listing/rules-drift`: re-implements `days.scheduled_cards` row rules via private `_CALLED_OFF`.
 - should-fix `tests/cap-order`: cap test checks only the length.
 - nits: cancelled listing vs facts meeting, refused URL labelled not-posted, 4.3 signature drift.
+- SHOWN_REVIEWED delta (d3310033): REQUEST CHANGES. Closed: body-name-word-check, body-name-false-refusal.
+  must-fix `privacy-withhold/reviewed-pair-unbound-source`: the reviewed pair pins only (gov, body_name); switching the
+  entry to platform legistar with another client/body_id, or another `daylight.body`, still loads `items: shown`.
+  nit `privacy-withhold/alias-on-shown`: `also` ids on a shown entry attach other governments' cards to it.
+  Loop limit: this family has been hit repeatedly after section 11; architect re-plan (opus/xhigh) runs before the fix.
