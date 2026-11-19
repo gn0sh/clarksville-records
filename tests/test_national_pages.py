@@ -27,7 +27,8 @@ FIXTURE_DISTRICTS = ROOT / "site" / "fixtures" / "districts.sample.json"
 COUNCIL_ID, COUNTY_ID = "place-4715160", "county-47125"
 CENSUS = "geocoding.geo.census.gov"
 BUILT_AT = datetime(2026, 11, 19, 18, 0, tzinfo=timezone.utc)
-DIGEST_HTML = {"digest/index.html", "digest/covered.html", "digest/requested.html", "digest/geo-frame.html",
+DIGEST_HTML = {"digest/index.html", "digest/covered.html", "digest/requested.html", "digest/how.html",
+               "digest/geo-frame.html",
                f"digest/tn/{COUNCIL_ID}.html", f"digest/tn/{COUNTY_ID}.html"}
 DIGEST_JSON = {f"digest/tn/{COUNCIL_ID}.json", f"digest/tn/{COUNTY_ID}.json"}
 
@@ -351,7 +352,7 @@ def main_text(html: str) -> str:
 
 
 # Words base.html.j2 prints in every page's <main> (the shared frame, UX section 0), not digest labels.
-FRAME_WORDS = ("Report an error on this page",)
+FRAME_WORDS = ("Report an error on this page", "daylight.us.list", "daylight.us.requested", "daylight.us.counted")
 
 
 def leftover(text: str, labels, sources) -> str:
@@ -387,6 +388,21 @@ def test_every_visible_string_is_a_label_or_source_text(sites, loaded, page_labe
 def test_the_strings_check_catches_an_unlabelled_word(loaded, page_labels):
     text = main_text("<main><p>Coming up</p><p>Breaking news</p></main>")
     assert "Breaking news" in leftover(text, list(page_labels.values()), set())
+
+
+# --- How Daylight Digest works ---------------------------------------------------------------------------------------
+
+def test_how_page_exists_only_with_the_switch_on_and_lists_the_three_keys(sites):
+    """T1: the Daylight Digest method text is its own page (the Clarksville Method page is untouched). It names the
+    three storage keys, the counter event and the rough-location disclosure; the entry page and What we cover link it."""
+    assert "digest/how.html" not in sites["off"] and "digest/how.html" not in sites["absent"]
+    html = sites["on"]["digest/how.html"].decode()
+    for key in ("daylight.us.list", "daylight.us.requested", "daylight.us.counted"):
+        assert f"<code>{key}</code>" in html
+    assert "count-" in html and "IP address" in html and "show roughly where you are" in html
+    assert "Visits to Daylight Digest pages" not in html            # fixture build: the visit counter is off
+    for rel in ("digest/index.html", "digest/covered.html"):
+        assert 'href="how.html"' in sites["on"][rel].decode(), rel
 
 
 # --- labels and their links ---------------------------------------------------------------------------------------

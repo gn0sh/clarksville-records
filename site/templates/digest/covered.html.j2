@@ -9,6 +9,7 @@
   <h1>{{ L["covered.h1"] }}</h1>
   <p class="lede">{% if n_covered == 1 %}{{ L["covered.count-one"] }}{% else %}{{ lt(L["covered.count"], n=n_covered) }}{% endif %}</p>
   <p>{{ L["covered.how"] }}</p>
+  <p>{{ lh(L["covered.how-link"], "how.html") }}</p>
   <p><a href="index.html">{{ L["covered.lookup"] }}</a></p>
   <h2>{{ L["covered.h-covered"] }}</h2>
   {% for grp in covered %}

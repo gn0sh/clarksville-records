@@ -485,6 +485,8 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 - **Before you click Run workflow, open Actions. If a Daily update run is Queued, don't start one.** All runs share
   one concurrency group with one pending slot: a manual run queued then replaces the pending scheduled run (09:07
   UTC), and only a scheduled run sends the note, so that day gets no email.
+- **Every manual Buttondown send must be filtered to its intended tag.** An unfiltered send goes to every subscriber,
+  including people who only requested a Daylight Digest government (`national/unfiltered-send`).
 
 ## Rollback and stopping
 - **Stop all sending (one step, Brian or anyone with admin):**

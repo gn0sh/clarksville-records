@@ -8,6 +8,8 @@ B4): with config/site.yml `national.enabled: true` the build writes, under `dige
                     form-action and connect-src, the counter's origin while analytics is on.
 - `covered.html`    What we cover: covered and can't-cover governments by state, then name. Static, no script.
 - `requested.html`  the request-confirmed page. Static.
+- `how.html`        How Daylight Digest works: what the page keeps on a device, what the request and the count send.
+                    Static; its page-visits paragraph prints only while the visit counter is on.
 - `geo-frame.html`  the Census frame, exactly `national.geo_frame_html()` (its own meta CSP, 4.0).
 - `<st>/<body id>.html` and `.json` per covered government: the coming-up page, printed from the JSON only (consumer 3
                     of section 11), and its `daylight-upcoming/1` feed (3.5), checked against the schema again here.
@@ -49,6 +51,7 @@ PAGE_LABELS_SCHEMA = "daylight-pagelabels/1"
 INDEX = f"{FOLDER}/index.html"
 COVERED = f"{FOLDER}/covered.html"
 REQUESTED = f"{FOLDER}/requested.html"
+HOW = f"{FOLDER}/how.html"
 FRAME = nat.GEO_FRAME_PAGE                         # digest/geo-frame.html
 # site/static files only the digest pages use: copied into the build only while the switch is on (7a (d))
 STATIC_ONLY = ("national.js", "us-count.js", "digest.css")
@@ -60,7 +63,7 @@ LINK_KEYS = ("election_url", "census_url")
 
 # Page label keys: a group and a name, or a state's USPS code, or a time zone name.
 PAGE_LABEL_KEY_RE = re.compile(
-    r"^((digest|menu|front|crumb|index|lookup|form|count|covered|requested|body)\.[a-z0-9][a-z0-9-]*"
+    r"^((digest|menu|front|crumb|index|lookup|form|count|covered|requested|how|body)\.[a-z0-9][a-z0-9-]*"
     r"|state\.[A-Z]{2}|tz\.[A-Za-z_]+(/[A-Za-z_+-]+){0,2})$")
 SCRIPT_GROUPS = ("lookup.", "form.", "count.")      # embedded in digest/index.html for national.js (F2)
 # The keys the templates and this module read (the script groups are F2's and are checked by F2's tests).
@@ -73,6 +76,9 @@ REQUIRED_PAGE_LABELS = (
     "covered.h-covered", "covered.h-cant", "covered.row-link", "covered.checked", "covered.official",
     "covered.empty-cant", "covered.closing",
     "requested.title", "requested.h1", "requested.body", "requested.cant", "requested.back",
+    "index.how-link", "covered.how-link",
+    "how.title", "how.h1", "how.address", "how.device-intro", "how.key-list", "how.key-requested",
+    "how.key-counted", "how.device-after", "how.requests", "how.requests-2", "how.count", "how.count-2", "how.visits", "how.back",
     "body.title", "body.eyebrow", "body.coming-up", "body.official-record", "body.newest", "body.no-records",
     "body.no-time", "body.tz", "body.as-posted", "body.agenda", "body.agenda-for",
     "body.not-posted", "body.incomplete", "body.withheld", "body.cut", "body.item-page", "body.no-meetings",
@@ -543,6 +549,10 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
 
     written[REQUESTED] = pages.html("digest/requested.html.j2", REQUESTED, label_text(L["requested.title"]),
                                     crumbs=pages.crumbs("crumb.home"), report=False)
+
+    # How Daylight Digest works: the method text for the digest pages (the Clarksville Method page is not touched)
+    written[HOW] = pages.html("digest/how.html.j2", HOW, label_text(L["how.title"]), crumbs=pages.crumbs("crumb.home"),
+                              buttondown_privacy=settings["privacy_url"])
 
     # one coming-up page and its JSON per covered government
     for g in covered:
