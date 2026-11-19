@@ -522,22 +522,102 @@ footer of every existing page by the same fixed fragment (decision N1), and (d) 
   `scripts/request_report.py` ignores `req-` ids not in the directory.
 
 ## 11. Invariant: item text is published only for governments we have said so for (`privacy-withhold/national-prefix`)
-Problem family `privacy-withhold` (hit three times). Invariant: **a person's or child's name can reach a public page,
-feed or email only through item text, and item text is read, stored or published only for a government whose directory
-entry says `items: shown`.** The default is withheld. The rule is the reviewed table: the build accepts `shown` only
-for an exact (`gov`, `body_name`) pair in `sitegen/national.py` `SHOWN_REVIEWED`, added by a reviewed code change whose
-comment links the source showing the body is the government's own council or commission (a school or youth board
-listed under a city, or on a city's Legistar client, stays withheld even though its id is a `place-` id). A name
-heuristic alone fails both ways (manager decision, 2026-11-19), so it runs only as a second, fail-closed guard (3.2);
-and `shown` stays refused for every `sd*` id whatever the table says. Consumers, each of which must read the directory field and
-none of which may infer withholding from an id prefix:
-1. `collector/national/legistar_upcoming.py`: makes no items request unless `shown` (M2, C2).
-2. `sitegen/national_clarksville.py clarksville_feeds` and the M2 copy step: set `items_withheld` and, when not
-   shown, write `items: []` and `item_count: null` (the keys stay, empty; the schema refuses anything else).
-3. The coming-up page template: prints items only from the JSON's `items`; a withheld government shows the fixed
-   "official agenda is the full record" label (UX withheld state).
-4. The M4 ICS and Atom writers and the weekly email plan: read only the JSON, so they inherit it (a test builds all
-   three outputs from a withheld fixture and finds no item text).
-5. `national-data` cache (`data/national/cache/...`): never holds items for a withheld government.
-6. The future app and any export: read only the JSON.
-A test per consumer with one withheld `place-` entry (a "youth council") and one `sd*` entry.
+v3, software-architect, 2026-11-19: loop-limit re-plan after the fourth hit in family `privacy-withhold` (id prefix;
+body-name heuristic; cross-layer `also`; reviewed pair with an unbound source, `privacy-withhold/reviewed-pair-unbound-
+source` and `privacy-withhold/alias-on-shown`, `docs/reviews/code-review-daylight-national-m1.md`). Where 3.2, 3.5, 3.7,
+4.3 or 4.5 differ from this section, this section wins; 11.5 lists the edits they need.
+
+**Invariant.** A person's or child's name reaches published bytes (a page, a JSON file, a feed, an email, the
+`national-data` branch) only through item text (`items[].text`, `items[].number`). Item text is read, stored or
+published for a government only when (a) its directory entry says `items: shown`, (b) that whole entry, normalized,
+has the digest pinned for that government in `SHOWN_REVIEWED` by a reviewed code change, and (c) the text was read
+from the source that entry names, under that digest. Everything else is withheld, and `shown` stays refused for every
+`sd*` id. Consequence, true by construction: **an edit to `directory.yml`, `gov-flags.yml`, `labels.yml`, `site.yml`,
+`council.yml` or `data/` alone can narrow what is published, never widen it.** Why the earlier fixes failed: each
+pinned one field (prefix, name, then the (gov, name) pair) while the meaning of `shown` depended on other fields
+(`platform`, source keys, `also`, the `daylight.body` mapping). The digest pins every field, including ones added later.
+
+### 11.1 Every input and consumer, config to published bytes
+| # | Input or consumer | Decides or carries | Bound by (v3) | Checked at |
+|---|---|---|---|---|
+| 1 | `directory.yml` `items` | decides | `shown` needs a `SHOWN_REVIEWED` row whose digest equals the entry's; missing = withheld; `withheld` needs no review (narrowing) | load |
+| 2 | `gov`, `body_name`, `state`, `status` | whose page | in the digest; `shown_refusal` still runs (no `sd*`, a general layer, ASCII, stem denylist unless `denylist_ok`) | load |
+| 3 | `also` | attaches other Census ids' cards to this entry (pagedir `alias`, read by `national.js`) | in the digest (sorted); same layer; unique across `gov` and `also` | load |
+| 4 | `platform`, `daylight.{body,full_url}`, `legistar.{client,body_id,tz,final_statuses}`, `host_ok` | which source | in the digest; one covered entry per source key (`daylight:<body>`, `legistar:<client>:<body_id>`) | load |
+| 5 | `official_url`, `checked`, `checked_url`, `checked_doc` | links only | in the digest (cost: re-checking a shown entry needs a digest update; accepted, shown entries are few) | load |
+| 6 | any key added later | unknown | in the digest automatically (every key is hashed; unknown keys stay refused) | load |
+| 7 | `SHOWN_REVIEWED` (`sitegen/national.py`) | decides | a code change reviewed by `code-reviewer`; checklist: read the same PR's diff of that entry and the row's source comment (one source per `also` id); one row per `gov` | review, test |
+| 8 | `gov-flags.yml` hide, show, rules, lines | only whether a Census unit makes a card | never maps a unit to an entry and never names `items`: closed key sets (`_unknown`); pagedir `alias` is built only from directory `also` | load, test |
+| 9 | `labels.yml`, `body_name` text | curated words, not item text | reviewed as text in their own PR; outside this invariant | - |
+| 10 | `site.yml` `county_key`, `council.yml` `body_key`, `calendar` | map `daylight.body` to stored data | items flow only by the county route: the adapter fixes `COUNTY_BODY_KEY = "county"` in code and raises `FeedError` unless `config.SITE["county_key"]` equals it and no council's `body_key` equals it; council feeds never carry items (`not-read`) | adapter |
+| 11 | `data/county-agendas/agendas.json`, council facts and listing | carry text | already published by Clarksville's own pages; national republishes the stored titles byte for byte (B3 test) for the entry bound by 1-4 and 10 | adapter |
+| 12 | `sitegen/national_clarksville.py clarksville_feeds` | reads text | reads stored items only when `is_shown(gov)`; stamps `review` (11.2) | adapter |
+| 13 | `sitegen/national_guards.py` | the shared gate | `is_shown(entry)` is the one predicate every consumer calls; `bind_feed(feed, entry)` is the last gate before any write; `clean_feed` cleans and never decides | build, collect |
+| 14 | `schema/daylight-upcoming.schema.json` | shape | top-level `review` required, null or `^[0-9a-f]{64}$`; `allOf`: `review` null means every meeting has `items_withheld: true`, `items: []`, `item_count: null` (existing `allOf`s stay) | every write |
+| 15 | builder B4 `build_national` (`sitegen/national_pages.py`) | writes | `.json` and `.html` only from `bind_feed` output, only for a feed whose `body.id` is a covered directory entry; the page prints items only from that bound object | build |
+| 16 | M2 copy step (`national-data` to `digest/`) | carries text, untrusted | `bind_feed` strips items unless the entry is shown now and the file's `review` equals the current digest (covers the runs between a reviewed source change and the next collect); a `body.id` or `platform` mismatch makes the file missing (page stale) | build |
+| 17 | embedded page directory, `national.js` | no text; card mapping | `alias` only from row 3; `national.js` maps a unit only through pagedir `alias` | build, test |
+| 18 | M2 Legistar collector (`collector/national/`) | reads text | loads only through `load_directory`; items request only when `is_shown` and only to the entry's `client` and `body_id`; drops (counts) any event whose `EventBodyId` is not `body_id`; stamps `review`; `bind_feed` before writing `bodies/<id>.json` | collect |
+| 19 | `national-data` cache `data/national/cache/<id>/` | stores text | each file records `review`; a file with another `review` is a miss and is deleted; each run first deletes `cache/<id>/` for every body not shown | collect |
+| 20 | `national-data` git history | stores text | a body shown under a review later found wrong keeps its old text in branch history; removal is a history rewrite (hard stop 2, Brian). Accepted residual: the review is the gate | - |
+| 21 | M4 ICS; M4 Atom, weekly email, future app, exports | publish | ICS carries no item text (3.6); the others read only the bound published JSON | test |
+| 22 | Clarksville morning note | not a consumer | reads Clarksville data and `note-` tags only (AC3.7, B7); must stay so: the sender imports no `sitegen.national*` module | test |
+| 23 | run logs, errors, health, proposals | counts and ids only | never text (B3 review holds) | test |
+| 24 | integrity of `national-data` files | forged text with a correct digest (the digest is public, not a MAC) | D1/D2 attestation, not this invariant | deploy |
+
+### 11.2 The fix (owner backend-engineer, opus/high per the data-integrity rule)
+- `sitegen/national.py`: `ShownReview(gov: str, body_name: str, digest: str, denylist_ok: bool = False)`, one row per
+  `gov`, each commented with its source link, the source for each `also` id, and the review date. `review_digest(e)`:
+  `sha256` hex of `json.dumps({"schema": DIRECTORY_SCHEMA, "entry": norm(e)}, sort_keys=True, separators=(",", ":"),
+  ensure_ascii=True)`, where `norm` is the raw `safe_load` mapping with every key kept, `also` defaulted to `[]` and
+  sorted, `items` defaulted, and every `date` written as ISO text (so YAML key order, `also` order and a quoted date
+  do not change it). `load_directory` computes it after every other per-entry check; for `items: shown` it calls
+  `shown_refusal(gov, body_name, digest)`, which adds "digest must equal the row's" to today's checks; the error
+  names both digests so a reviewed update is one line. The loaded entry gains `review`: the digest when shown, else
+  `None`. After the entries: refuse two covered entries with one source key (row 4).
+- `sitegen/national_guards.py`: `is_shown(entry) -> bool` (`items == "shown"` and `review` is a 64-hex string);
+  `bind_feed(feed, entry) -> (feed, BindCounts)`: raises `BindError` (new, in the guards module, which imports only
+  `config`) if `body.id != entry["gov"]` or `body.platform != entry["platform"]`; keeps items only when `is_shown(entry)` and `feed["review"] == entry["review"]`, else empties
+  every meeting (`items: []`, `item_count: null`, `items_withheld: true`) and sets `review: null`; counts
+  `withheld_stripped` (entry not shown) and `review_mismatch` (shown, other digest). So a published `review` is
+  non-null exactly when the file carries items read under that review.
+- Adapter: `_shown` becomes `is_shown`; `_feed` writes `review`; `COUNTY_BODY_KEY` check (row 10).
+- Checks run at load (rows 1-7, source uniqueness), adapter (10-12), build (`bind_feed` then the schema, 14-17),
+  collect (18-19, `bind_feed` again). D2's deploy job fails on `withheld_stripped > 0` (a collector bug) and only
+  logs `review_mismatch` (expected for one run after a reviewed change).
+
+### 11.3 Tests (each route closed; fixtures: a withheld `place-` "Youth Council", an `sd*` entry, and the sentinel
+item text `SENTINEL-ITEM-TEXT` in every source fixture)
+1. Shipped: every shown entry's digest equals its row; one row per `gov` (`tests/test_national_directory.py`).
+2. Mutation sweep, a one-entry directory per shipped shown entry: change each key in turn to another valid value
+   (body_name, official_url, checked, checked_url to checked_doc, `daylight.body`, `daylight.full_url`), add one
+   same-layer `also` id, and swap the `daylight` block for a `legistar` block with `host_ok`: each is refused naming
+   the digest. The same edits with `items: withheld` load.
+3. Digest canonical form: YAML key order, `also` order and quoted vs plain `checked` give one digest.
+4. Two covered entries with one `daylight.body`, or one Legistar `client` and `body_id`: refused.
+5. Adapter: `county_key` monkeypatched to `city`, or a council `body_key` of `county`: `FeedError`, no feed; feeds
+   carry `review` (digest when shown, null when withheld); the schema refuses `review: null` with any item.
+6. `bind_feed`: withheld entry with items, stripped and counted; shown entry with a stale `review`, stripped and
+   counted; `body.id` or `platform` mismatch, `BindError`; shown and matching, unchanged.
+7. Builder sweep (B4): build every output from the fixtures, including a copied M2 file with a stale `review`;
+   `SENTINEL-ITEM-TEXT` appears only in the bound shown government's `.json` and `.html` (never the pagedir,
+   `index`, `covered`, `requested` or another government's files); the page's items equal its JSON's. M4 extends
+   the sweep to `.ics`, `.xml` and the weekly email.
+8. Pagedir `alias` equals the union of loaded `also` sets; a gov-flags entry with an `alias` or `items` key is
+   refused.
+9. Collector (C2, C3): a withheld entry makes no items request (recorded fetcher) and leaves no cache files; a stale
+   `cache/<id>/` for a now-withheld body is deleted; items are requested only for the entry's `client`/`body_id`; an
+   event with another `EventBodyId` is dropped; a cache file with another `review` is a miss.
+10. Single reader: no module but `sitegen/national.py` opens `directory.yml` (a source scan of `sitegen/`,
+    `collector/`, `scripts/`); the morning-note sender imports no `sitegen.national*` module.
+
+### 11.4 Alternatives considered
+Explicit pins in `ShownReview` (platform, source keys, `also` set): readable, but every new key must be remembered,
+which is how this family reopened. Treating a mismatch as withheld instead of refusing: safe, but silent; refusing
+fails the PR's own checks before merge, as every other 3.2 rule does. Signing the file: needs a key in CI (hard stop
+5) for no gain over code review.
+
+### 11.5 Edits other sections need (manager or the engineer, in the fix PR)
+3.2: the pair rule becomes the digest rule plus source-key uniqueness. 3.5 and 3.7: top-level `review` (11.2); 3.7
+cache files carry `review`. 4.3: `build_national` writes only `bind_feed` output. 4.5: the `EventBodyId` check and
+cache rule. Tasks B1, B3, B14, B4, C2, C3 and D2 gain the matching tests of 11.3.
