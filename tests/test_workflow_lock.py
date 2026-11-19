@@ -2811,7 +2811,13 @@ def test_the_ruleset_rollback_is_one_piped_line_from_a_reachable_commit():
 def test_codeowners_text_is_pinned():
     """ADR 0010 decision 1: every path outside data/ is owned by gn0sh; /data/ has no owner (a pattern without owners
     leaves those files unowned), so the push job's data-only pull request needs no review."""
-    text = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+    tracks_data = subprocess.run(["git", "ls-tree", "--name-only", "HEAD", "--", "data"], cwd=ROOT,
+                                 capture_output=True, text=True, check=True).stdout.strip() != ""
+    path = ROOT / ".github" / "CODEOWNERS"
+    if not tracks_data:   # ADR 0011 decision 5: the cutover deletes CODEOWNERS together with data/ on main
+        assert not path.exists(), "CODEOWNERS must be deleted once main tracks no data/ (ADR 0011 decision 5)"
+        return
+    text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
     assert text.endswith("\n") and len(lines) == 3
     assert lines[0].startswith("#") and "ADR 0010" in lines[0]
