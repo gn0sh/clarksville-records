@@ -24,6 +24,9 @@ FILES = {"R1''": "main-ruleset.json", "R-D": "records-data-ruleset.json", "R-T":
 BODY = {k: json.loads((SCRIPTS / v).read_text(encoding="utf-8")) for k, v in FILES.items()}
 R1P = json.loads((SCRIPTS / "main-ruleset-r1p.json").read_text(encoding="utf-8"))
 CLOUD = ("CLAUDE_CODE_REMOTE", "GITHUB_ACTIONS", "CI")
+# S1-1: GitHub's REST schema (repository-rule-pull-request, github/rest-api-description, read 2026-11-19) gives
+# required_approving_review_count minimum 0, maximum 10
+MAX_APPROVALS = 10
 WF_PATH = f"repos/{REPO}/contents/.github/workflows/daily-update.yml?ref=main"
 GATE_STEP = "Check main's history and the records-data head"
 OLD_STEP = "Open and merge the data pull request"
@@ -186,6 +189,10 @@ if path.startswith("user/installations"):              # as GitHub answers gh's 
                              "to list installations (HTTP 403)\n"); sys.exit(1)
 if path == R + "/keys?per_page=100":
     out(st["keys"])
+if path == R + "/pages":                                 # S1-6
+    out({"url": "https://api.github.com/x", "build_type": st.get("pages", "workflow"), "cname": "x"})
+if path == R + "/contents/.github/workflows?ref=main":  # S1-7
+    out([{"name": n, "path": ".github/workflows/" + n, "type": k} for n, k in st.get("workflows", [["daily-update.yml", "file"]])])
 if path.startswith(R + "/environments/"):
     rest = path[len(R + "/environments/"):]
     if rest.endswith("/deployment-branch-policies?per_page=100"):
@@ -299,7 +306,7 @@ def test_protect_main_ruleset_files_are_r1pp_rd_and_rt():
     r1pp = BODY["R1''"]
     pr = [x for x in r1pp["rules"] if x["type"] == "pull_request"][0]["parameters"]
     assert (pr["required_approving_review_count"], pr["require_last_push_approval"], pr["require_code_owner_review"],
-            pr["dismiss_stale_reviews_on_push"], pr["allowed_merge_methods"]) == (2, True, False, True, ["squash"])
+            pr["dismiss_stale_reviews_on_push"], pr["allowed_merge_methods"]) == (MAX_APPROVALS, True, False, True, ["squash"])
     assert r1pp["bypass_actors"] == [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
     assert r1pp["name"] == R1P["name"] == "main: pull request required"
     rd, rt = BODY["R-D"], BODY["R-T"]
@@ -359,7 +366,7 @@ def test_protect_main_ok_with_non_writers(tmp_path, st_over):
     ({"rulesets": [_live("R-T", 6), {**_live("R-T", 7)}]}, "R-T: 2 rulesets named 'tag main: blocked', expected exactly 1"),
     ({"extra_main_rules": [{"type": "pull_request", "parameters": {"required_approving_review_count": 0,
                                                                    "require_code_owner_review": True}}]},
-     "main needs exactly one pull_request rule, with 2 approvals and no code-owner review"),
+     "main needs exactly one pull_request rule, with 10 approvals (the ruleset API maximum) and no code-owner review"),
     ({"extra_main_rules": [{"type": "required_signatures"}]},
      "main's rules must be deletion,non_fast_forward,pull_request"),
 ], ids=["r2-stays-on", "auto-merge", "write-collaborator", "maintain-collaborator", "no-collaborators",
@@ -521,14 +528,14 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
              "R2 already off", "R2 was on: turned off", "NOT OK: stopped before the checks.",
              "(a refused or failed read counts as NOT OK)", "Rules on main: ",
              "main's rules must be deletion,non_fast_forward,pull_request",
-             "main needs exactly one pull_request rule, with 2 approvals and no code-owner review",
+             "main needs exactly one pull_request rule, with 10 approvals (the ruleset API maximum) and no code-owner review",
              "R2 is on: with R2 on, gn0sh plus the bot can approve a pull request (ADR 0011 decision 6)",
              "auto-merge must be off: Settings > General > Pull Requests > untick Allow auto-merge",
              "Collaborators with write or more: ", "the collaborators with write or more must be exactly $owner",
              "Pending invitations with write or more: ", "a pending invitation with write or more: ",
              "Installed Apps with write on this repository: not confirmed",
              "so confirm them by hand: open https://github.com/settings/installations, click Configure on each App",
-             "not read by this script; none with Administration write)",
+             "not read by this script; none with Administration, Variables, Secrets or Environments write)",
              "alone can write this repository (",
              "remove its access to clarksville-records, or the team amends ADR 0011 first",
              "takes one value, claude or none (", "(not claude or none)",
@@ -549,9 +556,9 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
     assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '')" in ps1 and "if ($Check) {" in ps1
     assert 'if [ "$check" = 1 ]; then' in sh
     assert "CHECK ONLY: nothing is written; the checks below read the live settings." in sh and "CHECK ONLY" in ps1
-    for want in ("$'false\\ttrue'", "$'main\\tbranch'", "$'2\\tfalse'"):
+    for want in ("$'false\\ttrue'", "$'main\\tbranch'", "$'10\\tfalse'"):
         assert want in sh, want
-    for want in ('"false`ttrue"', '"main`tbranch"', '"2`tfalse"'):
+    for want in ('"false`ttrue"', '"main`tbranch"', '"10`tfalse"'):
         assert want in ps1, want
     # PowerShell 5.1: no double quote inside a gh argument, case-sensitive comparisons, never ExecutionPolicy Bypass
     assert not re.search(r"--jq '[^']*\"", ps1) and not re.search(r"Lines \"[^\"]+\" '[^']*\"", ps1)
@@ -739,7 +746,7 @@ def test_protect_main_records_the_hand_confirmed_apps(tmp_path, apps):
     line = [ln for ln in r.stdout.splitlines() if ln.startswith("Installed Apps with write on this repository: ")]
     assert len(line) == 1 and line[0].startswith(f"Installed Apps with write on this repository: {apps} (confirmed "
                                                  "by hand by gn0sh on ")
-    assert line[0].endswith("not read by this script; none with Administration write)")
+    assert line[0].endswith("not read by this script; none with Administration, Variables, Secrets or Environments write)")
 
 
 @pytest.mark.parametrize("apps,says", [
@@ -916,3 +923,81 @@ def test_protect_main_ps1_reads_the_workflow_the_same_way():
     assert ps1.count("-PreCutover") >= 4 and "--pre-cutover" not in ps1.split("param(")[1]
     assert "if ($PreCutover) {" in ps1 and 'if [ "$pre" = 1 ]; then' in sh
     assert ".TrimEnd(\"`r\")" in ps1 and 'sub(/\\r$/, "")' in sh
+
+
+# ---------------------------------------------------------------------------------------------- S1 security review
+def test_s1_1_r1pp_asks_for_the_ruleset_api_maximum_of_approvals(tmp_path):
+    """main-protect/approval-margin: R1'' needs 10 approvals (the API maximum), so gn0sh plus one App can't merge
+    without a bypass; a live R1'' still at 2 is NOT OK, in both twins."""
+    pr = [x for x in BODY["R1''"]["rules"] if x["type"] == "pull_request"][0]["parameters"]
+    assert pr["required_approving_review_count"] == MAX_APPROVALS == 10
+    st = _pm_state(rulesets=[_live("R1''", 27502319), _live("R-D", 5), _live("R-T", 6)], r2=False)
+    st["rulesets"][0]["rules"][-1]["parameters"]["required_approving_review_count"] = 2
+    r, _ = _pm(tmp_path, st, args=("--check", "--apps", "claude"))
+    _not_ok(r, "main needs exactly one pull_request rule, with 10 approvals (the ruleset API maximum)")
+    assert "Pull request rules on main (approvals, code-owner review): 2 false" in r.stdout
+    assert "$'10\\tfalse'" in PM_SH.read_text(encoding="utf-8") and '"10`tfalse"' in PM_PS1.read_text(encoding="utf-8")
+    for s in (PM_SH, PM_PS1):
+        assert "$'2\\tfalse'" not in s.read_text(encoding="utf-8") and '"2`tfalse"' not in s.read_text(encoding="utf-8")
+
+
+def test_s1_2_the_app_hand_check_covers_variables_secrets_and_environments(tmp_path):
+    """golive-switch/app-scope-hand-check: claude means none of Administration, Variables, Secrets and Environments
+    is Read and write; the request (no --apps) and the recorded answer both say so, in both twins."""
+    r, _ = _pm(tmp_path, args=())
+    _not_ok(r, "and only if none of its Administration, Variables, Secrets and Environments permissions is Read and "
+               "write (any other answer is NOT OK)")
+    sub = tmp_path / "b"
+    sub.mkdir()
+    r, _ = _pm(sub, args=("--apps", "claude"))
+    _ok(r)
+    assert "none with Administration, Variables, Secrets or Environments write)" in r.stdout
+    for s in (PM_SH, PM_PS1, SCRIPTS / "cutover-data-off-main.sh", SCRIPTS / "cutover-data-off-main.ps1"):
+        flat = " ".join(s.read_text(encoding="utf-8").split())
+        assert "Administration, Variables, Secrets and Environments" in flat and "S1-2" in flat, s
+        assert "and Administration is not Read and write;" not in flat, s
+
+
+@pytest.mark.parametrize("over,says", [
+    ({"pages": "legacy"}, "GitHub Pages must build from a workflow (build_type workflow, Settings > Pages > Source: "
+                          "GitHub Actions), not 'legacy'"),
+    ({"pages": None}, "not 'none'"),
+    ({"fail": {"GET repos/gn0sh/clarksville-records/pages": "all"}},
+     "could not read the GitHub Pages settings (repos/gn0sh/clarksville-records/pages)"),
+], ids=["legacy", "no-build-type", "refused"])
+def test_s1_6_pages_must_build_from_a_workflow(tmp_path, over, says):
+    """main-protect/pages-source-unchecked: build_type workflow only; a refused read is NOT OK."""
+    r, _ = _pm(tmp_path, _pm_state(**over))
+    _not_ok(r, says)
+    assert "1 problem(s) above" in r.stdout
+
+
+def test_s1_6_and_s1_7_ok_lines(tmp_path):
+    r, made = _pm(tmp_path)
+    _ok(r)
+    assert "GitHub Pages build type: workflow" in r.stdout and "Main's .github/workflows/: daily-update.yml:file" in r.stdout
+    assert {c.get("path") for c in made} >= {R + "/pages", R + "/contents/.github/workflows?ref=main"}
+    for s in ("repos/$repo/pages", "repos/$repo/contents/.github/workflows?ref=main", "'.build_type // empty'",
+              "'.[] | [.name, .type] | @tsv'", "GitHub Pages build type: ", "Main's .github/workflows/: ",
+              "main's .github/workflows/ must hold daily-update.yml and nothing else"):
+        assert s in PM_SH.read_text(encoding="utf-8") and s in PM_PS1.read_text(encoding="utf-8"), s
+
+
+@pytest.mark.parametrize("over,says", [
+    ({"workflows": [["daily-update.yml", "file"], ["other.yml", "file"]]},
+     "main's .github/workflows/ must hold daily-update.yml and nothing else"),
+    ({"workflows": [["daily-update.yml", "file"], ["sub", "dir"]]},
+     "main's .github/workflows/ must hold daily-update.yml and nothing else"),
+    ({"workflows": [["v1-canary.yml", "file"]]}, "main's .github/workflows/ must hold daily-update.yml and nothing else"),
+    ({"fail": {"GET repos/gn0sh/clarksville-records/contents/.github/workflows?ref=main": "all"}},
+     "could not read main's .github/workflows/ folder"),
+], ids=["second-file", "subfolder", "other-only", "refused"])
+def test_s1_7_daily_update_is_the_only_workflow_on_main(tmp_path, over, says):
+    """main-protect/wf-shape-heuristic: any other file in main's .github/workflows/ is NOT OK, in both modes."""
+    for i, args in enumerate((("--apps", "claude"), ("--pre-cutover", "--apps", "claude"))):
+        sub = tmp_path / str(i)
+        sub.mkdir()
+        st = _pm_state(**over, **({"wf": PRE_WF} if "--pre-cutover" in args else {}))
+        r, _ = _pm(sub, st, args=args)
+        _not_ok(r, says)
+        assert "1 problem(s) above" in r.stdout, r.stdout

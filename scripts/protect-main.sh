@@ -4,13 +4,13 @@
 # (U3-0 = no), and the team proxy refuses several of the reads below, so it refuses to run in a cloud session or CI.
 #
 # Writes (each ruleset is created, or updated if one of that name exists; never a second one):
-#   R1''  scripts/main-ruleset.json         main: 2 approvals, last-push approval, no code-owner review, squash only,
+#   R1''  scripts/main-ruleset.json         main: 10 approvals (API max), last-push approval, no code-owner review, squash only,
 #                                           bypass = the admin role in pull_request mode
 #   R-D   scripts/records-data-ruleset.json records-data: no deletion, no force push, no bypass
 #   R-T   scripts/main-tag-ruleset.json     a tag named main: no creating, updating or deleting it (finding F2)
 #   R2    "Allow GitHub Actions to create and approve pull requests" turned OFF (load-bearing for R1'')
 # Then it reads everything back. OK only if: each ruleset reads back equal to its file, main's rules are deletion,
-# non_fast_forward and one pull_request rule with 2 approvals and no code-owner review, R2 is off, auto-merge is off,
+# non_fast_forward and one pull_request rule with 10 approvals and no code-owner review, R2 is off, auto-merge is off,
 # gn0sh is the only writer (no other collaborator or pending invitation with write or more, no App installed on
 # gn0sh's account with contents or administration write that reaches this repository, no deploy key with write:
 # finding F1), and both environments (github-pages, morning-note) allow exactly one custom policy, main, of type
@@ -30,8 +30,14 @@
 #   App ($allowed_app, through which the team pushes branches) may be listed. With R2 off it is then the only approver
 #   besides gn0sh, so any 2 approvals include gn0sh's (invariant I-person, ADR 0011 Amendment 2026-11-18 (b): at most
 #   one non-gn0sh approver counts; two Apps, or R2 on plus one, would make 2 without gn0sh). No App may hold
-#   Administration write (it could edit the rulesets) or bypass, and only J2 on main stores attestations. That no App
-#   can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must equal the files.
+#   Administration write (it could edit the rulesets) or bypass, and only J2 on main stores attestations. Nor may it
+#   hold Variables, Secrets or Environments write (S1-2: it could set MORNING_NOTE_SEND or RECORDS_DEPLOY_ENABLED,
+#   or change an environment's policy); --apps claude is Brian's answer that all four are not Read and write, and
+#   any other answer is NOT OK. That no App can bypass R1'', R-D or R-T is read, not confirmed: the bypass lists must
+#   equal the files. R1'' asks for 10 approvals, the ruleset API maximum (S1-1), so gn0sh plus one App can't reach it
+#   either: every merge is a gn0sh bypass, and rule 1 no longer rests on the COMMENT-only rule.
+# Also read (S1-6, S1-7): GitHub Pages must build from a workflow (build_type workflow, so nothing publishes outside
+#   daily-update's gate), and .github/workflows/ on main must hold daily-update.yml and nothing else.
 # Needs: gh signed in as gn0sh (gh auth login) and jq.
 # Run: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <names>|none]
 set -uo pipefail
@@ -146,11 +152,13 @@ if rules=$(gh api "repos/$repo/rules/branches/main" --jq '.[].type'); then
   echo "Rules on main: $rules"
   [ "$rules" = "deletion,non_fast_forward,pull_request" ] || problem "main's rules must be deletion,non_fast_forward,pull_request"
 else unread "the rules on main"; fi
-# every pull_request rule on main, from any ruleset: exactly one, 2 approvals, no code-owner review (CODEOWNERS is gone)
+# every pull_request rule on main, from any ruleset: exactly one, 10 approvals (the ruleset API maximum,
+# S1-1 main-protect/approval-margin: GitHub's schema repository-rule-pull-request caps it at 10), no code-owner review
+# (CODEOWNERS is gone)
 if prr=$(gh api "repos/$repo/rules/branches/main" \
          --jq '.[] | select(.type == $ENV.PM_PR) | [(.parameters.required_approving_review_count|tostring), (.parameters.require_code_owner_review|tostring)] | @tsv'); then
   echo "Pull request rules on main (approvals, code-owner review): $(printf '%s' "$prr" | tr '\t\n' ' ;')"
-  [ "$prr" = $'2\tfalse' ] || problem "main needs exactly one pull_request rule, with 2 approvals and no code-owner review"
+  [ "$prr" = $'10\tfalse' ] || problem "main needs exactly one pull_request rule, with 10 approvals (the ruleset API maximum) and no code-owner review"
 else unread "main's pull_request rules"; fi
 
 r2=$(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') || r2="unread"
@@ -184,12 +192,12 @@ else unread "the pending invitations"; fi
 # installed Apps: confirmed by hand (--apps), never read (no read an OAuth token can make lists them)
 if [ "$apps_given" = 0 ]; then
   echo "Installed Apps with write on this repository: not confirmed"
-  problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with --apps claude or --apps none (one value; any other App must first lose its access to clarksville-records, or the team amends ADR 0011). Only $allowed_app may be listed, and only if its Administration permission is not Read and write"
+  problem "installed Apps can't be read with this token (GitHub's user/installations needs a GitHub App token), so confirm them by hand: open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records (All repositories, or listed) with any Read and write permission. Then run this again with --apps claude or --apps none (one value; any other App must first lose its access to clarksville-records, or the team amends ADR 0011). Only $allowed_app may be listed, and only if none of its Administration, Variables, Secrets and Environments permissions is Read and write (any other answer is NOT OK)"
 elif ! [[ "$apps" =~ ^(none|[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*)$ ]]; then
   echo "Installed Apps with write on this repository: '$apps' (not claude or none)"
   problem "--apps takes one value, claude or none ('$apps' is not one)"
 else
-  echo "Installed Apps with write on this repository: $apps (confirmed by hand by $owner on $(date -u +%Y-%m-%d), not read by this script; none with Administration write)"
+  echo "Installed Apps with write on this repository: $apps (confirmed by hand by $owner on $(date -u +%Y-%m-%d), not read by this script; none with Administration, Variables, Secrets or Environments write)"
   if [ "$apps" != none ] && [ "$apps" != "$allowed_app" ]; then
     problem "an installed App other than $allowed_app alone can write this repository ($apps): remove its access to clarksville-records, or the team amends ADR 0011 first"
   fi
@@ -214,6 +222,19 @@ for env in github-pages morning-note; do
     [ "$bp" = $'main\tbranch' ] || problem "environment $env must allow exactly main, of type branch"
   else unread "environment $env's deployment policies"; fi
 done
+
+# S1-6 main-protect/pages-source-unchecked: Pages builds only from a workflow (a branch source would publish outside
+# every gate); a refused read, or Pages off, is NOT OK
+if pages=$(gh api "repos/$repo/pages" --jq '.build_type // empty'); then
+  echo "GitHub Pages build type: ${pages:-none}"
+  [ "$pages" = workflow ] || problem "GitHub Pages must build from a workflow (build_type workflow, Settings > Pages > Source: GitHub Actions), not '${pages:-none}'"
+else unread "the GitHub Pages settings (repos/$repo/pages)"; fi
+# S1-7 main-protect/wf-shape-heuristic: daily-update.yml is the only workflow on main (any other file there runs with
+# the environments and never meets daily-update's gate)
+if wfs=$(gh api "repos/$repo/contents/.github/workflows?ref=main" --jq '.[] | [.name, .type] | @tsv'); then
+  echo "Main's .github/workflows/: $(printf '%s\n' "$wfs" | grep . | tr '\t' ':' | paste -sd, -)"
+  [ "$wfs" = $'daily-update.yml\tfile' ] || problem "main's .github/workflows/ must hold daily-update.yml and nothing else"
+else unread "main's .github/workflows/ folder"; fi
 
 # main's daily-update.yml (ADR 0011 row J2, I-prov): the post-cutover shape, or with --pre-cutover the old one
 gate_step="Check main's history and the records-data head"

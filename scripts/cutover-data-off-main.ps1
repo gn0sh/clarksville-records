@@ -11,9 +11,10 @@
 #   powershell -NoProfile -File scripts\cutover-data-off-main.ps1 -Pr <P> -Sha <reviewed head> -Apps claude|none -Report <review>
 #     -Apps: first open https://github.com/settings/installations and click Configure on each App: claude if the
 #     Claude App (github.com/apps/claude) is the only one reaching this repository with any Read and write
-#     permission and Administration is not Read and write; none if no App does. No token Brian holds can list Apps,
-#     so this is his hand check (ADR 0011 Amendment 2026-11-18 (b), invariant I-person). Any other answer is refused
-#     before anything changes; protect-main gets it in step 4.
+#     permission and none of Administration, Variables, Secrets and Environments is Read and write (S1-2); none if no
+#     App does. No token Brian holds can list Apps, so this is his hand check (ADR 0011 Amendment 2026-11-18 (b),
+#     invariant I-person). Any other answer is refused before anything changes, and protect-main (which gets it in
+#     step 4) reports any other answer NOT OK.
 #   ... -Plan [-Ref <git rev>]    read-only: the seed step 3 would push from origin/main's data/, its checks,
 #                                 "SEED DIGEST <sha256>" for the cutover PR's RECORDS_DATA_SEED_DIGEST, "BASELINE <sha>"
 #                                 (origin/main) for its MAIN_PR_BASELINE, and the runbook 4.7.1 window listing from
@@ -22,7 +23,7 @@
 #                                 (git rm -r --cached: the files stay on disk), data/ into .gitignore and
 #                                 .github/CODEOWNERS deleted. Commit that, then -Plan, and pin its SEED DIGEST in the
 #                                 gate's RECORDS_DATA_SEED_DIGEST (sha256 of git ls-tree -r -z <seed> -- data).
-#   ... -Rollback [-CutoverMerge <sha>]   undo (the .sh twin's --rollback --cutover-merge)
+#   ... -Rollback [-CutoverMerge <sha> [-DataFrom <sha>]]   undo (the .sh twin's --rollback --cutover-merge --data-from)
 #   ... -Rollback -Merge <R> -Sha <reviewed head> -Report <review>
 #   ... -CheckAttested            read-only: step 8's check again, for a later run
 #
@@ -47,7 +48,8 @@
 #      Pushes it to refs/heads/records-data (never forced) and reads it back.
 #   4. Runs scripts\protect-main.ps1 -PreCutover -Apps <answer> (the .sh: --pre-cutover); its last line must start
 #      "OK: main is protected".
-#   5. Merges the cutover PR with scripts\merge-reviewed.ps1 (main must still be the pinned baseline); its last line
+#   5. Merges the cutover PR with scripts\merge-reviewed.ps1 (main must still be the pinned baseline, and records-data
+#      still the seed, read again just before: S1-5); its last line
 #      must be "Rule suite <id> for <merge sha>: bypass", the squash's one parent must be the pinned baseline (this
 #      merge sets it), and main must then track no data/. Then a plain scripts\protect-main.ps1 -Check -Apps
 #      <answer> (no writes, main's new workflow) must print OK too.
@@ -62,10 +64,14 @@
 #   - -CutoverMerge <sha> on main: refuses unless that merge's parent tracks data/ and holds .github/CODEOWNERS and
 #     one empty MAIN_PR_BASELINE, then disables daily-update and opens a PR from a new branch
 #     rollback/data-on-main-<utc>: data/ from records-data's head, the workflow and .github/CODEOWNERS as before the
-#     cutover merge, data/ out of .gitignore; config/ stays.
-#   - -Merge <R> -Sha <R's reviewed head>: refuses unless R's head tracks data/ and holds .github/CODEOWNERS and one
-#     empty MAIN_PR_BASELINE, disables daily-update, merges R with merge-reviewed, then stops with R2 still off
-#     unless main is that merge, tracks data/, and holds R's workflow and CODEOWNERS byte for byte with one empty
+#     cutover merge, data/ out of .gitignore; config/ stays. The cutover merge must itself track no data/ and hold no
+#     CODEOWNERS. S1-3: the data/ source must pass the gate's I-prov check (its listing attested by daily-update.yml
+#     on main) or be the seed the merge's workflow pins; else it refuses, and -DataFrom <sha> picks an ancestor of
+#     records-data's head that does.
+#   - -Merge <R> -Sha <R's reviewed head>: refuses unless R's data/ listing is attested or the pinned seed (S1-3) and
+#     R's head tracks data/ and holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE, disables daily-update,
+#     merges R with merge-reviewed, then stops with R2 still off unless main is that merge, tracks data/, and holds
+#     R's workflow, CODEOWNERS and data/ byte for byte with one empty
 #     MAIN_PR_BASELINE (ADR 0011 Amendment (c) item 7). Only then R1' back, R2 on, workflow on.
 #   - otherwise (the cutover merge is not on main): refuses unless main tracks data/ and holds .github/CODEOWNERS
 #     and one empty MAIN_PR_BASELINE, then disables daily-update, main-ruleset-r1p.json (R1') back, R2 on
@@ -84,6 +90,7 @@ param(
     [string]$Ref = 'HEAD',
     [switch]$Rollback,
     [string]$CutoverMerge = '',
+    [string]$DataFrom = '',
     [string]$Merge = '',
     [switch]$CheckAttested
 )
@@ -198,7 +205,9 @@ foreach ($c in @(@('py', '-3'), @('python3'), @('python'))) {
 }
 function PyRun([string[]]$PyArgs) {
     $pre = @($py | Select-Object -Skip 1)
-    & $py[0] @pre -B @PyArgs
+    # Out-Host: the command's lines go to the screen, never into this function's output, so the return value is
+    # only the exit code test (a failed check that prints a line would otherwise read as true in an if)
+    & $py[0] @pre -B @PyArgs | Out-Host
     return ($LASTEXITCODE -eq 0)
 }
 
@@ -265,7 +274,7 @@ function BuildInfoDataSha {   # B4: the live site's build-info.json names D as d
     return [string]$o.data_sha
 }
 function VerifyAttested([string]$f) {   # the gate's I-prov check (ADR 0011 decision 3)
-    gh attestation verify $f --repo $repo --cert-identity $attestId --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners
+    gh attestation verify $f --repo $repo --cert-identity $attestId --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners | Out-Host   # as PyRun: only the exit code returns
     return ($LASTEXITCODE -eq 0)
 }
 
@@ -516,6 +525,11 @@ function WindowCheck([string]$start, [string]$end) {   # the runbook 4.7.1 block
     if ($n -eq 0) { $script:why = "no commit in the window ${start}..$end (a wrong or placeholder start: the cutover PR's base at least is in it)"; return $false }
     return $true
 }
+function DataVerified([string]$file, [string]$seedPin) {   # J2's attestation (I-prov) or the pinned seed (S1-3); '' if neither
+    if ($seedPin -and (Sha256Hex ([IO.File]::ReadAllBytes($file))) -ceq $seedPin) { return "the pinned seed (RECORDS_DATA_SEED_DIGEST $seedPin)" }
+    if (VerifyAttested $file) { return 'attested by daily-update.yml on main' }
+    return ''
+}
 function RestoreOk([string]$rev) {   # what R2 on needs there: data/ tracked, .github/CODEOWNERS, one empty MAIN_PR_BASELINE
     if (-not (TracksData $rev)) { $script:why = "$rev tracks no data/"; return $false }
     if ((GitRun @('cat-file', '-e', "${rev}:.github/CODEOWNERS")).Code -ne 0) { $script:why = "$rev has no .github/CODEOWNERS"; return $false }
@@ -624,7 +638,16 @@ if ($Rollback) {
         if ((GitRun @('fetch', '--quiet', '--no-tags', 'origin', "+refs/pull/$Merge/head:refs/cutover/rollback")).Code -ne 0) { Refuse "could not fetch pull request #$Merge's head" }
         if ((GitText @('rev-parse', '--verify', '-q', 'refs/cutover/rollback^{commit}')) -cne $Sha) { Refuse "origin's pull/$Merge/head is not $Sha" }
         if (-not (RestoreOk $Sha)) { Refuse "the restore PR #$Merge at $Sha does not give R2 what it needs: $($script:why) (F4)" }
-        Write-Host "Restore PR #$Merge at $Sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE."
+        # S1-3 data-off-main/rollback-unverified-data: R's data/ must be a verified records-data tree (its listing
+        # attested by J2, or the seed pinned in the workflow R was cut from)
+        $seedPin = PinnedSeedDigest "$Sha^1"
+        $rl = ListingOf $Sha
+        if ($null -eq $rl) { Refuse "could not read the restore PR's data/ listing" }
+        $rlf = Join-Path $work 'r-listing'
+        [IO.File]::WriteAllBytes($rlf, $rl)
+        $srcOk = DataVerified $rlf $seedPin
+        if (-not $srcOk) { Refuse "the restore PR #$Merge's data/ (listing sha256 $(Sha256Hex $rl)) is neither attested by daily-update.yml on main nor the pinned seed (S1-3): open a new one with --data-from <an attested records-data sha> (-DataFrom)" }
+        Write-Host "Restore PR #$Merge at $Sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE; its data/ is $srcOk."
     } elseif ($CutoverMerge -cmatch '^[0-9a-f]{40}$' -and (GitRun @('merge-base', '--is-ancestor', $CutoverMerge, $m)).Code -eq 0) {
         $path = 'open'
         # main-protect/rollback-cutover-merge-unverified: the sha must look like the cutover merge itself
@@ -636,8 +659,26 @@ if ($Rollback) {
         $d = FetchRd
         if ($null -eq $d) { Refuse 'could not read records-data' }
         if (-not $d) { Refuse 'records-data does not exist' }
-        if (-not (TracksData $d)) { Refuse "records-data $d holds no data/" }
+        # S1-3 data-off-main/rollback-unverified-data: the data/ R restores must pass the gate's I-prov check (or be
+        # the pinned seed): records-data's head, or -DataFrom, an ancestor of it on records-data
+        $seedPin = PinnedSeedDigest $CutoverMerge
+        if ($DataFrom) {
+            if ($DataFrom -cnotmatch '^[0-9a-f]{40}$') { Refuse '--data-from needs a 40-hex sha on records-data (-DataFrom)' }
+            if ((GitRun @('merge-base', '--is-ancestor', $DataFrom, $d)).Code -ne 0) { Refuse "--data-from $DataFrom is not on records-data (not an ancestor of its head $d)" }
+            $src = $DataFrom
+        } else { $src = $d }
+        if (-not (TracksData $src)) { Refuse "records-data $src holds no data/" }
+        $sl = ListingOf $src
+        if ($null -eq $sl) { Refuse "could not read records-data $src's listing" }
+        $slf = Join-Path $work 'src-listing'
+        [IO.File]::WriteAllBytes($slf, $sl)
+        $srcOk = DataVerified $slf $seedPin
+        if (-not $srcOk) {
+            if ($DataFrom) { Refuse "--data-from $DataFrom is neither attested by daily-update.yml on main nor the pinned seed (S1-3)" }
+            Refuse "records-data's head $d is neither attested by daily-update.yml on main nor the pinned seed (S1-3): run $me -Rollback -CutoverMerge $CutoverMerge -DataFrom <sha> (the .sh: --data-from), an attested commit on records-data (for example the last head -CheckAttested accepted)"
+        }
         Write-Host "The cutover merge $CutoverMerge is on main; its parent $before tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE."
+        Write-Host "R's data/ comes from records-data ${src}: $srcOk."
     } else {
         $path = 'early'
         if ($CutoverMerge) { Write-Host "--cutover-merge $CutoverMerge is not on main ${m}: taking the path for a cutover that is not merged." }
@@ -669,7 +710,7 @@ if ($Rollback) {
         $old = GitRun @('ls-files', '-z', '--', 'data') $null $idx
         if ($old.Code -ne 0) { Fail 'could not build the restore tree' }
         if ($old.Out.Length -gt 0 -and (GitRun @('update-index', '-z', '--force-remove', '--stdin') $old.Out $idx).Code -ne 0) { Fail 'could not build the restore tree' }
-        if ((GitRun @('read-tree', '--prefix=data/', "${d}:data") $null $idx).Code -ne 0) { Fail 'could not build the restore tree' }
+        if ((GitRun @('read-tree', '--prefix=data/', "${src}:data") $null $idx).Code -ne 0) { Fail 'could not build the restore tree' }
         foreach ($f in @(".github/workflows/$wfname", '.github/CODEOWNERS')) {
             $b = GitText @('rev-parse', '--verify', '-q', "${before}:$f")
             if (-not $b) { Fail "could not restore $f" }
@@ -685,14 +726,14 @@ if ($Rollback) {
         }
         $t = GitText @('write-tree') $idx
         if (-not $t) { Fail 'could not write the restore tree' }
-        $msg = "Roll back ADR 0011's cutover: data/ on main from records-data $d`n`ndata/ from records-data $d; .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $CutoverMerge;`ndata/ out of .gitignore. Every config/ input and its readers stay as the cutover PR left them."
+        $msg = "Roll back ADR 0011's cutover: data/ on main from records-data $src`n`ndata/ from records-data $src ($srcOk); .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $CutoverMerge;`ndata/ out of .gitignore. Every config/ input and its readers stay as the cutover PR left them."
         $c = GitText @('commit-tree', $t, '-p', $m, '-m', $msg)
         if (-not $c) { Fail 'could not commit the restore (git user.name and user.email set?)' }
         if (-not (RestoreOk $c)) { Fail "the restore commit $c does not give R2 what it needs: $($script:why)" }
         $br = 'rollback/data-on-main-' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')
         if ((GitRun @('push', '--quiet', 'origin', "${c}:refs/heads/$br")).Code -ne 0) { Fail "could not push $br (a workflow-file push needs: gh auth refresh -s workflow)" }
-        Write-Host "Rollback step 3: pushed branch $br at $c (data/ from records-data $d)."
-        $n = (gh api -X POST "repos/$repo/pulls" -f base=main -f head=$br -f 'title=Roll back the data cutover: data/ on main from records-data' -f "body=Restores data/ on main from records-data $d, and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $CutoverMerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.ps1 -Rollback." --jq '.number') -join ''
+        Write-Host "Rollback step 3: pushed branch $br at $c (data/ from records-data $src)."
+        $n = (gh api -X POST "repos/$repo/pulls" -f base=main -f head=$br -f 'title=Roll back the data cutover: data/ on main from records-data' -f "body=Restores data/ on main from records-data $src ($srcOk), and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $CutoverMerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.ps1 -Rollback." --jq '.number') -join ''
         if ($LASTEXITCODE -ne 0 -or $n -notmatch '^[0-9]+$') { Fail "could not open the pull request for $br" }
         Write-Host "ROLLBACK PR #$n opened for $br at $c. daily-update stays off; R2 stays off; the site stays as last deployed."
         Write-Host "Next, once PR #$n is reviewed at ${c}: $me -Rollback -Merge $n -Sha $c -Report <review>"
@@ -710,13 +751,13 @@ if ($Rollback) {
     $script:step = 4
     # ADR 0011 Amendment (c) item 7 and main-protect/rollback-r2-unchecked-codeowners: before R2 goes on, main must
     # hold R's workflow and CODEOWNERS byte for byte, with one empty MAIN_PR_BASELINE. Else R2 stays off.
-    foreach ($f in @(".github/workflows/$wfname", '.github/CODEOWNERS')) {
+    foreach ($f in @(".github/workflows/$wfname", '.github/CODEOWNERS', 'data')) {
         $a = GitText @('rev-parse', '--verify', '-q', "${m}:$f")
         $b = GitText @('rev-parse', '--verify', '-q', "${Sha}:$f")
         if (-not $a -or $a -cne $b) { Fail "main $m does not hold the restore PR's $f (blob '$a', R has '$b'): R2 stays off" }
     }
     if (-not (RestoreOk $m)) { Fail "main $m does not give R2 what it needs: $($script:why). R2 stays off" }
-    Write-Host "main $m holds R's workflow and .github/CODEOWNERS byte for byte, with one empty MAIN_PR_BASELINE."
+    Write-Host "main $m holds R's workflow, .github/CODEOWNERS and data/ byte for byte, with one empty MAIN_PR_BASELINE."
     if (-not (PutR1p)) { Fail "could not put R1' back (the restore PR is merged)" }
     if (-not (R2On)) { Fail "could not turn R2 on (R1' is back)" }
     if (-not (WfSet 'enable' 'active')) { Fail "could not re-enable daily-update (R1' and R2 are back)" }
@@ -726,7 +767,7 @@ if ($Rollback) {
 
 # ---------------------------------------------------------------------------------------------- the cutover
 if ($Pr -notmatch '^[0-9]+$' -or $Sha -cnotmatch '^[0-9a-f]{40}$' -or $Report.Count -lt 1) {
-    Write-Host "Usage: $me -Pr <P> -Sha <reviewed head> -Apps claude|none -Report <review> | -Plan [-Ref <rev>] | -Rollback [-CutoverMerge <sha>] | -Rollback -Merge <R> -Sha <sha> -Report <review> | -CheckAttested"
+    Write-Host "Usage: $me -Pr <P> -Sha <reviewed head> -Apps claude|none -Report <review> | -Plan [-Ref <rev>] | -Rollback [-CutoverMerge <sha> [-DataFrom <sha>]] | -Rollback -Merge <R> -Sha <sha> -Report <review> | -CheckAttested"
     exit 1
 }
 NeedGh
@@ -734,7 +775,7 @@ NeedPython
 $script:step = 1
 Write-Host "Step 1 ($(Utc)): refusals and the planned seed (read-only)."
 if (@('claude', 'none') -cnotcontains $Apps) {
-    Refuse '--apps must be claude or none: first open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records with any Read and write permission (ADR 0011 Amendment (b); -Apps here; protect-main needs the answer in step 4)'
+    Refuse '--apps must be claude or none: first open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records with any Read and write permission; claude only if none of its Administration, Variables, Secrets and Environments permissions is Read and write (ADR 0011 Amendment (b), S1-2; -Apps here; protect-main needs the answer in step 4)'
 }
 Write-Host "Installed Apps with write on this repository, by Brian's hand check at https://github.com/settings/installations: $Apps."
 $hm = [int][DateTime]::UtcNow.ToString('HHmm')
@@ -821,6 +862,12 @@ $script:step = 5
 $now = FetchMain
 if (-not $now) { Fail 'could not fetch main' }
 if ($now -cne $base) { Fail "main moved to $now since the seed was taken from $base, off the PR's MAIN_PR_BASELINE: nothing is merged" }
+# S1-5 data-off-main/seed-window: records-data had no ruleset between step 3's push and step 4's R-D, so read it
+# again right before the merge
+$got = FetchRd
+if ($null -eq $got) { Fail 'could not read records-data before the merge' }
+if ($got -cne $seed -or (Parents $got) -ne 0) { Fail "records-data reads $got, no longer the seed $seed pushed in step 3 (S1-5): nothing is merged" }
+Write-Host "records-data is still the seed $seed."
 Write-Host "Step 5: scripts\merge-reviewed.ps1 $Pr $Sha (main $now = the pinned baseline)."
 $script:mergeFrom = $now
 $res = RunMergeReviewed $Pr $Sha $Report
