@@ -109,4 +109,10 @@ PS51_ONLY = (
     "Python discovery (py -3 first): Linux has only python3",
     "Ctrl+C: a console CancelKeyPress on Windows, SIGINT here",
     "[Environment]::GetFolderPath('MyDocuments') (u3's backup): HOME here; on Windows possibly a OneDrive folder",
+    "the exit code of `powershell -File` on a parameter binding failure: pwsh 7 exits 1 (protect-main.ps1, an "
+    "advanced script, relies on it); cutover-data-off-main.ps1 catches the failure of its binding block and exits 1 "
+    "itself, but what 5.1's host returns for an advanced script is unproved",
+    "PositionalBinding=$false with -File on 5.1: pwsh 7 refuses a positional argument, and passes each '-Name' "
+    "argument of `-File` into a non-advanced script's $args so that `. { [CmdletBinding(PositionalBinding = $false)] "
+    "param(...) } @args` binds it by name (cutover-data-off-main.ps1); that 5.1 does both is unproved",
 )

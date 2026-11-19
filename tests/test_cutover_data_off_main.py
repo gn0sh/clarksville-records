@@ -11,7 +11,9 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -197,6 +199,7 @@ python3 -c 'import json,os,sys; open(os.environ["GH_CALLS"],"a").write(json.dump
 echo "Main before the rulesets: $(git --git-dir "$STUB_ORIGIN" rev-parse refs/heads/main)"
 old=$(git --git-dir "$STUB_ORIGIN" ls-tree --name-only refs/heads/main -- data)
 pre=0; for a in "$@"; do [ "$a" = --pre-cutover ] && pre=1; done
+if [ "$pre" = 1 ] && [ -n "${STUB_PM_BLOCK:-}" ]; then : > "$STUB_PM_BLOCK"; exec /bin/sleep 60; fi   # a Ctrl+C test
 if [ "$pre" = 1 ] && [ -z "$old" ]; then echo "  NOT OK: --pre-cutover, but the cutover is merged"; echo "NOT OK: 1 problem(s) above."; exit 1; fi
 if [ "$pre" = 0 ] && [ -n "$old" ]; then echo "  NOT OK: main's workflow still opens data pull requests"; echo "NOT OK: 1 problem(s) above."; exit 1; fi
 if [ "$pre" = 1 ] && [ -n "${STUB_PM_MOVE_RD:-}" ]; then   # someone pushes onto records-data before R-D binds (S1-5)
@@ -217,6 +220,7 @@ if [ -n "${STUB_MR_MOVE:-}" ]; then   # another commit lands on main just before
 fi
 m=$($g -c user.name=gn0sh -c user.email=g@x commit-tree "${STUB_MR_TREE:-$2}^{tree}" -p refs/heads/main -m "squash #$1")
 $g update-ref refs/heads/main "$m"
+if [ -n "${STUB_MR_BLOCK:-}" ]; then : > "$STUB_MR_BLOCK"; exec /bin/sleep 60; fi   # a Ctrl+C test, main moved
 echo "Merged pull request #$1 (reviewed at $2) as $m."
 if [ "${STUB_MR:-bypass}" = bypass ]; then echo "Rule suite 9 for $m: bypass"; exit 0; fi
 if [ "${STUB_MR}" = garbled ]; then echo "gh: HTTP 502"; exit 1; fi
@@ -377,6 +381,32 @@ class Fx:
         return _git(self.tmp, "--git-dir", str(self.origin), *args, env=self.genv).decode().strip()
 
     def run(self, args, hm="1400", **env_over):
+        cmd, env = self._argv_env(args, hm, env_over)
+        r = subprocess.run(cmd, cwd=self.work, env=env, capture_output=True, text=True, timeout=300)
+        self.state = json.loads((self.tmp / "state.json").read_text())
+        return r
+
+    def interrupt(self, args, flag, hm="1400", **env_over):
+        """Run in its own process group until a stub touches <flag>, then SIGINT the group (Ctrl+C in a console)."""
+        cmd, env = self._argv_env(args, hm, env_over)
+        p = subprocess.Popen(cmd, cwd=self.work, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                             start_new_session=True)
+        try:
+            deadline = time.time() + 240
+            while not flag.exists() and p.poll() is None and time.time() < deadline:
+                time.sleep(0.05)
+            assert flag.exists(), "the stub never blocked"
+            time.sleep(0.3)
+            os.killpg(p.pid, signal.SIGINT)
+            out, err = p.communicate(timeout=120)
+        finally:
+            if p.poll() is None:
+                os.killpg(p.pid, signal.SIGKILL)
+                p.communicate()
+        self.state = json.loads((self.tmp / "state.json").read_text())
+        return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+
+    def _argv_env(self, args, hm, env_over):
         (self.tmp / "state.json").write_text(json.dumps(self.state))
         env = {k: v for k, v in self.genv.items() if k not in CLOUD + ("GH_TOKEN", "GITHUB_TOKEN")}
         env.update({"PATH": f"{self.bindir}:{os.environ['PATH']}", "GH_CALLS": str(self.tmp / "calls"),
@@ -387,17 +417,17 @@ class Fx:
         else:
             env = pwsh_twin.env(env)
             cmd = pwsh_twin.argv("scripts/" + PS1.name, pwsh_twin.flags(args, PS_FLAGS))
-        r = subprocess.run(cmd, cwd=self.work, env=env, capture_output=True, text=True, timeout=300)
-        self.state = json.loads((self.tmp / "state.json").read_text())
-        return r
+        return cmd, env
 
     def calls(self):
         p = self.tmp / "calls"
         return [json.loads(x) for x in p.read_text().splitlines()] if p.exists() else []
 
+    def cut_args(self, apps="none"):
+        return ["--pr", "60", "--sha", self.head, "--apps", apps, "--report", "docs/reviews/x.md"]
+
     def cut(self, **kw):
-        return self.run(["--pr", "60", "--sha", self.head, "--apps", kw.pop("apps", "none"), "--report",
-                         "docs/reviews/x.md"], **kw)
+        return self.run(self.cut_args(kw.pop("apps", "none")), **kw)
 
     def rd(self):
         r = subprocess.run(["git", "--git-dir", str(self.origin), "rev-parse", "--verify", "-q",
@@ -1326,6 +1356,78 @@ def test_s1_5_step5_stops_when_records_data_moved_after_the_seed(tmp_path):
     assert not [c for c in fx.calls() if c["path"] == "merge-reviewed"]
     assert fx.og("rev-parse", "refs/heads/main") == fx.main
     assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback\n") in r.stdout
+
+
+# ---------------------------------------------------------------------------------------------- Ctrl+C
+
+
+def _interrupted(r, step):
+    """data-off-main/ps-ctrlc-exit-zero: a Ctrl+C after a change stops as a failure does: exit 2, the stop line and
+    the undo line (before the fix the .ps1 exited 0 and the .sh 130, neither with an undo line)."""
+    out = r.stdout + r.stderr
+    assert r.returncode == 2, out
+    assert f"STOPPED at step {step} (interrupted) (" in r.stdout, out
+    assert r.stdout.count("Undo with: ") == 1, out
+    assert "CUTOVER DONE" not in r.stdout and f"Step {step} OK" not in r.stdout, out
+
+
+def test_ctrl_c_after_the_seed_push_prints_the_undo_line_and_exits_2(tmp_path):
+    """SIGINT to the whole process group (a console's Ctrl+C) while step 4's protect-main runs, after step 3 pushed
+    the seed."""
+    fx = Fx(tmp_path)
+    r = fx.interrupt(fx.cut_args(), tmp_path / "blocked", STUB_PM_BLOCK=str(tmp_path / "blocked"))
+    _interrupted(r, 4)
+    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback\n") in r.stdout
+    assert "Step 3 OK: records-data = seed " in r.stdout and fx.rd()
+    assert not [c for c in fx.calls() if c["path"] == "merge-reviewed"]
+    assert fx.og("rev-parse", "refs/heads/main") == fx.main
+
+
+def test_ctrl_c_after_the_merge_names_the_merge_in_the_undo_line(tmp_path):
+    """SIGINT to the process group while merge-reviewed runs, after main moved to the squash: the undo line names
+    main's new head, as Fail's does (data-off-main/undo-line-after-merge)."""
+    fx = Fx(tmp_path)
+    r = fx.interrupt(fx.cut_args(), tmp_path / "blocked", STUB_MR_BLOCK=str(tmp_path / "blocked"))
+    _interrupted(r, 5)
+    merged = fx.og("rev-parse", "refs/heads/main")
+    assert merged != fx.main
+    undo = fx.cmd(f"Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge {merged}\n")
+    assert undo in r.stdout, r.stdout
+    assert fx.state["wf_state"] == "disabled_manually"          # step 6 never ran
+
+
+def test_only_named_arguments_bind(tmp_path):
+    """data-off-main/ps-unknown-args, kept by the .ps1's non-advanced form (a dot-sourced binding block): a positional,
+    unknown or incomplete argument exits 1 before anything runs."""
+    fx = Fx(tmp_path)
+    for args in (["60"], ["--bogus"], ["--pr"], ["--pr", "60", "x"]):
+        r = fx.run(args)
+        assert r.returncode == 1, (args, r.stdout + r.stderr)
+        if fx.twin == "ps1":
+            assert "REFUSED: " in r.stdout and "Named parameters only" in r.stdout, r.stdout + r.stderr
+        assert fx.calls() == []
+    r = fx.run(["--check-attested"])                     # a switch and named values still bind (the other tests too)
+    assert "NOT ATTESTED" in r.stdout and r.returncode == 1, r.stdout + r.stderr
+
+
+def test_ps1_is_not_advanced_and_marks_every_intended_exit():
+    """In an advanced script the exit code set in a finally block is lost after Ctrl+C (pwsh 7.4 on Linux: exit 0),
+    so the .ps1 binds its parameters in a dot-sourced block and is not advanced itself; every intended exit sets
+    $script:done first, so the finally block reports only a real interruption."""
+    ps1 = PS1.read_text(encoding="utf-8")
+    assert not re.search(r"(?m)^\[CmdletBinding", ps1) and not re.search(r"(?m)^param\(", ps1)
+    assert "    . {\n        [CmdletBinding(PositionalBinding = $false)]\n        param(\n" in ps1 and "    } @args\n" in ps1
+    body = ps1[ps1.index("\ntry {\n# ---"):ps1.rindex("\n} finally {")]
+    exits = re.findall(r"(.{0,24})\bexit\b", body)
+    assert exits and all(e.endswith("$script:done = $true; ") for e in exits), exits
+    for fn in ("function Refuse", "function Fail"):
+        f = ps1[ps1.index(fn):ps1.index("\n}", ps1.index(fn))] if fn == "function Fail" else ps1[ps1.index(fn):]
+        f = f[:f.index("exit") + 6]
+        assert "$script:done = $true" in f, fn
+    fin = ps1[ps1.rindex("\n} finally {"):]
+    assert "if (-not $script:done)" in fin and "exit 2" in fin and "$u = UndoLine" in fin
+    sh = SH.read_text(encoding="utf-8")
+    assert "trap interrupted INT TERM HUP" in sh and "refresh_undo" in sh
 
 
 def test_ps1_checks_return_only_the_exit_code():
