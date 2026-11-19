@@ -1,0 +1,859 @@
+{
+ "corrections": [],
+ "coverage": {
+  "body": "Salem City Council (fixture)",
+  "from": "2026-01-12",
+  "to": "2026-11-02"
+ },
+ "fixture": true,
+ "item_events": [
+  {
+   "date": "2026-01-12",
+   "id": "ev-258c489f-p2-0",
+   "item_id": "fx-salem-resolution-1",
+   "label": "Roll call (fixture)",
+   "meeting_id": "2026-01-12-regular",
+   "order": 0,
+   "page": 2,
+   "ref": "rc-258c489f-p2-0",
+   "source_id": "src-258c489f7118",
+   "type": "roll_call"
+  },
+  {
+   "date": "2026-05-04",
+   "id": "ev-cc3ab242-p2-0",
+   "item_id": "fx-salem-resolution-2",
+   "label": "Roll call (fixture)",
+   "meeting_id": "2026-05-04-regular",
+   "order": 0,
+   "page": 2,
+   "ref": "rc-cc3ab242-p2-0",
+   "source_id": "src-cc3ab242c681",
+   "type": "roll_call"
+  },
+  {
+   "date": "2026-07-13",
+   "id": "ev-8e1fe3e4-p2-0",
+   "item_id": "fx-salem-resolution-3",
+   "label": "Roll call (fixture)",
+   "meeting_id": "2026-07-13-regular",
+   "order": 0,
+   "page": 2,
+   "ref": "rc-8e1fe3e4-p2-0",
+   "source_id": "src-8e1fe3e452df",
+   "type": "roll_call"
+  },
+  {
+   "date": "2026-09-14",
+   "id": "ev-2f9cc78e-p2-0",
+   "item_id": "fx-salem-resolution-4",
+   "label": "Roll call (fixture)",
+   "meeting_id": "2026-09-14-regular",
+   "order": 0,
+   "page": 2,
+   "ref": "rc-2f9cc78e-p2-0",
+   "source_id": "src-2f9cc78e997e",
+   "type": "roll_call"
+  }
+ ],
+ "items": [
+  {
+   "id": "fx-salem-resolution-1",
+   "link_basis": "number",
+   "number": "FXS-1",
+   "title": "Fixture resolution 1",
+   "year": 2026
+  },
+  {
+   "id": "fx-salem-resolution-2",
+   "link_basis": "number",
+   "number": "FXS-2",
+   "title": "Fixture resolution 2",
+   "year": 2026
+  },
+  {
+   "id": "fx-salem-resolution-3",
+   "link_basis": "number",
+   "number": "FXS-3",
+   "title": "Fixture resolution 3",
+   "year": 2026
+  },
+  {
+   "id": "fx-salem-resolution-4",
+   "link_basis": "number",
+   "number": "FXS-4",
+   "title": "Fixture resolution 4",
+   "year": 2026
+  }
+ ],
+ "meetings": [
+  {
+   "agenda_url": "https://example.org/salem-fixture/legistar/9001/agenda.pdf",
+   "attendance": [
+    {
+     "official_id": "fx-salem-oscar",
+     "page": 1,
+     "raw_name": "Testperson Oscar",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "page": 1,
+     "raw_name": "Testperson Hotel",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-india",
+     "page": 1,
+     "raw_name": "Testperson India",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "page": 1,
+     "raw_name": "Testperson Juliet",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "page": 1,
+     "raw_name": "Testperson Kilo",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Salem City Council (fixture)",
+   "date": "2026-01-12",
+   "id": "2026-01-12-regular",
+   "kind": "regular",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/salem-fixture/legistar/9001/minutes.pdf",
+   "source_id": "src-258c489f7118",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2026-01-12 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": "https://example.org/salem-fixture/legistar/9002/agenda.pdf",
+   "attendance": [
+    {
+     "official_id": "fx-salem-oscar",
+     "page": 1,
+     "raw_name": "Testperson Oscar",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "page": 1,
+     "raw_name": "Testperson Hotel",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-india",
+     "page": 1,
+     "raw_name": "Testperson India",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "page": 1,
+     "raw_name": "Testperson Juliet",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "page": 1,
+     "raw_name": "Testperson Kilo",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Salem City Council (fixture)",
+   "date": "2026-03-02",
+   "id": "2026-03-02-regular",
+   "kind": "regular",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/salem-fixture/legistar/9002/minutes.pdf",
+   "source_id": "src-e52a03129014",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2026-03-02 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": "https://example.org/salem-fixture/legistar/9003/agenda.pdf",
+   "attendance": [
+    {
+     "official_id": "fx-salem-oscar",
+     "page": 1,
+     "raw_name": "Testperson Oscar",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "page": 1,
+     "raw_name": "Testperson Hotel",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-india",
+     "page": 1,
+     "raw_name": "Testperson India",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "page": 1,
+     "raw_name": "Testperson Juliet",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "page": 1,
+     "raw_name": "Testperson Kilo",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Salem City Council (fixture)",
+   "date": "2026-05-04",
+   "id": "2026-05-04-regular",
+   "kind": "regular",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/salem-fixture/legistar/9003/minutes.pdf",
+   "source_id": "src-cc3ab242c681",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2026-05-04 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a004/agenda.pdf",
+   "attendance": [
+    {
+     "official_id": "fx-salem-oscar",
+     "page": 1,
+     "raw_name": "Testperson Oscar",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "page": 1,
+     "raw_name": "Testperson Hotel",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-lima",
+     "page": 1,
+     "raw_name": "Testperson Lima",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "page": 1,
+     "raw_name": "Testperson Juliet",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "page": 1,
+     "raw_name": "Testperson Kilo",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Salem City Council (fixture)",
+   "date": "2026-07-13",
+   "id": "2026-07-13-regular",
+   "kind": "regular",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a004/minutes.pdf",
+   "source_id": "src-8e1fe3e452df",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2026-07-13 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a005/agenda.pdf",
+   "attendance": [
+    {
+     "official_id": "fx-salem-oscar",
+     "page": 1,
+     "raw_name": "Testperson Oscar",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "page": 1,
+     "raw_name": "Testperson Hotel",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-lima",
+     "page": 1,
+     "raw_name": "Testperson Lima",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "page": 1,
+     "raw_name": "Testperson Juliet",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "page": 1,
+     "raw_name": "Testperson Kilo",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Salem City Council (fixture)",
+   "date": "2026-09-14",
+   "id": "2026-09-14-regular",
+   "kind": "regular",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a005/minutes.pdf",
+   "source_id": "src-2f9cc78e997e",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2026-09-14 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "roster_available",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "agenda_url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a006/agenda.pdf",
+   "attendance": [
+    {
+     "official_id": "fx-salem-oscar",
+     "page": 1,
+     "raw_name": "Testperson Oscar",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "page": 1,
+     "raw_name": "Testperson Hotel",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-lima",
+     "page": 1,
+     "raw_name": "Testperson Lima",
+     "status": "present"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "page": 1,
+     "raw_name": "Testperson Juliet",
+     "status": "present"
+    },
+    {
+     "official_id": null,
+     "page": 1,
+     "raw_name": "Testperson Kylo",
+     "status": "present"
+    }
+   ],
+   "attendance_status": "extracted",
+   "body": "Salem City Council (fixture)",
+   "date": "2026-11-02",
+   "id": "2026-11-02-regular",
+   "kind": "regular",
+   "minutes_status": "read",
+   "minutes_url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a006/minutes.pdf",
+   "source_id": "src-e73955e087cb",
+   "stated_absent_count": 0,
+   "title": "Regular Meeting 2026-11-02 (fixture)",
+   "verification": {
+    "checks": [
+     {
+      "check": "names_resolve",
+      "detail": "held: a printed name matches no official (fixture)",
+      "ok": false
+     }
+    ],
+    "status": "unverified"
+   }
+  }
+ ],
+ "motions": [
+  {
+   "id": "mo-258c489f-p2-0",
+   "item_id": "fx-salem-resolution-1",
+   "meeting_id": "2026-01-12-regular",
+   "moved_by": {
+    "official_id": "fx-salem-hotel",
+    "raw_name": "Testperson Hotel"
+   },
+   "page": 2,
+   "seconded_by": {
+    "official_id": "fx-salem-india",
+    "raw_name": "Testperson India"
+   },
+   "source_id": "src-258c489f7118",
+   "text": "Testperson Hotel moved to adopt the resolution; seconded by Testperson India",
+   "verification": {
+    "checks": [
+     {
+      "check": "mover_resolves",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "id": "mo-cc3ab242-p2-0",
+   "item_id": "fx-salem-resolution-2",
+   "meeting_id": "2026-05-04-regular",
+   "moved_by": {
+    "official_id": "fx-salem-hotel",
+    "raw_name": "Testperson Hotel"
+   },
+   "page": 2,
+   "seconded_by": {
+    "official_id": "fx-salem-india",
+    "raw_name": "Testperson India"
+   },
+   "source_id": "src-cc3ab242c681",
+   "text": "Testperson Hotel moved to adopt the resolution; seconded by Testperson India",
+   "verification": {
+    "checks": [
+     {
+      "check": "mover_resolves",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "id": "mo-8e1fe3e4-p2-0",
+   "item_id": "fx-salem-resolution-3",
+   "meeting_id": "2026-07-13-regular",
+   "moved_by": {
+    "official_id": "fx-salem-hotel",
+    "raw_name": "Testperson Hotel"
+   },
+   "page": 2,
+   "seconded_by": {
+    "official_id": "fx-salem-lima",
+    "raw_name": "Testperson Lima"
+   },
+   "source_id": "src-8e1fe3e452df",
+   "text": "Testperson Hotel moved to adopt the resolution; seconded by Testperson Lima",
+   "verification": {
+    "checks": [
+     {
+      "check": "mover_resolves",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  },
+  {
+   "id": "mo-2f9cc78e-p2-0",
+   "item_id": "fx-salem-resolution-4",
+   "meeting_id": "2026-09-14-regular",
+   "moved_by": {
+    "official_id": "fx-salem-hotel",
+    "raw_name": "Testperson Hotel"
+   },
+   "page": 2,
+   "seconded_by": {
+    "official_id": "fx-salem-lima",
+    "raw_name": "Testperson Lima"
+   },
+   "source_id": "src-2f9cc78e997e",
+   "text": "Testperson Hotel moved to adopt the resolution; seconded by Testperson Lima",
+   "verification": {
+    "checks": [
+     {
+      "check": "mover_resolves",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   }
+  }
+ ],
+ "officials": [
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-salem-oscar",
+   "name": "Testperson Oscar",
+   "surname": "Oscar",
+   "title": "Mayor"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-salem-hotel",
+   "name": "Testperson Hotel",
+   "surname": "Hotel",
+   "title": "Councilor"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-salem-india",
+   "name": "Testperson India",
+   "surname": "India",
+   "title": "Councilor"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-salem-juliet",
+   "name": "Testperson Juliet",
+   "surname": "Juliet",
+   "title": "Councilor"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-salem-kilo",
+   "name": "Testperson Kilo",
+   "surname": "Kilo",
+   "title": "Councilor"
+  },
+  {
+   "aliases": [],
+   "given": "Testperson",
+   "id": "fx-salem-lima",
+   "name": "Testperson Lima",
+   "surname": "Lima",
+   "title": "Councilor"
+  }
+ ],
+ "roll_calls": [
+  {
+   "id": "rc-258c489f-p2-0",
+   "item_id": "fx-salem-resolution-1",
+   "meeting_id": "2026-01-12-regular",
+   "motion_id": "mo-258c489f-p2-0",
+   "outcome": "passed",
+   "outcome_text": "The motion passed.",
+   "page": 2,
+   "source_id": "src-258c489f7118",
+   "stated_tally": {
+    "abstain": 0,
+    "no": 0,
+    "yes": 5
+   },
+   "verification": {
+    "checks": [
+     {
+      "check": "one_vote_per_present_member",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   },
+   "votes": [
+    {
+     "official_id": "fx-salem-oscar",
+     "raw_name": "Testperson Oscar",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "raw_name": "Testperson Hotel",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-india",
+     "raw_name": "Testperson India",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "raw_name": "Testperson Juliet",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "raw_name": "Testperson Kilo",
+     "raw_value": "Y",
+     "value": "yes"
+    }
+   ]
+  },
+  {
+   "id": "rc-cc3ab242-p2-0",
+   "item_id": "fx-salem-resolution-2",
+   "meeting_id": "2026-05-04-regular",
+   "motion_id": "mo-cc3ab242-p2-0",
+   "outcome": "passed",
+   "outcome_text": "The motion passed.",
+   "page": 2,
+   "source_id": "src-cc3ab242c681",
+   "stated_tally": {
+    "abstain": 0,
+    "no": 1,
+    "yes": 4
+   },
+   "verification": {
+    "checks": [
+     {
+      "check": "one_vote_per_present_member",
+      "ok": true
+     }
+    ],
+    "status": "verified"
+   },
+   "votes": [
+    {
+     "official_id": "fx-salem-oscar",
+     "raw_name": "Testperson Oscar",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "raw_name": "Testperson Hotel",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-india",
+     "raw_name": "Testperson India",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "raw_name": "Testperson Juliet",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "raw_name": "Testperson Kilo",
+     "raw_value": "N",
+     "value": "no"
+    }
+   ]
+  },
+  {
+   "id": "rc-8e1fe3e4-p2-0",
+   "item_id": "fx-salem-resolution-3",
+   "meeting_id": "2026-07-13-regular",
+   "motion_id": "mo-8e1fe3e4-p2-0",
+   "outcome": "passed",
+   "outcome_text": "The motion passed.",
+   "page": 2,
+   "source_id": "src-8e1fe3e452df",
+   "stated_tally": {
+    "abstain": 0,
+    "no": 0,
+    "yes": 6
+   },
+   "verification": {
+    "checks": [
+     {
+      "check": "tally_matches_stated",
+      "detail": "held: stated tally differs from the votes read (fixture)",
+      "ok": false
+     }
+    ],
+    "status": "unverified"
+   },
+   "votes": [
+    {
+     "official_id": "fx-salem-oscar",
+     "raw_name": "Testperson Oscar",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "raw_name": "Testperson Hotel",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-lima",
+     "raw_name": "Testperson Lima",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "raw_name": "Testperson Juliet",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "raw_name": "Testperson Kilo",
+     "raw_value": "Y",
+     "value": "yes"
+    }
+   ]
+  },
+  {
+   "id": "rc-2f9cc78e-p2-0",
+   "item_id": "fx-salem-resolution-4",
+   "meeting_id": "2026-09-14-regular",
+   "motion_id": "mo-2f9cc78e-p2-0",
+   "outcome": "passed",
+   "outcome_text": "The motion passed.",
+   "page": 2,
+   "source_id": "src-2f9cc78e997e",
+   "stated_tally": {
+    "abstain": 0,
+    "no": 0,
+    "yes": 5
+   },
+   "verification": {
+    "checks": [
+     {
+      "check": "minutes_read",
+      "detail": "held: this vote comes from the portal's vote record; the minutes have not been read (fixture)",
+      "ok": false
+     }
+    ],
+    "status": "unverified"
+   },
+   "votes": [
+    {
+     "official_id": "fx-salem-oscar",
+     "raw_name": "Testperson Oscar",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-hotel",
+     "raw_name": "Testperson Hotel",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-lima",
+     "raw_name": "Testperson Lima",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-juliet",
+     "raw_name": "Testperson Juliet",
+     "raw_value": "Y",
+     "value": "yes"
+    },
+    {
+     "official_id": "fx-salem-kilo",
+     "raw_name": "Testperson Kilo",
+     "raw_value": "Y",
+     "value": "yes"
+    }
+   ]
+  }
+ ],
+ "schema_version": "1.0",
+ "sources": [
+  {
+   "fetched_at": "2026-11-18",
+   "id": "src-258c489f7118",
+   "kind": "minutes",
+   "meeting_date": "2026-01-12",
+   "pages": 5,
+   "sha256": "258c489f7118ded739a659fd7378e73826ce18b300845db4b7e124b71a4e9fb2",
+   "text_layer": "text",
+   "url": "https://example.org/salem-fixture/legistar/9001/minutes.pdf"
+  },
+  {
+   "fetched_at": "2026-11-18",
+   "id": "src-e52a03129014",
+   "kind": "minutes",
+   "meeting_date": "2026-03-02",
+   "pages": 5,
+   "sha256": "e52a031290149d4eb1f91f51c68c9ef519611257acb6055038dd96d287245cef",
+   "text_layer": "text",
+   "url": "https://example.org/salem-fixture/legistar/9002/minutes.pdf"
+  },
+  {
+   "fetched_at": "2026-11-18",
+   "id": "src-cc3ab242c681",
+   "kind": "minutes",
+   "meeting_date": "2026-05-04",
+   "pages": 5,
+   "sha256": "cc3ab242c6810679952e256ebeaa1344654918ffeb78362b78127a7e1c443a80",
+   "text_layer": "text",
+   "url": "https://example.org/salem-fixture/legistar/9003/minutes.pdf"
+  },
+  {
+   "fetched_at": "2026-11-18",
+   "id": "src-8e1fe3e452df",
+   "kind": "minutes",
+   "meeting_date": "2026-07-13",
+   "pages": 5,
+   "sha256": "8e1fe3e452dfb8aad81bc2dec685bf6ede61a8f07ca5a3c5a2b781588dbae17e",
+   "text_layer": "text",
+   "url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a004/minutes.pdf"
+  },
+  {
+   "fetched_at": "2026-11-18",
+   "id": "src-2f9cc78e997e",
+   "kind": "minutes",
+   "meeting_date": "2026-09-14",
+   "pages": 5,
+   "sha256": "2f9cc78e997e236c69936d51d0f01fb4829303d89f700ee76b3e85b726465a15",
+   "text_layer": "text",
+   "url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a005/minutes.pdf"
+  },
+  {
+   "fetched_at": "2026-11-18",
+   "id": "src-e73955e087cb",
+   "kind": "minutes",
+   "meeting_date": "2026-11-02",
+   "pages": 5,
+   "sha256": "e73955e087cb9f41a5a08ab17d66a5b28efe54735e3348cc50a9d8dcd67a25ab",
+   "text_layer": "text",
+   "url": "https://example.org/salem-fixture/escribe/3f6c1a52-0000-4000-8000-00000000a006/minutes.pdf"
+  }
+ ]
+}
