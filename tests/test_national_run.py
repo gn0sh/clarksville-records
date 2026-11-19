@@ -692,14 +692,14 @@ def test_a_symlinked_cache_root_fails_the_run(tmp_path, monkeypatch):
     assert net.calls == []
 
 
-# --- the wall-clock deadline (national-budget/no-wall-deadline) ----------------------------------------------------
+# --- the run deadline (4.4.4, national-budget/*) and freshness stamps (4.4.5, national-freshness/*) -------------
 
 class Wall:
-    """A fake wall clock that only the fetcher's sleeps move: the fetcher's monotonic clock and the run's clock read
-    the same seconds, so waiting is the only thing that takes time."""
+    """A fake wall clock moved only by the fetcher's sleeps and the faked answers: the fetcher's monotonic clock and
+    the run's clock read the same seconds."""
 
-    def __init__(self):
-        self.s, self.slept = 0.0, []
+    def __init__(self, s=0.0):
+        self.s, self.slept = s, []
 
     def sleep(self, seconds):
         self.slept.append(seconds)
@@ -712,57 +712,302 @@ class Wall:
         return NOW + timedelta(seconds=self.s)
 
 
-def walled(net, wall):
+def walled(net, wall, **kw):
     return PoliteFetcher(opener=net, sleep=wall.sleep, clock=wall.mono, proxy_failures=lambda: [],
-                         allowed_hosts=("webapi.legistar.com",))
+                         allowed_hosts=("webapi.legistar.com",), **kw)
 
 
-def test_past_the_deadline_the_rest_is_budget_skipped_and_the_outputs_are_written(tmp_path, monkeypatch):
-    govs = [body(i, f"c{i:02d}") for i in range(1, 6)]                  # 5 tenants, one events request each
-    d, _ = load(tmp_path, monkeypatch, *govs)
-    net, wall = Net(), Wall()
-    f = walled(net, wall)
+class SlowNet(Net):
+    """Net whose every answer takes `cost` seconds of the fake wall; `at` records each request's start."""
+
+    def __init__(self, wall, *a, cost=15, **k):
+        super().__init__(*a, **k)
+        self.wall, self.cost, self.at = wall, cost, []
+
+    def __call__(self, req, timeout):
+        self.at.append(self.wall.s)
+        self.wall.s += self.cost
+        return super().__call__(req, timeout)
+
+
+def test_probe2_slow_answers_send_nothing_at_or_after_the_deadline(tmp_path, monkeypatch):
+    """The reviewer's probe (national-budget/post-deadline-request): answers of 15 s each, so no wait is ever slept
+    and the old sleep guard never ran; 5 requests went out at 30-90 s against a 20 s deadline."""
+    later = body(99999, "zz")                                          # read after Salem (id order)
+    d, _ = load(tmp_path, monkeypatch, SALEM, later, reviewed=(SALEM,))
+    evs = [event(n, 138, "2026-12-0%d" % (n + 1), "Final") for n in range(1, 6)]
+    wall = Wall()
+    net = SlowNet(wall, events={138: evs})
     root = tmp_path / "data" / "national"
-    r = nr.collect(root, d, f, 100, NOW, clock=wall.now, deadline=NOW + timedelta(seconds=35))
-    # robots.txt at 0 s, events at 10, 20, 30 s; the 4th body starts at 30 s, but its wait would end at 40 s
-    assert len(net.calls) == 4 and wall.s == 30.0
-    out = [r.outcomes[g["gov"]] for g in govs]
-    assert out == ["ok", "ok", "ok", "budget-skipped", "budget-skipped"]
-    assert r.health[govs[3]["gov"]]["last_attempt_at"] == nr._instant(NOW + timedelta(seconds=30))  # it started
-    assert r.health[govs[4]["gov"]]["last_attempt_at"] is None                                   # never started
-    assert all(r.health[g["gov"]]["consecutive_failures"] == 0 for g in govs)                 # not a failure
-    health = json.loads((root / "health.json").read_text())
-    assert [health[g["gov"]]["last_error"] for g in govs] == [None, None, None, "budget-skipped", "budget-skipped"]
-    assert sorted(p.name for p in (root / "bodies").iterdir()) == [f"{g['gov']}.json" for g in govs[:3]]
-    assert f.sleep == wall.sleep                                         # the fetcher's own sleep is back
+    deadline = NOW + timedelta(seconds=20)
+    r = nr.collect(root, d, walled(net, wall), 100, NOW, clock=wall.now, deadline=deadline)
+    assert net.at and all(t < 20 for t in net.at)                      # every request starts before D
+    assert sum(1 for t in net.at if t + net.cost > 20) <= 1            # at most one ends after it
+    assert net.at == [0, 15]                                           # robots.txt, Salem's events; no item request
+    assert r.outcomes == {SALEM["gov"]: "budget-skipped", later["gov"]: "budget-skipped"}
+    assert wall.slept == []
+    assert set(json.loads((root / "health.json").read_text())) == {SALEM["gov"], later["gov"]}
 
 
-def test_a_long_robots_crawl_delay_is_never_slept_past_the_deadline(tmp_path, monkeypatch):
-    """A Crawl-delay of an hour would stretch even a small budget past the job's timeout (and a killed run writes
-    nothing); with the deadline the wait is refused before the request and the run ends at once."""
-    govs = [body(1, "aa"), body(2, "bb")]
+class Answer(Resp):
+    def __init__(self, status, payload=b"", headers=None):
+        super().__init__(payload)
+        self.status, self.headers = status, headers or {}
+
+
+@pytest.mark.parametrize("where", ["robots", "5xx", "reset", "3xx"])
+def test_the_deadline_refuses_robots_a_retry_and_a_redirect_hop(where):
+    """4.4.6 test 1, parametrised at the fetcher: the hook turns true after `k` requests; the next request, whatever
+    sends it (robots.txt, a 5xx retry, a reset retry, a redirect hop), is never sent."""
+    url = "https://webapi.legistar.com/v1/aa/events"
+    calls = []
+
+    def opener(req, timeout):
+        calls.append(req.full_url)
+        if req.full_url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(req.full_url, 404, "x", {}, io.BytesIO(b""))
+        if where == "5xx":
+            raise urllib.error.HTTPError(req.full_url, 503, "x", {}, io.BytesIO(b""))
+        if where == "reset":
+            raise ConnectionResetError("reset")
+        if where == "3xx":
+            raise urllib.error.HTTPError(req.full_url, 302, "x", {"Location": url + "?hop=1"}, io.BytesIO(b""))
+        return Answer(200, b"[]")
+    k = 0 if where == "robots" else 2                                   # robots.txt, then the first events request
+    f = PoliteFetcher(opener=opener, sleep=lambda s: None, proxy_failures=lambda: [],
+                      allowed_hosts=("webapi.legistar.com",), past_deadline=lambda pause: len(calls) >= k)
+    with pytest.raises(fetch.RequestCapReached):
+        f.get(url)
+    assert len(calls) == k
+    assert any(e["event"] == "deadline" for e in f.log)
+    assert f.sent("webapi.legistar.com") == k
+
+
+@pytest.mark.parametrize("seconds, sent", [(30, False), (25, False), (31, True)])
+def test_a_wait_ending_at_or_past_the_deadline_is_never_slept_or_sent(tmp_path, monkeypatch, seconds, sent):
+    """4.4.6 test 2: a Crawl-delay of 30 s; a deadline at exactly the wait's end (>=) or before it refuses the wait."""
+    d, _ = load(tmp_path, monkeypatch, body(1, "aa"))
+    wall = Wall()
+    net = Net(robots="User-agent: *\nCrawl-delay: 30\n")
+    f = walled(net, wall)
+    r = nr.run(d, f, 100, NOW, clock=wall.now, deadline=NOW + timedelta(seconds=seconds))
+    if sent:
+        assert len(net.calls) == 2 and wall.slept == [30.0] and r.outcomes == {"place-4100001": "ok"}
+        return
+    assert len(net.calls) == 1 and wall.slept == []                    # robots.txt only
+    assert f._sent == {"webapi.legistar.com": 1} and f._tenant_sent == {}
+    assert r.outcomes == {"place-4100001": "budget-skipped"}
+
+
+def _good_run(tmp_path, monkeypatch, *govs, at=NOW - timedelta(days=1)):
+    """An earlier good run: every body has a feed and health stamped `at`."""
     d, _ = load(tmp_path, monkeypatch, *govs)
-    net, wall = Net(robots="User-agent: *\nCrawl-delay: 3600\n"), Wall()
-    r = nr.run(d, walled(net, wall), 100, NOW, clock=wall.now, deadline=NOW + timedelta(minutes=50))
-    assert len(net.calls) == 1 and wall.slept == []                     # robots.txt only; no hour-long wait
+    return d, nr.run(d, fetcher(Net()), 100, at, clock=lambda: at)
+
+
+def _unchanged(r, good, gid, failures=0):
+    h, g = r.health[gid], good.health[gid]
+    assert (h["last_attempt_at"], h["last_ok_at"]) == (g["last_attempt_at"], g["last_ok_at"])
+    assert h["consecutive_failures"] == failures
+    assert r.feeds[gid] == good.feeds[gid]                             # checked_at included
+
+
+def test_a_first_wait_refused_by_the_deadline_keeps_every_stamp(tmp_path, monkeypatch):
+    """4.4.6 test 3 (national-freshness/deadline-stamp-without-request)."""
+    g = body(1, "aa")
+    d, good = _good_run(tmp_path, monkeypatch, g)
+    wall = Wall()
+    r = nr.run(d, walled(Net(robots="User-agent: *\nCrawl-delay: 30\n"), wall), 100, NOW, clock=wall.now,
+               deadline=NOW + timedelta(seconds=20), previous_feeds=good.feeds, previous_health=good.health)
+    assert r.outcomes[g["gov"]] == "budget-skipped"
+    _unchanged(r, good, g["gov"])
+    assert r.health[g["gov"]]["failure_streak"] is None
+
+
+def test_the_cap_pre_check_and_a_cap_mid_read_keep_every_stamp(tmp_path, monkeypatch):
+    a, b = body(1, "aa"), body(2, "bb")
+    d, good = _good_run(tmp_path, monkeypatch, a, b)
+    r = nr.run(d, fetcher(Net()), 1, NOW, clock=lambda: NOW, previous_feeds=good.feeds,
+               previous_health=good.health)                            # robots.txt takes the only request
     assert set(r.outcomes.values()) == {"budget-skipped"}
+    for g in (a, b):
+        _unchanged(r, good, g["gov"])
 
 
-def test_a_deadline_already_past_sends_nothing_and_still_writes(tmp_path, monkeypatch):
-    govs = [body(1, "aa"), body(2, "bb")]
-    d, _ = load(tmp_path, monkeypatch, *govs)
-    net, root = Net(), tmp_path / "data" / "national"
-    r = nr.collect(root, d, fetcher(net), 100, NOW, deadline=NOW)
-    assert net.calls == []
-    assert r.outcomes == {g["gov"]: "budget-skipped" for g in govs}
-    assert set(json.loads((root / "health.json").read_text())) == {g["gov"] for g in govs}
+def test_robots_counts_a_failure_but_moves_no_stamp(tmp_path, monkeypatch):
+    g = body(1, "aa")
+    d, good = _good_run(tmp_path, monkeypatch, g)
+    r = nr.run(d, fetcher(Net(robots="User-agent: *\nDisallow: /\n")), 100, NOW, clock=lambda: NOW,
+               previous_feeds=good.feeds, previous_health=good.health)
+    assert r.outcomes[g["gov"]] == "robots"
+    _unchanged(r, good, g["gov"], failures=1)
+    assert r.health[g["gov"]]["failure_streak"] == {"kind": "robots", "count": 1}
 
 
-def test_no_deadline_keeps_todays_behaviour_and_a_naive_one_is_refused(tmp_path, monkeypatch):
+def test_a_collector_error_before_any_get_moves_no_stamp(tmp_path, monkeypatch):
+    g = body(1, "aa")
+    d, good = _good_run(tmp_path, monkeypatch, g)
+
+    def refuse(entry, fetcher, now, cache_root):
+        raise ValueError("refused before any request")
+    monkeypatch.setattr(lu, "read_body", refuse)
+    r = nr.run(d, fetcher(Net()), 100, NOW, clock=lambda: NOW, previous_feeds=good.feeds,
+               previous_health=good.health)
+    assert r.outcomes[g["gov"]] == "collector-error"
+    _unchanged(r, good, g["gov"], failures=1)
+
+
+def test_an_ok_with_no_tenant_request_is_a_collector_error(tmp_path, monkeypatch):
+    g = body(1, "aa")
+    d, good = _good_run(tmp_path, monkeypatch, g)
+    real = lu.read_body
+    monkeypatch.setattr(lu, "read_body", lambda entry, f, now, cache_root: real(entry, fetcher(Net()), now, cache_root))
+    r = nr.run(d, fetcher(Net()), 100, NOW, clock=lambda: NOW, previous_feeds=good.feeds,
+               previous_health=good.health)
+    assert r.outcomes[g["gov"]] == "collector-error"
+    _unchanged(r, good, g["gov"], failures=1)
+
+
+def test_a_retry_refused_by_the_deadline_stamps_the_attempt_only(tmp_path, monkeypatch):
+    """4.4.6 test 4: robots.txt 0-5 s, the events request sent at 10 s (a 503 by 15 s); its retry would be sent at
+    20 s, after the 18 s deadline: refused."""
+    g = body(1, "aa")
+    d, good = _good_run(tmp_path, monkeypatch, g)
+    wall = Wall()
+    net = SlowNet(wall, fail={"aa": (503, b"")}, cost=5)
+    r = nr.run(d, walled(net, wall), 100, NOW, clock=wall.now, deadline=NOW + timedelta(seconds=18),
+               previous_feeds=good.feeds, previous_health=good.health)
+    assert net.at == [0, 10]                                           # robots.txt, events; no retry
+    gid = g["gov"]
+    assert r.outcomes[gid] == "budget-skipped"
+    start = nr._instant(NOW + timedelta(seconds=0))
+    assert r.health[gid]["last_attempt_at"] == r.feeds[gid]["checked_at"] == start
+    assert r.health[gid]["last_ok_at"] == r.feeds[gid]["last_ok_at"] == good.health[gid]["last_ok_at"]
+
+
+def test_an_ok_read_is_stamped_with_its_own_start_not_the_run_now(tmp_path, monkeypatch):
+    """4.4.6 test 5."""
+    a, b = body(1, "aa"), body(2, "bb")
+    d, _ = load(tmp_path, monkeypatch, a, b)
+    wall = Wall(s=100)
+    net = SlowNet(wall, cost=3)
+    r = nr.run(d, walled(net, wall), 100, NOW, clock=wall.now)
+    for g, s in ((a, 100), (b, 113)):          # a: robots.txt 100-103, wait to 110, events 110-113; b starts at 113
+        start = nr._instant(NOW + timedelta(seconds=s))
+        h, f = r.health[g["gov"]], r.feeds[g["gov"]]
+        assert h["last_attempt_at"] == h["last_ok_at"] == f["checked_at"] == f["last_ok_at"] == start
+        assert start != nr._instant(NOW)
+
+
+def test_the_fallback_record_keeps_the_previous_valid_stamps(tmp_path, monkeypatch):
+    """4.4.6 test 6: `_record` raising (consumer 5): the bare collector-error record keeps the last run's stamps."""
+    a, b = body(1, "aa"), body(2, "bb")
+    d, good = _good_run(tmp_path, monkeypatch, a, b)
+    health = copy.deepcopy(good.health)
+    health[b["gov"]]["last_attempt_at"] = "not an instant"
+
+    def broken(*args, **kw):
+        raise RuntimeError("record")
+    monkeypatch.setattr(nr, "_record", broken)
+    monkeypatch.setattr(lu, "read_body", lambda *a, **k: (_ for _ in ()).throw(ValueError("no request")))
+    r = nr.run(d, fetcher(Net()), 100, NOW, clock=lambda: NOW, previous_feeds=good.feeds, previous_health=health)
+    ha, hb = r.health[a["gov"]], r.health[b["gov"]]
+    assert ha["last_error"] == "collector-error"
+    assert (ha["last_attempt_at"], ha["last_ok_at"]) == (good.health[a["gov"]]["last_attempt_at"],
+                                                         good.health[a["gov"]]["last_ok_at"])
+    assert (hb["last_attempt_at"], hb["last_ok_at"]) == (None, good.health[b["gov"]]["last_ok_at"])
+
+
+class Untouched:
+    """A fetcher stand-in that fails on any use: proves nothing was called."""
+
+    def __getattr__(self, name):
+        raise AssertionError(f"fetcher.{name} used")
+
+
+def test_a_deadline_without_a_clock_is_refused_before_anything(tmp_path, monkeypatch):
+    """4.4.6 test 7 (frozen-clock-deadline)."""
+    d, _ = load(tmp_path, monkeypatch, body(1, "aa"))
+    monkeypatch.setattr(nr, "read_previous", lambda root: pytest.fail("a file was read"))
+    monkeypatch.setattr(lu, "prune_cache", lambda *a: pytest.fail("the cache was touched"))
+    root = tmp_path / "data" / "national"
+    for call in (lambda: nr.run(d, Untouched(), 100, NOW, deadline=NOW + timedelta(hours=1), cache_root=root / "cache"),
+                 lambda: nr.collect(root, d, Untouched(), 100, NOW, deadline=NOW + timedelta(hours=1)),
+                 lambda: nr.run(d, Untouched(), 100, NOW, clock=lambda: NOW, deadline=datetime(2026, 12, 1, 19, 0))):
+        with pytest.raises(ValueError):
+            call()
+    assert not root.exists()
+
+
+def test_the_hook_is_restored_after_run_returns_and_after_it_raises(tmp_path, monkeypatch):
+    d, _ = load(tmp_path, monkeypatch, body(1, "aa"))
+    f = fetcher(Net())
+    mine = object()
+    f.past_deadline = mine
+    nr.run(d, f, 100, NOW, clock=lambda: NOW, deadline=NOW + timedelta(hours=1))
+    assert f.past_deadline is mine
+    monkeypatch.setattr(nr, "merge_proposals", lambda *a: (_ for _ in ()).throw(RuntimeError("late")))
+    with pytest.raises(RuntimeError):
+        nr.run(d, f, 100, NOW, clock=lambda: NOW, deadline=NOW + timedelta(hours=1))
+    assert f.past_deadline is mine
+
+
+def test_no_deadline_leaves_the_fetcher_hook_alone_and_waits_as_today(tmp_path, monkeypatch):
     govs = [body(1, "aa"), body(2, "bb")]
     d, _ = load(tmp_path, monkeypatch, *govs)
     net, wall = Net(robots="User-agent: *\nCrawl-delay: 3600\n"), Wall()
-    r = nr.run(d, walled(net, wall), 100, NOW, clock=wall.now)
+    f = walled(net, wall)
+    r = nr.run(d, f, 100, NOW, clock=wall.now)
     assert set(r.outcomes.values()) == {"ok"} and wall.slept == [3600.0, 3600.0]   # an hour a request
-    with pytest.raises(ValueError):
-        nr.run(d, fetcher(Net()), 100, NOW, deadline=datetime(2026, 12, 1, 19, 0))
+    assert f.past_deadline is None
+
+
+# --- slow answers (4.4.4 total-answer cap) ------------------------------------------------------------------------
+
+class Drip(Resp):
+    """An answer whose every chunk read takes `cost` seconds of the fake wall."""
+
+    def __init__(self, wall, payload, cost=50):
+        super().__init__(payload)
+        self.wall, self.cost = wall, cost
+
+    def read1(self, n=-1):
+        self.wall.s += self.cost
+        return super().read1(n)
+
+    def read(self, n=-1):
+        self.wall.s += self.cost
+        return super().read(n)
+
+
+@pytest.mark.parametrize("cap, outcome", [(120.0, "server-error"), (None, "ok")])
+def test_a_slow_answer_is_cut_at_max_answer_seconds(tmp_path, monkeypatch, cap, outcome):
+    """4.4.6 test 8: 200 KiB in 64 KiB chunks at 50 s each: past 120 s the fetch fails; with no cap it is read whole."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+    wall = Wall()
+    payload = b"[" + b" " * (200 * 1024) + b"]"
+
+    def opener(req, timeout):
+        if req.full_url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(req.full_url, 404, "x", {}, io.BytesIO(b""))
+        return Drip(wall, payload)
+    f = walled(opener, wall, max_answer_seconds=cap)
+    r = nr.run(d, f, 100, NOW, clock=wall.now)
+    assert r.outcomes[g["gov"]] == outcome
+    if cap:
+        assert wall.s == 10 + 150                                      # the floor wait, then 3 chunks: no 4th read
+
+
+def test_a_slow_403_body_is_a_host_block():
+    """4.4.2 holds with the cap: a 403 body cut short by max_answer_seconds is unreadable, so the host stops."""
+    wall = Wall()
+
+    def opener(req, timeout):
+        if req.full_url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(req.full_url, 404, "x", {}, io.BytesIO(b""))
+        raise urllib.error.HTTPError(req.full_url, 403, "x", {}, Drip(wall, b'{"x": 1}' * 30000, cost=200))
+    f = walled(opener, wall, max_answer_seconds=120.0)
+    with pytest.raises(fetch.HostBlocked) as e:
+        f.get("https://webapi.legistar.com/v1/aa/events")
+    assert not isinstance(e.value, fetch.TenantBlocked)
