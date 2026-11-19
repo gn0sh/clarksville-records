@@ -474,6 +474,98 @@ for a non-canonical shared path (None must only ever mean "host-level and allowe
    `site + "/"` prefix, so spellings of one client never count as two tenants.
 8. Log: `blocked` and `cap` events carry `tenant` as the canonical key, so health and C3 group by it.
 
+#### 4.4.2 Invariant: classify fails closed (`fetch/403-body-*`, stated after the 2nd hit)
+software-architect, 2026-11-19. Hits: `fetch/403-body-read-escapes` (C1 code review: a failing `e.read()` escaped),
+`fetch/403-body-parse-escapes` (S2a security finding 1: a nested JSON 403 body raised RecursionError in
+`_json_object`). Both are one gap: the refusal branch assumed it knew every error type its own steps can raise.
+
+**Invariant.** When the site answers a request with a refusal (HTTP 403 or 429, on any URL, robots.txt and redirect
+hops included), the fetcher leaves `_raw_get` only by raising `TenantBlocked`, `HostBlocked` or `ProxyRefused`, and
+for the first two the block is already recorded (`_tenant_blocked[tenant]` or `_blocked[site]`) before the raise.
+Any error of any type (`Exception` and every subclass: OSError, ValueError, UnicodeDecodeError, RecursionError,
+MemoryError, TypeError, AttributeError, KeyError) raised while reading, decoding, parsing or classifying that answer
+(body read, body decode, JSON parse, header read, proxy attribution, the tenant-or-host decision) makes the answer a
+**host block** for the run (`_blocked[site]`, reason `HTTP <code> from the site on <url> (answer not classifiable:
+<type name>)`, a `blocked` log event, `HostBlocked`). It never escapes the classifier with no block recorded, and it
+never yields a tenant block: a tenant block needs positive evidence (a 403 on a tenant path whose body parsed as a
+JSON object, no other tenant of the site blocked), and an error is the absence of evidence. Consequence: after any
+refusal answer, no further request goes to that host (or, for a clean tenant block, to that tenant) this run,
+whatever the answer's bytes or headers are.
+
+**Design (owner backend-engineer, opus/high).** One method decides and one place records. `_refusal_decision(e,
+host, key, tenant, url, started, tenant_ok) -> ("proxy" | "tenant" | "host", reason)` does every read, decode, parse
+and the decision inside `try: ... except Exception as x: return "host", <not-classifiable reason>`; it raises
+nothing. The 403/429 branch of `_raw_get` then records the block for the decision and raises, outside that `try`
+(so the guard can never swallow the `TenantBlocked`/`HostBlocked` it is meant to raise). Nothing that can raise sits
+between the decision and the record: the dict write is the first statement, then `log.append`, then the raise
+(`from None`, so the body never rides along as `__context__`). `BaseException` that is not an `Exception`
+(KeyboardInterrupt, SystemExit) is not caught: the run stops and writes nothing.
+
+**Every site in `collector/fetch.py` that reads or classifies an error answer** (lines at 20c073d):
+1. `:490-492` proxy attribution, `_proxy_said_403` (`:432-441`): catches only ValueError from `fromisoformat`; a
+   non-dict entry (AttributeError) or a `ts` without a zone compared with the aware `since` (TypeError) escapes. Must:
+   inside the decision guard; any error = not attributed to the proxy, so the answer is the site's (block).
+2. `:493-495` body read `e.read(BLOCK_BODY_BYTES)`: catches OSError and HTTPException; a ValueError (read on a
+   closed response) or any other type escapes, because the sibling `except` clauses at `:514`/`:528` do not cover
+   code inside an `except` block. Must: any error -> body `b""` (not JSON, so host block).
+3. `:496` snippet decode (`errors="replace"`): cannot fail today; inside the guard anyway.
+4. `:497-498` header read `e.headers.get('Server')`: AttributeError when `e.headers` is None (`:513` already allows
+   for None). Must: inside the guard; read through `(e.headers or {})`.
+5. `:499` and `:536-542` `_tenant_only_block` -> `_json_object` (`:255-259`): catches UnicodeDecodeError and
+   ValueError only; RecursionError (finding 1) or MemoryError escapes. Must: `_json_object` returns False on any
+   `Exception` (defence in depth), and the call is inside the guard.
+6. `:500-506` record and raise: already in the right order (dict write, log, raise); must stay so, outside the guard.
+7. `:507-509` 5xx retry: re-enters `_raw_get`, so a 403/429 on the retry goes through 1-6; no rule of its own.
+8. `:513` every other error answer (4xx other than 403/429, a 5xx after its retry, 304): not a refusal, so outside
+   this invariant, but the same shape. Must (finding 3, `fetch/error-body-unbounded`): `e.read(self.max_bytes + 1)`
+   with the same size trip as `:484-487`, and any error reading it -> `FetchFailed` (logged `error`), never a raw
+   exception.
+9. `robots()` `:544-584`: robots.txt goes through `_raw_get(_tenant_ok=False)`, so its 403/429 is 1-6 and always a
+   host block (`HostBlocked` is not a `HostRefused`, so it leaves `robots()` uncached, but `_blocked` already stops
+   the host). A 200 robots.txt: `rp.parse` (`:575`) and the crawl delay (`:581-583`) must treat any error as
+   unreadable: cache `disallow_all`, set `_robots_unreadable[exact] = "unparseable"`, log `robots_refused` (as a
+   server error does), never leave `_robots[exact]` unset so every `get()` re-asks. Other `_raw_get` failures on
+   robots.txt (`FetchFailed`, `ProxyRefused`) are not refusals and keep today's behaviour.
+10. `get()` `:618-635` and `_location` `:592-616`: redirect hops are requested through `_raw_get` (so 1-6 apply);
+    Location parsing already maps to `SchemeRefused`/`FetchFailed`. No change.
+11. Caller, `collector/national/run.py` `_read_one` `:286`: keeps `except Exception` (one body's failure is never
+    the run's) and tests `TenantBlocked` before `HostBlocked`; with this invariant the classifier can no longer hand
+    it an unclassified error after a refusal.
+
+**Tests (C1 follow-up):** for each of a nested 403 body (`[` * 60000), a 403 whose `e.read` raises ValueError, a 403
+with `e.headers` None, a proxy status entry that is not a dict and one with a zone-less `ts`, and a 429: the call
+raises `HostBlocked`, `_blocked[site]` is set, and a following `get()` to another tenant of the same host sends zero
+requests (opener call count). A table test patches the decision's helpers to raise each of the exception types named
+above and asserts the same. A 200 robots.txt whose parse raises (patched) caches `disallow_all` and is not re-asked.
+
+#### 4.4.3 Invariant: outside or on-disk JSON that fails to parse is unreadable (`collector-input/json-depth-recursion`)
+**Invariant.** Every parse of JSON that came from outside (an answer) or from disk (`national-data` files, the cache)
+treats any `Exception` from read, decode or `json.loads` (RecursionError included) as "unreadable", with that site's
+existing unreadable outcome; the same holds for any later recursive walk of a value so parsed (`copy.deepcopy`,
+`bind_feed`, `clean_feed`, schema validation), because `json.loads` accepts nesting that `deepcopy` cannot copy
+(checked: 500 levels parse and then make `copy.deepcopy` raise RecursionError at the default limit). Recommended
+shape: one helper, `parse_json(raw) -> object | None`, that catches `Exception` and refuses a value nested deeper
+than 32 levels (an iterative check; our deepest real document is about 6), so later walks never see deep values.
+**Sites** (lines at 20c073d):
+1. `collector/fetch.py:255-259` `_json_object`: 4.4.2 site 5.
+2. `collector/national/legistar_upcoming.py:350-353` `_get_json`: any error -> `ReadError("not-enabled-suspected")`
+   (today a RecursionError becomes `collector-error` via `_read_one`; harmless but the wrong kind).
+3. `legistar_upcoming.py:268-271` `_sweep`: any error -> `doc = None` (the file is deleted as a miss).
+4. `legistar_upcoming.py:288-291` `_cache_get`: any error -> a miss and the file deleted (today one nested file
+   fails that body on every run).
+5. `collector/national/run.py:406-409` `_load_json` (`read_previous`: `bodies/`, `health.json`, `proposals.json`):
+   any error -> None (today a nested `health.json` aborts `collect()`).
+6. `run.py:184-189` `_kept_feed`: `copy.deepcopy` and `bind_feed` of a previous feed that parsed but nests deeply:
+   any error -> None (page stale) and the body keeps its real outcome; today `_record` raises and the run loop
+   (`:377`) records `collector-error` instead. Covered by the depth cap in the helper.
+7. D2 copy step (4.6, not built yet): reading each `national-data` body file -> any error = file missing (page stale),
+   per 11.1 row 16.
+8. Not in scope, recorded: `fetch.py:275` (the local proxy status page; already `except Exception`),
+   `sitegen/national_clarksville.py:80` (a listing committed in this repo; an error fails the build, which is the
+   closed outcome there) and `:233` (our own schema file).
+Tests: a nested document (`[` * 60000 and `{"a":` * 500) at each of sites 2-6 gives that site's unreadable outcome,
+and `collect()` completes and writes its outputs.
+
 ### 4.5 Legistar upcoming reader (`collector/national/legistar_upcoming.py`, M2)
 - `events_url(client, body_id, start, end) -> str` (`$filter=EventBodyId eq N and EventDate ge ... lt ...`).
 - `agenda_state(event, final_statuses) -> "final" | "not-final" | "not-posted"`.
@@ -505,6 +597,27 @@ for a non-canonical shared path (None must only ever mean "host-level and allowe
   read back are re-checked (status name pattern, `allowed_url` for the body's client). `collect` refuses a symlinked
   data root, `bodies/` or `cache/` before reading anything; body files drop `body.full_url`. The directory is never
   written.
+
+### 4.6 M2 workflow requirements (D1 `national-update.yml`, D2 copy step; from security review S2a)
+These were "needs verification in D1/D2" in `docs/reviews/security-review-daylight-national-s2a.md`; they are
+requirements, and S2's D1/D2 review checks each.
+- **D1 fetcher.** The collect job builds the fetcher as `PoliteFetcher(allowed_hosts=("webapi.legistar.com",),
+  max_bytes=lu.MAX_RESPONSE_BYTES, ...)`. The defaults (`ALLOWED_HOSTS`, `MAX_BYTES` = 200 MiB, 40 times
+  `MAX_RESPONSE_BYTES`) are the Clarksville collector's and must not reach the national job.
+- **D1 logs.** Never print `fetcher.log`, an exception's `str(err)`/`repr(err)` or a traceback of a fetcher or reader
+  exception to the public CI log, a step summary or an artifact, and never commit them: they carry up to 200
+  characters of a 403 body and the Server and Location headers (4.4.2's block reason). The job prints only
+  `RunResult.outcomes` (body ids and 3.7 kinds) and counts; its entry point catches `Exception` and prints only the
+  exception's type name and the body id.
+- **D1 data path.** The job checks `national-data` out at a path it creates itself (a fresh `actions/checkout` with
+  `path:` into a new directory), never through an existing `data/` tree, because `check_data_root` checks the data
+  root, `bodies/` and `cache/` but not their parent `data/`.
+- **D2 copy step.** For each kept body file: parse per 4.4.3 (any error = file missing), then `clean_feed`, then
+  `bind_feed` against the current directory entry, then the schema; only that output is written to `digest/`. The
+  collector's files are not trusted as cleaned: `_kept_feed` (`run.py:178-191`) rebinds but does not re-run
+  `clean_feed` or `allowed_url`.
+- **M4 writers.** The ICS and Atom writers trust their input, so M4 passes them only feeds that came out of the D2
+  step above (bound feeds).
 
 ## 5. Key flows
 1. **Lookup (M1):** `/digest/` loads (directory embedded; a page-view count if counting is on, path only; the saved
@@ -686,7 +799,7 @@ pinned one field (prefix, name, then the (gov, name) pair) while the meaning of 
 | 20 | `national-data` git history | stores text | a body shown under a review later found wrong keeps its old text in branch history; removal is a history rewrite (hard stop 2, Brian). Accepted residual: the review is the gate | - |
 | 21 | M4 ICS; M4 Atom, weekly email, future app, exports | publish | ICS carries no item text (3.6); the others read only the bound published JSON | test |
 | 22 | Clarksville morning note | not a consumer | reads Clarksville data and `note-` tags only (AC3.7, B7); must stay so: the sender imports no `sitegen.national*` module | test |
-| 23 | run logs, errors, health, proposals | counts and ids only | never text (B3 review holds) | test |
+| 23 | run logs, errors, health, proposals | ids, fixed kinds (3.7), instants and counts; a proposal also carries `observed`, which may be a source status name (`STATUS_NAME_RE`: at most 60 characters, `[A-Za-z0-9 ._()/&-]`, per 3.7), and `evidence_url` (an `allowed_url` for the body's client, capped at `MAX_URL`, security S2a finding 6) | no other answer text, never item text (B3 review holds); the fetcher's in-process `log` and exception text do hold a 403 body snippet and headers, so they never reach `national-data`, a commit or a public CI log (4.6) | test |
 | 24 | integrity of `national-data` files | forged text with a correct digest (the digest is public, not a MAC) | D1/D2 attestation, not this invariant | deploy |
 
 ### 11.2 The fix (owner backend-engineer, opus/high per the data-integrity rule)
