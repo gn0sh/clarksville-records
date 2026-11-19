@@ -2,7 +2,7 @@
 # corrections to what the Census geographies answer returns, applied in the browser after the FUNCSTAT filter:
 #   hide:  ids never shown as a card (by id)
 #   show:  ids always kept, whatever their FUNCSTAT (by id); an id may not be both hidden and shown
-#   rules: by state FIPS code and layer (`show: false` hides every unit of that layer in that state)
+#   rules: by state FIPS code and layer (`show: false` hides every unit of that layer in that state; rules only hide, the lookup ignores `show: true`)
 #   lines: a fixed line for an id (`line` must have a `note.<line>` label in labels.yml). The line is added when the
 #          Census returns that id for the address, whether the id is kept or dropped (by FUNCSTAT at step 1 or by
 #          hide/rules here); a dropped county with a line adds that line instead of the "no county" line.
@@ -82,7 +82,7 @@ hide:
 
 show:
   # The Metro government is the county's card for every address in Davidson County, including the separately
-  # incorporated cities. The Census marks it H6|C (consolidated), which step 1 (keep A) would drop: `show` keeps it.
+  # incorporated cities. The Census marks it H6|C (consolidated), which step 1 (keep A or B) would drop: `show` keeps it.
   - {id: county-47037, why: "Nashville-Davidson metropolitan government: consolidated city-county (H6|C)", source: "https://www2.census.gov/geo/docs/reference/codes2020/cou/st47_tn_cou2020.txt"}
 
 rules:

@@ -6,9 +6,13 @@
    string of 1 to 200 characters); loads the Census JSONP for it with the fixed callback name; posts back the answer
    as JSON text, or "blocked" (the script did not load) or "loaded" (it loaded but did not call back with an object).
    The URL is built exactly as site/static/national.js jsonpUrl builds it (tests/national.test.js holds them equal).
+   It does nothing at all unless it runs sandboxed in a frame: a meta CSP cannot set frame-ancestors or sandbox and
+   the host cannot send headers, so any site could embed this file unsandboxed and drive the JSONP in our origin.
+   Sandboxed without allow-same-origin, self.origin is "null"; at the top level, parent is self.
    Fixed text, never an end tag in it (it is inlined in the frame HTML). */
 (function () {
   "use strict";
+  if (self.origin !== "null" || parent === self) { return; }
   var CENSUS = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress";
   var LAYERS = ["Incorporated Places", "Counties", "County Subdivisions", "Unified School Districts",
                 "Secondary School Districts", "Elementary School Districts"];

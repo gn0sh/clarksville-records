@@ -132,7 +132,9 @@ place, C7|A, is the one card), and carries `independent-city`; Nashville's "(bal
 step 1, and carries `consolidated`; Metro is `county-47037`, H6|C, which step 1 would drop, so `show` keeps it. An
 address in Belle Meade (its own city inside Metro) gets Belle Meade and Metro and no line. The `hide` entries for
 those F copies and for the N counties (MA) are redundant with step 1 and stay as a second guard against a later
-vintage changing a FUNCSTAT.
+vintage changing a FUNCSTAT. Step 1 keeps FUNCSTAT A or B (4.1). `rules` only hide: the browser ignores a
+`show: true` rule (fail closed; only an id-level `show` keeps a unit step 1 drops). Coextensive town and city
+duplicates go by class code (COUSUBCC T5, C2, C5, C7), never by name (4.1 step 5).
 The other fixed lines (no city or town, no county government listed) are computed, not flagged (4.1).
 
 ### 3.4 Embedded page directory (built from 3.2 and 3.3; the browser's only data)
@@ -264,6 +266,10 @@ lines.
   failing a check is ignored. `lookup(env, address, done)` creates and removes the frame and runs the 15 s timeout.
   Callback name: the frame's is the fixed `crGeocode`, and the address is URL-encoded into the one `address`
   parameter, so no Census-side callback check is needed for this design (see F5 note in the PR).
+  Sandbox check (code review, `national/csp-jsonp-gadget`): a meta CSP cannot set `frame-ancestors` or `sandbox` and
+  Pages sends no headers, so any site could embed geo-frame.html unsandboxed and drive the JSONP in our origin. The
+  frame script's first statement is `if (self.origin !== "null" || parent === self) { return; }`: unless it runs
+  sandboxed (opaque origin) inside a frame, it posts nothing, listens to nothing and loads no script.
 - Follow-up outside M1 (so Clarksville pages stay byte-identical): move the existing landing-page address box to the
   same static frame (task F7).
 
@@ -284,11 +290,15 @@ lines.
   and the `lines` flag of each returned unit, kept or dropped (`consolidated`, `independent-city`; the independent
   city's line rides on its dropped C7|F county copy); neither `no-city` nor `no-county` is added when one of those two
   lines is (3.3). `govs` empty -> the "nothing listable" state. Apply in order
-  (1) drop units by FUNCSTAT (place, county, cousub: keep A; school districts: keep A or E; codes verified in B2),
-  (2) gov-flags `hide`, `show`, `rules`, (3) drop school district "not defined" units (GEOID ending 99999; B2
-  confirms), (4) map through `alias`, then dedupe by id, (5) drop a county subdivision whose name equals the kept
-  place's name in the same county (coextensive town or city; B2 confirms the class codes that prove it),
-  (6) status from `govs`, else `not-covered-yet`, (7) order: place, county, cousub, sdu, sds, sde.
+  (1) drop units by FUNCSTAT (place, county, cousub: keep A or B, B being partially consolidated with its own
+  officials; C, F, N, S and the rest dropped; school districts: keep A or E; manager, 2026-11-19, codes verified in
+  B2), (2) gov-flags: `hide` by id drops, else `show` by id keeps (whatever the FUNCSTAT), else a `rules` entry with
+  `show: false` drops; state rules only ever hide (a `show: true` rule is ignored, so a rule can never bring back an
+  N, F or S unit: fail closed), (3) drop school district "not defined" units (GEOID ending 99999), (4) map through
+  `alias`, then dedupe by id, (5) when a place is kept, drop a county subdivision whose COUSUBCC is T5, C2, C5 or C7
+  (the class code says it is the same area as an incorporated place; names are not compared),
+  (6) status from `govs`, else `not-covered-yet`, (7) order: place, county, cousub, then school districts
+  elementary, secondary, unified (sde, sds, sdu; UX section 3).
   Pure; unit-tested with recorded answers.
 - Device list (3.8): `loadList(storage) -> [{id, name}]` (validates, drops bad), `saveList(storage, govs)`,
   `forget(storage)` (removes the three keys), `markRequested(storage, ids)`, `markCounted(storage, id)`. All take the
@@ -301,11 +311,7 @@ lines.
 - As built (F1, 2026-11-19; additive): `classify` "one" also returns `matched` (the Census matched line, page text
   only), and more than 20 matches is `{kind: "nomatch", many: true}` (the not-found tips); each unit also carries `cc`
   (PLACECC, COUNTYCC or COUSUBCC). `slot` is the layer name (the card draws label `slot.<slot>`); `notes` holds full
-  label keys (`note.no-city`). Step 1 keeps FUNCSTAT A or B for place, county and cousub (manager, 2026-11-19).
-  Step 5 drops a county subdivision whose COUSUBCC is T5, C2, C5 or C7 when a place is
-  kept (class codes, not name equality). `no-county` fires when the answer had a county and none is kept, whatever
-  dropped it. A `show: true` state rule keeps that layer whatever its FUNCSTAT. Bad pagedir (wrong schema): every
-  kept unit is "not covered yet" with no flags. Storage also has `loadRequested`, `loadCounted` and `storageOf(win)`;
+  label keys (`note.no-city`). Bad pagedir (wrong schema): every kept unit is "not covered yet" with no flags. Storage also has `loadRequested`, `loadCounted` and `storageOf(win)`;
   `markRequested` keeps at most 200 ids; a stored value over 8,192 characters is not read.
 
 ### 4.2 Request form (in-card, several governments, one post)

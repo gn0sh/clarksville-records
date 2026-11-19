@@ -40,7 +40,9 @@
     { layer: "sds", name: "Secondary School Districts", digits: 7, cc: null },
     { layer: "sde", name: "Elementary School Districts", digits: 7, cc: null }
   ];
-  var ORDER = new Map(LAYERS.map(function (l, i) { return [l.layer, i]; }));
+  // Card order (4.1 step 7, UX section 3): city or town, county, township or town, then the school districts
+  // elementary, secondary, unified. LAYERS keeps the Census request order (jsonpUrl and the frame share it).
+  var ORDER = new Map(["place", "county", "cousub", "sde", "sds", "sdu"].map(function (l, i) { return [l, i]; }));
   var DIGITS = new Map(LAYERS.map(function (l) { return [l.layer, l.digits]; }));
   var SCHOOL = new Set(["sdu", "sds", "sde"]);
   // FUNCSTAT kept by step 1 (docs/platform-facts.md "Census TIGER/Line codes"; manager decision 2026-11-19): A or B
@@ -61,7 +63,10 @@
   var PATH_RE = /^[a-z0-9][a-z0-9\/_.-]*$/;                            // pagedir `page` and `full` (relative)
   var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   // eslint-disable-next-line no-control-regex
-  var BAD_TEXT = /[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩]/g;
+  // Controls, bidi controls and invisible characters (the set of sitegen/national_guards.py BAD_TEXT_RE): stripped,
+  // except whitespace controls, which become a space. The "u" flag makes the surrogate range match lone halves only.
+  var BAD_TEXT = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\ud800-\udfff\u{e0000}-\u{e007f}]/gu;
+  var WS_CONTROLS = /[\t\n\v\f\r]/g;
   var MAX_NAME = 120;
   var MAX_TEXT = 300;
 
@@ -69,7 +74,7 @@
   function isObj(o) { return !!o && typeof o === "object" && !Array.isArray(o); }
   function clean(s, max) {
     if (typeof s !== "string") { return ""; }
-    return s.replace(BAD_TEXT, " ").replace(/\s+/g, " ").trim().slice(0, max);
+    return s.replace(WS_CONTROLS, " ").replace(BAD_TEXT, "").replace(/\s+/g, " ").trim().slice(0, max);
   }
   function safePath(p) { return typeof p === "string" && PATH_RE.test(p) && p.indexOf("..") < 0 && p.indexOf("//") < 0; }
   function httpsUrl(u) { return typeof u === "string" && u.length <= 500 && /^https:\/\/[^\s"<>\\]+$/.test(u); }
@@ -180,10 +185,12 @@
   }
 
   /* Units of one match (from classify) and the page directory -> {govs: [cards], notes: [label keys]} (4.1).
-     Steps: (1) FUNCSTAT, (2) gov-flags: hide by id, else show by id, else a state-and-layer rule (show: false hides,
-     show: true keeps whatever the FUNCSTAT), else step 1's answer; (3) school district "not defined" (GEOID ends
-     99999); (4) alias, then one card per id; (5) a county subdivision whose COUSUBCC says it is the same area as an
-     incorporated place goes when a place is kept; (6) status; (7) order place, county, cousub, sdu, sds, sde.
+     Steps: (1) FUNCSTAT, (2) gov-flags: hide by id, else show by id, else a state-and-layer rule with show: false
+     hides; state rules only ever hide (a show: true rule is ignored, so it can never bring back an N, F or S unit:
+     fail closed; only an id-level `show` brings a unit back), else step 1's answer; (3) school district "not
+     defined" (GEOID ends 99999); (4) alias, then one card per id; (5) a county subdivision whose COUSUBCC says it is
+     the same area as an incorporated place goes when a place is kept; (6) status; (7) order place, county, cousub,
+     sde, sds, sdu (school districts elementary, secondary, unified: UX section 3).
      Notes, as label keys: "note.<line>" for each returned unit's gov-flags line, kept or hidden; else "note.no-city"
      when no place is kept and "note.no-county" when the answer had a county and none is kept. */
   function governments(units, pagedir) {
@@ -199,8 +206,8 @@
         keep = false;
       } else if (idx.show.has(u.id)) {
         keep = true;
-      } else if (rule !== undefined) {
-        keep = rule === true;
+      } else if (rule === false) {
+        keep = false;
       } else {
         keep = (SCHOOL.has(u.layer) ? KEEP_SCHOOL : KEEP_GENERAL).has(u.funcstat);
       }
@@ -245,7 +252,7 @@
   }
   function goodEntry(g) {
     return isObj(g) && typeof g.id === "string" && ID_RE.test(g.id) && typeof g.name === "string" &&
-      g.name.length > 0 && g.name.length <= MAX_NAME && !g.name.match(BAD_TEXT) && g.name.trim() === g.name;
+      g.name.length > 0 && g.name.length <= MAX_NAME && g.name.replace(BAD_TEXT, "") === g.name && g.name.trim() === g.name;
   }
   function listOf(govs) {
     var seen = new Set(), out = [];

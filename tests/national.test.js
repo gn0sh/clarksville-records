@@ -1,7 +1,8 @@
 // Node tests for site/static/national.js, the pure part of the Daylight Digest lookup (daylight-national F1, F5).
 // Usage: node tests/national.test.js   (also run by tests/test_national_js.py). No browser, no network: the Census
-// answers are recorded (tests/fixtures/national/census-1-public-sq.json, the verified shape in docs/platform-facts.md
-// "Census geocoder") or synthetic, and the page directory is the real one, built from config/national/ by
+// answers are synthetic, or tests/fixtures/national/census-1-public-sq.json, which is a RECONSTRUCTION of the 1 Public
+// Sq answer from the fields docs/platform-facts.md "Census geocoder" records (a relayed reading, not raw bytes; the
+// layers the lookup ignores carry made-up fields). Re-record it from a browser before R1 (national.js goes live), and the page directory is the real one, built from config/national/ by
 // sitegen/national.py page_directory and embed_json (the |tojson escaping), so the flags tested are the shipped ones.
 const assert = require('assert');
 const fs = require('fs');
@@ -130,13 +131,17 @@ test('classify: 20 matches is a pick; 21 is the not-found tips (nomatch, many)',
 });
 
 test('classify: Census text is cleaned of controls and bidi overrides and capped; labels too', () => {
-  const r = one(unit('place', '4715160', 'Clark‮sville\u0000 city\n', 'A', 'C1'),
+  const r = one(unit('place', '4715160', 'Clark\u202Esville\u0000 city\n', 'A', 'C1'),
     unit('county', '47125', 'x'.repeat(500), 'A', 'H1'));
-  assert.strictEqual(r.units[0].name, 'Clark sville city');
+  assert.strictEqual(r.units[0].name, 'Clarksville city');
+  const r3 = one(unit('place', '4715160', '\u061CClarks\u200Bville\u00AD\uFEFF city\u2069', 'A', 'C1'));
+  assert.strictEqual(r3.units[0].name, 'Clarksville city');
+  const r4 = one(unit('place', '4715160', 'Caf\u00E9 \uD83C\uDF33 town\uD800', 'A', 'C1'));
+  assert.strictEqual(r4.units[0].name, 'Caf\u00E9 \uD83C\uDF33 town');      // a real pair stays, a lone half goes
   assert.strictEqual(r.units[1].name.length, 120);
-  const r2 = N.classify(answer(match('1 MAIN⁦ ST' + 'y'.repeat(400))));
+  const r2 = N.classify(answer(match('1 MAIN\u2066 ST' + 'y'.repeat(400))));
   assert.strictEqual(r2.matched, ('1 MAIN ST' + 'y'.repeat(400)).replace('MAIN ST', 'MAIN  ST').replace(/\s+/g, ' ').slice(0, 200));
-  assert.ok(!/[⁦\u0000]/.test(r2.matched));
+  assert.ok(!/[\u2066\u0000]/.test(r2.matched));
 });
 
 // --- governments: the done-when cases (synthetic) ----------------------------------------------------------------
@@ -153,7 +158,7 @@ test('FUNCSTAT: N subdivision dropped; place/county/cousub keep A or B, school d
     unit('county', '47125', 'Montgomery County', 'A', 'H1'), unit('cousub', '4712590886', 'District 5', 'N', 'Z1'),
     unit('cousub', '4712590887', 'District 6', 'E', 'T1'), unit('sdu', '4703030', 'CMCSS', 'E'),
     unit('sds', '4700001', 'Sec A', 'A'), unit('sde', '4700002', 'Elem F', 'F'), unit('sde', '4700003', 'Elem none', '')).units);
-  assert.deepStrictEqual(ids(r), ['county-47125', 'sdu-4703030', 'sds-4700001']);
+  assert.deepStrictEqual(ids(r), ['county-47125', 'sds-4700001', 'sdu-4703030']);
   assert.deepStrictEqual(r.notes, ['note.no-city']);
 });
 
@@ -278,7 +283,7 @@ test('nothing listable: govs empty (RI county hidden by rule, cousub nonfunction
   assert.deepStrictEqual(plain(govsOf([])), { govs: [], notes: ['note.no-city'] });
 });
 
-test('order is place, county, cousub, sdu, sds, sde whatever the answer order; one card per id', () => {
+test('order is place, county, cousub, then elementary, secondary, unified (UX) whatever the answer order', () => {
   const r = govsOf([
     { id: 'sde-3600003', layer: 'sde', name: 'E', funcstat: 'E', state: '36', cc: '' },
     { id: 'cousub-3607150911', layer: 'cousub', name: 'T', funcstat: 'A', state: '36', cc: 'T1' },
@@ -288,8 +293,25 @@ test('order is place, county, cousub, sdu, sds, sde whatever the answer order; o
     { id: 'place-3651000', layer: 'place', name: 'P', funcstat: 'A', state: '36', cc: 'C1' },
     { id: 'place-3651000', layer: 'place', name: 'P again', funcstat: 'A', state: '36', cc: 'C1' },
   ]);
-  assert.deepStrictEqual(r.govs.map((g) => g.slot), ['place', 'county', 'cousub', 'sdu', 'sds', 'sde']);
+  assert.deepStrictEqual(r.govs.map((g) => g.slot), ['place', 'county', 'cousub', 'sde', 'sds', 'sdu']);
   assert.strictEqual(r.govs[0].name, 'P');
+});
+
+test('a show: true state rule fails closed: it keeps no N, F or S unit (only an id-level show brings one back)', () => {
+  const pd = copyPd();
+  pd.rules = pd.rules.concat([{ state: '36', layer: 'cousub', show: true }, { state: '36', layer: 'place', show: true }]);
+  const r = govsOf([
+    { id: 'place-3651000', layer: 'place', name: 'P', funcstat: 'A', state: '36', cc: 'C1' },
+    { id: 'place-3699001', layer: 'place', name: 'CDP-like', funcstat: 'S', state: '36', cc: 'U1' },
+    { id: 'cousub-3607150911', layer: 'cousub', name: 'Town', funcstat: 'A', state: '36', cc: 'T1' },
+    { id: 'cousub-3607150912', layer: 'cousub', name: 'Nonfunctioning', funcstat: 'N', state: '36', cc: 'Z1' },
+    { id: 'cousub-3607150913', layer: 'cousub', name: 'Fictitious', funcstat: 'F', state: '36', cc: 'Z9' },
+  ], pd);
+  assert.deepStrictEqual(ids(r), ['place-3651000', 'cousub-3607150911']);
+  pd.show = ['cousub-3607150912'];
+  const back = govsOf([{ id: 'cousub-3607150912', layer: 'cousub', name: 'Nonfunctioning', funcstat: 'N', state: '36',
+    cc: 'Z1' }], pd);
+  assert.deepStrictEqual(ids(back), ['cousub-3607150912']);
 });
 
 test('a pagedir that is not one (wrong schema, null) lists every kept unit as not covered yet, no flags', () => {
@@ -303,7 +325,7 @@ test('a pagedir that is not one (wrong schema, null) lists every kept unit as no
 
 test('directory fields are checked before they reach a card (paths, URLs, dates, status)', () => {
   const pd = copyPd();
-  pd.govs['place-4715160'] = { board: 'B‮', status: 'covered', page: '../evil.html', full: 'javascript:alert(1)', stale: 'no' };
+  pd.govs['place-4715160'] = { board: 'B\u202E', status: 'covered', page: '../evil.html', full: 'javascript:alert(1)', stale: 'no' };
   pd.govs['county-47125'] = { board: 'C', status: 'cant-cover', reason: 'Bad Reason!', checked: 'yesterday',
     reason_url: 'http://insecure.example/', official_url: 'javascript:alert(1)' };
   pd.govs['sdu-4703030'] = { board: 'S', status: 'open-now' };
@@ -402,7 +424,7 @@ test('loadList drops bad entries and refuses bad or oversized stored values', ()
   const good = { id: 'place-4715160', name: 'Clarksville city' };
   const entries = [good, { id: 'place-4715160', name: 'dup' }, { id: 'town-1', name: 'x' }, { id: 'place-1', name: 'x' },
     { id: 'place-4715161', name: '' }, { id: 'place-4715162', name: 'n'.repeat(121) },
-    { id: 'place-4715163', name: 'bad‮' }, { id: 'place-4715164', name: 5 }, { id: 'place-4715165' }, null, 'x',
+    { id: 'place-4715163', name: 'bad\u202E' }, { id: 'place-4715164', name: 5 }, { id: 'place-4715165' }, null, 'x',
     { id: '__proto__', name: 'p' }, { id: 'county-47125', name: 'n'.repeat(120) }];
   const s = new FakeStorage({ [LIST]: JSON.stringify({ v: 1, govs: entries }) });
   assert.deepStrictEqual(N.loadList(s).map((g) => g.id), ['place-4715160', 'county-47125']);
@@ -644,24 +666,42 @@ test('lookup: cancel drops the frame without an answer; an empty or over-long ad
 });
 
 // --- the frame's own script (site/templates/_geo_frame.js) in a fake sandboxed window ---------------------------
-function runFrame() {
+function runFrame(o) {
+  o = o || {};
   const parentPosts = [], appended = [], listeners = [], later = [];
   const parent = { postMessage: (m, t) => parentPosts.push([m, t]) };
-  const win = { addEventListener: (t, fn) => { assert.strictEqual(t, 'message'); listeners.push(fn); } };
+  const win = { origin: o.origin === undefined ? 'null' : o.origin,
+    addEventListener: (t, fn) => { assert.strictEqual(t, 'message'); listeners.push(fn); } };
   const document = { head: { appendChild: (el) => appended.push(el) },
     createElement: (tag) => { assert.strictEqual(tag, 'script'); return { tag }; } };
-  const ctx = { window: win, parent, document, JSON, Array, String, encodeURIComponent,
-    setTimeout: (fn) => later.push(fn) };
+  const ctx = { window: win, self: win, parent: o.top ? win : parent, document, JSON, Array, String,
+    encodeURIComponent, setTimeout: (fn) => later.push(fn) };
   vm.createContext(ctx);
   vm.runInContext(FRAME_SRC, ctx);
   const send = (data, source) => listeners.forEach((fn) => fn({ data, source: source === undefined ? parent : source,
     origin: 'https://gn0sh.github.io' }));
-  return { win, parent, parentPosts, appended, send, later };
+  return { win, parent, parentPosts, appended, send, later, listeners };
 }
+
+test('frame script does nothing unless it runs sandboxed in a frame (origin "null" and a parent that is not self)', () => {
+  for (const o of [{ origin: 'https://gn0sh.github.io' }, { origin: 'https://evil.example' }, { origin: '' },
+    { top: true }, { origin: 'https://gn0sh.github.io', top: true }]) {
+    const f = runFrame(o);
+    assert.deepStrictEqual(f.parentPosts, [], JSON.stringify(o));       // no "ready"
+    assert.strictEqual(f.listeners.length, 0);                          // no message listener
+    assert.strictEqual(f.win.crGeocode, undefined);                     // no callback defined
+    f.send({ address: '1 Public Sq, Clarksville, TN' });
+    assert.strictEqual(f.appended.length, 0);                           // no Census script loaded
+  }
+  const ok = runFrame();
+  assert.deepStrictEqual(ok.parentPosts, [['"ready"', '*']]);
+  assert.ok(/^\(function \(\) \{\s*"use strict";\s*if \(self\.origin !== "null" \|\| parent === self\) \{ return; \}/
+    .test(FRAME_SRC.replace(/^\/\*[\s\S]*?\*\/\s*/, '')), 'the sandbox check is the first statement');
+});
 
 test('frame script: posts "ready", takes one {address} from the parent only, and builds jsonpUrl\'s exact URL', () => {
   for (const addr of ['1 Public Sq, Clarksville, TN', '12 O\'Brien Rd #4 & Sons, Ste "B", NY 10001',
-    'a&callback=alert(1)//', 'Calle Ñandú 5, San Juan, PR', 'x'.repeat(200)]) {
+    'a&callback=alert(1)//', 'Calle \u00D1and\u00FA 5, San Juan, PR', 'x'.repeat(200)]) {
     const f = runFrame();
     assert.deepStrictEqual(f.parentPosts, [['"ready"', '*']]);
     f.send({ address: addr }, { notParent: true });             // another window: ignored
