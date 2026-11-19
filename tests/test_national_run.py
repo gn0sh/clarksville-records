@@ -21,7 +21,7 @@ from sitegen import national as nat
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "national" / "legistar"
 NOW = datetime(2026, 12, 1, 18, 0, tzinfo=timezone.utc)          # 10:00 in Oregon: today is 2026-12-01
-HOST_OK = {"date": "2026-12-01", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}
+HOST_OK = {"date": "2026-11-18", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}
 
 
 def body(n, client, items="withheld"):

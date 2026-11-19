@@ -3,6 +3,7 @@ B14). One test per rule. Problem keys: national/url-scheme-untrusted (finding 4)
 national/writer-token-scope (ids before paths, finding 6)."""
 import copy
 import json
+from datetime import date
 
 import pytest
 
@@ -406,3 +407,111 @@ def test_error_echo_bad_id_and_long_values():
     with pytest.raises(g.BindError) as err:
         g.bind_feed(feed(), county_entry(gov="<img>" * 50))
     assert "<img>" not in str(err.value)
+
+
+# --- national/url-unbounded (security S2a finding 6) ---------------------------------------------------------------
+
+@pytest.mark.parametrize("platform, client, base", [("daylight", None, "https://mcgtn.org/a.pdf?q="),
+                                                    ("legistar", "salem", "https://salem.legistar.com/View.ashx?M=")])
+def test_url_longer_than_max_url_refused(platform, client, base):
+    """national/url-unbounded: a URL from an answer is kept only up to MAX_URL characters (row 23: evidence_url too)."""
+    at_cap = base + "a" * (g.MAX_URL - len(base))
+    assert len(at_cap) == g.MAX_URL and g.allowed_url(at_cap, platform, client) == at_cap
+    assert g.allowed_url(at_cap + "a", platform, client) == ""
+
+
+def test_an_over_long_url_in_a_feed_is_dropped_and_counted():
+    """national/url-unbounded: clean_feed nulls it (counted), so it never reaches bodies/*.json or a page."""
+    long_url = "https://mcgtn.org/a.pdf?x=" + "a" * g.MAX_URL
+    out, counts = g.clean_feed(feed(meeting_url=long_url), "daylight")
+    assert out["meetings"][0]["meeting_url"] is None and counts.urls_dropped >= 1
+
+
+def test_no_clarksville_or_fixture_url_reaches_max_url():
+    """national/url-unbounded: the cap changes no Clarksville output: every URL in config/, data/ and the test fixtures
+    is far below it (the longest seen was 199 characters on 2026-11-19)."""
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    url = re.compile(rb"https?://[^\s\"'<>]+")
+    longest = 0
+    for top in ("config", "data", "tests/fixtures", "collector/tests/fixtures"):
+        for p in (root / top).rglob("*"):
+            if p.is_file() and p.suffix in (".json", ".yml", ".yaml", ".csv", ".html", ".txt"):
+                longest = max([longest] + [len(m) for m in url.findall(p.read_bytes())])
+    assert 0 < longest <= g.MAX_URL
+
+
+# --- national/r5-self-attested (security S2a finding 7) ------------------------------------------------------------
+
+
+OK_LINK = "https://github.com/gn0sh/clarksville-records/pull/1"
+TODAY = date(2026, 11, 19)
+
+
+@pytest.mark.parametrize("day", ["2026-11-19", "2026-01-01", date(2026, 11, 19), date(2025, 6, 1)])
+def test_host_ok_date_today_or_earlier_passes(day):
+    assert g.host_ok_problem({"date": day, "link": OK_LINK}, TODAY) is None
+
+
+@pytest.mark.parametrize("day, problem", [
+    ("20261119", "must be a date"),            # fromisoformat accepts these; the strict pattern does not
+    ("2026-W47-4", "must be a date"),
+    ("2026-11-19T00:00", "must be a date"),
+    (" 2026-11-19", "must be a date"),
+    ("2026-11-19\n", "must be a date"),
+    ("2026-02-30", "must be a date"),
+    ("2026-11-20", "not be later than today"),
+    (date(2026, 11, 20), "not be later than today"),
+    ("2999-01-01", "not be later than today"),
+])
+def test_host_ok_date_strict_and_not_in_the_future(day, problem):
+    """national/r5-self-attested: strict YYYY-MM-DD and <= today."""
+    key, why = g.host_ok_problem({"date": day, "link": OK_LINK}, TODAY)
+    assert key == "date" and problem in why
+
+
+def test_host_ok_today_defaults_to_the_machine_date():
+    assert g.host_ok_problem({"date": "2999-01-01", "link": OK_LINK}) == ("date", "must not be later than today")
+    assert g.host_ok_valid({"date": "2026-11-18", "link": OK_LINK})
+
+
+@pytest.mark.parametrize("link", [OK_LINK, "https://github.com/gn0sh/gnoshcodes/issues/12#issuecomment-1",
+                                  "https://GitHub.com/gn0sh/x", "https://claude.ai/chat/abc",
+                                  "https://claude.ai/artifact/FGAT8SbvzN8zt6qx4imDTn"])
+def test_host_ok_link_on_the_teams_github_or_claude_passes(link):
+    assert g.host_ok_problem({"date": "2026-11-18", "link": link}, TODAY) is None
+
+
+@pytest.mark.parametrize("link", ["https://example.org/ok", "https://github.com/x", "https://github.com/gn0shx/y",
+                                  "https://github.com/", "https://gist.github.com/gn0sh/1", "https://www.github.com/gn0sh/x",
+                                  "https://github.com.evil.example/gn0sh/x", "https://evil.claude.ai/x",
+                                  "https://claude.ai.evil.example/x", "http://github.com/gn0sh/x",
+                                  "https://github.com:8443/gn0sh/x", "https://u@github.com/gn0sh/x", 12, None])
+def test_host_ok_link_elsewhere_is_refused(link):
+    """national/r5-self-attested: the link must point where Brian's OK can be recorded."""
+    assert g.host_ok_problem({"date": "2026-11-18", "link": link}, TODAY)[0] == "link"
+
+
+def test_the_loader_and_the_collector_refuse_a_future_host_ok(tmp_path):
+    """national/r5-self-attested: the loader (today injectable) and run.check_host_ok (the run's day) agree."""
+    from datetime import datetime, timezone
+
+    import yaml
+
+    from collector.national import run as nr
+    entry = {"gov": "place-4164900", "also": [], "body_name": "Salem City Council", "state": "OR", "status": "covered",
+             "official_url": "https://salem.legistar.com/Calendar.aspx", "checked": "2026-11-18",
+             "checked_url": "https://salem.legistar.com/Calendar.aspx", "items": "withheld", "platform": "legistar",
+             "legistar": {"client": "salem", "body_id": 138, "tz": "America/Los_Angeles"},
+             "host_ok": {"date": "2026-11-20", "link": OK_LINK}}
+    p = tmp_path / "directory.yml"
+    p.write_text(yaml.safe_dump({"schema": "daylight-directory/1", "govs": [entry]}, sort_keys=False), encoding="utf-8")
+    with pytest.raises(nat.NationalConfigError, match="later than today"):
+        nat.load_directory(p, nat.load_labels(), today=TODAY)
+    d = nat.load_directory(p, nat.load_labels(), today=date(2026, 11, 20))
+    with pytest.raises(nr.HostNotApproved, match="later than today"):
+        nr.check_host_ok(d, TODAY)
+    nr.check_host_ok(d, date(2026, 11, 20))
+    with pytest.raises(nr.HostNotApproved):
+        nr.run(d, None, 0, datetime(2026, 11, 19, 12, tzinfo=timezone.utc))

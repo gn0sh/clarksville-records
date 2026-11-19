@@ -640,7 +640,7 @@ def test_morning_note_and_full_pages_only_on_clarksville_bodies(tmp_path, loaded
              "status": "covered", "official_url": "https://example.legistar.com/Calendar.aspx",
              "checked": date(2026, 11, 19), "items": "withheld", "review": None, "platform": "legistar",
              "legistar": {"client": "example", "body_id": 1, "tz": "America/Chicago"},
-             "host_ok": {"date": date(2026, 11, 19), "link": "https://example.org/ok"}}
+             "host_ok": {"date": date(2026, 11, 18), "link": "https://github.com/gn0sh/clarksville-records/pull/1"}}
     feed = json.loads(json.dumps(feeds[COUNTY_ID]))
     feed["body"].update(id=other["gov"], platform="legistar", full_url=None)
     d = nat.Directory(govs=(*directory.govs, other), alias={})
@@ -702,7 +702,7 @@ SALEM_LEGISTAR = {"gov": "place-4164900", "body_name": "Salem City Council", "st
                   "official_url": "https://salem.legistar.com/Calendar.aspx", "checked": "2026-12-01",
                   "items": "withheld", "platform": "legistar",
                   "legistar": {"client": "salem", "body_id": 138, "tz": "America/Los_Angeles"},
-                  "host_ok": {"date": "2026-12-01", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}}
+                  "host_ok": {"date": "2026-11-18", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}}
 
 
 def _folder_with(tmp_path, entry) -> Path:
@@ -716,8 +716,9 @@ def _folder_with(tmp_path, entry) -> Path:
     return folder
 
 
-@pytest.mark.parametrize("host_ok", [..., {"date": "2026-12-01"}, {"date": "soon", "link": "https://example.org/ok"},
-                                     {"date": "2026-12-01", "link": "http://example.org/ok"}],
+@pytest.mark.parametrize("host_ok", [..., {"date": "2026-11-18"},
+                                     {"date": "soon", "link": "https://github.com/gn0sh/clarksville-records/pull/1"},
+                                     {"date": "2026-11-18", "link": "http://github.com/gn0sh/clarksville-records/pull/1"}],
                          ids=["missing", "no-link", "bad-date", "http-link"])
 def test_the_build_refuses_a_legistar_entry_without_host_ok_and_writes_nothing(tmp_path, host_ok):
     """national/r5-not-enforced (finding 7, task D3): the build's one call stops on a non-daylight entry with no valid
@@ -753,7 +754,7 @@ def test_page_slot_follows_the_gov_flags_slot_rule(tmp_path, loaded, page_labels
             "status": "covered", "official_url": "https://example.legistar.com/Calendar.aspx",
             "checked": date(2026, 11, 19), "items": "withheld", "review": None, "platform": "legistar",
             "legistar": {"client": "example", "body_id": 1, "tz": "America/Chicago"},
-            "host_ok": {"date": date(2026, 11, 19), "link": "https://example.org/ok"}}
+            "host_ok": {"date": date(2026, 11, 18), "link": "https://github.com/gn0sh/clarksville-records/pull/1"}}
     feed = json.loads(json.dumps(feeds[COUNTY_ID]))
     feed["body"].update(id=town["gov"], name=town["body_name"], platform="legistar", full_url=None)
     rule = ({"state": "47", "layer": "cousub", "slot": "place"},) if moved else ()

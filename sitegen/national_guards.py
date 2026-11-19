@@ -14,8 +14,10 @@ Security findings 4 (`national/url-scheme-untrusted`) and 12 (`national/untruste
   not the entry's; items stripped and counted unless the entry is shown under the feed's `review`).
 
 `host_ok_problem` / `host_ok_valid` (Brian's rule R5, security finding 7, `national/r5-not-enforced`): an entry on any
-platform but daylight is read only with a valid `host_ok: {date, link}` (exactly those keys, a real date, a link
-`allowed_url` keeps). The directory loader and the collector both call it, so the two cannot drift.
+platform but daylight is read only with a valid `host_ok: {date, link}` (exactly those keys, a strict YYYY-MM-DD date
+no later than today, a link on github.com/gn0sh/ or claude.ai: `national/r5-self-attested`, S2a finding 7). The
+directory loader and the collector both call it, so the two cannot drift. `allowed_url` also refuses any URL longer
+than MAX_URL (`national/url-unbounded`, S2a finding 6).
 
 Imports only `sitegen.config` (which imports no other sitegen module) and the standard library, so `sitegen.national`
 and the collector (`collector/national/`, M2) both import it without a cycle.
@@ -53,6 +55,7 @@ MAX_ITEM_TEXT = 2_000        # characters per item text; longer is cut at the ca
 MAX_TEXT = 2_000             # characters for any other text field read from outside (cut silently, counted)
 MAX_ITEMS = 150              # items per meeting
 MAX_MEETINGS = 60            # meetings per government
+MAX_URL = 2_000              # characters of any outside URL kept (national/url-unbounded, S2a finding 6)
 
 
 class UnsafeIdError(ValueError):
@@ -84,8 +87,10 @@ def checked_meeting_id(meeting_id) -> str:
 def allowed_url(url, platform: str = "daylight", client: str | None = None) -> str:
     """`url` when a curated or outside URL may be linked: `config.https_link` passes, it has no user name or password
     and no port but 443, and, for a platform other than daylight, its host is one of that platform's hosts (finding 4).
-    Else "". Legistar's hosts are `webapi.legistar.com` and `<client>.legistar.com`; an unknown platform has none."""
-    if not isinstance(url, str) or BAD_TEXT_RE.search(url):
+    Else "". Legistar's hosts are `webapi.legistar.com` and `<client>.legistar.com`; an unknown platform has none. A
+    URL longer than MAX_URL characters is refused too (national/url-unbounded, S2a finding 6), so free-text paths or
+    queries from an answer cannot ride into a feed or a proposal at any length."""
+    if not isinstance(url, str) or len(url) > MAX_URL or BAD_TEXT_RE.search(url):
         return ""
     try:                                    # urlsplit raises ValueError on a bad bracket host or an NFKC netloc
         if not config.https_link(url):
@@ -106,12 +111,25 @@ def allowed_url(url, platform: str = "daylight", client: str | None = None) -> s
 
 
 HOST_OK_KEYS = frozenset({"date", "link"})
+HOST_OK_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Where Brian's OK can be recorded (national/r5-self-attested, S2a finding 7): the team's GitHub (a PR, issue or
+# comment under github.com/gn0sh/) or a claude.ai page. Exact hosts, so a look-alike subdomain is refused.
+HOST_OK_LINK_HOSTS = {"github.com": "/gn0sh/", "claude.ai": "/"}
 
 
-def host_ok_problem(host_ok) -> tuple[str, str] | None:
+def _host_ok_link(link) -> bool:
+    if not allowed_url(link):
+        return False
+    u = urlsplit(link)
+    prefix = HOST_OK_LINK_HOSTS.get((u.hostname or "").lower())
+    return prefix is not None and u.path.startswith(prefix)
+
+
+def host_ok_problem(host_ok, today: date | None = None) -> tuple[str, str] | None:
     """None when `host_ok` is Brian's recorded OK for a third-party host (R5, finding 7): a mapping of exactly `date`
-    (a date, or a YYYY-MM-DD string) and `link` (an https link `allowed_url` keeps). Else (key, problem), the first
-    problem found, in the words the directory loader prints."""
+    (a date, or a string matching exactly YYYY-MM-DD, never later than `today`, default `date.today()`) and `link` (an
+    https link `allowed_url` keeps, on github.com under /gn0sh/ or on claude.ai: national/r5-self-attested, S2a
+    finding 7). Else (key, problem), the first problem found, in the words the directory loader prints."""
     if not isinstance(host_ok, dict):
         return "host_ok", "must be {date, link} (Brian's OK, R5)"
     extra = sorted(str(k) for k in host_ok if k not in HOST_OK_KEYS)
@@ -124,18 +142,22 @@ def host_ok_problem(host_ok) -> tuple[str, str] | None:
     if isinstance(day, datetime) or not isinstance(day, (date, str)):
         return "date", "must be a date (YYYY-MM-DD)"
     if isinstance(day, str):
+        if not HOST_OK_DATE_RE.fullmatch(day):           # fromisoformat also takes 20261119 and 2026-W47-4
+            return "date", "must be a date (YYYY-MM-DD)"
         try:
-            date.fromisoformat(day)
+            day = date.fromisoformat(day)
         except ValueError:
             return "date", "must be a date (YYYY-MM-DD)"
-    if not allowed_url(host_ok["link"]):
-        return "link", "must be an https link"
+    if day > (today if today is not None else date.today()):
+        return "date", "must not be later than today"
+    if not _host_ok_link(host_ok["link"]):
+        return "link", "must be an https link on github.com/gn0sh/ or claude.ai"
     return None
 
 
-def host_ok_valid(host_ok) -> bool:
+def host_ok_valid(host_ok, today: date | None = None) -> bool:
     """True when `host_ok` is a valid recorded OK (`host_ok_problem` finds nothing)."""
-    return host_ok_problem(host_ok) is None
+    return host_ok_problem(host_ok, today) is None
 
 
 def link_or_official(url, official_url: str, platform: str = "daylight", client: str | None = None) -> str:

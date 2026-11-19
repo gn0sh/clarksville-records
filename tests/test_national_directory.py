@@ -29,7 +29,7 @@ LEGISTAR = {"gov": "place-4164900", "body_name": "Salem City Council", "state": 
             "official_url": "https://salem.legistar.com/Calendar.aspx", "checked": "2026-12-01",
             "checked_url": "https://salem.legistar.com/Calendar.aspx", "items": "withheld", "platform": "legistar",
             "legistar": {"client": "salem", "body_id": 138, "tz": "America/Los_Angeles", "final_statuses": ["Final"]},
-            "host_ok": {"date": "2026-12-01", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}}
+            "host_ok": {"date": "2026-11-18", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}}
 
 
 def write_dir(tmp_path, govs, **top):
@@ -146,10 +146,10 @@ BAD = [
      "daylight: a cant-cover entry has no platform"),
     ("cant-cover-with-platform", [changed(CANT, platform="daylight", daylight={"body": "county", "full_url": "x/"})],
      "platform: a cant-cover entry has no platform"),
-    ("cant-cover-with-host-ok", [changed(CANT, host_ok={"date": "2026-12-01", "link": "https://github.com/x"})],
+    ("cant-cover-with-host-ok", [changed(CANT, host_ok={"date": "2026-11-18", "link": "https://github.com/gn0sh/x"})],
      "host_ok: a cant-cover entry has no platform"),
     # security national/host-ok-unchecked
-    ("daylight-with-host-ok", [changed(COVERED, host_ok={"date": "2026-12-01", "link": "https://github.com/x"})],
+    ("daylight-with-host-ok", [changed(COVERED, host_ok={"date": "2026-11-18", "link": "https://github.com/gn0sh/x"})],
      "host_ok: only a platform other than daylight"),
     ("binary-value", [changed(COVERED, body_name=b"Clarksville City Council")], "bytes value is not allowed"),
     ("float-value", [changed(LEGISTAR, legistar__body_id=138.0)], "float value is not allowed"),
@@ -199,7 +199,7 @@ BAD = [
     ("reason-as-list", [changed(CANT, reason=["terms"])], "reason: unknown reason"),
     # national/r5-not-enforced (finding 7) and the platform key checks
     ("legistar-no-host-ok", [changed(LEGISTAR, host_ok=...)], "host_ok: platform 'legistar' needs"),
-    ("legistar-host-ok-no-link", [changed(LEGISTAR, host_ok={"date": "2026-12-01"})], "link: missing"),
+    ("legistar-host-ok-no-link", [changed(LEGISTAR, host_ok={"date": "2026-11-18"})], "link: missing"),
     ("legistar-host-ok-http-link", [changed(LEGISTAR, host_ok__link="http://github.com/x")], "link: must be"),
     ("legistar-host-ok-bad-date", [changed(LEGISTAR, host_ok__date="soon")], "date: must be a date"),
     ("full-url-parent", [changed(COVERED, daylight__full_url="../city/")], "full_url: must be a site path"),
@@ -338,7 +338,7 @@ def test_11_3_1_shipped_digests_equal_their_rows():
 
 LEGISTAR_BLOCK = {"platform": "legistar",
                   "legistar": {"client": "clarksville", "body_id": 1, "tz": "America/Chicago"},
-                  "host_ok": {"date": "2026-12-01", "link": "https://github.com/gn0sh/clarksville-records/pull/1"},
+                  "host_ok": {"date": "2026-11-18", "link": "https://github.com/gn0sh/clarksville-records/pull/1"},
                   "official_url": "https://clarksville.legistar.com/Calendar.aspx",
                   "checked_url": "https://clarksville.legistar.com/Calendar.aspx"}
 

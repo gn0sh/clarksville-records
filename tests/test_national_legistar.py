@@ -22,7 +22,7 @@ from sitegen.national_clarksville import feed_errors
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "national" / "legistar"
 NOW = datetime(2026, 12, 1, 18, 0, tzinfo=timezone.utc)          # 10:00 in Salem: today is 2026-12-01
 SENTINELS = ("SENTINEL-ITEM-TEXT", "SENTINEL-PERSON-NAME", "SENTINEL-NOTE-TEXT")
-HOST_OK = {"date": "2026-12-01", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}
+HOST_OK = {"date": "2026-11-18", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}
 
 SALEM = {"gov": "place-4164900", "also": [], "body_name": "Salem City Council", "state": "OR", "status": "covered",
          "official_url": "https://salem.legistar.com/Calendar.aspx", "checked": "2026-12-01",

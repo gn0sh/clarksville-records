@@ -393,7 +393,8 @@ def read_body(entry: dict, fetcher, now: datetime, cache_root: Path | None = Non
     if not isinstance(entry, dict) or entry.get("status") != "covered" or entry.get("platform") != PLATFORM:
         raise ValueError("read_body takes a covered Legistar directory entry")
     gov = checked_id(entry.get("gov"))
-    if not host_ok_valid(entry.get("host_ok")):          # R5 (finding 7): no request without Brian's OK for the host
+    run_day = now.astimezone(timezone.utc).date() if isinstance(now, datetime) and now.tzinfo else None
+    if not host_ok_valid(entry.get("host_ok"), run_day):  # R5 (finding 7): no request without Brian's OK for the host
         raise ValueError(f"{gov}: no valid host_ok (Brian's OK, R5): nothing is sent")
     keys = entry[PLATFORM]
     client, body_id, tz = keys["client"], _whole(keys["body_id"]), keys["tz"]

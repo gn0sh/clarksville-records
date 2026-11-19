@@ -369,7 +369,7 @@ def shown_refusal(gov_id: str, body_name: str, canonical: dict) -> str | None:
     return None
 
 
-def _check_platform(path: Path, where: str, e: dict) -> None:
+def _check_platform(path: Path, where: str, e: dict, today: date | None = None) -> None:
     present = [p for p in PLATFORM_KEYS if p in e]
     platform = e.get("platform")
     if platform is not None and not isinstance(platform, str):
@@ -407,7 +407,7 @@ def _check_platform(path: Path, where: str, e: dict) -> None:
     host_ok = e.get("host_ok")
     if not isinstance(host_ok, dict):
         _fail(path, where, "host_ok", f"platform {platform!r} needs host_ok: {{date, link}} (Brian's OK, R5)")
-    problem = host_ok_problem(host_ok)            # the one check the collector repeats (national_guards)
+    problem = host_ok_problem(host_ok, today)     # the one check the collector repeats (national_guards)
     if problem:
         _fail(path, f"{where}.host_ok", *problem)
     if platform == "legistar":
@@ -429,9 +429,10 @@ def _check_platform(path: Path, where: str, e: dict) -> None:
 
 
 def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None = None,
-                   repo_root: Path = config.REPO_ROOT) -> Directory:
+                   repo_root: Path = config.REPO_ROOT, today: date | None = None) -> Directory:
     """directory.yml -> Directory, refusing every bad case of architecture 3.2 (NationalConfigError names the entry and
-    the key). `labels` defaults to labels.yml beside the file (a can't-cover `reason` must have its label)."""
+    the key). `labels` defaults to labels.yml beside the file (a can't-cover `reason` must have its label). `today`
+    (default date.today()) is the day no `host_ok` date may be later than (national/r5-self-attested)."""
     path = Path(path)
     if labels is None:
         labels = load_labels(path.parent / "labels.yml")
@@ -514,7 +515,7 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
             for k in ("platform", "host_ok", *PLATFORM_KEYS):
                 if k in e:
                     _fail(path, where, k, "a cant-cover entry has no platform, source keys or host_ok")
-        _check_platform(path, where, e)
+        _check_platform(path, where, e, today)
         canonical = norm_entry(e)            # after every other per-entry check (11.2)
         digest = review_digest(canonical)
         if items == "shown":

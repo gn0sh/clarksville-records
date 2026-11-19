@@ -41,6 +41,7 @@ from collector.national import legistar_upcoming as lu
 from collector.safe_json import parse_json
 from sitegen.national import Directory
 from sitegen.national_clarksville import feed_errors
+from sitegen.national_guards import MAX_URL as guards_max_url
 from sitegen.national_guards import allowed_url, bind_feed, checked_id, host_ok_problem, id_layer
 
 HOST = lu.LEGISTAR_API_HOST
@@ -62,7 +63,7 @@ STATUS_REASON = {"not-enabled-suspected": "api-not-enabled", "token-suspected": 
 PROPOSAL_KINDS = ("status", "agenda-status-name")
 
 INSTANT_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
-MAX_URL = 2_000                  # characters of an evidence_url read back
+MAX_URL = guards_max_url         # characters of an evidence_url read back (allowed_url's own cap, finding 6)
 BODY_FILE_RE = re.compile(r"[a-z]+-[0-9]{5,10}\.json")
 
 
@@ -148,16 +149,25 @@ def _soon_not_final(entry: dict, feed: dict | None, now: datetime) -> bool:
     return False
 
 
-def check_host_ok(directory: Directory) -> None:
+def _run_day(now) -> date | None:
+    """The run's UTC day, against which a host_ok date may not be later (national/r5-self-attested); None (the
+    machine's date.today()) when `now` is not an aware datetime (run() refuses that anyway)."""
+    if isinstance(now, datetime) and now.tzinfo is not None:
+        return now.astimezone(timezone.utc).date()
+    return None
+
+
+def check_host_ok(directory: Directory, today: date | None = None) -> None:
     """HostNotApproved unless every entry whose `platform` is set and is not daylight (any status) holds a valid
-    `host_ok` (R5, finding 7). Called before the run touches the fetcher, the cache or any file."""
+    `host_ok` (R5, finding 7) dated no later than `today` (default: date.today()). Called before the run touches the
+    fetcher, the cache or any file."""
     govs = getattr(directory, "govs", None)
     if not isinstance(govs, (tuple, list)):
         raise HostNotApproved("the directory has no entry list: refused before any request (host_ok, R5)")
     for e in govs:
         if not isinstance(e, dict) or e.get("platform") in (None, "daylight"):
             continue
-        problem = host_ok_problem(e.get("host_ok"))
+        problem = host_ok_problem(e.get("host_ok"), today)
         if problem:
             gov = e.get("gov") if id_layer(e.get("gov")) else "(a bad id)"
             raise HostNotApproved(f"{gov}: platform {str(e.get('platform'))[:40]!r} has no valid host_ok (Brian's OK, "
@@ -345,7 +355,7 @@ def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_f
     webapi.legistar.com. `now` (aware) orders the run; `clock()` stamps each body as its read starts (default: `now`
     for every body). `previous_*` are the last run's outputs (`read_previous`). `cache_root` is
     `data/national/cache`: pruned first (11.1 row 19); a prune failure raises (nothing is read or written)."""
-    check_host_ok(directory)                           # R5: before the fetcher, the cache or any file is touched
+    check_host_ok(directory, _run_day(now))            # R5: before the fetcher, the cache or any file is touched
     stamp_of = clock or (lambda: now)
     _instant(now)
     previous_feeds = previous_feeds if isinstance(previous_feeds, dict) else {}
@@ -486,7 +496,7 @@ def collect(data_root: Path, directory: Directory, fetcher, budget: int, now: da
             clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
     """check_data_root -> read_previous -> run (cache `data_root/cache`, pruned first) -> write_outputs. The directory
     is never written. A directory `check_host_ok` refuses raises before anything is read or written."""
-    check_host_ok(directory)       # on purpose: run() checks again, but this one runs before data_root is read
+    check_host_ok(directory, _run_day(now))   # on purpose: run() checks again; this one runs before data_root is read
     root = check_data_root(data_root)
     feeds, health, proposals = read_previous(root)
     result = run(directory, fetcher, budget, now, previous_feeds=feeds, previous_health=health,
