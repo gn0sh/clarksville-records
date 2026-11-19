@@ -75,7 +75,7 @@ def test_shipped_gov_flags_seed_b2():
     assert {"state": "44", "layer": "county", "show": False} in flags.rules      # Rhode Island
     ma = {i for i in flags.hide if i.startswith("county-25")}
     assert ma == {"county-25003", "county-25009", "county-25011", "county-25013", "county-25015", "county-25017",
-                  "county-25025", "county-25027"}
+                  "county-25019", "county-25025", "county-25027"}
     assert "county-25001" not in flags.hide and "county-25021" not in flags.hide   # Barnstable, Norfolk keep theirs
     assert flags.lines["place-4752006"] == "consolidated" and "place-4752006" in flags.hide
     assert "county-47037" in flags.show
@@ -96,10 +96,17 @@ def test_missing_items_means_withheld(tmp_path):
     assert d.govs[0]["items"] == "withheld"
 
 
-def test_also_becomes_alias(tmp_path):
-    e = changed(COVERED, gov="county-47037", body_name="Metropolitan Council", also=["place-4752006"],
-                daylight={"body": "metro", "full_url": "metro/"})
-    assert load(tmp_path, e).alias == {"place-4752006": "county-47037"}
+def test_also_same_layer_becomes_alias(tmp_path):
+    # a re-coded GEOID keeps its id; the new GEOID, same layer, goes in `also` (3.1)
+    e = changed(COVERED, also=["place-4715161"])
+    assert load(tmp_path, e).alias == {"place-4715161": "place-4715160"}
+
+
+@pytest.mark.parametrize("also", ["county-47125", "sdu-4703030", "cousub-4712590886"])
+def test_also_cross_layer_refused(tmp_path, also):
+    # privacy-withhold/also-cross-layer: a school district (or any other layer) never rides on a city's entry
+    with pytest.raises(nat.NationalConfigError, match="also-cross-layer"):
+        load(tmp_path, changed(COVERED, also=[also]))
 
 
 # --- refusals (architecture 3.2), one per case -----------------------------------------------------------------
@@ -153,6 +160,13 @@ BAD = [
     ("items-shown-not-a-governing-body", [changed(COVERED, body_name="Clarksville Parks Department")],
      "general-purpose"),
     ("items-bad-value", [changed(COVERED, items="yes")], "items: must be shown or withheld"),
+    # a YAML list or mapping where a word belongs is a config error, never a TypeError
+    ("state-as-list", [changed(COVERED, state=["TN"])], "state: must be a USPS"),
+    ("state-as-mapping", [changed(COVERED, state={"TN": 1})], "state: must be a USPS"),
+    ("platform-as-list", [changed(COVERED, platform=["daylight"])], "platform: must be a platform name"),
+    ("status-as-list", [changed(COVERED, status=["covered"])], "status: must be"),
+    ("items-as-list", [changed(COVERED, items=["shown"])], "items: must be shown or withheld"),
+    ("reason-as-list", [changed(CANT, reason=["terms"])], "reason: unknown reason"),
     # national/r5-not-enforced (finding 7) and the platform key checks
     ("legistar-no-host-ok", [changed(LEGISTAR, host_ok=...)], "host_ok: platform 'legistar' needs"),
     ("legistar-host-ok-no-link", [changed(LEGISTAR, host_ok={"date": "2026-12-01"})], "link: missing"),
@@ -186,6 +200,47 @@ BAD = [
 def test_directory_refuses(tmp_path, govs, match):
     with pytest.raises(nat.NationalConfigError, match=match):
         load(tmp_path, *govs)
+
+
+# privacy-withhold/body-name-word-check: the governing-body phrase must end the name; no school, youth, child,
+# pension or other special-purpose stem anywhere in it
+NOT_GENERAL = ["Early Childhood Council", "Childcare Commission", "Schoolboard Commission", "Head Start Policy Council",
+               "Junior Council", "Planning Commission", "Civil Service Commission", "Police Pension Board of Trustees",
+               "Preschool City Council", "City Council Youth Advisory Board", "Clarksville Parks Department"]
+GENERAL = ["Clarksville City Council", "Montgomery County Commission", "Town Board", "Arlington County Board",
+           "Board of County Commissioners", "Board of Mayor and Aldermen", "Metropolitan Council"]
+
+
+@pytest.mark.parametrize("name", NOT_GENERAL)
+def test_items_shown_refused_for_body_name(tmp_path, name):
+    with pytest.raises(nat.NationalConfigError, match="items: `shown` needs a body_name"):
+        load(tmp_path, changed(COVERED, body_name=name))
+
+
+@pytest.mark.parametrize("name", NOT_GENERAL)
+def test_withheld_body_name_still_loads(tmp_path, name):
+    assert load(tmp_path, changed(COVERED, body_name=name, items="withheld")).govs[0]["items"] == "withheld"
+
+
+@pytest.mark.parametrize("name", GENERAL)
+def test_items_shown_accepted_for_body_name(tmp_path, name):
+    assert load(tmp_path, changed(COVERED, body_name=name)).govs[0]["items"] == "shown"
+
+
+def test_shipped_shown_names_pass_the_word_check():
+    d = nat.load_directory()
+    assert {g["body_name"] for g in d.govs if g["items"] == "shown"} == {"Clarksville City Council",
+                                                                        "Montgomery County Commission"}
+
+
+def test_load_all_refuses_a_listed_government_in_hide(tmp_path):
+    for name in ("directory.yml", "labels.yml", "gov-flags.yml"):
+        (tmp_path / name).write_text((nat.NATIONAL_DIR / name).read_text(encoding="utf-8"), encoding="utf-8")
+    flags = yaml.safe_load((tmp_path / "gov-flags.yml").read_text(encoding="utf-8"))
+    flags["hide"].append({"id": "county-47125", "why": "x", "source": SRC})
+    (tmp_path / "gov-flags.yml").write_text(yaml.safe_dump(flags), encoding="utf-8")
+    with pytest.raises(nat.NationalConfigError, match="county-47125 is in directory.yml"):
+        nat.load_all(tmp_path)
 
 
 def test_refuses_unknown_top_level_key(tmp_path):

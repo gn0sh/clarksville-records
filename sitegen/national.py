@@ -88,14 +88,22 @@ MAX_LABEL = 300
 
 # `items: shown` needs a body name that names a general-purpose government's governing body and nothing that marks a
 # school, youth or other body whose items name children or students (security finding 5; architecture section 11).
-# Fail closed: a name this cannot place stays withheld, and the entry's PR says how the body was checked.
+# Fail closed: a name this cannot place stays withheld, and the entry's PR says how the body was checked
+# (code review, `privacy-withhold/body-name-word-check`).
+# - The governing-body phrase must END the name: "<city|town|...> council|commission|board" or a phrase that names
+#   the body by itself. "Planning Commission", "Junior Council" or "Police Pension Board of Trustees" never match.
+# - The denylist is word stems with no closing boundary, so "Schoolboard", "Childcare", "Educational" all hit; the
+#   child-specific stems need no opening boundary either ("Preschool", "Afterschool"). A name that trips it by accident
+#   (a "Kidder County Commission") stays withheld: fail closed.
 GOVERNING_RE = re.compile(
-    r"\b(council|commission|commissioners|board of supervisors|board of aldermen|board of mayor and aldermen|"
-    r"select ?board|board of selectmen|town meeting|fiscal court|quorum court|police jury|legislature|assembly|"
-    r"commissioners court|board of trustees)\b", re.IGNORECASE)
+    r"(\b(city|town|village|county|borough|township|parish|metro(politan)?|common)\s+(council|commission|board)"
+    r"|\b(board\s+of\s+supervisors|county\s+commissioners|board\s+of\s+aldermen|mayor\s+and\s+aldermen|selectmen|"
+    r"select\s+board|village\s+board\s+of\s+trustees|fiscal\s+court|quorum\s+court|police\s+jury|"
+    r"commissioners\s+court))$", re.IGNORECASE)
 NOT_GENERAL_RE = re.compile(
-    r"\b(schools?|education(al)?|youth|students?|child(ren)?|kids?|teens?|juveniles?|minors?|pupils?|college|"
-    r"university|library|hospital)\b", re.IGNORECASE)
+    r"(school|educat|youth|student|child|pupil|juvenil|infant|toddler|scholar|foster"
+    r"|\b(kid|teen|minor|junior|head\s+start|early\s+learning|college|universit|librar|hospital|pension|retire"
+    r"|civil\s+service))", re.IGNORECASE)
 GENERAL_LAYERS = ("place", "county", "cousub")
 
 LINE_LABEL = "note.{}"                # a gov-flags `line` is drawn from this label (labels.yml)
@@ -222,13 +230,16 @@ def load_labels(path: Path = LABELS_PATH) -> dict[str, str]:
 def _general_purpose(gov_id: str, body_name: str) -> bool:
     """True only when the entry can be tied to a general-purpose government: a place, county or county subdivision id
     and a body name that names a governing body (council, commission, ...) and nothing school or youth."""
-    return (id_layer(gov_id) in GENERAL_LAYERS and bool(GOVERNING_RE.search(body_name))
-            and not NOT_GENERAL_RE.search(body_name))
+    name = " ".join(body_name.split())
+    return (id_layer(gov_id) in GENERAL_LAYERS and bool(GOVERNING_RE.search(name))
+            and not NOT_GENERAL_RE.search(name))
 
 
 def _check_platform(path: Path, where: str, e: dict) -> None:
     present = [p for p in PLATFORM_KEYS if p in e]
     platform = e.get("platform")
+    if platform is not None and not isinstance(platform, str):
+        _fail(path, where, "platform", "must be a platform name")
     if platform is None:
         if present:
             _fail(path, where, present[0], "platform keys without `platform`")
@@ -311,7 +322,7 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
         if id_layer(gov) is None:
             _fail(path, where, "gov", "bad id (<layer>-<GEOID>, layers " + ", ".join(LAYERS) + ")")
         state = e["state"]
-        if state not in USPS_FIPS:
+        if not isinstance(state, str) or state not in USPS_FIPS:
             _fail(path, where, "state", "must be a USPS state code")
         also = e.get("also", [])
         if not isinstance(also, list):
@@ -323,10 +334,14 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
                 _fail(path, where, "gov" if i == gov else "also", f"duplicate id {i}")
             if _id_fips(i) != USPS_FIPS[state]:
                 _fail(path, where, "state", f"{state} does not match the state code of {i}")
+            if id_layer(i) != id_layer(gov):
+                # an alias names the same government in the same layer (a re-coded GEOID, 3.1); a cross-layer alias
+                # would let a school district or a sub-body ride on a general government's `items: shown`
+                _fail(path, where, "also", f"{i} is not in the layer of {gov} (privacy-withhold/also-cross-layer)")
             seen.add(i)
         body_name = _text(path, where, "body_name", e["body_name"], MAX_NAME)
         status = e["status"]
-        if status not in STATUSES:
+        if not isinstance(status, str) or status not in STATUSES:
             _fail(path, where, "status", "must be covered or cant-cover")
         checked = _date(path, where, "checked", e["checked"])
         for k in ("official_url", "checked_url", "reason_url"):
@@ -343,7 +358,7 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
             for k in CANT_COVER_REQUIRED:
                 if k not in e:
                     _fail(path, where, k, "a cant-cover entry needs reason, reason_url and checked")
-            if e["reason"] not in REASONS:
+            if not isinstance(e["reason"], str) or e["reason"] not in REASONS:
                 _fail(path, where, "reason", "unknown reason (" + ", ".join(REASONS) + ")")
             if f"reason.{e['reason']}" not in labels:
                 _fail(path, where, "reason", f"no label reason.{e['reason']} in labels.yml")
@@ -352,7 +367,7 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
                 if k in e:
                     _fail(path, where, k, "only a cant-cover entry has a reason")
         items = e.get("items", ITEMS_DEFAULT)
-        if items not in ITEMS:
+        if not isinstance(items, str) or items not in ITEMS:
             _fail(path, where, "items", "must be shown or withheld")
         if items == "shown" and id_layer(gov) in SCHOOL_LAYERS:
             _fail(path, where, "items", "`shown` is never allowed for a school district (privacy-withhold)")
@@ -411,7 +426,7 @@ def load_gov_flags(path: Path = FLAGS_PATH, labels: Mapping[str, str] | None = N
         where = f"rules[{n}]"
         if not isinstance(r["state"], str) or r["state"] not in FIPS_STATES:
             _fail(path, where, "state", "must be a two-digit state FIPS code in quotes")
-        if r["layer"] not in LAYERS:
+        if not isinstance(r["layer"], str) or r["layer"] not in LAYERS:
             _fail(path, where, "layer", "unknown layer")
         if not isinstance(r["show"], bool):
             _fail(path, where, "show", "must be true or false")
@@ -485,5 +500,12 @@ def load_all(folder: Path = NATIONAL_DIR) -> tuple[Directory, GovFlags, dict[str
     """The three curated files, checked together (the builder's entry point)."""
     folder = Path(folder)
     labels = load_labels(folder / "labels.yml")
-    return (load_directory(folder / "directory.yml", labels), load_gov_flags(folder / "gov-flags.yml", labels),
-            labels)
+    directory = load_directory(folder / "directory.yml", labels)
+    flags = load_gov_flags(folder / "gov-flags.yml", labels)
+    hidden = set(flags.hide)
+    for g in directory.govs:
+        for i in [g["gov"], *g["also"]]:
+            if i in hidden:
+                raise NationalConfigError(f"{folder / 'gov-flags.yml'}: hide: id: {i} is in directory.yml "
+                                          f"({g['gov']}); a listed government is never hidden")
+    return directory, flags, labels
