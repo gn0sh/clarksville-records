@@ -42,12 +42,14 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   (TenantBlocked, a HostBlocked). Anything else stops the whole host: a 403 on robots.txt, on a path that is no
   tenant's, with a body that is not a JSON object, or from a second distinct tenant on the same host; and every 429.
   The delay, robots.txt and limit_hosts stay per host; limit_tenant(url, n) adds a per-tenant cap inside the host
-  cap, and a redirect from a tenant-capped URL may only go to the same tenant (counted against its cap). A path on a
-  shared host that could name a tenant in two spellings is refused with no request (TenantPathRefused,
-  national/tenant-block-escape): a dot segment anywhere (".", "..", "%2e", also behind "%2f" or a backslash), or a
-  /v1/ client segment that is not plain letters, digits and hyphens (2-40; "%" included). /V1/ is /v1/. robots.txt
-  is never a tenant: any 403 while reading it, a redirect hop included, stops the host
-  (national/tenant-robots-host-block). Callers that treat a tenant apart catch TenantBlocked before HostBlocked.
+  cap, and a redirect from a tenant-capped URL may only go to the same tenant (counted against its cap). One parser,
+  shared_path (architecture 4.4.1, national/tenant-block-escape), keys every URL sent to a shared host; a path outside
+  its strict grammar (any "%", empty or dot segment, leading or trailing dot, backslash, ";", "+", non-ASCII, or a
+  /v1/ client that is not 2-40 letters, digits, hyphens) is refused with no request (TenantPathRefused), never
+  rewritten. Case is the only variation mapped: /V1/Salem is /v1/salem. robots.txt is never a tenant: any 403 while
+  reading it, a redirect hop included, stops the host (national/tenant-robots-host-block); a refused hop or a cap
+  while reading it caches disallow_all for that host (a cap is still raised as RequestCapReached). Callers that treat
+  a tenant apart catch TenantBlocked before HostBlocked.
 """
 from __future__ import annotations
 
@@ -196,67 +198,48 @@ def site_key(host: str) -> str:
     return h[4:] if h.startswith("www.") else h
 
 
-def tenant_key(url: str) -> str | None:
-    """The tenant of a shared host that `url` asks for, as "<site>/<client>" (e.g. "webapi.legistar.com/salem"), or
-    None when the host is not shared, the path is no tenant's (robots.txt included) or the URL is malformed. The
-    client segment is lowercased before it is matched (national/tenant-key-normalize). The "/" keeps a tenant key
-    apart from every site key."""
+SHARED_SEG = r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*"
+SHARED_PATH = re.compile(rf"/(?:{SHARED_SEG}(?:/{SHARED_SEG})*/?)?")   # the only paths sent to a shared host
+TENANT_CLIENT = re.compile(r"[A-Za-z0-9-]{2,40}")
+
+
+def shared_path(url: str) -> tuple[str, str | None]:
+    """The one tenant parser (architecture daylight-national 4.4.1, national/tenant-block-escape) -> (site, tenant).
+    Run on the raw path exactly as it will be sent. tenant is "<site>/<client lowercased>" (e.g.
+    "webapi.legistar.com/salem") for /v1/<client> with or without further segments, else None (host-level: robots.txt,
+    /, /v1/, /v2/...). On a shared host a path outside the strict grammar is TenantPathRefused, never rewritten:
+    segments of letters, digits, "_" and "-" joined by single inner dots, one optional trailing "/", nothing else (no
+    "%", empty segment, dot segment, leading or trailing dot, backslash, ";", "+" or non-ASCII); and a /v1/ client
+    must be 2-40 letters, digits or hyphens. Case is the only variation mapped (Legistar treats it as one client). The
+    query is not part of the key. A host that is not shared, or a malformed URL, is (site, None)."""
     try:
         p = urllib.parse.urlsplit(url)
         host = p.hostname or ""
     except ValueError:
-        return None
+        return "", None
     site = site_key(host)
     pattern = SHARED_HOSTS.get(site)
     if pattern is None:
-        return None
-    parts = p.path.split("/", 3)            # ["", "v1", "<client>", "rest"]
-    if len(parts) >= 3:
-        if parts[1].lower() == "v1":
-            parts[1] = "v1"
-        parts[2] = parts[2].lower()
-    m = pattern.match("/".join(parts))
-    return f"{site}/{m.group(1)}" if m else None
+        return site, None
+    path = p.path or "/"
+    if not SHARED_PATH.fullmatch(path):
+        raise TenantPathRefused(f"{url}: not a canonical path on shared host {site}; not fetched")
+    segs = path.split("/")                  # ["", "v1", "<client>", ...]
+    if len(segs) < 3 or segs[1].lower() != "v1" or segs[2] == "":
+        return site, None                   # /, /robots.txt, /v1, /v1/, /v2/...
+    if not TENANT_CLIENT.fullmatch(segs[2]):
+        raise TenantPathRefused(f"{url}: /v1/ client segment {segs[2]!r} is not 2-40 letters, digits or hyphens")
+    m = pattern.match(f"/v1/{segs[2].lower()}/")
+    if m is None:                           # cannot happen for TENANT_CLIENT; refuse rather than guess
+        raise TenantPathRefused(f"{url}: client segment does not match the {site} tenant pattern")
+    return site, f"{site}/{m.group(1)}"
 
 
-PLAIN_CLIENT = re.compile(r"[A-Za-z0-9-]{2,40}")
-
-
-def _fully_unquoted(text: str) -> str:
-    for _ in range(5):                       # %252e -> %2e -> .
-        nxt = urllib.parse.unquote(text)
-        if nxt == text:
-            break
-        text = nxt
-    return text
-
-
-def ambiguous_tenant_path(url: str) -> bool:
-    """national/tenant-block-escape: True when `url` is on a shared host and its path could reach a tenant under
-    another spelling than tenant_key sees: a backslash, a dot segment anywhere once decoded (".", "..", "%2e",
-    "..%2f"), or a /v1/ client segment that is not plain (2-40 letters, digits, hyphens). "/v1/" alone is not
-    ambiguous (no client). False for any other host or a malformed URL (check_url refuses that elsewhere)."""
-    try:
-        p = urllib.parse.urlsplit(url)
-        host = p.hostname or ""
-    except ValueError:
-        return False
-    if site_key(host) not in SHARED_HOSTS:
-        return False
-    if "\\" in p.path:
-        return True
-    decoded = _fully_unquoted(p.path).replace("\\", "/").split("/")
-    if any(seg in (".", "..") for seg in decoded):
-        return True
-    raw = p.path.split("/")
-    if len(decoded) > 1 and decoded[1].lower() == "v1":
-        if raw[1].lower() != "v1":           # /%761/: an encoded v1
-            return True
-        if len(raw) == 3 and raw[2] == "":   # "/v1/": no client at all
-            return False
-        if len(raw) < 3 or not PLAIN_CLIENT.fullmatch(raw[2]):
-            return True
-    return False
+def tenant_key(url: str) -> str | None:
+    """shared_path's tenant: "<site>/<client>" or None (a host that is not shared, a host-level path, a malformed
+    URL). Raises TenantPathRefused for a non-canonical shared-host path, so None only ever means "host-level and
+    allowed". The "/" keeps a tenant key apart from every site key."""
+    return shared_path(url)[1]
 
 
 def _json_object(body: bytes) -> bool:
@@ -321,6 +304,7 @@ class PoliteFetcher:
     _tenant_blocked: dict = field(default_factory=dict)  # tenant_key -> reason (that tenant said 403)
     _tenant_sent: dict = field(default_factory=dict)  # tenant_key -> requests sent this run (retries included)
     _tenant_caps: dict = field(default_factory=dict)  # tenant_key -> request limit (limit_tenant; only ever lowered)
+    _robots_capped: dict = field(default_factory=dict)  # exact host -> why its robots.txt ran into a request cap
     log: list = field(default_factory=list)          # [{event, host, url, detail}]
 
     # ------------------------------------------------------------ policy
@@ -356,10 +340,12 @@ class PoliteFetcher:
             self.log.append({"event": "refused", "host": parts.netloc, "url": url,
                              "detail": "not https on the default port"})
             raise SchemeRefused(f"{url}: only https:// on the default port is fetched")
-        if ambiguous_tenant_path(url):
+        try:
+            shared_path(url)
+        except TenantPathRefused as e:
             self.log.append({"event": "refused", "host": parts.netloc, "url": url,
-                             "detail": "shared-host path with a dot segment or an unusual client segment"})
-            raise TenantPathRefused(f"{url}: a shared-host path that could name a tenant another way; not fetched")
+                             "detail": "not a canonical shared-host path"})
+            raise TenantPathRefused(str(e)) from None
 
     def sent(self, host: str) -> int:
         """Requests made to host's site this run (robots.txt, redirects and retries included)."""
@@ -549,21 +535,24 @@ class PoliteFetcher:
         if exact not in self._robots:
             rp = urllib.robotparser.RobotFileParser()
             url = f"{scheme}://{host}/robots.txt"
-            status, body, headers = self._raw_get(url, _tenant_ok=False)
             hops = 0
             refused = False
-            while status in REDIRECT_CODES and hops < MAX_REDIRECTS:
-                try:
-                    nxt = self._location(url, headers)   # HostRefused: a denied/unlisted host, http://, another port
-                except HostRefused as e:
-                    # robots.txt cannot be read: disallow everything on this host for the run, cached, so later
-                    # fetches neither re-request robots.txt nor fetch the host (scheme-refusal-stops-host)
-                    self.log.append({"event": "robots_refused", "host": host, "url": url, "detail": str(e)})
-                    refused = True
-                    break
-                hops += 1
-                url = nxt
+            status, body, headers = 0, b"", {}
+            try:
                 status, body, headers = self._raw_get(url, _tenant_ok=False)
+                while status in REDIRECT_CODES and hops < MAX_REDIRECTS:
+                    nxt = self._location(url, headers)   # HostRefused: a denied/unlisted host, http://, another port
+                    hops += 1
+                    url = nxt
+                    status, body, headers = self._raw_get(url, _tenant_ok=False)
+            except (HostRefused, RequestCapReached) as e:
+                # robots.txt cannot be read: disallow everything on this host for the run, cached, so later fetches
+                # neither re-request robots.txt nor fetch the host (scheme-refusal-stops-host; 4.4.1 consumer 6, a
+                # hop refused or into a capped tenant). Caps only ever lower, so nothing would become fetchable later.
+                self.log.append({"event": "robots_refused", "host": host, "url": url, "detail": str(e)})
+                if isinstance(e, RequestCapReached):
+                    self._robots_capped[exact] = str(e)
+                refused = True
             if refused:
                 rp.disallow_all = True
             elif status == 200:
@@ -608,6 +597,9 @@ class PoliteFetcher:
         self.check_host(parts.netloc)
         self.check_url(url)
         rp = self.robots(parts.netloc, parts.scheme)
+        capped = self._robots_capped.get(plain_hostname(parts.netloc) or parts.netloc.lower())
+        if capped is not None:   # robots.txt unread for a cap (disallow_all cached): still reported as the cap
+            raise RequestCapReached(f"{url} not requested: robots.txt ran into a request cap ({capped})")
         if not rp.can_fetch(self.user_agent, url):
             self.log.append({"event": "robots_disallowed", "host": parts.netloc, "url": url, "detail": ""})
             raise RobotsDisallowed(url)
