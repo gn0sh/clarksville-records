@@ -220,7 +220,7 @@ H1 gates (security review): finding 3 (C4), finding 6 (D1), finding 7 (B1, D3).
 0. Before Q2 (Buttondown dashboard, free if available): set the confirmation redirect to `digest/requested.html` and
    edit the newsletter-wide confirmation text (U1 supplies it). Options: yes / skip. Recommended: yes (default: the
    label rides in the confirmation email as the design allows). Also confirm the who-runs-it facts (AC1.9, UX Q2) and
-   run `scripts/request_report.py` once on your PC with your Buttondown key (B12; the key never leaves your PC).
+   run `tools\national\request_report.py` once on your PC with your Buttondown key (B12; the key never leaves your PC).
    Architecture N1 (Menu group on every page: accept / front-page line only; recommended accept) and N2 (device list
    keeps names with ids: accept; recommended accept) are the manager's to record; default if no answer: accept.
 1. M1 live (R1): deploy `digest/` behind the switch after QA and security. Options: yes / not yet. Recommended: yes,
