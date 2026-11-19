@@ -18,6 +18,7 @@ labels:
   slot.sde: SCHOOL DISTRICT
 
   reason.blocks-readers: Its records site blocks automated readers.
+  reason.blocks-readers-cmcss: The school system's own records site, cmcss.net, blocks automated readers.
   reason.scanned-only: Its agendas are posted only as scanned images.
   reason.not-posted: It does not post its agendas online.
   reason.api-not-enabled: Its agenda system's public data feed is turned off.

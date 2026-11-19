@@ -42,7 +42,7 @@ govs:
     platform: daylight
     daylight: {body: county, full_url: meetings/agendas.html}
 
-  # Checked 2026-11-10 (docs/research/rpc-cmcss-sources.md): every page answers a Cloudflare bot challenge (403).
+  # Checked 2026-11-10 (docs/research/rpc-cmcss-sources.md), county page verified 2026-11-16 (docs/platform-facts.md): every cmcss.net page answers a Cloudflare bot challenge (403).
   # official_url (2026-11-19, QA national/official-url-not-meetings-page): the board's agendas are posted on the
   # county's Committee Agendas page, "School System" folder (docs/platform-facts.md "County Committee Agendas page",
   # verified 2026-11-16); cmcss.net's own board page could not be read (the challenge), so it stays the reason_url.
@@ -51,8 +51,8 @@ govs:
     body_name: Clarksville-Montgomery County School System Board of Education
     state: TN
     status: cant-cover
-    reason: blocks-readers
+    reason: blocks-readers-cmcss
     reason_url: https://www.cmcss.net/
     official_url: https://montgomerytn.gov/code/webshare/commission-committees-agendas.php
-    checked: 2026-11-10
-    checked_doc: docs/research/rpc-cmcss-sources.md
+    checked: 2026-11-16
+    checked_doc: docs/platform-facts.md

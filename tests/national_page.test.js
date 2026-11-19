@@ -427,7 +427,7 @@ test('cards: slot, Census name (h3), board, pill text, and each status\'s action
   none(buttonNamed(city, STR['lookup.request']));   // no Request it on a covered card
   const school = cards[2];
   assert.ok(cls(school, 'digest-pill')[0].textContent.endsWith(STR['lookup.status-cant']));
-  assert.strictEqual(cls(school, 'digest-reason')[0].textContent, 'Its records site blocks automated readers.');
+  assert.strictEqual(cls(school, 'digest-reason')[0].textContent, "The school system's own records site, cmcss.net, blocks automated readers.");
   const checked = cls(school, 'digest-checked')[0];
   assert.ok(/^Checked [A-Z][a-z]+ \d{1,2}, 20\d\d\. Source$/.test(checked.textContent), checked.textContent);
   assert.strictEqual(tags(checked, 'a')[0].getAttribute('rel'), 'noopener noreferrer');

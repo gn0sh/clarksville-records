@@ -66,14 +66,15 @@ def test_shipped_files_load():
         assert (g["status"], g["platform"], g["items"]) == ("covered", "daylight", "shown")
     assert city["daylight"] == {"body": "city", "full_url": "city/"}
     assert county["daylight"]["body"] == "county"
-    assert (cmcss["status"], cmcss["reason"], cmcss["items"]) == ("cant-cover", "blocks-readers", "withheld")
-    assert cmcss["checked_doc"] == "docs/research/rpc-cmcss-sources.md"
+    assert (cmcss["status"], cmcss["reason"], cmcss["items"]) == ("cant-cover", "blocks-readers-cmcss", "withheld")
+    assert cmcss["checked_doc"] == "docs/platform-facts.md" and str(cmcss["checked"]) == "2026-11-16"
     # national/official-url-not-meetings-page: each "Official ... page" link is the body's meetings or agenda page
     assert city["official_url"] == city["checked_url"] == "https://clarksvilletn.portal.civicclerk.com/"
     assert county["official_url"] == "https://montgomerytn.gov/commission/agenda"
     assert cmcss["official_url"] == "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php"
     assert cmcss["reason_url"] == "https://www.cmcss.net/"
     assert all(allowed_url(g["official_url"]) == g["official_url"] for g in d.govs)
+    assert "cmcss.net" in labels["reason.blocks-readers-cmcss"]
     assert labels["reason.blocks-readers"] == "Its records site blocks automated readers."
 
 
@@ -543,6 +544,10 @@ FLAG_BAD = [
                                         "source": SRC}]}, "state: must be a two-digit"),
     ("slot-duplicate", {"slots": [{"state": "25", "layer": "cousub", "slot": "place", "why": "x",
                                    "source": SRC}] * 2}, "duplicate slot"),
+    ("slot-layer-not-text", {"slots": [{"state": "25", "layer": ["cousub"], "slot": "place", "why": "x",
+                                        "source": SRC}]}, "must be text"),
+    ("slot-slot-not-text", {"slots": [{"state": "25", "layer": "cousub", "slot": ["place"], "why": "x",
+                                       "source": SRC}]}, "must be text"),
     ("slot-no-source", {"slots": [{"state": "25", "layer": "cousub", "slot": "place", "why": "x"}]},
      "source: missing"),
 ]
@@ -604,7 +609,7 @@ def test_page_directory_shape():
                                          "stale": False}
     assert p["govs"]["sdu-4703030"] == {
         "board": "Clarksville-Montgomery County School System Board of Education", "status": "cant-cover",
-        "reason": "blocks-readers", "checked": "2026-11-10", "reason_url": "https://www.cmcss.net/",
+        "reason": "blocks-readers-cmcss", "checked": "2026-11-16", "reason_url": "https://www.cmcss.net/",
         "official_url": "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php"}
     assert p["rules"] == [{"state": "09", "layer": "county", "show": False},
                           {"state": "44", "layer": "county", "show": False}]

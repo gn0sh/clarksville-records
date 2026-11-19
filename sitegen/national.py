@@ -62,7 +62,7 @@ USPS_FIPS = {
 FIPS_STATES = frozenset(USPS_FIPS.values())
 
 STATUSES = ("covered", "cant-cover")
-REASONS = ("blocks-readers", "robots-disallow", "scanned-only", "not-posted", "token-required", "api-not-enabled",
+REASONS = ("blocks-readers", "blocks-readers-cmcss", "robots-disallow", "scanned-only", "not-posted", "token-required", "api-not-enabled",
            "terms")
 ITEMS = ("shown", "withheld")
 ITEMS_DEFAULT = "withheld"
@@ -123,7 +123,7 @@ SHOWN_REVIEWED: tuple[ShownReview, ...] = (
     # body_key; no `also` ids; reviewed 2026-11-19 (B1 code review; readable row for security finding 1).
     # Changed 2026-11-19 (QA Q1 national/official-url-not-meetings-page): official_url from the city home page
     # https://www.clarksvilletn.gov/ to the same CivicClerk portal as checked_url, the council's meetings page; no
-    # other key changed. Needs re-review (privacy-withhold family).
+    # other key changed. re-reviewed 2026-11-19 (Q1 code and security review).
     ShownReview("place-4715160", {
         "gov": "place-4715160", "also": [], "body_name": "Clarksville City Council", "state": "TN",
         "status": "covered", "official_url": "https://clarksvilletn.portal.civicclerk.com/", "checked": "2026-11-19",
@@ -601,6 +601,8 @@ def load_gov_flags(path: Path = FLAGS_PATH, labels: Mapping[str, str] | None = N
     slots, seen_slots = [], set()
     for n, s in enumerate(lists["slots"]):
         where = f"slots[{n}]"
+        if not isinstance(s["layer"], str) or not isinstance(s["slot"], str):
+            _fail(path, where, "layer", "layer and slot must be text")
         if not isinstance(s["state"], str) or s["state"] not in FIPS_STATES:
             _fail(path, where, "state", "must be a two-digit state FIPS code in quotes")
         if (s["layer"], s["slot"]) not in SLOT_MOVES:

@@ -847,6 +847,7 @@
       // The honest line says what happens next for every status this request includes (AC5.2, as requested.html
       // does): this card's, plus each ticked "Also request" one's. Redrawn on every tick (textContent only).
       var honest = el("div", "digest-honest");
+      honest.setAttribute("aria-live", "polite");
       f.appendChild(honest);
       var lab = el("label", null, S("form.email-label"));
       lab.setAttribute("for", n + "-email");

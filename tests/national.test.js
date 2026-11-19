@@ -93,7 +93,7 @@ test('governments: 1 Public Sq -> city, county, school district; District 5 (FUN
       { id: 'sdu-4703030', name: 'Clarksville-Montgomery County School System', slot: 'sdu', status: 'cant-cover',
         board: 'Clarksville-Montgomery County School System Board of Education',
         official_url: 'https://montgomerytn.gov/code/webshare/commission-committees-agendas.php',
-        reason: 'blocks-readers', checked: '2026-11-10', reason_url: 'https://www.cmcss.net/' },
+        reason: 'blocks-readers-cmcss', checked: '2026-11-16', reason_url: 'https://www.cmcss.net/' },
     ],
     notes: [],
   });
