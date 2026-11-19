@@ -12,7 +12,7 @@ const { execFileSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const N = require(path.join(ROOT, 'site', 'static', 'national.js'));
 const SRC = fs.readFileSync(path.join(ROOT, 'site', 'static', 'national.js'), 'utf8');
-const PUBLIC_SQ = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'national', 'census-1-public-sq.json'), 'utf8'));
+const { LAYER, unit, match, answer, PUBLIC_SQ, RECORDED } = require('./national_answers.js');
 
 // The real page directory, as the builder embeds it.
 const PAGEDIR_TEXT = execFileSync(process.env.PYTHON || 'python3', ['-c', [
@@ -26,21 +26,7 @@ const PAGEDIR_TEXT = execFileSync(process.env.PYTHON || 'python3', ['-c', [
 const PAGEDIR = JSON.parse(PAGEDIR_TEXT);
 const copyPd = () => JSON.parse(PAGEDIR_TEXT);
 
-// --- synthetic Census answers ----------------------------------------------------------------------------------
-const LAYER = { place: 'Incorporated Places', county: 'Counties', cousub: 'County Subdivisions',
-  sdu: 'Unified School Districts', sds: 'Secondary School Districts', sde: 'Elementary School Districts' };
-const CC = { place: 'PLACECC', county: 'COUNTYCC', cousub: 'COUSUBCC' };
-function unit(layer, geoid, name, funcstat, cc) {
-  const u = { OBJECTID: 1, GEOID: geoid, NAME: name, STATE: geoid.slice(0, 2), FUNCSTAT: funcstat, MTFCC: 'G0000' };
-  if (cc && CC[layer]) { u[CC[layer]] = cc; }
-  return [layer, u];
-}
-function match(addr, ...units) {
-  const geographies = { States: [{ GEOID: '47', NAME: 'Tennessee', STATE: '47' }] };
-  for (const [layer, u] of units) { (geographies[LAYER[layer]] = geographies[LAYER[layer]] || []).push(u); }
-  return { matchedAddress: addr, coordinates: { x: -87, y: 36 }, geographies };
-}
-const answer = (...matches) => ({ result: { input: {}, addressMatches: matches } });
+// --- synthetic Census answers (builders shared with the browser run, tests/national_answers.js) ----------------
 const one = (...units) => N.classify(answer(match('1 TEST ST, TOWN, ST, 00000', ...units)));
 const govsOf = (units, pd) => N.governments(units, pd || PAGEDIR);
 const ids = (r) => r.govs.map((g) => g.id);
@@ -48,6 +34,17 @@ const plain = (x) => JSON.parse(JSON.stringify(x));     // objects made in anoth
 
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
+
+test('the 12 recorded answers the browser run plays back list the governments it expects', () => {
+  assert.strictEqual(RECORDED.length, 12);
+  for (const c of RECORDED) {
+    const r = N.classify(c.answer);
+    const units = r.kind === 'pick' ? r.matches[c.pick].units : r.kind === 'one' ? r.units : null;
+    const kind = c.pick !== undefined ? 'pick' : c.answer.result.addressMatches.length ? 'one' : 'nomatch';
+    assert.strictEqual(r.kind, kind, c.name);
+    assert.deepStrictEqual(units ? ids(govsOf(units)) : [], c.ids, c.name);
+  }
+});
 
 // --- jsonpUrl ----------------------------------------------------------------------------------------------------
 test('jsonpUrl: the geographies path, the six layers by name, fixed callback; the address is the only variable', () => {
