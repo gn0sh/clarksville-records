@@ -938,6 +938,28 @@ def test_a_failing_read_keeps_the_last_good_feed(tmp_path, monkeypatch):
     assert r.health[g["gov"]]["last_error"] == "collector-error"
 
 
+def test_a_failing_record_after_a_sent_read_moves_checked_at_with_the_attempt(tmp_path, monkeypatch):
+    """national-freshness/fallback-checked-at-lags-attempt: a 503 was sent, then `_record` raised; the kept feed's
+    checked_at is this attempt's stamp, the same as last_attempt_at (4.4.5)."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+    at = NOW - timedelta(days=1)
+    good = nr.run(d, fetcher(Net()), 100, at, clock=lambda: at)
+    real = nr._record
+
+    def flaky(entry, outcome, *a, **k):
+        if outcome != "collector-error":
+            raise RuntimeError("record")
+        return real(entry, outcome, *a, **k)
+    monkeypatch.setattr(nr, "_record", flaky)
+    net = Net(fail={"aa": (503, b"")})
+    r = nr.run(d, fetcher(net), 100, NOW, clock=lambda: NOW, previous_feeds=good.feeds, previous_health=good.health)
+    h, f = r.health[g["gov"]], r.feeds[g["gov"]]
+    assert net.calls and r.outcomes == {g["gov"]: "collector-error"}
+    assert f["checked_at"] == h["last_attempt_at"] == nr._instant(NOW) != good.feeds[g["gov"]]["checked_at"]
+    assert f["last_ok_at"] == good.feeds[g["gov"]]["last_ok_at"]
+
+
 def test_a_huge_crawl_delay_with_a_deadline_is_budget_skipped(tmp_path, monkeypatch):
     """national-budget/hook-overflow: a robots Crawl-delay too large for timedelta is a wait past the deadline
     (budget-skipped, nothing slept), not an OverflowError turned collector-error."""

@@ -463,11 +463,12 @@ def _run_body(entries, clients, fetcher, budget, now, previous_feeds, previous_h
             outcome, stamp, read = _read_one(entry, fetcher, stamp_of, cache_root, stops, tenant_budget, deadline)
             feed, record, props = _record(entry, outcome, stamp, read, now, previous_feeds, previous_health)
         except Exception:
-            # the last good feed is kept (its checked_at untouched: nothing here says the body was read), so
-            # write_outputs keeps its bodies/<id>.json (national-freshness/fallback-drops-kept-feed)
+            # the last good feed is kept, so write_outputs keeps its bodies/<id>.json (national-freshness/fallback-
+            # drops-kept-feed); its checked_at moves with last_attempt_at (4.4.5): `stamp` is None unless a request
+            # was sent (national-freshness/fallback-checked-at-lags-attempt)
             outcome, props = "collector-error", []
             try:
-                feed = _kept_feed(previous_feeds.get(gov), entry, None)
+                feed = _kept_feed(previous_feeds.get(gov), entry, stamp)
             except Exception:                          # this branch never raises (national-run/raise-outside-try)
                 feed = None
             record = _fallback_record(gov, stamp, previous_feeds, previous_health)
