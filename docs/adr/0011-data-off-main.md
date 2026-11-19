@@ -327,7 +327,10 @@ would let it set `MORNING_NOTE_SEND` or `RECORDS_DEPLOY_ENABLED`, which are hard
 **S1-3 (`data-off-main/rollback-unverified-data`): the rollback verifies I-prov on the restore source.** The open
 path no longer builds PR R from `records-data`'s head unchecked. It refuses unless that head passes the attestation
 check or is the pinned seed; otherwise the operator gives `--data-from <sha>`, an attested ancestor on
-`records-data`. `--merge` requires R's `data/` listing to equal that verified tree.
+`records-data`. `--merge` requires R's `data/` listing to equal that verified tree. N1 (re-confirm at f4d88591,
+`rollback-seedpin-untrusted`): the seed pin `--merge` trusts is read from `main`, R must be one commit whose parent is
+on `main`'s first-parent line, and `--merge` takes `--cutover-merge <sha>` so R's workflow and CODEOWNERS must equal
+those before the cutover merge. Every trust root the scripts read: `docs/architecture/data-off-main-trust-roots.md`.
 
 **S1-4 (`i-pub/t5-same-job`): accepted for the cutover; follow-up recorded.** See the reworded consequence (a). Follow-up
 for `backend-engineer`: a verify job on a fresh runner that downloads only the data artifact, rechecks its shape,
