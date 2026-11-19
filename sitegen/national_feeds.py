@@ -14,7 +14,9 @@ ICS (`digest/<st>/<body id>.ics`) is written here, line by line, never from a te
 - SEQUENCE comes from `sequences()`: it bumps when a meeting's agenda state or URL changes from the previous run.
 - A posted time that parses becomes a UTC DTSTART (deviation from 3.6's `TZID=`, recorded there: RFC 5545 3.2.19
   requires a VTIMEZONE for every TZID, which this writer does not emit); one that does not parse gives an all-day
-  event with the time in the SUMMARY as posted.
+  event with the time in the SUMMARY as posted. A timed event carries DURATION:PT1H (the posting gives no end).
+- Precondition: the feed went through `national_guards.bind_feed`, which checks `body.tz`; a tz that still fails
+  to load here gives the all-day form, never an exception.
 
 Atom (`digest/<st>/<body id>.xml`) is built by `sitegen/feeds.py render` (its escaping, ids and date rules): one entry
 per meeting whose agenda is posted, id `<feed id><body id>/meeting/<meeting id>/agenda`, dated when the agenda was
@@ -24,7 +26,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime, time, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import config, feeds
 from . import national_guards as guards
@@ -33,6 +35,7 @@ UID_DOMAIN = "daylight.gnoshcodes.com"
 PRODID = "-//Daylight Digest//daylight-upcoming/1//EN"
 FOLD_OCTETS = 75
 CRLF = "\r\n"
+TIMED_DURATION = "PT1H"      # a timed event's fixed length: the posting gives a start only (3.6)
 
 # Fixed labels (no outside text). DESCRIPTION is one of these, then the agenda link when there is one.
 AGENDA_LABELS = {
@@ -143,18 +146,22 @@ def sequences(feed: dict, previous: dict | None = None) -> dict[str, dict]:
 def _vevent(u: str, day: date, m: dict, body: dict, stamp: str, page_url: str, seq: int) -> list[str]:
     title = m.get("title") or guards.WITHHELD_TITLE
     summary = f"{body.get('name') or ''}: {title}"
-    at = parse_time(m.get("time"))
-    if at is None:
-        start = f"DTSTART;VALUE=DATE:{day.strftime('%Y%m%d')}"
+    at, zone = parse_time(m.get("time")), None
+    if at is not None:
+        try:
+            zone = ZoneInfo(body.get("tz") or config.SITE["site_timezone"])
+        except (ZoneInfoNotFoundError, ValueError):
+            zone = None      # bind_feed checks tz first; a bad one here still gives a valid all-day event
+    if zone is None:
+        start = [f"DTSTART;VALUE=DATE:{day.strftime('%Y%m%d')}"]
         if isinstance(m.get("time"), str) and m["time"].strip():
             summary += f", {m['time']}"
     else:
-        zone = ZoneInfo(body.get("tz") or config.SITE["site_timezone"])
-        start = f"DTSTART:{_utc_stamp(datetime.combine(day, at, zone))}"
+        start = [f"DTSTART:{_utc_stamp(datetime.combine(day, at, zone))}", f"DURATION:{TIMED_DURATION}"]
     agenda = m.get("agenda") or {}
     link = config.https_link(agenda.get("url"))
     description = AGENDA_LABELS.get(agenda.get("state"), AGENDA_LABELS["not-posted"]) + (f": {link}" if link else ".")
-    lines = ["BEGIN:VEVENT", f"UID:{u}", f"DTSTAMP:{stamp}", start, f"SEQUENCE:{seq}",
+    lines = ["BEGIN:VEVENT", f"UID:{u}", f"DTSTAMP:{stamp}", *start, f"SEQUENCE:{seq}",
              f"SUMMARY:{text(summary)}", f"DESCRIPTION:{text(description)}"]
     if config.https_link(page_url):
         lines.append(f"URL:{page_url}")
@@ -186,6 +193,7 @@ def atom_entries(feed: dict, page_href: str, first: dict | None = None) -> list[
         link = config.https_link(agenda.get("url"))
         when = (first or {}).get(link) or _instant(feed.get("checked_at"))
         title = m.get("title") or guards.WITHHELD_TITLE
+        label = AGENDA_LABELS.get(agenda["state"], AGENDA_LABELS["not-posted"])
         out.append({
             "id": f"{guards.checked_id(body.get('id'))}/meeting/{guards.checked_meeting_id(m['id'])}/agenda",
             "body": body["id"],
@@ -193,7 +201,7 @@ def atom_entries(feed: dict, page_href: str, first: dict | None = None) -> list[
             "updated": when,
             "href": page_href,
             "source": link,
-            "summary": f"{body.get('name') or ''}, {day.isoformat()}. {AGENDA_LABELS[agenda['state']]}.",
+            "summary": f"{body.get('name') or ''}, {day.isoformat()}. {label}.",
             "sort": (day.isoformat(), m["id"]),
         })
     return out
