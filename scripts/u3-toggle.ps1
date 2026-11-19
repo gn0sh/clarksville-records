@@ -71,6 +71,9 @@ function Utc { return (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss
 function Usage {
     Write-Host 'Usage: .\scripts\u3-toggle.ps1 -Pr <P> [-Merge -Report <review report> | -Rehearse] | -Restore [-From <backup json>] | -Noop | -ShowBody <json>'
 }
+# data-off-main/ps-unknown-args: an argument that matches no parameter stops here, before anything runs. (Not
+# [CmdletBinding()]: in an advanced script the exit code set in the window's finally block is lost after Ctrl+C.)
+if ($args.Count -gt 0) { Write-Host "Unknown argument(s): $($args -join ' '). Nothing was changed."; Usage; exit 1 }
 
 # The one whitelist: every PUT body and every comparison goes through it (order made canonical: rules by type).
 function Wl($o) {
@@ -462,9 +465,16 @@ function CloseWindow {
     Write-Host "U3 VERDICT $($script:verdict) rule-suite ${shownSuite}: $($script:detail)"
     if (-not $script:restored) { $script:code = 3 } elseif ($script:verdict -ceq 'PASS') { $script:code = 0 } else { $script:code = 2 }
 }
+# data-off-main/ps-ctrlc-exit-code: after Ctrl+C PowerShell runs this finally block and then skips everything after
+# it, so the exit code is set inside it (else the run exits 0, even after RESTORE FAILED)
+$script:ran = $false
 try {
     RunWindow
+    $script:ran = $true
 } finally {
-    if ($script:armed) { CloseWindow }
+    if ($script:armed) {
+        if (-not $script:ran -and -not $script:why) { $script:why = 'interrupted (Ctrl+C, a stop signal or an error)' }
+        CloseWindow
+    }
+    exit $script:code
 }
-exit $script:code
