@@ -122,7 +122,8 @@ def test_qa_checks_each_freshness_date_against_the_page_it_links(rpc_site, tmp_p
 def test_rpc_home_has_its_own_line(rpc_site):  # noqa: F811
     home = read(rpc_site, "rpc/index.html")
     sec = text(FRESH.search(home).group(0))
-    assert "Regional Planning Commission: " in sec and "agendas through" in sec
+    # on the commission's own page its one line is a date strip: the heading kept, the body's name left to the h1
+    assert "How recent the records are" in sec and "Agendas through" in sec and "Regional Planning Commission" not in sec
     landing = text(FRESH.search(read(rpc_site, "index.html")).group(0))
     assert "Montgomery County Commission: minutes and votes through" in landing
     assert "Regional Planning Commission: " in landing

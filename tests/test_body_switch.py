@@ -139,7 +139,9 @@ def test_every_body_page_has_the_one_header(site, html):
     the same order and a row only when the body has that fact: kicker, h1, lede, coverage line, how recent the
     records are, Watch; the section cards come right after it. The masthead above is the same on all four, and on
     the home page: name plate and tag, no coverage line (the school board's used to show the County Commission's)."""
-    order = ["hub-kicker", "h1", "lede", "body-cover", "freshness", "watch-line"]
+    # wall of text (owner, 2026-11-19): the newest dates come first, as a date strip; the coverage line moved under
+    # the strip's "About these dates" toggle with the note on minutes behind agendas, every word kept
+    order = ["hub-kicker", "h1", "lede", "freshness", "body-cover", "watch-line"]
     pages = {"county": "montgomery-county.html", "city": f"{cfg_slug(site)}/index.html", "school": "school-board.html",
              "rpc": "rpc/index.html"}
     rows = {}
@@ -148,13 +150,21 @@ def test_every_body_page_has_the_one_header(site, html):
         main = page[page.index('<main id="main">'):]
         assert main.count('<div class="body-head"') == 1, rel
         head = re.search(r'<div class="body-head" data-body-head="(\w+)">(.*?)</div>', main, re.S)
-        assert head.group(1) == key and main[len('<main id="main">'):].lstrip().startswith('<div class="body-head"'), rel
+        # the collected bodies' header shares a wrapper with the morning note's invitation (test_front_signup.py)
+        lead = key != "school"
+        start = re.match(r'\s*(<div class="body-top">\s*)?<div class="body-head"', main[len('<main id="main">'):])
+        assert head.group(1) == key and start and bool(start.group(1)) == lead, rel
         found = re.findall(r'<(?:p|section) class="(hub-kicker|lede|body-cover|freshness|watch-line)"|<(h1)>', head.group(2))
         rows[key] = [a or b for a, b in found]
         assert rows[key] == [r for r in order if r in rows[key]], (rel, rows[key])       # one order, no repeats
         assert rows[key][:3] == order[:3], (rel, rows[key])                              # every body has these three
         after = main[head.end():].lstrip()
+        if lead:                                      # the invitation, then the wrapper closes
+            after = re.sub(r'^<section class="note-invite".*?</section>\s*</div>', "", after, flags=re.S).lstrip()
         assert after.startswith('<section class="hub" aria-labelledby="hub-h"'), (rel, after[:80])
+        if "body-cover" in rows[key] and "freshness" in rows[key]:          # the coverage line is in the toggle
+            assert re.search(r'<details class="fresh-about"><summary>About these dates</summary>\s*<p class="body-cover">',
+                             head.group(2)), rel
         header = page[page.index("<header"):page.index("</header>")]
         assert 'class="kicker"' not in header and '<p class="unofficial-tag">' in header, rel
     assert rows["county"] == rows["city"] == rows["rpc"] == order      # the three collected bodies: every row
@@ -170,9 +180,9 @@ def test_every_body_page_has_the_one_header(site, html):
     assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to ', city)
     assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to '
                      r'.*? case items', rpc)
-    assert "Montgomery County Commission: minutes and votes through" in plain(county)
-    assert "City Council: minutes and votes through" in plain(city)
-    assert "Regional Planning Commission: " in plain(rpc)
+    for page in (county, city):                    # the page's own body, named by its h1, is not repeated in the strip
+        assert "How recent the records are Minutes and votes through" in plain(page)
+    assert "How recent the records are" in plain(rpc) and " through " in plain(rpc)
     watch = [re.search(r'<p class="watch-line"><a class="watch" data-ext="watch" href="([^"]+)"', p).group(1)
              for p in (county, city, rpc)]
     assert len(set(watch)) >= 2                                        # not one body's link copied to the others

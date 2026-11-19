@@ -647,6 +647,16 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
    both themes); hover adds an underline, so it never rests on the color change alone. */
 .note-invite { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 0 0; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--sun); border-radius: var(--radius-lg); max-width: 44rem; }
 .note-invite p { flex: 1 1 16rem; margin: 0; }
+/* From 1100px the invitation is a card in the free column beside the address card (front page) or the body's header
+   (a body's page), its sentence over its button. */
+@media (min-width: 1100px) {
+  .landing { display: grid; grid-template-columns: minmax(0, 44rem) minmax(15rem, 20rem) minmax(0, 1fr); column-gap: 24px; }
+  .landing > * { grid-column: 1 / -1; min-width: 0; }
+  .landing > .find { grid-column: 1; }
+  .landing > .note-invite { grid-column: 2; align-self: start; margin-top: 20px; }
+  .landing > .note-invite, .body-top > .note-invite { flex-direction: column; align-items: stretch; gap: 12px; max-width: none; padding: 16px; }
+  .landing > .note-invite p, .body-top > .note-invite p { flex: none; }
+}
 .note-invite-btn, .note-invite-btn:visited {
   flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 44px; padding: 8px 16px;
   color: var(--on-blue); background: var(--blue); border: 1px solid var(--blue); border-radius: var(--radius-lg);
@@ -1523,7 +1533,24 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .body-head > h1 { max-width: none; }
 .body-head > .lede { margin: 0 0 8px; }
 .body-head > .body-cover { margin: 0 0 8px; color: var(--muted); font-size: var(--t-sm); }
-.body-head > .freshness { margin: 0 0 8px; }
+.body-head > .freshness { margin: 12px 0 4px; }
+/* the newest dates as a date strip (_freshness.html.j2 fresh_strip; wall of text, 2026-11-19): the site's figure
+   style, a rule over each, the label over its date; side by side, and one under the other on a narrow phone */
+.fresh-strip { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: 10px 22px; max-width: 34rem; }
+.fresh-strip .stat { border-top-width: 1px; padding-top: 6px; }
+.fresh-strip .stat-num { padding-top: 0; font-size: var(--t-lg); }
+.fresh-about { margin: 4px 0 8px; font-size: var(--t-sm); }
+.fresh-about > summary { cursor: pointer; width: max-content; max-width: 100%; padding: 6px 0; color: var(--link); font-weight: 600; }
+.fresh-about > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
+.fresh-about > p { margin: 2px 0 6px; color: var(--muted); }
+@media (pointer: coarse) { .fresh-about > summary { display: flex; align-items: center; min-height: 44px; } }
+/* the morning note's invitation beside a body's header (_hub.html.j2 body_head `invite`): under it on a phone and a
+   laptop, a card in the free column beside it from 1100px */
+.body-top > .note-invite { margin: 4px 0 8px; }
+@media (min-width: 1100px) {
+  .body-top { display: grid; grid-template-columns: minmax(0, 44rem) minmax(15rem, 20rem); column-gap: 24px; align-items: start; }
+  .body-top > .note-invite { margin: 30px 0 0; }
+}
 .body-head > .watch-line { margin: 0; }
 .body-notes { max-width: 44rem; font-size: var(--t-sm); }
 .hub { margin: 20px 0 24px; }
