@@ -123,7 +123,8 @@ Daylight Digest can and can't show me.
 - AC2.9 Under the list, one line says some bodies, such as water or transit boards, can't be found by address yet.
 - AC2.10 The Connecticut address shows its town and school district and no county (Connecticut counties are not
   governments). Rhode Island and Massachusetts counties with no county government are not shown either.
-- AC2.11 The New England town address outside Connecticut shows the town as a government, in the city or town slot. (Confirmed by manager 2026-11-19 after Q1; a town is never put in the township or town slot.)
+- AC2.11 The New England town address outside Connecticut shows the town as a government, in the city or town slot. (Confirmed by manager 2026-11-19 after Q1; outside Connecticut, a New England town is never put in the township
+  or town slot. Connecticut towns stay in the township or town slot.)
 - AC2.12 Whether a Census unit is a working government comes from the Census status flag plus a hand-kept table for
   the states the flag gets wrong; a unit not known either way is left off, with the AC2.9 line covering it.
 - AC2.13 If the Census matches the address but returns no listable government, the page says so in one fixed line
