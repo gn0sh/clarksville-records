@@ -294,9 +294,15 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
     sign-ups. Unproven: the Buttondown firewall had IP filtering off at the time.
 - **Consequence (2026-11-17):** the sign-up form posts no `metadata__` field. Lists, district and ward go as
   Buttondown tags (`tag` fields: `note-zoning`, `note-district-5`, `note-ward-3`); the sender reads only those tags,
-  and metadata holds only the sender's stamp. **Unverified until the first real sign-up:** that the free plan's form
-  accepts `tag` on a new address (and adds several when several `tag` fields are posted), that a new tag name is
-  created on the fly, that a form sign-up gets double opt-in, and that the API returns `tags` as a list of names.
+  and metadata holds only the sender's stamp.
+- **Live sign-up test (2026-11-18, 1:33-2:20 PM CT, Brian, runbook 4a; verified):** a new address signed up on the
+  live Alerts form got Buttondown's confirmation email and became a Regular subscriber after confirming (**double
+  opt-in works**). Buttondown's new-subscriber notification email listed the four topic tags ticked on the form
+  (`note-budget`, `note-contracts`, `note-seats`, `note-zoning`), so **the free plan's form accepts several `tag`
+  fields on a new address and creates new tag names on the fly**. Buttondown's subscriber side panel does not show
+  form tags; read them from the notification email or the API. Still unverified: that the API returns `tags` as a
+  list of names (checked by the sender's first real run). An address that is already subscribed sees "successfully
+  subscribed" with no confirmation email.
 - **Probe scoring (not changed):** the script scored `stamp_checks_pass: false` for three reasons: the wrong manual
   runbook-1 answer above; `runbook-8` (the form sets `note_edition` on an existing subscriber), which the design
   now accepts because the stamp carries a MAC (architecture "Switch-on: tags, and the security notes"); and the

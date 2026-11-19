@@ -9,9 +9,10 @@
 **Backlog (Nov 17):** confirm the CI Tests step time on the next daily run after PR #30; GitHub's scheduled trigger fires late or not at all (Nov 16 ran 19:29 UTC; Nov 17 none by 09:26): consider a backup check; low follow-up schema-memo/digest-alias (key the schema memo on parsed JSON only; unreachable today).
 
 ## Waiting on the CEO
-- None open (Nov 18 11:35 AM CT). Possible later ask, only if U3-0 shows the team token can't write the ruleset: "U3 test today, about 20 minutes, outside 3-5:30 AM CT? yes / no". Big PC needs typed replies.
+- None open (Nov 19 12:50 AM CT). Next ask: the C1 cutover card ("Cut over Daylight's data to records-data today? yes / no"), typed on the big PC, after the cutover PR is reviewed.
 
 ## Problem keys (Nov 16-18)
+- Nov 18 data-off-main families: main-protect (fetch-data-symlink, writer-set, phase0-attest, r2-on-without-codeowners; S1-1, S1-6, S1-7 are hardening, not hits), data-prov, data-off-main, finance-pages (county-bytes was a false hit).
 - Nov 18: main-protect/v1-probe family hit again (V1' FAIL, code-owner rule never binds); ADR 0011 is the architect's re-plan. Two more failures of that re-plan escalate to Brian. Open follow-ups: v1-probe/window-second-known-untested (should-fix, PR #53), v1-probe/ps51-stdin-bom-throw (low, PR #48).
 - main-protect/: 3 hits (M1; V1 bot-merge family; S-1 shape-check-locale-fail-open). Invariant re-stated twice: docs/architecture/main-protect-invariant.md (I-data, Baseline window check). A 4th hit escalates to Brian per the loop rule.
 - v1-probe/ (Nov 17 PR #29): v1-fail-containment-incomplete (M), v1-fail-containment-order (L), log-raw-to-console (L, sed range bug) all fixed. main-protect/window-start-first-run (L) fixed: counted as review findings on a follow-up PR, not new hits on the main-protect invariant (the change implements its Baseline window check).
@@ -21,6 +22,14 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-19 | manager | n/a | merge claude/adr0011-s1, decision 5 to 10 approvals, re-pin test (f4d88591) | done |
+| 2026-11-18 | security-engineer | opus/high | S1 security review of data-off-main 5fb948f2 | OK with follow-ups (S1-1..S1-7); script fixes 7f05bd8a; docs/reviews/s1-security-data-off-main-5fb948f2.md |
+| 2026-11-18 | code-reviewer | opus/high | B4 at 5fb948f2 | approve with nits (S1/S1b held-issue, S2 fact pin, N1-N4); fixes by backend-engineer |
+| 2026-11-18 | code-reviewer | per piece | B1, B1b, D1/D2, B2/B3, D3 | approve after delta re-reviews |
+| 2026-11-18 | backend-engineer | opus/high | B1, B1b, B2/B3, B4 (data-off-main) | done; merged into integration branch |
+| 2026-11-18 | devops-engineer | opus/high | D1/D2, D3 (data-off-main scripts) | done; merged into integration branch |
+| 2026-11-18 | software-architect | opus/high | city funds plan; ADR 0011 amendments (b), (c), (d) | done |
+| 2026-11-18 | frontend-engineer | opus/medium | tax dollar wording; city every-fund bar (PR #63) | done; Brian "looks good"; merged |
 | 2026-11-18 | frontend-engineer | sonnet/medium | PR #59 remove whole total row (694b213) | done; 145 pass |
 | 2026-11-18 | code-reviewer | sonnet/medium | PR #59 694b213 | approve with nits; merged dee558f |
 | 2026-11-18 | code-reviewer | sonnet/medium | PR #58 4f2aa8c | approve with nits |
