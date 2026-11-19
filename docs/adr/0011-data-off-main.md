@@ -73,7 +73,7 @@ reviewer.
    site's `build-info.json` with what this run will deploy. Any change or removal not listed in the reviewed
    `config/published-fact-changes.yml` opens one fixed-title issue and holds the deploy (`held=yes`). The data push
    still happens. `allow_shrink` never bypasses it (finding 7): only the reviewed list does. This extends ADR 0006's guards, which see only one run's collection.
-5. **Ruleset R1'' on `main`:** `required_approving_review_count: 2`, `dismiss_stale_reviews_on_push: true`,
+5. **Ruleset R1'' on `main`:** `required_approving_review_count: 10` (the ruleset maximum; was 2 before amendment (d), S1-1), `dismiss_stale_reviews_on_push: true`,
    `require_last_push_approval: true`, `require_code_owner_review: false`, squash only, bypass Repository admin role
    in `pull_request` mode. `.github/CODEOWNERS` is deleted. Every merge into `main` is a person's bypass merge via
    `merge-reviewed`, which refuses PRs not authored by gn0sh or with a head in another repository.
