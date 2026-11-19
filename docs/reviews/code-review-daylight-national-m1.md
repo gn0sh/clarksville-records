@@ -88,3 +88,6 @@
 - should-fix `national-pages/body-from-feed-not-directory` (fallback URLs and allowlist re-check from the feed, not the
   entry; `href=""` possible), `national-pages/morning-gate` (morning-note link on every covered page; UX says TN only).
 - nits: enabled() outside try; `body.no-time` undocumented draft; test_header regex; index_csp duplicates views.csp.
+- B4 delta (309d957a): APPROVE. Switch OFF byte-identical to main 1922fda3 in three builds (fixture pages, real-data
+  preview, real-data pages). Freshness, links-from-entry and morning gate closed; no `href=""` in the on build.
+  Note: JSON `checked_at` holds the newest record's first fetch; M2/M4 must not print it as "last checked" until C3.
