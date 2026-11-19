@@ -10,3 +10,6 @@ Reviewer: code-reviewer, opus/high, 2026-11-19. Verdict: REQUEST CHANGES.
 Holds: budget accounting, budget-skip, host stop, tenant order and <client>.legistar.com deny, per-body exceptions,
 ids, freshness stamps, withheld kept feed has no item text, write confinement.
 Open for manager: C2 feed keeps `full_url: None` vs 3.7 "minus full_url".
+
+## Delta 125323c (resumed): APPROVE
+All 6 closed (probes re-run). Accepted as is: if _record raises, fallback resets streak and drops kept feed (fails safe).
