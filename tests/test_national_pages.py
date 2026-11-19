@@ -672,6 +672,121 @@ def test_a_covered_entry_without_a_feed_stops_the_build(loaded):
                         {"city": ({}, [])}, None, date(2026, 11, 19))
 
 
+@pytest.mark.parametrize("moved,slot", [(True, "CITY OR TOWN"), (False, "TOWNSHIP OR TOWN")])
+def test_page_slot_follows_the_gov_flags_slot_rule(tmp_path, loaded, page_labels, moved, slot):
+    """national/new-england-town-slot (AC2.11): the coming-up page's eyebrow and its What we cover row print the slot
+    nat.slot_of gives (a gov-flags `slots` rule for the id's state moves a cousub to the city-or-town slot)."""
+    import dataclasses
+    directory, flags, labels = loaded
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("x"), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    town = {"gov": "cousub-4712590887", "also": [], "body_name": "Example Town Board", "state": "TN",
+            "status": "covered", "official_url": "https://example.legistar.com/Calendar.aspx",
+            "checked": date(2026, 11, 19), "items": "withheld", "review": None, "platform": "legistar",
+            "legistar": {"client": "example", "body_id": 1, "tz": "America/Chicago"},
+            "host_ok": {"date": date(2026, 11, 19), "link": "https://example.org/ok"}}
+    feed = json.loads(json.dumps(feeds[COUNTY_ID]))
+    feed["body"].update(id=town["gov"], name=town["body_name"], platform="legistar", full_url=None)
+    rule = ({"state": "47", "layer": "cousub", "slot": "place"},) if moved else ()
+    f2 = dataclasses.replace(flags, slots=rule)
+    d = nat.Directory(govs=(*directory.govs, town), alias={})
+    out = tmp_path / "site"
+    npg.build_national(out, build_mod.make_env(), _SITE_CTX(), d, f2, labels, page_labels,
+                       {**feeds, town["gov"]: feed}, built_at=BUILT_AT, counter=None)
+    body = main_text((out / "digest" / "tn" / f"{town['gov']}.html").read_text(encoding="utf-8"))
+    assert f"Tennessee · {slot}" in body
+    covered = main_text((out / "digest" / "covered.html").read_text(encoding="utf-8"))
+    row = covered[covered.index("Example Town Board"):][:200]
+    assert slot in row and ("TOWNSHIP OR TOWN" in row) is not moved
+
+
+# --- topic labels (AC4.7, AC4.8): the morning note's lists by the published item type word list ----------------------
+
+ITEM_LI_RE = re.compile(r"<li>\s*<h3>(.*?)</h3>\s*(?:<p class=\"digest-topics\">(.*?)</p>)?", re.S)
+CHIP_RE = re.compile(r'<span class="chip digest-topic"><span class="sr-only">[^<]*</span>([^<]*)</span>')
+
+
+def _printed_topics(html: str) -> list[tuple[str, list[str]]]:
+    """(item heading text, [topic label text]) for each item on a coming-up page, in page order."""
+    return [(main_text("<main>" + h + "</main>"), [html_mod.unescape(c) for c in CHIP_RE.findall(chips or "")])
+            for h, chips in ITEM_LI_RE.findall(html)]
+
+
+def _word_list_topics(number: str | None, text: str, page_labels) -> list[str]:
+    """The expected labels, read straight from config/site.yml item_types (independent of views.item_types): a
+    number prefix, or a word at the start of a word of the text, any case."""
+    types = {t["key"]: t for t in config.SITE["item_types"]}
+    out = []
+    for key, item_type in npg.TOPICS:
+        t = types[item_type]
+        if any((number or "").upper().startswith(p.upper()) for p in t["prefixes"]) or \
+                any(re.search(r"(?<!\w)" + re.escape(w.casefold()), text.casefold()) for w in t["words"]):
+            out.append(page_labels[f"body.topic-{key}"])
+    return out
+
+
+def test_topics_are_the_morning_note_lists_with_a_word_rule(page_labels):
+    from sitegen import morning
+    item_types = {t["key"] for t in config.SITE["item_types"]}
+    assert [k for k, _ in npg.TOPICS] == ["zoning", "budget"]
+    for key, item_type in npg.TOPICS:
+        assert key in morning.LIST_KEYS and item_type in item_types
+        assert page_labels[f"body.topic-{key}"] in ("Zoning and land use", "Budget and taxes")   # design 5 copy
+    assert npg.item_topics(None, "Rezone 5 acres on Main St") == ["body.topic-zoning"]
+    assert npg.item_topics("CZ-12-2026", "Application of A. Owner") == ["body.topic-zoning"]
+    assert npg.item_topics(None, "FY27 Budget amendment") == ["body.topic-budget"]
+    assert npg.item_topics(None, "A resolution appropriating funds") == ["body.topic-budget"]
+    assert npg.item_topics(None, "Budget for a rezoning study") == ["body.topic-zoning", "body.topic-budget"]
+    assert npg.item_topics(None, "Appoint a member") == []            # appointments are not a morning note list
+    assert npg.item_topics(None, "Disbudgeted and prezoned") == []    # a word must start a word
+    assert npg.item_topics(None, SENTINEL) == []
+
+
+def test_topic_labels_follow_shown_items_and_never_a_withheld_meeting(tmp_path, loaded, page_labels):
+    directory, flags, labels = loaded
+    withheld = _entry(directory, "place-4799999", body_name="Clarksville Youth Council", items="withheld")
+    d = nat.Directory(govs=(*directory.govs, withheld), alias={})
+    titles = ("Resolution amending the FY27 budget", "Rezoning request for 5 acres", "Approve the minutes")
+    feeds = ncl.clarksville_feeds(d, {"city": ({}, [])}, _agendas(*titles), date(2026, 11, 19), checked_at=BUILT_AT)
+    out = tmp_path / "site"
+    _build_pages_into(out, d, flags, labels, page_labels, feeds)
+    html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
+    assert [t for _h, t in _printed_topics(html)] == [["Budget and taxes"], ["Zoning and land use"], []]
+    assert html.count('class="digest-topic-note"') == 1
+    assert 'href="../../about.html#item-types"' in html
+    assert '<span class="sr-only">Topic: </span>Zoning and land use' in html       # accessible name "Topic: ..."
+    rest = leftover(main_text(html), [*page_labels.values(), *labels.values(), *FRAME_WORDS],
+                    _sources(d, [feeds[COUNTY_ID]]))
+    assert re.fullmatch(r"[\s.,·:/]*", rest), rest.strip()[:300]
+    other = (out / "digest" / "tn" / "place-4799999.html").read_text(encoding="utf-8")
+    assert "digest-topic" not in other and "Budget and taxes" not in other
+    # a page with no matching item prints no note
+    feeds2 = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("Approve the minutes"), date(2026, 11, 19),
+                                   checked_at=BUILT_AT)
+    html2 = _render_one(tmp_path / "n", directory, flags, labels, page_labels, feeds2, COUNTY_ID)
+    assert "digest-topic" not in html2
+
+
+def test_real_county_page_20_sampled_items_match_the_word_list(tmp_path, loaded, page_labels, real):
+    """AC3.3 / AC4.7 QA sample: 20 items spread over the real county page, each item's printed labels equal the
+    labels the word list gives its verbatim number and text, and at least one sampled or printed item has a label."""
+    directory, flags, labels = loaded
+    feeds = npg.build_feeds(directory, real["councils"], real["agendas"], real["today"])
+    out = tmp_path / "site"
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds)
+    html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
+    items = [it for m in feeds[COUNTY_ID]["meetings"] for it in m["items"]]
+    printed = _printed_topics(html)
+    assert len(printed) == len(items) >= 20
+    step = len(items) / 20
+    for i in sorted({int(n * step) for n in range(20)}):
+        it, (heading, chips) = items[i], printed[i]
+        assert heading == " ".join(f"{it['number'] or ''} {it['text']}".split())
+        assert chips == _word_list_topics(it["number"], it["text"], page_labels), heading
+    assert any(chips for _h, chips in printed)
+    assert html.count('class="digest-topic-note"') == 1
+
+
 # --- 11.3 item 7: the builder sweep ------------------------------------------------------------------------------------
 
 def _sweep(out: Path) -> set[str]:

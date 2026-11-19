@@ -385,7 +385,8 @@ def test_sources_digest_links_are_the_directorys(built_on):
     pages = {rel: pg for rel, pg in _pages(built_on).items() if rel.startswith("digest/")}
     assert _sources(built_on, pages) == []
     urls = SC.digest_link_urls(built_on, pages, SC._site_cfg())
-    assert {"https://www.cmcss.net/", "https://www.clarksvilletn.gov/",
+    assert {"https://www.cmcss.net/", "https://clarksvilletn.portal.civicclerk.com/",
+            "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php",
             "https://www.census.gov/about/policies/privacy.html"} <= urls["digest/covered.html"]
     # a coming-up page also takes the URLs of its own JSON
     data = json.loads((built_on / "digest/tn/county-47125.json").read_text(encoding="utf-8"))

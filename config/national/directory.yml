@@ -23,7 +23,7 @@ govs:
     body_name: Clarksville City Council
     state: TN
     status: covered
-    official_url: https://www.clarksvilletn.gov/
+    official_url: https://clarksvilletn.portal.civicclerk.com/
     checked: 2026-11-19
     checked_url: https://clarksvilletn.portal.civicclerk.com/
     items: shown
@@ -43,6 +43,9 @@ govs:
     daylight: {body: county, full_url: meetings/agendas.html}
 
   # Checked 2026-11-10 (docs/research/rpc-cmcss-sources.md): every page answers a Cloudflare bot challenge (403).
+  # official_url (2026-11-19, QA national/official-url-not-meetings-page): the board's agendas are posted on the
+  # county's Committee Agendas page, "School System" folder (docs/platform-facts.md "County Committee Agendas page",
+  # verified 2026-11-16); cmcss.net's own board page could not be read (the challenge), so it stays the reason_url.
   - gov: sdu-4703030
     also: []
     body_name: Clarksville-Montgomery County School System Board of Education
@@ -50,6 +53,6 @@ govs:
     status: cant-cover
     reason: blocks-readers
     reason_url: https://www.cmcss.net/
-    official_url: https://www.cmcss.net/
+    official_url: https://montgomerytn.gov/code/webshare/commission-committees-agendas.php
     checked: 2026-11-10
     checked_doc: docs/research/rpc-cmcss-sources.md

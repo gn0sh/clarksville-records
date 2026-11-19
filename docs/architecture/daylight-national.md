@@ -84,7 +84,9 @@ govs:
     checked: 2026-11-19
     checked_doc: docs/research/rpc-cmcss-sources.md   # a repo file, instead of `checked_url` (which is https only)
 ```
-The slot label (CITY OR TOWN, COUNTY, TOWNSHIP OR TOWN, SCHOOL DISTRICT) comes from the id's layer, not the file. A
+The slot label (CITY OR TOWN, COUNTY, TOWNSHIP OR TOWN, SCHOOL DISTRICT) comes from the id's layer, not the file,
+except where a gov-flags `slots` entry moves a layer for a state (3.3; AC2.11: New England towns outside Connecticut
+show as CITY OR TOWN; `national.slot_of(id, flags)`). A
 government not in this file is "Not covered yet" (AC2.8); it has no entry and no page.
 Build checks (refuse to build): unknown key; bad id; duplicate id across `gov` and `also`; missing or unknown `state`;
 `cant-cover` without `reason`, `reason_url`, `checked`; `covered` without `platform` keys; any URL not https; a
@@ -128,7 +130,13 @@ rules: [{state: "09", layer: county, show: false, why: ..., source: <url>},
         {state: "44", layer: county, show: false, why: ..., source: <url>}]
 lines: [{id: place-4752006, line: consolidated, why: ..., source: <url>},    # "The city and county here are one government."
         {id: county-51760, line: independent-city, why: ..., source: <url>}] # "This city is not part of any county."
+slots: [{state: "25", layer: cousub, slot: place, why: ..., source: <url>}]   # AC2.11; also 23, 33, 44, 50
 ```
+`slots` (added 2026-11-19, QA `national/new-england-town-slot`): in a listed state, every card of `layer` shows in
+`slot`: label `slot.<slot>`, ordered as that slot (4.1 step 7), and a kept unit in slot `place` counts as the city
+or town for `no-city`. Only `cousub` -> `place` is accepted (`SLOT_MOVES`; anything else, a duplicate state or a
+non-FIPS state stops the build). Seeded for ME, MA, NH, RI and VT; Connecticut is not listed. The pagedir carries it
+as `slots: [{state, layer, slot}]`.
 Seeded in B2; codes (class code|FUNCSTAT) verified 2026-11-19 from the Census 2020 code files (`docs/platform-facts.md`
 "Census TIGER/Line codes"). A `line` needs the label `note.<line>` in `labels.yml`. A `lines` entry applies when the
 Census returns its id for the address, whether the id is kept or dropped (by FUNCSTAT at step 1 or by gov-flags), so
@@ -154,6 +162,7 @@ The other fixed lines (no city or town, no county government listed) are compute
  "hide": ["county-25017", "place-4752006", "county-51760"], "show": ["county-47037"],
  "rules": [{"state": "09", "layer": "county", "show": false}, {"state": "44", "layer": "county", "show": false}],
  "lines": {"place-4752006": "consolidated", "county-51760": "independent-city"},
+ "slots": [{"state": "25", "layer": "cousub", "slot": "place"}, "..."],
  "labels": {"reason.blocks-readers": "Its records site blocks automated readers.", "...": "..."}}
 ```
 `stale` is computed at build time from the government's JSON `last_ok_at` (more than 3 days before the build).
@@ -322,7 +331,9 @@ lines.
   official Census lookup link. Never a guessed place.
 - As built (F1, 2026-11-19; additive): `classify` "one" also returns `matched` (the Census matched line, page text
   only), and more than 20 matches is `{kind: "nomatch", many: true}` (the not-found tips); each unit also carries `cc`
-  (PLACECC, COUNTYCC or COUSUBCC). `slot` is the layer name (the card draws label `slot.<slot>`); `notes` holds full
+  (PLACECC, COUNTYCC or COUSUBCC). `slot` is the layer name (the card draws label `slot.<slot>`), or the pagedir
+  `slots` entry's `slot` for that unit's state and layer (3.3, AC2.11; to wire in national.js: step 7 orders by
+  slot, and `no-city` is not added when a kept unit's slot is `place`; step 5 still compares real layers); `notes` holds full
   label keys (`note.no-city`). Bad pagedir (wrong schema): every kept unit is "not covered yet" with no flags. Storage also has `loadRequested`, `loadCounted` and `storageOf(win)`;
   `markRequested` keeps at most 200 ids; a stored value over 8,192 characters is not read.
 
@@ -399,7 +410,12 @@ lines.
   B5; the switch is `config/site.yml national: {enabled: false}`. Each feed's `checked_at` is its newest record
   (`newest_record_at`, see the M1 note in 3.5) and `last_ok_at` null; coming-up pages take the name and links from
   the directory entry (links re-checked on its platform's hosts; none usable: words with no link), and the full
-  Daylight and morning-note links only for daylight-platform entries. `digest/index.html` embeds `#digest-pagedir`, `#digest-strings` (page labels `lookup.*`, `form.*`,
+  Daylight and morning-note links only for daylight-platform entries. Topic labels (AC4.7, QA
+  `national/topic-labels-missing`, 2026-11-19): each shown item gets page label `body.topic-<list>` for each pair of
+  `national_pages.TOPICS` (morning note list `zoning` by item type `rezoning`, `budget` by `budget`) whose item type
+  `views.item_types` gives its verbatim number and text (config/site.yml `item_types`, published on the About page);
+  a page with any label prints `body.topic-note` once, linked to `about.html#item-types`. Withheld meetings have no
+  items, so no labels. Not in the JSON (derived, page only). `digest/index.html` embeds `#digest-pagedir`, `#digest-strings` (page labels `lookup.*`, `form.*`,
   `count.*`) and `#digest-config` (`frame`, `covered`, `requested`, `form_action`, `privacy_url`, `morning`, and the
   two outside links `election_url` and `census_url` from `config/national/links.yml`: each an https URL or null, and
   the script leaves a line out whole when its link is null; UX section 3 "Outside links"), and

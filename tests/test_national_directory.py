@@ -11,18 +11,20 @@ import pytest
 import yaml
 
 from sitegen import national as nat
+from sitegen.national_guards import allowed_url
 
 LABELS = nat.load_labels()
 BUILT = datetime(2026, 11, 19, 15, 0, tzinfo=timezone.utc)
 
 COVERED = {"gov": "place-4715160", "also": [], "body_name": "Clarksville City Council", "state": "TN",
-           "status": "covered", "official_url": "https://www.clarksvilletn.gov/", "checked": "2026-11-19",
-           "checked_url": "https://clarksvilletn.portal.civicclerk.com/", "items": "shown", "platform": "daylight",
+           "status": "covered", "official_url": "https://clarksvilletn.portal.civicclerk.com/",
+           "checked": "2026-11-19", "checked_url": "https://clarksvilletn.portal.civicclerk.com/", "items": "shown",
+           "platform": "daylight",
            "daylight": {"body": "city", "full_url": "city/"}}
 CANT = {"gov": "sdu-4703030", "body_name": "Clarksville-Montgomery County School System Board of Education",
         "state": "TN", "status": "cant-cover", "reason": "blocks-readers", "reason_url": "https://www.cmcss.net/",
-        "official_url": "https://www.cmcss.net/", "checked": "2026-11-10",
-        "checked_doc": "docs/research/rpc-cmcss-sources.md"}
+        "official_url": "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php",
+        "checked": "2026-11-10", "checked_doc": "docs/research/rpc-cmcss-sources.md"}
 LEGISTAR = {"gov": "place-4164900", "body_name": "Salem City Council", "state": "OR", "status": "covered",
             "official_url": "https://salem.legistar.com/Calendar.aspx", "checked": "2026-12-01",
             "checked_url": "https://salem.legistar.com/Calendar.aspx", "items": "withheld", "platform": "legistar",
@@ -66,7 +68,12 @@ def test_shipped_files_load():
     assert county["daylight"]["body"] == "county"
     assert (cmcss["status"], cmcss["reason"], cmcss["items"]) == ("cant-cover", "blocks-readers", "withheld")
     assert cmcss["checked_doc"] == "docs/research/rpc-cmcss-sources.md"
-    assert cmcss["official_url"] == cmcss["reason_url"] == "https://www.cmcss.net/"
+    # national/official-url-not-meetings-page: each "Official ... page" link is the body's meetings or agenda page
+    assert city["official_url"] == city["checked_url"] == "https://clarksvilletn.portal.civicclerk.com/"
+    assert county["official_url"] == "https://montgomerytn.gov/commission/agenda"
+    assert cmcss["official_url"] == "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php"
+    assert cmcss["reason_url"] == "https://www.cmcss.net/"
+    assert all(allowed_url(g["official_url"]) == g["official_url"] for g in d.govs)
     assert labels["reason.blocks-readers"] == "Its records site blocks automated readers."
 
 
@@ -385,13 +392,13 @@ def test_11_3_3_digest_ignores_key_order_also_order_and_date_quoting():
 
 def test_11_3_3_yaml_text_order_gives_one_digest(tmp_path):
     a = ("schema: daylight-directory/1\ngovs:\n  - {gov: place-4715160, also: [], body_name: Clarksville City Council, "
-         "state: TN, status: covered, official_url: 'https://www.clarksvilletn.gov/', checked: 2026-11-19, "
-         "checked_url: 'https://clarksvilletn.portal.civicclerk.com/', items: shown, platform: daylight, "
-         "daylight: {body: city, full_url: city/}}\n")
+         "state: TN, status: covered, official_url: 'https://clarksvilletn.portal.civicclerk.com/', "
+         "checked: 2026-11-19, checked_url: 'https://clarksvilletn.portal.civicclerk.com/', items: shown, "
+         "platform: daylight, daylight: {body: city, full_url: city/}}\n")
     b = ("schema: daylight-directory/1\ngovs:\n  - {daylight: {full_url: city/, body: city}, platform: daylight, "
          "items: shown, checked_url: 'https://clarksvilletn.portal.civicclerk.com/', checked: '2026-11-19', "
-         "official_url: 'https://www.clarksvilletn.gov/', status: covered, state: TN, body_name: Clarksville City "
-         "Council, also: [], gov: place-4715160}\n")
+         "official_url: 'https://clarksvilletn.portal.civicclerk.com/', status: covered, state: TN, "
+         "body_name: Clarksville City Council, also: [], gov: place-4715160}\n")
     digests = []
     for text in (a, b):
         p = tmp_path / "directory.yml"
@@ -528,6 +535,16 @@ FLAG_BAD = [
      "show: must be true or false"),
     ("unknown-key", {"hide": [{"id": "county-09110", "why": "x", "source": SRC, "note": 1}]}, "note: unknown key"),
     ("unknown-part", {"alias": []}, "alias: unknown key"),
+    ("slot-not-cousub", {"slots": [{"state": "25", "layer": "county", "slot": "place", "why": "x", "source": SRC}]},
+     "only layer cousub may move"),
+    ("slot-not-place", {"slots": [{"state": "25", "layer": "cousub", "slot": "county", "why": "x", "source": SRC}]},
+     "only layer cousub may move"),
+    ("slot-state-not-fips", {"slots": [{"state": 25, "layer": "cousub", "slot": "place", "why": "x",
+                                        "source": SRC}]}, "state: must be a two-digit"),
+    ("slot-duplicate", {"slots": [{"state": "25", "layer": "cousub", "slot": "place", "why": "x",
+                                   "source": SRC}] * 2}, "duplicate slot"),
+    ("slot-no-source", {"slots": [{"state": "25", "layer": "cousub", "slot": "place", "why": "x"}]},
+     "source: missing"),
 ]
 
 
@@ -535,6 +552,22 @@ FLAG_BAD = [
 def test_gov_flags_refuse(tmp_path, parts, match):
     with pytest.raises(nat.NationalConfigError, match=match):
         nat.load_gov_flags(write_flags(tmp_path, **parts), LABELS)
+
+
+def test_new_england_town_outside_connecticut_is_in_the_city_or_town_slot():
+    """national/new-england-town-slot (AC2.11): a Massachusetts town (an id of the shape of Plymouth, MA) and a town in
+    Maine, New Hampshire, Rhode Island or Vermont take slot `place`; a Connecticut town, a New York town and a
+    township elsewhere keep `cousub`; other layers never move."""
+    flags = nat.load_gov_flags()
+    assert nat.slot_of("cousub-2502354240", flags) == "place"                # a Massachusetts town (shape)
+    for st in ("23", "33", "44", "50"):
+        assert nat.slot_of(f"cousub-{st}00100000", flags) == "place", st
+    assert nat.slot_of("cousub-0900382660", flags) == "cousub"               # West Hartford town, CT
+    assert nat.slot_of("cousub-3607150911", flags) == "cousub"               # a New York town
+    assert nat.slot_of("cousub-4712590887", flags) == "cousub"               # Tennessee
+    assert nat.slot_of("county-25001", flags) == "county" and nat.slot_of("sdu-2500001", flags) == "sdu"
+    assert nat.slot_of("place-2507000", flags) == "place" and nat.slot_of("bad", flags) is None
+    assert nat.slot_of("cousub-2502354240", nat.GovFlags()) == "cousub"      # no rule: the layer
 
 
 def test_labels_refuse_missing_slot(tmp_path):
@@ -559,7 +592,10 @@ def test_page_directory_shape():
     d, flags, labels = nat.load_all()
     last = {"place-4715160": "2026-11-19T14:02:00Z", "county-47125": "2026-11-17T14:02:00Z"}
     p = nat.page_directory(d, flags, labels, built_at=BUILT, last_ok_at=last)
-    assert set(p) == {"schema", "built", "root", "govs", "alias", "hide", "show", "rules", "lines", "labels"}
+    assert set(p) == {"schema", "built", "root", "govs", "alias", "hide", "show", "rules", "lines", "labels",
+                      "slots"}
+    # AC2.11: New England towns outside Connecticut show in the city-or-town slot
+    assert p["slots"] == [{"state": st, "layer": "cousub", "slot": "place"} for st in ("23", "25", "33", "44", "50")]
     assert (p["schema"], p["built"], p["root"]) == ("daylight-pagedir/1", "2026-11-19", "../")
     assert p["govs"]["place-4715160"] == {"board": "Clarksville City Council", "status": "covered",
                                           "page": "digest/tn/place-4715160.html", "full": "city/", "stale": False}
@@ -569,7 +605,7 @@ def test_page_directory_shape():
     assert p["govs"]["sdu-4703030"] == {
         "board": "Clarksville-Montgomery County School System Board of Education", "status": "cant-cover",
         "reason": "blocks-readers", "checked": "2026-11-10", "reason_url": "https://www.cmcss.net/",
-        "official_url": "https://www.cmcss.net/"}
+        "official_url": "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php"}
     assert p["rules"] == [{"state": "09", "layer": "county", "show": False},
                           {"state": "44", "layer": "county", "show": False}]
     assert p["lines"]["place-4752006"] == "consolidated" and p["lines"]["county-51760"] == "independent-city"

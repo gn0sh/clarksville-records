@@ -38,7 +38,7 @@ from zoneinfo import ZoneInfo
 import yaml
 from markupsafe import Markup, escape
 
-from . import config, localdates, morning_page
+from . import config, localdates, morning_page, views
 from . import national as nat
 from . import national_clarksville as ncl
 from .national_guards import BAD_TEXT_RE, BindCounts, BindError, GuardCounts, allowed_url, bind_feed, link_or_official
@@ -66,6 +66,14 @@ PAGE_LABEL_KEY_RE = re.compile(
     r"^((digest|menu|front|crumb|index|lookup|form|count|covered|requested|how|body)\.[a-z0-9][a-z0-9-]*"
     r"|state\.[A-Z]{2}|tz\.[A-Za-z_]+(/[A-Za-z_+-]+){0,2})$")
 SCRIPT_GROUPS = ("lookup.", "form.", "count.")      # embedded in digest/index.html for national.js (F2)
+# Topic labels on a coming-up page (AC4.7; spec: "in M1 the morning note's lists"). Each pair is a morning note list
+# (morning.LIST_KEYS) and the item type of config/site.yml `item_types` that decides it from an item's verbatim number
+# and text (views.item_types: the one published word list, About page "How item types are decided", the same for
+# every body; no AI). `budget` is the note's own rule (sitegen/morning.py); the note's zoning list goes by RPC case
+# number, so on a page of verbatim items `zoning` is the word rule `rezoning`. `seats` is not a topic and `contracts`
+# has no item word rule (the note's contracts are solicitations), so neither labels an item in M1. The label text is
+# page label `body.topic-<list>` (AC4.8).
+TOPICS = (("zoning", "rezoning"), ("budget", "budget"))
 # The keys the templates and this module read (the script groups are F2's and are checked by F2's tests).
 REQUIRED_PAGE_LABELS = (
     "digest.place", "menu.group", "menu.find", "menu.covered", "front.line", "crumb.home", "crumb.covered",
@@ -82,7 +90,8 @@ REQUIRED_PAGE_LABELS = (
     "body.title", "body.eyebrow", "body.coming-up", "body.official-record", "body.newest", "body.no-records",
     "body.no-time", "body.tz", "body.as-posted", "body.agenda", "body.agenda-for",
     "body.not-posted", "body.incomplete", "body.withheld", "body.cut", "body.item-page", "body.no-meetings",
-    "body.full", "body.morning")
+    "body.full", "body.morning", "body.topic-sr", "body.topic-note",
+    *(f"body.topic-{k}" for k, _type in TOPICS))
 
 LINK_RE = re.compile(r"\[([^\[\]]+)\]")
 FIELD_RE = re.compile(r"\{([a-z]+)\}")
@@ -426,6 +435,13 @@ def official_of(gov: Mapping) -> str | None:
                        (gov.get("legistar") or {}).get("client")) or None
 
 
+def item_topics(number: str | None, text: str) -> list[str]:
+    """The topic label keys (`body.topic-<list>`, TOPICS order) of one shown item, from its verbatim number and text
+    by the item type rule (views.item_types), the same rule for every body (AC4.7)."""
+    types = views.item_types({"number": number, "title": text})
+    return [f"body.topic-{key}" for key, item_type in TOPICS if item_type in types]
+
+
 def meeting_view(m: dict, gov: Mapping, tz: str, page_labels) -> dict:
     """What the coming-up template prints for one meeting of the bound feed (section 11 consumer 3): items only when
     the agenda is final and the feed says they are not withheld. Links come from the meeting through the directory
@@ -444,6 +460,7 @@ def meeting_view(m: dict, gov: Mapping, tz: str, page_labels) -> dict:
             "withheld": state == ncl.FINAL and withheld,
             "incomplete": state == ncl.FINAL and not withheld and m["may_be_incomplete"],
             "entries": [{"number": it.get("number"), "text": it["text"], "cut": it.get("cut", False),
+                         "topics": item_topics(it.get("number"), it["text"]),
                          "page": (it.get("source") or {}).get("page"),
                          "url": link_or_official((it.get("source") or {}).get("url"), agenda_url or "", platform,
                                                  client) or None}
@@ -539,7 +556,7 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
             if not groups or groups[-1]["state"] != st:
                 groups.append({"state": st, "rows": []})
             groups[-1]["rows"].append({
-                "board": g["body_name"], "slot": labels[f"slot.{nat.id_layer(g['gov'])}"],
+                "board": g["body_name"], "slot": labels[f"slot.{nat.slot_of(g['gov'], flags)}"],
                 "page": nat.gov_page(g) if status == "covered" else None,
                 "reason": labels.get(f"reason.{g.get('reason')}"), "checked": g["checked"].isoformat(),
                 "source": allowed_url(g.get("reason_url") or g.get("checked_url")) or None,
@@ -563,13 +580,14 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
         rel = nat.gov_page(g)
         daylight = g.get("platform") == ncl.PLATFORM          # Clarksville's own bodies (AC4.5, AC8.3)
         official = official_of(g)
+        meetings = [meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"]]
         written[rel] = pages.html(
             "digest/body.html.j2", rel, label_text(L["body.title"], name=g["body_name"]),
             crumbs=pages.crumbs("crumb.home", "crumb.covered"),
             name=g["body_name"], official=official, state_name=_state_label(L, g["state"]),
-            slot=labels[f"slot.{nat.id_layer(g['gov'])}"], host=_host(official),
+            slot=labels[f"slot.{nat.slot_of(g['gov'], flags)}"], host=_host(official),
             newest=newest_day(feed.get("checked_at")),
-            meetings=[meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"]],
+            meetings=meetings, topic_note=any(e["topics"] for m in meetings for e in m["entries"]),
             full_href=g["daylight"]["full_url"] if daylight else None, morning=morning if daylight else None)
         files[rel[:-len(".html")] + ".json"] = feed_json(feed)
 

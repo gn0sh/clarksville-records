@@ -184,3 +184,7 @@ ol.digest-items > li { padding: 10px 0; border-bottom: 1px solid var(--border); 
 ol.digest-items h3 { margin: 0; font-family: var(--font-body); font-size: var(--t-md); font-weight: 600; line-height: 1.4; }
 ol.digest-items .item-num { margin: 0 6px 0 0; }
 .digest-item-src { margin: 2px 0 0; font-size: var(--t-sm); }
+/* a topic label (AC4.7): a small outlined mono chip after the item's title; its words are real text */
+.digest-topics { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.digest-topic { font-family: var(--font-mono); font-weight: 500; background: transparent; border-color: var(--link); color: var(--link); }
+.digest-topic-note { font-size: var(--t-sm); color: var(--muted); }

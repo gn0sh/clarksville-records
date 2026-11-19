@@ -41,6 +41,7 @@
       {% for it in m.entries %}
       <li>
         <h3>{% if it.number %}<span class="item-num">{{ it.number }}</span> {% endif %}{{ it.text }}</h3>
+        {% if it.topics %}<p class="digest-topics">{% for t in it.topics %}<span class="chip digest-topic"><span class="sr-only">{{ L["body.topic-sr"] }} </span>{{ L[t] }}</span>{% if not loop.last %} {% endif %}{% endfor %}</p>{% endif %}
         {% if it.cut %}<p class="digest-cut">{{ lh(L["body.cut"], m.agenda_url, ext=true) }}</p>{% endif %}
         {% if it.page %}<p class="digest-item-src">{{ lh(L["body.item-page"], it.url, ext=true, page=it.page) }}</p>{% endif %}
       </li>
@@ -51,6 +52,9 @@
   {% else %}
   <p class="digest-none">{{ lh(L["body.no-meetings"], official, ext=true) }}</p>
   {% endfor %}
+  {% if topic_note %}
+  <p class="digest-topic-note">{{ lh(L["body.topic-note"], root ~ "about.html#item-types") }}</p>
+  {% endif %}
   {% if full_href %}
   <p class="digest-full">{{ lh(L["body.full"], root ~ full_href) }}</p>
   {% endif %}

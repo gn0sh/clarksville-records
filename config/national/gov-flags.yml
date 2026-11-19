@@ -3,6 +3,7 @@
 #   hide:  ids never shown as a card (by id)
 #   show:  ids always kept, whatever their FUNCSTAT (by id); an id may not be both hidden and shown
 #   rules: by state FIPS code and layer (`show: false` hides every unit of that layer in that state; rules only hide, the lookup ignores `show: true`)
+#   slots: by state FIPS code, the slot a layer's cards show in (only cousub -> place, AC2.11; see the list below)
 #   lines: a fixed line for an id (`line` must have a `note.<line>` label in labels.yml). The line is added when the
 #          Census returns that id for the address, whether the id is kept or dropped (by FUNCSTAT at step 1 or by
 #          hide/rules here); a dropped county with a line adds that line instead of the "no county" line.
@@ -136,3 +137,15 @@ lines:
   - {id: county-24510, line: independent-city, why: "Baltimore city, MD", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
   - {id: county-29510, line: independent-city, why: "St. Louis city, MO", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
   - {id: county-32510, line: independent-city, why: "Carson City, NV", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+
+slots:
+  # AC2.11 (spec US2; manager decision 2026-11-19, QA national/new-england-town-slot): in the New England states
+  # outside Connecticut a town is a county subdivision (cousub) and is the town's own government, so its card shows in
+  # the city-or-town slot (label slot.place, ordered with the places, and it counts as the city or town for
+  # note.no-city), not township-or-town. Only cousub -> place may move (sitegen/national.py SLOT_MOVES). Connecticut
+  # is not listed: the spec names New England towns outside it. The source is the spec, which makes the rule.
+  - {state: "23", layer: cousub, slot: place, why: "Maine: a New England town is its own government; city-or-town slot (AC2.11)", source: "https://github.com/gn0sh/clarksville-records/blob/main/docs/specs/daylight-national.md"}
+  - {state: "25", layer: cousub, slot: place, why: "Massachusetts: a New England town is its own government; city-or-town slot (AC2.11)", source: "https://github.com/gn0sh/clarksville-records/blob/main/docs/specs/daylight-national.md"}
+  - {state: "33", layer: cousub, slot: place, why: "New Hampshire: a New England town is its own government; city-or-town slot (AC2.11)", source: "https://github.com/gn0sh/clarksville-records/blob/main/docs/specs/daylight-national.md"}
+  - {state: "44", layer: cousub, slot: place, why: "Rhode Island: a New England town is its own government; city-or-town slot (AC2.11)", source: "https://github.com/gn0sh/clarksville-records/blob/main/docs/specs/daylight-national.md"}
+  - {state: "50", layer: cousub, slot: place, why: "Vermont: a New England town is its own government; city-or-town slot (AC2.11)", source: "https://github.com/gn0sh/clarksville-records/blob/main/docs/specs/daylight-national.md"}

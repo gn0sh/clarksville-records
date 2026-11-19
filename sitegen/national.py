@@ -120,10 +120,13 @@ class ShownReview(NamedTuple):
 SHOWN_REVIEWED: tuple[ShownReview, ...] = (
     # source https://clarksvilletn.portal.civicclerk.com/ (the council's own agenda portal; docs/platform-facts.md
     # "CivicClerk, City Council 2024 on"); daylight.body `city` = config/localities/clarksville-tn/council.yml
-    # body_key; no `also` ids; reviewed 2026-11-19 (B1 code review; readable row for security finding 1)
+    # body_key; no `also` ids; reviewed 2026-11-19 (B1 code review; readable row for security finding 1).
+    # Changed 2026-11-19 (QA Q1 national/official-url-not-meetings-page): official_url from the city home page
+    # https://www.clarksvilletn.gov/ to the same CivicClerk portal as checked_url, the council's meetings page; no
+    # other key changed. Needs re-review (privacy-withhold family).
     ShownReview("place-4715160", {
         "gov": "place-4715160", "also": [], "body_name": "Clarksville City Council", "state": "TN",
-        "status": "covered", "official_url": "https://www.clarksvilletn.gov/", "checked": "2026-11-19",
+        "status": "covered", "official_url": "https://clarksvilletn.portal.civicclerk.com/", "checked": "2026-11-19",
         "checked_url": "https://clarksvilletn.portal.civicclerk.com/", "items": "shown", "platform": "daylight",
         "daylight": {"body": "city", "full_url": "city/"}}),
     # source https://montgomerytn.gov/commission/agenda (the commission's own agenda page; docs/platform-facts.md
@@ -189,6 +192,22 @@ class GovFlags:
     show: tuple[str, ...] = ()
     rules: tuple[dict, ...] = ()          # {state: "<FIPS>", layer, show}
     lines: dict[str, str] = field(default_factory=dict)        # id -> line key (labels note.<line>)
+    slots: tuple[dict, ...] = ()          # {state: "<FIPS>", layer: "cousub", slot: "place"} (AC2.11)
+
+
+# AC2.11: the one slot move gov-flags may make. A county subdivision of a listed state shows in the city-or-town slot
+# (a New England town outside Connecticut is that town's government). Nothing else moves: fail closed.
+SLOT_MOVES = {("cousub", "place")}
+
+
+def slot_of(gov_id: str, flags: GovFlags) -> str | None:
+    """The slot (a layer name, label `slot.<slot>`) a government's card shows in: its id's layer, or the slot a
+    gov-flags `slots` entry gives that layer in the id's state (the GEOID's first two digits). None for a bad id."""
+    layer = id_layer(gov_id)
+    if layer is None:
+        return None
+    state = gov_id.split("-", 1)[1][:2]
+    return next((s["slot"] for s in flags.slots if s["state"] == state and s["layer"] == layer), layer)
 
 
 # --- shared checks ---------------------------------------------------------------------------------------------
@@ -527,9 +546,10 @@ def load_gov_flags(path: Path = FLAGS_PATH, labels: Mapping[str, str] | None = N
     if labels is None:
         labels = load_labels(path.parent / "labels.yml")
     doc = _read_yaml(path, FLAGS_SCHEMA)
-    _unknown(path, "file", doc, {"schema", "hide", "show", "rules", "lines"})
+    _unknown(path, "file", doc, {"schema", "hide", "show", "rules", "lines", "slots"})
     shapes = {"hide": {"id", "why", "source"}, "show": {"id", "why", "source"},
-              "rules": {"state", "layer", "show", "why", "source"}, "lines": {"id", "line", "why", "source"}}
+              "rules": {"state", "layer", "show", "why", "source"}, "lines": {"id", "line", "why", "source"},
+              "slots": {"state", "layer", "slot", "why", "source"}}
     lists = {}
     for part, keys in shapes.items():
         entries = doc.get(part, []) or []
@@ -578,7 +598,18 @@ def load_gov_flags(path: Path = FLAGS_PATH, labels: Mapping[str, str] | None = N
         if not isinstance(e["line"], str) or LINE_LABEL.format(e["line"]) not in labels:
             _fail(path, f"lines[{n}]", "line", f"no label {LINE_LABEL.format(e['line'])} in labels.yml")
         lines[e["id"]] = e["line"]
-    return GovFlags(hide=tuple(hide), show=tuple(show), rules=tuple(rules), lines=lines)
+    slots, seen_slots = [], set()
+    for n, s in enumerate(lists["slots"]):
+        where = f"slots[{n}]"
+        if not isinstance(s["state"], str) or s["state"] not in FIPS_STATES:
+            _fail(path, where, "state", "must be a two-digit state FIPS code in quotes")
+        if (s["layer"], s["slot"]) not in SLOT_MOVES:
+            _fail(path, where, "slot", "only layer cousub may move, and only to slot place (AC2.11)")
+        if (s["state"], s["layer"]) in seen_slots:
+            _fail(path, where, "layer", "duplicate slot for this state and layer")
+        seen_slots.add((s["state"], s["layer"]))
+        slots.append({"state": s["state"], "layer": s["layer"], "slot": s["slot"]})
+    return GovFlags(hide=tuple(hide), show=tuple(show), rules=tuple(rules), lines=lines, slots=tuple(slots))
 
 
 # --- the embedded page directory (3.4) ----------------------------------------------------------------------------
@@ -626,7 +657,8 @@ def page_directory(directory: Directory, flags: GovFlags, labels: Mapping[str, s
         govs[g["gov"]] = entry
     return {"schema": PAGEDIR_SCHEMA, "built": built.isoformat(), "root": root, "govs": govs,
             "alias": dict(directory.alias), "hide": list(flags.hide), "show": list(flags.show),
-            "rules": [dict(r) for r in flags.rules], "lines": dict(flags.lines), "labels": dict(labels)}
+            "rules": [dict(r) for r in flags.rules], "lines": dict(flags.lines), "labels": dict(labels),
+            "slots": [dict(s) for s in flags.slots]}
 
 
 def embed_json(obj) -> str:

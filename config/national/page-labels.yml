@@ -178,3 +178,10 @@ labels:
   body.no-meetings: No upcoming meetings are posted. [Official meetings page]
   body.full: Votes and past meetings are on the [full Daylight pages].
   body.morning: "[Get the morning note]"
+  # Topic labels (AC4.7; design section 5): a chip after an item whose verbatim number or text matches the item type
+  # word list (sitegen/national_pages.py TOPICS), "Topic:" read by screen readers only, and the note once per page
+  # that shows a chip, linked to the About page's word lists.
+  body.topic-sr: "Topic:"
+  body.topic-zoning: Zoning and land use
+  body.topic-budget: Budget and taxes
+  body.topic-note: Topic labels come from a fixed word list, not AI. [How topics are picked]
