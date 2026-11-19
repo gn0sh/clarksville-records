@@ -277,6 +277,9 @@ def apply_to_tree(out: Path, labels: Mapping[str, str]) -> int:
 
 # --- CSP (section 6) --------------------------------------------------------------------------------------------------
 
+# frame-src 'self' (from CSP_BASE) is what guards the typed address: the page sends it by postMessage only to the geo
+# frame it opens, and frame-src keeps that frame our own digest/geo-frame.html. It must never widen (no Census or other
+# origin here). national.js mount() also refuses to run when the page itself is framed (framed-parent).
 def index_csp(counter: str | None, form_origin: str | None) -> str:
     """digest/index.html: script-src 'self' (the Census only in the frame's own CSP), frame-src 'self', the email
     service in form-action (beside 'self', which the Menu's search form needs) and connect-src, and the counter's

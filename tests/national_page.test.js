@@ -168,6 +168,14 @@ function makePage(o) {
   };
   Object.defineProperty(win, 'location', { get: () => ({ href: 'https://example.test/digest/' }),
     set: (v) => locationWrites.push(v) });
+  // o.top: 'self' (the top page), 'other' (framed by another page) or 'throws' (reading top throws); unset: neither
+  if (o.top) {
+    Object.defineProperty(win, 'self', { get: () => win });
+    Object.defineProperty(win, 'top', { get: () => {
+      if (o.top === 'throws') { throw new Error('SecurityError'); }
+      return o.top === 'self' ? win : {};
+    } });
+  }
   const posts = [];
   const fetchFn = o.fetch === null ? null : (o.fetch || ((url, opts) => { posts.push([url, opts]); return Promise.resolve({ type: 'opaque' }); }));
   const counts = [];
@@ -226,6 +234,42 @@ test('mount: the form shows and the no-script line hides; the input has no name 
   assert.strictEqual(p.form.hasAttribute('method'), false);
   none(p.frames());
   assert.strictEqual(p.saved.hidden, true);       // nothing saved yet
+});
+
+// framed-parent (security, national/postmessage-hardening/framed-parent): framed by any page, nothing is wired
+test('framed-parent: the top page mounts as usual', () => {
+  const p = makePage({ top: 'self' });
+  assert.ok(p.api && typeof p.api.run === 'function');
+  assert.strictEqual(p.form.hidden, false);
+  assert.strictEqual(p.noscript.hidden, true);
+  p.submit(ADDRESS);
+  assert.strictEqual(p.frames().length, 1);
+});
+
+test('framed-parent: framed (or top unreadable), the form stays hidden and the line links to the page as top', () => {
+  const words = STR['lookup.framed'];
+  assert.ok(/\[[^\]]+\]/.test(words), 'lookup.framed holds one [link]');
+  for (const top of ['other', 'throws']) {
+    const storage = new FakeStorage({ [LIST]: JSON.stringify({ v: 1, govs: [{ id: 'place-4715160', name: 'Clarksville city' }] }) });
+    const p = makePage({ top, storage });
+    assert.strictEqual(p.api, null, top);
+    assert.strictEqual(p.form.hidden, true, top);
+    assert.strictEqual(p.noscript.hidden, false, top);
+    assert.strictEqual(p.noscript.textContent, words.replace(/\[([^\]]+)\]/, '$1'), top);
+    const links = tags(p.noscript, 'a');
+    assert.strictEqual(links.length, 1, top);
+    assert.strictEqual(links[0].getAttribute('href'), 'index.html');
+    assert.strictEqual(links[0].getAttribute('target'), '_top');
+    assert.strictEqual(links[0].textContent, /\[([^\]]+)\]/.exec(words)[1]);
+    none(p.form.listeners.get('submit') || [], 'no submit listener');
+    none([...p.listeners], 'no message listener');
+    p.input.value = ADDRESS;
+    fire(p.form, 'submit');
+    none(p.frames(), 'no geo frame');
+    assert.strictEqual(p.saved.hidden, true, 'the saved list is not drawn');
+    none(storage.writes, 'nothing stored');
+    none(p.locationWrites);
+  }
 });
 
 test('submit only on press: typing, keys, change and blur start nothing; a submit starts one lookup', () => {
