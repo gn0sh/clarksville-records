@@ -1,6 +1,6 @@
 # Spec: daylight-national (Daylight Digest, the national website)
 
-Status: draft v2.2, 2026-11-19 (v2 plus UX proposals P1-P8 accepted, the architect's email "editions" decision and the
+Status: draft v2.3, 2026-11-19 (v2.3: AC4.6 moved to M2 after the B4 freshness decision; AC2.11 confirmed. v2.2: v2 plus UX proposals P1-P8 accepted, the architect's email "editions" decision and the
 city-items finding; v2 was v1 plus Brain Trust and Focus Group findings and Brian's email capacity answer of 2026-11-18). Owner: product-manager. Priority: MVP is M1; the rest is ordered below. Product name: **Daylight Digest**
 (Brian, 2026-11-18). "Daylight" alone still means the full Clarksville and Montgomery County site.
 Decisions so far: `docs/expansion/national-kickoff.md`. Memo: `docs/expansion/national-digest-memo.md` (sections 1-3, 7,
@@ -123,7 +123,7 @@ Daylight Digest can and can't show me.
 - AC2.9 Under the list, one line says some bodies, such as water or transit boards, can't be found by address yet.
 - AC2.10 The Connecticut address shows its town and school district and no county (Connecticut counties are not
   governments). Rhode Island and Massachusetts counties with no county government are not shown either.
-- AC2.11 The New England town address outside Connecticut shows the town as a government, in the city or town slot.
+- AC2.11 The New England town address outside Connecticut shows the town as a government, in the city or town slot. (Confirmed by manager 2026-11-19 after Q1; a town is never put in the township or town slot.)
 - AC2.12 Whether a Census unit is a working government comes from the Census status flag plus a hand-kept table for
   the states the flag gets wrong; a unit not known either way is left off, with the AC2.9 line covering it.
 - AC2.13 If the Census matches the address but returns no listable government, the page says so in one fixed line
@@ -166,6 +166,8 @@ As a resident, I want to see what a body will take up next, in its own words, so
   motion. Clarksville and Montgomery County pages link to the full Daylight pages for those.
 - AC4.6 The page shows when Daylight Digest last checked the source. If that is more than 3 days ago it says so in a
   plain line above the meetings.
+  (M2, with task C3. Until a real check stamp exists, M1 shows "Newest record we have: {date}" and makes no
+  stale claim: `checked_at` is a first-fetch date, see `national-freshness/checked-at-is-first-fetch`.)
 - AC4.7 An item whose verbatim text matches the published topic word list (AC3.3; in M1 the morning note's lists)
   shows that fixed topic label next to it. The rule is the same for every body; no AI.
 - AC4.8 The only text on the page that is not verbatim source text is a fixed label (QA lists every string on the
