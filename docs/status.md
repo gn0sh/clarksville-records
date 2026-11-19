@@ -13,7 +13,7 @@
 - None open (Nov 19 8:40 AM CT; Brian ran -Plan on the big PC). Next ask: the C1 cutover card ("Cut over Daylight's data to records-data today? yes / no"), typed on the big PC, after the cutover PR is reviewed.
 
 ## Problem keys (Nov 16-18)
-- Nov 19: ps51-stdin-bom family, SECOND hit (first: v1-probe/ps51-stdin-bom, PR #48; manager merged the families on the reviewers' call). data-off-main/ps-stdin-bom (PowerShell 5.1 only): .NET Framework's Process.Start writes [Console]::InputEncoding's BOM into git's stdin on a UTF-8 console; update-index refused the seed. Fixed in GitRun (preamble-free swap around Start), text-pinned. Review + security L1 ps51-stdin-bom-swap-fail-open: a failed swap now refuses before git starts. Architect invariant: docs/architecture/ps51-stdin-invariant.md (every consumer listed; cross-script pin added). A third hit escalates per the loop rule.
+- Nov 19: ps51-stdin-bom family, SECOND hit (first: v1-probe/ps51-stdin-bom, PR #48; manager merged the families on the reviewers' call). data-off-main/ps-stdin-bom (PowerShell 5.1 only): .NET Framework's Process.Start writes [Console]::InputEncoding's BOM into git's stdin on a UTF-8 console; update-index refused the seed. Fixed in GitRun (preamble-free swap around Start), text-pinned. Review + security L1 ps51-stdin-bom-swap-fail-open: a failed swap now refuses before git starts. Architect invariant: docs/architecture/ps51-stdin-invariant.md (every consumer listed; cross-script no-pipe pin added; --input encoding pin is a follow-up). A third hit escalates per the loop rule.
 - Nov 18 data-off-main families: main-protect (fetch-data-symlink, writer-set, phase0-attest, r2-on-without-codeowners; S1-1, S1-6, S1-7 are hardening, not hits), data-prov, data-off-main, finance-pages (county-bytes was a false hit).
 - Nov 18: main-protect/v1-probe family hit again (V1' FAIL, code-owner rule never binds); ADR 0011 is the architect's re-plan. Two more failures of that re-plan escalate to Brian. Open follow-ups: v1-probe/window-second-known-untested (should-fix, PR #53), v1-probe/ps51-stdin-bom-throw (low, PR #48).
 - main-protect/: 3 hits (M1; V1 bot-merge family; S-1 shape-check-locale-fail-open). Invariant re-stated twice: docs/architecture/main-protect-invariant.md (I-data, Baseline window check). A 4th hit escalates to Brian per the loop rule.
@@ -24,6 +24,8 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-19 | security-engineer | opus/high | delta re-confirm ba3f63a (L1) | OK; live 5.1 check = next run on the big PC |
+| 2026-11-19 | code-reviewer | opus/high | delta re-review ba3f63a + af45bf3 | approve with nits (doc claimed more pins than the test has; regex literal-only; fixed in the next commit) |
 | 2026-11-19 | software-architect | opus/medium | ps51 stdin invariant (family second hit) | done af45bf3; fail-closed check sufficient if re-read before Start, unreadable = BOM, run on every call |
 | 2026-11-19 | security-engineer | opus/high | re-confirm pin commit 2af5731 | OK with 1 low (L1 swap fail-open, fixed) + 2 notes (family, window 27 first-parent commits of which 2 data-only bot pushes excluded by design) |
 | 2026-11-19 | code-reviewer | opus/high | delta review pin commit 2af5731 | approve with nits (should-fix swap fail-open, fixed; family accounting) |

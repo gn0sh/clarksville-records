@@ -1545,6 +1545,7 @@ def test_no_ps1_pipes_text_into_a_native_command_and_only_gitrun_starts_a_proces
         text = f.read_text(encoding="ascii")
         code = "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("#"))
         assert not re.search(r"\|\s*&?\s*(gh|git)(\.exe)?\b", code), f.name
+        assert not re.search(r"\|\s*&\s*\$", code), f.name        # nor into & $gitExe / & $py[0]
         assert ("Process]::Start(" in code) == (f.name == "cutover-data-off-main.ps1"), f.name
 
 
