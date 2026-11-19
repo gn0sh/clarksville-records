@@ -72,3 +72,6 @@
 - Holds: frameMessage rejects (source, origin, type, size, JSON), lookup ordering and cleanup, single answer, callback
   fixed, address never in URL/title/history/Referer, CSP hash over the exact inlined text, prototype keys, storage
   hostile values, all classification cases (Clarksville, CT, MA, Richmond, Baltimore, Nashville, RI).
+- F1/F5 delta (323a4d9c): APPROVE, all 7 closed; frame guard could not be bypassed (allow-same-origin, unsandboxed,
+  top level, nested/srcdoc, old browsers fail safe). New nit for the backend: `load_gov_flags` should refuse
+  `show: true` state rules (the browser now ignores them); also fix the stale LAYERS comment in sitegen/national.py.
