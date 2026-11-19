@@ -450,10 +450,14 @@ function RunsBusy {   # the count of daily-update runs not completed; -1 on a fa
 function WfSet([string]$what, [string]$want) {
     gh api -X PUT "repos/$repo/actions/workflows/$wfname/$what" --silent
     if ($LASTEXITCODE -ne 0) { return $false }
-    $s = (gh api "repos/$repo/actions/workflows/$wfname" --jq '.state') -join ''
-    if ($LASTEXITCODE -ne 0) { return $false }
-    if ($s -cne $want) { Write-Host "daily-update reads '$s', not $want."; return $false }
-    return $true
+    # GitHub's read-back can lag the PUT by a few seconds (cutover run 4, 2026-11-19): read up to 10 times, 3 s apart
+    for ($i = 1; $i -le 10; $i++) {
+        $s = (gh api "repos/$repo/actions/workflows/$wfname" --jq '.state') -join ''
+        if ($LASTEXITCODE -eq 0 -and $s -ceq $want) { return $true }
+        if ($i -lt 10) { Start-Sleep -Seconds 3 }
+    }
+    Write-Host "daily-update reads '$s', not $want, after 10 reads."
+    return $false
 }
 function DispatchRun([string]$collect) {   # dispatches on main; the new run's id, or ''
     $before = (gh api "repos/$repo/actions/workflows/$wfname/runs?event=workflow_dispatch&per_page=20" --jq '[.workflow_runs[].id] | max // 0') -join ''

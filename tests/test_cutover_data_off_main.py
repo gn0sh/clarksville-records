@@ -100,8 +100,13 @@ if path.startswith(W + "/runs?"):
         runs = [r for r in runs if r.get("event") == "workflow_dispatch"]
     out({"workflow_runs": sorted(runs, key=lambda r: -r["id"])})
 if path == W and method == "GET":
+    if st.get("wf_lag"):   # GitHub's read-back lags a PUT (cutover run 4, 2026-11-19): the old state for N reads
+        st["wf_lag"] -= 1; save()
+        out({"state": st["wf_prev"]})
     out({"state": st["wf_state"]})
 if path in (W + "/disable", W + "/enable") and method == "PUT":
+    st["wf_prev"] = st["wf_state"]
+    st["wf_lag"] = st.get("wf_lag_each", 0)
     if path.endswith("/disable"):
         st["wf_state"] = "disabled_manually"
         for cmd in st.get("on_disable", []):          # a late change to main, between steps 1 and 3
@@ -794,6 +799,24 @@ def test_step3_stops_when_main_moved_after_step1(tmp_path, extra):
     assert r.returncode == 2 and "STOPPED at step 3" in r.stdout and "off the PR's MAIN_PR_BASELINE " + fx.main in r.stdout
     assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback\n") in r.stdout
     assert fx.rd() == "" and [c["path"] for c in _writes(fx.calls())] == [R + "/actions/workflows/daily-update.yml/disable"]
+
+
+def test_a_lagging_workflow_state_read_is_retried(tmp_path):
+    """Cutover run 4 (2026-11-19) stopped at step 2: the disable worked, but GitHub's read in the same second still
+    said 'active'. Each disable and enable now reads the state up to 10 times; here every read-back lags by 3."""
+    fx = Fx(tmp_path)
+    fx.state["wf_lag_each"] = 3
+    r = fx.cut()
+    assert r.returncode == 0 and "CUTOVER DONE" in r.stdout, r.stdout + r.stderr
+    assert fx.state["wf_state"] == "active"
+
+
+def test_step2_stops_when_the_workflow_state_never_reads_disabled(tmp_path):
+    fx = Fx(tmp_path)
+    fx.state["wf_lag_each"] = 10
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 2" in r.stdout and "not disabled_manually, after 10 reads" in r.stdout
+    assert fx.rd() == ""
 
 
 def test_step2_stops_when_a_run_started_before_the_disable(tmp_path):

@@ -317,10 +317,15 @@ runs_busy() {   # prints the count of daily-update runs not completed; 1 on a fa
 }
 wf_state() { gh api "repos/$repo/actions/workflows/$wfname" --jq '.state'; }
 wf_set() {   # $1 disable|enable, $2 expected state
-  local s
+  local s i
   gh api -X PUT "repos/$repo/actions/workflows/$wfname/$1" --silent || return 1
-  s=$(wf_state) || return 1
-  [ "$s" = "$2" ] || { echo "daily-update reads '$s', not $2."; return 1; }
+  # GitHub's read-back can lag the PUT by a few seconds (cutover run 4, 2026-11-19): read up to 10 times, 3 s apart
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if s=$(wf_state) && [ "$s" = "$2" ]; then return 0; fi
+    [ "$i" = 10 ] || sleep 3
+  done
+  echo "daily-update reads '$s', not $2, after 10 reads."
+  return 1
 }
 dispatch_run() {   # $1 collect value: dispatches on main, prints the new run's id
   local before id i
