@@ -1,7 +1,7 @@
 """Daylight Digest page builder (sitegen/national_pages.py; docs/architecture/daylight-national.md 1a, 3.4, 3.5, 4.0,
 4.3, 6, 7a, 11; task B4). Problem keys: privacy-withhold/national-prefix (consumer 3: the coming-up page prints items
 only from the JSON, a withheld government the fixed label), national/csp-jsonp-gadget (the Census in no CSP but the
-frame's), national-switch/byte-identical (off: nothing changes; on: only the two fixed fragments and new files).
+frame's), national-switch/byte-identical (off: nothing changes; on: only the three fixed fragments and new files).
 
 The switch tests build the fixture site (about a second) for the pages target; the real-data tests make the feeds
 from data/ through the build's loaders and skip only as tests/test_national_clarksville.py does."""
@@ -94,6 +94,7 @@ def test_switch_off_writes_no_digest_file_and_changes_no_page(sites):
     assert not any(b"digest/" in body for p, body in off.items() if p.endswith(".html"))
     assert not any(b"digest.css" in body for body in off.values())
     assert b'class="digest-line"' not in off["index.html"]
+    assert off["method.html"].count(npg.METHOD_SENTENCE.encode()) == 1
 
 
 def test_switch_on_writes_the_page_set_and_no_feeds(sites):
@@ -144,11 +145,13 @@ def test_digest_stylesheet_adds_no_colour_and_loads_nothing():
         assert hook in rules, hook
 
 
-def test_switch_on_changes_existing_pages_only_by_the_two_fragments(sites, page_labels):
-    """7a: removing the Menu group (once per page) and the front-page line (once) leaves every existing file equal;
+def test_switch_on_changes_existing_pages_only_by_the_three_fragments(sites, page_labels):
+    """7a: removing the Menu group (once per page) and the front-page line (once), and putting the Method page's
+    off-build sentence back in place of its on-build one (once, design 9a), leaves every existing file equal;
     static/pages.js gains only the digest pages."""
     off, on = sites["off"], sites["on"]
     front = npg.front_fragment(page_labels)
+    method = npg.method_fragment(page_labels)
     for rel, before in off.items():
         after = on[rel]
         if rel == "static/pages.js":
@@ -167,9 +170,26 @@ def test_switch_on_changes_existing_pages_only_by_the_two_fragments(sites, page_
         if rel == "index.html":
             assert text.count(front) == 1
             text = text.replace(front, "", 1)
+        if rel == "method.html":
+            assert text.count(method) == 1 and npg.METHOD_SENTENCE not in text
+            text = text.replace(method, npg.METHOD_SENTENCE, 1)
         assert text == before.decode(), rel
     changed = [r for r in off if r.endswith(".html") and on[r] != off[r]]
-    assert "index.html" in changed and "about.html" in changed
+    assert "index.html" in changed and "about.html" in changed and "method.html" in changed
+
+
+def test_method_page_names_the_digest_keys_and_links_how(sites, page_labels):
+    """AC9.3, design 9a (QA national/method-page-claims): with the switch on the Method page no longer says its two
+    keys are all the site keeps; it says the Clarksville pages keep two and the digest pages three more, linked to
+    how.html, which lists those three keys by name."""
+    on = sites["on"]["method.html"].decode()
+    assert npg.METHOD_SENTENCE not in on
+    assert ('These two keys are all the Clarksville pages keep in your browser. Daylight Digest pages keep three '
+            'more, listed on <a href="digest/how.html">How Daylight Digest works</a>.') in on
+    assert "digest/how.html" in sites["on"]
+    how = sites["on"]["digest/how.html"].decode()
+    for key in ("daylight.us.list", "daylight.us.requested", "daylight.us.counted"):
+        assert key in how, key
 
 
 def test_front_line_sits_right_after_the_address_card(sites, page_labels):
@@ -185,6 +205,10 @@ def test_fragment_insertion_fails_closed():
     with pytest.raises(npg.NationalBuildError):
         npg.apply_site_fragments({"a/b.html": page}, labels)
     assert npg.apply_site_fragments({"x.html": "<p>no footer</p>"}, labels) == {"x.html": "<p>no footer</p>"}
+    with pytest.raises(npg.NationalBuildError):
+        npg.apply_site_fragments({"method.html": "<p>no sentence</p>"}, labels)
+    with pytest.raises(npg.NationalBuildError):
+        npg.apply_site_fragments({"method.html": npg.METHOD_SENTENCE * 2}, labels)
     with pytest.raises(npg.NationalBuildError):
         npg.menu_fragment("/", labels)
 

@@ -644,6 +644,58 @@ test('Can\'t cover card: its own honest line in the form, and no "Also request" 
   assert.deepStrictEqual(tags(f, 'input').map((i) => i.getAttribute('name')), ['email', 'tag']);
 });
 
+// national/mixed-form-labels (AC5.2): the honest line covers every status the request includes, as requested.html does
+function mixedSaved() {
+  const storage = new FakeStorage({ [LIST]: JSON.stringify({ v: 1, govs: [
+    { id: 'place-4715160', name: 'Clarksville city' },
+    { id: 'sdu-4703030', name: 'Clarksville-Montgomery County School System' },
+    { id: 'county-41047', name: 'Marion County' }] }) });
+  const p = makePage({ storage });
+  const cards = p.cards(p.saved);
+  assert.deepStrictEqual(cards.map((c) => c.getAttribute('data-status')), ['covered', 'cant-cover', 'not-covered-yet']);
+  return { p, cant: cards[1], notYet: cards[2] };
+}
+const honestLines = (f) => cls(f, 'digest-honest')[0].children.map((x) => x.textContent);
+
+test('mixed-form-labels: Not covered yet card + ticked Can\'t cover government shows both honest lines', () => {
+  const { notYet } = mixedSaved();
+  fire(buttonNamed(notYet, STR['lookup.request'])[0], 'click');
+  const f = tags(notYet, 'form')[0];
+  assert.deepStrictEqual(honestLines(f), [STR['form.honest-not-yet']]);       // unticked: its own status only
+  const box = tags(f, 'input').find((i) => i.getAttribute('value') === 'req-sdu-4703030');
+  box.checked = true;
+  fire(box, 'change');
+  assert.deepStrictEqual(honestLines(f), [STR['form.honest-not-yet'], STR['form.honest-cant']]);
+  box.checked = false;
+  fire(box, 'change');
+  assert.deepStrictEqual(honestLines(f), [STR['form.honest-not-yet']]);       // unticked again: back to one line
+  // each line is one text node in its own p (textContent only, never markup)
+  cls(f, 'digest-honest')[0].children.forEach((x) => {
+    assert.strictEqual(x.tagName, 'P');
+    assert.ok(x.children.length === 1 && x.children[0].nodeType === 3);
+  });
+});
+
+test('mixed-form-labels: Can\'t cover card + ticked Not covered yet government shows both, in the fixed order', () => {
+  const { cant } = mixedSaved();
+  fire(buttonNamed(cant, STR['lookup.request'])[0], 'click');
+  const f = tags(cant, 'form')[0];
+  assert.deepStrictEqual(honestLines(f), [STR['form.honest-cant']]);
+  const box = tags(f, 'input').find((i) => i.getAttribute('value') === 'req-county-41047');
+  box.checked = true;
+  fire(box, 'change');
+  assert.deepStrictEqual(honestLines(f), [STR['form.honest-not-yet'], STR['form.honest-cant']]);
+});
+
+test('mixed-form-labels: ticking more of the same status adds no second copy of a line', () => {
+  const { f } = openSalem();
+  for (const box of tags(f, 'input').filter((i) => i.getAttribute('type') === 'checkbox')) {
+    box.checked = true;
+    fire(box, 'change');
+  }
+  assert.deepStrictEqual(honestLines(f), [STR['form.honest-not-yet']]);
+});
+
 test('returning: a requested id shows "Request sent from this device" and Request again', () => {
   const storage = new FakeStorage({ [REQ]: JSON.stringify({ v: 1, ids: ['county-41047'] }) });
   const p = makePage({ storage });

@@ -391,8 +391,10 @@ lines.
   Called from `sitegen.build` only when `national.enabled`. Pages render with the header variant (7a); the pages
   that load scripts are `digest/index.html` only (`national.js`, `us-count.js` when analytics is on); the others load
   none beyond the header's and `count.js`.
-- `apply_site_fragments(pages) -> pages`: the two edits to existing pages, each a fixed string, each present only when
-  `national.enabled`: the Menu group (footer list) and the front-page line. Anything else in an existing page is a bug.
+- `apply_site_fragments(pages) -> pages`: the three edits to existing pages, each a fixed string, each present only
+  when `national.enabled`: the Menu group (footer list), the front-page line, and on `method.html` the browser-keys
+  sentence swapped for label `method.keys` (design 9a, linking `digest/how.html`; QA national/method-page-claims).
+  Anything else in an existing page is a bug.
 - As built (B4, 2026-11-19), in `sitegen/national_pages.py`: `run(...)` is the build's one call;
   `build_national(out_dir, env, site, directory, flags, labels, page_labels, feeds, *, built_at, counter)`;
   `apply_site_fragments(pages, labels)` (pure) with `menu_fragment(root, labels)` and `front_fragment(labels)` for

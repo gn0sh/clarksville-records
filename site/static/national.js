@@ -817,7 +817,10 @@
       f.setAttribute("novalidate", "");
       var h = heading("h4", S("form.h"));
       f.appendChild(h);
-      f.appendChild(el("p", null, S(c.status === "cant-cover" ? "form.honest-cant" : "form.honest-not-yet")));
+      // The honest line says what happens next for every status this request includes (AC5.2, as requested.html
+      // does): this card's, plus each ticked "Also request" one's. Redrawn on every tick (textContent only).
+      var honest = el("div", "digest-honest");
+      f.appendChild(honest);
       var lab = el("label", null, S("form.email-label"));
       lab.setAttribute("for", n + "-email");
       var box = el("input");
@@ -851,8 +854,17 @@
         t.checked = false;
         l.appendChild(t);
         l.appendChild(el("span", null, o.name));
-        ticks.push({ box: t, id: o.id, label: l });
+        ticks.push({ box: t, id: o.id, status: o.status, label: l });
+        t.addEventListener("change", drawHonest);
       });
+      function drawHonest() {
+        var sts = [c.status];
+        ticks.forEach(function (t) { if (t.box.checked === true) { sts.push(t.status); } });
+        honest.textContent = "";
+        if (sts.indexOf("not-covered-yet") >= 0) { honest.appendChild(el("p", null, S("form.honest-not-yet"))); }
+        if (sts.indexOf("cant-cover") >= 0) { honest.appendChild(el("p", null, S("form.honest-cant"))); }
+      }
+      drawHonest();
       if (ticks.length) {
         var fs = el("fieldset", "mn-picker digest-also");
         fs.appendChild(el("legend", null, S("form.also")));

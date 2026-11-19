@@ -28,6 +28,8 @@ labels:
   menu.find: Find your local governments
   menu.covered: What we cover
   front.line: Not in Clarksville? Find your local governments anywhere in the US.
+  # Replaces the Method page's "These two keys are all this site keeps in your browser." (design 9a, AC9.3).
+  method.keys: These two keys are all the Clarksville pages keep in your browser. Daylight Digest pages keep three more, listed on [How Daylight Digest works].
 
   crumb.home: Daylight Digest
   crumb.covered: What we cover
