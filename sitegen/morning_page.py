@@ -7,7 +7,9 @@ visitor leaves the device: static/morning.js reads the seats static/seats.js kee
 #fragment, and makes no network call. The enabled path (a later CEO decision) posts straight to `form_action`, and
 only the Alerts page's CSP form-action gains that one origin. Enabled, the stored seats are posted only while the
 form's visible "include my saved seats" box is ticked (it prints the numbers), and privacy() gives the landing and
-Method pages the text that replaces "never sent anywhere". Every word around a record's own title is config text
+Method pages the text that replaces "never sent anywhere", and the landing its invitation to the form (a plain link
+to alerts.html#note: the landing has no email field, so the form's lists, seats box and privacy line stay in one
+place). Every word around a record's own title is config text
 (`morning_note.page`).
 """
 from __future__ import annotations
@@ -78,7 +80,9 @@ def privacy(cfg: dict | None = None) -> dict | None:
             "sent": t["method_sent"].format(**fill), "unsubscribe": t["method_unsubscribe"],
             "change": t["method_change"],                   # sender/tags-seat-change; depends on runbook check 4a
             "logo": t["method_logo"],                       # note/credit-logo-privacy: the email's remote footer image
-            "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note"}
+            "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note",
+            # the front page's invitation (index.html.j2 .note-invite): one sentence and the link to the form
+            "front_pitch": t["front_pitch"], "front_button": t["front_button"]}
 
 
 def _feeds_for(key: str, feeds: list[dict], cfg: dict) -> list[dict]:

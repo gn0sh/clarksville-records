@@ -178,6 +178,21 @@ rows.
 | Freshness details, wards and districts details, lookup details | Moved to the bottom under one rule; content unchanged. |
 | Landing-only compact footer CSS (`.page-landing .site-footer` one-screen rules) | Removed; the landing uses the normal footer, so Buy Me a Coffee is the pill button on phones too. |
 
+## Morning note invitation (front-signup, 2026-11-18)
+
+Owner: "I found the link to sign up for the morning note in the hamburger menu, but I had to go looking for it ...
+that opportunity needs to be on the main page, probably near the top."
+
+Right under the address card, at every width, while the sign-up form is enabled (`morning_note.enabled`; off or
+absent, nothing is drawn): one sentence and one link, drawn as the site's blue button, to the form on the Alerts page
+(`alerts.html#note`). Words are config text, `morning_note.page.front_pitch` and `front_button`:
+"Get one short email at 7 AM on days when something new is posted." and
+"Sign up for the morning note". A link, not a second email field: the form's list picks, its saved-seats box and the
+line saying what is sent to the provider stay in one place, and the landing's CSP gains no form origin. No support
+ask and nothing counted. On a phone it keeps its place under the address card (CSS `order`, with the card), the
+sentence above a full-width 44px button; at 390x844 the whole card is on the first screen (bottom at 714px).
+With the browser's bars showing (about 664px) the sentence is on the first screen and the button is partly below it.
+
 ## Acceptance criteria this satisfies (from the brief)
 - Friendlier, less intimidating first screen: sections 1 and 2 (one sentence, one action).
 - Sense of what is happening: section 4. Where to start: sections 2 and 3.

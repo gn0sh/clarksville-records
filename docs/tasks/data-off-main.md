@@ -15,10 +15,10 @@ new task B1b; B4, D3, S1 and W1 gained items.
 | N1 Probe guard refuses unconditionally | devops-engineer | none | **done** (#53) |
 | N2 Baseline window lists 2b20704 | devops-engineer | none | **done** (#53) |
 | U3-0 Can the team token write the ruleset? | manager | none | **done: no** (proxy 403) |
-| U3-1 `scripts/u3-toggle` + docs PR P | devops-engineer | U3-0 | now |
-| U3-2 Run the control | Brian (manager runs the merge) | U3-1, N1 | no |
+| U3-1 `scripts/u3-toggle` + docs PR P | devops-engineer | U3-0 | **done** (#57) |
+| U3-2 Run the control | Brian (manager runs the merge) | U3-1, N1 | **done: PASS** (rule suite 5212430938) |
 | B1 Data inventory and curated-input move | backend-engineer | U3 PASS | **done** (branch `claude/data-off-main-b1`) |
-| B1b Person-run inputs to `config/` (I-in) | backend-engineer | B1 | yes, with B2/B3 and D1/D2 (no workflow edit) |
+| B1b Person-run inputs to `config/` (I-in) | backend-engineer | B1 | **done** (joined on `claude/data-off-main`) |
 | B2 Gate: D, I-data'', I-prov, I-main'' | backend-engineer | U3 PASS | yes (workflow file conflicts with B3/B4: one branch, sequential commits) |
 | B3 Push job: records-data + attestation | backend-engineer | U3 PASS | with B2 |
 | B4 Update job: S+D checkout, tripwire, build-info, city-books issue text | backend-engineer | B1, B1b | after B1b |
@@ -57,6 +57,8 @@ U3-0 = no, so Brian runs it: the card in `docs/ops/u3-positive-control.md` "Who 
 `docs/status.md` and platform facts. FAIL-U3: the architect writes the fallback (B plus a sender repository) as an
 ADR 0011 amendment. FAIL-RULE: the architect re-plans (third hit).
 Done when: the verdict is recorded, with the rule-suite id and the restored ruleset read.
+**Done 2026-11-18: U3 PASS**, rule suite 5212430938, ruleset restored (read back equal to the backup); see
+`docs/platform-facts.md` "Main protection". The gate is open for B1..D2.
 
 ## B1: inventory and curated inputs (rows D, CFG)
 - List every tracked `data/` file with its writer: grep the writers in `collector/`, `sitegen/` and `qa/`, plus
@@ -348,6 +350,6 @@ Done when the PASS output is recorded in platform facts.
 Done when a review confirms that each doc says what the note says, no stronger.
 
 ## Suggested order
-1. Done: N1+N2, U3-0 (no). Now: U3-1, then U3-2 (Brian).
-2. On PASS: B1 (done); now B1b, B2+B3 (one branch) and D1, D2 in parallel; then B4; then D3; then S1.
-3. Then C1 (a day, outside 05:00-10:30 UTC), V1, W1.
+1. Done: N1+N2, U3-0 (no), U3-1 (#57), U3-2 (PASS), B1, B1b, B2+B3, D1, D2, B4, D3, S1 and its follow-ups (all joined on `claude/data-off-main`).
+2. Now: the pin commit after the day's data run (`-Plan`), its delta review, the cutover PR.
+3. Then C1 (a day, outside 05:00-10:30 UTC), V1'', W1.

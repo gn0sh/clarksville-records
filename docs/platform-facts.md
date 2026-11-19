@@ -294,9 +294,15 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
     sign-ups. Unproven: the Buttondown firewall had IP filtering off at the time.
 - **Consequence (2026-11-17):** the sign-up form posts no `metadata__` field. Lists, district and ward go as
   Buttondown tags (`tag` fields: `note-zoning`, `note-district-5`, `note-ward-3`); the sender reads only those tags,
-  and metadata holds only the sender's stamp. **Unverified until the first real sign-up:** that the free plan's form
-  accepts `tag` on a new address (and adds several when several `tag` fields are posted), that a new tag name is
-  created on the fly, that a form sign-up gets double opt-in, and that the API returns `tags` as a list of names.
+  and metadata holds only the sender's stamp.
+- **Live sign-up test (2026-11-18, 1:33-2:20 PM CT, Brian, runbook 4a; verified):** a new address signed up on the
+  live Alerts form got Buttondown's confirmation email and became a Regular subscriber after confirming (**double
+  opt-in works**). Buttondown's new-subscriber notification email listed the four topic tags ticked on the form
+  (`note-budget`, `note-contracts`, `note-seats`, `note-zoning`), so **the free plan's form accepts several `tag`
+  fields on a new address and creates new tag names on the fly**. Buttondown's subscriber side panel does not show
+  form tags; read them from the notification email or the API. Still unverified: that the API returns `tags` as a
+  list of names (checked by the sender's first real run). An address that is already subscribed sees "successfully
+  subscribed" with no confirmation email.
 - **Probe scoring (not changed):** the script scored `stamp_checks_pass: false` for three reasons: the wrong manual
   runbook-1 answer above; `runbook-8` (the form sets `note_edition` on an existing subscriber), which the design
   now accepts because the stamp carries a MAC (architecture "Switch-on: tags, and the security notes"); and the
@@ -360,13 +366,25 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   values. Meaning of the second, per GitHub's docs (as relayed by the PR #43 security review, not read by the team
   directly): it applies only to pull requests authored by Copilot and has no effect at 0 required approvals, so it
   does not change whether a data PR needs review (ADR 0010 U2; L1).
-- Re-plan: ADR 0010 (code-owner rule R1' replaces V1). Next facts here: the V1' probe (run link, four answers,
-  `main` before and after), the first data PR merged under R1' and the first S2 merge under R1'.
+- Re-plan: ADR 0010 (code-owner rule R1' replaces V1); superseded in part by ADR 0011 after U1 (below). Next facts
+  here: the first data PR merged under R1'' and the first S2 merge under R1''.
 - `github-pages` deployment branches after runbook 2.0.5: not checked yet.
-- **U1 false: rule suites read pass for PRs #48, #49, #52 (2026-11-18).** GitHub's rule suites for 2bba3b1 (#48),
-  2b20704 (#49) and e3cb819 (#52) read `pull_request` **pass**, not bypass, so the code-owner rule of R1' never
-  applied (`docs/architecture/v1-fail-2026-11-18.md`; ADR 0011).
+- **U1 false: rule suites read pass for PRs #48, #49, #52 (2026-11-18).** U1 is ADR 0010's assumption that
+  code-owner review binds at 0 approvals. GitHub's rule suites for 2bba3b1 (#48), 2b20704 (#49) and e3cb819 (#52)
+  read `pull_request` **pass**, not bypass, so the code-owner rule of R1' never applied. The cause is unconfirmed:
+  two readings, both leave R1' ineffective (`docs/architecture/v1-fail-2026-11-18.md` section 1; ADR 0011).
 - **U3-0: the team's cloud session cannot write rulesets (proxy 403, 2026-11-18 17:37 UTC); Brian runs
-  u3-toggle.** The no-op PUT of ruleset 27502319 from the team's session was refused by the proxy, so the U3 control
+  u3-toggle.** The no-op PUT of ruleset 27502319 from the team's session was refused by the proxy (read-back unchanged), so the U3 control
   (`docs/ops/u3-positive-control.md`) runs as `scripts/u3-toggle.ps1` on Brian's PC, with the team's merge from its
   session after Brian types `U3 go`.
+- **U3 PASS (2026-11-18): R1'' binds, and the merge-reviewed path merges by admin bypass.** Verdict line: `U3 VERDICT
+  PASS rule-suite 5212430938: PR #58 merged by gn0sh as 7f04b22ba0383f23df096c63fb2ddfec6ddc3280; rule suite
+  5212430938 result=bypass pull_request=fail enforcement=active`. Window opened 2026-11-18T19:10:00Z; `RESTORED
+  2026-11-18T19:10:08Z (ruleset 27502319 read back equal to the backup)`. Run from Brian's big PC with
+  `scripts/u3-toggle.ps1 -Pr 58 -Merge` (the first real run of the .ps1; a rehearsal at 19:08:51Z also restored).
+  The `-Report` string passed was `docs/ops/u3-positive-control.md`. Meaning: R1'' (2 approvals, last-push approval)
+  was evaluated as fail for PR #58 (`pull_request=fail`), and the team's merge-reviewed path merges through admin
+  bypass. The in-window ruleset read matched R1'': the script prints `U3 WINDOW OPEN` only after R1'' reads back as
+  written (`scripts/u3-toggle.ps1:344-348`). PR #58 head 4f2aa8c0
+  was reviewed just after the merge, not before (`docs/reviews/pr58-code-review.md`, approve with nits; its 3 nits
+  are applied above). The gate is open for B1..D2.

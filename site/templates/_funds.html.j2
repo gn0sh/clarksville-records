@@ -1,0 +1,76 @@
+{# The city budget dollar, by fund (sitegen/fund_split.py, docs/architecture/city-funds-dollar.md), above the general
+   fund dollar and built from the same parts as the county property tax dollar (_proptax.html.j2, the .dollar styles):
+   a plain lede and what money moving between funds means; a bar 100 cents wide (aria-hidden) with a key, then the total and the naming rule;
+   every fund as one row, a real list in the book's order; a closed "Where these numbers come from" with the book and
+   column, the total and its two TOTAL EXPENSE pages, the notes, the revenue lines other funds print as received from
+   the general fund, and the full table (amount as printed, every printed spending total and its PDF page). Rows keep
+   the book's order, never ordered by amount. #}
+{% from "_fin_macros.html.j2" import fin_cites, fin_link %}
+{% set p = fundsplit %}
+{% set ft = fundsplit.t %}
+{% macro pdf_page(src) -%}
+<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}<span class="sr-only"> (opens the {{ src.kind }} in a new tab)</span></a>
+{%- endmacro %}
+{% macro member_links(members) -%}
+{% for m in members %}<a href="{{ m.href }}">{{ m.heading }}</a> {{ m.amount }} ({{ fin_link(m.src) }}){% if not loop.last %}; {% endif %}{% endfor %}
+{%- endmacro %}
+<section aria-labelledby="city-funds-h" class="dollar fundsplit" id="city-funds-dollar">
+<h2 id="city-funds-h">{{ p.heading }}</h2>
+<p class="dollar-lede">{{ p.lede }} {{ p.between }}</p>
+<div class="dollar-fig">
+<div class="dollar-bar" aria-hidden="true" title="{{ ft.bar_label }}">{% for r in p.rows %}<span class="dseg{% if r.labelled %} dseg-l{% endif %}{% if r.narrow %} dseg-narrow{% endif %}" style="--n: {{ r.cents }}" title="{{ r.name }}: {{ r.cents_words }}">{% if r.labelled %}<b class="dseg-t">{{ r.cents }}&cent;</b>{% endif %}</span>{% endfor %}</div>
+<ul class="dollar-key" role="list" aria-label="{{ ft.key_label }}">{% for r in p.key %}<li><b>{{ r.cents }}&cent;</b> {{ r.short }}</li>{% endfor %}</ul>
+<p class="dollar-keynote">{{ p.total_line }} {{ p.key_note }}</p>
+</div>
+<h3 id="city-funds-list-h" class="dollar-list-h">{{ ft.list_heading }} <span class="dollar-list-order">{{ ft.list_order }}</span></h3>
+<ol class="dollar-rows" role="list" aria-labelledby="city-funds-list-h">
+{% for r in p.rows %}
+  <li class="drow" style="--n: {{ r.cents }}">
+    <span class="drow-name">{% if r.to_dollar and dollar is defined and dollar %}<a href="#general-fund-dollar">{{ r.name }}</a> <span class="drow-sub">{{ ft.to_dollar }}</span>{% else %}<a href="{{ r.href }}">{{ r.name }}</a>{% endif %}</span>
+    <span class="drow-c"><span aria-hidden="true">{{ r.cents }}&cent;</span><span class="sr-only">{{ r.cents_words }}</span></span>
+    <span class="drow-bar" aria-hidden="true"></span>
+  </li>
+{% endfor %}
+</ol>
+<details class="dollar-src" id="city-funds-sources">
+<summary>{{ ft.sources_toggle }}</summary>
+<div class="dollar-src-body">
+<p>{{ p.source }}</p>
+<p class="dollar-total">{{ p.total_before }}<span class="cite">({% for s in p.total_srcs %}{{ pdf_page(s.src) }}{% if not loop.last %}; {% endif %}{% endfor %})</span>{{ p.total_after }}</p>
+<ul class="dollar-notes">
+  <li>{{ p.fund_check }}</li>
+  <li>{{ p.measures }}</li>
+  <li>{{ p.rounding }}</li>
+  <li>{{ p.order }}</li>
+  {% if p.note %}<li>{{ p.note }}</li>{% endif %}
+</ul>
+{% if p.between_lines %}<p id="city-funds-between">{{ p.between_list }}</p>
+<ul class="dollar-notes" aria-labelledby="city-funds-between">{% for b in p.between_lines %}<li>{{ b.fund }}: <a href="{{ b.href }}">{{ b.label }}</a> {{ b.amount }} ({{ fin_link(b.src) }})</li>{% endfor %}</ul>{% endif %}
+<div class="table-scroll fin-scroll">
+<table class="fin-stack dollar-table">
+  <caption>{{ p.caption }}</caption>
+  <thead>
+    <tr><th scope="col">{{ ft.col_fund }}</th><th scope="col" class="num">{{ ft.col_cents }}</th><th scope="col" class="num">{{ p.col_amount }}<br><span class="kind"><a href="{{ root }}glossary.html#adopted-budget">{{ p.kind }}</a></span></th><th scope="col">{{ ft.col_source }}</th></tr>
+  </thead>
+  <tbody>
+  {% for r in p.rows %}
+    <tr class="fact" data-fact-id="{{ r.fact_id }}">
+      <th scope="row" class="c-dept"><a href="{{ r.href }}">{{ r.name }}</a>{% if r.printed_as %}<span class="dollar-printed">{{ ft.printed_as }} {{ r.printed }}</span>{% endif %}</th>
+      <td class="num c-cents" data-label="{{ ft.col_cents }}">{{ r.cents_words }}</td>
+      <td class="num c-amt" data-label="{{ p.col_amount }}">{{ r.amount_printed }}</td>
+      <td class="c-source cite" data-label="{{ ft.col_source }}">{% if r.to_dollar %}<div class="dollar-printed">{{ p.dollar_members }}{% if dollar is defined and dollar %} <a href="#general-fund-dollar">{{ ft.to_dollar }}</a>{% endif %}</div>{% else %}<details class="dollar-printed"><summary>{{ ft.members.format(n=r.members | length) if r.members | length > 1 else ft.member_one }}</summary>{{ member_links(r.members) }}</details>{% endif %}{{ fin_cites([r.fund_src], root, r.fact_id) }}</td>
+    </tr>
+  {% endfor %}
+    <tr class="fact d-total" data-fact-id="{{ p.total_fact_id }}">
+      <th scope="row" class="c-dept">{{ ft.total_row }}</th>
+      <td class="num c-cents" data-label="{{ ft.col_cents }}">{{ ft.cents_many.format(n=p.total_cents) }}</td>
+      <td class="num c-amt" data-label="{{ p.col_amount }}">{{ p.total_printed }}</td>
+      <td class="c-source cite" data-label="{{ ft.col_source }}">{% for s in p.total_srcs %}<a href="{{ s.href }}">{{ s.label }}</a> {{ s.amount }} ({{ fin_link(s.src) }}){% if not loop.last %}; {% endif %}{% endfor %}{{ fin_cites([], root, p.total_fact_id, "") }}</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+{% if p.zero %}<details class="dollar-list dollar-zero"><summary>{{ p.zero_heading }}</summary><ul>{% for z in p.zero %}<li>{{ z.name }} <span class="dollar-printed">({{ ft.printed_as }} {{ z.printed }}: {{ member_links(z.members) }})</span></li>{% endfor %}</ul></details>{% endif %}
+</div>
+</details>
+</section>

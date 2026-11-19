@@ -316,3 +316,20 @@ with the rate itself ("$2.10 per $100 of assessed value"). `sitegen/property_tax
 - **Updating for a new year:** add the new book, then edit the config (book, page, column, rates as printed, fixture
   text). The config names its book and year, so the page always says which year's rates it shows; pointing the
   config at a new book without new rates fails the 40110 check.
+
+## 13. The city budget dollar, by fund (added 2026-11-18, backend-engineer; CEO's request 2026-11-18)
+Full design, figures and invariants: [`city-funds-dollar.md`](city-funds-dollar.md). In short:
+- **Where:** `city/finance/index.html` only, above the general fund dollar (section 11), `id="city-funds-dollar"`.
+  `sitegen/fund_split.py`, `site/templates/_funds.html.j2`, config `config/localities/clarksville-tn/fund-split.yml`,
+  copy `config/finance_text.yml` `fund_split`. County page: none for now (city-funds-dollar.md section 8).
+- **What:** the 14 funds of `fy2026-final`'s line-item report, column "2026 2nd Readin" (adopted FY2026), in tenths of
+  a cent (`tenths_of_dollar`, as section 12). Each fund's amount is its printed spending section totals added up
+  (`total_of`), checked against its printed "TOTAL <fund>" line with its revenue totals (the section 11 `total_net`
+  way); the bar's total, $221,059,845.77, is the two printed run "TOTAL EXPENSE" lines (pp. 137, 138), and the funds
+  of each run add up to its TOTAL EXPENSE exactly. Money between funds is shown as printed, in both funds; the 10
+  revenue lines other funds print as received from the general fund ("GF") are listed, never taken out.
+- **Checks (`fund-split/*`):** fund list and order equal the book's; every spending line under exactly one section
+  total and one run TOTAL EXPENSE; every total used exact, not held, adopted, of one year; the general fund row equals
+  the general fund dollar's total; the GF account/label cross-check both ways; stale-book and silent-hide as above.
+- **Fact ids:** `funds/<book>/<printed fund slug>` and `funds/<book>/total`, from `fund_split.fact_ids`, known to
+  `qa/site_checks.finance_fact_ids`. Tests: `tests/test_fund_split.py`.

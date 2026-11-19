@@ -632,6 +632,17 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .landing.has-addr .addr-on { display: inline; }
 .landing.has-addr .addr-off { display: none; }
 .find .district-lookup { margin: 0; font-size: var(--t-sm); }
+/* The morning note's invitation (front-signup): one sentence and a link to the form on the Alerts page, under the
+   address card and as wide as it. The link is drawn as the site's blue button (white on --blue, 4.5:1 or better in
+   both themes); hover adds an underline, so it never rests on the color change alone. */
+.note-invite { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 0 0; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--sun); border-radius: var(--radius-lg); max-width: 44rem; }
+.note-invite p { flex: 1 1 16rem; margin: 0; }
+.note-invite-btn, .note-invite-btn:visited {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 44px; padding: 8px 16px;
+  color: var(--on-blue); background: var(--blue); border: 1px solid var(--blue); border-radius: var(--radius-lg);
+  font-family: var(--font-head); font-weight: 700; font-size: 1.02rem; text-decoration: none;
+}
+.note-invite-btn:hover { background: var(--blue-hover); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
 .sec-h { margin: 36px 0 4px; }
 .sec-sub { margin: 0 0 12px; color: var(--muted); font-size: var(--t-sm); max-width: 44rem; }
@@ -721,6 +732,9 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
   .landing { display: flex; flex-direction: column; }
   .landing > * { min-width: 0; }
   .landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }
+  .landing > .note-invite { order: -1; }   /* the invitation to the morning note stays under the address card */
+  .note-invite { margin-top: 10px; padding: 10px 12px; font-size: var(--t-sm); }
+  .note-invite-btn { flex: 1 1 100%; }
   .landing > [data-body-line] { order: -2; }   /* the "Showing ... only" line stays first */
   .landing > [data-body-line] > .bs-line { margin-top: 0; }
   .bs-line { padding: 6px 10px; gap: 4px 8px; }
@@ -1090,6 +1104,11 @@ details.dollar-list li { margin: 4px 0; }
   table.dollar-table tbody tr.d-total > * { border-top: 0; }
   table.dollar-table tbody tr.d-total { border: 2px solid var(--fg); }
 }
+/* The fund bar has 14 segments, most under a cent wide on a phone: a gap between each would add 13 px of bar the
+   shares do not have and show the small funds about twice their share (finance-pages/bar-gap-distorts-shares). No
+   gap; a 1 px line drawn inside each segment's left edge keeps them apart without changing any width. */
+.fundsplit .dollar-bar { gap: 0; }
+.fundsplit .dseg + .dseg { box-shadow: inset 1px 0 var(--bg); }
 @media (max-width: 640px) {
   table.budget tbody td.c-acct:empty { display: none; }
   table.budget tbody td.c-acct::before { content: attr(data-label) " "; }

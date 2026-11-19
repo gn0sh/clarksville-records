@@ -1,0 +1,29 @@
+# The city budget dollar, by fund, on city/finance/index.html (docs/architecture/city-funds-dollar.md,
+# sitegen/fund_split.py): how the whole budget of one adopted column of one book splits across its funds, in tenths of
+# a cent of each dollar. CEO 2026-11-18: "just break them up the same way you did with the county stuff."
+#
+# book / column: the same as the general fund dollar (dollar-split.yml): the FY2027 file is the Mayor's proposal, so
+# the FY2026 adopted column is used, and the bar says why from the data. A newer adopted book fails the build.
+book: fy2026-final
+column: "2026 2nd Readin"
+body: city
+dollar_fund: general-fund          # budget_views.fund_key of the fund the general fund bar splits
+# Revenue lines other funds print as received from the general fund, listed (not taken out) in the sources block.
+# Checked both ways: such a line with one of these accounts but no "GF" in its label, or "GF" under another account,
+# fails the build, so a new book cannot drop or add one silently.
+from_general_fund: {accounts: ["34801", "34811", "34821", "39150"], label_token: "GF"}
+funds:                             # every fund the book prints, in its order: name as printed -> plain name
+  - {printed: "General Fund", name: "General fund"}
+  - {printed: "Drug Enforcement", name: "Drug enforcement"}
+  - {printed: "Police Special Revenue", name: "Police special revenue"}
+  - {printed: "Traffic Camera Pol SRF", name: "Traffic camera, police"}
+  - {printed: "Traffic Camera Parks SRF", name: "Traffic camera, parks"}
+  - {printed: "Road Improvements Fund", name: "Road improvements"}
+  - {printed: "Parks Special Revenue", name: "Parks special revenue"}
+  - {printed: "Special Revenue Fund", name: "Special revenue"}
+  - {printed: "Debt Service Fund", name: "Debt service"}
+  - {printed: "Parking Commission", name: "Parking commission"}
+  - {printed: "Dental Fund", name: "Dental insurance"}
+  - {printed: "Health Insurance Fund", name: "Health insurance"}
+  - {printed: "Self-Insurance Fund", name: "Self-insurance"}
+  - {printed: "Vehicle Replacement Fund", name: "Vehicle replacement"}

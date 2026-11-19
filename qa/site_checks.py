@@ -1474,10 +1474,11 @@ def finance_fact_ids(fin: dict | None, locality: str | None = None) -> set[str]:
     bidders; each budget line by its line id, and each fund as fund/<fund_no>. `locality`: the body whose finance file
     this is; its general fund dollar's rows (dollar/<book>/<department>, .../other, .../total) come from
     sitegen/dollar_split.fact_ids, and its property tax dollar's rows (proptax/<book>/<fund>, .../total) from
-    sitegen/property_tax.fact_ids, the same splits the Finance index renders."""
-    from sitegen import dollar_split, property_tax
-    ids: set[str] = (dollar_split.fact_ids(fin, locality) | property_tax.fact_ids(fin, locality)) if locality and fin \
-        else set()
+    sitegen/property_tax.fact_ids, and its budget dollar by fund's (funds/<book>/<fund>, .../total) from
+    sitegen/fund_split.fact_ids, the same splits the Finance index renders."""
+    from sitegen import dollar_split, fund_split, property_tax
+    ids: set[str] = (dollar_split.fact_ids(fin, locality) | property_tax.fact_ids(fin, locality)
+                     | fund_split.fact_ids(fin, locality)) if locality and fin else set()
     for s in (fin or {}).get("solicitations", []):
         ids.add(s["id"])
         ids |= {f"{s['id']}/{d}" for d in s["document_ids"]}
