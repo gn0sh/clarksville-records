@@ -315,6 +315,7 @@ class PoliteFetcher:
     _tenant_sent: dict = field(default_factory=dict)  # tenant_key -> requests sent this run (retries included)
     _tenant_caps: dict = field(default_factory=dict)  # tenant_key -> request limit (limit_tenant; only ever lowered)
     _robots_capped: dict = field(default_factory=dict)  # exact host -> why its robots.txt ran into a request cap
+    _robots_unreadable: dict = field(default_factory=dict)  # exact host -> why robots.txt was not read (disallow_all)
     log: list = field(default_factory=list)          # [{event, host, url, detail}]
 
     # ------------------------------------------------------------ policy
@@ -566,6 +567,7 @@ class PoliteFetcher:
                 if isinstance(e, RequestCapReached) and not isinstance(e, TenantCapReached):
                     self._robots_capped[exact] = str(e)    # a host cap: later get()s report the cap, not robots
                 refused = True
+                self._robots_unreadable[exact] = f"refused: {type(e).__name__}"
             if refused:
                 rp.disallow_all = True
             elif status == 200:
@@ -574,11 +576,18 @@ class PoliteFetcher:
                 rp.allow_all = True          # no robots.txt = no rules (RFC 9309)
             else:
                 rp.disallow_all = True       # server error: be conservative
+                self._robots_unreadable[exact] = f"HTTP {int(status)}"
             self._robots[exact] = rp
             delay = rp.crawl_delay(self.user_agent) or rp.crawl_delay("*")
             if delay:                        # the site's delay is the largest any of its hosts asks for
                 self._delay[key] = max(float(delay), self._delay.get(key, 0.0))
         return self._robots[exact]
+
+    def robots_unreadable(self, host: str) -> str | None:
+        """Why robots.txt of `host` could not be read this run (a refused URL or hop, a cap, a server error or too
+        many redirects), so every path there is disallowed for the run; None when it was read (or not asked yet). A
+        caller tells "the site's rules say no" (RobotsDisallowed with None here) from "we could not read the rules"."""
+        return self._robots_unreadable.get(plain_hostname(host) or host.lower())
 
     def _location(self, url: str, headers: dict) -> str:
         loc = next((v for k, v in (headers or {}).items() if k.lower() == "location"), None)

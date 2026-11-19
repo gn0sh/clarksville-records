@@ -232,8 +232,10 @@ attendance, motion or person's name field exists in this schema (AC4.4); a test 
 `data/national/bodies/<body id>.json` (3.5 minus `full_url`), `data/national/health.json`
 (`{"<body id>": {"last_attempt_at", "last_ok_at", "consecutive_failures", "last_error": "tenant-blocked |
 host-stopped | rate-limited | robots | budget-skipped | server-error | not-enabled-suspected | token-suspected |
-collector-error"}}`; `last_error` null after a good read; `collector-error` (C3): the reader refused its own output or
-cache, e.g. `cache-confine/put-error-kind`),
+collector-error", "failure_streak": {"kind", "count"} | null}}`; `last_error` and `failure_streak` null after a good
+read; `collector-error` (C3): the reader refused its own output or cache, e.g. `cache-confine/put-error-kind`;
+`budget-skipped`, `host-stopped` and `rate-limited` are not the body's failure: `consecutive_failures` and the streak
+of runs failing with one kind stay as they were),
 `data/national/proposals.json` (`[{"body", "kind": "status" | "agenda-status-name", "observed", "evidence_url",
 "first_seen", "count"}]`). Cache: `data/national/cache/<body id>/<event id>.json` (items keyed by
 `EventAgendaLastPublishedUTC`). Body files and cache files carry `review`; rules in section 11.1 rows 16, 18-19 (M2).
@@ -497,9 +499,12 @@ for a non-canonical shared path (None must only ever mean "host-level and allowe
   good feed rebound to the current entry with the new `checked_at`; a body not read keeps its feed unchanged. A
   `TenantBlocked` (tested before `HostBlocked`) stops its tenant and denies `<client>.legistar.com` for the run;
   another `HostBlocked`, or robots.txt that could not be read (`robots_refused` in the log), marks the rest
-  `host-stopped`; a cap marks them `budget-skipped` (not counted in `consecutive_failures`). After 3 failures in a row
-  of `not-enabled-suspected` / `token-suspected` / `robots`, a `status` proposal names the `cant-cover` reason it
-  suggests; a good read clears it. The directory is never written.
+  `host-stopped`, as does robots.txt answering a server error (fetcher `robots_unreadable(host)`); a cap marks them
+  `budget-skipped`. After 3 failures in a row of the same one of `not-enabled-suspected` / `token-suspected` / `robots`
+  (`failure_streak`), a `status` proposal names the `cant-cover` reason it suggests; a good read clears it. Proposals
+  read back are re-checked (status name pattern, `allowed_url` for the body's client). `collect` refuses a symlinked
+  data root, `bodies/` or `cache/` before reading anything; body files drop `body.full_url`. The directory is never
+  written.
 
 ## 5. Key flows
 1. **Lookup (M1):** `/digest/` loads (directory embedded; a page-view count if counting is on, path only; the saved

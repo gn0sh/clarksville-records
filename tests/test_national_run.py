@@ -133,7 +133,7 @@ def test_a_budget_of_10_reads_what_fits_and_records_budget_skipped_for_the_rest(
     assert (len(oks), len(skipped)) == (9, 3)
     for g in skipped:
         assert r.health[g] == {"last_attempt_at": None, "last_ok_at": None, "consecutive_failures": 0,
-                               "last_error": "budget-skipped"}
+                               "last_error": "budget-skipped", "failure_streak": None}
         assert g not in r.feeds
     assert all(r.health[g]["last_error"] is None for g in oks)
 
@@ -190,7 +190,8 @@ def test_a_host_stop_marks_the_remaining_bodies_stale_never_cant_cover(tmp_path,
         assert r.feeds[gid] == good.feeds[gid]                         # not read: the feed is unchanged
         assert r.health[gid]["last_ok_at"] == good.health[gid]["last_ok_at"]
         assert r.health[gid]["last_attempt_at"] == good.health[gid]["last_attempt_at"]
-        assert r.health[gid]["consecutive_failures"] == 1
+        assert r.health[gid]["consecutive_failures"] == 0             # a host stop is not the body's failure
+        assert r.health[gid]["failure_streak"] is None
     stopped = r.feeds[govs[1]["gov"]]                                 # read and failed: new checked_at, old last_ok_at
     assert stopped["checked_at"] == nr._instant(later)
     assert stopped["last_ok_at"] == nr._instant(NOW)
@@ -302,7 +303,8 @@ def test_each_body_is_stamped_when_it_is_checked(tmp_path, monkeypatch):
     f = r2.feeds[govs[0]["gov"]]
     assert (f["checked_at"], f["last_ok_at"]) == (nr._instant(later), stamps[0])
     assert r2.health[govs[0]["gov"]] == {"last_attempt_at": nr._instant(later), "last_ok_at": stamps[0],
-                                         "consecutive_failures": 1, "last_error": "server-error"}
+                                         "consecutive_failures": 1, "last_error": "server-error",
+                                         "failure_streak": {"kind": "server-error", "count": 1}}
 
 
 def test_a_kept_feed_is_rebound_to_its_entry_as_it_is_now(tmp_path, monkeypatch):
@@ -368,7 +370,7 @@ def test_agenda_status_proposals_merge_across_runs(tmp_path, monkeypatch):
     r2 = nr.run(d, fetcher(Net(events=ev)), 100, NOW + timedelta(hours=12), previous_proposals=r1.proposals)
     assert [(p["kind"], p["observed"], p["count"], p["first_seen"]) for p in r2.proposals] == [
         ("agenda-status-name", "Pending Clerk Review", 2, nr._instant(NOW))]
-    keep = nr.merge_proposals(r2.proposals + [{"body": "../x", "kind": "status"}], [], set(), set())
+    keep = nr.merge_proposals(r2.proposals + [{"body": "../x", "kind": "status"}], [], set(), {})
     assert keep == []                                                   # a body no longer covered keeps none
 
 
@@ -387,7 +389,10 @@ def test_collect_prunes_the_cache_first_and_writes_only_data(tmp_path, monkeypat
     assert json.loads((root / "proposals.json").read_text()) == []
     r = nr.collect(root, d, fetcher(Net()), 100, NOW)
     written = json.loads((root / "bodies" / f"{g['gov']}.json").read_text())
-    assert written == r.feeds[g["gov"]] and written["checked_at"] == nr._instant(NOW)
+    assert "full_url" not in written["body"]                           # 3.7: "3.5 minus full_url"
+    assert written == nr.body_file(r.feeds[g["gov"]]) and written["checked_at"] == nr._instant(NOW)
+    r = nr.collect(root, d, fetcher(Net(fail={"aa": (500, b"")})), 100, NOW + timedelta(hours=1))
+    assert r.feeds[g["gov"]]["body"]["full_url"] is None              # the kept feed binds again without it
     assert sorted(p.name for p in root.iterdir()) == ["bodies", "cache", "health.json", "proposals.json"]
     assert path.read_bytes() == before
 
@@ -400,3 +405,119 @@ def test_a_symlinked_data_root_is_refused(tmp_path):
     with pytest.raises(ValueError):
         nr.write_outputs(link, nr.RunResult({}, {}, [], {}))
     assert list(real.iterdir()) == []
+
+
+# --- C3 review fixes ----------------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("link", ["root", "bodies", "cache"])
+def test_collect_refuses_a_symlinked_data_tree_before_reading_anything(tmp_path, monkeypatch, link):
+    """national-confine/data-root-symlink-late: refused before read_previous, prune or any request."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+    real = tmp_path / "real"
+    (real / "cache" / "place-4199999").mkdir(parents=True)
+    (real / "cache" / "place-4199999" / "1.json").write_text("x", encoding="utf-8")
+    (real / "health.json").write_text("{}", encoding="utf-8")
+    snapshot = sorted((p.relative_to(real), p.read_bytes() if p.is_file() else None) for p in real.rglob("*"))
+    root = tmp_path / "data" / "national"
+    if link == "root":
+        root.parent.mkdir(parents=True)
+        root.symlink_to(real)
+    else:
+        root.mkdir(parents=True)
+        (root / link).symlink_to(real)
+    net = Net()
+    with pytest.raises(ValueError):
+        nr.collect(root, d, fetcher(net), 100, NOW)
+    assert net.calls == []
+    assert sorted((p.relative_to(real), p.read_bytes() if p.is_file() else None) for p in real.rglob("*")) == snapshot
+
+
+def test_a_status_proposal_needs_three_failures_of_the_same_kind(tmp_path, monkeypatch):
+    """national-proposal/streak-not-per-kind: mixed kinds never add up; host stops and budget skips neither count
+    nor break the streak."""
+    g, h = body(1, "aa"), body(2, "bb")
+    d, _ = load(tmp_path, monkeypatch, g, h)
+    feeds, health, proposals = {}, {}, []
+    history = [{"aa": (500, b"")}, {"aa": (404, b"")}, {"aa": (401, b"")}, {"aa": (404, b"")},
+               {"aa": (404, b"")}, "host-stop", {"aa": (404, b"")}]
+    seen = []
+    for i, fail in enumerate(history):
+        t = NOW + timedelta(hours=12 * i)
+        health = {k: dict(v, last_ok_at=None) if k == g["gov"] else dict(v, last_ok_at="2026-12-09T00:00:00Z")
+                  for k, v in health.items()}                         # aa read first every run
+        net = Net(fail={"aa": (429, b"")}) if fail == "host-stop" else Net(fail=fail)
+        r = nr.run(d, fetcher(net), 100, t, previous_feeds=feeds, previous_health=health,
+                   previous_proposals=proposals)
+        feeds, health, proposals = r.feeds, r.health, r.proposals
+        seen.append((r.outcomes[g["gov"]], health[g["gov"]]["failure_streak"], len(proposals)))
+    assert [s[2] for s in seen] == [0, 0, 0, 0, 0, 0, 1]
+    assert seen[5][0] == "rate-limited" and seen[5][1] == {"kind": "not-enabled-suspected", "count": 2}
+    assert seen[6][1] == {"kind": "not-enabled-suspected", "count": 3}
+    assert health[g["gov"]]["consecutive_failures"] == 6               # the rate-limited run is not counted
+    assert health[h["gov"]]["consecutive_failures"] == 0
+
+
+@pytest.mark.parametrize("robots", [(503, {}), (500, {})])
+def test_robots_server_error_is_a_host_stop_and_never_proposes_cant_cover(tmp_path, monkeypatch, robots):
+    """national-stop/robots-5xx-not-host-stop."""
+    govs = [body(1, "aa"), body(2, "bb")]
+    d, _ = load(tmp_path, monkeypatch, *govs)
+    feeds, health, proposals = {}, {}, []
+    for i in range(4):
+        net = Net(robots=robots)
+        pf = fetcher(net)
+        r = nr.run(d, pf, 100, NOW + timedelta(hours=12 * i), previous_feeds=feeds, previous_health=health,
+                   previous_proposals=proposals)
+        feeds, health, proposals = r.feeds, r.health, r.proposals
+        assert set(r.outcomes.values()) == {"host-stopped"} and net.event_calls() == []
+        assert pf.robots_unreadable("webapi.legistar.com") == f"HTTP {robots[0]}"
+    assert proposals == []
+
+
+def test_robots_unreadable_is_none_for_a_robots_file_that_was_read():
+    pf = fetcher(Net(robots="User-agent: *\nDisallow: /v1/aa/\n"))
+    pf.robots("webapi.legistar.com")
+    assert pf.robots_unreadable("webapi.legistar.com") is None
+    assert fetcher(Net()).robots_unreadable("webapi.legistar.com") is None   # not asked yet
+
+
+def test_an_exception_in_a_bodys_bookkeeping_is_its_collector_error(tmp_path, monkeypatch):
+    """national-run/raise-outside-try."""
+    govs = [body(1, "aa"), body(2, "bb")]
+    d, _ = load(tmp_path, monkeypatch, *govs)
+    real = nr._kept_feed
+
+    def broken(previous, entry, stamp):
+        if entry["gov"] == govs[0]["gov"]:
+            raise KeyError("boom")
+        return real(previous, entry, stamp)
+    monkeypatch.setattr(nr, "_kept_feed", broken)
+    r = nr.run(d, fetcher(Net(fail={"aa": (500, b"")})), 100, NOW, previous_health={govs[0]["gov"]: {"x": 1}})
+    assert [r.outcomes[g["gov"]] for g in govs] == ["collector-error", "ok"]
+    assert r.health[govs[0]["gov"]]["last_error"] == "collector-error"
+
+    monkeypatch.setattr(nr, "budget_order", lambda *a: 1 / 0)          # the order itself failing: id order
+    r = nr.run(d, fetcher(Net()), 100, NOW)
+    assert set(r.outcomes.values()) == {"ok"}
+
+
+def test_previous_proposals_are_rechecked_on_read_back(tmp_path, monkeypatch):
+    """national-proposal/previous-text-unchecked."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+    base = {"body": g["gov"], "kind": "agenda-status-name", "first_seen": "2026-11-01T00:00:00Z", "count": 1}
+    ok_url = "https://aa.legistar.com/MeetingDetail.aspx?ID=1"
+    previous = [
+        dict(base, observed="Pending Clerk Review", evidence_url=ok_url),                       # kept
+        dict(base, observed="<script>x</script>", evidence_url=ok_url),                         # odd text
+        dict(base, observed="Pending Two", evidence_url="https://evil.example/x"),              # other host
+        dict(base, observed="Pending Three", evidence_url="https://bb.legistar.com/x"),         # another client
+        dict(base, observed="Pending Four", evidence_url="javascript:alert(1)"),
+        dict(base, kind="status", observed="SENTINEL", evidence_url=ok_url),                    # not a reason we make
+        dict(base, kind="status", observed="api-not-enabled",
+             evidence_url="https://webapi.legistar.com/v1/aa/events"),                          # kept
+    ]
+    r = nr.run(d, fetcher(Net(fail={"aa": (500, b"")})), 100, NOW, previous_proposals=previous)
+    assert [(p["kind"], p["observed"]) for p in r.proposals] == [("agenda-status-name", "Pending Clerk Review"),
+                                                                ("status", "api-not-enabled")]

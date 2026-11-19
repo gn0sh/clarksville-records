@@ -36,7 +36,7 @@ from collector.fetch import (FetchFailed, HostBlocked, HostRefused, ProxyRefused
 from collector.national import legistar_upcoming as lu
 from sitegen.national import Directory
 from sitegen.national_clarksville import feed_errors
-from sitegen.national_guards import bind_feed, checked_id, id_layer
+from sitegen.national_guards import allowed_url, bind_feed, checked_id, id_layer
 
 HOST = lu.LEGISTAR_API_HOST
 TENANT_BUDGET = 12               # ADR 0013 decision 6: at most 12 requests per tenant per run
@@ -48,13 +48,16 @@ OK = "ok"
 # tampered cache file, e.g. C2's _cache_put ValueError, `cache-confine/put-error-kind`); nothing of it was written.
 LAST_ERRORS = ("tenant-blocked", "host-stopped", "rate-limited", "robots", "budget-skipped", "server-error",
                "not-enabled-suspected", "token-suspected", "collector-error")
-NOT_A_FAILURE = frozenset({"budget-skipped"})   # scheduling, not the body: consecutive_failures is left as it was
+# Not the body's failure (scheduling, or a stop about us or the shared host): consecutive_failures and the failure
+# streak are left as they were (`national-proposal/streak-not-per-kind`).
+NOT_A_FAILURE = frozenset({"budget-skipped", "host-stopped", "rate-limited"})
 # A failure kind that, repeated, suggests the entry may belong in `cant-cover` with this reason (3.2 REASONS).
 STATUS_REASON = {"not-enabled-suspected": "api-not-enabled", "token-suspected": "token-required",
                  "robots": "robots-disallow"}
 PROPOSAL_KINDS = ("status", "agenda-status-name")
 
 INSTANT_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+MAX_URL = 2_000                  # characters of an evidence_url read back
 BODY_FILE_RE = re.compile(r"[a-z]+-[0-9]{5,10}\.json")
 
 
@@ -104,10 +107,10 @@ def _last_block_was_429(fetcher, host: str) -> bool:
     return False
 
 
-def _robots_refused(fetcher, host: str) -> bool:
-    """robots.txt could not be read (a refused hop or URL), as opposed to read and disallowing (C1 delta nit)."""
-    return any(isinstance(e, dict) and e.get("event") == "robots_refused" and e.get("host") == host
-               for e in getattr(fetcher, "log", None) or [])
+def _robots_unreadable(fetcher, host: str) -> bool:
+    """robots.txt could not be read this run (refused, a server error, too many redirects), as opposed to read and
+    disallowing (`national-stop/robots-5xx-not-host-stop`; the fetcher's public `robots_unreadable`)."""
+    return fetcher.robots_unreadable(host) is not None
 
 
 def _deny_city_hosts(fetcher, entry: dict) -> None:
@@ -166,19 +169,30 @@ def _kept_feed(previous: dict | None, entry: dict, stamp: str | None) -> dict | 
 
 # --- proposals ----------------------------------------------------------------------------------------------------
 
-def _valid_proposal(p, govs: set[str]) -> bool:
-    return (isinstance(p, dict) and p.get("body") in govs and p.get("kind") in PROPOSAL_KINDS
-            and (p.get("observed") is None or isinstance(p.get("observed"), str))
-            and isinstance(p.get("evidence_url"), str) and _old_instant(p.get("first_seen")) is not None)
+def _valid_proposal(p, clients: dict[str, str]) -> bool:
+    """A proposal read back from the last run's file, re-checked as if it came from outside
+    (`national-proposal/previous-text-unchecked`): a covered Legistar body, a known kind, `observed` a status name
+    STATUS_NAME_RE accepts (or null) or, for `status`, one of the reasons we suggest, and `evidence_url` a Legistar
+    URL `allowed_url` keeps for that body's client."""
+    if not (isinstance(p, dict) and p.get("body") in clients and p.get("kind") in PROPOSAL_KINDS
+            and _old_instant(p.get("first_seen")) is not None):
+        return False
+    observed, url = p.get("observed"), p.get("evidence_url")
+    if p["kind"] == "status":
+        ok_observed = observed in STATUS_REASON.values()
+    else:
+        ok_observed = observed is None or (isinstance(observed, str) and bool(lu.STATUS_NAME_RE.fullmatch(observed)))
+    return ok_observed and isinstance(url, str) and len(url) <= MAX_URL \
+        and allowed_url(url, lu.PLATFORM, clients[p["body"]]) == url
 
 
-def merge_proposals(previous: list, new: list[dict], read_ok: set[str], govs: set[str]) -> list[dict]:
+def merge_proposals(previous: list, new: list[dict], read_ok: set[str], clients: dict[str, str]) -> list[dict]:
     """Earlier proposals plus this run's, one per (body, kind, observed): `first_seen` is the earliest, `count` the
     sum, `evidence_url` the newest. A body's `status` proposals go once it reads OK; a body no longer covered on
-    Legistar keeps none."""
+    Legistar keeps none. `clients`: covered Legistar body id -> its client."""
     merged: dict[tuple, dict] = {}
     for p in previous if isinstance(previous, list) else []:
-        if not _valid_proposal(p, govs) or (p["kind"] == "status" and p["body"] in read_ok):
+        if not _valid_proposal(p, clients) or (p["kind"] == "status" and p["body"] in read_ok):
             continue
         k = (p["body"], p["kind"], p["observed"])
         merged[k] = {"body": p["body"], "kind": p["kind"], "observed": p["observed"],
@@ -207,7 +221,7 @@ def _classify(err: BaseException, fetcher) -> str:
     if isinstance(err, RequestCapReached):            # TenantCapReached included
         return "budget-skipped"
     if isinstance(err, RobotsDisallowed):
-        return "host-stopped" if _robots_refused(fetcher, HOST) else "robots"
+        return "host-stopped" if _robots_unreadable(fetcher, HOST) else "robots"
     if isinstance(err, (HostRefused, ProxyRefused)):  # no request reached the site
         return "host-stopped"
     if isinstance(err, FetchFailed):
@@ -217,24 +231,102 @@ def _classify(err: BaseException, fetcher) -> str:
     return "collector-error"     # FeedError, _cache_put's ValueError, UnsafeIdError, OSError, anything unforeseen
 
 
+class _Stops:
+    """What this run has stopped so far: the host, tenants, and the tenants already given their cap."""
+
+    def __init__(self):
+        self.host: str | None = None                   # what every later body on the host records
+        self.tenants: dict[str, str] = {}              # tenant key -> what every later body of it records
+        self.capped: set[str] = set()
+
+
+def _read_one(entry: dict, fetcher, stamp_of, cache_root, stops: _Stops, tenant_budget: int):
+    """One body: -> (outcome, stamp or None when it was not read, BodyRead or None)."""
+    url = _tenant_url(entry)
+    tenant = tenant_key(url)                           # TenantPathRefused: the caller records collector-error
+    if tenant is None:
+        return "collector-error", None, None
+    if tenant not in stops.capped:
+        fetcher.limit_tenant(url, tenant_budget)
+        stops.capped.add(tenant)
+    if stops.host is not None:
+        return stops.host, None, None
+    if tenant in stops.tenants:
+        return stops.tenants[tenant], None, None
+    if fetcher.remaining(HOST) == 0 or fetcher.remaining_tenant(url) == 0:
+        return "budget-skipped", None, None
+    when = stamp_of()
+    stamp = _instant(when)
+    try:
+        return OK, stamp, lu.read_body(entry, fetcher, when, cache_root)
+    except Exception as err:          # never the run for one body: every kind is recorded and the next body read
+        outcome = _classify(err, fetcher)
+        if isinstance(err, TenantBlocked):             # national/tenant-caller-order: before HostBlocked
+            stops.tenants[tenant] = "tenant-blocked"
+            _deny_city_hosts(fetcher, entry)
+        elif isinstance(err, TenantCapReached):        # before RequestCapReached
+            stops.tenants[tenant] = "budget-skipped"
+        elif isinstance(err, HostBlocked):
+            stops.host = "host-stopped"
+        elif isinstance(err, RequestCapReached):
+            stops.host = "budget-skipped"
+        elif isinstance(err, RobotsDisallowed) and outcome == "host-stopped":
+            stops.host = "host-stopped"                # robots.txt unreadable: disallow-all is cached for the run
+        return outcome, stamp, None
+
+
+def _streak(prev) -> dict | None:
+    s = prev.get("failure_streak")
+    if isinstance(s, dict) and s.get("kind") in LAST_ERRORS and _count(s.get("count")) > 0:
+        return {"kind": s["kind"], "count": _count(s["count"])}
+    return None
+
+
+def _record(entry: dict, outcome: str, stamp: str | None, read, now: datetime, previous_feeds: dict,
+            previous_health: dict) -> tuple[dict | None, dict, list[dict]]:
+    """-> (feed or None, health record, new proposals) for one body's outcome."""
+    gov = entry["gov"]
+    if outcome == OK:
+        return read.feed, {"last_attempt_at": stamp, "last_ok_at": stamp, "consecutive_failures": 0,
+                           "last_error": None, "failure_streak": None}, list(read.proposals)
+    prev = previous_health.get(gov) if isinstance(previous_health.get(gov), dict) else {}
+    prev_ok = _old_instant(prev.get("last_ok_at"))
+    if prev_ok is None and isinstance(previous_feeds.get(gov), dict):
+        prev_ok = _old_instant(previous_feeds[gov].get("last_ok_at"))
+    failures, streak = _count(prev.get("consecutive_failures")), _streak(prev)
+    if outcome not in NOT_A_FAILURE:
+        failures += 1
+        streak = {"kind": outcome, "count": streak["count"] + 1 if streak and streak["kind"] == outcome else 1}
+    health = {"last_attempt_at": stamp or _old_instant(prev.get("last_attempt_at")), "last_ok_at": prev_ok,
+              "consecutive_failures": failures, "last_error": outcome, "failure_streak": streak}
+    proposals = []
+    if (outcome in STATUS_REASON and streak and streak["kind"] == outcome
+            and streak["count"] >= STATUS_PROPOSAL_AFTER):
+        proposals.append({"body": gov, "kind": "status", "observed": STATUS_REASON[outcome],
+                          "evidence_url": _evidence_url(entry, now), "first_seen": stamp or _instant(now),
+                          "count": 1})
+    return _kept_feed(previous_feeds.get(gov), entry, stamp), health, proposals
+
+
 def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_feeds: dict | None = None,
         previous_health: dict | None = None, previous_proposals: list | None = None, cache_root: Path | None = None,
         clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
-    """One national collection run over every covered Legistar entry of `directory`. Never raises for one body.
+    """One national collection run over every covered Legistar entry of `directory`. Never raises for one body: any
+    exception in a body's read or its bookkeeping is that body's `collector-error` (`national-run/raise-outside-try`).
 
     `fetcher` is a collector.fetch.PoliteFetcher (public API: get, limit_hosts, limit_tenant, remaining,
-    remaining_tenant, log, extra_denied). `budget` is the run's request budget on webapi.legistar.com. `now` (aware)
-    orders the run; `clock()` stamps each body as its read starts (default: `now` for every body). `previous_*` are
-    the last run's outputs (`read_previous`). `cache_root` is `data/national/cache`: pruned first (11.1 row 19)."""
+    remaining_tenant, robots_unreadable, log, extra_denied). `budget` is the run's request budget on
+    webapi.legistar.com. `now` (aware) orders the run; `clock()` stamps each body as its read starts (default: `now`
+    for every body). `previous_*` are the last run's outputs (`read_previous`). `cache_root` is
+    `data/national/cache`: pruned first (11.1 row 19)."""
     stamp_of = clock or (lambda: now)
     _instant(now)
     previous_feeds = previous_feeds if isinstance(previous_feeds, dict) else {}
     previous_health = previous_health if isinstance(previous_health, dict) else {}
-    outcomes: dict[str, str] = {}
 
     entries = [e for e in directory.govs if isinstance(e, dict) and e.get("status") == "covered"
                and e.get("platform") == lu.PLATFORM and id_layer(e.get("gov")) is not None]
-    govs = {e["gov"] for e in entries}
+    clients = {e["gov"]: e[lu.PLATFORM]["client"] for e in entries}
 
     if cache_root is not None:
         try:
@@ -243,73 +335,36 @@ def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_f
             cache_root = None                          # e.g. a symlinked root: refused, the run reads uncached
 
     fetcher.limit_hosts([HOST], budget)
-    capped_tenants: set[str] = set()
-    stopped_tenants: dict[str, str] = {}               # tenant key -> what every later body of it records
-    stopped_host: str | None = None                    # what every later body on the host records
-    feeds, health, new_proposals, read_ok = {}, {}, [], set()
+    try:
+        ordered = budget_order(entries, previous_feeds, previous_health, now)
+    except Exception:
+        ordered = sorted(entries, key=lambda e: e["gov"])
+    stops = _Stops()
+    feeds, health, new_proposals, read_ok, outcomes = {}, {}, [], set(), {}
 
-    for entry in budget_order(entries, previous_feeds, previous_health, now):
+    for entry in ordered:
         gov = checked_id(entry["gov"])
-        stamp, outcome, read = None, None, None
+        stamp = None
         try:
-            tenant = tenant_key(_tenant_url(entry))
-            if tenant is not None and tenant not in capped_tenants:
-                fetcher.limit_tenant(_tenant_url(entry), tenant_budget)
-                capped_tenants.add(tenant)
-        except (HostRefused, ValueError):
-            tenant, outcome = None, "collector-error"     # a client that is not a canonical tenant path: no request
-        if outcome is None:
-            if stopped_host is not None:
-                outcome = stopped_host
-            elif tenant in stopped_tenants:
-                outcome = stopped_tenants[tenant]
-            elif fetcher.remaining(HOST) == 0 or fetcher.remaining_tenant(_tenant_url(entry)) == 0:
-                outcome = "budget-skipped"
-        if outcome is None:
-            when = stamp_of()
-            stamp = _instant(when)
+            outcome, stamp, read = _read_one(entry, fetcher, stamp_of, cache_root, stops, tenant_budget)
+            feed, record, props = _record(entry, outcome, stamp, read, now, previous_feeds, previous_health)
+        except Exception:
+            outcome, feed, props = "collector-error", None, []
+            record = {"last_attempt_at": stamp if isinstance(stamp, str) else None, "last_ok_at": None,
+                      "consecutive_failures": 1, "last_error": outcome, "failure_streak": None}
             try:
-                read = lu.read_body(entry, fetcher, when, cache_root)
-                outcome = OK
-            except Exception as err:      # never the run for one body: every kind is recorded and the next body read
-                outcome = _classify(err, fetcher)
-                if isinstance(err, TenantBlocked):
-                    stopped_tenants[tenant] = "tenant-blocked"
-                    _deny_city_hosts(fetcher, entry)
-                elif isinstance(err, TenantCapReached):
-                    stopped_tenants[tenant] = "budget-skipped"
-                elif isinstance(err, HostBlocked):
-                    stopped_host = "host-stopped"
-                elif isinstance(err, RequestCapReached):
-                    stopped_host = "budget-skipped"
-                elif isinstance(err, RobotsDisallowed) and outcome == "host-stopped":
-                    stopped_host = "host-stopped"     # robots.txt unreadable: disallow-all is cached for the run
+                _f, record, _p = _record(entry, outcome, stamp, None, now, previous_feeds, previous_health)
+            except Exception:
+                pass                                   # the bare record above: nothing of the last run is trusted
         outcomes[gov] = outcome
-
-        prev = previous_health.get(gov) if isinstance(previous_health.get(gov), dict) else {}
-        prev_ok = _old_instant(prev.get("last_ok_at"))
-        if prev_ok is None and isinstance(previous_feeds.get(gov), dict):
-            prev_ok = _old_instant(previous_feeds[gov].get("last_ok_at"))
-        failures = _count(prev.get("consecutive_failures"))
+        health[gov] = record
+        new_proposals.extend(props)
+        if feed is not None:
+            feeds[gov] = feed
         if outcome == OK:
-            feeds[gov] = read.feed
             read_ok.add(gov)
-            new_proposals.extend(read.proposals)
-            health[gov] = {"last_attempt_at": stamp, "last_ok_at": stamp, "consecutive_failures": 0,
-                           "last_error": None}
-            continue
-        kept = _kept_feed(previous_feeds.get(gov), entry, stamp)
-        if kept is not None:
-            feeds[gov] = kept
-        failures += 0 if outcome in NOT_A_FAILURE else 1
-        health[gov] = {"last_attempt_at": stamp or _old_instant(prev.get("last_attempt_at")), "last_ok_at": prev_ok,
-                       "consecutive_failures": failures, "last_error": outcome}
-        if outcome in STATUS_REASON and failures >= STATUS_PROPOSAL_AFTER:
-            new_proposals.append({"body": gov, "kind": "status", "observed": STATUS_REASON[outcome],
-                                  "evidence_url": _evidence_url(entry, now), "first_seen": stamp or _instant(now),
-                                  "count": 1})
 
-    proposals = merge_proposals(previous_proposals or [], new_proposals, read_ok, govs)
+    proposals = merge_proposals(previous_proposals or [], new_proposals, read_ok, clients)
     return RunResult(feeds=feeds, health=health, proposals=proposals, outcomes=outcomes)
 
 
@@ -360,21 +415,36 @@ def _write(folder: Path, name: str, doc) -> None:
     os.replace(tmp, folder / name)
 
 
+def check_data_root(data_root: Path) -> Path:
+    """Refuse a data root, or a `bodies/` or `cache/` in it, that is a symlink (`national-confine/data-root-symlink-
+    late`): called before anything is read, pruned or written, so nothing goes through a link. -> the root."""
+    root = Path(data_root)
+    for p in (root, root / "bodies", root / "cache"):
+        if p.is_symlink():
+            raise ValueError(f"{p}: a symlink in the national data tree: refused")
+    return root
+
+
+def body_file(feed: dict) -> dict:
+    """What `bodies/<id>.json` holds: the feed minus `body.full_url` (3.7: "3.5 minus full_url"; the copy step's
+    bind_feed sets it again from the directory)."""
+    out = copy.deepcopy(feed)
+    if isinstance(out.get("body"), dict):
+        out["body"].pop("full_url", None)
+    return out
+
+
 def write_outputs(data_root: Path, result: RunResult) -> None:
     """`bodies/<id>.json` for every feed (and no other file there), `health.json`, `proposals.json`. A data root or
     bodies folder that is a symlink is refused (the run stops: that is not one body's failure)."""
-    root = Path(data_root)
-    if root.is_symlink():
-        raise ValueError(f"{root}: the national data root is a symlink: refused")
+    root = check_data_root(data_root)
     root.mkdir(parents=True, exist_ok=True)
     bodies = root / "bodies"
-    if bodies.is_symlink():
-        raise ValueError(f"{bodies}: a symlink: refused")
     bodies.mkdir(exist_ok=True)
     for gov, feed in sorted(result.feeds.items()):
         if feed.get("body", {}).get("id") != checked_id(gov):
             raise ValueError(f"{gov}: feed body id does not match its file")
-        _write(bodies, f"{gov}.json", feed)
+        _write(bodies, f"{gov}.json", body_file(feed))
     keep = {f"{gov}.json" for gov in result.feeds}
     for p in sorted(bodies.iterdir()):
         if p.name not in keep:
@@ -385,8 +455,9 @@ def write_outputs(data_root: Path, result: RunResult) -> None:
 
 def collect(data_root: Path, directory: Directory, fetcher, budget: int, now: datetime, *,
             clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
-    """read_previous -> run (cache `data_root/cache`, pruned first) -> write_outputs. The directory is never written."""
-    root = Path(data_root)
+    """check_data_root -> read_previous -> run (cache `data_root/cache`, pruned first) -> write_outputs. The directory
+    is never written."""
+    root = check_data_root(data_root)
     feeds, health, proposals = read_previous(root)
     result = run(directory, fetcher, budget, now, previous_feeds=feeds, previous_health=health,
                  previous_proposals=proposals, cache_root=root / "cache", clock=clock, tenant_budget=tenant_budget)
