@@ -46,3 +46,10 @@ Shared-path grammar (C1) refusals; every redirect hop re-checked; no request bui
 entries make no items request and keep no item text; path/symlink confinement with O_EXCL|O_NOFOLLOW + os.replace;
 health/proposals ids/kinds/counts only; D3 check before any fetcher/file access in run, collect and read_body; C4 ICS
 escaping, folding and Atom via ElementTree.
+
+## Delta re-review (20c073d..093af8b), 2026-11-19: PASS
+All 8 findings closed; each fix mutation-tested (revert fails the suite) except as in nit a. Finding 8 decision
+(robots.txt hop into a tenant refused, robots cached disallow_all) judged sound; the 7 rewritten tests still assert
+the target URL is never requested. Nits (low): a. `fetch/error-body-unbounded` fetch.py:524 no test that the error
+read gets a size argument; b. `national/r5-self-attested` national_guards.py:124-128 `/gn0sh/../other` passes the
+link prefix check. Release from the collector side: OK; D1/D2 get their own review.
