@@ -36,3 +36,13 @@
 - B14 delta re-review (0e325282): APPROVE, all 7 fixed, 149 passed. Nits kept open, accepted by manager: U+200C/200D
   are stripped (`national/untrusted-size/zwj-stripped`; US agenda text rarely needs them; revisit if a covered
   government publishes in a script that does), and a flag emoji can split at the 2,000 cut (marked `cut` anyway).
+
+## B1/B2 delta re-review (81b02a6d, aaafec29), code-reviewer opus/high: APPROVE with two should-fixes
+- Findings 1-8 fixed (9 at 0e325282); 189 passed; census rows agree.
+- should-fix `privacy-withhold/body-name-word-check`: student-civics names ("Mock City Council", "Model County
+  Commission", "Shadow City Council", "Pre-K City Council", Cyrillic homoglyph "Yоuth City Council") still pass.
+- should-fix `privacy-withhold/body-name-false-refusal`: real places (College Station, Kidder County, ...) and real
+  bodies ("Board of Commissioners", "County Legislature", "Selectboard") can never be shown, with no override.
+- Manager decision: replace the allowlist heuristic with a code-reviewed `SHOWN_REVIEWED` (gov id, body_name) table as
+  the primary control; keep the stem denylist and a non-ASCII refusal as a fail-closed second guard.
+- Open for the architect: `contract/legistar-official-url`.
