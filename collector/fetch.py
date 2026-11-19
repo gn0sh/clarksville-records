@@ -54,6 +54,13 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   while reading it caches disallow_all for that host (a host cap is still raised as RequestCapReached; a tenant cap,
   TenantCapReached, is a refused robots.txt and caps no other tenant). A subdomain of a shared host is refused.
   Callers that treat a tenant apart catch TenantBlocked before HostBlocked.
+- Run deadline and slow answers (architecture daylight-national 4.4.4, national-budget/post-deadline-request), both
+  off by default (the national run turns them on; with both None every clock(), sleep and read is today's):
+  `past_deadline(pause)` is asked in _wait, the one place every request (robots.txt, retries, redirect hops) passes,
+  before the wait and after it, and before _last or any sent count changes; True raises DeadlineReached (a
+  RequestCapReached), so nothing is sent at or after the deadline. `max_answer_seconds` reads each answer body in
+  ANSWER_CHUNK pieces and fails the fetch (FetchFailed) once the answer has taken longer than that (a 403/429 body
+  read so cut short is a host block, as any unreadable refusal is).
 """
 from __future__ import annotations
 
@@ -94,6 +101,7 @@ REDIRECT_CODES = (301, 302, 303, 307, 308)
 # (matched after the client segment is lowercased). Architecture daylight-national 4.4.
 SHARED_HOSTS = {"webapi.legistar.com": re.compile(r"^/v1/([a-z0-9-]{2,40})/")}
 BLOCK_BODY_BYTES = 64 * 1024     # how much of a 403 body is read to decide tenant or host block
+ANSWER_CHUNK = 64 * 1024         # one body read when max_answer_seconds is set (read1: at most one socket read)
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -139,6 +147,11 @@ class ProxyRefused(Exception):
 
 class RequestCapReached(Exception):
     """The run's request cap for this host's cap group (limit_hosts) is used up. No request was made."""
+
+
+class DeadlineReached(RequestCapReached):
+    """The run's deadline (`past_deadline`): this request would be sent, or its wait would end, at or after it. No
+    request was made. A RequestCapReached, so robots() and every caller treat it as a cap."""
 
 
 class TenantCapReached(RequestCapReached):
@@ -308,6 +321,8 @@ class PoliteFetcher:
     extra_denied: tuple = ()                         # hosts denied for this run, e.g. finance.yml bonfire_hosts
     max_bytes: int = MAX_BYTES
     reset_retries: int = RESET_RETRIES_PER_HOST     # per host per run
+    past_deadline: object = None                     # (pause seconds) -> True when a request then is too late; None: off
+    max_answer_seconds: float | None = None          # seconds one answer's body may take to read; None: off
     # Per-site state is keyed by site_key(host); robots.txt by the exact lowercase host.
     _last: dict = field(default_factory=dict)        # site -> clock() of last request
     _robots: dict = field(default_factory=dict)      # exact host -> RobotFileParser
@@ -426,15 +441,46 @@ class PoliteFetcher:
         floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if host_matches(host, (k,))])
         return max(floor, self._delay.get(site_key(host), 0.0))
 
-    def _wait(self, host: str) -> None:
+    def _wait(self, host: str, url: str = "") -> None:
+        """Sleep out the host delay. With `past_deadline` set, a request that would be sent (or a wait that would end)
+        at or after the run's deadline raises DeadlineReached before anything sleeps or is counted (4.4.4)."""
         key = site_key(host)
         last = self._last.get(key)
         delay = self.delay_for(host)
+        pause = 0.0
         if last is not None:
             gap = self.clock() - last
             if gap < delay:
-                self.sleep(delay - gap)
+                pause = delay - gap
+        if self.past_deadline is not None and self.past_deadline(pause):
+            self._deadline(host, url)
+        if pause:
+            self.sleep(pause)
+        if self.past_deadline is not None and self.past_deadline(0.0):
+            self._deadline(host, url)                  # a sleep that overshot the deadline
         self._last[key] = self.clock()
+
+    def _deadline(self, host: str, url: str):
+        self.log.append({"event": "deadline", "host": host, "url": url})
+        raise DeadlineReached(f"{host}: the run's deadline; {url} was not requested")
+
+    def _read_answer(self, r, limit: int, t0, url: str) -> bytes:
+        """The answer body, at most `limit` bytes: one read(limit) when max_answer_seconds is None (today's), else
+        ANSWER_CHUNK reads (read1 when the answer has it: at most one blocking socket read each) and FetchFailed once
+        clock() - t0 passes max_answer_seconds."""
+        if self.max_answer_seconds is None:
+            return r.read(limit)
+        read = getattr(r, "read1", None) or r.read
+        parts, total = [], 0
+        while total < limit:
+            chunk = read(min(ANSWER_CHUNK, limit - total))
+            if not chunk:
+                break
+            parts.append(chunk)
+            total += len(chunk)
+            if self.clock() - t0 > self.max_answer_seconds:
+                raise FetchFailed(f"{url}: answer slower than {self.max_answer_seconds:g} s")
+        return b"".join(parts)
 
     def _open(self, req):
         if self.opener is not None:
@@ -484,7 +530,8 @@ class PoliteFetcher:
             self.log.append({"event": "cap", "host": host, "url": url, "tenant": tenant,
                              "detail": "tenant request cap used up"})
             raise TenantCapReached(f"{tenant}: the run's tenant request cap is used up; {url} was not requested")
-        self._wait(host)
+        self._wait(host, url)
+        t0 = self.clock() if self.max_answer_seconds is not None else None
         self._sent[key] = self.sent(host) + 1
         if tenant is not None:
             self._tenant_sent[tenant] = self._tenant_sent.get(tenant, 0) + 1
@@ -492,7 +539,7 @@ class PoliteFetcher:
         try:
             req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
             with self._open(req) as r:
-                body = r.read(self.max_bytes + 1)
+                body = self._read_answer(r, self.max_bytes + 1, t0, url)
                 if len(body) > self.max_bytes:
                     limits.trip("fetch.MAX_BYTES", url, f"{len(body)}+ B", f"{self.max_bytes} B")
                     raise FetchFailed(f"{url}: larger than {self.max_bytes} bytes")
@@ -502,7 +549,8 @@ class PoliteFetcher:
             if e.code in (403, 429):
                 # architecture 4.4.2 (fetch/403-body-*): the decision never raises; the block is recorded and raised
                 # here, outside its guard, so a refusal always leaves a block behind before anything else happens
-                kind, reason = self._refusal_decision(e, e.code, host, key, tenant, url, started, _tenant_ok)
+                kind, reason = self._refusal_decision(e, e.code, host, key, tenant, url, started, _tenant_ok,
+                                                      t0=t0)
                 if kind == "proxy":
                     raise self._note_proxy_refusal(host, url, reason) from None
                 if kind == "tenant":
@@ -521,7 +569,10 @@ class PoliteFetcher:
             # fetch/error-body-unbounded (4.4.2 site 8): the same cap and size trip as a 200 answer; a body that
             # cannot be read fails this one fetch, never with a raw exception
             try:
-                body = e.read(self.max_bytes + 1) or b""
+                body = self._read_answer(e, self.max_bytes + 1, t0, url) or b""
+            except FetchFailed:
+                self.log.append({"event": "error", "host": host, "url": url, "detail": "answer too slow"})
+                raise
             except Exception as x:
                 detail = f"HTTP {e.code} answer body unreadable: {type(x).__name__}"
                 self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
@@ -553,7 +604,7 @@ class PoliteFetcher:
             raise FetchFailed(f"{url!r}: {detail}") from None
 
     def _refusal_decision(self, e, code: int, host: str, key: str, tenant: str | None, url: str, started,
-                          tenant_ok: bool) -> tuple[str, str]:
+                          tenant_ok: bool, t0=None) -> tuple[str, str]:
         """Architecture 4.4.2 (classify fails closed, fetch/403-body-*): a site's 403/429 answer -> ("proxy" | "tenant"
         | "host", reason). Every read, decode, parse and the decision itself run inside one guard: any Exception
         (OSError, ValueError, RecursionError, MemoryError, TypeError, AttributeError, ...) makes the answer a host
@@ -562,7 +613,7 @@ class PoliteFetcher:
             if code == 403 and self._proxy_said_403(host, started):
                 return "proxy", "HTTP 403 recorded by the proxy"
             try:
-                body = e.read(BLOCK_BODY_BYTES) or b""
+                body = self._read_answer(e, BLOCK_BODY_BYTES, t0, url) or b""
             except Exception:
                 body = b""      # fetch/403-body-read-escapes: an unreadable body is not JSON, so a host block
             if not isinstance(body, (bytes, bytearray)):
