@@ -10,6 +10,8 @@
    - mount(env): the page wiring (task F2; 4.1, 4.2, 4.2a): address form, states, picker, cards, in-card request
      form, counter button, "Your saved list" and "Forget this list". Every page part comes in env, so node tests
      drive it with a fake page, storage, fetch and counter.
+     Framed by any page (window.top is not window.self), it wires nothing, keeps the form hidden and shows a line
+     with a target="_top" link to the page instead, and returns null.
    - frameMessage(e, frameWindow) and lookup(env, address, done): the parent side of the geo frame protocol (4.0).
      The frame is digest/geo-frame.html (sandbox="allow-scripts", no allow-same-origin, so its origin is "null"); it
      posts the JSON string "ready", is sent {address} by postMessage, and posts back the Census answer as JSON text
@@ -541,6 +543,31 @@
     }
     function clearList() { list.textContent = ""; list.hidden = true; openCard = null; }
     function clearSaved() { saved.textContent = ""; saved.hidden = true; }
+
+    // -- framed by another page (national/postmessage-hardening/framed-parent): the form stays hidden and nothing is
+    // wired, so no address is typed under a parent we don't control. The no-script line instead says the lookup
+    // works only on our own page, with a link that opens it as the top page. Defence in depth beside the CSP's
+    // frame-src 'self' (sitegen/national_pages.py index_csp). Reading window.top can throw: that counts as framed.
+    var framed;
+    try { framed = win.top !== win.self; } catch (e) { framed = true; }
+    if (framed) {
+      form.hidden = true;
+      if (noscript) {
+        var fw = S("lookup.framed"), fm = /\[([^\[\]]+)\]/.exec(fw);
+        noscript.textContent = "";
+        if (fm) {
+          var topLink = anchor(fm[1], "index.html");
+          topLink.setAttribute("target", "_top");
+          noscript.appendChild(text(fw.slice(0, fm.index)));
+          noscript.appendChild(topLink);
+          if (fw.slice(fm.index + fm[0].length)) { noscript.appendChild(text(fw.slice(fm.index + fm[0].length))); }
+        } else {
+          noscript.appendChild(text(fw));
+        }
+        noscript.hidden = false;
+      }
+      return null;
+    }
 
     // -- the address form: a lookup starts only on a press of Find or Enter (no input, key or change listener) --
     function run() {
