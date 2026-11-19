@@ -5,10 +5,12 @@
 The real-data tests read data/ through the loaders the build uses (build.load_facts on the council's council.yml
 `facts_path`, county_agendas.load on config.COUNTY_AGENDAS, load_listing on its `calendar`) and assert only rules
 that hold for any valid growth of the records (docs/architecture/real-data-tests-invariant.md, I-live): `today` is
-derived from the live file. They skip when the data is not in this checkout (ADR 0011 moves it off main)."""
+derived from the live file. Missing data fails them (after the ADR 0011 data move a silent skip would hide every
+real-data check); they skip only when CR_ALLOW_NO_DATA=1 and CI is not set."""
 import copy
 import dataclasses
 import json
+import os
 from datetime import date, datetime, timezone
 
 import pytest
@@ -33,7 +35,11 @@ def directory():
 def real():
     cfg = nc.council_cfg("city")
     if cfg is None or not cfg["facts_path"].is_file() or not config.COUNTY_AGENDAS.is_file():
-        pytest.skip("the Clarksville data is not in this checkout")
+        why = (f"the Clarksville data is not in this checkout ({config.COUNTY_AGENDAS} and the council facts); "
+               "check out the data, or set CR_ALLOW_NO_DATA=1 to skip the real-data tests locally")
+        if os.environ.get("CR_ALLOW_NO_DATA") == "1" and not os.environ.get("CI"):
+            pytest.skip(why)
+        pytest.fail(why)
     agendas = county_agendas.load(config.COUNTY_AGENDAS)
     paged = {s["id"] for s in agendas["sources"] if s.get("pages")}
     eligible = [m for m in agendas["meetings"] if m["source_id"] in paged]
@@ -45,7 +51,7 @@ def real():
 @pytest.fixture(scope="module")
 def feeds(directory, real):
     counts = {}
-    out = nc.clarksville_feeds(directory, real["facts"], real["listing"], real["agendas"], real["today"],
+    out = nc.clarksville_feeds(directory, {"city": (real["facts"], real["listing"])}, real["agendas"], real["today"],
                                checked_at=CHECKED, counts=counts)
     return out, counts
 
@@ -62,7 +68,8 @@ def agendas_with(*items, date_="2026-12-14", url="https://mcgtn.org/a.pdf", page
 
 
 def run(directory, facts=None, listing=(), agendas=None, today=date(2026, 11, 19)):
-    return nc.clarksville_feeds(directory, facts or facts_with(), list(listing), agendas, today, checked_at=CHECKED)
+    return nc.clarksville_feeds(directory, {"city": (facts or facts_with(), list(listing))}, agendas, today,
+                                checked_at=CHECKED)
 
 
 def entry(directory, gov_id, **changes):
@@ -272,10 +279,50 @@ def test_feed_is_chosen_by_the_daylight_key_not_the_id(directory):
     assert [m["agenda"]["state"] for m in feeds["county-47999"]["meetings"]] == ["not-posted"]
 
 
-def test_unknown_daylight_key_and_cant_cover_get_no_feed(directory):
+def test_cant_cover_entry_gets_no_feed(directory):
+    assert run(with_govs(directory, directory.get("sdu-4703030")), agendas=agendas_with("x")) == {}
+
+
+def test_unknown_daylight_key_stops_the_build(directory):
     stray = entry(directory, COUNTY_ID, gov="county-47998", daylight={"body": "rpc", "full_url": "rpc/"})
-    feeds = run(with_govs(directory, stray, directory.get("sdu-4703030")), agendas=agendas_with("x"))
-    assert feeds == {}
+    with pytest.raises(nc.FeedError, match="county-47998"):
+        run(with_govs(directory, stray), agendas=agendas_with("x"))
+
+
+def test_council_entry_never_gets_another_councils_inputs(directory, monkeypatch):
+    """national/council-misattribution: a second council (its own council.yml) with no inputs of its own stops the
+    build instead of being given Clarksville's facts and listing."""
+    other_cfg = {**nc.council_cfg("city"), "body_key": "town"}
+    monkeypatch.setattr(config, "COUNCILS", [*config.COUNCILS, other_cfg])
+    town = entry(directory, COUNCIL_ID, gov="place-4799998", body_name="Some Town Council",
+                 daylight={"body": "town", "full_url": "town/"})
+    facts = facts_with({"id": "2026-12-03-regular", "date": "2026-12-03", "kind": "regular"})
+    with pytest.raises(nc.FeedError, match="place-4799998"):
+        run(with_govs(directory, directory.get(COUNCIL_ID), town), facts=facts)
+    feeds = nc.clarksville_feeds(with_govs(directory, directory.get(COUNCIL_ID), town),
+                                 {"city": (facts, []), "town": (facts_with(), [])}, None, date(2026, 11, 19),
+                                 checked_at=CHECKED)
+    assert [m["id"] for m in feeds[COUNCIL_ID]["meetings"]] == ["2026-12-03-regular"]
+    assert feeds["place-4799998"]["meetings"] == []
+
+
+def test_inputs_without_a_council_yml_stop_the_build(directory):
+    town = entry(directory, COUNCIL_ID, gov="place-4799998", daylight={"body": "town", "full_url": "town/"})
+    with pytest.raises(nc.FeedError):
+        nc.clarksville_feeds(with_govs(directory, town), {"town": (facts_with(), [])}, None, date(2026, 11, 19),
+                             checked_at=CHECKED)
+
+
+def test_council_cfg_of_no_key_is_none():
+    assert nc.council_cfg(None) is None and nc.council_cfg("") is None and nc.council_cfg("city")["body_key"] == "city"
+
+
+def test_unknown_kind_gets_the_fixed_fallback_title(directory):
+    ms = council(directory, listing=[{"date": "2026-12-03", "kind": "brand-new", "title": "<b>Whatever</b>"}])
+    assert [(m["title"], m["title_ours"]) for m in ms] == [(nc.FALLBACK_TITLE, True)]
+    agendas = agendas_with("x")
+    agendas["meetings"][0]["kind"] = "retreat"
+    assert run(directory, agendas=agendas)[COUNTY_ID]["meetings"][0]["title"] == nc.FALLBACK_TITLE
 
 
 # --- the council: not-read or not-posted, days.py's listing rules -------------------------------------------------
@@ -304,12 +351,31 @@ def test_council_listing_rows(directory):
         {"date": "2026-12-11", "kind": "other", "title": "One Time Event", "page1_required": True},
         {"date": "2026-11-18", "kind": "regular", "title": "Regular Session"},
         {"date": "2026-12-17", "kind": "work-session", "title": "Work Session", "agenda_url": "http://x.test/a"},
+        {"date": "2026-12-18", "kind": "work-session", "title": "Work Session", "agenda_url": None},
         {"date": None, "kind": "regular"}, {"date": "2026-13-40", "kind": "regular"}, {"date": "2026-12-20"},
+        {"date": 20261221, "kind": "regular"}, "not a row",
     ]
     ms = council(directory, listing=listing)
     assert [(m["id"], m["agenda"]["state"], m["agenda"]["url"]) for m in ms] == [
         ("2026-12-03-regular", "not-read", AGENDA["url"]),
-        ("2026-12-17-work-session", "not-posted", None)]
+        ("2026-12-17-work-session", "not-read", None),        # posted, but allowed_url refuses the link
+        ("2026-12-18-work-session", "not-posted", None)]
+
+
+def test_council_facts_agenda_refused_link_is_not_read_with_null_url(directory):
+    ms = council(directory, facts_with({"id": "2026-12-03-regular", "date": "2026-12-03", "kind": "regular",
+                                        "agenda_source_id": "src-a"},
+                                       sources=[{**AGENDA, "url": "http://clarksvilletn.gov/a.pdf"}]))
+    assert [(m["agenda"]["state"], m["agenda"]["url"]) for m in ms] == [("not-read", None)]
+
+
+def test_council_facts_meeting_called_off_on_the_listing_is_dropped(directory):
+    facts = facts_with({"id": "2026-12-03-regular", "date": "2026-12-03", "kind": "regular"},
+                       {"id": "2026-12-04-special", "date": "2026-12-04", "kind": "special"})
+    listing = [{"date": "2026-12-03", "kind": "regular", "title": "Regular Session CANCELLED"},
+               {"date": "2026-12-04", "kind": "special", "title": "Special Session POSTPONED"},
+               {"date": "2026-12-04", "kind": "special", "title": "Special Session"}]
+    assert [m["id"] for m in council(directory, facts, listing)] == ["2026-12-04-special"]
 
 
 def test_council_facts_meeting_wins_over_its_listing_row(directory):
@@ -334,7 +400,7 @@ def test_county_source_without_pages_is_left_out(directory):
 
 def test_county_bidi_and_controls_are_stripped_and_counted(directory):
     counts = {}
-    feeds = nc.clarksville_feeds(directory, facts_with(), [], agendas_with("Roads‮ and\x00 bridges"),
+    feeds = nc.clarksville_feeds(directory, {"city": (facts_with(), [])}, agendas_with("Roads‮ and\x00 bridges"),
                                  date(2026, 11, 19), checked_at=CHECKED, counts=counts)
     assert feeds[COUNTY_ID]["meetings"][0]["items"][0]["text"] == "Roads and bridges"
     assert counts[COUNTY_ID].chars_stripped == 2
@@ -352,7 +418,10 @@ def test_county_items_and_meetings_capped(directory):
     assert len(m["items"]) == g.MAX_ITEMS and m["item_count"] == 200
     listing = [{"date": f"2027-{1 + n // 28:02d}-{1 + n % 28:02d}", "kind": "regular", "title": "Regular Session"}
                for n in range(80)]
-    assert len(council(directory, listing=listing)) == g.MAX_MEETINGS
+    kept = council(directory, listing=listing)
+    days_ = sorted(r["date"] for r in listing)
+    assert len(kept) == g.MAX_MEETINGS
+    assert (kept[0]["date"], kept[-1]["date"]) == (days_[0], days_[g.MAX_MEETINGS - 1])     # the 60 soonest
 
 
 def test_county_bad_agenda_url_becomes_null(directory):
@@ -363,7 +432,8 @@ def test_county_bad_agenda_url_becomes_null(directory):
 
 def test_checked_at_must_be_aware(directory):
     with pytest.raises(ValueError):
-        nc.clarksville_feeds(directory, facts_with(), [], None, date(2026, 11, 19), checked_at=datetime(2026, 11, 19))
+        nc.clarksville_feeds(directory, {"city": (facts_with(), [])}, None, date(2026, 11, 19),
+                             checked_at=datetime(2026, 11, 19))
 
 
 def test_bad_feed_stops_the_build(directory, monkeypatch):

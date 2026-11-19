@@ -9,10 +9,17 @@ them in; nothing here opens a data/ path, so the data move of ADR 0011 does not 
   (every item cites a page).
 - City Council (7): upcoming items are not stored, so every meeting is `agenda.state` `not-read` (an agenda is
   posted) or `not-posted`, with no items and `item_count` null. Meetings come from the council's facts file (a meeting
-  from `today` on) and its CivicClerk listing (council.yml `calendar`, `load_listing`), read by the rules of the day
-  page's scheduled cards (sitegen/days.py `scheduled_cards`): no moved, cancelled or postponed row, no row listed from
-  another category (`page1_required`), one meeting per date and kind.
-- Neither source stores a meeting time: `time` is null. Titles are the fixed kind labels (`title_ours: true`).
+  from `today` on) and its CivicClerk listing (council.yml `calendar`, `load_listing`), read by the day page's one
+  rule for listing rows (sitegen/days.py `calendar_rows`). One meeting per date and kind; the facts meeting wins over
+  its listing row, except that a facts meeting whose only listing rows for its date and kind are called off (moved,
+  cancelled, postponed) is left out (the day page is unchanged). A posted agenda whose link `allowed_url` refuses is
+  still `not-read`, with a null `agenda.url` (the page falls back to `official_url`).
+- Neither source stores a meeting time: `time` is null. Titles are fixed labels (`title_ours: true`): the body's kind
+  label (council.yml `kind_labels`, config.KIND_LABELS), or FALLBACK_TITLE for a kind with no label, never the raw
+  kind.
+- Each council's inputs are passed keyed by its council.yml `body_key`; a covered daylight entry whose `daylight.body`
+  is neither the county's key nor a key with inputs and a council.yml stops the build (FeedError), so no entry is
+  ever given another council's meetings.
 
 Invariant `privacy-withhold/national-prefix` (section 11): `items_withheld` is the directory entry's `items` field
 (`gov["items"] != "shown"`, a missing field meaning withheld), never an id prefix. A withheld government's meetings
@@ -31,7 +38,7 @@ from typing import Mapping
 from jsonschema import Draft202012Validator, FormatChecker
 
 from . import config
-from .days import _CALLED_OFF
+from .days import calendar_rows
 from .national import Directory
 from .national_guards import GuardCounts, allowed_url, clean_feed
 
@@ -43,6 +50,7 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 NOT_READ = "not-read"          # posted, items not read by us (the City Council in M1)
 NOT_POSTED = "not-posted"
 FINAL = "final"                # an agenda as printed (the County Commission's agenda-only meetings)
+FALLBACK_TITLE = "Meeting"     # the fixed title of a meeting whose kind has no label
 
 
 class FeedError(ValueError):
@@ -51,8 +59,10 @@ class FeedError(ValueError):
 
 # --- inputs (loaded by the caller) --------------------------------------------------------------------------------
 
-def council_cfg(body_key: str) -> dict | None:
-    """The config.COUNCILS entry (council.yml) whose `body_key` is `body_key`, or None."""
+def council_cfg(body_key) -> dict | None:
+    """The config.COUNCILS entry (council.yml) whose `body_key` is `body_key`, or None (also for a missing key)."""
+    if not isinstance(body_key, str) or not body_key:
+        return None
     return next((c for c in config.COUNCILS if c.get("body_key") == body_key), None)
 
 
@@ -91,6 +101,11 @@ def _iso_day(value) -> bool:
     return True
 
 
+def _title(kind_labels: Mapping[str, str], kind) -> str:
+    label = kind_labels.get(kind) if isinstance(kind, str) else None
+    return label if isinstance(label, str) and label else FALLBACK_TITLE
+
+
 def _meeting(mid: str, day: str, title: str, state: str, agenda_url, withheld: bool) -> dict:
     return {"id": mid, "date": day, "time": None, "title": title, "title_ours": True, "meeting_url": None,
             "agenda": {"state": state, "url": agenda_url or None, "status_as_posted": None},
@@ -99,29 +114,30 @@ def _meeting(mid: str, day: str, title: str, state: str, agenda_url, withheld: b
 
 def council_meetings(facts: dict, listing: list, today: date, kind_labels: Mapping[str, str],
                      withheld: bool) -> list[dict]:
-    """The City Council's meetings from `today` on, soonest first: each `not-read` with its agenda link when an agenda
-    is posted, else `not-posted`; never items (they are not stored, architecture 7)."""
+    """The City Council's meetings from `today` on, soonest first: each `not-read` when an agenda is posted (its link
+    when `allowed_url` keeps it, else null), else `not-posted`; never items (they are not stored, architecture 7)."""
     day0 = today.isoformat()
     sources = {s["id"]: s for s in facts.get("sources", []) if isinstance(s, dict) and "id" in s}
+    rows = [r for r in listing if isinstance(r, dict) and _iso_day(r.get("date")) and isinstance(r.get("kind"), str)]
+    called_off: set = set()
+    listed = calendar_rows(rows, today, called_off)
+    cancelled = called_off - {(r["date"], r["kind"]) for r in listed}    # every row for that date and kind called off
     out: dict[tuple[str, str], dict] = {}
     for m in facts.get("meetings", []):
-        if not _iso_day(m.get("date")) or m["date"] < day0 or not m.get("kind"):
+        if not _iso_day(m.get("date")) or m["date"] < day0 or not m.get("kind") or (m["date"], m["kind"]) in cancelled:
             continue
-        agenda = sources.get(m.get("agenda_source_id") or "") or {}
-        url = allowed_url(agenda.get("url"), PLATFORM)
+        agenda = sources.get(m.get("agenda_source_id") or "")
         out.setdefault((m["date"], m["kind"]), _meeting(
-            m.get("id") or f"{m['date']}-{m['kind']}", m["date"], kind_labels.get(m["kind"], m["kind"]),
-            NOT_READ if url else NOT_POSTED, url, withheld))
-    for row in sorted((r for r in listing if isinstance(r, dict)),
-                      key=lambda r: (str(r.get("date") or ""), str(r.get("kind") or ""))):
-        day, kind = row.get("date"), row.get("kind")
-        if not _iso_day(day) or not isinstance(kind, str) or not kind or day < day0:
+            m.get("id") or f"{m['date']}-{m['kind']}", m["date"], _title(kind_labels, m["kind"]),
+            NOT_READ if agenda else NOT_POSTED, allowed_url((agenda or {}).get("url"), PLATFORM), withheld))
+    for row in listed:
+        day, kind = row["date"], row["kind"]
+        if (day, kind) in out:
             continue
-        if _CALLED_OFF.search(row.get("title") or "") or row.get("page1_required") or (day, kind) in out:
-            continue
-        url = allowed_url(row.get("agenda_url"), PLATFORM)
-        out[(day, kind)] = _meeting(f"{day}-{kind}", day, kind_labels.get(kind, kind),
-                                    NOT_READ if url else NOT_POSTED, url, withheld)
+        posted = bool(row.get("agenda_url"))
+        out[(day, kind)] = _meeting(f"{day}-{kind}", day, _title(kind_labels, kind),
+                                    NOT_READ if posted else NOT_POSTED, allowed_url(row.get("agenda_url"), PLATFORM),
+                                    withheld)
     return sorted(out.values(), key=lambda m: (m["date"], m["id"]))
 
 
@@ -138,7 +154,7 @@ def county_meetings(agendas: dict | None, today: date, kind_labels: Mapping[str,
             continue
         src = sources[m["source_id"]]
         url = allowed_url(src.get("url"), PLATFORM)
-        meeting = _meeting(m.get("id"), m["date"], kind_labels.get(m.get("kind"), m.get("kind") or ""), FINAL, url,
+        meeting = _meeting(m.get("id"), m["date"], _title(kind_labels, m.get("kind")), FINAL, url,
                            withheld)
         if not withheld:
             stored = [it for it in m.get("items", []) if isinstance(it, dict)]
@@ -159,19 +175,19 @@ def _feed(gov: Mapping, tz: str, meetings: list[dict], stamp: str) -> dict:
             "checked_at": stamp, "last_ok_at": stamp, "meetings": meetings}
 
 
-def clarksville_feeds(directory: Directory, facts_city: dict, listing_city: list, county_agendas: dict | None,
-                      today: date, *, checked_at: datetime, council_kinds: Mapping[str, str] | None = None,
-                      county_kinds: Mapping[str, str] | None = None,
+def clarksville_feeds(directory: Directory, councils: Mapping[str, tuple[dict, list]], county_agendas: dict | None,
+                      today: date, *, checked_at: datetime,
                       counts: dict[str, GuardCounts] | None = None) -> dict[str, dict]:
-    """{body id: `daylight-upcoming/1` feed} for every covered daylight entry of the directory whose `daylight.body`
-    is the county's key (config.SITE `county_key`) or the council's (council.yml `body_key`). `today` is the build day
-    in the body's zone; `checked_at` (aware) is when the inputs were collected, written as `checked_at` and
-    `last_ok_at`. Each feed goes through `national_guards.clean_feed` and is then checked against the schema
-    (FeedError). `counts`, if given, receives each feed's GuardCounts for the run log."""
+    """{body id: `daylight-upcoming/1` feed} for every covered daylight entry of the directory. `councils` maps a
+    council's council.yml `body_key` to its (facts, listing); an entry gets the county feed when its `daylight.body`
+    is config.SITE `county_key`, that council's feed when it is a key of `councils` with a council.yml, and any other
+    key stops the build (FeedError). `today` is the build day in the body's zone; `checked_at` (aware) is when the
+    inputs were collected, written as `checked_at` and `last_ok_at`. Each feed goes through
+    `national_guards.clean_feed` and is then checked against the schema (FeedError). `counts`, if given, receives each
+    feed's GuardCounts for the run log."""
     stamp = _instant(checked_at)
     tz = config.SITE["site_timezone"]
     county_key = config.SITE["county_key"]
-    county_kinds = config.KIND_LABELS if county_kinds is None else county_kinds
     feeds: dict[str, dict] = {}
     for gov in directory.govs:
         if gov.get("status") != "covered" or gov.get("platform") != PLATFORM:
@@ -179,12 +195,13 @@ def clarksville_feeds(directory: Directory, facts_city: dict, listing_city: list
         key = (gov.get("daylight") or {}).get("body")
         withheld = not _shown(gov)
         if key == county_key:
-            meetings = county_meetings(county_agendas, today, county_kinds, withheld)
-        elif (cfg := council_cfg(key)) is not None:
-            kinds = (cfg.get("kind_labels") or {}) if council_kinds is None else council_kinds
-            meetings = council_meetings(facts_city, listing_city, today, kinds, withheld)
+            meetings = county_meetings(county_agendas, today, config.KIND_LABELS, withheld)
+        elif key in councils and (cfg := council_cfg(key)) is not None:
+            facts, listing = councils[key]
+            meetings = council_meetings(facts, listing, today, cfg.get("kind_labels") or {}, withheld)
         else:
-            continue
+            raise FeedError(f"{gov['gov']}: daylight.body {key!r} is neither the county's key nor a council with "
+                            "inputs and a council.yml")
         feed, n = clean_feed(_feed(gov, tz, meetings, stamp), PLATFORM)
         errors = feed_errors(feed)
         if errors:

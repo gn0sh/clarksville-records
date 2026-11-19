@@ -348,12 +348,17 @@ lines.
 
 ### 4.3 National builder (`sitegen/national.py`)
 - `load_directory(path) -> Directory` (raises `NationalConfigError` naming the entry and key).
-- `clarksville_feeds(directory, facts_city, listing_city, county_agendas, today, *, checked_at, counts=None)
+- `clarksville_feeds(directory, councils, county_agendas, today, *, checked_at, counts=None)
   -> dict[body_id, UpcomingFeed]` (B3: `sitegen/national_clarksville.py`): council meetings with `agenda.state =
-  not-read` (or `not-posted`), county agenda-only meetings with items as stored. `directory` supplies each feed's body
-  and its `items` field (section 11); an entry gets the county or council feed by its `daylight.body` key, not its id.
-  `checked_at` (aware) is when the inputs were collected (both `checked_at` and `last_ok_at`); `counts` receives the
-  guards' counts per body for the run log. The inputs are loaded by the caller with the build's loaders; each feed is
+  not-read` (or `not-posted`), county agenda-only meetings with items as stored. `councils` is `{council.yml body_key:
+  (facts, listing)}`. `directory` supplies each feed's body and its `items` field (section 11); an entry gets the
+  county feed or that council's feed by its `daylight.body` key, not its id, and a covered daylight entry whose key is
+  neither the county's nor a council with inputs and a council.yml stops the build (`FeedError`). `checked_at`
+  (aware) is when the inputs were collected (both `checked_at` and `last_ok_at`); `counts` receives the guards'
+  counts per body for the run log. The inputs are loaded by the caller with the build's loaders; listing rows pass
+  `sitegen/days.py calendar_rows` (the day page's rule). A posted council agenda whose link `allowed_url` refuses is
+  `not-read` with a null `agenda.url`; a facts meeting whose only listing rows are called off is left out. Titles are
+  the body's kind labels, or the fixed `Meeting` for an unlabelled kind (`title_ours` stays true). Each feed is
   checked against `schema/daylight-upcoming.schema.json` (`FeedError`). `meeting_url` is null for both bodies (no
   per-meeting source page; the page uses `official_url`).
 - `build_national(out_dir, directory, feeds, labels, share, counter_on) -> list[path]`: writes `digest/index.html`,
