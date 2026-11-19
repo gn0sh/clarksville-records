@@ -120,3 +120,4 @@
   guarantees. nit: page-visit paragraph should say what count.js sends.
 - Holds: three keys and shapes, address only in page memory and the Census frame, post fields, count event, page built
   only when on, same CSP/header/digest.css as other digest pages.
+- T1 delta (b2cd2682): APPROVE. Nit kept: with the counter off, the counted-key line still names "Just count me" (production has analytics on, so the counter shows there).
