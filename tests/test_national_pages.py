@@ -751,11 +751,14 @@ def _word_list_topics(number: str | None, text: str, page_labels) -> list[str]:
 
 def test_topics_are_the_morning_note_lists_with_a_word_rule(page_labels):
     from sitegen import morning
-    item_types = {t["key"] for t in config.SITE["item_types"]}
+    types = {t["key"]: t for t in config.SITE["item_types"]}
+    item_types = set(types)
     assert [k for k, _ in npg.TOPICS] == ["zoning", "budget"]
     for key, item_type in npg.TOPICS:
         assert key in morning.LIST_KEYS and item_type in item_types
-        assert page_labels[f"body.topic-{key}"] in ("Zoning and land use", "Budget and taxes")   # design 5 copy
+        # the chip is the About page's name for the item type it links to (about.html#item-types), word for word
+        assert page_labels[f"body.topic-{key}"] == types[item_type]["label"]
+    assert (page_labels["body.topic-zoning"], page_labels["body.topic-budget"]) == ("Rezoning", "Budget and finance")
     assert npg.item_topics(None, "Rezone 5 acres on Main St") == ["body.topic-zoning"]
     assert npg.item_topics("CZ-12-2026", "Application of A. Owner") == ["body.topic-zoning"]
     assert npg.item_topics(None, "FY27 Budget amendment") == ["body.topic-budget"]
@@ -775,15 +778,15 @@ def test_topic_labels_follow_shown_items_and_never_a_withheld_meeting(tmp_path, 
     out = tmp_path / "site"
     _build_pages_into(out, d, flags, labels, page_labels, feeds)
     html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
-    assert [t for _h, t in _printed_topics(html)] == [["Budget and taxes"], ["Zoning and land use"], []]
+    assert [t for _h, t in _printed_topics(html)] == [["Budget and finance"], ["Rezoning"], []]
     assert html.count('class="digest-topic-note"') == 1
     assert 'href="../../about.html#item-types"' in html
-    assert '<span class="sr-only">Topic: </span>Zoning and land use' in html       # accessible name "Topic: ..."
+    assert '<span class="sr-only">Topic: </span>Rezoning' in html       # accessible name "Topic: ..."
     rest = leftover(main_text(html), [*page_labels.values(), *labels.values(), *FRAME_WORDS],
                     _sources(d, [feeds[COUNTY_ID]]))
     assert re.fullmatch(r"[\s.,·:/]*", rest), rest.strip()[:300]
     other = (out / "digest" / "tn" / "place-4799999.html").read_text(encoding="utf-8")
-    assert "digest-topic" not in other and "Budget and taxes" not in other
+    assert "digest-topic" not in other and "Budget and finance" not in other
     # a page with no matching item prints no note
     feeds2 = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("Approve the minutes"), date(2026, 11, 19),
                                    checked_at=BUILT_AT)

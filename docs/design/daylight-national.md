@@ -504,7 +504,7 @@ the offline estimate exists. Jump list and filter: when the row counts above are
 | Central Time. Official agenda >    |
 |  1. ORDINANCE 41-2026-27 (first    |  h3, verbatim
 |     reading) Amending the zoning.. |
-|     [Zoning and land use]          |
+|     [Rezoning]                     |
 |     > Full text of this item       |
 |  2. RESOLUTION 22-2026-27 ...      |
 |                                    |
@@ -537,7 +537,7 @@ the offline estimate exists. Jump list and filter: when the row counts above are
 | Item text cut short in our record (`body.cut`; under that item) | This item is cut short here. The rest is in the official agenda. [Official agenda] |
 | Item's page in the official agenda (`body.item-page`; one link under the item) | [Official agenda, page {page}] |
 | Long item toggle (not built in M1; see the layout rule) | Full text of this item |
-| Topic labels | Zoning and land use / Budget and taxes / Contracts and purchases / Appointments |
+| Topic labels | Rezoning / Budget and finance (M1; each chip is the About page's item type name it links to, about.html#item-types, word for word; manager decision 2026-11-19). Later topics take their About page names too. |
 | Topic note, once per page | Topic labels come from a fixed word list, not AI. [How topics are picked] |
 | No meetings | No upcoming meetings are posted. [Official meetings page] |
 | Tennessee bodies only (AC4.5) | Votes and past meetings are on the [full Daylight pages]. |
@@ -720,7 +720,7 @@ Clarksville City Council                 (h2)
 Thursday, December 3, 2026, 6 PM Central Time   (h3)
 Regular Session (as posted). Official agenda >
   1. ORDINANCE 41-2026-27 ... (title, verbatim)
-     Topic: Zoning and land use
+     Topic: Rezoning
   2. ...
   12 more items. See the full list >
 

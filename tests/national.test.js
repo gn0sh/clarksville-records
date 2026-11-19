@@ -201,10 +201,78 @@ test('MA: Suffolk (H4|N, also hidden by id) and Nantucket (H4|N, not flagged) ->
   const r2 = govsOf(one(unit('county', '25019', 'Nantucket County', 'N', 'H4'),
     unit('cousub', '2501943790', 'Nantucket town', 'A', 'T1')).units);
   assert.deepStrictEqual(ids(r2), ['cousub-2501943790']);
-  assert.deepStrictEqual(r2.notes, ['note.no-city', 'note.no-county']);
+  assert.strictEqual(r2.govs[0].slot, 'place');                    // AC2.11: a New England town is the city or town
+  assert.deepStrictEqual(r2.notes, ['note.no-county']);
   // a statistical county equivalent (FUNCSTAT S) is dropped by step 1: "no county" too
   const r3 = govsOf(one(unit('place', '4799003', 'Somewhere city', 'A', 'C1'), unit('county', '02999', 'Census Area', 'S', 'H5')).units);
   assert.deepStrictEqual(r3.notes, ['note.no-county']);
+});
+
+// --- AC2.11 (QA national/new-england-town-slot): New England towns outside Connecticut, gov-flags `slots` ----------
+test('MA Plymouth: the town is in the city-or-town slot, ordered first, no no-city; the county keeps its slot', () => {
+  // raw shape: Plymouth CDP (statistical, FUNCSTAT S) is dropped by step 1; Plymouth County H1|A; Plymouth town T1|A
+  const r = govsOf(one(unit('county', '25023', 'Plymouth County', 'A', 'H1'),
+    unit('place', '2554275', 'Plymouth CDP', 'S', 'U1'),
+    unit('cousub', '2502354240', 'Plymouth town', 'A', 'T1'),
+    unit('sdu', '2509690', 'Plymouth School District', 'E')).units);
+  assert.deepStrictEqual(ids(r), ['cousub-2502354240', 'county-25023', 'sdu-2509690']);
+  assert.deepStrictEqual(r.govs.map((g) => g.slot), ['place', 'county', 'sdu']);
+  assert.deepStrictEqual(r.notes, []);
+  assert.strictEqual(N.label(PAGEDIR, 'slot.' + r.govs[0].slot), 'CITY OR TOWN');
+  assert.strictEqual(N.slotOf(PAGEDIR, 'cousub-2502354240'), 'place');
+  // a real place in the same answer stays ahead of the moved town (same slot, then real layer)
+  const r2 = govsOf(one(unit('cousub', '2502354240', 'Plymouth town', 'A', 'T1'),
+    unit('place', '2599999', 'Some city', 'A', 'C1'), unit('county', '25023', 'Plymouth County', 'A', 'H1')).units);
+  assert.deepStrictEqual(ids(r2), ['place-2599999', 'cousub-2502354240', 'county-25023']);
+  assert.deepStrictEqual(r2.govs.map((g) => g.slot), ['place', 'place', 'county']);
+  // the other listed states move too; the saved list draws the same slot (slotOf by id)
+  for (const st of ['23', '33', '44', '50']) {
+    assert.strictEqual(N.slotOf(PAGEDIR, `cousub-${st}00100000`), 'place', st);
+  }
+});
+
+test('Connecticut (not listed), New York and Tennessee towns keep TOWNSHIP OR TOWN and get no-city', () => {
+  const ct = govsOf(one(unit('cousub', '0911082660', 'West Hartford town', 'A', 'T1')).units);
+  assert.deepStrictEqual(ct.govs.map((g) => g.slot), ['cousub']);
+  assert.deepStrictEqual(ct.notes, ['note.no-city']);
+  assert.strictEqual(N.slotOf(PAGEDIR, 'cousub-0911082660'), 'cousub');
+  assert.strictEqual(N.slotOf(PAGEDIR, 'cousub-3607150911'), 'cousub');
+  assert.strictEqual(N.slotOf(PAGEDIR, 'cousub-4712590887'), 'cousub');
+  assert.strictEqual(N.slotOf(PAGEDIR, 'county-25023'), 'county');
+  assert.strictEqual(N.slotOf(PAGEDIR, 'bad'), null);
+});
+
+test('step 5 uses the real layer: a moved T5 town with no real place stays; a C5 copy of a real place still goes', () => {
+  const r = govsOf(one(unit('cousub', '2502399999', 'Some town', 'A', 'T5')).units);
+  assert.deepStrictEqual(ids(r), ['cousub-2502399999']);
+  assert.deepStrictEqual(r.notes, []);
+  const b = govsOf(one(unit('place', '2507000', 'Boston city', 'A', 'C5'),
+    unit('cousub', '2502507000', 'Boston city', 'A', 'C5')).units);
+  assert.deepStrictEqual(ids(b), ['place-2507000']);
+});
+
+test('pagedir slots are checked on read: bad shapes, other moves and duplicates are not read (the layer stays)', () => {
+  assert.ok(PAGEDIR.slots.some((s) => s.state === '25' && s.layer === 'cousub' && s.slot === 'place'));
+  assert.ok(!PAGEDIR.slots.some((s) => s.state === '09'));
+  const nantucket = one(unit('cousub', '2501943790', 'Nantucket town', 'A', 'T1')).units;
+  const bad = [null, 'x', {}, [null], ['25|cousub'], [{ state: 25, layer: 'cousub', slot: 'place' }],
+    [{ state: '025', layer: 'cousub', slot: 'place' }], [{ state: '25', layer: 'county', slot: 'place' }],
+    [{ state: '25', layer: 'cousub', slot: 'county' }], [{ state: '25', layer: 'cousub', slot: 'sdu' }],
+    [{ state: '25', layer: '__proto__', slot: 'place' }], [{ state: '25', layer: 'constructor', slot: 'place' }],
+    [{ state: '25', layer: 'cousub' }],
+    [{ state: '25', layer: 'cousub', slot: 'place' }, { state: '25', layer: 'cousub', slot: 'place' }]];
+  for (const slots of bad) {
+    const pd = copyPd();
+    pd.slots = slots;
+    const r = govsOf(nantucket, pd);
+    assert.deepStrictEqual(r.govs.map((g) => g.slot), ['cousub'], JSON.stringify(slots));
+    assert.deepStrictEqual(r.notes, ['note.no-city'], JSON.stringify(slots));
+  }
+  const pd = copyPd();
+  delete pd.slots;
+  assert.deepStrictEqual(govsOf(nantucket, pd).govs.map((g) => g.slot), ['cousub']);
+  // a pagedir that is not one moves nothing
+  assert.deepStrictEqual(N.governments(nantucket, null).govs.map((g) => g.slot), ['cousub']);
 });
 
 test('coextensive town and city: COUSUBCC T5 (not the name) makes one row', () => {

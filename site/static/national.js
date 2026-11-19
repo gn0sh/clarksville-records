@@ -58,6 +58,8 @@
   // Step 5: COUSUBCC codes that say the county subdivision is the same area as an incorporated place (census.gov class
   // codes: T5 cousub coextensive with a place; C2, C5 and C7 places that serve as their own county subdivision).
   var COEXTENSIVE = new Set(["T5", "C2", "C5", "C7"]);
+  // The one slot move gov-flags `slots` may make (sitegen/national.py SLOT_MOVES; AC2.11).
+  var SLOT_MOVES = Object.freeze({ cousub: "place" });
 
   var GEOID_RE = /^\d{5,10}$/;
   var STATE_RE = /^\d{2}$/;
@@ -152,16 +154,36 @@
         idx.rules.set(r.state + "|" + r.layer, r.show);
       }
     });
+    // `slots` (3.3, AC2.11): only the one move the build accepts (sitegen/national.py SLOT_MOVES: cousub -> place);
+    // any other shape, layer, slot or a second entry for the same state and layer is not read (fail closed: the card
+    // keeps its own layer's slot).
+    var seenSlots = new Set();
+    (Array.isArray(pd.slots) ? pd.slots : []).forEach(function (s) {
+      if (!isObj(s) || typeof s.state !== "string" || !STATE_RE.test(s.state) || typeof s.layer !== "string" ||
+          typeof s.slot !== "string" || !own(SLOT_MOVES, s.layer) || SLOT_MOVES[s.layer] !== s.slot) { return; }
+      var k = s.state + "|" + s.layer;
+      if (seenSlots.has(k)) { idx.slots.delete(k); return; }
+      seenSlots.add(k);
+      idx.slots.set(k, s.slot);
+    });
     idx.root = typeof pd.root === "string" && /^(\.\.\/)*$/.test(pd.root) ? pd.root : "";
     return idx;
   }
   function emptyIndex() {
     return { govs: new Map(), alias: new Map(), lines: new Map(), labels: new Map(), hide: new Set(),
-             show: new Set(), rules: new Map(), root: "" };
+             show: new Set(), rules: new Map(), slots: new Map(), root: "" };
   }
   function asIndex(p) {
     if (p && p.govs instanceof Map) { return p; }
     return indexPagedir(p) || emptyIndex();
+  }
+  /* The slot (a layer name, label `slot.<slot>`) of a card for id: its layer, or the pagedir `slots` move for that
+     layer in the id's state (the GEOID's first two digits; AC2.11). null for a bad id. */
+  function slotOf(pagedir, id) {
+    var layer = layerOf(id);
+    if (!layer) { return null; }
+    var s = asIndex(pagedir).slots.get(id.slice(layer.length + 1, layer.length + 3) + "|" + layer);
+    return typeof s === "string" ? s : layer;
   }
   /* A label's text ("" when there is none), for textContent. */
   function label(pagedir, key) {
@@ -170,8 +192,8 @@
   }
 
   /* The card fields from the directory entry (3.4), each checked: status, board, and the status's own fields. */
-  function cardOf(u, entry) {
-    var g = { id: u.id, name: u.name, slot: u.layer, status: "not-covered-yet" };
+  function cardOf(u, entry, slot) {
+    var g = { id: u.id, name: u.name, slot: slot || u.layer, status: "not-covered-yet" };
     if (!entry || (entry.status !== "covered" && entry.status !== "cant-cover")) { return g; }
     g.status = entry.status;
     var board = clean(entry.board, MAX_NAME);
@@ -195,9 +217,11 @@
      fail closed; only an id-level `show` brings a unit back), else step 1's answer; (3) school district "not
      defined" (GEOID ends 99999); (4) alias, then one card per id; (5) a county subdivision whose COUSUBCC says it is
      the same area as an incorporated place goes when a place is kept; (6) status; (7) order place, county, cousub,
-     sde, sds, sdu (school districts elementary, secondary, unified: UX section 3).
+     sde, sds, sdu (school districts elementary, secondary, unified: UX section 3) by each card's slot (its layer, or
+     the pagedir `slots` move: a New England town outside Connecticut is in slot place, AC2.11), then by real layer.
+     Step 5 compares real Census layers, never slots.
      Notes, as label keys: "note.<line>" for each returned unit's gov-flags line, kept or hidden; else "note.no-city"
-     when no place is kept and "note.no-county" when the answer had a county and none is kept. */
+     when no kept unit is in slot place and "note.no-county" when the answer had a county and none is kept. */
   function governments(units, pagedir) {
     var idx = asIndex(pagedir);
     var lineNotes = [], hadCounty = false, recs = [];
@@ -229,11 +253,14 @@
     var kept = Array.from(byId.values());
     var hasPlace = kept.some(function (r) { return r.layer === "place"; });
     kept = kept.filter(function (r) { return !(hasPlace && r.layer === "cousub" && COEXTENSIVE.has(r.cc)); });
-    kept.sort(function (a, b) { return ORDER.get(a.layer) - ORDER.get(b.layer); });   // stable sort
-    var govs = kept.map(function (r) { return cardOf(r, idx.govs.get(r.id)); });
+    kept.forEach(function (r) { r.slot = slotOf(idx, r.id); });
+    kept.sort(function (a, b) {                                                          // stable sort
+      return (ORDER.get(a.slot) - ORDER.get(b.slot)) || (ORDER.get(a.layer) - ORDER.get(b.layer));
+    });
+    var govs = kept.map(function (r) { return cardOf(r, idx.govs.get(r.id), r.slot); });
     var notes = lineNotes.slice();
     if (!notes.length) {
-      if (!hasPlace) { notes.push("note.no-city"); }
+      if (!kept.some(function (r) { return r.slot === "place"; })) { notes.push("note.no-city"); }
       if (hadCounty && !kept.some(function (r) { return r.layer === "county"; })) { notes.push("note.no-county"); }
     }
     return { govs: govs, notes: notes };
@@ -678,7 +705,7 @@
     function showSaved() {
       clearSaved();
       var govs = loadList(storage).filter(function (g) { return !!layerOf(g.id) && !idx.hide.has(g.id); }).map(function (g) {
-        return cardOf({ id: g.id, name: g.name, layer: layerOf(g.id) }, idx.govs.get(g.id));
+        return cardOf({ id: g.id, name: g.name, layer: layerOf(g.id) }, idx.govs.get(g.id), slotOf(idx, g.id));
       });
       if (!govs.length) { return; }
       saved.hidden = false;
@@ -989,6 +1016,7 @@
 
   var api = {
     jsonpUrl: jsonpUrl, classify: classify, governments: governments, indexPagedir: indexPagedir, label: label,
+    slotOf: slotOf,
     loadList: loadList, saveList: saveList, forget: forget, markRequested: markRequested, markCounted: markCounted,
     loadRequested: loadRequested, loadCounted: loadCounted, storageOf: storageOf,
     frameMessage: frameMessage, resultOf: resultOf, cleanAddress: cleanAddress, lookup: lookup,

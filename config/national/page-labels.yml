@@ -182,8 +182,9 @@ labels:
   body.morning: "[Get the morning note]"
   # Topic labels (AC4.7; design section 5): a chip after an item whose verbatim number or text matches the item type
   # word list (sitegen/national_pages.py TOPICS), "Topic:" read by screen readers only, and the note once per page
-  # that shows a chip, linked to the About page's word lists.
+  # that shows a chip, linked to the About page's word lists. Each chip is the About page's item type name
+  # (config/site.yml item_types `label`, about.html#item-types) word for word (manager decision 2026-11-19).
   body.topic-sr: "Topic:"
-  body.topic-zoning: Zoning and land use
-  body.topic-budget: Budget and taxes
+  body.topic-zoning: Rezoning
+  body.topic-budget: Budget and finance
   body.topic-note: Topic labels come from a fixed word list, not AI. [How topics are picked]
