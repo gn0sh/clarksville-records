@@ -46,3 +46,12 @@
 - Manager decision: replace the allowlist heuristic with a code-reviewed `SHOWN_REVIEWED` (gov id, body_name) table as
   the primary control; keep the stem denylist and a non-ASCII refusal as a fail-closed second guard.
 - Open for the architect: `contract/legistar-official-url`.
+
+## B3 (baf0d3d3), code-reviewer opus/high: APPROVE (4 should-fix, 3 nits, sent back for fixing)
+- Privacy-withhold holds: `_shown` reads only the directory `items` field; withheld items never read; schema allOf
+  refuses items on withheld meetings; errors and counts carry no text. 180 passed on a clean archive (no skips).
+- should-fix `tests/real-data/silent-skip`: real-data tests would all skip silently after the ADR 0011 data move.
+- should-fix `national/council-misattribution`: any council body_key gets Clarksville's inputs.
+- should-fix `council-listing/rules-drift`: re-implements `days.scheduled_cards` row rules via private `_CALLED_OFF`.
+- should-fix `tests/cap-order`: cap test checks only the length.
+- nits: cancelled listing vs facts meeting, refused URL labelled not-posted, 4.3 signature drift.
