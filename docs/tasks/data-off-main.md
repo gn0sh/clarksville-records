@@ -252,7 +252,7 @@ Choices the reviewers should check:
   `requirements.txt`.
 - Rollback order: after the cutover merge it is two calls. `--rollback --cutover-merge <sha>` opens the restore PR
   (also restores the workflow and CODEOWNERS from before the merge, else the gate would refuse every run);
-  `--rollback --merge <R> --sha <head> --report <r>` merges it, then R1', then R2 on, then the workflow, so R2 never
+  `--rollback --merge <R> --sha <head> --cutover-merge <sha> --report <r>` merges it, then R1', then R2 on, then the workflow, so R2 never
   comes on while CODEOWNERS is absent. Before the merge it is R1', R2 on, workflow on. Both disable the workflow first.
 - The cutover PR's own change (B2 refuses a tracked `data/`): `--prepare` on its branch stages `git rm -r --cached
   data`, `data/` in `.gitignore` and CODEOWNERS deleted; then `--plan` gives the pin, the sha256 of `git ls-tree -r -z
