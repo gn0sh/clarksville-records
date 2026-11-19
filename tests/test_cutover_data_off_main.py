@@ -762,14 +762,16 @@ def test_step5_stops_unless_the_merge_is_a_bypass(tmp_path):
     assert r.returncode == 2 and "STOPPED at step 5" in r.stdout and "bypass" in r.stdout
     assert fx.state["wf_state"] == "disabled_manually"
     # data-off-main/undo-line-after-merge: main moved in the call, so the undo names the new main
-    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ") + fx.og("rev-parse", "refs/heads/main") in r.stdout
+    undo = fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ")
+    assert undo + fx.og("rev-parse", "refs/heads/main") in r.stdout
 
 
 def test_step5_undo_names_the_new_main_when_the_merge_output_is_not_understood(tmp_path):
     fx = Fx(tmp_path)
     r = fx.cut(STUB_MR="garbled")
     assert r.returncode == 2 and "STOPPED at step 5" in r.stdout
-    assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ") + fx.og("rev-parse", "refs/heads/main") in r.stdout
+    undo = fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ")
+    assert undo + fx.og("rev-parse", "refs/heads/main") in r.stdout
 
 
 def test_step5_stops_when_the_squash_parent_is_not_the_pinned_baseline(tmp_path):
