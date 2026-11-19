@@ -39,6 +39,7 @@ existing pages changes (see 7a for what "byte-identical" means with the switch o
 | Labels | `config/national/labels.yml` | Every fixed string on digest pages (AC4.5, AC4.8), in "government" words | M1 |
 | Coverage share | `config/national/share.yml` (optional) | `{pct, k, date}` for the What we cover sentence; absent = sentence omitted | M1.5 |
 | National builder | `sitegen/national.py` (+ templates) | Writes `digest/` pages and per-government JSON from directory + data; the header variant, Menu group and front-page line | M1 |
+| Shared guards | `sitegen/national_guards.py` (imports only `sitegen.config`; the builder and `collector/national/` both import it) | `allowed_url` (https_link + no credentials/port + platform host allowlist), `link_or_official`, `checked_id`/`checked_meeting_id`, `clean_text`, `clean_feed` (3.5 caps, stripping, URL nulling; returns counts for the run log) | M1 (B14) |
 | Geo frame | `digest/geo-frame.html` (static, built; own meta CSP) | The only page that may load the Census JSONP; sandboxed (`allow-scripts`, no `allow-same-origin`); gets the address by `postMessage`, answers by `postMessage` | M1 |
 | Lookup script | `site/static/national.js` (+ the `address.js` message checks) | Drives the frame, classify, render list, picker, in-card request form, device list | M1 |
 | Counter script | `site/static/us-count.js` (digest pages only) | The anonymous "Just count me" event; exposes `window.DaylightCount` | M1 |
@@ -174,7 +175,10 @@ whitespace joined, nothing else changed, capped at 2,000 characters per item (lo
 government, bidi-override and other control characters stripped and counted in the run log (finding 12). Every URL in
 the file (`official_url`, `meeting_url`, `agenda.url`, `items[].source.url`) must pass `config.https_link` and, off
 Daylight, the platform's host allowlist, at collection and again at build; a bad URL is dropped (field null) and the
-page falls back to the directory's `official_url` (finding 4). `time` is the posted time string or null. `title_ours` marks
+page falls back to the directory's `official_url` (finding 4). A meeting `id` matches `^[a-z0-9][a-z0-9-]{0,79}$` (a meeting that does not is dropped and
+counted); every id and path rule is a full match (no trailing newline). Whitespace controls (tab, CR, LF, VT, FF) are
+word breaks, not stripped characters; any other text field read from outside is stripped the same way and capped at
+2,000 characters without a `cut` mark (B14). `time` is the posted time string or null. `title_ours` marks
 a title built from fixed labels (Clarksville meetings have a kind, not a posted title). No vote, outcome, tally,
 attendance, motion or person's name field exists in this schema (AC4.4); a test fails on any extra key.
 

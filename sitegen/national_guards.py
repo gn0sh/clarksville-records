@@ -1,0 +1,206 @@
+"""Daylight Digest shared guards (docs/architecture/daylight-national.md 3.5 and 6; task B14): the rules every outside
+value passes before it reaches a digest page, a feed file, a path or a tag, in the builder and in the collector alike.
+
+Security findings 4 (`national/url-scheme-untrusted`) and 12 (`national/untrusted-size`):
+- `allowed_url`: an outside URL is kept only if `config.https_link` passes, it has no user name, password or port but
+  443, and, for a platform other than daylight, its host is on that platform's allowlist. Else "" (the feed field
+  becomes null and the page falls back to the directory's `official_url`: `link_or_official`).
+- `checked_id` / `checked_meeting_id`: an id that becomes a path or a tag matches the id regex first.
+- `clean_text`: control characters and bidi overrides stripped (and counted), whitespace joined.
+- `clean_feed`: the above on every field of a `daylight-upcoming/1` feed, plus the caps: item text cut at 2,000
+  characters (`"cut": true`), 150 items per meeting, 60 meetings per government.
+
+Imports only `sitegen.config` (which imports no other sitegen module) and the standard library, so `sitegen.national`
+and the collector (`collector/national/`, M2) both import it without a cycle.
+"""
+from __future__ import annotations
+
+import copy
+import re
+from dataclasses import dataclass, fields
+from urllib.parse import urlsplit
+
+from . import config
+
+# Ids (3.1): `<layer>-<GEOID>`, the GEOID's digit count fixed per layer (Census TIGER/Line GEOID structure:
+# state 2 + place 5, state 2 + county 3, state 2 + county 3 + cousub 5, state 2 + LEA 5).
+GEOID_DIGITS = {"place": 7, "county": 5, "cousub": 10, "sdu": 7, "sds": 7, "sde": 7}
+ID_RE = re.compile(r"^(place|county|cousub|sdu|sds|sde)-([0-9]{5,10})$")
+# A meeting id (3.5, e.g. `2026-12-14-formal`) becomes part of an ICS UID and may become a fragment or file name.
+MEETING_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
+
+LEGISTAR_API_HOST = "webapi.legistar.com"
+
+# C0 controls, DEL, C1 controls, and the bidi marks, embeddings, overrides and isolates (LRM, RLM, ALM, LRE..RLO,
+# LRI..PDI). They never belong in a curated name (refused there) and are stripped from outside text (counted).
+BAD_TEXT_RE = re.compile("[\x00-\x1f\x7f-\x9f؜‎‏‪-‮⁦-⁩]")
+# Whitespace controls are word breaks in source text: they become a space (text is whitespace joined), not a strip.
+_WS_CONTROLS = "\t\n\v\f\r"
+
+MAX_ITEM_TEXT = 2_000        # characters per item text; longer is cut at the cap and marked "cut": true
+MAX_TEXT = 2_000             # characters for any other text field read from outside (cut silently, counted)
+MAX_ITEMS = 150              # items per meeting
+MAX_MEETINGS = 60            # meetings per government
+
+
+class UnsafeIdError(ValueError):
+    """An id that would become a path or a tag does not match the id regex."""
+
+
+def id_layer(gov_id) -> str | None:
+    """The layer of a well-formed id (`place-4715160` -> "place"), else None: the prefix and the layer's GEOID length."""
+    m = ID_RE.fullmatch(gov_id) if isinstance(gov_id, str) else None
+    if not m or len(m.group(2)) != GEOID_DIGITS[m.group(1)]:
+        return None
+    return m.group(1)
+
+
+def checked_id(gov_id) -> str:
+    """`gov_id` when it is a well-formed government (body) id and so may become a path or a tag; else UnsafeIdError."""
+    if id_layer(gov_id) is None:
+        raise UnsafeIdError(f"not a government id: {gov_id!r}")
+    return gov_id
+
+
+def checked_meeting_id(meeting_id) -> str:
+    """`meeting_id` when it matches MEETING_ID_RE (it becomes part of a UID or a file name); else UnsafeIdError."""
+    if not isinstance(meeting_id, str) or not MEETING_ID_RE.fullmatch(meeting_id):
+        raise UnsafeIdError(f"not a meeting id: {meeting_id!r}")
+    return meeting_id
+
+
+def allowed_url(url, platform: str = "daylight", client: str | None = None) -> str:
+    """`url` when a curated or outside URL may be linked: `config.https_link` passes, it has no user name or password
+    and no port but 443, and, for a platform other than daylight, its host is one of that platform's hosts (finding 4).
+    Else "". Legistar's hosts are `webapi.legistar.com` and `<client>.legistar.com`; an unknown platform has none."""
+    if not config.https_link(url):
+        return ""
+    u = urlsplit(url)
+    try:
+        port = u.port
+    except ValueError:
+        return ""
+    if u.username is not None or u.password is not None or port not in (None, 443) or not u.hostname:
+        return ""
+    if platform == "daylight":
+        return url
+    if platform == "legistar":
+        hosts = {LEGISTAR_API_HOST} | ({f"{client.lower()}.legistar.com"} if isinstance(client, str) and client
+                                       else set())
+        return url if u.hostname.lower() in hosts else ""
+    return ""
+
+
+def link_or_official(url, official_url: str, platform: str = "daylight", client: str | None = None) -> str:
+    """The href a page shows for an outside link: `url` if `allowed_url` keeps it, else the directory's
+    `official_url` (already checked by the directory loader)."""
+    return allowed_url(url, platform, client) or official_url
+
+
+@dataclass
+class GuardCounts:
+    """What the guards changed in one feed, for the run log (finding 12)."""
+    chars_stripped: int = 0     # control and bidi characters removed
+    texts_cut: int = 0          # item texts cut at MAX_ITEM_TEXT, other texts cut at MAX_TEXT
+    items_dropped: int = 0      # items past MAX_ITEMS
+    meetings_dropped: int = 0   # meetings past MAX_MEETINGS or with a bad id
+    urls_dropped: int = 0       # URLs refused by allowed_url (field set to null)
+
+    def any(self) -> bool:
+        return any(getattr(self, f.name) for f in fields(self))
+
+    def summary(self) -> str:
+        """One log line, counts only (never the text itself)."""
+        return ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
+
+
+def clean_text(value) -> tuple[str, int]:
+    """(text, stripped): control characters and bidi overrides removed (their number in `stripped`), whitespace
+    controls turned into spaces, then whitespace joined. Nothing else changes (3.5: the source's words)."""
+    if not isinstance(value, str):
+        return "", 0
+    spaced = value.translate({ord(c): " " for c in _WS_CONTROLS})
+    text, stripped = BAD_TEXT_RE.subn("", spaced)
+    return " ".join(text.split()), stripped
+
+
+def cut_text(text: str, limit: int = MAX_ITEM_TEXT) -> tuple[str, bool]:
+    """(text, cut): `text` cut at `limit` characters when longer."""
+    if len(text) <= limit:
+        return text, False
+    return text[:limit].rstrip(), True
+
+
+def _clean_str(obj: dict, key: str, counts: GuardCounts) -> None:
+    if isinstance(obj.get(key), str):
+        text, stripped = clean_text(obj[key])
+        text, cut = cut_text(text, MAX_TEXT)
+        counts.chars_stripped += stripped
+        counts.texts_cut += cut
+        obj[key] = text
+
+
+def _clean_url(obj: dict, key: str, platform: str, client, counts: GuardCounts) -> None:
+    if key in obj and obj[key] is not None:
+        if not allowed_url(obj[key], platform, client):
+            obj[key] = None
+            counts.urls_dropped += 1
+
+
+def _clean_item(item: dict, platform: str, client, counts: GuardCounts) -> dict:
+    text, stripped = clean_text(item.get("text"))
+    text, cut = cut_text(text)
+    counts.chars_stripped += stripped
+    item["text"] = text
+    if cut:
+        item["cut"] = True
+        counts.texts_cut += 1
+    _clean_str(item, "number", counts)
+    if isinstance(item.get("source"), dict):
+        _clean_url(item["source"], "url", platform, client, counts)
+    return item
+
+
+def _clean_meeting(m: dict, platform: str, client, counts: GuardCounts) -> dict:
+    for key in ("title", "time"):
+        _clean_str(m, key, counts)
+    _clean_url(m, "meeting_url", platform, client, counts)
+    agenda = m.get("agenda")
+    if isinstance(agenda, dict):
+        _clean_url(agenda, "url", platform, client, counts)
+        _clean_str(agenda, "status_as_posted", counts)
+    items = m.get("items")
+    if isinstance(items, list):
+        counts.items_dropped += max(0, len(items) - MAX_ITEMS)
+        m["items"] = [_clean_item(i, platform, client, counts) for i in items[:MAX_ITEMS] if isinstance(i, dict)]
+    return m
+
+
+def clean_feed(feed: dict, platform: str = "daylight", client: str | None = None) -> tuple[dict, GuardCounts]:
+    """A cleaned copy of a `daylight-upcoming/1` feed and what changed. Called by the collector before it writes a feed
+    and by the builder before it renders one (3.5), with the government's directory platform and client.
+
+    Raises UnsafeIdError when `body.id` is not a government id (it names the feed's file and page). A meeting with a
+    bad id is dropped. Every URL (`official_url`, `meeting_url`, `agenda.url`, `items[].source.url`) that
+    `allowed_url` refuses becomes null; every text field is stripped of control and bidi characters; item text is cut
+    at 2,000 characters (`"cut": true`); at most 150 items per meeting and 60 meetings (the first ones, soonest first)
+    are kept. Keys the guards do not know are copied unchanged (the schema check judges them)."""
+    out = copy.deepcopy(feed)
+    counts = GuardCounts()
+    body = out.get("body") if isinstance(out.get("body"), dict) else {}
+    checked_id(body.get("id"))
+    _clean_str(body, "name", counts)
+    _clean_url(body, "official_url", platform, client, counts)
+    meetings = out.get("meetings")
+    if isinstance(meetings, list):
+        kept = []
+        for m in meetings:
+            if len(kept) == MAX_MEETINGS:
+                counts.meetings_dropped += 1
+                continue
+            if not isinstance(m, dict) or not isinstance(m.get("id"), str) or not MEETING_ID_RE.fullmatch(m["id"]):
+                counts.meetings_dropped += 1
+                continue
+            kept.append(_clean_meeting(m, platform, client, counts))
+        out["meetings"] = kept
+    return out, counts

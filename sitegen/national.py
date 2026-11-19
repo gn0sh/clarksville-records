@@ -21,12 +21,12 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Mapping
-from urllib.parse import urlsplit
 
 import yaml
 from jinja2.utils import htmlsafe_json_dumps
 
 from . import config
+from .national_guards import BAD_TEXT_RE, GEOID_DIGITS, allowed_url, id_layer
 
 NATIONAL_DIR = config.CONFIG_DIR / "national"
 DIRECTORY_PATH = NATIONAL_DIR / "directory.yml"
@@ -38,12 +38,10 @@ FLAGS_SCHEMA = "daylight-govflags/1"
 LABELS_SCHEMA = "daylight-labels/1"
 PAGEDIR_SCHEMA = "daylight-pagedir/1"
 
-# Ids (3.1): `<layer>-<GEOID>`, the GEOID's digit count fixed per layer (Census TIGER/Line GEOID structure:
-# state 2 + place 5, state 2 + county 3, state 2 + county 3 + cousub 5, state 2 + LEA 5).
-GEOID_DIGITS = {"place": 7, "county": 5, "cousub": 10, "sdu": 7, "sds": 7, "sde": 7}
+# Ids (3.1): `<layer>-<GEOID>`. GEOID_DIGITS, ID_RE, id_layer and allowed_url live in sitegen/national_guards.py,
+# shared with the collector (task B14), and are imported above.
 LAYERS = tuple(GEOID_DIGITS)                       # also the card order of governments() (4.1, step 7)
 SCHOOL_LAYERS = ("sdu", "sds", "sde")
-ID_RE = re.compile(r"^(place|county|cousub|sdu|sds|sde)-([0-9]{5,10})$")
 
 # USPS code -> state FIPS code (the GEOID's first two digits): the 50 states, DC and the territories the Census
 # geocoder covers. `state` must be one of these and must match the id's GEOID.
@@ -71,7 +69,6 @@ PLATFORM_KEYS = {"daylight": {"body", "full_url"}, "legistar": {"client", "body_
 PLATFORM_REQUIRED = {"daylight": {"body", "full_url"}, "legistar": {"client", "body_id", "tz"}}
 # Legistar EventAgendaStatusName values that mean a final agenda (`final_statuses` must be a list drawn from these).
 LEGISTAR_FINAL_STATUSES = frozenset({"Final", "Final-Revised", "Final-Addendum"})
-LEGISTAR_API_HOST = "webapi.legistar.com"
 
 ENTRY_KEYS = frozenset({"gov", "also", "body_name", "state", "status", "official_url", "checked", "checked_url",
                         "checked_doc", "items", "platform", "host_ok", "reason", "reason_url"} | set(PLATFORM_KEYS))
@@ -85,8 +82,7 @@ BODY_KEY_RE = re.compile(r"^[a-z][a-z0-9_-]{0,39}$")         # daylight.body (th
 CHECKED_DOC_RE = re.compile(r"^docs/[A-Za-z0-9_][A-Za-z0-9_/.-]*\.md$")
 LABEL_KEY_RE = re.compile(r"^(slot|reason|note)\.[a-z0-9][a-z0-9-]*$")
 ROOT_RE = re.compile(r"^(\.\./)*$")
-# Controls and bidi overrides never belong in a curated name or label (they would reorder or hide text on the page).
-BAD_TEXT_RE = re.compile("[\x00-\x1f\x7f‎‏‪-‮⁦-⁩]")
+# Controls and bidi overrides never belong in a curated name or label: national_guards.BAD_TEXT_RE.
 MAX_NAME = 160
 MAX_LABEL = 300
 
@@ -172,14 +168,6 @@ def _unknown(path: Path, where: str, obj: dict, allowed) -> None:
         _fail(path, where, extra[0], "unknown key")
 
 
-def id_layer(gov_id) -> str | None:
-    """The layer of a well-formed id (`place-4715160` -> "place"), else None: the prefix and the layer's GEOID length."""
-    m = ID_RE.match(gov_id) if isinstance(gov_id, str) else None
-    if not m or len(m.group(2)) != GEOID_DIGITS[m.group(1)]:
-        return None
-    return m.group(1)
-
-
 def _id_fips(gov_id: str) -> str:
     return gov_id.split("-", 1)[1][:2]
 
@@ -190,27 +178,6 @@ def _text(path: Path, where: str, key: str, value, limit: int) -> str:
     if len(value) > limit or BAD_TEXT_RE.search(value):
         _fail(path, where, key, f"longer than {limit} characters or holds control or bidi characters")
     return value
-
-
-def allowed_url(url, platform: str = "daylight", client: str | None = None) -> str:
-    """`url` when a curated or outside URL may be linked: `config.https_link` passes, it has no user name or password
-    and no port but 443, and, for a platform other than daylight, its host is one of that platform's hosts (finding 4).
-    Else "". (Task B14 extends this into the one helper the collector also calls.)"""
-    if not config.https_link(url):
-        return ""
-    u = urlsplit(url)
-    try:
-        port = u.port
-    except ValueError:
-        return ""
-    if u.username is not None or u.password is not None or port not in (None, 443) or not u.hostname:
-        return ""
-    if platform == "daylight":
-        return url
-    if platform == "legistar":
-        hosts = {LEGISTAR_API_HOST} | ({f"{client}.legistar.com"} if client else set())
-        return url if u.hostname.lower() in hosts else ""
-    return ""
 
 
 def _date(path: Path, where: str, key: str, value) -> date:
@@ -225,7 +192,7 @@ def _date(path: Path, where: str, key: str, value) -> date:
 
 
 def _safe_path(value) -> bool:
-    return isinstance(value, str) and bool(PATH_RE.match(value)) and ".." not in value and "//" not in value
+    return isinstance(value, str) and bool(PATH_RE.fullmatch(value)) and ".." not in value and "//" not in value
 
 
 # --- labels.yml ---------------------------------------------------------------------------------------------------
@@ -241,7 +208,7 @@ def load_labels(path: Path = LABELS_PATH) -> dict[str, str]:
         _fail(path, "file", "labels", "must be a mapping of label keys to text")
     out = {}
     for k, v in labels.items():
-        if not isinstance(k, str) or not LABEL_KEY_RE.match(k):
+        if not isinstance(k, str) or not LABEL_KEY_RE.fullmatch(k):
             _fail(path, "labels", str(k), "bad label key (slot.<layer>, reason.<reason> or note.<key>)")
         out[k] = _text(path, "labels", k, v, MAX_LABEL)
     missing = [k for k in REQUIRED_LABELS if k not in out]
@@ -281,7 +248,7 @@ def _check_platform(path: Path, where: str, e: dict) -> None:
     if missing:
         _fail(path, f"{where}.{platform}", missing[0], "missing")
     if platform == "daylight":
-        if not isinstance(keys["body"], str) or not BODY_KEY_RE.match(keys["body"]):
+        if not isinstance(keys["body"], str) or not BODY_KEY_RE.fullmatch(keys["body"]):
             _fail(path, f"{where}.daylight", "body", "must match " + BODY_KEY_RE.pattern)
         if not _safe_path(keys["full_url"]):
             _fail(path, f"{where}.daylight", "full_url", "must be a site path matching " + PATH_RE.pattern +
@@ -300,7 +267,7 @@ def _check_platform(path: Path, where: str, e: dict) -> None:
         _fail(path, f"{where}.host_ok", "link", "must be an https link")
     if platform == "legistar":
         client = keys["client"]
-        if not isinstance(client, str) or not CLIENT_RE.match(client):
+        if not isinstance(client, str) or not CLIENT_RE.fullmatch(client):
             _fail(path, f"{where}.legistar", "client", "must match " + CLIENT_RE.pattern)
         if isinstance(keys["body_id"], bool) or not isinstance(keys["body_id"], int) or keys["body_id"] <= 0:
             _fail(path, f"{where}.legistar", "body_id", "must be a positive whole number")
@@ -369,7 +336,7 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
             _fail(path, where, "checked_doc", "give checked_url or checked_doc, not both")
         if "checked_doc" in e:
             doc_path = e["checked_doc"]
-            if not isinstance(doc_path, str) or not CHECKED_DOC_RE.match(doc_path) or ".." in doc_path \
+            if not isinstance(doc_path, str) or not CHECKED_DOC_RE.fullmatch(doc_path) or ".." in doc_path \
                     or not (Path(repo_root) / doc_path).is_file():
                 _fail(path, where, "checked_doc", "must be an existing docs/...md file in the repo")
         if status == "cant-cover":
@@ -487,7 +454,7 @@ def page_directory(directory: Directory, flags: GovFlags, labels: Mapping[str, s
     and `full` are relative to `root`, the page's own data-root."""
     if built_at.tzinfo is None:
         raise ValueError("built_at must carry a time zone")
-    if not isinstance(root, str) or not ROOT_RE.match(root):
+    if not isinstance(root, str) or not ROOT_RE.fullmatch(root):
         raise ValueError(f"root must be a run of '../', not {root!r}")
     built = built_at.astimezone(zoneinfo.ZoneInfo(config.SITE["site_timezone"])).date()
     govs = {}
