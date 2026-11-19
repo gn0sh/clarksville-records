@@ -29,3 +29,6 @@ No route found to a blocked or capped tenant. Probe: scratchpad c1-fresh/probe.p
    Related, for C3/H1: salem.legistar.com is not stopped by a webapi tenant block.
 Decision (manager): fix 1-4 now; 3 -> only a host cap sets _robots_capped; 4 -> refuse subdomains of a shared host.
 salem.legistar.com: C3 treats a webapi tenant block as stopping that city's other Legistar hosts too (note for C3).
+
+## Delta 3ae4572 (fresh reviewer, resumed): APPROVE
+All 4 closed (probe re-run). Leftover nit for C3: health label says "robots disallowed" when robots.txt was unreadable; robots_refused log has the real cause.
