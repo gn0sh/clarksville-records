@@ -24,7 +24,7 @@
 #                                 .github/CODEOWNERS deleted. Commit that, then -Plan, and pin its SEED DIGEST in the
 #                                 gate's RECORDS_DATA_SEED_DIGEST (sha256 of git ls-tree -r -z <seed> -- data).
 #   ... -Rollback [-CutoverMerge <sha> [-DataFrom <sha>]]   undo (the .sh twin's --rollback --cutover-merge --data-from)
-#   ... -Rollback -Merge <R> -Sha <reviewed head> -Report <review>
+#   ... -Rollback -Merge <R> -Sha <reviewed head> -CutoverMerge <sha> -Report <review>
 #   ... -CheckAttested            read-only: step 8's check again, for a later run
 #
 # Steps (it stops at the first failure and prints the exact -Rollback command):
@@ -68,9 +68,11 @@
 #     CODEOWNERS. S1-3: the data/ source must pass the gate's I-prov check (its listing attested by daily-update.yml
 #     on main) or be the seed the merge's workflow pins; else it refuses, and -DataFrom <sha> picks an ancestor of
 #     records-data's head that does.
-#   - -Merge <R> -Sha <R's reviewed head>: refuses unless R's data/ listing is attested or the seed pinned on main
-#     (S1-3; the pin is read from main, never from R or its parent: N1), R's head is one commit whose parent is on
-#     main's first-parent line (N1), and R's head tracks data/ and holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE, disables daily-update,
+#   - -Merge <R> -Sha <R's reviewed head> -CutoverMerge <sha>: refuses unless R's data/ listing is attested or the
+#     seed pinned on main (S1-3; the pin is read from main, never from R or its parent: N1), R's head is one commit
+#     whose parent is on main's first-parent line (N1), R's workflow and .github/CODEOWNERS are those of the commit
+#     before the cutover merge (on main's first-parent line; never taken from R alone:
+#     docs/architecture/data-off-main-trust-roots.md T-R3), and R's head tracks data/ and holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE, disables daily-update,
 #     merges R with merge-reviewed, then stops with R2 still off unless main is that merge, tracks data/, and holds
 #     R's workflow, CODEOWNERS and data/ byte for byte with one empty
 #     MAIN_PR_BASELINE (ADR 0011 Amendment (c) item 7). Only then R1' back, R2 on, workflow on.
@@ -643,10 +645,22 @@ if ($Rollback) {
     # tracks data/. Every path checks, before any change, the commit R2 will come on over.
     if ($Merge) {
         $path = 'merge'
-        if ($Merge -notmatch '^[0-9]+$' -or $Sha -cnotmatch '^[0-9a-f]{40}$' -or $Report.Count -lt 1) { Refuse '--merge needs <R> --sha <reviewed head> --report <review> (-Merge, -Sha, -Report)' }
+        if ($Merge -notmatch '^[0-9]+$' -or $Sha -cnotmatch '^[0-9a-f]{40}$' -or $CutoverMerge -cnotmatch '^[0-9a-f]{40}$' -or $Report.Count -lt 1) { Refuse '--merge needs <R> --sha <reviewed head> --cutover-merge <sha> --report <review> (the open path prints the line; -Merge, -Sha, -CutoverMerge, -Report)' }
         if ((GitRun @('fetch', '--quiet', '--no-tags', 'origin', "+refs/pull/$Merge/head:refs/cutover/rollback")).Code -ne 0) { Refuse "could not fetch pull request #$Merge's head" }
         if ((GitText @('rev-parse', '--verify', '-q', 'refs/cutover/rollback^{commit}')) -cne $Sha) { Refuse "origin's pull/$Merge/head is not $Sha" }
         if (-not (RestoreOk $Sha)) { Refuse "the restore PR #$Merge at $Sha does not give R2 what it needs: $($script:why) (F4)" }
+        # Trust roots T-R3: the workflow and CODEOWNERS R2 comes on over are pinned to the commit before the cutover
+        # merge, on main's first-parent line, never taken from R alone (R's author controls R)
+        if (-not (OnMainLine $CutoverMerge $m)) { Refuse "--cutover-merge $CutoverMerge is not on main's first-parent line (give the merge sha step 5 printed; -CutoverMerge)" }
+        if (TracksData $CutoverMerge) { Refuse "$CutoverMerge tracks data/: that is not the cutover merge (give the merge sha step 5 printed)" }
+        if ((GitRun @('cat-file', '-e', "${CutoverMerge}:.github/CODEOWNERS")).Code -eq 0) { Refuse "$CutoverMerge holds .github/CODEOWNERS: that is not the cutover merge (give the merge sha step 5 printed)" }
+        $before = GitText @('rev-parse', '--verify', '-q', "$CutoverMerge^1")
+        if (-not $before) { Refuse "could not read $CutoverMerge's parent" }
+        foreach ($f in @(".github/workflows/$wfname", '.github/CODEOWNERS')) {
+            $a = GitText @('rev-parse', '--verify', '-q', "${before}:$f")
+            $b = GitText @('rev-parse', '--verify', '-q', "${Sha}:$f")
+            if (-not $a -or $a -cne $b) { Refuse "the restore PR #$Merge's $f (blob '$b') is not the one before the cutover merge $CutoverMerge (blob '$a'; T-R3)" }
+        }
         # S1-3 data-off-main/rollback-unverified-data: R's data/ must be a verified records-data tree (its listing
         # attested by J2, or the seed pinned on main). N1 data-off-main/rollback-seedpin-untrusted: the pin is read
         # from main $m (fetched above), never from R or its parent, which R's author controls
@@ -662,6 +676,7 @@ if ($Rollback) {
         if (-not $rp) { Refuse "could not read the restore PR's parent" }
         if ((Parents $Sha) -ne 1 -or -not (OnMainLine $rp $m)) { Refuse "the restore PR #$Merge's parent $rp is not on main's first-parent line (N1: R must be one commit on main, as --rollback --cutover-merge opens it; -CutoverMerge)" }
         Write-Host "Restore PR #$Merge at $Sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE; its data/ is $srcOk."
+        Write-Host "Its workflow and .github/CODEOWNERS are those before the cutover merge $CutoverMerge; its parent $rp is on main."
     } elseif ($CutoverMerge -cmatch '^[0-9a-f]{40}$' -and (OnMainLine $CutoverMerge $m)) {
         $path = 'open'
         # main-protect/rollback-cutover-merge-unverified: the sha must look like the cutover merge itself
@@ -750,7 +765,7 @@ if ($Rollback) {
         $n = (gh api -X POST "repos/$repo/pulls" -f base=main -f head=$br -f 'title=Roll back the data cutover: data/ on main from records-data' -f "body=Restores data/ on main from records-data $src ($srcOk), and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $CutoverMerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.ps1 -Rollback." --jq '.number') -join ''
         if ($LASTEXITCODE -ne 0 -or $n -notmatch '^[0-9]+$') { Fail "could not open the pull request for $br" }
         Write-Host "ROLLBACK PR #$n opened for $br at $c. daily-update stays off; R2 stays off; the site stays as last deployed."
-        Write-Host "Next, once PR #$n is reviewed at ${c}: $me -Rollback -Merge $n -Sha $c -Report <review>"
+        Write-Host "Next, once PR #$n is reviewed at ${c}: $me -Rollback -Merge $n -Sha $c -CutoverMerge $CutoverMerge -Report <review>"
         exit 0
     }
     $script:step = 3
@@ -781,7 +796,7 @@ if ($Rollback) {
 
 # ---------------------------------------------------------------------------------------------- the cutover
 if ($Pr -notmatch '^[0-9]+$' -or $Sha -cnotmatch '^[0-9a-f]{40}$' -or $Report.Count -lt 1) {
-    Write-Host "Usage: $me -Pr <P> -Sha <reviewed head> -Apps claude|none -Report <review> | -Plan [-Ref <rev>] | -Rollback [-CutoverMerge <sha> [-DataFrom <sha>]] | -Rollback -Merge <R> -Sha <sha> -Report <review> | -CheckAttested"
+    Write-Host "Usage: $me -Pr <P> -Sha <reviewed head> -Apps claude|none -Report <review> | -Plan [-Ref <rev>] | -Rollback [-CutoverMerge <sha> [-DataFrom <sha>]] | -Rollback -Merge <R> -Sha <sha> -CutoverMerge <sha> -Report <review> | -CheckAttested"
     exit 1
 }
 NeedGh

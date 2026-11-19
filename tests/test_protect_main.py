@@ -705,7 +705,8 @@ def test_protect_main_never_reads_installations_and_is_not_ok_without_the_hand_c
 @pytest.mark.parametrize("apps", ["claude", "none"])
 def test_protect_main_records_the_hand_confirmed_apps(tmp_path, apps):
     """Only the Claude App (the team's branch pushes) may hold write: with R2 off it is the only approver besides
-    gn0sh, so R1'''s required approvals (the ruleset maximum, 10) can't be met without gn0sh (I-person); whether any App can bypass is read from the bypass lists."""
+    gn0sh, so R1'''s required approvals (the ruleset maximum, 10) can't be met without gn0sh (I-person);
+    whether any App can bypass is read from the bypass lists."""
     r, _ = _pm(tmp_path, args=("--apps", apps))
     _ok(r)
     line = [ln for ln in r.stdout.splitlines() if ln.startswith("Installed Apps with write on this repository: ")]
@@ -753,7 +754,9 @@ def test_protect_main_ps1_takes_apps_the_same_way():
     assert "typed at a PowerShell prompt, a,b arrives as 'a b')" in ps1
     for script in (ps1, PM_SH.read_text(encoding="utf-8")):    # the I-person reason, not "one App adds at most one"
         flat = " ".join(ln.lstrip("# ").strip() for ln in script.splitlines() if ln.lstrip().startswith("#"))
-        assert "so R1'''s required approvals (the ruleset maximum, 10, S1-1) can't be met without gn0sh (invariant I-person" in flat and "any 2 approvals" not in flat and "adds at most one" not in flat
+        reason = ("so R1'''s required approvals (the ruleset maximum, 10, S1-1) can't be met without gn0sh "
+                  "(invariant I-person")
+        assert reason in flat and "any 2 approvals" not in flat and "adds at most one" not in flat
 
 
 # ---------------------------------------------------------------------------------------------- protect-main: workflow

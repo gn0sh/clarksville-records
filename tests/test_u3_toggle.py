@@ -298,7 +298,8 @@ def test_pass_brians_path_waits_for_main_to_move(tmp_path):
 
 @pytest.mark.parametrize("suite_result", ["bypass", "pass"])
 def test_fail_rule_when_the_pull_request_evaluation_reads_pass(tmp_path, suite_result):
-    """v1-probe/u3-false-pass-on-pr-eval-pass: a pass evaluation means the ruleset maximum (10) approvals did not bind, so a bypass suite
+    """v1-probe/u3-false-pass-on-pr-eval-pass: a pass evaluation means the ruleset maximum (10)
+    approvals did not bind, so a bypass suite
     with it must never read PASS."""
     st = _state(suites=[{"id": 778, "after_sha": MERGE, "result": suite_result}])
     st["suite"]["result"] = suite_result
