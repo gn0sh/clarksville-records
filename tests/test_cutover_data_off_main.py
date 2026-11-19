@@ -1528,8 +1528,24 @@ def test_ps1_gitrun_starts_git_with_a_preamble_free_stdin_encoding():
     start = body.index("$p = [Diagnostics.Process]::Start($psi)")
     restore = body.index("finally { if ($null -ne $ie) { try { [Console]::InputEncoding = $ie }")
     assert "GetPreamble().Length -gt 0" in body[:swap] and swap < start < restore
+    # ps51-stdin-bom-swap-fail-open (review of 2af5731): if the swap did not take, git is never started (Code 1), so
+    # no caller (hash-object -w --stdin in GitignoreEdit) can store BOM'd bytes as its own; an unreadable encoding
+    # counts as a BOM.
+    check = body.index("try { $bom = [Console]::InputEncoding.GetPreamble().Length -gt 0 } catch { $bom = $true }")
+    refuse = body.index("return New-Object PSObject -Property @{ Code = 1; Out = [byte[]]@() }")
+    assert swap < check < refuse < start and "$bom = $true" in body[swap:check]
     assert body.count("[Diagnostics.Process]::Start(") == 1
     assert ps1.count("[Diagnostics.Process]::Start(") == 1 and ps1.count("RedirectStandardInput") == 1
+
+
+def test_no_ps1_pipes_text_into_a_native_command_and_only_gitrun_starts_a_process():
+    """docs/architecture/ps51-stdin-invariant.md, across scripts/*.ps1: under 5.1 a pipe into gh or git carries a BOM
+    and CRLF, so body text goes as a BOM-less --input file and raw bytes only through cutover GitRun."""
+    for f in sorted((ROOT / "scripts").glob("*.ps1")):
+        text = f.read_text(encoding="ascii")
+        code = "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("#"))
+        assert not re.search(r"\|\s*&?\s*(gh|git)(\.exe)?\b", code), f.name
+        assert ("Process]::Start(" in code) == (f.name == "cutover-data-off-main.ps1"), f.name
 
 
 def test_ps1_uses_the_same_gh_filters_as_the_sh():
