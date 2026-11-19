@@ -12,6 +12,9 @@
    - #digest-pagedir     the page directory (3.4; `root` is "../", this page's data-root)
    - #digest-strings     the lookup.*, form.* and count.* labels
    - #digest-config      the frame, page and email-service settings #}
+{# the digest pages' own stylesheet (design 0a): linked here only, copied only while the switch is on #}
+{% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
+{% endblock %}
 {% block main %}
 <div class="digest digest-entry" data-root="{{ root }}">
   <h1>{{ L["index.h1"] }}</h1>

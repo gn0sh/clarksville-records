@@ -1,6 +1,9 @@
 {% extends "base.html.j2" %}
 {# Request confirmed (docs/design/daylight-national.md section 3, AC5.2): static; the page cannot tell which kind of
    government was requested, so it carries both lines. Built by sitegen/national_pages.py. #}
+{# the digest pages' own stylesheet (design 0a): linked here only, copied only while the switch is on #}
+{% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
+{% endblock %}
 {% block main %}
 <div class="digest digest-requested">
   <h1>{{ L["requested.h1"] }}</h1>

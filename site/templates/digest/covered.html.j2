@@ -1,6 +1,9 @@
 {% extends "base.html.j2" %}
 {# What we cover (docs/design/daylight-national.md section 4): static, no script, no storage (AC12.1). Built by
    sitegen/national_pages.py from the directory; every fixed word is a page label (`L`) or a card label. #}
+{# the digest pages' own stylesheet (design 0a): linked here only, copied only while the switch is on #}
+{% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
+{% endblock %}
 {% block main %}
 <div class="digest digest-covered">
   <h1>{{ L["covered.h1"] }}</h1>

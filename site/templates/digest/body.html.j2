@@ -5,6 +5,9 @@
    is printed only from the JSON's `items`, and a withheld government's meetings print the fixed withheld label
    (privacy-withhold/national-prefix, consumer 3). Every fixed word is a page label (`L`); every other word is the
    feed's own text. #}
+{# the digest pages' own stylesheet (design 0a): linked here only, copied only while the switch is on #}
+{% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
+{% endblock %}
 {% block main %}
 <div class="digest digest-body">
   <p class="eyebrow">{{ lt(L["body.eyebrow"], state=state_name, slot=slot) }}</p>

@@ -486,6 +486,20 @@ https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt and
   the longest realistic widths (about 83,000 characters, so 2.6 times under) and fails if it comes within 30% of the
   cap. Re-check against a raw 20-match answer in a browser (security "needs verification").
 
+## Daylight Digest outside links (2026-11-19; fetched by ux-designer 2026-11-19)
+How: both pages were read by the ux-designer on 2026-11-19 for design v1.2 (`docs/design/daylight-national.md`
+section 3, "Outside links"). The frontend engineer who wired them did not fetch them again. They are settings in
+`config/national/links.yml`, embedded in `#digest-config` on `digest/index.html`; the site sends nothing to either
+host, and the address a person typed is never put in either link.
+- `election_url`: `https://www.usa.gov/state-election-office`, "State and local election offices" on USA.gov (run by
+  the US General Services Administration). A plain directory of each state's election site, with local offices
+  reached from there; no call to register or vote. Used by the lines `lookup.election` and `lookup.election-none`.
+  Fallback if it moves: `https://www.eac.gov/voters/register-and-vote-in-your-state` (leads with a call to act, so
+  second choice).
+- `census_url`: `https://geocoding.geo.census.gov/geocoder/`, the Census Geocoder's front page (the person picks
+  "Find Geographies", then a "Benchmark"). Used by the line `lookup.down-census` when our lookup can't reach the
+  Census. It is a plain link a person chooses to follow, so it is in no page's CSP.
+
 ## Clarksville upcoming agendas in the data (checked 2026-11-19 from code and the data files on the branch)
 - County Commission: `data/county-agendas/agendas.json` holds each agenda-only meeting's items with `title` as printed
   (whitespace joined, a word broken at a line end joined), `number`, `printed`, `section`, `page`, and each source's

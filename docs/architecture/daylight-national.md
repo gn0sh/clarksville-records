@@ -400,7 +400,9 @@ lines.
   (`newest_record_at`, see the M1 note in 3.5) and `last_ok_at` null; coming-up pages take the name and links from
   the directory entry (links re-checked on its platform's hosts; none usable: words with no link), and the full
   Daylight and morning-note links only for daylight-platform entries. `digest/index.html` embeds `#digest-pagedir`, `#digest-strings` (page labels `lookup.*`, `form.*`,
-  `count.*`) and `#digest-config` (`frame`, `covered`, `requested`, `form_action`, `privacy_url`, `morning`), and
+  `count.*`) and `#digest-config` (`frame`, `covered`, `requested`, `form_action`, `privacy_url`, `morning`, and the
+  two outside links `election_url` and `census_url` from `config/national/links.yml`: each an https URL or null, and
+  the script leaves a line out whole when its link is null; UX section 3 "Outside links"), and
   has the mounts `#digest-form`, `#digest-result`, `#digest-list`, `#digest-saved`, `#digest-noscript` for F2.
 
 ### 4.4 Fetcher tenant rule (`collector/fetch.py`, M2)
@@ -501,8 +503,10 @@ B13's golden test proves it).
 **What "byte-identical" means.** `national.enabled: false`: every output file equals a build of `main` at the same data.
 `national.enabled: true`: the diff from the off build is exactly (a) new files under `digest/`, (b) the one front-page
 line, (c) the Menu group, which is in the footer list that `nav.js` copies into every page's drawer, so it changes the
-footer of every existing page by the same fixed fragment (decision N1), (d) `site/static/` gains `national.js` and
-`us-count.js` (off, the build does not copy them), and (e) `static/pages.js` also lists the digest pages (so a report
+footer of every existing page by the same fixed fragment (decision N1), (d) `site/static/` gains `national.js`,
+`us-count.js` and `digest.css` (off, the build does not copy them; `digest.css` is the digest pages' own stylesheet,
+linked after `style.css` by the pages under `digest/` only and never by the Census frame or an existing page, so
+`style.css` is the same file either way; it names no URL, so the pages' `style-src-elem 'self'` covers it), and (e) `static/pages.js` also lists the digest pages (so a report
 from a digest page names it). The golden test removes (b) and (c) by their exact strings and requires the rest to be equal.
 
 ## 8. Risks

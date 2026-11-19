@@ -2,9 +2,10 @@
 B4): with config/site.yml `national.enabled: true` the build writes, under `digest/`,
 
 - `index.html`      the entry page: the address card, the embedded page directory (`#digest-pagedir`, 3.4), the
-                    lookup's fixed words (`#digest-strings`) and settings (`#digest-config`), and the empty mount points
-                    the page wiring (task F2) draws into. Its own CSP (section 6): script-src 'self', frame-src 'self',
-                    the email service in form-action and connect-src, the counter's origin while analytics is on.
+                    lookup's fixed words (`#digest-strings`) and settings (`#digest-config`, with the two outside
+                    links of config/national/links.yml), and the empty mount points the page wiring (task F2)
+                    draws into. Its own CSP (section 6): script-src 'self', frame-src 'self', the email service in
+                    form-action and connect-src, the counter's origin while analytics is on.
 - `covered.html`    What we cover: covered and can't-cover governments by state, then name. Static, no script.
 - `requested.html`  the request-confirmed page. Static.
 - `geo-frame.html`  the Census frame, exactly `national.geo_frame_html()` (its own meta CSP, 4.0).
@@ -14,6 +15,9 @@ B4): with config/site.yml `national.enabled: true` the build writes, under `dige
 and `apply_site_fragments` adds the two fixed fragments to the pages that already exist (7a): the Menu group
 "Daylight Digest" in the footer list of every page, and the one front-page line under the address card. Nothing else
 in an existing page changes; with the switch off this module is not called and the build is byte-identical.
+
+Every digest page but the frame also links `static/digest.css` (design 0a), the digest pages' own stylesheet: no
+other page links it, and like the two digest scripts it is copied into the build only while the switch is on.
 
 Every fixed word on a digest page comes from config/national/page-labels.yml (or labels.yml's card labels); every
 other word is source text from the directory or a feed (AC4.5, AC4.8). Labels mark their one link as `[text]` and
@@ -47,7 +51,11 @@ COVERED = f"{FOLDER}/covered.html"
 REQUESTED = f"{FOLDER}/requested.html"
 FRAME = nat.GEO_FRAME_PAGE                         # digest/geo-frame.html
 # site/static files only the digest pages use: copied into the build only while the switch is on (7a (d))
-STATIC_ONLY = ("national.js", "us-count.js")
+STATIC_ONLY = ("national.js", "us-count.js", "digest.css")
+# The outside links the lookup's script prints (design section 3, "Outside links"): settings, never label text.
+LINKS_PATH = nat.NATIONAL_DIR / "links.yml"
+LINKS_SCHEMA = "daylight-links/1"
+LINK_KEYS = ("election_url", "census_url")
 
 
 # Page label keys: a group and a name, or a state's USPS code, or a time zone name.
@@ -100,7 +108,8 @@ def enabled(cfg: Mapping | None = None) -> bool:
 
 
 def static_ignore(on: bool):
-    """The `ignore` for the build's copy of site/static: the digest-only scripts stay out while the switch is off."""
+    """The `ignore` for the build's copy of site/static: the digest-only scripts and stylesheet stay out while the
+    switch is off."""
     def ignore(_dir, names):
         return [] if on else [n for n in names if n in STATIC_ONLY]
     return ignore
@@ -134,6 +143,31 @@ def load_page_labels(path: Path = PAGE_LABELS_PATH) -> dict[str, str]:
     missing = [k for k in REQUIRED_PAGE_LABELS if k not in out]
     if missing:
         raise NationalBuildError(f"{path}: labels: {missing[0]}: missing")
+    return out
+
+
+# --- outside links ----------------------------------------------------------------------------------------------------
+
+def load_links(path: Path = LINKS_PATH) -> dict[str, str | None]:
+    """links.yml -> {election_url, census_url}, each an https URL or None. A key left out is None, and the script
+    then leaves that line out whole; an unknown key, or a value that is not a plain https URL (national_guards.
+    allowed_url: no user name, password or odd port), stops the build, so a typo never drops a line silently."""
+    path = Path(path)
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as e:
+        raise NationalBuildError(f"{path}: cannot read: {e}") from e
+    if not isinstance(doc, dict) or doc.get("schema") != LINKS_SCHEMA or set(doc) - {"schema", "links"}:
+        raise NationalBuildError(f"{path}: must be {{schema: {LINKS_SCHEMA}, links: {{...}}}}")
+    links = doc.get("links")
+    if not isinstance(links, dict) or set(links) - set(LINK_KEYS):
+        raise NationalBuildError(f"{path}: links: must be a mapping with only the keys {', '.join(LINK_KEYS)}")
+    out: dict[str, str | None] = {}
+    for k in LINK_KEYS:
+        v = links.get(k)
+        if v is not None and not allowed_url(v):
+            raise NationalBuildError(f"{path}: links: {k}: must be an https URL")
+        out[k] = v
     return out
 
 
@@ -433,9 +467,11 @@ class Pages:
 def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, flags: nat.GovFlags,
                    labels: Mapping[str, str], page_labels: Mapping[str, str], feeds: Mapping[str, dict], *,
                    built_at: datetime, counter: dict | None,
-                   bind_counts: dict[str, BindCounts] | None = None) -> list[str]:
+                   bind_counts: dict[str, BindCounts] | None = None,
+                   links: Mapping[str, str | None] | None = None) -> list[str]:
     """Writes the digest pages (module docstring) and returns their site paths, the HTML pages first. `counter`: the
-    build's analytics settings (analytics.settings()) or None; `site`: the build's site context.
+    build's analytics settings (analytics.settings()) or None; `site`: the build's site context. `links`: load_links()
+    (None: no outside link, both settings null).
 
     Architecture 11.1 row 15: every feed passes `national_guards.bind_feed(feed, entry)` with its covered directory
     entry first, and the .json and .html are written only from that bound object (a feed for no covered entry is not
@@ -475,7 +511,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
                 "requested": "requested.html",
                 "form_action": note.get("form_action") if form_origin else None,
                 "privacy_url": note.get("privacy_url") if form_origin else None,
-                "morning": morning}
+                "morning": morning,
+                **{k: allowed_url((links or {}).get(k)) or None for k in LINK_KEYS}}
     strings = {k: v for k, v in L.items() if k.startswith(SCRIPT_GROUPS)}
     written[INDEX] = pages.html(
         "digest/index.html.j2", INDEX, label_text(L["index.title"]),
@@ -539,6 +576,7 @@ def run(out_dir: Path, env, site: dict, *, councils, county_agendas: dict | None
     try:
         directory, flags, labels = nat.load_all(folder)
         page_labels = load_page_labels(Path(folder) / "page-labels.yml")
+        links = load_links(Path(folder) / "links.yml")
         counts: dict[str, GuardCounts] = {}
         feeds = build_feeds(directory, council_inputs(councils, fixture), county_agendas, built_day, counts)
     except (nat.NationalConfigError, ncl.FeedError, ValueError) as exc:
@@ -548,7 +586,7 @@ def run(out_dir: Path, env, site: dict, *, councils, county_agendas: dict | None
             print(f"sitegen: national: {gid}: guards changed the feed: {n.summary()}", flush=True)
     binds: dict[str, BindCounts] = {}
     written = build_national(out_dir, env, site, directory, flags, labels, page_labels, feeds,
-                             built_at=build_instant(built_day), counter=counter, bind_counts=binds)
+                             built_at=build_instant(built_day), counter=counter, bind_counts=binds, links=links)
     for gid, n in sorted(binds.items()):
         if n.withheld_stripped or n.review_mismatch:
             print(f"sitegen: national: {gid}: bind_feed stripped items: {n.summary()}", flush=True)

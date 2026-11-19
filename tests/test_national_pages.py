@@ -89,8 +89,9 @@ def test_switch_off_writes_no_digest_file_and_changes_no_page(sites):
     off = sites["off"]
     assert off == sites["absent"]
     assert not [p for p in off if p.startswith("digest/")]
-    assert "static/national.js" not in off and "static/us-count.js" not in off
+    assert "static/national.js" not in off and "static/us-count.js" not in off and "static/digest.css" not in off
     assert not any(b"digest/" in body for p, body in off.items() if p.endswith(".html"))
+    assert not any(b"digest.css" in body for body in off.values())
     assert b'class="digest-line"' not in off["index.html"]
 
 
@@ -99,7 +100,47 @@ def test_switch_on_writes_the_page_set_and_no_feeds(sites):
     digest = {p for p in on if p.startswith("digest/")}
     assert digest == DIGEST_HTML | DIGEST_JSON
     assert not [p for p in on if p.endswith((".ics", ".xml")) and p.startswith("digest/")]      # M4
-    assert "static/national.js" in on and "static/us-count.js" in on
+    assert "static/national.js" in on and "static/us-count.js" in on and "static/digest.css" in on
+    assert set(on) - set(sites["off"]) == digest | {f"static/{n}" for n in npg.STATIC_ONLY}
+
+
+def test_digest_stylesheet_is_linked_by_digest_pages_only(sites):
+    """Design 0a, architecture 7a (d): static/digest.css is the digest pages' own stylesheet. Each digest page links it
+    once, after style.css; the Census frame and every page outside digest/ never name it; style.css is the same file
+    with the switch on or off."""
+    on = sites["on"]
+    assert on["static/digest.css"] == (ROOT / "site" / "static" / "digest.css").read_bytes()
+    assert on["static/style.css"] == sites["off"]["static/style.css"]
+    for rel, body in on.items():
+        if not rel.endswith(".html"):
+            assert b"digest.css" not in body or rel == "static/digest.css", rel
+            continue
+        html = body.decode()
+        if rel in DIGEST_HTML - {"digest/geo-frame.html"}:
+            root = "../" * rel.count("/")
+            link = f'<link rel="stylesheet" href="{root}static/digest.css">'
+            assert html.count(link) == 1 and html.count("digest.css") == 1, rel
+            assert html.index(f'href="{root}static/style.css"') < html.index(link) < html.index("</head>"), rel
+        else:
+            assert "digest.css" not in html, rel
+
+
+def test_digest_stylesheet_adds_no_colour_and_loads_nothing():
+    """Design 0a: every colour is a style.css token (no hex, rgb or hsl of its own, no red or green), and the file
+    names no URL and no @import, so the pages' style-src-elem 'self' is all it needs (architecture section 6)."""
+    css = (ROOT / "site" / "static" / "digest.css").read_text(encoding="utf-8")
+    rules = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b|\b(rgb|hsl)a?\(", rules)
+    assert not re.search(r"\b(red|green)\b|@import|url\(|//", rules)
+    tokens = set(re.findall(r"var\((--[a-z0-9-]+)\)", rules))
+    style = (ROOT / "site" / "static" / "style.css").read_text(encoding="utf-8")
+    assert tokens and all(re.search(rf"^\s*{t}:", style, re.M) for t in tokens), tokens
+    assert "var(--sun)" not in rules and "var(--seal)" not in rules          # orange is the focus ring only
+    assert all("outline" in line for line in rules.splitlines() if "var(--focus)" in line)
+    for hook in (".digest-pill-covered", ".digest-pill-not-covered-yet", ".digest-pill-cant-cover",
+                 ".digest-count-btn", ".digest-err", ".digest-msg", ".digest-pick", ".digest-req-form",
+                 '[data-state="sent"]', '[data-state="counted"]', '[data-state="failed"]'):
+        assert hook in rules, hook
 
 
 def test_switch_on_changes_existing_pages_only_by_the_two_fragments(sites, page_labels):
@@ -219,8 +260,49 @@ def test_entry_page_embeds_the_page_directory_and_strings(sites, loaded, page_la
                                                    if k.startswith(npg.SCRIPT_GROUPS)}
     cfg = json.loads(blobs["digest-config"])
     assert cfg["frame"] == "geo-frame.html" and cfg["form_action"].startswith("https://buttondown.com/")
+    # the two outside links (design section 3, "Outside links"): settings from config/national/links.yml
+    assert cfg["election_url"] == "https://www.usa.gov/state-election-office"
+    assert cfg["census_url"] == "https://geocoding.geo.census.gov/geocoder/"
+    assert {k: cfg[k] for k in npg.LINK_KEYS} == npg.load_links()
     form = re.search(r'<form class="addr-form" id="digest-form" hidden>(.*?)</form>', html, re.S).group(1)
     assert " name=" not in form and "action=" not in form
+
+
+def test_links_file_keys_are_optional_and_checked(tmp_path):
+    """links.yml: a key left out is None (the script then leaves that line out whole); an unknown key, a value that
+    is not a plain https URL, a wrong schema or a missing file stops the build."""
+    path = tmp_path / "links.yml"
+
+    def write(links, schema=npg.LINKS_SCHEMA, **extra):
+        path.write_text(json.dumps({"schema": schema, "links": links, **extra}), encoding="utf-8")
+        return path
+    assert npg.load_links(write({})) == {"election_url": None, "census_url": None}
+    assert npg.load_links(write({"census_url": "https://example.gov/x"})) == {
+        "election_url": None, "census_url": "https://example.gov/x"}
+    for bad in ({"election_url": "http://www.usa.gov/"}, {"election_url": "javascript:alert(1)"},
+                {"census_url": "https://user:pw@example.gov/"}, {"census_url": "https://example.gov:8443/"},
+                {"census_url": ""}, {"census_url": 3}, {"other_url": "https://example.gov/"}, ["x"]):
+        with pytest.raises(npg.NationalBuildError):
+            npg.load_links(write(bad))
+    with pytest.raises(npg.NationalBuildError):
+        npg.load_links(write({}, schema="daylight-links/2"))
+    with pytest.raises(npg.NationalBuildError):
+        npg.load_links(write({}, more=1))
+    with pytest.raises(npg.NationalBuildError):
+        npg.load_links(tmp_path / "absent.yml")
+
+
+def test_no_links_given_means_null_settings(tmp_path, loaded, page_labels):
+    """build_national without `links` (or with a bad value) writes both settings as null, never a bad href."""
+    directory, flags, labels = loaded
+    feeds = npg.build_feeds(directory, npg.council_inputs([], True), None, date(2026, 11, 19))
+    for links in (None, {"election_url": "http://x.example/", "census_url": None}):
+        out = tmp_path / str(bool(links))
+        npg.build_national(out, build_mod.make_env(), _SITE_CTX(), directory, flags, labels, page_labels, feeds,
+                           built_at=BUILT_AT, counter=None, links=links)
+        html = (out / "digest" / "index.html").read_text(encoding="utf-8")
+        cfg = json.loads(re.search(r'id="digest-config">(.*?)</script>', html, re.S).group(1))
+        assert cfg["election_url"] is None and cfg["census_url"] is None
 
 
 def test_feed_json_validates_with_no_extra_key(sites):
