@@ -1,6 +1,8 @@
 # Design: daylight-national (Daylight Digest, the national website)
 
-Status: draft v1, 2026-11-19. Owner: ux-designer. Spec: `docs/specs/daylight-national.md` (v2.1: request by email
+Status: draft v1.1, 2026-11-19 (v1.1: U1 copy follow-ups: counter text, location disclosure, device-list wording,
+Method wording in 9a, one confirmation email for the whole newsletter, two more Can't cover reasons). Owner:
+ux-designer. Spec: `docs/specs/daylight-national.md` (v2.1: request by email
 is the main path; weekly email and feeds are both M4). Panel input:
 `docs/research/focus-group-daylight-national.md` (Recommended changes). Website only; no app.
 Every quoted string below is a fixed label and goes in the label file (AC4.8). Copy rules: plain words, US English,
@@ -117,7 +119,7 @@ second sentence moves behind the "Who runs this" link.
 | Privacy, plain | We never get your address and never sell anything. |
 | Privacy, detail | Your address goes from your browser straight to the US Census Bureau, which finds your area. Daylight Digest never sees or keeps it. [Census privacy policy] |
 | Toggle summary | How this works, and what is saved |
-| Toggle body | The Census Bureau answers with the names of the city or town, county, township and school districts for that spot. Only that list of governments is kept, and only on this device, so you don't have to look it up again. You can check this yourself: open your browser's network tools and look up an address. The only request that carries it goes to geocoding.geo.census.gov. |
+| Toggle body | The Census Bureau answers with the names of the city or town, county, township and school districts for that spot. Only that list of governments is kept (their names and IDs, and which ones you requested or counted from this device), and only on this device, so you don't have to look it up again. You can check this yourself: open your browser's network tools and look up an address. The only request that carries it goes to geocoding.geo.census.gov. |
 | Census notice (word for word) | This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau. |
 | No script | The address lookup needs JavaScript. You can still browse [What we cover]. |
 
@@ -228,12 +230,12 @@ from our directory when we have one, status pill, then the actions for that stat
 | Not covered yet, line | We don't read this government's agendas yet. |
 | Official link, both uncovered statuses | Official agenda page (opens the government's own site) |
 | No official link in the directory (Not covered yet only) | We don't have a link to its official agenda page yet. |
-| Can't cover reasons (one per card, from the directory) | Its records site blocks automated readers. / Its agendas are posted only as scanned images. / It does not post its agendas online. / Its agenda system's public data feed is turned off. / Its agenda system's data feed needs a key we don't have. |
+| Can't cover reasons (one per card, from the directory) | Its records site blocks automated readers. / Its agendas are posted only as scanned images. / It does not post its agendas online. / Its agenda system's public data feed is turned off. / Its agenda system's data feed needs a key we don't have. / Its records site asks automated readers not to read its agenda pages. We follow that request. / The terms of use on its records site do not allow automated reading. We follow them. |
 | Can't cover, proof line | Checked {date}. [Source] |
 | Button, and the hint under it | Request it / We'll email you if it opens. |
 | Under the list (AC2.9) | Some governments, such as water or transit boards, can't be found by address yet. |
 | Election office line | Not sure this list is right? Your local election office has the official answer. [Find it] |
-| Device line | This list is kept on this device only. [Forget this list] |
+| Device line | This list is kept on this device only, with a note of which governments you requested or counted here. "Forget this list" removes all of it. [Forget this list] |
 
 **"Request it" (US5, spec v2.1): the main path is "Email me when it opens".** Tapping "Request it" opens a short
 form inside that card (no new page, so the list and the person's place in it stay). It asks for an email only,
@@ -274,9 +276,20 @@ types the email once and gets one confirmation email.
 |---|---|
 | Honest line, Not covered yet | We'll email you once if we open it. We add a government only after real requests, one at a time. We may never reach this one, and we promise no date. |
 | Honest line, Can't cover (proposed spec change P2) | We can't cover this government unless the way it posts its records changes. If that happens and we open it, we'll email you once. Your request also tells us people want it. |
-| Privacy (AC9.2, AC5.3) | We keep only your email and the governments you request. We never get your address. You get one email to confirm now and one if a government opens, nothing else. Your email is held by Buttondown, our email service. [Buttondown's privacy policy] |
-| After the person taps the link in the email (AC5.2; a plain page, `digest/requested.html`, or the confirmation email itself if the provider can't send people back to us) | Thanks. Your request is confirmed. We'll email you once if we open it. We add a government only after real requests, one at a time, and we may never reach yours. [Back to Daylight Digest] |
-| Optional counter (AC5.6, only if the architect builds it) | Link-style button: "No email? Just count me." Done: "Counted. Only the name of the government was sent. We won't be able to tell you if it opens." Failed: "We couldn't count that. Try again." |
+| Privacy (AC9.2, AC5.3, security finding 8), two short paragraphs under the tick boxes, before the button | We keep only your email address and the governments you request, to email you if one opens. We never get your street address, but the governments you request show roughly where you are. Both are held by Buttondown, our email service. [Buttondown's privacy policy] |
+| Privacy, second paragraph | You get one email to confirm now and one if a government opens, nothing else. We never sell or share your information. No ads, no sponsors. |
+| After the person taps the link in the email (AC5.2; a plain page, `digest/requested.html`. The page is static and can't tell which kind was requested, so it carries both AC5.2 labels; the confirmation email in section 8 carries them too) | Thanks. Your request is confirmed. We'll email you once if we open a government you requested. We add a government only after real requests, one at a time. We may never reach yours, and we promise no date. If it is marked "Can't cover", we can't cover it unless the way it posts its records changes. [Back to Daylight Digest] |
+| Counter (AC5.6, architecture 3.9 and N4; shown only when `DaylightCount.available`) | Link-style button: "No email? Just count me." Done: "Counted. The count names only this government. No email or street address was sent. We can't tell you if it opens." Failed: "We couldn't count that. An ad blocker or a dropped connection can stop the count. Try again, or use the email form." |
+
+Copy notes for these rows. (a) The Done text claims only what the count itself holds (the government's ID). It does
+not say "nothing about you", because the request also shows GoatCounter an IP address and browser, like any web
+request; section 9a says that on the Method page. The same Done text shows when the person returns (past tense on
+purpose). (b) The Failed text names the two usual causes because "Try again" alone loops forever behind an ad
+blocker; it does not say "nothing was sent", which the page can't know. (c) The privacy line starts from the
+approved digest line ("We never sell or share your information. We keep only your email address, to send you the
+digest. No ads, no sponsors.") and changes one fact: a request also stores the governments, so "only your email
+address" would be untrue here (open question Q7). "Street address" is used wherever "email address" is near, so
+the two can't be confused.
 
 Rules: the success text is the same whether or not that email already asked (the page never reveals who is on a
 list). A repeat request adds no second count (AC5.5). No count is shown to the public (AC5.4). The email is never
@@ -448,7 +461,7 @@ bordered group; tick boxes and radios are 44px rows; the button is full width.
 | h1 | Get Daylight Digest by email |
 | Cadence | One email a week, on Monday morning. Unsubscribe with one click in any email. |
 | No saved list | Tick the governments you want from the list of covered governments below. You don't need to type an address. |
-| Privacy (AC9.2) | We keep only your email and the governments and topics you pick. We never get your address. Your email is held by Buttondown, our email service. [Buttondown's privacy policy] |
+| Privacy (AC9.2, security finding 8) | We never sell or share your information. We keep only your email address and the governments and topics you pick, to send you the digest. We never get your street address, but the governments you pick show roughly where you are. Both are held by Buttondown, our email service. No ads, no sponsors. [Buttondown's privacy policy] |
 | Button | Send me the confirmation email |
 | Success | Check your email. We sent one message to confirm. Nothing else is sent until you tap the link in it. |
 | Change later (AC3.6) | To change your governments or topics, fill in this form again with the same email. |
@@ -522,9 +535,34 @@ and only announces at 1,700 and 1,800. Both buttons are full width on a phone, 4
 
 ## 8. Emails: the weekly note (M4, US7) and the two request emails (M1, US5)
 
-**Request emails (M1).** Plain text, same footer as below. (1) Confirmation, subject "Confirm your Daylight Digest
-request": "You asked us to email you if we open these local governments: {names}. Tap to confirm: [Confirm my
-request]. If this wasn't you, do nothing and nothing is saved." (2) "It's open", sent once per government after
+**Request emails (M1).** Plain text. (1) Confirmation: Buttondown sends one confirmation email for the whole
+`daylight` newsletter, so the same text goes to a Clarksville morning note sign-up and to a coverage request. It
+can't name the governments or know which form was used, so it says both cases plainly and carries both AC5.2
+labels. Brian pastes it in his Buttondown dashboard (tasks, ask 0); the confirm link or button stays wherever
+Buttondown's editor puts it. This replaces the v1 draft, which named the governments and said "nothing is saved"
+(not true: Buttondown keeps an unconfirmed sign-up).
+
+```
+Subject: Confirm your email for Daylight
+
+You, or someone using this email address, signed up at Daylight
+(daylight.gnoshcodes.com). To confirm, use the link in this email. Until you
+confirm, we send you nothing more.
+
+If you signed up for the Clarksville morning note: you get a short email on
+mornings when something on your list is on an agenda or was voted on.
+
+If you requested a local government on Daylight Digest: we email you once if
+we open it. We add a government only after real requests, one at a time. We
+may never reach yours, and we promise no date. If it is marked "Can't cover",
+we can't cover it unless the way it posts its records changes.
+
+If this wasn't you, do nothing. You get no more email from us.
+
+We never sell or share your email address.
+```
+
+(2) "It's open", same footer as the weekly note below, sent once per government after
 Brian OKs the send (AC5.3), subject "{government} is now on Daylight Digest": "You asked us to tell you. See what's
 coming up: [link]. This is the only email you get for this request. [Get the weekly email]" (the last link from M4).
 
@@ -592,7 +630,25 @@ weekly note is M4; Brian approves a sample before any send (AC7.6) and provides 
 | 6 Sign-up | AC3.1 to AC3.6, AC9.2 |
 | 7 Letter | AC6.1 to AC6.7 |
 | 8 Emails | AC5.1 to AC5.3, AC7.1 to AC7.5 |
-| Method page additions (existing page, new section "Daylight Digest") | AC9.3, AC3.3: what is stored and where (the list of governments, on your device only; your email and the governments and topics you asked for, as tags, with Buttondown; anonymous counts if the counter is built), the topic word lists, how the share was counted |
+| Method page additions (existing page, new section "Daylight Digest"; wording in 9a) | AC9.3, AC3.3, security finding 8: what is stored and where (the names and IDs of the governments, on your device only; your email and the governments and topics you asked for, as tags, with Buttondown, which show roughly where you are; the anonymous count), the topic word lists (M4), how the share was counted |
+
+### 9a. Method page wording (M1; for T1, the technical-writer places it)
+
+Section heading: "Daylight Digest". Five paragraphs, in this order. Code-styled words are `<code>`.
+
+| Paragraph | Copy |
+|---|---|
+| Address | On the Daylight Digest page, the address you type goes from your browser straight to the US Census Bureau, which answers with the local governments for that spot. This site never receives the address, and it is not kept in your browser. |
+| On your device (architecture 3.8, N2) | After a lookup, your browser keeps the names and IDs of the governments in that list (local storage, key `daylight.us.list`) so the list is there next time. The names are the Census Bureau's public names. It also keeps the IDs of the governments you requested from this device (key `daylight.us.requested`) and of the ones you counted with "Just count me" (key `daylight.us.counted`). These three keys hold no street address, no email address and no dates. "Forget this list" removes all three. A government's ID leaves your device only when you send a request or tap "Just count me". |
+| Requests (AC9.3, finding 8) | Sending a request gives Buttondown, our email service, your email address and the ID of each government you asked for, and, like any website, your IP address. Buttondown stores each government with your email as a tag, such as `req-place-4715160`. The governments you request show roughly where you are, usually down to your city or town and school district. They do not show your street address, which this site never gets. We use the tags for two things only: to count the requests for each government, and to email you once if one opens. A request does not sign you up for the morning note or any other email. [Buttondown: Privacy policy] |
+| "Just count me" (architecture 3.9) | Tapping "No email? Just count me" sends one count to GoatCounter. It holds the ID of that government, as an event named `count-` plus the ID, and nothing else: no street address, no email address, no page address, no linking site and no screen size. Like any web request, it tells GoatCounter your IP address and browser, so for that one request GoatCounter can see an IP address next to a government. GoatCounter says it does not keep the IP address. The button is not shown to browsers that send Do Not Track or Global Privacy Control. These counts are kept apart from email requests and are never added to them. |
+| Page visits (finding 8, GoatCounter paths) | Visits to Daylight Digest pages are counted the same way as the rest of this site. The address of a coming-up page names its government, so the visit count for that page names it too. The lookup page has one address for everyone, so its count says nothing about which governments were listed. |
+
+One existing sentence on the Method page becomes untrue and changes with this section: "These two keys are all this
+site keeps in your browser." becomes "These two keys are all the Clarksville pages keep in your browser. Daylight
+Digest pages keep three more, listed under Daylight Digest below."
+T1 checks two facts before using the last row: that `count.js` runs on digest pages (architecture section 9, CSP),
+and the real path shape of a coming-up page. If `count.js` does not run there, drop that row.
 
 ## 10. Components
 
@@ -623,6 +679,13 @@ Checked against spec v2.1 (request by email as the main path; weekly email and f
   email), and say where the AC5.2 label shows: on the page the confirm link lands on, or in the confirmation email.
 - P8. AC5.6: the focus group's skeptic and retiree would not give an email at all. Recommend building the one-tap
   counter if the architect finds a mechanism, so those readers still have a way to ask.
+- P9. AC5.2: the confirmation email is one text for the whole newsletter (morning note and requests), so it can't
+  name the governments or pick one label. It and `digest/requested.html` carry both labels, each with its "if"
+  (sections 3 and 8).
+- P10. AC1.3 "Only body IDs may be saved on the device": change to "only the names and IDs of governments"
+  (architecture N2; the name is the Census's public name for the ID).
+- P11. AC9.2: add "and that the governments picked show roughly where the person is" (security finding 8). Also the
+  form text says "the governments you request", not "bodies and topics", on the request form (no topics there).
 
 ## 12. Open questions (recommended answers first)
 
@@ -631,14 +694,26 @@ Checked against spec v2.1 (request by email as the main path; weekly email and f
 - Q2. Which facts in the who-runs-it draft are true as written: "run and paid for by gnoshcodes LLC" (reader tips
   through Buy Me a Coffee also exist), "small software company in Clarksville, Tennessee", "no ads", "no political
   money"? **Recommended: Brian confirms or corrects each before M1 goes live (AC1.9).**
-- Q3. Keep the list of governments on the device after a lookup? **Recommended: yes, IDs only, with "Forget this
-  list" (matches today's ward and district behavior and AC1.3).**
+- Q3. Keep the list of governments on the device after a lookup? Yes, with "Forget this list". Updated by
+  architecture N2: the device keeps each government's name and ID, not IDs only (a government outside the directory
+  has no name anywhere else). Copy checked: sections 1, 3 and 9a say "names and IDs" (spec change P10).
 - Q4. Election office link target. **Recommended: PM picks one official federal page and records it in
   `docs/platform-facts.md`; the line is left out until then.**
 - Q5. Header on Digest pages (D1, D2 change two site checks). **Recommended: as designed.**
 - Q6. Can the Buttondown form stay on our page, add several tags at once, add tags to an address that is already
   confirmed, and send people back to `digest/requested.html` after they confirm? **Recommended: architect tests on
   the real account; fallbacks are written into section 3 (one request per form; label in the confirmation email).**
+- Q7. The approved digest privacy line says "We keep only your email address", but a request or sign-up also stores
+  the governments (and, in M4, topics) as tags. **Recommended: keep the adapted lines in sections 3 and 6, which add
+  those words and leave the rest of the approved line as it is.** "Never share" sits next to "held by Buttondown,
+  our email service": read as a service that holds the list for us, not as sharing. The manager confirms that reading.
+- Q8. How does a person withdraw a request? They get no email with an unsubscribe link until a government opens, and
+  it is unverified whether Buttondown's confirmation email carries one. **Recommended: Q2 checks the confirmation
+  email for an unsubscribe link; if there is one, add to the Method "Requests" paragraph: "To withdraw a request,
+  use the unsubscribe link in the confirmation email." Until verified, the Method page promises nothing.**
+- Q9. Unverified: where Buttondown's editor puts the confirm link in a custom confirmation text, and whether the
+  subject can be edited on the free plan (architecture Q-A). The text in section 8 works with the link anywhere in
+  the email. **Recommended: check in the same dashboard visit as ask 0.**
 
 **Recommend:** a small Focus Group (3 personas: the skeptic, the large-text retiree, the unincorporated parent) on
 the entry page copy, the Not covered yet card with its confirmation, and one real coming-up page, before M1 goes
