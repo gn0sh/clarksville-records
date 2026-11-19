@@ -596,3 +596,68 @@ def test_an_event_past_the_window_is_dropped_and_counted(loaded):
     r = lu.read_body(govs["place-4164900"], Recorded("salem", answers={
         "events": (200, json.dumps([last, over]).encode(), {})}), NOW)
     assert [m["id"] for m in r.feed["meetings"]] == ["2026-12-29-e4001"] and r.counts.future_dropped == 1
+
+
+# --- collector-input/json-depth-recursion (security S2a finding 2; architecture 4.4.3) -----------------------------
+
+NESTED = [b"[" * 60000, b'{"a":' * 500 + b"1" + b"}" * 500]
+
+
+def test_parse_json_never_raises_and_caps_depth():
+    """collector-input/json-depth-recursion: one helper for every outside or on-disk parse."""
+    from collector.safe_json import MAX_DEPTH, parse_json
+    for raw in NESTED + [b"\xff", "", b"{", None, 12, b"null"]:
+        assert parse_json(raw) is None
+    assert parse_json(b"[" * MAX_DEPTH + b"]" * MAX_DEPTH) is not None
+    assert parse_json(b"[" * (MAX_DEPTH + 1) + b"]" * (MAX_DEPTH + 1)) is None
+    assert parse_json(b'{"a": [1, {"b": 2}]}') == {"a": [1, {"b": 2}]}
+    assert parse_json('﻿{}', "utf-8") is None and parse_json(b'\xef\xbb\xbf{}', "utf-8-sig") == {}
+
+
+@pytest.mark.parametrize("raw", NESTED, ids=["list", "object"])
+def test_a_nested_events_answer_is_not_enabled_suspected(loaded, raw):
+    """collector-input/json-depth-recursion (4.4.3 site 2): a RecursionError used to surface as collector-error."""
+    govs, _ = loaded
+    with pytest.raises(lu.ReadError) as e:
+        lu.read_body(govs["place-4164900"], Recorded("salem", answers={"events": (200, raw, {})}), NOW)
+    assert e.value.kind == "not-enabled-suspected"
+
+
+@pytest.mark.parametrize("raw", NESTED, ids=["list", "object"])
+def test_a_nested_items_answer_is_a_read_error(loaded, raw):
+    govs, _ = loaded
+    with pytest.raises(lu.ReadError) as e:
+        lu.read_body(govs["place-4164900"], Recorded("salem", answers={"1001": (200, raw, {})}), NOW)
+    assert e.value.kind == "not-enabled-suspected"
+
+
+@pytest.mark.parametrize("raw", NESTED, ids=["list", "object"])
+def test_a_nested_cache_file_is_a_miss_deleted_and_never_fails_the_body(loaded, tmp_path, raw):
+    """collector-input/json-depth-recursion (4.4.3 sites 3 and 4): a nested file for an event of this run (_cache_get)
+    and one for another event (_sweep) are deleted as misses; the body reads, and the next run hits the new copy."""
+    govs, _ = loaded
+    g = govs["place-4164900"]
+    cache = tmp_path / "cache"
+    folder = cache / "place-4164900"
+    folder.mkdir(parents=True)
+    (folder / "1001.json").write_bytes(raw)
+    (folder / "4444.json").write_bytes(raw)
+    f = Recorded("salem")
+    r = lu.read_body(g, f, NOW, cache_root=cache)
+    assert "1001" in [c.split("/")[-2] for c in f.items_calls()]
+    assert sorted(p.name for p in folder.iterdir()) == ["1001.json", "1002.json"]
+    assert json.loads((folder / "1001.json").read_text(encoding="utf-8"))["event_id"] == 1001
+    again = Recorded("salem")
+    r2 = lu.read_body(g, again, NOW, cache_root=cache)
+    assert r2.counts.cache_hits == 2 and r2.feed == r.feed
+
+
+def test_cache_get_alone_deletes_a_nested_file(loaded, tmp_path):
+    """4.4.3 site 4 without the sweep in front of it."""
+    govs, _ = loaded
+    folder = tmp_path / "place-4164900"
+    folder.mkdir()
+    (folder / "1001.json").write_bytes(b"[" * 60000)
+    counts = lu.ReadCounts()
+    assert lu._cache_get(folder, govs["place-4164900"], 1001, "2026-11-26T19:04:12.4", counts) is None
+    assert not (folder / "1001.json").exists() and counts.cache_deleted == 1

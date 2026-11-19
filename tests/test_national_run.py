@@ -611,3 +611,82 @@ def test_read_body_refuses_an_entry_without_host_ok():
     with pytest.raises(ValueError, match="host_ok"):
         lu.read_body(without_host_ok(SALEM), fetcher(net), NOW)
     assert net.calls == []
+
+
+# --- collector-input/json-depth-recursion (security S2a finding 2; architecture 4.4.3 sites 5 and 6) ---------------
+
+NESTED = [b"[" * 60000, b'{"a":' * 500 + b"1" + b"}" * 500]
+
+
+@pytest.mark.parametrize("raw", NESTED, ids=["list", "object"])
+def test_nested_previous_files_are_left_out_and_collect_completes(tmp_path, monkeypatch, raw):
+    """collector-input/json-depth-recursion (4.4.3 site 5): a nested health.json used to abort collect(); nested
+    health, proposals and body files are unreadable (left out), and the run writes its outputs."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+    root = tmp_path / "data" / "national"
+    (root / "bodies").mkdir(parents=True)
+    for p in (root / "health.json", root / "proposals.json", root / "bodies" / f"{g['gov']}.json"):
+        p.write_bytes(raw)
+    assert nr.read_previous(root) == ({}, {}, [])
+    r = nr.collect(root, d, fetcher(Net()), 100, NOW)
+    assert r.outcomes == {g["gov"]: "ok"}
+    assert json.loads((root / "health.json").read_text())[g["gov"]]["last_error"] is None
+    assert json.loads((root / "proposals.json").read_text()) == []
+    assert json.loads((root / "bodies" / f"{g['gov']}.json").read_text())["body"]["id"] == g["gov"]
+
+
+def _deep(levels):
+    x = []
+    for _ in range(levels):
+        x = [x]
+    return x
+
+
+def test_a_deeply_nested_previous_feed_is_no_kept_feed_and_the_body_keeps_its_outcome(tmp_path, monkeypatch):
+    """collector-input/json-depth-recursion (4.4.3 site 6): a previous feed passed in (not read through parse_json)
+    whose deepcopy raises RecursionError gives no kept feed; the body's outcome stays server-error, not
+    collector-error."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+    deep = {"schema": "daylight-upcoming/1", "body": {"id": g["gov"]}, "meetings": _deep(5000)}
+    assert nr._kept_feed(deep, g, nr._instant(NOW)) is None
+    r = nr.run(d, fetcher(Net(fail={"aa": (500, b"")})), 100, NOW, previous_feeds={g["gov"]: deep})
+    assert r.outcomes[g["gov"]] == "server-error" and g["gov"] not in r.feeds
+
+
+# --- cache-confine/prune-fail-open (security S2a finding 5) --------------------------------------------------------
+
+@pytest.mark.parametrize("exc", [OSError("disk"), ValueError("symlinked root"), PermissionError("no")])
+def test_a_prune_failure_fails_the_run_before_any_request_or_write(tmp_path, monkeypatch, exc):
+    """cache-confine/prune-fail-open: a prune that fails used to leave the run going uncached, so a now-withheld
+    body's cached item text stayed on disk and was pushed. Now the run raises: no request, nothing written."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+
+    def broken(directory, cache_root):
+        raise exc
+    monkeypatch.setattr(lu, "prune_cache", broken)
+    net = Net()
+    root = tmp_path / "data" / "national"
+    with pytest.raises(type(exc)):
+        nr.collect(root, d, fetcher(net), 100, NOW)
+    assert net.calls == [] and not (root / "health.json").exists() and not (root / "bodies").exists()
+    with pytest.raises(type(exc)):
+        nr.run(d, fetcher(net), 100, NOW, cache_root=tmp_path / "cache")
+    assert net.calls == []
+
+
+def test_a_symlinked_cache_root_fails_the_run(tmp_path, monkeypatch):
+    """cache-confine/prune-fail-open: prune_cache refuses a symlinked root (cache-confine/root-symlink); the run no
+    longer goes on uncached."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+    real = tmp_path / "elsewhere"
+    real.mkdir()
+    link = tmp_path / "cache"
+    link.symlink_to(real)
+    net = Net()
+    with pytest.raises(ValueError):
+        nr.run(d, fetcher(net), 100, NOW, cache_root=link)
+    assert net.calls == []

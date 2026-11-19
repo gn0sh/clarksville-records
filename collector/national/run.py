@@ -38,6 +38,7 @@ from zoneinfo import ZoneInfo
 from collector.fetch import (FetchFailed, HostBlocked, HostRefused, ProxyRefused, RequestCapReached, RobotsDisallowed,
                              TenantBlocked, TenantCapReached, tenant_key)
 from collector.national import legistar_upcoming as lu
+from collector.safe_json import parse_json
 from sitegen.national import Directory
 from sitegen.national_clarksville import feed_errors
 from sitegen.national_guards import allowed_url, bind_feed, checked_id, host_ok_problem, id_layer
@@ -181,14 +182,14 @@ def _kept_feed(previous: dict | None, entry: dict, stamp: str | None) -> dict | 
     or it no longer binds or matches the schema (the page then shows the government as stale)."""
     if not isinstance(previous, dict):
         return None
-    feed = copy.deepcopy(previous)
-    if stamp is not None:
-        feed["checked_at"] = stamp
-    try:
+    try:            # 4.4.3 site 6: deepcopy, bind_feed or the schema failing in any way (e.g. RecursionError on a
+        feed = copy.deepcopy(previous)          # deeply nested previous feed) is "no kept feed", never the body's
+        if stamp is not None:                   # outcome (which stays its real one)
+            feed["checked_at"] = stamp
         feed, _counts = bind_feed(feed, entry)
-    except ValueError:
+        return None if feed_errors(feed) else feed
+    except Exception:
         return None
-    return None if feed_errors(feed) else feed
 
 
 # --- proposals ----------------------------------------------------------------------------------------------------
@@ -343,7 +344,7 @@ def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_f
     remaining_tenant, robots_unreadable, log, extra_denied). `budget` is the run's request budget on
     webapi.legistar.com. `now` (aware) orders the run; `clock()` stamps each body as its read starts (default: `now`
     for every body). `previous_*` are the last run's outputs (`read_previous`). `cache_root` is
-    `data/national/cache`: pruned first (11.1 row 19)."""
+    `data/national/cache`: pruned first (11.1 row 19); a prune failure raises (nothing is read or written)."""
     check_host_ok(directory)                           # R5: before the fetcher, the cache or any file is touched
     stamp_of = clock or (lambda: now)
     _instant(now)
@@ -355,10 +356,10 @@ def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_f
     clients = {e["gov"]: e[lu.PLATFORM]["client"] for e in entries}
 
     if cache_root is not None:
-        try:
-            lu.prune_cache(directory, cache_root)      # before any read, so a body now withheld keeps no item text
-        except (OSError, ValueError):
-            cache_root = None                          # e.g. a symlinked root: refused, the run reads uncached
+        # before any read, so a body now withheld keeps no item text. A prune that fails (e.g. a symlinked root, a
+        # file it cannot delete) fails the run, before any request or write (cache-confine/prune-fail-open, S2a
+        # finding 5): going on uncached would leave that text on disk to be pushed.
+        lu.prune_cache(directory, cache_root)
 
     fetcher.limit_hosts([HOST], budget)
     try:
@@ -401,11 +402,13 @@ def _real_dir(path: Path) -> bool:
 
 
 def _load_json(path: Path):
-    if not path.is_file() or path.is_symlink():
-        return None
+    """4.4.3 site 5 (collector-input/json-depth-recursion): a file that cannot be read or parsed, or nests past the
+    parse_json depth cap, is None (left out), never an exception that would abort collect()."""
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        if not path.is_file() or path.is_symlink():
+            return None
+        return parse_json(path.read_bytes())
+    except Exception:
         return None
 
 
@@ -483,7 +486,7 @@ def collect(data_root: Path, directory: Directory, fetcher, budget: int, now: da
             clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
     """check_data_root -> read_previous -> run (cache `data_root/cache`, pruned first) -> write_outputs. The directory
     is never written. A directory `check_host_ok` refuses raises before anything is read or written."""
-    check_host_ok(directory)                           # on purpose: run() checks again, but this one runs before data_root is read
+    check_host_ok(directory)       # on purpose: run() checks again, but this one runs before data_root is read
     root = check_data_root(data_root)
     feeds, health, proposals = read_previous(root)
     result = run(directory, fetcher, budget, now, previous_feeds=feeds, previous_health=health,

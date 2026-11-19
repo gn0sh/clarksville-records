@@ -38,6 +38,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from collector.safe_json import parse_json
 from sitegen.national import LEGISTAR_FINAL_STATUSES, Directory
 from sitegen.national_clarksville import UPCOMING_SCHEMA, feed_errors
 from sitegen.national_guards import (LEGISTAR_API_HOST, MAX_TEXT, BindCounts, GuardCounts, allowed_url, bind_feed,
@@ -266,8 +267,8 @@ def _sweep(folder: Path, entry: dict, counts: ReadCounts) -> None:
         doc = None
         if p.is_file() and not p.is_symlink() and re.fullmatch(r"[1-9][0-9]{0,11}\.json", p.name):
             try:
-                doc = json.loads(p.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
+                doc = parse_json(p.read_bytes())     # 4.4.3 site 3: any error, or nesting past the cap, is a miss
+            except Exception:
                 doc = None
         if not (isinstance(doc, dict) and doc.get("review") == entry["review"] and doc.get("body") == entry["gov"]):
             counts.cache_deleted += _remove(p)
@@ -286,8 +287,8 @@ def _cache_get(folder: Path | None, entry: dict, event_id: int, published: str |
             counts.cache_deleted += _remove(path)
         return None
     try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        doc = parse_json(path.read_bytes())          # 4.4.3 site 4: unreadable -> a miss, and the file is deleted
+    except Exception:
         doc = None
     ok = (isinstance(doc, dict) and doc.get("schema") == CACHE_SCHEMA and doc.get("review") == entry["review"]
           and doc.get("body") == entry["gov"] and doc.get("event_id") == int(event_id)
@@ -347,10 +348,9 @@ def _get_json(fetcher, url: str, gov: str, what: str) -> list:
         raise ReadError(_error_kind(status), f"{gov}: {what} answered HTTP {int(status)}")
     if not isinstance(body, (bytes, bytearray)) or len(body) > MAX_RESPONSE_BYTES:
         raise ReadError("server-error", f"{gov}: {what} answer is larger than {MAX_RESPONSE_BYTES} bytes")
-    try:
-        rows = json.loads(bytes(body).decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
-        raise ReadError("not-enabled-suspected", f"{gov}: {what} answer is not JSON") from None
+    rows = parse_json(body)              # 4.4.3 site 2: any error (RecursionError included) or deep nesting
+    if rows is None:
+        raise ReadError("not-enabled-suspected", f"{gov}: {what} answer is not JSON")
     if not isinstance(rows, list):
         raise ReadError("not-enabled-suspected", f"{gov}: {what} answer is not a JSON list")
     return rows
