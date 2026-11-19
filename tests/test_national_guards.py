@@ -2,6 +2,7 @@
 B14). One test per rule. Problem keys: national/url-scheme-untrusted (finding 4), national/untrusted-size (finding 12),
 national/writer-token-scope (ids before paths, finding 6)."""
 import copy
+import json
 
 import pytest
 
@@ -180,3 +181,84 @@ def test_clean_feed_leaves_a_clean_feed_unchanged_and_input_untouched():
     before = copy.deepcopy(f)
     out, counts = g.clean_feed(f)
     assert out == before and f == before and not counts.any()
+
+
+# --- review fixes (B14 code review) -------------------------------------------------------------------------------
+
+RAISING_URLS = ("https://[x/", "https://[::1/x", "https://]x/", "https://a＃b.org/", "https://a℀.org/")
+
+
+@pytest.mark.parametrize("url", RAISING_URLS)
+def test_url_urlsplit_error_refused_not_raised(url):
+    # national/url-scheme-untrusted/urlsplit-raises
+    assert g.allowed_url(url) == "" and g.allowed_url(url, "legistar", "salem") == ""
+    f = feed(meeting_url=url)
+    f["meetings"][0]["agenda"]["url"] = url
+    f["meetings"][0]["items"][0]["source"]["url"] = url
+    f["body"]["official_url"] = url
+    out, counts = g.clean_feed(f)
+    m = out["meetings"][0]
+    assert out["body"]["official_url"] is None and m["meeting_url"] is None and m["agenda"]["url"] is None
+    assert m["items"][0]["source"]["url"] is None and counts.urls_dropped == 4
+
+
+@pytest.mark.parametrize("ch", ["‮", "⁦", "​", "﻿", "­", "\U000e0041", "\x85"])
+def test_url_with_bidi_or_invisible_refused(ch):
+    # national/url-scheme-untrusted/bidi-in-url
+    assert g.allowed_url(f"https://mcgtn.org/{ch}gpj.exe") == ""
+    assert g.allowed_url(f"https://salem.legistar.com/{ch}x", "legistar", "salem") == ""
+
+
+def test_lone_surrogate_stripped_and_counted():
+    # national/untrusted-size/lone-surrogate: json.loads accepts a lone surrogate escape
+    text, n = g.clean_text(json.loads('"A\\ud800B\\udfffC"'))
+    assert text == "ABC" and n == 2
+    f = feed()
+    f["meetings"][0]["items"][0]["text"] = json.loads('"x\\ud800y"')
+    out, counts = g.clean_feed(f)
+    assert out["meetings"][0]["items"][0]["text"] == "xy" and counts.chars_stripped == 1
+    out["meetings"][0]["items"][0]["text"].encode("utf-8")           # writable as UTF-8 JSON
+
+
+def test_invisible_characters_stripped_and_counted():
+    text, n = g.clean_text("Zo​ne‌ ‍A⁠⁢B﻿ so­ft \U000e0041\U000e007fC")
+    assert text == "Zone AB soft C" and n == 9
+
+
+def test_items_cap_applies_after_non_objects_are_dropped():
+    # national/untrusted-size/items-cap-order
+    f = feed()
+    one = f["meetings"][0]["items"][0]
+    f["meetings"][0]["items"] = ["junk", None, 7] + [dict(copy.deepcopy(one), seq=i) for i in range(1, 151)]
+    out, counts = g.clean_feed(f)
+    assert [i["seq"] for i in out["meetings"][0]["items"]] == list(range(1, 151)) and counts.items_dropped == 3
+    f["meetings"][0]["items"].append(dict(copy.deepcopy(one), seq=151))
+    out, counts = g.clean_feed(f)
+    assert len(out["meetings"][0]["items"]) == 150 and counts.items_dropped == 4
+
+
+def test_cut_never_splits_a_combining_mark_or_zwj_sequence():
+    text, cut = g.cut_text("x" * 1_999 + "é" + "y")                     # combining acute at the cap
+    assert cut and text == "x" * 1_999
+    text, cut = g.cut_text("x" * 1_998 + "\U0001F469‍\U0001F4BB" + "y")   # ZWJ just before the cap
+    assert cut and text == "x" * 1_998
+    text, cut = g.cut_text("x" * 1_999 + "\U0001F44D\U0001F3FD" + "y")        # skin-tone modifier at the cap
+    assert cut and text == "x" * 1_999
+    text, cut = g.cut_text("x" * 2_001)
+    assert cut and text == "x" * 2_000
+
+
+def test_clean_feed_does_not_mutate_a_dirty_input():
+    f = feed(title="A‮B", meeting_url="javascript:alert(1)")
+    item = f["meetings"][0]["items"][0]
+    f["meetings"][0]["items"] = ["junk", dict(copy.deepcopy(item), text="y" * 3_000), copy.deepcopy(item)]
+    f["meetings"].append({"id": "../x"})
+    before = copy.deepcopy(f)
+    out, counts = g.clean_feed(f)
+    assert f == before and out != before and counts.any()
+
+
+@pytest.mark.parametrize("bad", [None, [], "feed", 3])
+def test_non_object_feed_refused(bad):
+    with pytest.raises(g.UnsafeIdError):
+        g.clean_feed(bad)

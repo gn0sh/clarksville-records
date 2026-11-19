@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import re
+import unicodedata
 from dataclasses import dataclass, fields
 from urllib.parse import urlsplit
 
@@ -31,9 +32,12 @@ MEETING_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
 
 LEGISTAR_API_HOST = "webapi.legistar.com"
 
-# C0 controls, DEL, C1 controls, and the bidi marks, embeddings, overrides and isolates (LRM, RLM, ALM, LRE..RLO,
-# LRI..PDI). They never belong in a curated name (refused there) and are stripped from outside text (counted).
-BAD_TEXT_RE = re.compile("[\x00-\x1f\x7f-\x9f؜‎‏‪-‮⁦-⁩]")
+# C0 controls, DEL, C1 controls, the bidi marks, embeddings, overrides and isolates (LRM, RLM, ALM, LRE..RLO,
+# LRI..PDI), invisible characters (soft hyphen, zero-width space/joiners, word joiner and invisible operators, BOM,
+# tag characters) and lone surrogates. They never belong in a curated name (refused there) or a URL (refused), and
+# are stripped from outside text (counted).
+BAD_TEXT_RE = re.compile("[\x00-\x1f\x7f-\x9f\xad\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069"
+                         "\ufeff\ud800-\udfff\U000e0000-\U000e007f]")
 # Whitespace controls are word breaks in source text: they become a space (text is whitespace joined), not a strip.
 _WS_CONTROLS = "\t\n\v\f\r"
 
@@ -73,21 +77,23 @@ def allowed_url(url, platform: str = "daylight", client: str | None = None) -> s
     """`url` when a curated or outside URL may be linked: `config.https_link` passes, it has no user name or password
     and no port but 443, and, for a platform other than daylight, its host is one of that platform's hosts (finding 4).
     Else "". Legistar's hosts are `webapi.legistar.com` and `<client>.legistar.com`; an unknown platform has none."""
-    if not config.https_link(url):
+    if not isinstance(url, str) or BAD_TEXT_RE.search(url):
         return ""
-    u = urlsplit(url)
-    try:
-        port = u.port
+    try:                                    # urlsplit raises ValueError on a bad bracket host or an NFKC netloc
+        if not config.https_link(url):
+            return ""
+        u = urlsplit(url)
+        port, host = u.port, u.hostname
     except ValueError:
         return ""
-    if u.username is not None or u.password is not None or port not in (None, 443) or not u.hostname:
+    if u.username is not None or u.password is not None or port not in (None, 443) or not host:
         return ""
     if platform == "daylight":
         return url
     if platform == "legistar":
         hosts = {LEGISTAR_API_HOST} | ({f"{client.lower()}.legistar.com"} if isinstance(client, str) and client
                                        else set())
-        return url if u.hostname.lower() in hosts else ""
+        return url if host.lower() in hosts else ""
     return ""
 
 
@@ -102,7 +108,7 @@ class GuardCounts:
     """What the guards changed in one feed, for the run log (finding 12)."""
     chars_stripped: int = 0     # control and bidi characters removed
     texts_cut: int = 0          # item texts cut at MAX_ITEM_TEXT, other texts cut at MAX_TEXT
-    items_dropped: int = 0      # items past MAX_ITEMS
+    items_dropped: int = 0      # items past MAX_ITEMS, and items that are not objects
     meetings_dropped: int = 0   # meetings past MAX_MEETINGS or with a bad id
     urls_dropped: int = 0       # URLs refused by allowed_url (field set to null)
 
@@ -124,11 +130,23 @@ def clean_text(value) -> tuple[str, int]:
     return " ".join(text.split()), stripped
 
 
+def _extends(c: str) -> bool:
+    """True for a character that belongs to the one before it: a combining mark, a variation selector or an emoji
+    skin-tone modifier."""
+    o = ord(c)
+    return (unicodedata.category(c) in ("Mn", "Mc", "Me") or 0xFE00 <= o <= 0xFE0F or 0xE0100 <= o <= 0xE01EF
+            or 0x1F3FB <= o <= 0x1F3FF)
+
+
 def cut_text(text: str, limit: int = MAX_ITEM_TEXT) -> tuple[str, bool]:
-    """(text, cut): `text` cut at `limit` characters when longer."""
+    """(text, cut): `text` cut at `limit` characters when longer, backed off so the cut never separates a combining
+    mark, variation selector or modifier from its base, or splits a zero-width-joiner sequence."""
     if len(text) <= limit:
         return text, False
-    return text[:limit].rstrip(), True
+    i = limit
+    while i > 0 and (_extends(text[i]) or text[i] == "\u200d" or text[i - 1] == "\u200d"):
+        i -= 1
+    return text[:i or limit].rstrip(), True
 
 
 def _clean_str(obj: dict, key: str, counts: GuardCounts) -> None:
@@ -171,8 +189,9 @@ def _clean_meeting(m: dict, platform: str, client, counts: GuardCounts) -> dict:
         _clean_str(agenda, "status_as_posted", counts)
     items = m.get("items")
     if isinstance(items, list):
-        counts.items_dropped += max(0, len(items) - MAX_ITEMS)
-        m["items"] = [_clean_item(i, platform, client, counts) for i in items[:MAX_ITEMS] if isinstance(i, dict)]
+        good = [i for i in items if isinstance(i, dict)]
+        counts.items_dropped += len(items) - min(len(good), MAX_ITEMS)
+        m["items"] = [_clean_item(i, platform, client, counts) for i in good[:MAX_ITEMS]]
     return m
 
 
@@ -180,11 +199,14 @@ def clean_feed(feed: dict, platform: str = "daylight", client: str | None = None
     """A cleaned copy of a `daylight-upcoming/1` feed and what changed. Called by the collector before it writes a feed
     and by the builder before it renders one (3.5), with the government's directory platform and client.
 
-    Raises UnsafeIdError when `body.id` is not a government id (it names the feed's file and page). A meeting with a
-    bad id is dropped. Every URL (`official_url`, `meeting_url`, `agenda.url`, `items[].source.url`) that
-    `allowed_url` refuses becomes null; every text field is stripped of control and bidi characters; item text is cut
-    at 2,000 characters (`"cut": true`); at most 150 items per meeting and 60 meetings (the first ones, soonest first)
-    are kept. Keys the guards do not know are copied unchanged (the schema check judges them)."""
+    Raises UnsafeIdError when `feed` is not an object or `body.id` is not a government id (it names the feed's file
+    and page). A meeting with a bad id is dropped. Every URL (`official_url`, `meeting_url`, `agenda.url`,
+    `items[].source.url`) that `allowed_url` refuses becomes null; every text field is stripped of control, bidi and
+    invisible characters; item text is cut at 2,000 characters (`"cut": true`); items that are not objects are
+    dropped, then at most 150 items per meeting and 60 meetings (the first ones, soonest first) are kept. Keys
+    the guards do not know are copied unchanged (the schema check judges them)."""
+    if not isinstance(feed, dict):
+        raise UnsafeIdError(f"not a feed: {type(feed).__name__}")
     out = copy.deepcopy(feed)
     counts = GuardCounts()
     body = out.get("body") if isinstance(out.get("body"), dict) else {}
