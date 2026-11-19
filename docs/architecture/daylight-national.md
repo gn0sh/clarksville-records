@@ -96,24 +96,38 @@ regex, each with a test:
   `legistar.client` matches `^[a-z0-9-]{2,40}$`; `tz` is a name in `zoneinfo.available_timezones()`;
   `final_statuses` is an exact list of strings from a fixed set; `state` is one of the USPS codes.
 - every URL host on a non-daylight entry is on that platform's host allowlist (`config.https_link`, finding 4).
+- Also refused (B1, 2026-11-19): a `state` that does not match the id's GEOID state code (it names the folder); a
+  `reason`/`reason_url` on a covered entry; both `checked_url` and `checked_doc` (the doc must be an existing
+  `docs/*.md` file); a URL with a user name, password or a port other than 443; a body name with control or bidi
+  characters; an unknown `platform` (boarddocs, escribe, civicclerk join with their own key checks). Legistar's hosts
+  are `webapi.legistar.com` and `<client>.legistar.com`. `items: shown` also needs a `place`, `county` or `cousub` id
+  and a `body_name` naming a governing body (council, commission, board of supervisors, ...) with no school, youth,
+  student or child word (`sitegen/national.py` `_general_purpose`, fail closed).
 
 ### 3.3 `config/national/gov-flags.yml`
 ```yaml
 schema: daylight-govflags/1
-hide: [{id: county-09110, why: "CT planning region, no county government", source: <url>}]   # by id
-show: [{id: place-4752006, why: "Nashville-Davidson metro government (balance)", source: <url>}]
+hide: [{id: county-25017, why: "Middlesex County, MA: county government abolished (1997)", source: <url>},
+       {id: place-4752006, why: "Nashville (balance): same government as county-47037", source: <url>},
+       {id: county-51760, why: "Richmond city, VA: independent city (COUNTYCC C7)", source: <url>}]   # by id
+show: [{id: county-47037, why: "Nashville-Davidson metropolitan government", source: <url>}]
 rules: [{state: "09", layer: county, show: false, why: ..., source: <url>},
         {state: "44", layer: county, show: false, why: ..., source: <url>}]
 lines: [{id: place-4752006, line: consolidated, why: ..., source: <url>},    # "The city and county here are one government."
-        {id: place-5181000, line: independent-city, why: ..., source: <url>}] # "This city is not part of any county."
+        {id: county-51760, line: independent-city, why: ..., source: <url>}] # "This city is not part of any county."
 ```
-Ids in this file are examples to be confirmed in task B2; none is verified yet. `line` must be a key in `labels.yml`.
+Seeded in B2 (2026-11-19; sources and their verification state in `docs/platform-facts.md` "Census TIGER/Line codes").
+A `line` needs the label `note.<line>` in `labels.yml`. A `lines` entry applies when the Census returns its id for the
+address, whether the id is kept or hidden here, so a line can ride on a hidden duplicate: an independent city's
+county-equivalent copy is hidden (the place card is the one card) and carries `independent-city`; Nashville's
+"(balance)" place is hidden (Metro is `county-47037`, kept by `show` whatever its FUNCSTAT) and carries
+`consolidated`, so an address in Belle Meade (its own city inside Metro) gets Belle Meade and Metro and no line.
 The other fixed lines (no city or town, no county government listed) are computed, not flagged (4.1).
 
 ### 3.4 Embedded page directory (built from 3.2 and 3.3; the browser's only data)
 ```json
 {"schema": "daylight-pagedir/1", "built": "2026-11-19", "root": "../",
- "govs": {"place-4715160": {"board": "Clarksville City Council", "status": "covered", "page": "tn/place-4715160.html",
+ "govs": {"place-4715160": {"board": "Clarksville City Council", "status": "covered", "page": "digest/tn/place-4715160.html",
                             "full": "city/", "stale": false},
           "sdu-4703030": {"board": "Clarksville-Montgomery County School System Board of Education",
                           "status": "cant-cover", "reason": "blocks-readers", "checked": "2026-11-07",
@@ -124,7 +138,8 @@ The other fixed lines (no city or town, no county government listed) are compute
  "labels": {"reason.blocks-readers": "Its records site blocks automated readers.", "...": "..."}}
 ```
 `stale` is computed at build time from the government's JSON `last_ok_at` (more than 3 days before the build).
-`page` and `full` are relative to `root` (the page's own `data-root`), never absolute. The card's title is the Census
+`page` and `full` are relative to `root` (the page's own `data-root`), never absolute (so `page` starts with
+`digest/`). Label keys are `slot.<layer>`, `reason.<reason>` and `note.<key>` (`config/national/labels.yml`). The card's title is the Census
 name from the lookup; `board` is the directory's board name on the next line (UX P4). A government with no `govs`
 entry has no `board` line, status "not-covered-yet", and the "no official link" copy (the Census answer has none).
 If the embedded directory passes about 60 KB, it moves to same-origin `digest/pagedir.json` fetched on first lookup
@@ -239,9 +254,10 @@ lines.
   `units` = `[{id, layer, name, funcstat, state}]` from the six layers, read by exact layer name; any other layer is
   ignored. More than 20 matches: "add the city and ZIP".
 - `governments(units, pagedir) -> {govs: [{id, name, slot, status, board?, reason?, checked?, reason_url?, page?, full?,
-  official_url?}], notes: [<label key>]}`; `notes` holds the fixed lines the list needs: `no-city` (no place kept:
-  unincorporated), `no-county` (a county was hidden by a `rules` or `hide` entry), and each `lines` flag of a kept
-  government (`consolidated`, `independent-city`). `govs` empty -> the "nothing listable" state. Apply in order
+  official_url?}], notes: [<label key>]}`; `notes` holds the fixed lines the list needs (each drawn from label
+  `note.<key>`): `no-city` (no place kept: unincorporated), `no-county` (a county was hidden by a `rules` or `hide`
+  entry that has no `lines` entry), and the `lines` flag of each returned unit, kept or hidden (`consolidated`,
+  `independent-city`); neither `no-city` nor `no-county` is added when one of those two lines is (3.3). `govs` empty -> the "nothing listable" state. Apply in order
   (1) drop units by FUNCSTAT (place, county, cousub: keep A; school districts: keep A or E; codes confirmed in B2),
   (2) gov-flags `hide`, `show`, `rules`, (3) drop school district "not defined" units (GEOID ending 99999; B2
   confirms), (4) map through `alias`, then dedupe by id, (5) drop a county subdivision whose name equals the kept

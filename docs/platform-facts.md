@@ -418,6 +418,76 @@ team's Bash egress proxy refuses `geocoding.geo.census.gov` and `tigerweb.geo.ce
   FUNCSTAT **E**, LSADC 00, LOGRADE PK, HIGRADE 12, SDTYP empty, MTFCC G5420.
 - Every layer also carries OBJECTID, OID, AREALAND, AREAWATER, CENTLAT/CENTLON, INTPTLAT/INTPTLON.
 
+## Census TIGER/Line codes (B2 for daylight-national, 2026-11-19; unverified (fetch blocked) unless marked)
+How: the backend-engineer tried `www.census.gov` and `www2.census.gov` from Bash on 2026-11-19; the team's egress proxy
+refused both (CONNECT 403), as it refuses the geocoder hosts (section above). So nothing below was read from a page
+this session: it is the engineer's knowledge of the Census code lists, quoted as recalled, each marked **unverified
+(fetch blocked)**. Lines marked **verified** are backed by the recorded geocoder answer above. To verify: open each
+source in a browser, compare the wording, and change the marks here (and in `config/national/gov-flags.yml`'s header).
+Sources: functional status codes https://www.census.gov/library/reference/code-lists/functional-status-codes.html;
+class codes https://www.census.gov/library/reference/code-lists/class-codes.html; both also in the TIGER/Line
+Technical Documentation, https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2024/TGRSHP2024_TechDoc.pdf.
+- **FUNCSTAT** (unverified (fetch blocked)): A "Active government providing primary general-purpose functions";
+  B "Active government that is partially consolidated with another government but with separate officials providing
+  primary general-purpose functions"; C "Active government consolidated with another government with a single set of
+  officials"; D "Defunct entity"; E "Active government providing special-purpose functions"; F "Fictitious entity
+  created to fill the Census Bureau's geographic hierarchy"; G "Active government that is subordinate to another unit
+  of government"; I "Inactive governmental unit that has the power to provide primary special-purpose functions";
+  N "Nonfunctioning legal entity"; S "Statistical entity".
+  Verified in the recorded answer: Clarksville city A, Montgomery County A, CMCSS (a school district) E, TN commission
+  district N. So `governments()` step 1 (place, county, cousub keep A; school districts keep A or E) holds for TN.
+  Consequence: B, C and G units are real governments that step 1 drops; `show` in gov-flags is the only way back
+  (Nashville is seeded that way). Open question for the architect: keep B and C at step 1 too.
+- **PLACECC** (unverified (fetch blocked)): C1 "An active incorporated place that does not serve as a county
+  subdivision equivalent"; C2 "An active incorporated place that is legally coextensive with a county subdivision but
+  treated as independent of any county subdivision"; C3 "A consolidated city"; C4 "An active incorporated place with
+  an alternate official common name"; C5 "An active incorporated place that is independent of any county subdivision
+  and serves as a county subdivision equivalent"; C6 "An active incorporated place that is partially independent of
+  any county subdivision and serves as a county subdivision equivalent or partially coextensive with a county
+  subdivision"; C7 "An incorporated place that is independent of any county"; C8 "The balance of a consolidated city
+  excluding the separately incorporated place(s) within that consolidated government"; C9 "An inactive or
+  nonfunctioning incorporated place"; U1, U2 census designated places; M2 a CDP on a military installation.
+  Verified: Clarksville city PLACECC C1.
+- **COUNTYCC** (unverified (fetch blocked)): H1 "An active county or equivalent feature"; H4 "A legally defined
+  inactive or nonfunctioning county or equivalent feature" (the abolished Massachusetts counties, Connecticut, Rhode
+  Island); H5 "A census area in Alaska, a statistical county equivalent entity"; H6 "A county or equivalent feature
+  that is areally coextensive or governmentally consolidated with an incorporated place, part of an incorporated
+  place, or a consolidated city" (Davidson County, TN); C7 "An incorporated place that is an independent city; that
+  is, it also serves as a county equivalent because it is not part of any county, and a minor civil division
+  equivalent because it is not part of any minor civil division". Verified: Montgomery County COUNTYCC H1.
+- **COUSUBCC** (unverified (fetch blocked)): T1 "An active county subdivision that is not coextensive with an
+  incorporated place"; T5 "An active county subdivision that is coextensive with an incorporated place"; T9 "An
+  inactive county subdivision"; Z1 a nonfunctioning legal county subdivision (wording not recalled); Z5 a statistical
+  county subdivision (census county division or subarea); Z9 the part of a county in no county subdivision (wording not
+  recalled). Places that serve as county subdivision equivalents carry their place code (C2, C5, C6, C7) on this layer.
+  Verified: TN "District 5" COUSUBCC Z1 with FUNCSTAT N.
+  Note for task F1: `units` carry no class code, so step 5 (drop a county subdivision coextensive with the kept place)
+  uses name equality as the architecture says. Reading `COUSUBCC` into the unit (T5, C5 = coextensive) would prove it
+  instead of guessing from the name (recommendation, not a change made here).
+- **School district "not defined"** (unverified (fetch blocked)): an LEA code of 99999 ("School District Not
+  Defined") marks area in no school district of that type; step 3's GEOID-ending-99999 rule matches it.
+- **Seeded in `config/national/gov-flags.yml`** (all unverified (fetch blocked); each entry names its source):
+  Connecticut (state 09) and Rhode Island (44) counties hidden by `rules` (CT abolished county government in 1960 and
+  has used nine planning regions, 09110-09190, as county equivalents since 2022: Census "county changes" page
+  https://www.census.gov/programs-surveys/geography/technical-documentation/county-changes.html; RI counties have no
+  government: 2017 Census of Governments Individual State Descriptions,
+  https://www.census.gov/library/publications/2019/econ/2017isd.html). Massachusetts counties without government,
+  hidden by id: Berkshire 25003, Essex 25009, Franklin 25011, Hampden 25013, Hampshire 25015, Middlesex 25017,
+  Worcester 25027 (abolished 1997-2000) and Suffolk 25025 (Boston carries out county functions); Barnstable, Bristol,
+  Dukes, Norfolk and Plymouth keep governments; Nantucket 25019 is left to the default (open). Nashville: Metro is
+  `county-47037` (COUNTYCC H6), kept by `show`; the "(balance)" place `place-4752006` (PLACECC C8) is hidden and
+  carries `lines: consolidated`. Independent cities: the 38 Virginia county equivalents with county codes 510-840
+  (Virginia's counties are odd codes 001-199; Bedford city, 51515, became a town in 2013) plus Baltimore city 24510,
+  St. Louis city 29510 and Carson City 32510, each hidden by id with `lines: independent-city`, from the Census county
+  list with class codes https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt (C7).
+  Not seeded yet (follow-up, same pattern): the other consolidated city-counties (for example Louisville-Jefferson,
+  Lexington-Fayette, Indianapolis-Marion, Jacksonville-Duval, Athens-Clarke, Augusta-Richmond) and Alaska boroughs.
+- **MAX_ANSWER** (`sitegen/national.py`, 220,000 characters): sized for 20 matches x 6 layers from the fields of the
+  recorded answer, about twice each part's expected size; a test builds a 20 x 6 answer with every recorded field at
+  the longest realistic widths (about 83,000 characters, so 2.6 times under) and fails if it comes
+  within 30% of the cap. Re-check against a raw 20-match answer in a
+  browser (security "needs verification").
+
 ## Clarksville upcoming agendas in the data (checked 2026-11-19 from code and the data files on the branch)
 - County Commission: `data/county-agendas/agendas.json` holds each agenda-only meeting's items with `title` as printed
   (whitespace joined, a word broken at a line end joined), `number`, `printed`, `section`, `page`, and each source's
