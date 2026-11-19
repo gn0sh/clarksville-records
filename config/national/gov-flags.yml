@@ -77,8 +77,8 @@ hide:
   - {id: county-51830, why: "Williamsburg city, VA: independent city (C7|F)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
   - {id: county-51840, why: "Winchester city, VA: independent city (C7|F)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
   - {id: county-24510, why: "Baltimore city, MD: independent city (C7|F)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
-  - {id: county-29510, why: "St. Louis city, MO: independent city (place C7|A; county row not read, assumed C7|F)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
-  - {id: county-32510, why: "Carson City, NV: independent city (place C7|A; county row not read, assumed C7|F)", source: "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"}
+  - {id: county-29510, why: "St. Louis city, MO: independent city (place C7|A; county row C7|F)", source: "https://www2.census.gov/geo/docs/reference/codes2020/cou/st29_mo_cou2020.txt"}
+  - {id: county-32510, why: "Carson City, NV: independent city (place C7|A; county row C7|F)", source: "https://www2.census.gov/geo/docs/reference/codes2020/cou/st32_nv_cou2020.txt"}
 
 show:
   # The Metro government is the county's card for every address in Davidson County, including the separately

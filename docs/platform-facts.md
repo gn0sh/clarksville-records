@@ -478,8 +478,9 @@ https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt and
   St. Louis city 29510 and Carson City 32510, each county copy hidden with `lines: independent-city`. Not seeded yet
   (follow-up, same pattern): the other consolidated city-counties (for example Louisville-Jefferson,
   Lexington-Fayette, Indianapolis-Marion, Jacksonville-Duval, Athens-Clarke, Augusta-Richmond) and Alaska boroughs.
-  The St. Louis city and Carson City county-equivalent rows were not in the rows read; they are assumed C7|F like
-  Baltimore's (unverified).
+  St. Louis city and Carson City county-equivalent rows verified 2026-11-19: `MO|29|510|00767557|St. Louis city|C7|F`
+  (https://www2.census.gov/geo/docs/reference/codes2020/cou/st29_mo_cou2020.txt) and
+  `NV|32|510|00863219|Carson City|C7|F` (https://www2.census.gov/geo/docs/reference/codes2020/cou/st32_nv_cou2020.txt).
 - **MAX_ANSWER** (`sitegen/national.py`, 220,000 characters): sized for 20 matches x 6 layers from the fields of the
   recorded answer, about twice each part's expected size; a test builds a 20 x 6 answer with every recorded field at
   the longest realistic widths (about 83,000 characters, so 2.6 times under) and fails if it comes within 30% of the
