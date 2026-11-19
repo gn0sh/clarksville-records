@@ -581,7 +581,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
                 "page": nat.gov_page(g) if status == "covered" else None,
                 "reason": labels.get(f"reason.{g.get('reason')}"), "checked": g["checked"].isoformat(),
                 "source": allowed_url(g.get("reason_url") or g.get("checked_url")) or None,
-                "official": official_of(g)})
+                "official": official_of(g),
+                "official_label": labels.get(f"official.{g.get('official_label')}") or L["covered.official"]})
         return groups
     n_cov = len(covered)
     written[COVERED] = pages.html(

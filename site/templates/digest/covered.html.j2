@@ -30,7 +30,7 @@
     <li><span class="digest-board">{{ r.board }}</span>
       <span class="digest-reason">{{ r.reason }}</span>
       <span class="digest-checked">{{ lh(L["covered.checked"], r.source, ext=true, date=(r.checked | day_words)) }}</span>
-      {% if r.official %}<a href="{{ r.official }}" rel="noopener noreferrer">{{ L["covered.official"] }}</a>{% endif %}</li>
+      {% if r.official %}<a href="{{ r.official }}" rel="noopener noreferrer">{{ r.official_label }}</a>{% endif %}</li>
     {% endfor %}
   </ul>
   {% endfor %}

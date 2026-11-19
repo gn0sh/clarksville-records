@@ -93,11 +93,14 @@ test('governments: 1 Public Sq -> city, county, school district; District 5 (FUN
       { id: 'sdu-4703030', name: 'Clarksville-Montgomery County School System', slot: 'sdu', status: 'cant-cover',
         board: 'Clarksville-Montgomery County School System Board of Education',
         official_url: 'https://montgomerytn.gov/code/webshare/commission-committees-agendas.php',
-        reason: 'blocks-readers-cmcss', checked: '2026-11-16', reason_url: 'https://www.cmcss.net/' },
+        official_label: 'county-site', reason: 'blocks-readers-cmcss', checked: '2026-11-16', reason_url: 'https://www.cmcss.net/' },
     ],
     notes: [],
   });
   assert.strictEqual(N.label(PAGEDIR, 'reason.blocks-readers'), 'Its records site blocks automated readers.');
+  // national/official-link-label-wrong-site: the CMCSS link is on the county's site, and its label says so
+  assert.strictEqual(N.label(PAGEDIR, 'official.county-site'),
+    "Official agenda page (opens the county's site, which posts the school board's agendas)");
   assert.strictEqual(N.label(PAGEDIR, 'slot.sdu'), 'SCHOOL DISTRICT');
 });
 
@@ -183,14 +186,14 @@ test('CT: the county (H4|N, dropped by FUNCSTAT; a planning region by the state 
   const r0 = govsOf(one(unit('county', '09003', 'Hartford County', 'N', 'H4'),
     unit('cousub', '0900382660', 'West Hartford town', 'A', 'T1')).units);
   assert.deepStrictEqual(ids(r0), ['cousub-0900382660']);
-  assert.deepStrictEqual(r0.notes, ['note.no-city', 'note.no-county']);
+  assert.deepStrictEqual(r0.notes, ['note.no-county']);
   const r = govsOf(one(unit('county', '09110', 'Capitol Planning Region', 'A', 'H4'),
     unit('cousub', '0911082660', 'West Hartford town', 'A', 'T1'),
     unit('sdu', '0904950', 'West Hartford School District', 'E')).units);
   assert.deepStrictEqual(ids(r), ['cousub-0911082660', 'sdu-0904950']);
   assert.strictEqual(r.govs[0].slot, 'cousub');
   assert.strictEqual(r.govs[0].status, 'not-covered-yet');
-  assert.deepStrictEqual(r.notes, ['note.no-city', 'note.no-county']);
+  assert.deepStrictEqual(r.notes, ['note.no-county']);
 });
 
 test('MA: Suffolk (H4|N, also hidden by id) and Nantucket (H4|N, not flagged) -> no-county either way', () => {
@@ -231,10 +234,29 @@ test('MA Plymouth: the town is in the city-or-town slot, ordered first, no no-ci
   }
 });
 
-test('Connecticut (not listed), New York and Tennessee towns keep TOWNSHIP OR TOWN and get no-city', () => {
+// national/no-city-note-with-town: a listed town or township (cousub, in either slot) means the address is in one,
+// so "not inside a city or town" is not said; with neither a city nor a town or township it still is.
+test('no-city note: not with a NY town or a PA township; still with no city, town or township', () => {
+  const ny = govsOf(one(unit('county', '36001', 'Albany County', 'A', 'H1'),
+    unit('cousub', '3600106145', 'Bethlehem town', 'A', 'T1'),
+    unit('sdu', '3609990', 'Bethlehem Central School District', 'E')).units);
+  assert.deepStrictEqual(ids(ny), ['county-36001', 'cousub-3600106145', 'sdu-3609990']);
+  assert.deepStrictEqual(ny.govs.map((g) => g.slot), ['county', 'cousub', 'sdu']);
+  assert.deepStrictEqual(ny.notes, []);
+  const pa = govsOf(one(unit('county', '42091', 'Montgomery County', 'A', 'H1'),
+    unit('cousub', '4209158984', 'Upper Merion township', 'A', 'T1')).units);
+  assert.deepStrictEqual(ids(pa), ['county-42091', 'cousub-4209158984']);
+  assert.deepStrictEqual(pa.notes, []);
+  // the existing case: no city, town or township kept (an N subdivision is dropped) -> the note
+  const none = govsOf(one(unit('county', '47125', 'Montgomery County', 'A', 'H1'),
+    unit('cousub', '4712590886', 'District 5', 'N', 'Z1')).units);
+  assert.deepStrictEqual(none.notes, ['note.no-city']);
+});
+
+test('Connecticut (not listed), New York and Tennessee towns keep TOWNSHIP OR TOWN and get no no-city note', () => {
   const ct = govsOf(one(unit('cousub', '0911082660', 'West Hartford town', 'A', 'T1')).units);
   assert.deepStrictEqual(ct.govs.map((g) => g.slot), ['cousub']);
-  assert.deepStrictEqual(ct.notes, ['note.no-city']);
+  assert.deepStrictEqual(ct.notes, []);
   assert.strictEqual(N.slotOf(PAGEDIR, 'cousub-0911082660'), 'cousub');
   assert.strictEqual(N.slotOf(PAGEDIR, 'cousub-3607150911'), 'cousub');
   assert.strictEqual(N.slotOf(PAGEDIR, 'cousub-4712590887'), 'cousub');
@@ -266,7 +288,7 @@ test('pagedir slots are checked on read: bad shapes, other moves and duplicates 
     pd.slots = slots;
     const r = govsOf(nantucket, pd);
     assert.deepStrictEqual(r.govs.map((g) => g.slot), ['cousub'], JSON.stringify(slots));
-    assert.deepStrictEqual(r.notes, ['note.no-city'], JSON.stringify(slots));
+    assert.deepStrictEqual(r.notes, [], JSON.stringify(slots));
   }
   const pd = copyPd();
   delete pd.slots;

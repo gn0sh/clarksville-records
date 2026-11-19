@@ -3,6 +3,8 @@
 # with textContent. Keys:
 #   slot.<layer>     the card's slot label, from the id's layer (3.1)
 #   reason.<reason>  one per can't-cover reason; a directory `reason` with no label here fails the build
+#   official.<key>   optional: the link label of a directory entry whose `official_label` is <key>, for an official
+#                    page on a site other than the government's own (else the page label lookup.official/covered.official)
 #   note.<key>       the fixed lines governments() returns in `notes` (4.1): no-city, no-county, and each gov-flags
 #                    `line` (a gov-flags `line` with no note.<line> label fails the build)
 # All lines below are confirmed by the ux-designer (2026-11-19). robots-disallow and terms were rewritten from the
@@ -17,6 +19,7 @@ labels:
   slot.sds: SCHOOL DISTRICT
   slot.sde: SCHOOL DISTRICT
 
+  official.county-site: Official agenda page (opens the county's site, which posts the school board's agendas)
   reason.blocks-readers: Its records site blocks automated readers.
   reason.blocks-readers-cmcss: The school system's own records site, cmcss.net, blocks automated readers.
   reason.scanned-only: Its agendas are posted only as scanned images.

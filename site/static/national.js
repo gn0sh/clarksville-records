@@ -66,7 +66,7 @@
   var ID_RE = /^(place|county|cousub|sdu|sds|sde)-[0-9]{2,14}$/;      // 3.8 (and us-count.js)
   var CODE_RE = /^[A-Z][0-9A-Z]?$/;
   var KEY_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;                            // a `lines` value or a `reason`
-  var LABEL_RE = /^(slot|reason|note)\.[a-z0-9][a-z0-9-]*$/;
+  var LABEL_RE = /^(slot|reason|note|official)\.[a-z0-9][a-z0-9-]*$/;
   var PATH_RE = /^[a-z0-9][a-z0-9\/_.-]*$/;                            // pagedir `page` and `full` (relative)
   var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   // eslint-disable-next-line no-control-regex
@@ -199,6 +199,7 @@
     var board = clean(entry.board, MAX_NAME);
     if (board) { g.board = board; }
     if (httpsUrl(entry.official_url)) { g.official_url = entry.official_url; }
+    if (typeof entry.official_label === "string" && KEY_RE.test(entry.official_label)) { g.official_label = entry.official_label; }
     if (entry.status === "covered") {
       if (safePath(entry.page)) { g.page = entry.page; }
       if (safePath(entry.full)) { g.full = entry.full; }
@@ -221,7 +222,7 @@
      the pagedir `slots` move: a New England town outside Connecticut is in slot place, AC2.11), then by real layer.
      Step 5 compares real Census layers, never slots.
      Notes, as label keys: "note.<line>" for each returned unit's gov-flags line, kept or hidden; else "note.no-city"
-     when no kept unit is in slot place and "note.no-county" when the answer had a county and none is kept. */
+     when no kept unit is in slot place or is a town or township (cousub, in either slot) and "note.no-county" when the answer had a county and none is kept. */
   function governments(units, pagedir) {
     var idx = asIndex(pagedir);
     var lineNotes = [], hadCounty = false, recs = [];
@@ -260,7 +261,9 @@
     var govs = kept.map(function (r) { return cardOf(r, idx.govs.get(r.id), r.slot); });
     var notes = lineNotes.slice();
     if (!notes.length) {
-      if (!kept.some(function (r) { return r.slot === "place"; })) { notes.push("note.no-city"); }
+      if (!kept.some(function (r) { return r.slot === "place" || r.slot === "cousub" || r.layer === "cousub"; })) {
+        notes.push("note.no-city");
+      }
       if (hadCounty && !kept.some(function (r) { return r.layer === "county"; })) { notes.push("note.no-county"); }
     }
     return { govs: govs, notes: notes };
@@ -775,7 +778,7 @@
         li.appendChild(el("p", null, S("lookup.not-yet-line")));
       }
       if (g.official_url) {
-        li.appendChild(linkLine(S("lookup.official"), g.official_url, true));
+        li.appendChild(linkLine((g.official_label && label(idx, "official." + g.official_label)) || S("lookup.official"), g.official_url, true));
       } else if (g.status === "not-covered-yet") {
         li.appendChild(el("p", null, S("lookup.no-official")));
       }

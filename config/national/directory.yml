@@ -54,5 +54,6 @@ govs:
     reason: blocks-readers-cmcss
     reason_url: https://www.cmcss.net/
     official_url: https://montgomerytn.gov/code/webshare/commission-committees-agendas.php
+    official_label: county-site
     checked: 2026-11-16
     checked_doc: docs/platform-facts.md

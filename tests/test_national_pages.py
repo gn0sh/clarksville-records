@@ -885,3 +885,12 @@ def test_only_sitegen_national_reads_the_directory_file():
     """11.3 item 10, for this module: the page builder reads the directory only through sitegen.national."""
     src = (ROOT / "sitegen" / "national_pages.py").read_text(encoding="utf-8")
     assert "directory.yml" not in src and "DIRECTORY_PATH" not in src
+
+
+def test_covered_page_cmcss_official_label_names_the_county_site(sites):
+    # national/official-link-label-wrong-site: the entry's own `official_label`, else the generic page label
+    page = sites["on"]["digest/covered.html"].decode()
+    row = page[page.index("Clarksville-Montgomery County School System Board of Education"):]
+    row = row[:row.index("</li>")]
+    assert "Official agenda page (opens the county&#39;s site, which posts the school board&#39;s agendas)" in row
+    assert "opens the government&#39;s own site" not in row

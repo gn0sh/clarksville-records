@@ -165,6 +165,7 @@ BAD = [
     ("credentialed-reason-url", [changed(CANT, reason_url="https://u:p@www.cmcss.net/")], "reason_url: must be"),
     ("other-port-url", [changed(COVERED, official_url="https://www.clarksvilletn.gov:8443/")], "official_url"),
     ("unknown-reason", [changed(CANT, reason="too-hard")], "reason: unknown reason"),
+    ("unknown-official-label", [changed(CANT, official_label="nope")], "official_label: must name a label"),
     ("reason-on-covered", [changed(COVERED, reason="terms")], "reason: only a cant-cover"),
     ("bad-status", [changed(COVERED, status="soon")], "status: must be"),
     ("bad-checked-date", [changed(COVERED, checked="2026-13-01")], "checked: must be a date"),
@@ -610,7 +611,8 @@ def test_page_directory_shape():
     assert p["govs"]["sdu-4703030"] == {
         "board": "Clarksville-Montgomery County School System Board of Education", "status": "cant-cover",
         "reason": "blocks-readers-cmcss", "checked": "2026-11-16", "reason_url": "https://www.cmcss.net/",
-        "official_url": "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php"}
+        "official_url": "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php",
+        "official_label": "county-site"}
     assert p["rules"] == [{"state": "09", "layer": "county", "show": False},
                           {"state": "44", "layer": "county", "show": False}]
     assert p["lines"]["place-4752006"] == "consolidated" and p["lines"]["county-51760"] == "independent-city"

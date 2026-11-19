@@ -76,7 +76,7 @@ PLATFORM_REQUIRED = {"daylight": {"body", "full_url"}, "legistar": {"client", "b
 LEGISTAR_FINAL_STATUSES = frozenset({"Final", "Final-Revised", "Final-Addendum"})
 
 ENTRY_KEYS = frozenset({"gov", "also", "body_name", "state", "status", "official_url", "checked", "checked_url",
-                        "checked_doc", "items", "platform", "host_ok", "reason", "reason_url"} | set(PLATFORM_KEYS))
+                        "checked_doc", "items", "platform", "host_ok", "reason", "reason_url", "official_label"} | set(PLATFORM_KEYS))
 ENTRY_REQUIRED = ("gov", "body_name", "state", "status", "official_url", "checked")
 CANT_COVER_REQUIRED = ("reason", "reason_url", "checked")
 HOST_OK_KEYS = frozenset({"date", "link"})
@@ -85,7 +85,7 @@ PATH_RE = re.compile(r"^[a-z0-9][a-z0-9/_.-]*$")            # daylight.full_url 
 CLIENT_RE = re.compile(r"^[a-z0-9-]{2,40}$")                 # legistar.client
 BODY_KEY_RE = re.compile(r"^[a-z][a-z0-9_-]{0,39}$")         # daylight.body (the search index body key)
 CHECKED_DOC_RE = re.compile(r"^docs/[A-Za-z0-9_][A-Za-z0-9_/.-]*\.md$")
-LABEL_KEY_RE = re.compile(r"^(slot|reason|note)\.[a-z0-9][a-z0-9-]*$")
+LABEL_KEY_RE = re.compile(r"^(slot|reason|note|official)\.[a-z0-9][a-z0-9-]*$")
 ROOT_RE = re.compile(r"^(\.\./)*$")
 # Controls and bidi overrides never belong in a curated name or label: national_guards.BAD_TEXT_RE.
 MAX_NAME = 160
@@ -264,7 +264,7 @@ def _safe_path(value) -> bool:
 # --- labels.yml ---------------------------------------------------------------------------------------------------
 
 def load_labels(path: Path = LABELS_PATH) -> dict[str, str]:
-    """labels.yml -> {key: text}. Keys `slot.<layer>`, `reason.<reason>`, `note.<key>`; every slot label and the two
+    """labels.yml -> {key: text}. Keys `slot.<layer>`, `reason.<reason>`, `note.<key>`, `official.<key>` (an entry's `official_label`); every slot label and the two
     computed notes (no-city, no-county) must be there."""
     path = Path(path)
     doc = _read_yaml(path, LABELS_SCHEMA)
@@ -487,6 +487,10 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
         for k in ("official_url", "checked_url", "reason_url"):
             if k in e and not allowed_url(e[k]):
                 _fail(path, where, k, "must be an https URL (no user name, password or other port)")
+        if "official_label" in e:
+            ol = e["official_label"]
+            if not isinstance(ol, str) or f"official.{ol}" not in labels:
+                _fail(path, where, "official_label", "must name a label official.<key> in labels.yml")
         if "checked_url" in e and "checked_doc" in e:
             _fail(path, where, "checked_doc", "give checked_url or checked_doc, not both")
         if "checked_doc" in e:
@@ -656,6 +660,8 @@ def page_directory(directory: Directory, flags: GovFlags, labels: Mapping[str, s
         else:
             entry.update(reason=g["reason"], checked=g["checked"].isoformat(), reason_url=g["reason_url"],
                          official_url=g["official_url"])
+            if g.get("official_label"):
+                entry["official_label"] = g["official_label"]
         govs[g["gov"]] = entry
     return {"schema": PAGEDIR_SCHEMA, "built": built.isoformat(), "root": root, "govs": govs,
             "alias": dict(directory.alias), "hide": list(flags.hide), "show": list(flags.show),
