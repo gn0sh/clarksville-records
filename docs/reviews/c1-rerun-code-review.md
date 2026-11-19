@@ -16,3 +16,5 @@ Reviewed head: **20c3b9726aed53f6e7e76d3e01b6cb3ee6f1b5ef** (PR #65). Reviewer: 
 - The skip is for disable only, in both twins. The step 5 re-check fails closed, and runs before the merge sha is recorded.
 - Affected tests: 16 passed. Full cutover + protect-main suite: 291 passed (manager's run).
 - Test nit, follow-up: `test_an_enable_is_always_sent` should make the stub read `active` once just before the enable.
+
+PowerShell twins: Actions run 44637521763 at 20c3b972 (PowerShell 7.6.10): cutover + protect-main + u3 toggle, .sh and .ps1, **750 passed**, 0 skipped.
