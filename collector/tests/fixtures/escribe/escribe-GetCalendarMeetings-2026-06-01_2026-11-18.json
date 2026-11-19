@@ -1,0 +1,207 @@
+{
+ "d": [
+  {
+   "ID": "a775a6f9-2c1c-4cd5-b2c2-734e9eb57208",
+   "MeetingName": "City Council ",
+   "StartDate": "2026/09/28 18:00:48",
+   "Url": "https://pub-salem.escribemeetings.com/MeetingsCalendarView.aspx/Meeting?Id=a775a6f9-2c1c-4cd5-b2c2-734e9eb57208",
+   "MeetingDocumentLink": [
+    {
+     "Type": "AgendaCover",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1098"
+    },
+    {
+     "Type": "Agenda",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1129"
+    },
+    {
+     "Type": "Agenda",
+     "Format": "HTML",
+     "Url": "/Meeting.aspx?Id=a775a6f9-2c1c-4cd5-b2c2-734e9eb57208&Agenda=Agenda&lang=English"
+    },
+    {
+     "Type": "PostMinutes",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1670"
+    },
+    {
+     "Type": "Video",
+     "Format": "Video",
+     "Url": "https://www.youtube.com/watch?v=pMA-ZXyPK_8"
+    },
+    {
+     "Type": "AdditionalDocuments",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1091"
+    }
+   ]
+  },
+  {
+   "ID": "f37c724c-2c88-4198-8ea9-df5fb3e2ff7a",
+   "MeetingName": "City Council ",
+   "StartDate": "2026/07/27 18:00:59",
+   "Url": "https://pub-salem.escribemeetings.com/MeetingsCalendarView.aspx/Meeting?Id=f37c724c-2c88-4198-8ea9-df5fb3e2ff7a",
+   "MeetingDocumentLink": [
+    {
+     "Type": "AgendaCover",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1136"
+    },
+    {
+     "Type": "Agenda",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1137"
+    },
+    {
+     "Type": "Agenda",
+     "Format": "HTML",
+     "Url": "/Meeting.aspx?Id=f37c724c-2c88-4198-8ea9-df5fb3e2ff7a&Agenda=Agenda&lang=English"
+    },
+    {
+     "Type": "PostMinutes",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=693"
+    },
+    {
+     "Type": "PostMinutes",
+     "Format": "HTML",
+     "Url": "/Meeting.aspx?Id=f37c724c-2c88-4198-8ea9-df5fb3e2ff7a&Agenda=PostMinutes&lang=English"
+    },
+    {
+     "Type": "Video",
+     "Format": "Video",
+     "Url": "https://youtu.be/xvfAxcK6F0I?si=PlJB0d1E2QVn1__k&t=2638"
+    },
+    {
+     "Type": "AdditionalDocuments",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1138"
+    }
+   ]
+  },
+  {
+   "ID": "2bc032f7-5828-4a9a-ad70-2f3f8c50fa44",
+   "MeetingName": "City Council ",
+   "StartDate": "2026/10/26 18:00:05",
+   "Url": "https://pub-salem.escribemeetings.com/MeetingsCalendarView.aspx/Meeting?Id=2bc032f7-5828-4a9a-ad70-2f3f8c50fa44",
+   "MeetingDocumentLink": [
+    {
+     "Type": "AgendaCover",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1560"
+    },
+    {
+     "Type": "Agenda",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1585"
+    },
+    {
+     "Type": "Agenda",
+     "Format": "HTML",
+     "Url": "/Meeting.aspx?Id=2bc032f7-5828-4a9a-ad70-2f3f8c50fa44&Agenda=Agenda&lang=English"
+    },
+    {
+     "Type": "Video",
+     "Format": "Video",
+     "Url": "https://www.youtube.com/watch?v=Xr3nNvSoi9Y"
+    },
+    {
+     "Type": "AdditionalDocuments",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1612"
+    }
+   ]
+  },
+  {
+   "ID": "86d0cf7f-02ac-4114-8210-8776878002bd",
+   "MeetingName": "City Council Work Session",
+   "StartDate": "2026/08/17 18:00:07",
+   "Url": "https://pub-salem.escribemeetings.com/MeetingsCalendarView.aspx/Meeting?Id=86d0cf7f-02ac-4114-8210-8776878002bd",
+   "MeetingDocumentLink": [
+    {
+     "Type": "AgendaCover",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=743"
+    },
+    {
+     "Type": "Agenda",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=744"
+    },
+    {
+     "Type": "Agenda",
+     "Format": "HTML",
+     "Url": "/Meeting.aspx?Id=86d0cf7f-02ac-4114-8210-8776878002bd&Agenda=Agenda&lang=English"
+    },
+    {
+     "Type": "PostMinutes",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1032"
+    },
+    {
+     "Type": "Video",
+     "Format": "Video",
+     "Url": "https://www.youtube.com/watch?v=I0wUqcMA558"
+    },
+    {
+     "Type": "AdditionalDocuments",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=737"
+    }
+   ]
+  },
+  {
+   "ID": "fa95385f-9c13-42ad-afe2-b341c1a1b237",
+   "MeetingName": "City Council Special Meeting ",
+   "StartDate": "2026/11/12 18:00:51",
+   "Url": "",
+   "MeetingDocumentLink": [
+    {
+     "Type": "AgendaCover",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1808"
+    },
+    {
+     "Type": "AdditionalDocuments",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1809"
+    }
+   ]
+  },
+  {
+   "ID": "b147e8a8-6946-4921-a875-1c5797bb7cf0",
+   "MeetingName": "Salem Housing Authority",
+   "StartDate": "2026/09/28 18:00:23",
+   "Url": "https://pub-salem.escribemeetings.com/MeetingsCalendarView.aspx/Meeting?Id=b147e8a8-6946-4921-a875-1c5797bb7cf0",
+   "MeetingDocumentLink": [
+    {
+     "Type": "AgendaCover",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1088"
+    },
+    {
+     "Type": "Agenda",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1089"
+    },
+    {
+     "Type": "Agenda",
+     "Format": "HTML",
+     "Url": "/Meeting.aspx?Id=b147e8a8-6946-4921-a875-1c5797bb7cf0&Agenda=Agenda&lang=English"
+    },
+    {
+     "Type": "PostMinutes",
+     "Format": ".pdf",
+     "Url": "/FileStream.ashx?DocumentId=1664"
+    },
+    {
+     "Type": "Video",
+     "Format": "Video",
+     "Url": "https://www.youtube.com/watch?v=pMA-ZXyPK_8"
+    }
+   ]
+  }
+ ]
+}

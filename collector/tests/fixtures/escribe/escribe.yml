@@ -1,0 +1,14 @@
+# Test-only eScribe config (collector/tests/test_escribe.py). Values follow the recorded Salem answer of 2026-11-19;
+# the city's own file is config/cities/salem-or/escribe.yml (task E2).
+city: salem-or
+host: pub-salem.escribemeetings.com
+body_names: ["City Council", "City Council Work Session", "City Council Special Meeting"]
+agenda_types: [Agenda, AgendaCover]
+minutes_types: [PostMinutes]
+kind_rules:
+  - [work-session, '\bwork\s*session\b']
+  - [special, '\bspecial\b']
+  - [regular, '^']
+launch_days: 365
+file_hosts: []
+video_hosts: [youtube.com, youtu.be]

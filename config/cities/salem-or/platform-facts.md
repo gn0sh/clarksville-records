@@ -32,6 +32,19 @@ salem-or` can see it.
 
 - Legistar. Seen 2026-11-15: `https://webapi.legistar.com/v1/salem/matters/8174` answered JSON with
   `MatterBodyName` "City Council". Body list, vote labels, official title and earliest year: not checked.
+- eScribe (`pub-salem.escribemeetings.com`), recorded 2026-11-18/19 (task E0; sample
+  `collector/tests/fixtures/escribe/escribe-GetCalendarMeetings-2026-06-01_2026-11-18.json`, request in the sibling
+  `.request.txt`). `POST /MeetingsCalendarView.aspx/GetCalendarMeetings`, JSON body `calendarStartDate`,
+  `calendarEndDate` (YYYY-MM-DD; key names and format **inferred**, not recorded with the capture; end date
+  inclusive or not: unknown). Answer `{"d": [meeting, ...]}`. Fields `collector/escribe.py` reads: `ID` (GUID),
+  `MeetingName` (printed with a trailing space, e.g. "City Council "; compared trimmed), `StartDate`
+  ("2026/08/10 18:00:26", local time), `Url` (the meeting page on the portal), `MeetingDocumentLink[]` with `Type`,
+  `Format` (".pdf", "HTML", "Video") and `Url` (portal-relative `/FileStream.ashx?DocumentId=<n>` or
+  `/Meeting.aspx?Id=<guid>&Agenda=...`; videos absolute on www.youtube.com, youtube.com, youtu.be).
+- Body names seen: "City Council", "City Council Work Session", "City Council Special Meeting", "Salem Housing
+  Authority", "Urban Renewal Agency". Document types seen: AgendaCover, Agenda (PDF and HTML), PostAgendaCover,
+  PostMinutes (PDF; one meeting also HTML), Video, AdditionalDocuments. The 2026-11-12 special meeting lists only an
+  AgendaCover. No document on any host other than the portal (videos aside).
 
 ## Never collect
 
