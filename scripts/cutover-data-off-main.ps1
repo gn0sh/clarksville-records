@@ -474,6 +474,10 @@ function WfState {   # the workflow's state, or $null on a failed read
     return $s
 }
 function WfSet([string]$verb, [string]$state) {   # the PUT once, then its read-back (row 1; cutover run 4, 2026-11-19)
+    # GitHub refuses to disable a workflow that is not active (HTTP 403, cutover run 5): one already in the wanted
+    # state (a rerun after a stop, whose disable stays in force) is left as it is
+    $s0 = WfState
+    if ($null -ne $s0 -and $s0 -ceq $state) { Write-Host "daily-update already reads $state."; return $true }
     gh api -X PUT "repos/$repo/actions/workflows/$wfname/$verb" --silent
     if ($LASTEXITCODE -ne 0) { return $false }
     return (ReadUntil 'daily-update' $state { WfState })

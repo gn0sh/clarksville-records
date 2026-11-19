@@ -340,6 +340,10 @@ read_until() {
 }
 wf_state() { gh api "repos/$repo/actions/workflows/$wfname" --jq '.state'; }
 wf_set() {   # $1 disable|enable, $2 expected state: the PUT once, then its read-back (row 1; cutover run 4, 2026-11-19)
+  local s0
+  # GitHub refuses to disable a workflow that is not active (HTTP 403, cutover run 5): one already in the wanted state
+  # (a rerun after a stop, whose disable stays in force) is left as it is
+  if s0=$(wf_state) && [ "$s0" = "$2" ]; then echo "daily-update already reads $2."; return 0; fi
   gh api -X PUT "repos/$repo/actions/workflows/$wfname/$1" --silent || return 1
   read_until daily-update "$2" wf_state
 }

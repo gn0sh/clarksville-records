@@ -127,6 +127,8 @@ def handle():
     if path == W and method == "GET":
         out({"state": st["wf_state"]})
     if path in (W + "/disable", W + "/enable") and method == "PUT":
+        if path.endswith("/disable") and st["wf_state"] != "active":   # as GitHub (cutover run 5, 2026-11-19)
+            sys.stderr.write("gh: Unable to disable a workflow that is not active. (HTTP 403)\n"); sys.exit(1)
         if path.endswith("/disable"):
             st["wf_state"] = "disabled_manually"
             for cmd in st.get("on_disable", []):          # a late change to main, between steps 1 and 3
@@ -931,6 +933,18 @@ def test_a_lagging_workflow_state_read_is_retried(tmp_path):
     assert fx.state["wf_state"] == "active"
 
 
+def test_a_rerun_with_daily_update_already_disabled_goes_on(tmp_path):
+    """Cutover run 5 (2026-11-19) stopped at step 2: run 4 had left daily-update disabled, and GitHub refuses to
+    disable a workflow that is not active (HTTP 403). Already disabled is what step 2 wants: no PUT, and it goes on."""
+    fx = Fx(tmp_path)
+    fx.state["wf_state"] = "disabled_manually"
+    r = fx.cut()
+    assert r.returncode == 0 and "CUTOVER DONE" in r.stdout, r.stdout + r.stderr
+    assert "daily-update already reads disabled_manually." in r.stdout
+    assert _n(fx, "PUT", R + "/actions/workflows/daily-update.yml/disable") == 0
+    assert fx.state["wf_state"] == "active"
+
+
 def test_step2_stops_when_the_workflow_state_never_reads_disabled(tmp_path):
     fx = Fx(tmp_path)
     fx.state["lag_each"] = {W: 10}
@@ -995,13 +1009,13 @@ def test_raw_a_third_value_never_passes_and_a_failed_read_only_delays(tmp_path):
     sub = tmp_path / "failed"
     sub.mkdir()
     fx = Fx(sub)
-    fx.state["fail_reads"] = {W: 1}
+    fx.state["fail_reads"] = {W: 2}   # the pre-read (cutover run 5) and the first read-back
     r = fx.cut()
     assert r.returncode == 0 and "CUTOVER DONE" in r.stdout and fx.sleeps() == 1, r.stdout + r.stderr
     sub = tmp_path / "unread"
     sub.mkdir()
     fx = Fx(sub)
-    fx.state["fail_reads"] = {W: 10}
+    fx.state["fail_reads"] = {W: 11}   # the pre-read and all 10 read-backs
     r = fx.cut()
     assert r.returncode == 2 and "STOPPED at step 2" in r.stdout and fx.sleeps() == 9
     assert "daily-update: could not read the state, not 'disabled_manually', after 10 reads." in r.stdout
@@ -1437,7 +1451,7 @@ def test_rollback_merge_keeps_r2_off_unless_main_holds_rs_files(tmp_path, files,
     r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "x"], STUB_MR_TREE=other)
     assert r.returncode == 2 and "STOPPED at step 4" in r.stdout and text in r.stdout and "R2 stays off" in r.stdout
     seq = [x["path"].rsplit("/", 1)[-1] for x in _writes(fx.calls())]
-    assert seq == ["disable", "merge-reviewed"], seq
+    assert seq == ["merge-reviewed"], seq   # daily-update was already disabled: no PUT (GitHub would refuse it)
     assert fx.state["r2"] is False and fx.state["wf_state"] == "disabled_manually"
 
 
@@ -1884,7 +1898,8 @@ def test_rollback_before_the_merge_puts_r1_prime_back_and_r2_on(tmp_path):
     r = fx.run(["--rollback"])
     assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout, r.stdout + r.stderr
     seq = [c["path"].rsplit("/", 1)[-1] for c in _writes(fx.calls())]
-    assert seq == ["disable", "27502319", "workflow", "enable"], seq
+    assert seq == ["27502319", "workflow", "enable"], seq   # already disabled by the stopped cutover: no PUT
+    assert "daily-update already reads disabled_manually." in r.stdout
     assert fx.state["ruleset"]["rules"] == sorted(R1P["rules"], key=lambda x: x["type"])
     assert fx.state["r2"] is True and fx.state["wf_state"] == "active"
 
@@ -1920,7 +1935,7 @@ def test_rollback_after_the_merge_opens_a_restore_pr_then_merges_it(tmp_path):
     assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout, r.stdout + r.stderr
     assert r.stderr == "", r.stderr
     seq = [c2["path"].rsplit("/", 1)[-1] for c2 in _writes(fx.calls())]
-    assert seq == ["disable", "merge-reviewed", "27502319", "workflow", "enable"], seq
+    assert seq == ["merge-reviewed", "27502319", "workflow", "enable"], seq   # already disabled: no PUT
     assert fx.og("ls-tree", "--name-only", "refs/heads/main", "--", "data") == "data"
     assert fx.rd() == rd                                    # records-data is kept
     assert fx.state["r2"] is True and fx.state["wf_state"] == "active"
