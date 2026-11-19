@@ -256,6 +256,15 @@ lines.
   Census answer back as a string. The parent accepts a message only if `e.source === frame.contentWindow`,
   `e.origin === "null"`, `typeof e.data === "string"`, length at most `MAX_ANSWER` (sized for 20 matches x 6 layers,
   Q1-check), and `JSON.parse` succeeds: the checks `address.js` already makes. The frame is removed after each lookup.
+- As built (F5, 2026-11-19): `sitegen/national.py` `geo_frame_html()` returns the whole file from
+  `site/templates/_geo_frame.js`; its CSP also closes `base-uri 'none'; form-action 'none'` (default-src does not
+  cover them; nothing more is allowed). Every message the frame posts is JSON text: `"ready"`, the answer object,
+  `"blocked"` (script error) or `"loaded"` (loaded, no object passed to the callback). The parent posts
+  `{address}` (an object) once, after "ready"; national.js `frameMessage(e, frameWindow)` makes the four checks, and a
+  string over `MAX_ANSWER` from the frame is `too-big` (not parsed; the "more than 20 matches" tips), anything else
+  failing a check is ignored. `lookup(env, address, done)` creates and removes the frame and runs the 15 s timeout.
+  Callback name: the frame's is the fixed `crGeocode`, and the address is URL-encoded into the one `address`
+  parameter, so no Census-side callback check is needed for this design (see F5 note in the PR).
 - Follow-up outside M1 (so Clarksville pages stay byte-identical): move the existing landing-page address box to the
   same static frame (task F7).
 
@@ -293,7 +302,8 @@ lines.
 - As built (F1, 2026-11-19; additive): `classify` "one" also returns `matched` (the Census matched line, page text
   only), and more than 20 matches is `{kind: "nomatch", many: true}` (the not-found tips); each unit also carries `cc`
   (PLACECC, COUNTYCC or COUSUBCC). `slot` is the layer name (the card draws label `slot.<slot>`); `notes` holds full
-  label keys (`note.no-city`). Step 5 drops a county subdivision whose COUSUBCC is T5, C2, C5 or C7 when a place is
+  label keys (`note.no-city`). Step 1 keeps FUNCSTAT A or B for place, county and cousub (manager, 2026-11-19).
+  Step 5 drops a county subdivision whose COUSUBCC is T5, C2, C5 or C7 when a place is
   kept (class codes, not name equality). `no-county` fires when the answer had a county and none is kept, whatever
   dropped it. A `show: true` state rule keeps that layer whatever its FUNCSTAT. Bad pagedir (wrong schema): every
   kept unit is "not covered yet" with no flags. Storage also has `loadRequested`, `loadCounted` and `storageOf(win)`;

@@ -7,6 +7,12 @@
    - classify(answer) and governments(units, pagedir): the Census answer, read as data, -> the cards and fixed lines.
    - loadList / saveList / forget / markRequested / markCounted (+ loadRequested, loadCounted): the three device keys
      of 3.8, each call wrapped so a blocked, full or throwing storage never breaks the page.
+   - frameMessage(e, frameWindow) and lookup(env, address, done): the parent side of the geo frame protocol (4.0).
+     The frame is digest/geo-frame.html (sandbox="allow-scripts", no allow-same-origin, so its origin is "null"); it
+     posts the JSON string "ready", is sent {address} by postMessage, and posts back the Census answer as JSON text
+     (or the JSON strings "blocked" / "loaded" when the Census script failed or did not call back). The parent hears
+     a message only from that frame's window, with origin "null", a string at most MAX_ANSWER long that JSON.parse
+     accepts. The address reaches the frame only by that one postMessage after "ready", never in its URL.
 
    Hardening (security finding 9, national/postmessage-hardening): a GEOID becomes an id only when it matches
    ^\d{5,10}$ with the layer's own length and its state part matches ^\d{2}$; every directory, alias, flag and label
@@ -37,9 +43,10 @@
   var ORDER = new Map(LAYERS.map(function (l, i) { return [l.layer, i]; }));
   var DIGITS = new Map(LAYERS.map(function (l) { return [l.layer, l.digits]; }));
   var SCHOOL = new Set(["sdu", "sds", "sde"]);
-  // FUNCSTAT kept by step 1 (docs/platform-facts.md "Census TIGER/Line codes"): A for general-purpose governments,
-  // A or E for school districts.
-  var KEEP_GENERAL = new Set(["A"]);
+  // FUNCSTAT kept by step 1 (docs/platform-facts.md "Census TIGER/Line codes"; manager decision 2026-11-19): A or B
+  // for general-purpose governments (B: partially consolidated, with its own officials), A or E for school districts.
+  // C (consolidated, one set of officials), F, N, S and the rest are dropped; gov-flags `show` brings any id back.
+  var KEEP_GENERAL = new Set(["A", "B"]);
   var KEEP_SCHOOL = new Set(["A", "E"]);
   // Step 5: COUSUBCC codes that say the county subdivision is the same area as an incorporated place (census.gov class
   // codes: T5 cousub coextensive with a place; C2, C5 and C7 places that serve as their own county subdivision).
@@ -290,10 +297,90 @@
     try { var s = win.localStorage; return s && typeof s.getItem === "function" ? s : null; } catch (e) { return null; }
   }
 
+  // --- geo frame, parent side (4.0) --------------------------------------------------------------------------------
+  var WORDS = new Set(["ready", "blocked", "loaded"]);
+
+  /* One message event -> null (not heard) | {type: "ready" | "blocked" | "loaded" | "too-big"} |
+     {type: "answer", data}. Heard only from `frameWindow`, with origin "null" and a string; a string longer than
+     MAX_ANSWER is "too-big" without being parsed (more matches than the page lists: the not-found tips, not
+     "Census down"); a string JSON.parse refuses, or JSON that is neither a known word nor an object, is not heard. */
+  function frameMessage(e, frameWindow) {
+    if (!e || !frameWindow || e.source !== frameWindow || e.origin !== "null") { return null; }
+    var d = e.data;
+    if (typeof d !== "string") { return null; }
+    if (d.length > MAX_ANSWER) { return { type: "too-big" }; }
+    var v;
+    try { v = JSON.parse(d); } catch (err) { return null; }
+    if (typeof v === "string") { return WORDS.has(v) ? { type: v } : null; }
+    return isObj(v) ? { type: "answer", data: v } : null;
+  }
+
+  /* What a lookup ends with, from a heard message: classify's result, or {kind: "error", blocked?, timeout?}. */
+  function resultOf(msg) {
+    if (msg.type === "answer") { return classify(msg.data); }
+    if (msg.type === "too-big") { return { kind: "nomatch", many: true }; }
+    if (msg.type === "blocked") { return { kind: "error", blocked: true }; }
+    return { kind: "error" };
+  }
+
+  /* The address as sent: spaces collapsed, trimmed; "" when empty or longer than MAX_ADDRESS. */
+  function cleanAddress(a) {
+    var s = typeof a === "string" ? a.replace(/\s+/g, " ").trim() : "";
+    return s.length <= MAX_ADDRESS ? s : "";
+  }
+
+  /* One lookup: a fresh sandboxed frame (env.frameSrc, default "geo-frame.html"), the address posted to it only after
+     its "ready", done(result) called exactly once (an answer, "blocked", "loaded", too big, or no answer within
+     TIMEOUT_MS), and the frame and listener removed before done runs. env = {document, window, setTimeout,
+     clearTimeout, frameSrc?, timeoutMs?}. Returns {cancel()} (drops the lookup without calling done). An empty or
+     over-long address sends nothing and ends {kind: "empty"} or {kind: "nomatch"}. */
+  function lookup(env, address, done) {
+    var doc = env.document, win = env.window;
+    var setT = env.setTimeout || setTimeout, clearT = env.clearTimeout || clearTimeout;
+    var raw = typeof address === "string" ? address.replace(/\s+/g, " ").trim() : "";
+    var addr = cleanAddress(address);
+    var over = false, asked = false, timer = null;
+    if (!addr) {
+      done(raw ? { kind: "nomatch" } : { kind: "empty" });
+      return { cancel: function () {} };
+    }
+    var fr = doc.createElement("iframe");
+    fr.setAttribute("sandbox", "allow-scripts");
+    fr.setAttribute("referrerpolicy", "no-referrer");
+    fr.setAttribute("title", "Census address lookup");
+    fr.setAttribute("aria-hidden", "true");
+    fr.setAttribute("tabindex", "-1");
+    fr.hidden = true;
+    function end(result) {
+      if (over) { return; }
+      over = true;
+      clearT(timer);
+      win.removeEventListener("message", onMessage);
+      if (fr.parentNode) { fr.parentNode.removeChild(fr); }
+      if (result) { done(result); }
+    }
+    function onMessage(e) {
+      var msg = frameMessage(e, fr.contentWindow);
+      if (!msg || over) { return; }
+      if (msg.type === "ready") {
+        if (!asked) { asked = true; fr.contentWindow.postMessage({ address: addr }, "*"); }
+        return;
+      }
+      if (!asked) { return; }        // nothing but "ready" counts before the address was sent
+      end(resultOf(msg));
+    }
+    win.addEventListener("message", onMessage);
+    timer = setT(function () { end({ kind: "error", timeout: true }); }, env.timeoutMs || TIMEOUT_MS);
+    fr.setAttribute("src", env.frameSrc || "geo-frame.html");
+    doc.body.appendChild(fr);
+    return { cancel: function () { end(null); } };
+  }
+
   var api = {
     jsonpUrl: jsonpUrl, classify: classify, governments: governments, indexPagedir: indexPagedir, label: label,
     loadList: loadList, saveList: saveList, forget: forget, markRequested: markRequested, markCounted: markCounted,
     loadRequested: loadRequested, loadCounted: loadCounted, storageOf: storageOf,
+    frameMessage: frameMessage, resultOf: resultOf, cleanAddress: cleanAddress, lookup: lookup,
     KEYS: KEYS, CENSUS: CENSUS, CALLBACK: CALLBACK, TIMEOUT_MS: TIMEOUT_MS, MAX_ANSWER: MAX_ANSWER,
     MAX_ADDRESS: MAX_ADDRESS, MAX_MATCHES: MAX_MATCHES, LAYER_NAMES: LAYERS.map(function (l) { return l.name; })
   };

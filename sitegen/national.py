@@ -15,6 +15,8 @@ for any body name this module cannot tie to a general-purpose government (`_gene
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import re
 import zoneinfo
 from dataclasses import dataclass, field
@@ -509,3 +511,49 @@ def load_all(folder: Path = NATIONAL_DIR) -> tuple[Directory, GovFlags, dict[str
                 raise NationalConfigError(f"{folder / 'gov-flags.yml'}: hide: id: {i} is in directory.yml "
                                           f"({g['gov']}); a listed government is never hidden")
     return directory, flags, labels
+
+
+# --- the geo frame, digest/geo-frame.html (architecture 4.0; security finding 1, national/csp-jsonp-gadget) ---------
+
+GEO_FRAME_SCRIPT_PATH = config.TEMPLATE_DIR / "_geo_frame.js"
+GEO_FRAME_PAGE = "digest/geo-frame.html"          # relative to the site root; the lookup page loads "geo-frame.html"
+# The one source the frame's CSP adds: the geographies path, exact (a CSP source with a path and no trailing slash
+# matches that path only). No other page names the Census in its CSP (the parent's script-src stays 'self').
+CENSUS_GEOGRAPHIES = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
+
+
+def script_hash(js: str) -> str:
+    """The CSP source for one inline script: sha256-<base64> of its exact UTF-8 text (as sitegen.views.script_hash)."""
+    return "sha256-" + base64.b64encode(hashlib.sha256(js.encode("utf-8")).digest()).decode("ascii")
+
+
+def geo_frame_script(path: Path = GEO_FRAME_SCRIPT_PATH) -> str:
+    """The frame's one inline script (site/templates/_geo_frame.js), fixed text. Refused if it could end the script
+    element or open a comment, or if it names any host but the Census geographies path."""
+    js = Path(path).read_text(encoding="utf-8").strip()
+    if "</" in js or "<!--" in js:
+        raise ValueError(f"{path} must not contain '</' or '<!--' (it is inlined in geo-frame.html)")
+    hosts = set(re.findall(r"[a-z][a-z0-9+.-]*://[^\s\"'/]+", js, re.IGNORECASE))
+    if hosts != {"https://geocoding.geo.census.gov"} or CENSUS_GEOGRAPHIES not in js:
+        raise ValueError(f"{path} must name the Census geographies path and no other host, not {sorted(hosts)}")
+    return js
+
+
+def geo_frame_csp(js: str) -> str:
+    """The frame's meta CSP (4.0): nothing by default; scripts only this inline one, by hash, and the Census
+    geographies path. base-uri and form-action, which default-src does not cover, are closed too."""
+    return (f"default-src 'none'; script-src '{script_hash(js)}' {CENSUS_GEOGRAPHIES}; base-uri 'none'; "
+            "form-action 'none'")
+
+
+def geo_frame_html(path: Path = GEO_FRAME_SCRIPT_PATH) -> str:
+    """digest/geo-frame.html, the whole file; pure (the builder, task B4, writes it once per build). The lookup page
+    loads it in <iframe sandbox="allow-scripts" src="geo-frame.html" referrerpolicy="no-referrer"> (no
+    allow-same-origin: an opaque origin), and the address reaches it only by postMessage after it posts "ready"."""
+    js = geo_frame_script(path)
+    return ("<!doctype html>\n"
+            '<html lang="en"><head><meta charset="utf-8">\n'
+            f'<meta http-equiv="Content-Security-Policy" content="{geo_frame_csp(js)}">\n'
+            '<meta name="referrer" content="no-referrer">\n'
+            "<title>Census address lookup</title></head>\n"
+            f"<body><script>{js}</script></body></html>\n")

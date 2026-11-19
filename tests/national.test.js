@@ -148,13 +148,30 @@ test('unincorporated: no place -> note no-city; county and school district kept'
   assert.deepStrictEqual(r.notes, ['note.no-city']);
 });
 
-test('FUNCSTAT: N subdivision dropped; place/county/cousub keep only A, school districts A or E', () => {
-  const r = govsOf(one(unit('place', '4799001', 'Place B', 'B', 'C1'), unit('place', '4799002', 'Place S', 'S', 'C1'),
+test('FUNCSTAT: N subdivision dropped; place/county/cousub keep A or B, school districts A or E', () => {
+  const r = govsOf(one(unit('place', '4799002', 'Place S', 'S', 'C1'), unit('place', '4799004', 'Place C', 'C', 'C1'),
     unit('county', '47125', 'Montgomery County', 'A', 'H1'), unit('cousub', '4712590886', 'District 5', 'N', 'Z1'),
     unit('cousub', '4712590887', 'District 6', 'E', 'T1'), unit('sdu', '4703030', 'CMCSS', 'E'),
     unit('sds', '4700001', 'Sec A', 'A'), unit('sde', '4700002', 'Elem F', 'F'), unit('sde', '4700003', 'Elem none', '')).units);
   assert.deepStrictEqual(ids(r), ['county-47125', 'sdu-4703030', 'sds-4700001']);
   assert.deepStrictEqual(r.notes, ['note.no-city']);
+});
+
+test('FUNCSTAT B (partially consolidated, own officials) is kept; C (consolidated, one set of officials) is not', () => {
+  // B: a city partly consolidated with its county but with its own officials, so its own card; C: dropped, shown
+  // through the other layer (or gov-flags `show`, as Davidson County H6|C is)
+  const b = govsOf(one(unit('place', '1349999', 'Partly consolidated city', 'B', 'C1'),
+    unit('county', '13999', 'Its County', 'A', 'H1')).units);
+  assert.deepStrictEqual(ids(b), ['place-1349999', 'county-13999']);
+  assert.deepStrictEqual(b.notes, []);
+  const c = govsOf(one(unit('place', '2149999', 'Consolidated city', 'A', 'C1'),
+    unit('county', '21999', 'Its County', 'C', 'H6')).units);
+  assert.deepStrictEqual(ids(c), ['place-2149999']);
+  assert.deepStrictEqual(c.notes, ['note.no-county']);
+  const cc = govsOf(one(unit('place', '2149998', 'Consolidated city (C)', 'C', 'C3'),
+    unit('county', '21998', 'Its County', 'A', 'H6')).units);
+  assert.deepStrictEqual(ids(cc), ['county-21998']);
+  assert.deepStrictEqual(cc.notes, ['note.no-city']);
 });
 
 test('CT: the county (H4|N, dropped by FUNCSTAT; a planning region by the state rule) -> no-county; the town shows', () => {
@@ -449,6 +466,271 @@ test('markRequested and markCounted add valid ids once, keep the old ones, and d
   N.markRequested(s3, many);
   assert.strictEqual(N.loadRequested(s3).length, 200);
   assert.strictEqual(N.loadRequested(s3)[199], many[249]);
+});
+
+// --- geo frame protocol, parent side (F5; 4.0; finding 1, national/csp-jsonp-gadget) ------------------------------
+const vm = require('vm');
+const FRAME_SRC = fs.readFileSync(path.join(ROOT, 'site', 'templates', '_geo_frame.js'), 'utf8');
+
+test('frameMessage hears only the frame window, origin "null", a string, at most MAX_ANSWER, valid JSON', () => {
+  const fw = { name: 'frame' }, other = { name: 'other' };
+  const ev = (data, o) => Object.assign({ source: fw, origin: 'null', data }, o || {});
+  const ans = JSON.stringify(PUBLIC_SQ);
+  assert.deepStrictEqual(plain(N.frameMessage(ev(ans), fw)), { type: 'answer', data: PUBLIC_SQ });
+  for (const w of ['ready', 'blocked', 'loaded']) {
+    assert.deepStrictEqual(plain(N.frameMessage(ev(JSON.stringify(w)), fw)), { type: w });
+  }
+  // ignored: another window, another origin, an object, bad JSON, JSON that is no word and no object
+  assert.strictEqual(N.frameMessage(ev(ans, { source: other }), fw), null);
+  assert.strictEqual(N.frameMessage(ev(ans, { source: null }), fw), null);
+  assert.strictEqual(N.frameMessage(ev(ans), null), null);
+  for (const origin of ['https://evil.example', 'https://gn0sh.github.io', '', undefined, null]) {
+    assert.strictEqual(N.frameMessage(ev(ans, { origin }), fw), null, String(origin));
+  }
+  for (const data of [PUBLIC_SQ, { cr: 'answer', json: ans }, ['x'], 5, null, undefined, true]) {
+    assert.strictEqual(N.frameMessage(ev(data), fw), null, JSON.stringify(data));
+  }
+  for (const data of ['', 'ready', '{"result":', '{bad}', 'undefined', '5', '[1]', 'null', '"go"', '"__proto__"']) {
+    assert.strictEqual(N.frameMessage(ev(data), fw), null, data);
+  }
+  assert.strictEqual(N.frameMessage(null, fw), null);
+  // oversize: not parsed; the not-found tips, not "Census down"
+  const big = '{"result":{"addressMatches":[]},"pad":"' + 'x'.repeat(N.MAX_ANSWER) + '"}';
+  assert.deepStrictEqual(plain(N.frameMessage(ev(big), fw)), { type: 'too-big' });
+  assert.strictEqual(N.frameMessage(ev(big, { source: other }), fw), null);
+  const edge = '"' + 'y'.repeat(N.MAX_ANSWER - 2) + '"';
+  assert.strictEqual(edge.length, N.MAX_ANSWER);
+  assert.strictEqual(N.frameMessage(ev(edge), fw), null);          // at the cap it is parsed (then not a word)
+  assert.deepStrictEqual(plain(N.resultOf({ type: 'too-big' })), { kind: 'nomatch', many: true });
+  assert.deepStrictEqual(plain(N.resultOf({ type: 'blocked' })), { kind: 'error', blocked: true });
+  assert.deepStrictEqual(plain(N.resultOf({ type: 'loaded' })), { kind: 'error' });
+  assert.strictEqual(N.resultOf({ type: 'answer', data: PUBLIC_SQ }).kind, 'one');
+});
+
+// A fake page: window listeners, a body, iframes whose contentWindow records what the parent posts, fake timers.
+function fakePage() {
+  const listeners = new Set(), timers = [];
+  const win = {
+    addEventListener(t, fn) { assert.strictEqual(t, 'message'); listeners.add(fn); },
+    removeEventListener(t, fn) { assert.strictEqual(t, 'message'); listeners.delete(fn); },
+  };
+  const body = { children: [],
+    appendChild(el) { el.parentNode = body; body.children.push(el); return el; },
+    removeChild(el) { body.children = body.children.filter((c) => c !== el); el.parentNode = null; return el; } };
+  const document = { body, createElement(tag) {
+    assert.strictEqual(tag, 'iframe');
+    const posted = [];
+    return { tag, attrs: {}, hidden: false, parentNode: null, posted,
+      setAttribute(k, v) { this.attrs[k] = String(v); },
+      contentWindow: { postMessage: (m, t) => posted.push([m, t]) } };
+  } };
+  const env = { document, window: win,
+    setTimeout(fn, ms) { const t = { fn, ms, cleared: false }; timers.push(t); return t; },
+    clearTimeout(t) { if (t) { t.cleared = true; } } };
+  const fire = (frame, data, o) => [...listeners].forEach((fn) => fn(Object.assign(
+    { source: frame.contentWindow, origin: 'null', data }, o || {})));
+  return { env, body, listeners, timers, fire };
+}
+
+test('lookup: a sandboxed frame with no address in its URL; the address goes by postMessage only after "ready"', () => {
+  const p = fakePage(), got = [];
+  N.lookup(p.env, '  1 Public Sq,\n Clarksville,   TN ', (r) => got.push(r));
+  assert.strictEqual(p.body.children.length, 1);
+  const fr = p.body.children[0];
+  assert.deepStrictEqual(fr.attrs, { sandbox: 'allow-scripts', referrerpolicy: 'no-referrer',
+    title: 'Census address lookup', 'aria-hidden': 'true', tabindex: '-1', src: 'geo-frame.html' });
+  assert.ok(!/allow-same-origin/.test(fr.attrs.sandbox));
+  assert.strictEqual(fr.hidden, true);
+  assert.deepStrictEqual(fr.posted, []);                         // nothing before "ready"
+  p.fire(fr, JSON.stringify(PUBLIC_SQ));                         // an answer before the address was sent: ignored
+  p.fire(fr, '"ready"', { source: {} });                         // "ready" from another window: ignored
+  p.fire(fr, '"ready"', { origin: 'https://evil.example' });
+  assert.deepStrictEqual(fr.posted, []);
+  assert.deepStrictEqual(got, []);
+  p.fire(fr, '"ready"');
+  assert.deepStrictEqual(plain(fr.posted), [[{ address: '1 Public Sq, Clarksville, TN' }, '*']]);
+  p.fire(fr, '"ready"');                                         // a second "ready" sends nothing more
+  assert.strictEqual(fr.posted.length, 1);
+});
+
+test('lookup: ignores a message from another window, an object, an oversize-from-elsewhere and bad JSON', () => {
+  const p = fakePage(), got = [];
+  N.lookup(p.env, '1 Public Sq, Clarksville, TN', (r) => got.push(r));
+  const fr = p.body.children[0];
+  p.fire(fr, '"ready"');
+  p.fire(fr, JSON.stringify(PUBLIC_SQ), { source: { other: true } });
+  p.fire(fr, PUBLIC_SQ);
+  p.fire(fr, 'x'.repeat(N.MAX_ANSWER + 1), { source: { other: true } });
+  p.fire(fr, '{"result": ');
+  p.fire(fr, JSON.stringify(PUBLIC_SQ), { origin: 'https://gn0sh.github.io' });
+  assert.deepStrictEqual(got, []);
+  assert.strictEqual(p.body.children.length, 1);
+  p.fire(fr, JSON.stringify(PUBLIC_SQ));
+  assert.strictEqual(got.length, 1);
+  assert.strictEqual(got[0].kind, 'one');
+  assert.strictEqual(got[0].matched, '1 PUBLIC SQ, CLARKSVILLE, TN, 37040');
+});
+
+test('lookup: the answer ends it once; the frame, its listener and the timer go before done runs', () => {
+  const p = fakePage(), got = [];
+  N.lookup(p.env, '1 Public Sq, Clarksville, TN', (r) => {
+    assert.strictEqual(p.body.children.length, 0, 'frame removed before done');
+    assert.strictEqual(p.listeners.size, 0, 'listener removed before done');
+    got.push(r);
+  });
+  const fr = p.body.children[0];
+  assert.strictEqual(p.timers.length, 1);
+  assert.strictEqual(p.timers[0].ms, 15000);
+  assert.strictEqual(N.TIMEOUT_MS, 15000);
+  p.fire(fr, '"ready"');
+  p.fire(fr, JSON.stringify(PUBLIC_SQ));
+  p.fire(fr, '"blocked"');
+  assert.strictEqual(got.length, 1);
+  assert.strictEqual(p.timers[0].cleared, true);
+  assert.strictEqual(fr.parentNode, null);
+});
+
+test('lookup: no answer in 15 s -> error with timeout; the frame is removed and a late answer is not heard', () => {
+  const p = fakePage(), got = [];
+  N.lookup(p.env, '1 Public Sq, Clarksville, TN', (r) => got.push(r));
+  const fr = p.body.children[0];
+  p.fire(fr, '"ready"');
+  p.timers[0].fn();
+  assert.deepStrictEqual(plain(got), [{ kind: 'error', timeout: true }]);
+  assert.strictEqual(p.body.children.length, 0);
+  assert.strictEqual(p.listeners.size, 0);
+  p.fire(fr, JSON.stringify(PUBLIC_SQ));
+  p.timers[0].fn();
+  assert.strictEqual(got.length, 1);
+  // a frame that never says "ready" (blocked by the browser) also ends by the timeout
+  const q = fakePage(), got2 = [];
+  N.lookup(q.env, '1 Main St', (r) => got2.push(r));
+  q.timers[0].fn();
+  assert.deepStrictEqual(plain(got2), [{ kind: 'error', timeout: true }]);
+  assert.deepStrictEqual(q.body.children, []);
+});
+
+test('lookup: "blocked", "loaded" and an oversize answer end it with their own results', () => {
+  const cases = [['"blocked"', { kind: 'error', blocked: true }], ['"loaded"', { kind: 'error' }],
+    ['{"pad":"' + 'x'.repeat(N.MAX_ANSWER) + '"}', { kind: 'nomatch', many: true }],
+    [JSON.stringify({ result: { addressMatches: [] } }), { kind: 'nomatch' }]];
+  for (const [data, want] of cases) {
+    const p = fakePage(), got = [];
+    N.lookup(p.env, '1 Main St, Town, ST', (r) => got.push(r));
+    const fr = p.body.children[0];
+    p.fire(fr, '"ready"');
+    p.fire(fr, data);
+    assert.deepStrictEqual(plain(got), [want], data.slice(0, 20));
+    assert.deepStrictEqual(p.body.children, []);
+  }
+});
+
+test('lookup: cancel drops the frame without an answer; an empty or over-long address sends nothing', () => {
+  const p = fakePage(), got = [];
+  const h = N.lookup(p.env, '1 Main St', (r) => got.push(r));
+  h.cancel();
+  assert.deepStrictEqual(p.body.children, []);
+  assert.strictEqual(p.listeners.size, 0);
+  assert.strictEqual(p.timers[0].cleared, true);
+  assert.deepStrictEqual(got, []);
+  for (const [a, want] of [['', 'empty'], ['   \n ', 'empty'], [null, 'empty'], ['x'.repeat(201), 'nomatch']]) {
+    const q = fakePage(), g = [];
+    N.lookup(q.env, a, (r) => g.push(r));
+    assert.deepStrictEqual(plain(g), [{ kind: want }]);
+    assert.deepStrictEqual(q.body.children, []);
+    assert.strictEqual(q.timers.length, 0);
+  }
+  assert.strictEqual(N.cleanAddress('x'.repeat(200)).length, 200);
+});
+
+// --- the frame's own script (site/templates/_geo_frame.js) in a fake sandboxed window ---------------------------
+function runFrame() {
+  const parentPosts = [], appended = [], listeners = [], later = [];
+  const parent = { postMessage: (m, t) => parentPosts.push([m, t]) };
+  const win = { addEventListener: (t, fn) => { assert.strictEqual(t, 'message'); listeners.push(fn); } };
+  const document = { head: { appendChild: (el) => appended.push(el) },
+    createElement: (tag) => { assert.strictEqual(tag, 'script'); return { tag }; } };
+  const ctx = { window: win, parent, document, JSON, Array, String, encodeURIComponent,
+    setTimeout: (fn) => later.push(fn) };
+  vm.createContext(ctx);
+  vm.runInContext(FRAME_SRC, ctx);
+  const send = (data, source) => listeners.forEach((fn) => fn({ data, source: source === undefined ? parent : source,
+    origin: 'https://gn0sh.github.io' }));
+  return { win, parent, parentPosts, appended, send, later };
+}
+
+test('frame script: posts "ready", takes one {address} from the parent only, and builds jsonpUrl\'s exact URL', () => {
+  for (const addr of ['1 Public Sq, Clarksville, TN', '12 O\'Brien Rd #4 & Sons, Ste "B", NY 10001',
+    'a&callback=alert(1)//', 'Calle Ñandú 5, San Juan, PR', 'x'.repeat(200)]) {
+    const f = runFrame();
+    assert.deepStrictEqual(f.parentPosts, [['"ready"', '*']]);
+    f.send({ address: addr }, { notParent: true });             // another window: ignored
+    f.send(addr);                                               // a bare string: ignored
+    assert.strictEqual(f.appended.length, 0);
+    f.send({ address: addr });
+    assert.strictEqual(f.appended.length, 1);
+    assert.strictEqual(f.appended[0].src, N.jsonpUrl(addr), addr);
+    assert.strictEqual(f.appended[0].referrerPolicy, 'no-referrer');
+    f.send({ address: 'second' });                              // one lookup per frame
+    assert.strictEqual(f.appended.length, 1);
+  }
+  const f = runFrame();
+  for (const bad of [{ address: '' }, { address: 'x'.repeat(201) }, { address: 5 }, {}, null]) { f.send(bad); }
+  assert.strictEqual(f.appended.length, 0);
+});
+
+test('frame script: the callback posts the answer as JSON text once; failures post "blocked" or "loaded"', () => {
+  const f = runFrame();
+  f.send({ address: '1 Public Sq, Clarksville, TN' });
+  assert.strictEqual(typeof f.win.crGeocode, 'function');
+  f.win.crGeocode(PUBLIC_SQ);
+  f.appended[0].onload();
+  f.later.forEach((fn) => fn());
+  assert.strictEqual(f.parentPosts.length, 2);
+  const [text, target] = f.parentPosts[1];
+  assert.strictEqual(target, '*');
+  assert.strictEqual(typeof text, 'string');
+  assert.deepStrictEqual(JSON.parse(text), PUBLIC_SQ);
+  const g = runFrame();
+  g.send({ address: 'x' });
+  g.appended[0].onerror();
+  assert.deepStrictEqual(g.parentPosts.map((m) => m[0]), ['"ready"', '"blocked"']);
+  const h = runFrame();
+  h.send({ address: 'x' });
+  h.appended[0].onload();
+  h.later.forEach((fn) => fn());
+  assert.deepStrictEqual(h.parentPosts.map((m) => m[0]), ['"ready"', '"loaded"']);
+  const k = runFrame();                                         // a callback with no object is no answer
+  k.send({ address: 'x' });
+  k.win.crGeocode('"ready"');
+  assert.deepStrictEqual(k.parentPosts.map((m) => m[0]), ['"ready"', '"loaded"']);
+  // every message the frame posts is one the parent hears
+  for (const [m] of [...f.parentPosts, ...g.parentPosts, ...h.parentPosts]) {
+    assert.notStrictEqual(N.frameMessage({ source: 1, origin: 'null', data: m }, 1), null, m.slice(0, 20));
+  }
+});
+
+test('parent and frame together: 1 Public Sq ends in its three cards, the frame gone', () => {
+  const p = fakePage(), got = [];
+  N.lookup(p.env, '1 Public Sq, Clarksville, TN', (r) => got.push(r));
+  const fr = p.body.children[0];
+  const f = runFrame();                                         // the frame document the iframe loaded
+  fr.contentWindow.postMessage = (m) => f.send(m);              // parent -> frame (structured clone in a browser)
+  f.parentPosts.forEach(([m]) => p.fire(fr, m));                // the "ready" it posted on load
+  f.parent.postMessage = (m) => p.fire(fr, m);                  // frame -> parent from now on
+  assert.strictEqual(f.appended.length, 1);
+  assert.strictEqual(new URL(f.appended[0].src).searchParams.get('address'), '1 Public Sq, Clarksville, TN');
+  f.win.crGeocode(PUBLIC_SQ);                                   // the Census JSONP runs
+  assert.strictEqual(got.length, 1);
+  assert.deepStrictEqual(ids(N.governments(got[0].units, PAGEDIR)), ['place-4715160', 'county-47125', 'sdu-4703030']);
+  assert.deepStrictEqual(p.body.children, []);
+});
+
+test('frame script and national.js share the callback name, the Census path and the six layers', () => {
+  assert.ok(FRAME_SRC.includes('var CALLBACK = "' + N.CALLBACK + '";'));
+  assert.ok(FRAME_SRC.includes('var CENSUS = "' + N.CENSUS + '";'));
+  for (const name of N.LAYER_NAMES) { assert.ok(FRAME_SRC.includes('"' + name + '"'), name); }
+  assert.ok(!/<\//.test(FRAME_SRC) && !/<!--/.test(FRAME_SRC));
 });
 
 // --- run ---------------------------------------------------------------------------------------------------------
