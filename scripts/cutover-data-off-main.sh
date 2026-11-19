@@ -81,7 +81,8 @@
 #   - otherwise (the cutover merge is not on main): it refuses unless main tracks data/ and holds .github/CODEOWNERS
 #     and one empty MAIN_PR_BASELINE, then disables daily-update, puts R1' (scripts/main-ruleset-r1p.json) back,
 #     turns R2 on and the workflow on.
-# records-data is kept. Exit: 0 done, 1 refused (nothing changed), 2 stopped after a change (see the undo line).
+# records-data is kept. Exit: 0 done, 1 refused (nothing changed), 2 stopped after a change (see the undo line; Ctrl+C
+# from step 2 on too: "STOPPED at step N (interrupted)").
 # Needs: git, gh signed in as gn0sh (gh auth login), jq, curl, Python 3 with requirements.txt installed.
 set -uo pipefail
 repo=gn0sh/clarksville-records
@@ -141,14 +142,30 @@ step=0
 undo="$me --rollback"
 refuse() { echo "REFUSED: $1. Nothing was changed."; exit 1; }
 merge_from=""   # main's sha just before the cutover merge call; set from then on
-fail() {
+refresh_undo() {
   local now
   # After the merge call, main may have moved even when the call's output was not understood: the undo then needs
   # the merge sha (data-off-main/undo-line-after-merge).
   if [ -n "$merge_from" ] && [ "$undo" = "$me --rollback" ]; then
     if now=$(fetch_main 2>/dev/null) && [ "$now" != "$merge_from" ]; then undo="$me --rollback --cutover-merge $now"; fi
   fi
+}
+fail() {
+  refresh_undo
   echo "STOPPED at step $step ($(utc)): $1"
+  echo "Undo with: $undo"
+  exit 2
+}
+# Ctrl+C or a stop signal (data-off-main/ps-ctrlc-exit-zero, the .ps1's finally block): steps 0 and 1 only read;
+# from step 2 on, the stop line and the undo line fail prints for the step, and exit 2 (not 130)
+interrupted() {
+  trap - INT TERM HUP
+  if [ "$step" -lt 2 ]; then
+    echo "STOPPED (interrupted) ($(utc)) before any change. Nothing was written on GitHub."
+    exit 1
+  fi
+  refresh_undo
+  echo "STOPPED at step $step (interrupted) ($(utc)): Ctrl+C or a stop signal."
   echo "Undo with: $undo"
   exit 2
 }
@@ -162,7 +179,8 @@ for t in git jq; do command -v "$t" >/dev/null 2>&1 || refuse "$t not found: ins
 top=$(git rev-parse --show-toplevel 2>/dev/null) || refuse "run this inside the clarksville-records checkout"
 cd "$top" || refuse "could not enter $top"
 work=$(mktemp -d) || refuse "could not make a temporary folder"
-trap 'rm -rf "$work"' EXIT
+trap 'trap - INT TERM HUP; rm -rf "$work"' EXIT   # an intended exit is never reported as interrupted
+trap interrupted INT TERM HUP
 if command -v sha256sum >/dev/null 2>&1; then sha256() { sha256sum | cut -d' ' -f1; }
 else sha256() { shasum -a 256 | cut -d' ' -f1; }; fi
 py=""

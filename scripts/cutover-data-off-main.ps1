@@ -80,26 +80,37 @@
 #     and one empty MAIN_PR_BASELINE, then disables daily-update, main-ruleset-r1p.json (R1') back, R2 on
 #     (can_approve_pull_request_reviews=true), workflow on.
 # records-data is kept.
-# Exit: 0 done, 1 refused (nothing changed), 2 stopped after a change (see the undo line).
+# Exit: 0 done, 1 refused (nothing changed), 2 stopped after a change (see the undo line; Ctrl+C from step 2 on too:
+# "STOPPED at step N (interrupted)").
 # Needs: git, GitHub CLI (winget install GitHub.cli) signed in as gn0sh, Python 3 with requirements.txt installed.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
-# named parameters only: an unknown or .sh-style argument stops here, never binds to a parameter by position
-# (data-off-main/ps-unknown-args)
-[CmdletBinding(PositionalBinding = $false)]
-param(
-    [string]$Pr = '',
-    [string]$Sha = '',
-    [string]$Apps = '',
-    [string[]]$Report = @(),
-    [switch]$Plan,
-    [switch]$Prepare,
-    [string]$Ref = 'HEAD',
-    [switch]$Rollback,
-    [string]$CutoverMerge = '',
-    [string]$DataFrom = '',
-    [string]$Merge = '',
-    [switch]$CheckAttested
-)
+# Named parameters only: an unknown or .sh-style argument stops here, never binds to a parameter by position
+# (data-off-main/ps-unknown-args). The binding is a dot-sourced advanced script block (its parameters become this
+# script's variables) and the script itself is not advanced: in an advanced script the exit code set in the finally
+# block below is lost after Ctrl+C, and the run exits 0 (data-off-main/ps-ctrlc-exit-zero; as u3-toggle.ps1). A
+# binding failure exits 1 here, whatever the host does with one.
+try {
+    . {
+        [CmdletBinding(PositionalBinding = $false)]
+        param(
+            [string]$Pr = '',
+            [string]$Sha = '',
+            [string]$Apps = '',
+            [string[]]$Report = @(),
+            [switch]$Plan,
+            [switch]$Prepare,
+            [string]$Ref = 'HEAD',
+            [switch]$Rollback,
+            [string]$CutoverMerge = '',
+            [string]$DataFrom = '',
+            [string]$Merge = '',
+            [switch]$CheckAttested
+        )
+    } @args
+} catch {
+    Write-Host "REFUSED: $($_.Exception.Message) Named parameters only (-Pr <P> -Sha <sha> ...). Nothing was changed."
+    exit 1
+}
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
 Remove-TypeData System.Array -ErrorAction SilentlyContinue
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -136,17 +147,25 @@ function Shown([string]$s) { return ($s -replace '[^\x20-\x7E]', '?') }
 $script:step = 0
 $script:undo = "$me -Rollback"
 $script:why = ''
-function Refuse([string]$m) { Write-Host "REFUSED: $m. Nothing was changed."; exit 1 }
+# Set right before each intended exit; the finally block at the end treats a run that ends without it as
+# interrupted (Ctrl+C, a stop signal or an error: data-off-main/ps-ctrlc-exit-zero)
+$script:done = $false
+function Refuse([string]$m) { Write-Host "REFUSED: $m. Nothing was changed."; $script:done = $true; exit 1 }
 $script:mergeFrom = ''   # main's sha just before the cutover merge call; set from then on
-function Fail([string]$m) {
+function UndoLine {
     # After the merge call, main may have moved even when the call's output was not understood: the undo then needs
     # the merge sha (data-off-main/undo-line-after-merge).
     if ($script:mergeFrom -and $script:undo -ceq "$me -Rollback") {
         $now = FetchMain
         if ($now -and $now -cne $script:mergeFrom) { $script:undo = "$me -Rollback -CutoverMerge $now" }
     }
+    return $script:undo
+}
+function Fail([string]$m) {
+    $u = UndoLine
     Write-Host "STOPPED at step $($script:step) ($(Utc)): $m"
-    Write-Host "Undo with: $($script:undo)"
+    Write-Host "Undo with: $u"
+    $script:done = $true
     exit 2
 }
 
@@ -618,7 +637,7 @@ if ($Prepare) {
         Refuse 'data/ is still tracked or not ignored after --prepare (-Prepare)'
     }
     Write-Host "PREPARED: commit this, then run $me -Plan and set RECORDS_DATA_SEED_DIGEST in the gate step's env to its SEED DIGEST."
-    exit 0
+    $script:done = $true; exit 0
 }
 
 # ---------------------------------------------------------------------------------------------- -Plan
@@ -650,14 +669,14 @@ if ($Plan) {
     if ((GitRun @('merge-base', '--is-ancestor', $m, $h)).Code -ne 0) { Write-Host "The cutover head $h does not contain main ${m}: update its branch from main."; $stale = 1 }
     Write-Host "Paste everything from here to 'checked N commits' into the cutover PR (runbook 4.7.1):"
     if (-not (WindowCheck $WINDOW_START $m)) { Refuse "the window check stopped: $($script:why)" }
-    exit $stale
+    $script:done = $true; exit $stale
 }
 
 # ---------------------------------------------------------------------------------------------- -CheckAttested
 if ($CheckAttested) {
     NeedGh
-    if (-not (CheckAttestedNow '')) { Write-Host "NOT ATTESTED: $($script:why)."; exit 1 }
-    exit 0
+    if (-not (CheckAttestedNow '')) { Write-Host "NOT ATTESTED: $($script:why)."; $script:done = $true; exit 1 }
+    $script:done = $true; exit 0
 }
 
 # ---------------------------------------------------------------------------------------------- -Rollback
@@ -775,7 +794,7 @@ if ($Rollback) {
         if (-not (R2On)) { Fail 'could not turn R2 on' }
         if (-not (WfSet 'enable' 'active')) { Fail "could not re-enable daily-update (R1' and R2 are back)" }
         Write-Host "ROLLBACK DONE $(Utc): R1' back, R2 on, daily-update on. records-data is kept."
-        exit 0
+        $script:done = $true; exit 0
     }
     if ($path -ceq 'open') {
         $script:step = 3
@@ -809,7 +828,7 @@ if ($Rollback) {
         if ($LASTEXITCODE -ne 0 -or $n -notmatch '^[0-9]+$') { Fail "could not open the pull request for $br" }
         Write-Host "ROLLBACK PR #$n opened for $br at $c. daily-update stays off; R2 stays off; the site stays as last deployed."
         Write-Host "Next, once PR #$n is reviewed at ${c}: $me -Rollback -Merge $n -Sha $c -CutoverMerge $CutoverMerge -Report <review>"
-        exit 0
+        $script:done = $true; exit 0
     }
     $script:step = 3
     $res = RunMergeReviewed $Merge $Sha $Report
@@ -834,13 +853,13 @@ if ($Rollback) {
     if (-not (R2On)) { Fail "could not turn R2 on (R1' is back)" }
     if (-not (WfSet 'enable' 'active')) { Fail "could not re-enable daily-update (R1' and R2 are back)" }
     Write-Host "ROLLBACK DONE $(Utc): data/ on main, R1' back, R2 on, daily-update on. records-data is kept."
-    exit 0
+    $script:done = $true; exit 0
 }
 
 # ---------------------------------------------------------------------------------------------- the cutover
 if ($Pr -notmatch '^[0-9]+$' -or $Sha -cnotmatch '^[0-9a-f]{40}$' -or $Report.Count -lt 1) {
     Write-Host "Usage: $me -Pr <P> -Sha <reviewed head> -Apps claude|none -Report <review> | -Plan [-Ref <rev>] | -Rollback [-CutoverMerge <sha> [-DataFrom <sha>]] | -Rollback -Merge <R> -Sha <sha> -CutoverMerge <sha> -Report <review> | -CheckAttested"
-    exit 1
+    $script:done = $true; exit 1
 }
 NeedGh
 NeedPython
@@ -998,7 +1017,20 @@ if ($dj -cne 'success') { Fail "run $id ended $c; its deploy job is '$dj', not s
 Write-Host 'Step 8 OK.'
 Write-Host "CUTOVER DONE $(Utc): PR #$Pr merged as $ms, seed $seed, records-data moved by run $id and attested."
 Write-Host "Record in docs/status.md: the merge $ms, the seed $seed, run ids, and the first attested records-data head."
-exit 0
+$script:done = $true; exit 0
 } finally {
     Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+    # data-off-main/ps-ctrlc-exit-zero: after Ctrl+C PowerShell runs this block and then skips everything after it, so
+    # the stop line, the undo line and the exit code are set here (the .sh: its INT/TERM/HUP trap). Steps 0 and 1
+    # only read; from step 2 on, the undo line is the one Fail prints for the step.
+    if (-not $script:done) {
+        if ($script:step -lt 2) {
+            Write-Host "STOPPED (interrupted) ($(Utc)) before any change. Nothing was written on GitHub."
+            exit 1
+        }
+        $u = UndoLine
+        Write-Host "STOPPED at step $($script:step) (interrupted) ($(Utc)): Ctrl+C, a stop signal or an error."
+        Write-Host "Undo with: $u"
+        exit 2
+    }
 }
