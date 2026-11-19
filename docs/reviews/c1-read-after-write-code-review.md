@@ -17,7 +17,7 @@ Cutover run 4 passed step 1, then stopped at step 2. The workflow disable had wo
 - `gh api` 422 detection was checked live: stderr reads `gh: Validation Failed (HTTP 422)`.
 - PS 5.1 semantics were read line by line: scoping, `$LASTEXITCODE`, `2>&1`, `-join "`n"`, `-Main` binding, ASCII. They hold.
 - Tests: 898 passed, 359 skipped (.ps1 twins), 0 failed.
-- 1 should-fix `data-off-main/ps51-unexecuted`: run the .ps1 twins under a real PowerShell before Brian's run. This was done in the pwsh-twins Actions run on this head; see PR #65.
+- 1 should-fix `data-off-main/ps51-unexecuted`: run the .ps1 twins under a real PowerShell before Brian's run. This was done: Actions run 44615432457 at 36e55feb ran the twin tests with PowerShell 7.6.10: 744 passed, 0 skipped, 0 failed (cutover, protect-main, u3 toggle; .sh and .ps1).
 - Nits:
   - Fixed in 36e55feb: ps1 retry parity in protect-main, the doc's row-5 sentence, and E501.
   - Recorded as a follow-up: the step 7 dispatch does not pin head_sha (it fails closed).
