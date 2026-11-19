@@ -1,7 +1,7 @@
 # Spec: daylight-national (Daylight Digest, the national website)
 
-Status: draft v2, 2026-11-19 (v1 plus Brain Trust and Focus Group findings, and Brian's email capacity answer of
-2026-11-18). Owner: product-manager. Priority: MVP is M1; the rest is ordered below. Product name: **Daylight Digest**
+Status: draft v2.2, 2026-11-19 (v2 plus UX proposals P1-P8 accepted, the architect's email "editions" decision and the
+city-items finding; v2 was v1 plus Brain Trust and Focus Group findings and Brian's email capacity answer of 2026-11-18). Owner: product-manager. Priority: MVP is M1; the rest is ordered below. Product name: **Daylight Digest**
 (Brian, 2026-11-18). "Daylight" alone still means the full Clarksville and Montgomery County site.
 Decisions so far: `docs/expansion/national-kickoff.md`. Memo: `docs/expansion/national-digest-memo.md` (sections 1-3, 7,
 8b, 8c, 9). Clarksville rules this keeps: `docs/specs/clarksville-records.md`. Sources: `docs/platform-facts.md`.
@@ -90,7 +90,8 @@ it out myself.
   endorsed or certified by the Census Bureau."
 - AC1.8 No account and no sign-in are needed to look up an address.
 - AC1.9 Above the address box, one or two plain sentences say who runs Daylight Digest and who pays for it, and that
-  it takes no ads and no political money. Brian approves the facts in that line before M1 goes live.
+  it takes no ads and no political money. Brian confirms each fact in that line before M1 goes live. The line says
+  nothing about the operator's personal roles.
 - AC1.10 The address page links to the "What we cover" list (US12) above the address box.
 
 ### US2. The list of bodies for that spot (M1)
@@ -100,7 +101,9 @@ Daylight Digest can and can't show me.
   village), the county only where it is a working government, the county subdivision only where it is a working
   government (a township, or a town in New England or New York), and each school district (unified, elementary or
   secondary). Census designated places and congressional or state districts are never shown.
-- AC2.2 Each body shows its name as the Census gives it and exactly one of three states:
+- AC2.2 Each government shows its Census name as the card title, the directory's board name (for example "City
+  Council") on the next line where the directory has one, and exactly one of three states. User-facing labels say
+  "government", not "body":
   - **Covered**: a link to its coming-up page.
   - **Not covered yet**: a "Request it" button (US5) and a link to the body's official agenda or meetings page when
     the directory has one.
@@ -113,7 +116,8 @@ Daylight Digest can and can't show me.
   saying the address is not inside a city or town.
 - AC2.6 The Salem address shows every body as Not covered yet in M1 (Salem City Council turns Covered in M2 only if
   Brian OKs it).
-- AC2.7 A consolidated city-county (Nashville) or independent city (Virginia) is listed once, not as two bodies.
+- AC2.7 A consolidated city-county (Nashville) or independent city (Virginia) is listed once, not as two bodies,
+  with a fixed line saying why there is no separate county, so it never looks like a missing county.
 - AC2.8 A body with no entry in our directory is shown as Not covered yet, never as Covered or Can't cover.
   Can't cover needs a directory entry with its reason, official agenda page link, source link and the date checked.
 - AC2.9 Under the list, one line says some bodies, such as water or transit boards, can't be found by address yet.
@@ -122,6 +126,8 @@ Daylight Digest can and can't show me.
 - AC2.11 The New England town address outside Connecticut shows the town as a government, in the city or town slot.
 - AC2.12 Whether a Census unit is a working government comes from the Census status flag plus a hand-kept table for
   the states the flag gets wrong; a unit not known either way is left off, with the AC2.9 line covering it.
+- AC2.13 If the Census matches the address but returns no listable government, the page says so in one fixed line
+  (not an error), shows the AC2.9 line and lets the person try another address.
 
 ### US3. Choosing bodies and topics for a personal digest (M4)
 As a resident, I want to pick the bodies and topics I care about, so that my email holds only what I want.
@@ -141,9 +147,13 @@ In M1, a Covered Clarksville or Montgomery County body links to the existing mor
 
 ### US4. The coming-up page for a covered body (M1)
 As a resident, I want to see what a body will take up next, in its own words, so that I can follow it or show up.
-- AC4.1 The page lists every meeting from today on that the body has posted, soonest first, each with date, time and
-  meeting name as posted, in the body's local time zone.
-- AC4.2 Agenda items show only when the source marks the agenda final or published. Each item's text is shown
+- AC4.1 The page lists every meeting from today on that the body has posted, soonest first, each with date and
+  meeting name as posted. Neither Clarksville City Council nor County Commission data stores a meeting time today, so
+  M1 shows no time; the page shows a time only where the source posts one (never guessed).
+- AC4.2 Agenda items show only when the source marks the agenda final or published. In M1, County Commission shows
+  its stored items. Clarksville City Council upcoming agenda items are not stored today, so M1 shows each city meeting
+  with a link to its official agenda and no items; the items come in task B9 (architecture task list), and until
+  then QA checks the city page shows the meeting and agenda link only. Each item's text is shown
   character for character as the source prints it (QA compares 10 sampled items per body against the PDF or feed),
   and the meeting links to the official agenda document. Items held back by the existing rules
   (`docs/architecture/agenda-withhold-invariant.md`) stay held back.
@@ -167,18 +177,24 @@ As a resident, I want to see what a body will take up next, in its own words, so
 
 ### US5. Request it (M1)
 As a resident whose body isn't covered, I want to ask for it and be told if it opens, so that I don't have to check.
-- AC5.1 "Request it" asks for an email only, then double opt-in. The request is stored at Buttondown as a tag naming
-  the body ID. No address, name or location text is sent (network log check). No account is needed.
-- AC5.2 The confirmation is one fixed label that says honestly what happens next, for example: "Thanks. We'll email
-  you once if we open it. We open a body only after real requests, one at a time, and we may never reach yours." It
-  never promises a date.
+- AC5.1 "Request it" asks for an email only, then double opt-in. One form can carry several governments picked from
+  the same list: one email typed, one confirmation email. The request is stored at Buttondown as a tag naming each
+  body ID. No address, name or location text is sent (network log check). No account is needed.
+- AC5.2 The confirmation is one fixed label that says honestly what happens next, shown on the page the confirm link
+  lands on and in the confirmation email. For Not covered yet: "Thanks. We'll email you once if we open it. We open a
+  government only after real requests, one at a time, and we may never reach yours." For Can't cover (second fixed
+  label): "We can't cover this government unless the way it posts its records changes. If that happens and we open it,
+  we'll email you once. Your request also tells us people want it." Neither promises a date. A form that mixes both
+  kinds shows both labels.
 - AC5.3 A requester gets only the confirmation email and, if the body opens, one "it's open" email sent after Brian
   OKs that send. They never get the morning note or the weekly note unless they sign up for it.
 - AC5.4 The team can see confirmed requests per body (an internal report, kept out of the repo, with no emails in
   it). Counts are not shown publicly (open question 5).
 - AC5.5 A person can request any number of bodies; a repeat request for the same body adds no second count.
-- AC5.6 Optional, the architect's call: a one-tap anonymous counter for people who won't give an email. It sends only
-  the body ID (no address, email or device ID) and needs no server we run and no new account.
+- AC5.6 M1 includes a one-tap anonymous "just count me" counter beside the email request, for people who won't give an
+  email (the focus group's skeptic and retiree would not). It sends only the body ID (no address, email or device ID),
+  needs no server we run and no new account, and is counted separately from confirmed email requests (A14). The
+  architect picks the mechanism; if none meets these limits, the manager brings it to Brian before M1 ships.
 
 ### US6. The "post your records readably" letter (M3)
 As a resident whose body can't be covered because of how it posts records, I want a ready letter to its office, so
@@ -202,13 +218,15 @@ that I can ask them to post records anyone can read.
 
 ### US7. The weekly email note (M4)
 As a subscriber, I want one email a week with what's coming up for my bodies and topics, so that I don't have to check.
-- AC7.1 Each subscriber gets at most one Daylight Digest email a week, on one fixed day, covering every body they
-  ticked, each body in its own section. The architect confirms the send method works at our volume; if one send with
-  per-subscriber sections breaks, the architect proposes another send shape with the same result for the reader.
-- AC7.2 Each section lists that body's meetings in the next 14 days, with the matching agenda items verbatim and a
-  link to each official document, filtered by the person's topics.
-- AC7.3 A body with nothing coming up says "No meetings posted for the next two weeks." A body whose source was not
-  checked in the last 7 days says "We couldn't check this body this week." and links its official site.
+- AC7.1 Each subscriber gets at most one Daylight Digest email a week, on one fixed day, covering every government
+  they ticked, each in its own section. It is sent as "editions": one email per group of subscribers who picked the
+  same governments and topics, sent through the existing sender, not one send with per-subscriber sections (ADR 0013).
+  A subscriber is in exactly one edition per week (QA checks no one gets two).
+- AC7.2 Each section lists that government's meetings in the next 14 days, with the matching agenda item titles
+  verbatim and a link to each official document, filtered by the person's topics. At most 15 items show per meeting,
+  then a link to the rest on the official agenda.
+- AC7.3 A government with nothing coming up says "No meetings posted for the next two weeks." One whose source was not
+  checked in the last 7 days says "We couldn't check this government this week." and links its official site.
 - AC7.4 No votes, no AI text, no text about named officials (same checks as AC4.5 and AC4.8).
 - AC7.5 Footer: one-click unsubscribe, the LLC's business postal address (Brian provides it and approves the wording
   before the first national send), "Daylight Digest is not a government service", and the privacy link.
@@ -249,13 +267,14 @@ whether to use it.
   one Covered body, estimated offline from about 200 population-weighted random addresses. The number is shown as
   computed, however small.
 - AC12.3 The page lists Can't cover bodies with reason and official agenda link, and says in one line how a body
-  gets added (requests, then Brian's OK), with no promised dates.
+  gets added (requests, then "our owner approves", never a person's name), with no promised dates.
 
 ## Milestones
 - **M1: demand capture and a thin slice on real data, no new collection.** "What we cover" (US12) and address lookup
   (US1) → body list with honest statuses (US2), Clarksville City Council and Montgomery County Commission Covered
-  (already collected, real) and CMCSS Can't cover → "Request it" by email (US5) → coming-up pages for the two covered
-  bodies (US4) → who-runs-it and privacy lines (AC1.9, US9) → Clarksville unchanged (US8). Every other body in the
+  (already collected, real) and CMCSS Can't cover → "Request it" by email, plus the anonymous "just count me"
+  counter (US5, AC5.6) → coming-up pages for the two covered bodies (US4: County Commission with items; City Council
+  with meetings and agenda links, items in task B9; no meeting times) → who-runs-it and privacy lines (AC1.9, US9) → Clarksville unchanged (US8). Every other body in the
   country reads Not covered yet. Done when Brian enters a Clarksville address and an out-of-state address on his
   phone, sees the right list, opens a real coming-up page, requests a body with a team address, confirms, and the
   request shows in the internal report. Putting it live needs Brian's OK (hard stop 1). Dependency, not a blocker:
@@ -302,8 +321,9 @@ about officials); public request counts; special districts; Spanish; Android.
   action; the manager sends him one card when the team finds it is needed.
 - A7. Requesters and national subscribers can share Buttondown with the morning note without changing who gets the
   morning note (unverified: architect picks the mechanism, for example a separate list or tag filters).
-- A8. Clarksville City Council and County Commission upcoming agenda items are already read verbatim (county verified:
-  142 items read, 2026-11-10; city item level unverified: architect checks).
+- A8. County Commission upcoming agenda items are stored and read verbatim (verified: 142 items read, 2026-11-10).
+  Clarksville City Council items are not stored today, only meetings and agenda links; items come in task B9
+  (architect's finding, 2026-11-19). Neither stores a meeting time.
 - A9. Legistar has no public client list; "token required" and "API not enabled" are real per-body states (verified:
   research 2026-11-19). 1,000 rows per query (vendor docs). Legistar shows an agenda status per meeting
   (EventAgendaStatusName); whether it flags non-public items is unverified (architect checks for AC4.4).
@@ -312,6 +332,8 @@ about officials); public request counts; special districts; Spanish; Android.
 - A11. Code starts after Clarksville's data cutover (ADR 0011) (verified: Brian, 2026-11-19).
 - A12. If the morning note is not live when M1 goes live, the Covered bodies' sign-up link is hidden until it is.
 - A13. One body per government in M1 to M4: the main elected board (council, commission, school board, select board).
+- A15. CMCSS meetings are already listed by Daylight, so it may later be shown as covered for meetings only (open
+  question 12). Default: Can't cover for items, with meeting dates shown and the official agenda linked.
 - A14. Requests are a signal, not a vote. Confirmed email requests are the count that matters; anonymous counts, if
   built, are shown separately. Brian's OK per host still decides every opening.
 
@@ -338,6 +360,9 @@ about officials); public request counts; special districts; Spanish; Android.
     its determined we need it. assume that is not an issue."** Not a design constraint. Postal address: the LLC's
     business address, provided and approved by Brian before the first national send.
 
+12. Show CMCSS as covered for meetings only (dates, no items)? **Default: no; Can't cover for items, meeting dates
+    shown, until Brian decides.**
+
 ## Risks
 - **Thin coverage where people care most** (school boards, townships, small towns with scanned PDFs). Mitigation:
   US12 up front, Can't cover always links the official agenda page, honest Request it.
@@ -346,7 +371,7 @@ about officials); public request counts; special districts; Spanish; Android.
 - **Email limits** (send size with many per-subscriber sections, 100 API sign-ups a day). Mitigation: architect's
   send design; Brian upgrades when capacity is needed.
 - **National email touching the morning note.** Mitigation: AC5.3, AC8.1, A7.
-- **Asking for an email lowers requests** (a Focus Group skeptic would give none). Mitigation: AC5.6 optional counter.
+- **Asking for an email lowers requests** (a Focus Group skeptic would give none). Mitigation: AC5.6 counter, built in M1.
 - **Wrong body for an address** (geocoding error, New England, consolidations, annexations lag a year). Mitigation:
   AC2.7, AC2.10 to AC2.12, test addresses; a "check with your local election office" link near the list.
 - **Census lookup outage.** Mitigation: AC1.6; no fallback that would send the address to us.
