@@ -112,7 +112,8 @@ Every exemption below names the `digest/` prefix (DIGEST); pages outside it are 
   usual header after the three substitutions of 7a (plate place, no moon, no sky-in span); switch: a digest page has
   none; external: digest/index.html also loads static/us-count.js with the counter's /count, and its connect-src and
   form-action are digest/csp's; sources: an unmarked outbound link on a digest page is https, rel "noopener
-  noreferrer", and a directory entry's official, checked or reason URL, the geocoder's privacy page, or a URL of the
+  noreferrer", and a directory entry's official, checked or reason URL, the geocoder's or (while its form is on) the
+  morning note provider's privacy page, or a URL of the
   coming-up page's own JSON.
 
 Councils (config/site.yml `councils`, each config/localities/<locality>/council.yml): a real build also has each
@@ -1405,8 +1406,8 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
                 if not href.startswith("https://"):
                     problems.append(f"{rel}: digest link {href!r} is not https")
                 elif href not in digest.get(rel, set()):
-                    problems.append(f"{rel}: digest link {href!r} is not a URL of the directory, the geocoder's privacy "
-                                    "page or the page's own JSON")
+                    problems.append(f"{rel}: digest link {href!r} is not a URL of the directory, a privacy page the "
+                                    "config names or the page's own JSON")
                 continue
             if src is None:
                 if ext not in EXT_KINDS:
@@ -2588,7 +2589,8 @@ def frame_csp(js: str) -> str:
 def digest_link_urls(site: Path, pages: dict[str, "Page"], cfg: dict) -> dict[str, set[str]]:
     """{digest page: the exact URLs an unmarked outbound link on it may have}: every directory entry's official_url,
     checked_url and reason_url (read through sitegen/national.py, its one reader, 11.3 item 10), config
-    geocoder_privacy_url (the lookup page's Census privacy link), and on a coming-up page digest/<st>/<id>.html the
+    geocoder_privacy_url (the lookup page's Census privacy link), config morning_note.privacy_url while the note's form
+    is on (note_form_origin; how.html links the form service's policy), and on a coming-up page digest/<st>/<id>.html the
     URLs of its own digest/<st>/<id>.json (body official_url, meeting_url, agenda url, item source urls; B14 holds
     those to https_link and the host allowlist). Empty when no page is under `digest/`."""
     rels = [rel for rel in pages if rel.startswith(DIGEST)]
@@ -2602,6 +2604,9 @@ def digest_link_urls(site: Path, pages: dict[str, "Page"], cfg: dict) -> dict[st
         pass                            # no URL is allowed; the build itself refuses such a directory
     if isinstance(cfg.get("geocoder_privacy_url"), str):
         base.add(cfg["geocoder_privacy_url"])
+    note_privacy = (cfg.get("morning_note") or {}).get("privacy_url")
+    if note_form_origin(cfg) and isinstance(note_privacy, str):
+        base.add(note_privacy)
     out = {}
     for rel in rels:
         urls = set(base)

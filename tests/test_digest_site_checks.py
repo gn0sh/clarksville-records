@@ -19,8 +19,15 @@ from qa import site_checks as SC
 from sitegen import build as build_mod, config
 from sitegen import national as nat
 
-DIGEST_PAGES = ["digest/index.html", "digest/covered.html", "digest/requested.html",
+# pages the build must have at least; the counts below come from the build itself (later tasks add digest pages)
+KNOWN_DIGEST = ["digest/index.html", "digest/covered.html", "digest/requested.html",
                 "digest/tn/place-4715160.html", "digest/tn/county-47125.html"]
+
+
+def _digest(site) -> list[str]:
+    """The built digest/ pages a visitor opens (all but the geo frame)."""
+    return sorted(p.relative_to(site).as_posix() for p in (site / "digest").rglob("*.html")
+                  if p.relative_to(site).as_posix() != "digest/geo-frame.html")
 
 
 def _build(out, on: bool):
@@ -80,7 +87,7 @@ def _usual_at(site, rel):
 
 
 def test_the_build_has_the_digest_pages(built_on, built_off):
-    assert set(DIGEST_PAGES) | {SC.DIGEST_FRAME} <= set(_pages(built_on))
+    assert set(KNOWN_DIGEST) | {SC.DIGEST_FRAME} <= set(_pages(built_on))
     assert not (built_off / "digest").exists()
 
 
@@ -90,7 +97,8 @@ def test_header_passes_the_build_with_the_digest_variant(built_on):
     pages = SC.site_pages(_pages(built_on))
     problems, note = SC.check_header(built_on, pages)
     assert problems == []
-    assert note.endswith(f"its digest variant on {len(DIGEST_PAGES)} of {len(DIGEST_PAGES)} digest/ pages"), note
+    n = len(_digest(built_on))
+    assert note.endswith(f"its digest variant on {n} of {n} digest/ pages"), note
     # the variant is the three substitutions and nothing else
     usual, digest = _header(built_on, "about.html"), _header(built_on, "digest/covered.html").replace('href="../', 'href="')
     assert 'class="sky-moon"' in usual and 'class="sky-in"' in usual and "United States" not in usual
@@ -152,8 +160,9 @@ def test_switch_passes_the_build_with_none_on_digest_pages(built_on):
     pages = SC.site_pages(_pages(built_on))
     problems, note = SC.check_switch(built_on, pages)
     assert problems == []
-    assert note.startswith(f"the switch on {len(pages) - len(DIGEST_PAGES)} pages, options all, ")
-    assert note.endswith(f"none on {len(DIGEST_PAGES)} digest/ pages"), note
+    n = len(_digest(built_on))
+    assert note.startswith(f"the switch on {len(pages) - n} pages, options all, ")
+    assert note.endswith(f"none on {n} digest/ pages"), note
 
 
 def test_switch_a_digest_page_with_a_switch_fails(site):
@@ -186,7 +195,7 @@ def _csp(site):
 def test_digest_csp_passes_the_build(built_on):
     problems, note = _csp(built_on)
     assert problems == [], problems
-    assert note.startswith("digest/geo-frame.html holds the frame CSP of 4.0; 5 other digest/ pages")
+    assert note.startswith(f"digest/geo-frame.html holds the frame CSP of 4.0; {len(_digest(built_on))} other digest/ pages")
     frame = SC.parse(built_on / SC.DIGEST_FRAME).csp[0]
     js = SC.INLINE_SCRIPT.search((built_on / SC.DIGEST_FRAME).read_text(encoding="utf-8")).group(1)
     assert frame == nat.geo_frame_csp(js) == SC.frame_csp(js)
@@ -336,10 +345,21 @@ def test_sources_digest_links_are_the_directorys(built_on):
     assert data["body"]["official_url"] in urls["digest/tn/county-47125.html"]
 
 
+def test_sources_the_form_services_privacy_page_only_while_the_form_is_on(built_on):
+    """how.html links config morning_note.privacy_url (the form service's policy); allowed only while the form is on."""
+    cfg = SC._site_cfg()
+    privacy = cfg["morning_note"]["privacy_url"]
+    pages = {rel: pg for rel, pg in _pages(built_on).items() if rel.startswith("digest/")}
+    assert SC.note_form_origin(cfg) and privacy in SC.digest_link_urls(built_on, pages, cfg)["digest/how.html"]
+    assert any(href == privacy for href, _ in pages["digest/how.html"].links)
+    off = {**cfg, "morning_note": {**cfg["morning_note"], "enabled": False}}
+    assert privacy not in SC.digest_link_urls(built_on, pages, off)["digest/how.html"]
+
+
 @pytest.mark.parametrize("link, want", [
     ('<a href="https://example.com/" rel="noopener noreferrer">x</a>',
-     "digest/covered.html: digest link 'https://example.com/' is not a URL of the directory, the geocoder's privacy "
-     "page or the page's own JSON"),
+     "digest/covered.html: digest link 'https://example.com/' is not a URL of the directory, a privacy page the "
+     "config names or the page's own JSON"),
     ('<a href="https://www.cmcss.net/">x</a>',
      "digest/covered.html: outbound link 'https://www.cmcss.net/' has rel None, not \"noopener noreferrer\""),
     ('<a href="http://www.cmcss.net/" rel="noopener noreferrer">x</a>',
