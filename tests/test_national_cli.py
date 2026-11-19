@@ -102,7 +102,8 @@ def run_cli(setup, *extra):
 
 def test_the_fetcher_is_built_for_webapi_only_with_the_reader_size_cap(setup, capsys):
     assert run_cli(setup) == 0
-    assert setup["built"] == [{"allowed_hosts": ("webapi.legistar.com",), "max_bytes": lu.MAX_RESPONSE_BYTES}]
+    assert setup["built"] == [{"allowed_hosts": ("webapi.legistar.com",), "max_bytes": lu.MAX_RESPONSE_BYTES,
+                               "max_answer_seconds": 120.0}]
     f = setup["fetcher"]
     assert f.allowed_hosts == ("webapi.legistar.com",) and f.allowed_hosts != fetch.ALLOWED_HOSTS
     assert f.max_bytes == lu.MAX_RESPONSE_BYTES < fetch.MAX_BYTES
@@ -114,6 +115,7 @@ def test_build_fetcher_never_uses_the_clarksville_defaults():
     assert f.allowed_hosts == ("webapi.legistar.com",)
     assert not any(fetch.host_matches(h, f.allowed_hosts) for h in fetch.ALLOWED_HOSTS)
     assert f.max_bytes == lu.MAX_RESPONSE_BYTES
+    assert f.max_answer_seconds == 120.0 and f.past_deadline is None   # run() installs the deadline hook
 
 
 # --- output (4.6 "D1 logs") ----------------------------------------------------------------------------------------

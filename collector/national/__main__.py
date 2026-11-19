@@ -5,17 +5,20 @@ within the request budget, write `bodies/`, `health.json` and `proposals.json` b
 (docs/architecture/daylight-national.md 3.7, 4.5, 4.6; ADR 0013 decision 6).
 
 - **Fetcher** (4.6 "D1 fetcher"): `PoliteFetcher(allowed_hosts=("webapi.legistar.com",),
-  max_bytes=lu.MAX_RESPONSE_BYTES)`, never the Clarksville collector's ALLOWED_HOSTS or 200 MiB MAX_BYTES. Delay,
-  robots.txt and the tenant rule are the fetcher's own.
+  max_bytes=lu.MAX_RESPONSE_BYTES, max_answer_seconds=ANSWER_SECONDS)`, never the Clarksville collector's
+  ALLOWED_HOSTS or 200 MiB MAX_BYTES. Delay, robots.txt and the tenant rule are the fetcher's own; ANSWER_SECONDS =
+  120 is the total-answer cap of 4.4.4 (one answer's body may take that long to read, whatever its pace).
 - **Budget** (`national-budget/max-no-margin`): `--budget` requests on webapi.legistar.com for the run (default 300,
   ADR 0013 decision 6's NATIONAL_REQUEST_BUDGET: about 100 bodies at about 3 requests each), at most MAX_BUDGET = 360:
   RUN_SECONDS (the job's 75 minute timeout less a MARGIN_MINUTES = 15 minute margin) over the fetcher's 10 s floor.
-  The margin is for the job's setup before this command, the requests of the body in flight at the deadline (each
-  can take up to the fetcher's 120 s request timeout), the writes, and the commit and attest steps after it. A run
-  killed by the job's timeout writes nothing, so the run must end well inside it.
-- **Deadline** (`national-budget/no-wall-deadline`): the run stops reading at start + RUN_SECONDS by the wall clock,
-  whatever the request count (a robots.txt Crawl-delay above 10 s stretches every wait): the bodies not read record
-  `budget-skipped` and the outputs are still written (`run.run`'s `deadline`).
+  The margin (4.4.4's check: 3 + 6 + 1 + 3 = 13 <= 15 min) is for the job's setup before this command (at most 3
+  min), the one request in flight at the deadline (bounded by X = max(T_open, A) + T = 360 s = 6 min: T the
+  fetcher's 120 s socket timeout, A = ANSWER_SECONDS), the writes (under 1 min), and the commit, attest and push
+  after it (at most 3 min). A run killed by the job's timeout writes nothing, so the run must end well inside it.
+- **Deadline** (4.4.4, `national-budget/*`): the run sends nothing at or after start + RUN_SECONDS by the wall clock,
+  whatever the request count (slow answers, a robots.txt Crawl-delay above 10 s): the fetcher's `past_deadline` hook
+  refuses the request (or a wait that would end then), the bodies not read record `budget-skipped`, and the outputs
+  are still written (`run.run`'s `deadline` and `clock`).
 - **Data root** (4.6 "D1 data path"): a path the workflow creates itself (a fresh checkout of `national-data`); a
   symlinked root, `bodies/` or `cache/` is refused (`run.check_data_root`), as is a root that exists and is not a
   folder. Nothing else in the tree is checked here; the workflow owns the path.
@@ -49,6 +52,7 @@ JOB_MINUTES = 75                 # ADR 0013 decision 6: the national-update job'
 MARGIN_MINUTES = 15              # setup before, the body in flight at the deadline, writes, commit and attest after
 RUN_SECONDS = (JOB_MINUTES - MARGIN_MINUTES) * 60       # the run's wall-clock deadline, from its start
 MAX_BUDGET = int(RUN_SECONDS // MIN_DELAY)              # 360: a full-spend run at the 10 s floor ends by the deadline
+ANSWER_SECONDS = 120.0           # 4.4.4 total-answer cap (A): one answer's body is read within this or the fetch fails
 EXIT_OK, EXIT_FAILED, EXIT_FLAGGED, EXIT_INTERRUPTED = 0, 1, 3, 130
 KINDS = (nr.OK, *nr.LAST_ERRORS)  # the only outcome words ever printed (3.7)
 
@@ -87,8 +91,9 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def build_fetcher() -> PoliteFetcher:
-    """The national fetcher (4.6): webapi.legistar.com only, one answer at most MAX_RESPONSE_BYTES."""
-    return PoliteFetcher(allowed_hosts=(nr.HOST,), max_bytes=lu.MAX_RESPONSE_BYTES)
+    """The national fetcher (4.6, 4.4.4): webapi.legistar.com only, one answer at most MAX_RESPONSE_BYTES read within
+    ANSWER_SECONDS. The run deadline's hook is installed by `run.run` for the run."""
+    return PoliteFetcher(allowed_hosts=(nr.HOST,), max_bytes=lu.MAX_RESPONSE_BYTES, max_answer_seconds=ANSWER_SECONDS)
 
 
 def checked_root(data_root: Path) -> Path:
