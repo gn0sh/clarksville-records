@@ -239,48 +239,134 @@ AT_LARGE_EVIDENCE = "attendance lists"
 AT_LARGE_WORDING = {"evidence": AT_LARGE_EVIDENCE, "latest": "the latest minutes read",
                     "read_latest": "the latest minutes read"}
 TITLE_CONFLICT = "at-large/title-conflict"
+# A member missing from this many consecutive complete attendance lists has left: their record ends at the last print
+# before the gap, and a later print starts a new record (ADR 0012 decision 5, member gaps; must-fix at-large/member-gap).
+# One missing list never splits a record (holder_rows' one-list-drop rule). A module constant, not a setting.
+AT_LARGE_GAP_LISTS = 2
+# The end of the lists in the title-run loop: a private object, so no list key (a print's meeting_id may be null) can
+# ever be read as the end (review nit 5).
+_END = object()
 
 
-def _lists(prints: list[dict]) -> list[str]:
-    """The meetings with an attendance list, in date order: the meetings a title run is read across."""
-    dates: dict[str, str] = {}
-    for p in prints:
-        if not p.get("configured"):
-            dates[p["meeting_id"]] = min(p["date"], dates.get(p["meeting_id"], p["date"]))
-    return sorted(dates, key=lambda mid: (dates[mid], mid or ""))
+def _list_key(p: dict) -> tuple[str, str]:
+    """One attendance list: its meeting date and id. The date is part of the key, so prints whose meeting_id is null
+    on two dates stay two lists."""
+    return (p["date"], p["meeting_id"] or "")
 
 
-def _title_holders(prints: list[dict], officials: set, title: str) -> dict[str, set]:
-    """meeting id -> the members its attendance list prints with `title`. A printed name that resolves to no official
-    counts as a holder of its own (by its printed spelling), so it can only make a meeting a conflict, never a record."""
-    out: dict[str, set] = defaultdict(set)
+def _lists(prints: list[dict]) -> list[tuple[str, str]]:
+    """The attendance lists (a configured seating is not one), in date order: the lists a run is read across."""
+    return sorted({_list_key(p) for p in prints if not p.get("configured")})
+
+
+def _complete_lists(prints: list[dict], facts: dict) -> set[tuple[str, str]]:
+    """The lists that can show a member is missing: every name the list prints resolves to an official (no unresolved
+    print, and no attendance entry of that date's meetings without an official). An incomplete list in a member's
+    gap neither counts toward AT_LARGE_GAP_LISTS nor breaks the streak. Attendance is matched by date, as in
+    latest_list_incomplete, so a doubt about one list of a day leaves every list of that day incomplete (fewer
+    splits, never a wrong one)."""
+    officials = {o["id"] for o in facts["officials"]}
+    unread_dates = {m.get("date") for m in facts.get("meetings", [])
+                    for a in m.get("attendance") or [] if a.get("official_id") not in officials}
+    unresolved = {_list_key(p) for p in prints if not p.get("configured") and p.get("official_id") not in officials}
+    return {k for k in _lists(prints) if k not in unresolved and k[0] not in unread_dates}
+
+
+def _member_runs(member_prints: list[dict], lists: list[tuple[str, str]], complete: set) -> list[list[dict]]:
+    """One member's prints (date order) split wherever AT_LARGE_GAP_LISTS or more complete lists between two
+    consecutive prints leave them out. Each piece is one membership record."""
+    pos = {k: i for i, k in enumerate(lists)}
+    runs: list[list[dict]] = []
+    for p in member_prints:
+        if runs:
+            between = lists[pos[_list_key(runs[-1][-1])] + 1:pos[_list_key(p)]]
+            if sum(1 for k in between if k in complete) < AT_LARGE_GAP_LISTS:
+                runs[-1].append(p)
+                continue
+        runs.append([p])
+    return runs
+
+
+def _title_holders(prints: list[dict], officials: set, title: str) -> dict[tuple[str, str], set]:
+    """list key -> the members that list prints with `title`. A printed name that resolves to no official counts as a
+    holder of its own (by its printed spelling), so it can only make a meeting a conflict, never a record."""
+    out: dict[tuple[str, str], set] = defaultdict(set)
     for p in prints:
         if p.get("title") == title and not p.get("configured"):
             oid = p.get("official_id")
-            out[p["meeting_id"]].add(oid if oid in officials else ("unresolved", p.get("raw_name") or ""))
+            out[_list_key(p)].add(oid if oid in officials else ("unresolved", p.get("raw_name") or ""))
     return out
+
+
+def _refuse_pro_tem_titles(prints: list[dict]) -> None:
+    """A pro tem print never carries a title (review nit 3): the collector never writes both, and a file that has both
+    is refused, so "Mayor Pro Tem" can never become a Mayor title record."""
+    bad = sorted({_list_key(p) for p in prints if p.get("pro_tem") and p.get("title")})
+    if bad:
+        raise SeatsError("prints mark a pro tem name with a title (never both): the attendance list of "
+                         + ", ".join(f"{d} ({mid or 'no meeting id'})" for d, mid in bad))
 
 
 def _check_prints(prints: list[dict], facts: dict) -> None:
     """A build refuses a prints file naming an official the facts do not hold (ADR 0012 Interfaces): it stops a real
-    file from sitting beside fixture facts, and a typo from becoming a seat."""
+    file from sitting beside fixture facts, and a typo from becoming a seat. It also refuses a pro tem print with a
+    title."""
     officials = {o["id"] for o in facts["officials"]}
     bad = sorted({p["official_id"] for p in prints if p.get("official_id") is not None} - officials)
     if bad:
         raise SeatsError(f"at-large prints name officials the facts do not hold: {', '.join(bad)}")
+    _refuse_pro_tem_titles(prints)
+
+
+def _record(sources: dict, seat: str, first: dict, last: dict) -> dict:
+    """A record read from attendance-list prints, in holder_rows' shape: its first and last print's source pages."""
+    return {"official_id": first["official_id"], "seat": seat, "start": first["date"], "end": last["date"],
+            "source": _src(sources, first["source_id"], first["page"]),
+            "last_source": _src(sources, last["source_id"], last["page"]),
+            "dates": "observed", "printed": None, "lines": None, "note": None, "name": None,
+            "evidence": AT_LARGE_EVIDENCE, "printed_to": None}
 
 
 def title_conflicts(prints: list[dict], facts: dict, primary: dict) -> list[str]:
     """Run-log lines (build warnings) for each meeting whose attendance list prints one title beside two members: no
-    title record covers that meeting (at_large_rows), and the meeting page still links its source."""
+    title record covers that meeting (title_runs), and the meeting page still links its source."""
     officials = {o["id"] for o in facts["officials"]}
-    dates = {p["meeting_id"]: p["date"] for p in prints}
     out = []
     for title in primary.get("titles") or []:
-        for mid, holders in sorted(_title_holders(prints, officials, title).items(), key=lambda kv: (dates[kv[0]], kv[0])):
+        for (date, mid), holders in sorted(_title_holders(prints, officials, title).items()):
             if len(holders) > 1:
-                out.append(f"{TITLE_CONFLICT}: the attendance list of {dates[mid]} ({mid}) prints {len(holders)} "
-                           f"members as {title}; no {title} record covers that meeting")
+                out.append(f"{TITLE_CONFLICT}: the attendance list of {date} ({mid or 'no meeting id'}) prints "
+                           f"{len(holders)} members as {title}; no {title} record covers that meeting")
+    return out
+
+
+def title_runs(prints: list[dict], facts: dict, titles: list[str]) -> list[dict]:
+    """Title records (seat `title-<slug>`) read from the attendance lists' printed titles, shared by at-large and ward
+    primaries (ADR 0012 decision 5, A1.1). For each title, the lists in date order are read one by one; each list
+    that prints the title beside exactly one member continues that member's run or starts a new one. A list that
+    prints it for nobody, or beside two members (a conflict, title_conflicts), ends the run, so no record covers that
+    meeting and nothing is carried across an unprinted list. A meeting with no list at all is inside a run (the ward
+    rule). The records keep their last print as `end`; the caller decides which are current."""
+    _refuse_pro_tem_titles(prints)
+    sources = {s["id"]: s for s in facts["sources"]}
+    officials = {o["id"] for o in facts["officials"]}
+    lists = _lists(prints)
+    out = []
+    for title in titles or []:
+        holders = _title_holders(prints, officials, title)
+        first_print = {}
+        for p in sorted(prints, key=lambda p: (p["date"], p["meeting_id"] or "", p["page"])):
+            if p.get("title") == title and p.get("official_id") in officials and not p.get("configured"):
+                first_print.setdefault((_list_key(p), p["official_id"]), p)
+        run: list[dict] = []
+        for key in lists + [_END]:          # _END: the end of the lists closes the last run
+            who = holders.get(key, set()) if key is not _END else set()
+            oid = next(iter(who)) if len(who) == 1 else None
+            if run and (oid is None or oid != run[-1]["official_id"]):
+                out.append(_record(sources, f"title-{title_slug(title)}", run[0], run[-1]))
+                run = []
+            if oid is not None and oid in officials:
+                run.append(first_print[(key, oid)])
     return out
 
 
@@ -288,50 +374,33 @@ def at_large_rows(prints: list[dict], facts: dict, primary: dict) -> tuple[list[
     """(records, L) for an at-large council, in the shape of holder_rows; read only from the attendance lists' prints
     (wards.json rows with `ward: null` and `title`), never from `officials[].title` or from config naming a holder.
 
-    1. Membership: one `at-large` record per member, from the first to the last meeting whose list prints them,
-       each with that meeting's source page. (One seat holds every member at once, so there is no successor.)
-    2. Titles: for each word in `primary.titles`, the lists in date order are read one by one; each list that prints
-       the title beside exactly one member continues that member's run or starts a new one. A list that prints it for
-       nobody, or beside two members (a conflict, title_conflicts), ends the run, so no record covers that meeting and
-       nothing is carried across an unprinted list. A meeting with no list at all is inside a run (the ward rule).
+    1. Membership: per member, one `at-large` record per maximal run of their prints with fewer than
+       AT_LARGE_GAP_LISTS consecutive complete lists leaving them out (_member_runs; a list prints a member when it
+       names them present or absent). A member who leaves and returns gets two records, each from its own first to
+       its own last print, with those meetings' source pages. (One seat holds every member at once, so there is no
+       successor.)
+    2. Titles: title_runs, for each word in `primary.titles`.
     3. L is the latest list. A record seen at L has no end (current). The membership records follow holder_rows'
-       one-list-drop rule (`held_over` when L's list is incomplete). A title record closes at its last print.
+       one-list-drop rule (`held_over` when L's list is incomplete), which also covers the tail: after a member's
+       last print the record reads "seen to" that print, and a reprint at the next list rejoins it. A title record
+       closes at its last print.
     Every record carries its first and last meeting's source page."""
     _check_prints(prints, facts)
     sources = {s["id"]: s for s in facts["sources"]}
     officials = {o["id"] for o in facts["officials"]}
     used = sorted((p for p in prints if p.get("official_id") in officials and not p.get("configured")),
                   key=lambda p: (p["date"], p["meeting_id"] or "", p["page"]))
-
-    def record(seat: str, first: dict, last: dict) -> dict:
-        return {"official_id": first["official_id"], "seat": seat, "start": first["date"], "end": last["date"],
-                "source": _src(sources, first["source_id"], first["page"]),
-                "last_source": _src(sources, last["source_id"], last["page"]),
-                "dates": "observed", "printed": None, "lines": None, "note": None, "name": None,
-                "evidence": AT_LARGE_EVIDENCE, "printed_to": None}
-
     by_member: dict[str, list[dict]] = defaultdict(list)
     for p in used:
         by_member[p["official_id"]].append(p)
-    members = [record(AT_LARGE_SEAT, ps[0], ps[-1]) for _, ps in sorted(by_member.items())]
+    lists, complete = _lists(prints), _complete_lists(prints, facts)
+    members = [_record(sources, AT_LARGE_SEAT, run[0], run[-1])
+               for _, ps in sorted(by_member.items()) for run in _member_runs(ps, lists, complete)]
+    titles = title_runs(prints, facts, primary.get("titles") or [])
 
-    titles = []
-    for title in primary.get("titles") or []:
-        holders = _title_holders(prints, officials, title)
-        run: list[dict] = []
-        for mid in _lists(prints) + [None]:          # None: the end of the lists closes the last run
-            who = holders.get(mid, set())
-            oid = next(iter(who)) if len(who) == 1 else None
-            if run and (oid is None or oid != run[-1]["official_id"]):
-                titles.append(record(f"title-{title_slug(title)}", run[0], run[-1]))
-                run = []
-            if oid is not None and oid in officials:
-                run.append(next(p for p in used if p["meeting_id"] == mid and p["official_id"] == oid
-                                and p.get("title") == title))
-
-    lists = sorted({p["date"] for p in prints if not p.get("configured")})
-    latest = lists[-1] if lists else None
-    prev = lists[-2] if len(lists) > 1 else None
+    dates = sorted({k[0] for k in lists})
+    latest = dates[-1] if dates else None
+    prev = dates[-2] if len(dates) > 1 else None
     short = latest_list_incomplete(prints, facts, latest, prev)
     unplaced = unplaced_names(prints, facts, latest) if short else []
     rows = members + titles

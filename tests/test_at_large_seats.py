@@ -18,7 +18,7 @@ from sitegen.seats import Seats, SeatsError
 
 FX = Path(__file__).resolve().parent / "fixtures" / "cities" / "murfreesboro-tn"
 M1, M2, M3, M4, M5 = "2025-01-14", "2025-06-10", "2025-11-11", "2026-03-10", "2026-09-08"
-A, B, C, G, H = (f"fx-testperson-{n}" for n in ("alpha", "bravo", "charlie", "golf", "hotel"))
+A, B, C, D, G, H = (f"fx-testperson-{n}" for n in ("alpha", "bravo", "charlie", "delta", "golf", "hotel"))
 
 
 def _load(name):
@@ -160,6 +160,135 @@ def test_every_record_has_a_first_and_last_source_and_the_holder_rows_shape(prim
         [dict(p, ward=1) for p in prints[:1]], facts,
         {"min_ward_prints": 1, "seat_word": "ward", "evidence": {"ward": "x", "title": "x"}, "title_seats": {}})
     assert all(set(r) == set(ward_like[0]) for r in rows)
+
+
+# --- T5b: member gaps (must-fix at-large/member-gap), review nits 3-5 ------------------------------------------------
+
+
+def _without(prints, oid, *dates):
+    """The prints with member `oid` left out of the lists of `dates` (made up: the fixture prints every member)."""
+    return [p for p in prints if not (p["official_id"] == oid and p["date"] in dates)]
+
+
+def _unresolved_at(prints, date, name="Testperson Unread"):
+    """One printed name at `date` that resolves to no official: that list is incomplete."""
+    p = next(p for p in prints if p["date"] == date)
+    return dict(p, official_id=None, raw_name=name, title=None)
+
+
+def test_a_member_missing_from_two_complete_lists_gets_two_records_each_with_its_own_sources(primary, facts, prints):
+    assert council.AT_LARGE_GAP_LISTS == 2
+    rows, latest = council.at_large_rows(_without(prints, D, M2, M3), facts, primary)
+    d = _recs(rows, "at-large", D)
+    assert [(r["start"], r["seen_to"], r["end"]) for r in d] == [(M1, M1, M1), (M4, M5, None)]
+    assert (d[0]["source"], d[0]["last_source"]) == (_src(facts, M1), _src(facts, M1))
+    assert (d[1]["source"], d[1]["last_source"]) == (_src(facts, M4), _src(facts, M5))
+    s = _seats(rows, latest, facts)
+    assert s.on(D, M2) is None and s.on(D, M3) is None          # inside the gap: no seat label
+    assert s.on(D, M1) == s.on(D, M4) == "Councilmember, at large"
+    assert s.is_current(D) and s.seat_text(D) == "Councilmember, at large"   # the current record only
+    assert s.header_text(D) == ("Councilmember, at large, seen in attendance lists from 2026-03-10 to 2026-09-08, the "
+                                "latest minutes read; Councilmember, at large, seen in attendance lists on 2025-01-14")
+    # every other member keeps one record
+    assert all(len(_recs(rows, "at-large", o["id"])) == 1 for o in facts["officials"] if o["id"] != D)
+
+
+def test_a_member_missing_from_one_complete_list_keeps_one_record(primary, facts, prints):
+    for gap in (M2, M3, M4):
+        rows, latest = council.at_large_rows(_without(prints, D, gap), facts, primary)
+        assert [(r["start"], r["seen_to"], r["end"]) for r in _recs(rows, "at-large", D)] == [(M1, M5, None)], gap
+        assert _seats(rows, latest, facts).on(D, gap) == "Councilmember, at large"
+
+
+def test_two_missing_lists_of_which_one_is_incomplete_keep_one_record(primary, facts, prints):
+    for unread in (M2, M3):     # an unresolved name makes that list incomplete: it neither counts nor breaks the streak
+        mixed = _without(prints, D, M2, M3) + [_unresolved_at(prints, unread)]
+        rows, _ = council.at_large_rows(mixed, facts, primary)
+        assert [(r["start"], r["seen_to"]) for r in _recs(rows, "at-large", D)] == [(M1, M5)], unread
+    # an attendance entry with no official (facts side) makes the list incomplete too
+    other = copy.deepcopy(facts)
+    m3 = next(m for m in other["meetings"] if m["date"] == M3)
+    m3["attendance"].append(dict(m3["attendance"][0], official_id=None, raw_name="Testperson Unread"))
+    rows, _ = council.at_large_rows(_without(prints, D, M2, M3), other, primary)
+    assert [(r["start"], r["seen_to"]) for r in _recs(rows, "at-large", D)] == [(M1, M5)]
+
+
+def test_three_missing_lists_with_one_incomplete_still_split(primary, facts, prints):
+    """Two complete lists in the gap are enough, whatever incomplete list sits between them."""
+    mixed = _without(prints, D, M2, M3, M4) + [_unresolved_at(prints, M3)]
+    rows, _ = council.at_large_rows(mixed, facts, primary)
+    assert [(r["start"], r["seen_to"], r["end"]) for r in _recs(rows, "at-large", D)] == [(M1, M1, M1), (M5, M5, None)]
+
+
+def test_a_split_record_keeps_its_own_printings(primary, facts, prints):
+    """council.printings: a listing read through a printing correction belongs to the record that covers its date."""
+    read = [dict(p, raw_name="TESTPERSN DELTA", reads="Testperson Delta") if p["official_id"] == D else p
+            for p in _without(prints, D, M2, M3)]
+    rows, _ = council.at_large_rows(read, facts, primary)
+    first, second = _recs(rows, "at-large", D)
+    assert [p["date"] for p in first["printings"]] == [M1]
+    assert [p["date"] for p in second["printings"]] == [M4, M5]
+
+
+def test_a_one_list_tail_gap_then_a_reprint_is_one_record(primary, facts, prints):
+    # build 1: L = M4, and M4's list leaves D out (one list; it resolves 6 names to M3's 7, so it is short): the
+    # existing one-list-drop rule holds the record over, seen to M3, neither current nor closed
+    before = _without([p for p in prints if p["date"] <= M4], D, M4)
+    rows, latest = council.at_large_rows(before, facts, primary)
+    assert latest == M4
+    assert [(r["start"], r["seen_to"], r["end"], r["held_over"]) for r in _recs(rows, "at-large", D)] == [
+        (M1, M3, None, True)]
+    s = _seats(rows, latest, facts)
+    assert not s.is_current(D) and s.is_held_over(D) and s.on(D, M4) is None
+    # build 2: the next list prints D again, and the same record runs on to L
+    rows, latest = council.at_large_rows(_without(prints, D, M4), facts, primary)
+    assert [(r["start"], r["seen_to"], r["end"]) for r in _recs(rows, "at-large", D)] == [(M1, M5, None)]
+
+
+def test_a_member_gap_never_carries_a_title_record_across_it(primary, facts, prints):
+    """Alpha, Vice Mayor at M1-M2, leaves the lists at M3-M4 and returns at M5: two membership records, and the Vice
+    Mayor records stay A's M1-M2 and B's M4-M5."""
+    rows, latest = council.at_large_rows(_without(prints, A, M3, M4), facts, primary)
+    assert [(r["start"], r["seen_to"]) for r in _recs(rows, "at-large", A)] == [(M1, M2), (M5, M5)]
+    assert [(r["official_id"], r["start"], r["seen_to"]) for r in _recs(rows, "title-vice-mayor")] == [
+        (A, M1, M2), (B, M4, M5)]
+    s = _seats(rows, latest, facts)
+    assert s.on(A, M3) is None and s.on(A, M4) is None and s.on(A, M2) == "Vice Mayor"
+
+
+def test_a_pro_tem_print_with_a_title_is_refused_naming_the_meeting(primary, facts, prints):
+    bad = [dict(p, pro_tem=True) if p["date"] == M2 and p["official_id"] == C else p for p in prints]
+    with pytest.raises(SeatsError, match=f"pro tem.*{M2} \\(2025-06-10-regular\\)"):
+        council.at_large_rows(bad, facts, primary)
+    with pytest.raises(SeatsError, match=M2):
+        council.title_runs(bad, facts, ["Mayor"])
+    # pro tem without a title is a plain print
+    ok = [dict(p, pro_tem=True) if p["date"] == M3 and p["official_id"] == C else p for p in prints]
+    assert council.at_large_rows(ok, facts, primary) == council.at_large_rows(prints, facts, primary)
+
+
+def test_a_print_with_a_null_meeting_id_does_not_end_a_title_run(primary, facts, prints):
+    """Review nit 5: the loop's end is a private sentinel, so a list whose meeting_id is null is a list like any
+    other, wherever it sits (here the last list, and two dates)."""
+    rows, latest = council.at_large_rows(prints, facts, primary)
+    for dates in ((M5,), (M4, M5), (M2,)):
+        null = [dict(p, meeting_id=None) if p["date"] in dates else p for p in prints]
+        got, got_latest = council.at_large_rows(null, facts, primary)
+        assert got_latest == latest
+        for seat in ("title-vice-mayor", "title-mayor", "at-large"):
+            assert [(r["official_id"], r["start"], r["seen_to"], r["end"]) for r in _recs(got, seat)] == [
+                (r["official_id"], r["start"], r["seen_to"], r["end"]) for r in _recs(rows, seat)], (dates, seat)
+
+
+def test_title_runs_is_the_shared_reader_at_large_rows_uses(primary, facts, prints):
+    rows, _ = council.at_large_rows(prints, facts, primary)
+    runs = council.title_runs(prints, facts, primary["titles"])
+    assert [(r["official_id"], r["seat"], r["start"], r["end"]) for r in runs] == [
+        (r["official_id"], r["seat"], r["start"], r["seen_to"]) for r in rows if r["seat"] != "at-large"]
+    # ward-shaped prints (a wards primary) read the same way
+    wards = [dict(p, ward=1 + i % 4) for i, p in enumerate(prints)]
+    assert council.title_runs(wards, facts, ["Vice Mayor"]) == council.title_runs(prints, facts, ["Vice Mayor"])
+    assert council.title_runs(prints, facts, []) == []
 
 
 def test_a_prints_file_naming_an_official_the_facts_lack_is_refused(primary, facts, prints):
