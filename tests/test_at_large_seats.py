@@ -18,7 +18,9 @@ from sitegen.seats import Seats, SeatsError
 
 FX = Path(__file__).resolve().parent / "fixtures" / "cities" / "murfreesboro-tn"
 M1, M2, M3, M4, M5 = "2025-01-14", "2025-06-10", "2025-11-11", "2026-03-10", "2026-09-08"
-A, B, C, D, G, H = (f"fx-testperson-{n}" for n in ("alpha", "bravo", "charlie", "delta", "golf", "hotel"))
+A, B, C, D, E, F, G, H = (f"fx-testperson-{n}" for n in (
+    "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel"))
+WHO = dict(zip("ABCDEFGH", (A, B, C, D, E, F, G, H)))
 
 
 def _load(name):
@@ -162,7 +164,8 @@ def test_every_record_has_a_first_and_last_source_and_the_holder_rows_shape(prim
     assert all(set(r) == set(ward_like[0]) for r in rows)
 
 
-# --- T5b: member gaps (must-fix at-large/member-gap), review nits 3-5 ------------------------------------------------
+# --- T5b: member gaps (must-fix at-large/member-gap; rule restated after at-large/short-confirm-blesses-cutoffs),
+# review nits 3-5. A record splits only across a stable run: 3 complete lists in a row printing the same officials.
 
 
 def _without(prints, oid, *dates):
@@ -180,8 +183,7 @@ def _with(prints, oid, *dates):
 
 
 def _gap(prints, oid, *dates):
-    """`oid` left out of the lists of `dates`, and the newcomer H printed there instead, so each list keeps its size
-    (a list that only loses a name is a cut-off list, _complete_lists, not a departure)."""
+    """`oid` left out of the lists of `dates`, and the newcomer H printed there instead."""
     return _with(_without(prints, oid, *dates), H, *dates)
 
 
@@ -191,32 +193,83 @@ def _unresolved_at(prints, date, name="Testperson Unread"):
     return dict(p, official_id=None, raw_name=name, title=None)
 
 
-def test_a_member_missing_from_two_complete_lists_gets_two_records_each_with_its_own_sources(primary, facts, prints):
-    assert council.AT_LARGE_GAP_LISTS == 2
-    rows, latest = council.at_large_rows(_gap(prints, D, M2, M3), facts, primary)
+def _later(prints, facts, n):
+    """`n` more made-up lists y1..yn after M5, each a copy of M5's prints with its own made-up source document (added
+    to `facts`, the test's own copy)."""
+    m5 = [p for p in prints if p["date"] == M5]
+    src5 = next(s for s in facts["sources"] if s["id"] == m5[0]["source_id"])
+    dates = [f"{2027 + i}-01-12" for i in range(n)]
+    for d in dates:
+        facts["sources"].append(dict(src5, id=f"src-fx-{d}", meeting_date=d,
+                                     url=f"https://example.org/murfreesboro-fixture/minutes/{d}.pdf"))
+    return prints + [dict(p, date=d, meeting_id=f"{d}-regular", source_id=f"src-fx-{d}") for d in dates for p in m5], dates
+
+
+def _ysrc(d):
+    return f"https://example.org/murfreesboro-fixture/minutes/{d}.pdf#page=1"
+
+
+def _members(rows):
+    """Every at-large record: {official: [(start, seen_to, end), ...]} by start."""
+    out = {}
+    for r in _recs(rows, "at-large"):
+        out.setdefault(r["official_id"], []).append((r["start"], r["seen_to"], r["end"]))
+    return out
+
+
+def _base(last, **changed):
+    """The fixture's at-large records with the lists running to `last`, and `changed` members ({letter: records})."""
+    out = {o: [(M1, last, None)] for o in (A, B, C, D, E, F)}
+    out.update({G: [(M1, M3, M3)], H: [(M4, last, None)]})
+    out.update({WHO[k]: v for k, v in changed.items()})
+    return {k: v for k, v in out.items() if v}
+
+
+def test_the_split_constant_is_three_and_the_size_rule_is_gone():
+    assert council.AT_LARGE_GAP_LISTS == 3
+    assert not hasattr(council, "AT_LARGE_SHORT_CONFIRM")
+
+
+def test_a_member_out_of_three_equal_complete_lists_gets_two_records_each_with_its_own_sources(primary, facts,
+                                                                                               prints):
+    """D out at y1-y3 (each prints {A-C,E,F,H}), back at y4: a stable run, so two records. The same input made by a
+    page defect that cuts D's line from 3 lists running would split too: the data cannot tell them apart (accepted
+    cost 2 in ADR 0012 decision 5)."""
+    longer, (y1, y2, y3, y4) = _later(prints, facts, 4)
+    rows, latest = council.at_large_rows(_without(longer, D, y1, y2, y3), facts, primary)
+    assert latest == y4
+    assert _members(rows) == _base(y4, D=[(M1, M5, M5), (y4, y4, None)])
     d = _recs(rows, "at-large", D)
-    assert [(r["start"], r["seen_to"], r["end"]) for r in d] == [(M1, M1, M1), (M4, M5, None)]
-    assert (d[0]["source"], d[0]["last_source"]) == (_src(facts, M1), _src(facts, M1))
-    assert (d[1]["source"], d[1]["last_source"]) == (_src(facts, M4), _src(facts, M5))
+    assert (d[0]["source"], d[0]["last_source"]) == (_src(facts, M1), _src(facts, M5))
+    assert (d[1]["source"], d[1]["last_source"]) == (_ysrc(y4), _ysrc(y4))
     s = _seats(rows, latest, facts)
-    assert s.on(D, M2) is None and s.on(D, M3) is None          # inside the gap: no seat label
-    assert s.on(D, M1) == s.on(D, M4) == "Councilmember, at large"
+    assert s.on(D, y1) is None and s.on(D, y2) is None and s.on(D, y3) is None    # inside the gap: no seat label
+    assert s.on(D, M5) == s.on(D, y4) == "Councilmember, at large"
     assert s.is_current(D) and s.seat_text(D) == "Councilmember, at large"   # the current record only
-    assert s.header_text(D) == ("Councilmember, at large, seen in attendance lists from 2026-03-10 to 2026-09-08, the "
-                                "latest minutes read; Councilmember, at large, seen in attendance lists on 2025-01-14")
-    # every other member keeps one record
-    assert all(len(_recs(rows, "at-large", o["id"])) == 1 for o in facts["officials"] if o["id"] != D)
+    assert s.header_text(D) == (f"Councilmember, at large, seen in attendance lists from {y4} to {y4}, the latest "
+                                f"minutes read; Councilmember, at large, seen in attendance lists {M1} to {M5}")
 
 
-def test_a_member_missing_from_one_complete_list_keeps_one_record(primary, facts, prints):
+def test_a_member_out_of_one_complete_list_keeps_one_record(primary, facts, prints):
     for gap in (M2, M3, M4):
         rows, latest = council.at_large_rows(_without(prints, D, gap), facts, primary)
-        assert [(r["start"], r["seen_to"], r["end"]) for r in _recs(rows, "at-large", D)] == [(M1, M5, None)], gap
+        assert _members(rows) == _base(M5), gap
         assert _seats(rows, latest, facts).on(D, gap) == "Councilmember, at large"
 
 
+def test_a_member_out_of_two_lists_of_any_kind_keeps_one_record(primary, facts, prints):
+    longer, (y1, y2, y3, y4) = _later(prints, facts, 4)
+    for name, mixed, last in (
+            ("cut at M2-M3", _without(prints, D, M2, M3), M5),
+            ("H printed in D's place at M2-M3", _gap(prints, D, M2, M3), M5),
+            ("out at y1-y2, equal sets", _without(longer, D, y1, y2), y4)):
+        rows, _ = council.at_large_rows(mixed, facts, primary)
+        want = _base(last, H=[((M2 if "H printed" in name else M4), last, None)])
+        assert _members(rows) == want, name
+
+
 def test_two_missing_lists_of_which_one_is_incomplete_keep_one_record(primary, facts, prints):
-    for unread in (M2, M3):     # an unresolved name makes that list incomplete: it neither counts nor breaks the streak
+    for unread in (M2, M3):     # an unresolved name makes that list incomplete: it is skipped
         mixed = _gap(prints, D, M2, M3) + [_unresolved_at(prints, unread)]
         rows, _ = council.at_large_rows(mixed, facts, primary)
         assert [(r["start"], r["seen_to"]) for r in _recs(rows, "at-large", D)] == [(M1, M5)], unread
@@ -228,27 +281,74 @@ def test_two_missing_lists_of_which_one_is_incomplete_keep_one_record(primary, f
     assert [(r["start"], r["seen_to"]) for r in _recs(rows, "at-large", D)] == [(M1, M5)]
 
 
-def test_three_missing_lists_with_one_incomplete_still_split(primary, facts, prints):
-    """Two complete lists in the gap are enough, whatever incomplete list sits between them."""
-    # M4 prints H already, so the leaver G stays one list longer to keep M4's size
-    mixed = _with(_gap(prints, D, M2, M3, M4), G, M4) + [_unresolved_at(prints, M3)]
-    rows, _ = council.at_large_rows(mixed, facts, primary)
-    assert [(r["start"], r["seen_to"], r["end"]) for r in _recs(rows, "at-large", D)] == [(M1, M1, M1), (M5, M5, None)]
+def test_an_incomplete_list_is_skipped_in_a_stable_run(primary, facts, prints):
+    """D out at y1-y4 with y2 printing an unresolved name, back at y5: y1, y3, y4 are a stable run (y2 skipped), so
+    it splits. D out at y1-y3 with y2 unresolved, back at y4: only 2 complete lists, one record."""
+    longer, (y1, y2, y3, y4, y5) = _later(prints, facts, 5)
+    rows, _ = council.at_large_rows(_without(longer, D, y1, y2, y3, y4) + [_unresolved_at(longer, y2)], facts, primary)
+    assert _members(rows) == _base(y5, D=[(M1, M5, M5), (y5, y5, None)])
+    short = [p for p in longer if p["date"] != y5]
+    rows, _ = council.at_large_rows(_without(short, D, y1, y2, y3) + [_unresolved_at(short, y2)], facts, primary)
+    assert _members(rows) == _base(y4)
+
+
+def test_counterexample_a_two_cut_lists_after_a_vacancy_never_split(primary, facts, prints):
+    """ADR 0012 decision 5, case (a): G leaves for good after M3 and nobody replaces G (no H anywhere); D is cut from
+    M5 and y1. Two lists, no stable run: D keeps one record."""
+    longer, (y1, y2, y3, y4) = _later(prints, facts, 4)
+    vacancy = [p for p in longer if p["official_id"] != H and not (p["official_id"] == G and p["date"] > M3)]
+    rows, latest = council.at_large_rows(_without(vacancy, D, M5, y1), facts, primary)
+    assert latest == y4
+    assert _members(rows) == _base(y4, H=[])
+    assert _recs(rows, "at-large", D)[0]["end"] is None
+
+
+def test_counterexample_b_cut_lists_without_a_vacancy_never_split(primary, facts, prints):
+    """Case (b): no change beyond the fixture's; D cut at M2 and M3, E cut at M4. Every member keeps one record."""
+    rows, latest = council.at_large_rows(_without(_without(prints, D, M2, M3), E, M4), facts, primary)
+    assert _members(rows) == _base(M5) and len(_recs(rows, "at-large")) == 8
+    assert _seats(rows, latest, facts).on(D, M2) == "Councilmember, at large"
+
+
+def test_a_real_vacancy_of_three_lists_splits_and_a_shorter_one_does_not(primary, facts, prints):
+    """G leaves after M3 and nobody takes the place: M4, M5, y1 each print {A-F}. Never back: G ends at M3. Back at y2:
+    a stable run lies between, so a new record with its own first source. Back at y1: only 2 lists, one record
+    (accepted cost 1)."""
+    longer, (y1, y2, y3, y4) = _later(prints, facts, 4)
+    vacancy = [p for p in longer if p["official_id"] != H and not (p["official_id"] == G and p["date"] > M3)]
+    rows, latest = council.at_large_rows(vacancy, facts, primary)
+    assert latest == y4 and _members(rows) == _base(y4, H=[])
+    rows, latest = council.at_large_rows(_with(vacancy, G, y2, y3, y4), facts, primary)
+    assert _members(rows) == _base(y4, H=[], G=[(M1, M3, M3), (y2, y4, None)])
+    g = _recs(rows, "at-large", G)
+    assert (g[0]["source"], g[0]["last_source"], g[1]["source"]) == (_src(facts, M1), _src(facts, M3), _ysrc(y2))
+    assert _seats(rows, latest, facts).on(G, M5) is None
+    rows, _ = council.at_large_rows(_with(vacancy, G, y1, y2, y3, y4), facts, primary)
+    assert _members(rows) == _base(y4, H=[], G=[(M1, y4, None)])
+
+
+def test_an_absence_across_a_membership_change_keeps_one_record(primary, facts, prints):
+    """D out at M2-M5, back at y1: the sets are {A-C,E-G} twice, then {A-C,E,F,H} twice, so no 3 equal sets in a
+    row: one record (accepted cost 1). The later lists are built first, so y1-y4 still print D."""
+    longer, (y1, y2, y3, y4) = _later(prints, facts, 4)
+    rows, _ = council.at_large_rows(_without(longer, D, M2, M3, M4, M5), facts, primary)
+    assert _members(rows) == _base(y4)
 
 
 def test_a_split_record_keeps_its_own_printings(primary, facts, prints):
     """council.printings: a listing read through a printing correction belongs to the record that covers its date."""
+    longer, (y1, y2, y3, y4) = _later(prints, facts, 4)
     read = [dict(p, raw_name="TESTPERSN DELTA", reads="Testperson Delta") if p["official_id"] == D else p
-            for p in _gap(prints, D, M2, M3)]
+            for p in _without(longer, D, y1, y2, y3)]
     rows, _ = council.at_large_rows(read, facts, primary)
     first, second = _recs(rows, "at-large", D)
-    assert [p["date"] for p in first["printings"]] == [M1]
-    assert [p["date"] for p in second["printings"]] == [M4, M5]
+    assert [p["date"] for p in first["printings"]] == [M1, M2, M3, M4, M5]
+    assert [p["date"] for p in second["printings"]] == [y4]
 
 
 def test_a_one_list_tail_gap_then_a_reprint_is_one_record(primary, facts, prints):
-    # build 1: L = M4, and M4's list leaves D out (one list; it resolves 6 names to M3's 7, so it is short): the
-    # existing one-list-drop rule holds the record over, seen to M3, neither current nor closed
+    # build 1: L = M4, and M4's list leaves D out (one list; it resolves 6 names to M3's 7, so latest_list_incomplete
+    # calls it short): the one-list-drop rule holds the record over, seen to M3, neither current nor closed
     before = _without([p for p in prints if p["date"] <= M4], D, M4)
     rows, latest = council.at_large_rows(before, facts, primary)
     assert latest == M4
@@ -262,55 +362,17 @@ def test_a_one_list_tail_gap_then_a_reprint_is_one_record(primary, facts, prints
 
 
 def test_a_member_gap_never_carries_a_title_record_across_it(primary, facts, prints):
-    """Alpha, Vice Mayor at M1-M2, leaves the lists at M3-M4 and returns at M5: two membership records, and the Vice
-    Mayor records stay A's M1-M2 and B's M4-M5."""
-    # H fills A's place at M3, and the leaver G stays one list longer (M4), so neither gap list is short
-    rows, latest = council.at_large_rows(_with(_without(_gap(prints, A, M3), A, M4), G, M4), facts, primary)
-    assert [(r["start"], r["seen_to"]) for r in _recs(rows, "at-large", A)] == [(M1, M2), (M5, M5)]
-    assert [(r["official_id"], r["start"], r["seen_to"]) for r in _recs(rows, "title-vice-mayor")] == [
-        (A, M1, M2), (B, M4, M5)]
-    s = _seats(rows, latest, facts)
-    assert s.on(A, M3) is None and s.on(A, M4) is None and s.on(A, M2) == "Vice Mayor"
-
-
-def test_two_cut_off_lists_missing_the_same_member_keep_one_record(primary, facts, prints):
-    """at-large/complete-list-truncated: M2 and M3 each resolve 6 officials to M1's 7 (every name resolves, the lists
-    are only short). Short lists are not complete, so D's record is not split, and nobody else's either."""
-    assert council.AT_LARGE_SHORT_CONFIRM == 3
-    rows, latest = council.at_large_rows(_without(prints, D, M2, M3), facts, primary)
-    assert [(r["start"], r["seen_to"], r["end"]) for r in _recs(rows, "at-large", D)] == [(M1, M5, None)]
-    assert len(_recs(rows, "at-large")) == 8
-    assert _seats(rows, latest, facts).on(D, M2) == "Councilmember, at large"
-
-
-def _later(prints, facts, n):
-    """`n` more made-up lists after M5, a copy of M5's prints each (and of its source page, for the URLs)."""
-    m5 = [p for p in prints if p["date"] == M5]
-    dates = [f"{2027 + i}-01-12" for i in range(n)]
-    return prints + [dict(p, date=d, meeting_id=f"{d}-regular") for d in dates for p in m5], dates
-
-
-def test_a_vacancy_confirmed_by_three_smaller_lists_still_ends_and_splits(primary, facts, prints):
-    """A real departure with no successor: the council prints one name fewer from then on. Three short lists in a row
-    confirm the smaller council, so they are complete: a member who returns after them gets a new record, and one who
-    never returns ends at their last print, as before."""
+    """Alpha, Vice Mayor at M1-M2, is out of M5, y1 and y2 (each prints {B-F,H}) and back at y3: two membership
+    records, and the Vice Mayor records are A's M1-M2 and B's M4 on, as without the gap."""
     longer, (y1, y2, y3, y4) = _later(prints, facts, 4)
-    # G leaves after M3 and nobody takes the place (H never printed): M4, M5, y1 print 6 names to M3's 7
-    vacancy = [p for p in longer if p["official_id"] != H and not (p["official_id"] == G and p["date"] > M3)]
-    rows, latest = council.at_large_rows(vacancy, facts, primary)
-    assert latest == y4
-    assert [(r["start"], r["seen_to"], r["end"]) for r in _recs(rows, "at-large", G)] == [(M1, M3, M3)]
-    assert all(r["end"] is None for o in (A, B, C, D) for r in _recs(rows, "at-large", o))
-    # G comes back at y2 after three short lists (M4, M5, y1): a new record, with its own first source
-    back = _with(vacancy, G, y2, y3, y4)
-    rows, latest = council.at_large_rows(back, facts, primary)
-    g = _recs(rows, "at-large", G)
-    assert [(r["start"], r["seen_to"], r["end"]) for r in g] == [(M1, M3, M3), (y2, y4, None)]
-    assert _seats(rows, latest, facts).on(G, M5) is None
-    # back after only two short lists (M4, M5): indistinguishable from two cut-off lists, so one record
-    early = _with([p for p in vacancy if p["date"] <= M5 or p["official_id"] != G], G, y1, y2, y3, y4)
-    rows, _ = council.at_large_rows(early, facts, primary)
-    assert [(r["start"], r["seen_to"]) for r in _recs(rows, "at-large", G)] == [(M1, y4)]
+    rows, latest = council.at_large_rows(_without(longer, A, M5, y1, y2), facts, primary)
+    assert _members(rows) == _base(y4, A=[(M1, M4, M4), (y3, y4, None)])
+    vm = [(r["official_id"], r["start"], r["seen_to"]) for r in _recs(rows, "title-vice-mayor")]
+    assert vm == [(A, M1, M2), (B, M4, y4)]
+    assert vm == [(r["official_id"], r["start"], r["seen_to"])
+                  for r in _recs(council.at_large_rows(longer, facts, primary)[0], "title-vice-mayor")]
+    s = _seats(rows, latest, facts)
+    assert s.on(A, y1) is None and s.on(A, M2) == "Vice Mayor" and s.on(A, y3) == "Councilmember, at large"
 
 
 def test_title_conflicts_keep_two_null_meeting_id_lists_apart(primary, facts, prints):
