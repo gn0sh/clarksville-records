@@ -77,3 +77,14 @@
   `show: true` state rules (the browser now ignores them); also fix the stale LAYERS comment in sitegen/national.py.
 - B3 delta (7eff9acb): APPROVE, all 7 fixed, 63 passed with 0 skips. days.py `calendar_rows` refactor checked against
   the old loop on 214 build days (2025-2029, two windows): 0 mismatches.
+
+## B4 (a10cc2eb), code-reviewer opus/high: REQUEST CHANGES
+- Verified: switch OFF byte-identical to main (fixture and real-data builds, `diff -rq` clean incl. pages.js, header,
+  footers). Privacy-withhold: no leak (HTML/JSON only from bound feed; writes after all checks; sentinel sweeps real).
+  CSP per section 6; Census only in the frame CSP; autoescape on; embed_json for data blocks; no ICS/Atom.
+- must-fix `national-freshness/checked-at-is-first-fetch`: `checked_at` is the newest first-fetch date, so a quiet week
+  says "We couldn't check this government this week" (real build, county page) although the daily job checked.
+  Manager decision: M1 shows "Newest record we have: {date}" and drops stale claims; a real check stamp comes in M2 (C3).
+- should-fix `national-pages/body-from-feed-not-directory` (fallback URLs and allowlist re-check from the feed, not the
+  entry; `href=""` possible), `national-pages/morning-gate` (morning-note link on every covered page; UX says TN only).
+- nits: enabled() outside try; `body.no-time` undocumented draft; test_header regex; index_csp duplicates views.csp.
