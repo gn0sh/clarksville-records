@@ -196,7 +196,7 @@ function PinOk {
     $pp = @($a.rules | Where-Object { $_.type -ceq 'pull_request' })
     if ($pp.Count -ne 1) { return $false }
     $q = $pp[0].parameters
-    return ((Canon $q.required_approving_review_count) -ceq '2' -and (Canon $q.require_last_push_approval) -ceq 'true' -and
+    return ((Canon $q.required_approving_review_count) -ceq '10' -and (Canon $q.require_last_push_approval) -ceq 'true' -and
             (Canon $q.require_code_owner_review) -ceq 'false')
 }
 
@@ -243,7 +243,7 @@ $hm = $now.Hour * 100 + $now.Minute
 if ($hm -ge 730 -and $hm -le 1030) {
     Refuse ('it is ' + $now.ToString('HH:mm') + " UTC: a run started from 07:30 to 10:30 could reach the daily run's window (08:00-10:30); run it later")
 }
-if (-not (PinOk)) { Refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (2 approvals, last-push approval, no code-owner review)" }
+if (-not (PinOk)) { Refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (10 approvals: S1-1, the API maximum; last-push approval, no code-owner review)" }
 $runs = @(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?per_page=30" --jq '.workflow_runs[].status')
 if ($LASTEXITCODE -ne 0) { Refuse 'could not read the daily-update runs' }
 $busy = @($runs | Where-Object { $_ -and $_ -cne 'completed' })

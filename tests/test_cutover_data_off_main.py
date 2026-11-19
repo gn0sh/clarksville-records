@@ -178,6 +178,10 @@ old=$(git --git-dir "$STUB_ORIGIN" ls-tree --name-only refs/heads/main -- data)
 pre=0; for a in "$@"; do [ "$a" = --pre-cutover ] && pre=1; done
 if [ "$pre" = 1 ] && [ -z "$old" ]; then echo "  NOT OK: --pre-cutover, but the cutover is merged"; echo "NOT OK: 1 problem(s) above."; exit 1; fi
 if [ "$pre" = 0 ] && [ -n "$old" ]; then echo "  NOT OK: main's workflow still opens data pull requests"; echo "NOT OK: 1 problem(s) above."; exit 1; fi
+if [ "$pre" = 1 ] && [ -n "${STUB_PM_MOVE_RD:-}" ]; then   # someone pushes onto records-data before R-D binds (S1-5)
+  g="git --git-dir $STUB_ORIGIN"; rd=$($g rev-parse refs/heads/records-data)
+  x=$($g -c user.name=x -c user.email=x@x commit-tree "$rd^{tree}" -p "$rd" -m "late push"); $g update-ref refs/heads/records-data "$x"
+fi
 want=ok; [ "$pre" = 1 ] && want=${STUB_PM:-ok}; [ "$pre" = 0 ] && want=${STUB_PM_CHECK:-ok}
 if [ "$want" = ok ]; then echo "OK: main is protected (stub)."; exit 0; fi
 echo "  NOT OK: R2 is on"; echo "NOT OK: 1 problem(s) above."; exit 1
@@ -895,7 +899,8 @@ def test_rollback_merge_refuses_a_restore_head_that_sets_the_baseline(tmp_path):
 @pytest.mark.parametrize("files,text", [
     ({".github/CODEOWNERS": None}, "does not hold the restore PR's .github/CODEOWNERS"),
     ({".github/workflows/daily-update.yml": SET_WF}, "does not hold the restore PR's .github/workflows/daily-update.yml"),
-], ids=["no-codeowners", "other-workflow"])
+    ({"data/facts.json": '{"meetings": [1]}\n'}, "does not hold the restore PR's data"),          # S1-3
+], ids=["no-codeowners", "other-workflow", "other-data"])
 def test_rollback_merge_keeps_r2_off_unless_main_holds_rs_files(tmp_path, files, text):
     """main-protect/rollback-r2-unchecked-codeowners and Amendment (c) item 7: after R merges, main must hold R's
     workflow and CODEOWNERS byte for byte (one empty baseline) before R1' or R2 change."""
@@ -907,6 +912,102 @@ def test_rollback_merge_keeps_r2_off_unless_main_holds_rs_files(tmp_path, files,
     seq = [x["path"].rsplit("/", 1)[-1] for x in _writes(fx.calls())]
     assert seq == ["disable", "merge-reviewed"], seq
     assert fx.state["r2"] is False and fx.state["wf_state"] == "disabled_manually"
+
+
+def _cut_then_unattested_push(fx):
+    """A full cutover, then a writer fast-forwards records-data with a tree no run attested (S1-3's case)."""
+    r = fx.cut()
+    assert r.returncode == 0, r.stdout + r.stderr
+    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    good = fx.rd()
+    bad = _commit_on(fx, "refs/heads/records-data", {"data/facts.json": '{"meetings": ["forged"]}\n'}, "forged",
+                     "refs/heads/records-data")
+    fx.state["r2"] = False
+    open(fx.tmp / "calls", "w").close()
+    return merge, good, bad
+
+
+def test_s1_3_rollback_refuses_an_unattested_records_data_head(tmp_path):
+    """data-off-main/rollback-unverified-data: the open path checks I-prov on records-data's head first."""
+    fx = Fx(tmp_path)
+    merge, good, bad = _cut_then_unattested_push(fx)
+    r = fx.run(["--rollback", "--cutover-merge", merge])
+    assert r.returncode == 1 and f"records-data's head {bad} is neither attested by daily-update.yml on main nor the " \
+        "pinned seed (S1-3)" in r.stdout and f"--cutover-merge {merge} --data-from <sha>" in r.stdout, r.stdout
+    assert _writes(fx.calls()) == [] and fx.state["wf_state"] == "active"
+
+
+def test_s1_3_data_from_an_attested_ancestor_opens_r_with_that_tree_and_merges(tmp_path):
+    fx = Fx(tmp_path)
+    merge, good, bad = _cut_then_unattested_push(fx)
+    r = fx.run(["--rollback", "--cutover-merge", merge, "--data-from", good])
+    assert r.returncode == 0 and "ROLLBACK PR #99 opened" in r.stdout, r.stdout + r.stderr
+    assert f"R's data/ comes from records-data {good}: attested by daily-update.yml on main." in r.stdout
+    c = re.search(r"pushed branch \S+ at ([0-9a-f]{40})", r.stdout).group(1)
+    assert fx.og("rev-parse", c + ":data") == fx.og("rev-parse", good + ":data") != fx.og("rev-parse", bad + ":data")
+    open(tmp_path / "calls", "w").close()
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--report", "x"])
+    assert r.returncode == 0 and "its data/ is attested by daily-update.yml on main." in r.stdout, r.stdout + r.stderr
+    assert "holds R's workflow, .github/CODEOWNERS and data/ byte for byte" in r.stdout and fx.state["r2"] is True
+
+
+@pytest.mark.parametrize("which,text", [
+    ("bad", "is neither attested by daily-update.yml on main nor the pinned seed (S1-3)"),
+    ("off", "is not on records-data (not an ancestor of its head"),
+    ("short", "--data-from needs a 40-hex sha on records-data"),
+], ids=["unattested", "not-an-ancestor", "not-a-sha"])
+def test_s1_3_data_from_must_be_an_attested_ancestor(tmp_path, which, text):
+    fx = Fx(tmp_path)
+    merge, good, bad = _cut_then_unattested_push(fx)
+    pick = {"bad": bad, "off": fx.main, "short": good[:12]}[which]
+    r = fx.run(["--rollback", "--cutover-merge", merge, "--data-from", pick])
+    assert r.returncode == 1 and text in r.stdout and _writes(fx.calls()) == [], r.stdout
+
+
+def test_s1_3_the_pinned_seed_is_accepted_as_r_data(tmp_path):
+    """Before any run pushed (a stop at step 7), records-data is the seed: not attested, but the pinned seed."""
+    fx = Fx(tmp_path)
+    fx.state["deploy"] = "skipped"
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 7" in r.stdout
+    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    seed = fx.rd()
+    assert fx.og("cat-file", "-p", seed).count("parent ") == 0
+    r = fx.run(["--rollback", "--cutover-merge", merge])
+    assert r.returncode == 0 and f"R's data/ comes from records-data {seed}: the pinned seed (RECORDS_DATA_SEED_DIGEST " \
+        f"{fx.digest})." in r.stdout, r.stdout + r.stderr
+
+
+def test_s1_3_merge_refuses_a_restore_pr_whose_data_is_not_verified(tmp_path):
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    c2 = _commit_on(fx, c, {"data/facts.json": '{"meetings": ["forged"]}\n'}, "forged", "refs/pull/99/head")
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c2, "--report", "x"])
+    assert r.returncode == 1 and "the restore PR #99's data/ (listing sha256 " in r.stdout
+    assert "is neither attested by daily-update.yml on main nor the pinned seed (S1-3)" in r.stdout
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False
+
+
+def test_s1_5_step5_stops_when_records_data_moved_after_the_seed(tmp_path):
+    """data-off-main/seed-window: records-data is read again right before the merge; nothing is merged."""
+    fx = Fx(tmp_path)
+    r = fx.cut(STUB_PM_MOVE_RD="1")
+    assert r.returncode == 2 and "STOPPED at step 5" in r.stdout, r.stdout + r.stderr
+    assert "no longer the seed " in r.stdout and "pushed in step 3 (S1-5): nothing is merged" in r.stdout
+    assert not [c for c in fx.calls() if c["path"] == "merge-reviewed"]
+    assert fx.og("rev-parse", "refs/heads/main") == fx.main
+    assert "Undo with: bash scripts/cutover-data-off-main.sh --rollback\n" in r.stdout
+
+
+def test_ps1_checks_return_only_the_exit_code():
+    """A .ps1 function's output is its return value: the check's printed lines go to Out-Host, so a failing
+    data_shape, phone scrub or attestation check (which print lines) can't read as true."""
+    ps1 = PS1.read_text(encoding="utf-8")
+    assert "& $py[0] @pre -B @PyArgs | Out-Host" in ps1
+    assert "--deny-self-hosted-runners | Out-Host" in ps1
+    for s in ("[string]$DataFrom = ''", "-DataFrom", "function DataVerified", "PinnedSeedDigest $CutoverMerge",
+              "PinnedSeedDigest \"$Sha^1\"", "records-data is still the seed", "'.github/CODEOWNERS', 'data')"):
+        assert s in ps1, s
 
 
 def test_rollback_before_the_merge_puts_r1_prime_back_and_r2_on(tmp_path):

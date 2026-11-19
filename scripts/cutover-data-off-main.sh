@@ -10,9 +10,10 @@
 #   bash scripts/cutover-data-off-main.sh --pr <P> --sha <reviewed head> --apps claude|none --report <review> [...]
 #        --apps: first open https://github.com/settings/installations and click Configure on each App: claude if the
 #        Claude App (github.com/apps/claude) is the only one reaching this repository with any Read and write
-#        permission and Administration is not Read and write; none if no App does. No token Brian holds can list
-#        Apps, so this is his hand check (ADR 0011 Amendment 2026-11-18 (b), invariant I-person). Any other answer
-#        is refused before anything changes; protect-main gets it in step 4.
+#        permission and none of Administration, Variables, Secrets and Environments is Read and write (S1-2); none
+#        if no App does. No token Brian holds can list Apps, so this is his hand check (ADR 0011 Amendment
+#        2026-11-18 (b), invariant I-person). Any other answer is refused before anything changes, and protect-main
+#        (which gets it in step 4) reports any other answer NOT OK.
 #   bash scripts/cutover-data-off-main.sh --plan [--ref <git rev>]   read-only: the seed step 3 would push from
 #        origin/main's data/, its checks, "SEED DIGEST <sha256>" for the cutover PR's RECORDS_DATA_SEED_DIGEST,
 #        "BASELINE <sha>" (origin/main) for its MAIN_PR_BASELINE, and the runbook 4.7.1 window listing from
@@ -22,7 +23,7 @@
 #        out of the index (git rm -r --cached: the files stay on disk), data/ into .gitignore and .github/CODEOWNERS
 #        deleted. Commit that, then --plan, and pin its SEED DIGEST in the gate's RECORDS_DATA_SEED_DIGEST (the
 #        sha256 of `git ls-tree -r -z <seed> -- data`, the gate's own bytes). No gh call, no commit, no push.
-#   bash scripts/cutover-data-off-main.sh --rollback [--cutover-merge <sha>]       undo (below)
+#   bash scripts/cutover-data-off-main.sh --rollback [--cutover-merge <sha> [--data-from <sha>]]   undo (below)
 #   bash scripts/cutover-data-off-main.sh --rollback --merge <R> --sha <reviewed head> --report <review> [...]
 #   bash scripts/cutover-data-off-main.sh --check-attested   read-only: step 8's check again, for a later run
 #
@@ -46,7 +47,8 @@
 #      (never forced) and reads it back.
 #   4. Runs scripts/protect-main.sh --pre-cutover --apps <answer> (R1'', R-D, R-T, R2 off; main still holds the old
 #      workflow); its last line must start "OK: main is protected".
-#   5. Merges the cutover PR with scripts/merge-reviewed.sh (main must still be the pinned baseline); its last line
+#   5. Merges the cutover PR with scripts/merge-reviewed.sh (main must still be the pinned baseline, and records-data
+#      still the seed, read again just before: S1-5); its last line
 #      must be "Rule suite <id> for <merge sha>: bypass", the squash's one parent must be the pinned baseline (this
 #      merge sets it), and main must then track no data/. Then a plain scripts/protect-main.sh --check --apps
 #      <answer> (no writes, main's new workflow) must print OK too.
@@ -62,11 +64,15 @@
 #   - --cutover-merge <sha> on main (the sha step 5 printed): it refuses unless that merge's parent tracks data/ and
 #     holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE, then disables daily-update and opens PR R from a new
 #     branch: data/ from records-data's head, the workflow and .github/CODEOWNERS as they were before the cutover
-#     merge, data/ out of .gitignore; every config/ input and reader stays as the cutover PR left them.
-#   - --merge <R> --sha <R's reviewed head>: it refuses unless R's head tracks data/ and holds .github/CODEOWNERS
-#     and one empty MAIN_PR_BASELINE, disables daily-update, merges R with merge-reviewed (a bypass, under R1''),
-#     then stops with R2 still off unless main is that merge, tracks data/, and its workflow and CODEOWNERS are
-#     R's, byte for byte, with one empty MAIN_PR_BASELINE (ADR 0011 Amendment (c) item 7). Only then R1' back, R2
+#     merge, data/ out of .gitignore; every config/ input and reader stays as the cutover PR left them. The cutover
+#     merge must itself track no data/ and hold no CODEOWNERS. S1-3: the data/ source must pass the gate's I-prov
+#     check (its listing attested by daily-update.yml on main) or be the seed the merge's workflow pins; else it
+#     refuses, and --data-from <sha> picks an ancestor of records-data's head that does.
+#   - --merge <R> --sha <R's reviewed head>: it refuses unless R's data/ listing is attested or the pinned seed
+#     (S1-3) and R's head tracks data/ and holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE, disables
+#     daily-update, merges R with merge-reviewed (a bypass, under R1''),
+#     then stops with R2 still off unless main is that merge, tracks data/, and its workflow, CODEOWNERS and data/
+#     are R's, byte for byte, with one empty MAIN_PR_BASELINE (ADR 0011 Amendment (c) item 7). Only then R1' back, R2
 #     on, the workflow on, in that order.
 #   - otherwise (the cutover merge is not on main): it refuses unless main tracks data/ and holds .github/CODEOWNERS
 #     and one empty MAIN_PR_BASELINE, then disables daily-update, puts R1' (scripts/main-ruleset-r1p.json) back,
@@ -105,8 +111,8 @@ wl='def wl: {name, target, enforcement, conditions,
   bypass_actors: ([.bypass_actors[]? | {actor_id, actor_type, bypass_mode}] | sort_by(.actor_type, .actor_id, .bypass_mode)),
   rules: ([.rules[]? | if .parameters == null then {type} else {type, parameters} end] | sort_by(.type))}; wl'
 
-usage="Usage: $me --pr <P> --sha <reviewed head> --apps claude|none --report <review> [...] | --plan [--ref <rev>] | --rollback [--cutover-merge <sha>] | --rollback --merge <R> --sha <sha> --report <review> [...] | --check-attested"
-mode=cutover; pr=""; sha=""; reports=(); ref=HEAD; cmerge=""; rpr=""; apps=""
+usage="Usage: $me --pr <P> --sha <reviewed head> --apps claude|none --report <review> [...] | --plan [--ref <rev>] | --rollback [--cutover-merge <sha> [--data-from <sha>]] | --rollback --merge <R> --sha <sha> --report <review> [...] | --check-attested"
+mode=cutover; pr=""; sha=""; reports=(); ref=HEAD; cmerge=""; rpr=""; apps=""; datafrom=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --pr) pr="${2:-}"; shift 2 || { echo "$usage"; exit 1; } ;;
@@ -118,6 +124,7 @@ while [ "$#" -gt 0 ]; do
     --ref) ref="${2:-}"; shift 2 || { echo "$usage"; exit 1; } ;;
     --rollback) mode=rollback; shift ;;
     --cutover-merge) cmerge="${2:-}"; shift 2 || { echo "$usage"; exit 1; } ;;
+    --data-from) datafrom="${2:-}"; shift 2 || { echo "$usage"; exit 1; } ;;
     --merge) rpr="${2:-}"; shift 2 || { echo "$usage"; exit 1; } ;;
     --check-attested) mode=attested; shift ;;
     *) echo "$usage"; exit 1 ;;
@@ -377,6 +384,11 @@ window_check() {   # $1 start, $2 end (fetched): the runbook 4.7.1 block; prints
   echo "checked $n commits"
   [ "$n" -gt 0 ] || { why="no commit in the window $start..$end (a wrong or placeholder start: the cutover PR's base at least is in it)"; return 1; }
 }
+data_verified() {   # $1 listing file, $2 the pinned seed digest or "": J2's attestation (I-prov) or the pinned seed (S1-3)
+  if [ -n "$2" ] && [ "$(sha256 < "$1")" = "$2" ]; then echo "the pinned seed (RECORDS_DATA_SEED_DIGEST $2)"; return 0; fi
+  verify_attested "$1" >&2 || return 1
+  echo "attested by daily-update.yml on main"
+}
 restore_ok() {   # $1 rev: what R2 on needs there: data/ tracked, .github/CODEOWNERS, one empty MAIN_PR_BASELINE; sets why
   tracks_data "$1" || { why="$1 tracks no data/"; return 1; }
   git cat-file -e "$1:.github/CODEOWNERS" 2>/dev/null || { why="$1 has no .github/CODEOWNERS"; return 1; }
@@ -474,7 +486,13 @@ if [ "$mode" = rollback ]; then
     git fetch --quiet --no-tags origin "+refs/pull/$rpr/head:refs/cutover/rollback" || refuse "could not fetch pull request #$rpr's head"
     [ "$(git rev-parse --verify -q "refs/cutover/rollback^{commit}")" = "$sha" ] || refuse "origin's pull/$rpr/head is not $sha"
     restore_ok "$sha" || refuse "the restore PR #$rpr at $sha does not give R2 what it needs: $why (F4)"
-    echo "Restore PR #$rpr at $sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE."
+    # S1-3 data-off-main/rollback-unverified-data: R's data/ must be a verified records-data tree (its listing
+    # attested by J2, or the seed pinned in the workflow R was cut from)
+    seedpin=$(pinned_seed_digest "$sha^1") || seedpin=""
+    listing_of "$sha" > "$work/r-listing" || refuse "could not read the restore PR's data/ listing"
+    src_ok=$(data_verified "$work/r-listing" "$seedpin") \
+      || refuse "the restore PR #$rpr's data/ (listing sha256 $(sha256 < "$work/r-listing")) is neither attested by daily-update.yml on main nor the pinned seed (S1-3): open a new one with --data-from <an attested records-data sha>"
+    echo "Restore PR #$rpr at $sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE; its data/ is $src_ok."
   elif [[ "$cmerge" =~ ^[0-9a-f]{40}$ ]] && git merge-base --is-ancestor "$cmerge" "$m" 2>/dev/null; then
     path=open
     # main-protect/rollback-cutover-merge-unverified: the sha must look like the cutover merge itself
@@ -484,8 +502,24 @@ if [ "$mode" = rollback ]; then
     restore_ok "$before" || refuse "the commit before the cutover merge $cmerge does not give R2 what it needs: $why (F4; is $cmerge the cutover merge?)"
     d=$(fetch_rd) || refuse "could not read records-data"
     [ -n "$d" ] || refuse "records-data does not exist"
-    tracks_data "$d" || refuse "records-data $d holds no data/"
+    # S1-3 data-off-main/rollback-unverified-data: the data/ R restores must pass the gate's I-prov check (or be the
+    # pinned seed): records-data's head, or --data-from, an ancestor of it on records-data
+    seedpin=$(pinned_seed_digest "$cmerge") || seedpin=""
+    if [ -n "$datafrom" ]; then
+      [[ "$datafrom" =~ ^[0-9a-f]{40}$ ]] || refuse "--data-from needs a 40-hex sha on records-data"
+      git merge-base --is-ancestor "$datafrom" "$d" 2>/dev/null || refuse "--data-from $datafrom is not on records-data (not an ancestor of its head $d)"
+      src=$datafrom
+    else
+      src=$d
+    fi
+    tracks_data "$src" || refuse "records-data $src holds no data/"
+    listing_of "$src" > "$work/src-listing" || refuse "could not read records-data $src's listing"
+    if ! src_ok=$(data_verified "$work/src-listing" "$seedpin"); then
+      [ -n "$datafrom" ] && refuse "--data-from $datafrom is neither attested by daily-update.yml on main nor the pinned seed (S1-3)"
+      refuse "records-data's head $d is neither attested by daily-update.yml on main nor the pinned seed (S1-3): run $me --rollback --cutover-merge $cmerge --data-from <sha>, an attested commit on records-data (for example the last head --check-attested accepted)"
+    fi
     echo "The cutover merge $cmerge is on main; its parent $before tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE."
+    echo "R's data/ comes from records-data $src: $src_ok."
   else
     path=early
     [ -z "$cmerge" ] || echo "--cutover-merge $cmerge is not on main $m: taking the path for a cutover that is not merged."
@@ -512,7 +546,7 @@ if [ "$mode" = rollback ]; then
     # CODEOWNERS from before the cutover, data/ un-ignored
     rm -f "$work/index"; export GIT_INDEX_FILE="$work/index"
     git read-tree "$m" && git ls-files -z -- data | git update-index -z --force-remove --stdin \
-      && git read-tree --prefix=data/ "$d:data" || { unset GIT_INDEX_FILE; fail "could not build the restore tree"; }
+      && git read-tree --prefix=data/ "$src:data" || { unset GIT_INDEX_FILE; fail "could not build the restore tree"; }
     for f in ".github/workflows/$wfname" .github/CODEOWNERS; do
       b=$(git rev-parse --verify -q "$before:$f") && git update-index --add --cacheinfo "100644,$b,$f" \
         || { unset GIT_INDEX_FILE; fail "could not restore $f"; }
@@ -523,16 +557,16 @@ if [ "$mode" = rollback ]; then
     fi
     t=$(git write-tree); rc=$?; unset GIT_INDEX_FILE
     [ "$rc" = 0 ] || fail "could not write the restore tree"
-    c=$(git commit-tree "$t" -p "$m" -m "Roll back ADR 0011's cutover: data/ on main from records-data $d
+    c=$(git commit-tree "$t" -p "$m" -m "Roll back ADR 0011's cutover: data/ on main from records-data $src
 
-data/ from records-data $d; .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $cmerge;
+data/ from records-data $src ($src_ok); .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $cmerge;
 data/ out of .gitignore. Every config/ input and its readers stay as the cutover PR left them.") || fail "could not commit the restore (git user.name and user.email set?)"
     restore_ok "$c" || fail "the restore commit $c does not give R2 what it needs: $why"
     br="rollback/data-on-main-$(date -u +%Y%m%d-%H%M%S)"
     git push --quiet origin "$c:refs/heads/$br" || fail "could not push $br (a workflow-file push needs: gh auth refresh -s workflow)"
-    echo "Rollback step 3: pushed branch $br at $c (data/ from records-data $d)."
+    echo "Rollback step 3: pushed branch $br at $c (data/ from records-data $src)."
     n=$(gh api -X POST "repos/$repo/pulls" -f base=main -f head="$br" -f title="Roll back the data cutover: data/ on main from records-data" \
-        -f body="Restores data/ on main from records-data $d, and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $cmerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.sh --rollback." \
+        -f body="Restores data/ on main from records-data $src ($src_ok), and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $cmerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.sh --rollback." \
         --jq '.number') || fail "could not open the pull request for $br"
     echo "ROLLBACK PR #$n opened for $br at $c. daily-update stays off; R2 stays off; the site stays as last deployed."
     echo "Next, once PR #$n is reviewed at $c: $me --rollback --merge $n --sha $c --report <review>"
@@ -547,14 +581,15 @@ data/ out of .gitignore. Every config/ input and its readers stay as the cutover
   echo "Rollback step 3: PR #$rpr merged as $ms; main tracks data/ again."
   step=4
   # ADR 0011 Amendment (c) item 7 and main-protect/rollback-r2-unchecked-codeowners: before R2 goes on, main must
-  # hold R's workflow and CODEOWNERS byte for byte, with one empty MAIN_PR_BASELINE. Else R2 stays off.
-  for f in ".github/workflows/$wfname" .github/CODEOWNERS; do
+  # hold R's workflow and CODEOWNERS byte for byte, with one empty MAIN_PR_BASELINE, and R's verified data/ tree
+  # (S1-3). Else R2 stays off.
+  for f in ".github/workflows/$wfname" .github/CODEOWNERS data; do
     a=$(git rev-parse --verify -q "$m:$f") || a=""
     b=$(git rev-parse --verify -q "$sha:$f") || b=""
     [ -n "$a" ] && [ "$a" = "$b" ] || fail "main $m does not hold the restore PR's $f (blob '${a:-none}', R has '${b:-none}'): R2 stays off"
   done
   restore_ok "$m" || fail "main $m does not give R2 what it needs: $why. R2 stays off"
-  echo "main $m holds R's workflow and .github/CODEOWNERS byte for byte, with one empty MAIN_PR_BASELINE."
+  echo "main $m holds R's workflow, .github/CODEOWNERS and data/ byte for byte, with one empty MAIN_PR_BASELINE."
   put_r1p || fail "could not put R1' back (the restore PR is merged)"
   r2_on || fail "could not turn R2 on (R1' is back)"
   wf_set enable active || fail "could not re-enable daily-update (R1' and R2 are back)"
@@ -570,7 +605,7 @@ step=1
 echo "Step 1 ($(utc)): refusals and the planned seed (read-only)."
 case "$apps" in
   claude|none) ;;
-  *) refuse "--apps must be claude or none: first open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records with any Read and write permission (ADR 0011 Amendment (b); protect-main needs the answer in step 4)" ;;
+  *) refuse "--apps must be claude or none: first open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records with any Read and write permission; claude only if none of its Administration, Variables, Secrets and Environments permissions is Read and write (ADR 0011 Amendment (b), S1-2; protect-main needs the answer in step 4)" ;;
 esac
 echo "Installed Apps with write on this repository, by Brian's hand check at https://github.com/settings/installations: $apps."
 hm=$(date -u +%H%M)
@@ -648,6 +683,12 @@ echo "Step 4 OK: protect-main printed OK."
 step=5
 now=$(fetch_main) || fail "could not fetch main"
 [ "$now" = "$base" ] || fail "main moved to $now since the seed was taken from $base, off the PR's MAIN_PR_BASELINE: nothing is merged"
+# S1-5 data-off-main/seed-window: records-data had no ruleset between step 3's push and step 4's R-D, so read it
+# again right before the merge
+got=$(fetch_rd) || fail "could not read records-data before the merge"
+[ "$got" = "$seed" ] && [ "$(parents "$got")" = 0 ] \
+  || fail "records-data reads ${got:-nothing}, no longer the seed $seed pushed in step 3 (S1-5): nothing is merged"
+echo "records-data is still the seed $seed."
 echo "Step 5: scripts/merge-reviewed.sh $pr $sha (main $now = the pinned baseline)."
 merge_from=$now
 out=$(run_merge_reviewed "$pr" "$sha" "${reports[@]}" 2>&1); mrc=$?

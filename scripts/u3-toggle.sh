@@ -123,7 +123,7 @@ restore() {   # $1 source json, $2 its name; three tries
 pin_ok() {
   local strip='del(.rules[] | select(.type == "pull_request") | .parameters | (.required_approving_review_count, .require_last_push_approval, .require_code_owner_review))'
   [ "$(jq -S -c "$wl | $strip" "$r1pp" 2>/dev/null)" = "$(jq -S -c "$wl | $strip" "$r1p" 2>/dev/null)" ] || return 1
-  [ "$(jq -c '[.rules[] | select(.type == "pull_request") | .parameters | .required_approving_review_count, .require_last_push_approval, .require_code_owner_review]' "$r1pp" 2>/dev/null)" = '[2,true,false]' ]
+  [ "$(jq -c '[.rules[] | select(.type == "pull_request") | .parameters | .required_approving_review_count, .require_last_push_approval, .require_code_owner_review]' "$r1pp" 2>/dev/null)" = '[10,true,false]' ]
 }
 
 if [ "$mode" = restore ]; then
@@ -159,7 +159,7 @@ hm=$(date -u +%H%M)
 if [ $((10#$hm)) -ge 730 ] && [ $((10#$hm)) -le 1030 ]; then
   refuse "it is ${hm:0:2}:${hm:2:2} UTC: a run started from 07:30 to 10:30 could reach the daily run's window (08:00-10:30); run it later"
 fi
-pin_ok || refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (2 approvals, last-push approval, no code-owner review)"
+pin_ok || refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (10 approvals: S1-1, the API maximum; last-push approval, no code-owner review)"
 runs=$(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?per_page=30" --jq '.workflow_runs[].status') \
   || refuse "could not read the daily-update runs"
 busy=$(printf '%s\n' "$runs" | grep -cv -e '^completed$' -e '^$')

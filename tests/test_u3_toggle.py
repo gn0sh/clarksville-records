@@ -212,12 +212,17 @@ def _assert_restored(r, made, verdict):
 def test_r1pp_json_is_adr_0011_decision_5_and_otherwise_r1_prime():
     adr = (ROOT / "docs" / "adr" / "0011-data-off-main.md").read_text(encoding="utf-8")
     d5 = adr[adr.index("5. **Ruleset R1'' on `main`:**"):adr.index("\n6. ")]   # 6 may carry an amendment note
-    for s in ("`required_approving_review_count: 2`", "`dismiss_stale_reviews_on_push: true`",
+    # The count is 10 since S1-1 (main-protect/approval-margin: the ruleset API maximum); decision 5's text is the
+    # architect's to amend, so only the parameter's name is pinned here.
+    for s in ("`required_approving_review_count", "`dismiss_stale_reviews_on_push: true`",
               "`require_last_push_approval: true`", "`require_code_owner_review: false`", "squash only",
               "bypass Repository admin role", "`pull_request` mode"):
         assert s in d5, s
     pr = [x for x in R1PP["rules"] if x["type"] == "pull_request"][0]["parameters"]
-    assert pr["required_approving_review_count"] == 2 and pr["dismiss_stale_reviews_on_push"] is True
+    assert pr["required_approving_review_count"] == 10 and pr["dismiss_stale_reviews_on_push"] is True
+    for f in ("u3-toggle.sh", "u3-toggle.ps1"):   # the pin follows the json (S1-1)
+        text = (ROOT / "scripts" / f).read_text(encoding="utf-8")
+        assert ("'[10,true,false]'" in text or "-ceq '10'" in text) and "'[2,true,false]'" not in text, f
     assert pr["require_last_push_approval"] is True and pr["require_code_owner_review"] is False
     assert pr["allowed_merge_methods"] == ["squash"]
     assert R1PP["bypass_actors"] == [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
