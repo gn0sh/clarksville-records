@@ -388,3 +388,43 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   written (`scripts/u3-toggle.ps1:344-348`). PR #58 head 4f2aa8c0
   was reviewed just after the merge, not before (`docs/reviews/pr58-code-review.md`, approve with nits; its 3 nits
   are applied above). The gate is open for B1..D2.
+
+## Census geocoder, geographies (verified 2026-11-19 by the software-architect for daylight-national)
+How: the Census API documentation page (`https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html`) and
+ONE geographies query, `.../geocoder/geographies/onelineaddress?address=1 Public Sq, Clarksville, TN&benchmark=4&
+vintage=4&layers=all&format=json`, both read through the WebFetch tool, whose small model returned the fields (a
+relayed reading, not raw bytes; re-check the raw JSON in a browser before relying on a field not listed here). The
+team's Bash egress proxy refuses `geocoding.geo.census.gov` and `tigerweb.geo.census.gov` (CONNECT 403, 2026-11-19).
+- **Docs:** `layers` is "a comma delimited list by ID or name as listed in the TIGERweb WMS layers"; `layers=all` is
+  accepted; examples `layers=14,16,18` and `layers=Unified+School+Districts,Secondary+School+Districts,Elementary+
+  School+Districts`. `format` json or jsonp, `callback` names the function; "the geocoder does not support CORS
+  requests". No rate limit stated. Default geographies layers include Incorporated Places, Census Designated Places,
+  County Subdivisions, Counties, congressional and state legislative districts; school districts are not default.
+- **Benchmark 4 = `Public_AR_Current`, vintage 4 = `Current_Current`** (both `isDefault: true`).
+- **Matched:** "1 PUBLIC SQ, CLARKSVILLE, TN, 37040", x -87.361481272763, y 36.527643783069.
+- **Layer names returned with `layers=all`** (exact): 2020 Census Public Use Microdata Areas, 2020 Census ZIP Code
+  Tabulation Areas, Urban Areas, Incorporated Places, Counties, Unified School Districts, 2020 Census Blocks, States,
+  Census Block Groups, County Subdivisions, 2026 State Legislative Districts - Upper, Census Divisions, 120th
+  Congressional Districts, 2026 State Legislative Districts - Lower, Census Regions, Metropolitan Statistical Areas,
+  Census Tracts. No Secondary or Elementary School Districts and no Census Designated Places here (a layer with no
+  unit at the point is left out). Some names carry a year, so read layers by exact name.
+- **Incorporated Places:** NAME "Clarksville city", BASENAME "Clarksville", GEOID 4715160, STATE 47, PLACE 15160,
+  FUNCSTAT A, LSADC 25, PLACECC C1, MTFCC G4110.
+- **Counties:** NAME "Montgomery County", GEOID 47125, COUNTY 125, FUNCSTAT A, LSADC 06, COUNTYCC H1, MTFCC G4020.
+- **County Subdivisions:** NAME "District 5", BASENAME "5", GEOID 4712590886, FUNCSTAT **N**, LSADC 28, COUSUBCC Z1,
+  MTFCC G4040. In Tennessee the county subdivisions are county commission districts, not governments: FUNCSTAT N
+  tells them apart.
+- **Unified School Districts:** NAME "Clarksville-Montgomery County School System", GEOID 4703030, SDUNI 03030,
+  FUNCSTAT **E**, LSADC 00, LOGRADE PK, HIGRADE 12, SDTYP empty, MTFCC G5420.
+- Every layer also carries OBJECTID, OID, AREALAND, AREAWATER, CENTLAT/CENTLON, INTPTLAT/INTPTLON.
+
+## Clarksville upcoming agendas in the data (checked 2026-11-19 from code and the data files on the branch)
+- County Commission: `data/county-agendas/agendas.json` holds each agenda-only meeting's items with `title` as printed
+  (whitespace joined, a word broken at a line end joined), `number`, `printed`, `section`, `page`, and each source's
+  URL (`collector/county_agenda.py`). 14 meetings, 2026-05-04 to 2026-11-09, in the copy on the branch (fetched
+  2026-11-10).
+- City Council: meetings carry `agenda_url` and `agenda_source_id`, but every `item_events` row comes from minutes
+  (1,759 motions, 2,405 roll calls; 0 from agenda sources). Upcoming council agenda items are not stored. Neither body
+  stores a meeting time.
+- Morning note sender: reads only `note-` tags (`sender/common.py` `read_tags`, `sender/deliver.py` `recipient`), so a
+  subscriber with other tags only has an empty selection (code read; no test pins it yet).
