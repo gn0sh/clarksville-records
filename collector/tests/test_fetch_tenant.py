@@ -423,17 +423,107 @@ def test_robots_txt_redirecting_into_an_already_blocked_tenant_blocks_the_host()
     assert len(net.calls) == n + 1
 
 
-def test_robots_txt_hop_into_a_capped_tenant_caches_disallow_and_still_reports_the_cap():
-    """4.4.1 consumer 6 (reviewer nit 6): robots.txt redirects into a tenant whose cap is used up."""
+def test_robots_txt_hop_into_a_capped_tenant_is_a_refused_robots_not_a_host_cap():
+    """4.4.1 consumer 6 (nit 6) and fresh-review nit 3: robots.txt redirects into a tenant whose cap is used up. The
+    exact host's robots.txt is cached as unreadable (disallow_all); no host cap is recorded."""
+    from collector.fetch import RobotsDisallowed
     f, net, _ = make({f"{H}/robots.txt": (302, b"", {"Location": f"{H}/v1/zz/robots"}),
                       f"{H}/v1/zz/robots": (200, b""), f"{H}/v1/ta/e": (200, b"[]")})
     f.limit_tenant(f"{H}/v1/zz/robots", 0)
     for _ in range(3):
-        with pytest.raises(RequestCapReached):
+        with pytest.raises(RobotsDisallowed):
             f.get(f"{H}/v1/ta/e")
     assert urls(net) == [f"{H}/robots.txt"]       # robots.txt asked once; never re-asked, the tenant never asked
     assert f._robots["webapi.legistar.com"].disallow_all
+    assert not f._robots_capped                    # not marked as a host cap
+    assert f.remaining_tenant(f"{H}/v1/ta/e") is None and f.remaining("webapi.legistar.com") is None
     assert [e["event"] for e in f.log].count("robots_refused") == 1
+
+
+def test_robots_txt_at_the_host_cap_caches_disallow_and_still_reports_the_cap():
+    f, net, _ = make({f"{H}/v1/ta/e": (200, b"[]")})
+    f.limit_hosts(("webapi.legistar.com",), 0)
+    for _ in range(3):
+        with pytest.raises(RequestCapReached):
+            f.get(f"{H}/v1/ta/e")
+    assert net.calls == []
+    assert f._robots["webapi.legistar.com"].disallow_all and "webapi.legistar.com" in f._robots_capped
+    assert [e["event"] for e in f.log].count("robots_refused") == 1
+
+
+def test_a_robots_txt_hop_cannot_leave_a_capped_tenant():
+    """national/tenant-cap-redirect: /robots.txt -> /v1/ta/robots.txt (ta capped, 1 left) -> /v1/tb/robots.txt."""
+    from collector.fetch import RobotsDisallowed
+    f, net, _ = make({f"{H}/robots.txt": (302, b"", {"Location": f"{H}/v1/ta/robots.txt"}),
+                      f"{H}/v1/ta/robots.txt": (302, b"", {"Location": f"{H}/v1/tb/robots.txt"}),
+                      f"{H}/v1/tb/robots.txt": (200, b""), f"{H}/v1/tc/e": (200, b"[]")})
+    f.limit_tenant(f"{H}/v1/ta/x", 1)
+    with pytest.raises(RobotsDisallowed):
+        f.get(f"{H}/v1/tc/e")
+    assert urls(net) == [f"{H}/robots.txt", f"{H}/v1/ta/robots.txt"]     # tb never asked
+    assert any(e["event"] == "refused" and "capped tenant" in e["detail"] for e in f.log)
+    assert f._robots["webapi.legistar.com"].disallow_all
+
+
+@pytest.mark.parametrize("host", ["x.webapi.legistar.com", "salem.webapi.legistar.com", "a.b.webapi.legistar.com",
+                                  "www.x.webapi.legistar.com"])
+def test_a_subdomain_of_a_shared_host_is_refused_with_no_request(host):
+    from collector.fetch import TenantPathRefused
+    url = f"https://{host}/v1/salem/events"
+    f, net, _ = make({url: (200, b"[]")})
+    with pytest.raises(TenantPathRefused):
+        f.get(url)
+    assert net.calls == []
+    with pytest.raises(TenantPathRefused):
+        tenant_key(url)
+
+
+def test_a_redirect_to_a_subdomain_of_a_shared_host_is_refused():
+    from collector.fetch import TenantPathRefused
+    f, net, _ = make({f"{H}/v1/ta/x": (302, b"", {"Location": "https://x.webapi.legistar.com/v1/salem/e"})})
+    with pytest.raises(TenantPathRefused):
+        f.get(f"{H}/v1/ta/x")
+    assert urls(net) == [f"{H}/robots.txt", f"{H}/v1/ta/x"]
+
+
+class _BadBody:
+    def __init__(self, exc):
+        self.exc = exc
+
+    def read(self, *a):
+        raise self.exc
+
+    def close(self):
+        pass
+
+
+@pytest.mark.parametrize("exc_name", ["ConnectionResetError", "TimeoutError", "IncompleteRead"])
+@pytest.mark.parametrize("host_url", [f"{H}/v1/ta/e", "https://h.example/a"])
+def test_a_403_whose_body_cannot_be_read_still_blocks_the_host(exc_name, host_url):
+    """fetch/403-body-read-escapes: the read failing must not escape before the block is recorded."""
+    import http.client
+    import io
+    import urllib.error
+    exc = http.client.IncompleteRead(b"") if exc_name == "IncompleteRead" else {
+        "ConnectionResetError": ConnectionResetError("reset"), "TimeoutError": TimeoutError("slow")}[exc_name]
+    calls = []
+
+    def opener(req, timeout):
+        calls.append(req.full_url)
+        if req.full_url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(req.full_url, 404, "x", {}, io.BytesIO(b""))
+        raise urllib.error.HTTPError(req.full_url, 403, "x", {}, _BadBody(exc))
+
+    clock = Clock()
+    f = PoliteFetcher(opener=opener, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("webapi.legistar.com", "h.example"))
+    with pytest.raises(HostBlocked) as e:
+        f.get(host_url)
+    assert not isinstance(e.value, TenantBlocked)
+    n = len(calls)
+    with pytest.raises(HostBlocked):
+        f.get(host_url.rsplit("/", 1)[0] + "/other")
+    assert len(calls) == n                          # zero requests after the 403
 
 
 def test_robots_txt_hop_to_a_non_canonical_shared_path_caches_disallow_all():

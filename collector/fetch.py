@@ -48,8 +48,9 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   /v1/ client that is not 2-40 letters, digits, hyphens) is refused with no request (TenantPathRefused), never
   rewritten. Case is the only variation mapped: /V1/Salem is /v1/salem. robots.txt is never a tenant: any 403 while
   reading it, a redirect hop included, stops the host (national/tenant-robots-host-block); a refused hop or a cap
-  while reading it caches disallow_all for that host (a cap is still raised as RequestCapReached). Callers that treat
-  a tenant apart catch TenantBlocked before HostBlocked.
+  while reading it caches disallow_all for that host (a host cap is still raised as RequestCapReached; a tenant cap,
+  TenantCapReached, is a refused robots.txt and caps no other tenant). A subdomain of a shared host is refused.
+  Callers that treat a tenant apart catch TenantBlocked before HostBlocked.
 """
 from __future__ import annotations
 
@@ -136,6 +137,11 @@ class RequestCapReached(Exception):
     """The run's request cap for this host's cap group (limit_hosts) is used up. No request was made."""
 
 
+class TenantCapReached(RequestCapReached):
+    """The run's request cap for this one tenant (limit_tenant) is used up. No request was made. The host's other
+    tenants are not capped by it."""
+
+
 class FetchFailed(Exception):
     """Server error after one retry, a too-large body, or a network error."""
 
@@ -211,7 +217,8 @@ def shared_path(url: str) -> tuple[str, str | None]:
     segments of letters, digits, "_" and "-" joined by single inner dots, one optional trailing "/", nothing else (no
     "%", empty segment, dot segment, leading or trailing dot, backslash, ";", "+" or non-ASCII); and a /v1/ client
     must be 2-40 letters, digits or hyphens. Case is the only variation mapped (Legistar treats it as one client). The
-    query is not part of the key. A host that is not shared, or a malformed URL, is (site, None)."""
+    query is not part of the key. A subdomain of a shared host (other than "www.", which site_key folds into it) is
+    TenantPathRefused. A host that is not shared, or a malformed URL, is (site, None)."""
     try:
         p = urllib.parse.urlsplit(url)
         host = p.hostname or ""
@@ -220,6 +227,9 @@ def shared_path(url: str) -> tuple[str, str | None]:
     site = site_key(host)
     pattern = SHARED_HOSTS.get(site)
     if pattern is None:
+        under = next((h for h in SHARED_HOSTS if site.endswith("." + h)), None)
+        if under is not None:                # national/tenant-block-escape: x.webapi.legistar.com skips the rules
+            raise TenantPathRefused(f"{url}: a subdomain of shared host {under}; not fetched")
         return site, None
     path = p.path or "/"
     if not SHARED_PATH.fullmatch(path):
@@ -460,7 +470,7 @@ class PoliteFetcher:
         if tenant is not None and self.remaining_tenant(url) == 0:
             self.log.append({"event": "cap", "host": host, "url": url, "tenant": tenant,
                              "detail": "tenant request cap used up"})
-            raise RequestCapReached(f"{tenant}: the run's tenant request cap is used up; {url} was not requested")
+            raise TenantCapReached(f"{tenant}: the run's tenant request cap is used up; {url} was not requested")
         self._wait(host)
         self._sent[key] = self.sent(host) + 1
         if tenant is not None:
@@ -479,7 +489,10 @@ class PoliteFetcher:
             if e.code in (403, 429):
                 if e.code == 403 and self._proxy_said_403(host, started):
                     raise self._note_proxy_refusal(host, url, "HTTP 403 recorded by the proxy") from None
-                body = e.read(BLOCK_BODY_BYTES) or b""
+                try:
+                    body = e.read(BLOCK_BODY_BYTES) or b""
+                except (OSError, http.client.HTTPException):
+                    body = b""      # fetch/403-body-read-escapes: an unreadable body is not JSON, so a host block
                 snippet = body[:200].decode("utf-8", "replace")
                 reason = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
                           f"body={snippet!r}")
@@ -550,8 +563,8 @@ class PoliteFetcher:
                 # neither re-request robots.txt nor fetch the host (scheme-refusal-stops-host; 4.4.1 consumer 6, a
                 # hop refused or into a capped tenant). Caps only ever lower, so nothing would become fetchable later.
                 self.log.append({"event": "robots_refused", "host": host, "url": url, "detail": str(e)})
-                if isinstance(e, RequestCapReached):
-                    self._robots_capped[exact] = str(e)
+                if isinstance(e, RequestCapReached) and not isinstance(e, TenantCapReached):
+                    self._robots_capped[exact] = str(e)    # a host cap: later get()s report the cap, not robots
                 refused = True
             if refused:
                 rp.disallow_all = True
@@ -590,6 +603,7 @@ class PoliteFetcher:
         self.check_url(nxt)                     # every hop, not only the first URL: no http:// or other port
         self.check_host(host)
         self.check_redirect(urllib.parse.urlsplit(url).netloc, host)
+        self.check_tenant_redirect(url, nxt)    # national/tenant-cap-redirect: robots.txt hops obey it too
         return nxt
 
     def get(self, url: str, _hops: int = 0, _headers: dict | None = None) -> tuple[int, bytes, dict]:
@@ -608,9 +622,7 @@ class PoliteFetcher:
             if _hops >= MAX_REDIRECTS:
                 raise FetchFailed(f"{url}: more than {MAX_REDIRECTS} redirects")
             # the validators belong to the URL they were stored for: a redirect's target gets the plain GET
-            nxt = self._location(url, headers)
-            self.check_tenant_redirect(url, nxt)
-            return self.get(nxt, _hops + 1)
+            return self.get(self._location(url, headers), _hops + 1)
         return status, body, headers
 
     def get_if_changed(self, url: str, etag: str | None = None,
