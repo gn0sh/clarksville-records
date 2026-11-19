@@ -246,11 +246,13 @@ def test_on_a_touch_screen_details_and_show_more_are_44px_and_cover_no_link(buil
 
 
 def test_the_smallest_labels_share_one_size():
-    assert re.search(r"--t-eyebrow: \.72rem;", CSS)
-    for sel in (".day-dow", ".meet-date .dow, .meet-date .mon", ".filters label", ".day-when"):
+    # the gnoshcodes 12px floor (design system, 2026-11-19): the smallest size is .75rem, and nothing is set below it
+    assert re.search(r"--t-eyebrow: \.75rem;", CSS)
+    for sel in (".day-dow", ".meet-date .dow, .meet-date .mon", ".filters label", ".day-when", ".plate-place"):
         assert "font-size: var(--t-eyebrow)" in rule(sel), sel
-    small = re.findall(r"(?m)^([^{}\n]+)\{[^}]*font-size: \.6\d*rem", CSS)
-    assert [s.strip() for s in small] == [".plate-place"]      # the name plate's place line: it must fit at 375px
+    sizes = re.findall(r"font-size: (0?\.\d+)rem", CSS)
+    assert sizes and min(float(v) for v in sizes) >= .75, sorted(set(sizes))
+    assert not re.search(r"font-size: (?:\d|1[01])(?:\.\d+)?px", CSS)
 
 
 def test_one_heading_system():
