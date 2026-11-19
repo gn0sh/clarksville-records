@@ -483,7 +483,7 @@ def collect(data_root: Path, directory: Directory, fetcher, budget: int, now: da
             clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
     """check_data_root -> read_previous -> run (cache `data_root/cache`, pruned first) -> write_outputs. The directory
     is never written. A directory `check_host_ok` refuses raises before anything is read or written."""
-    check_host_ok(directory)
+    check_host_ok(directory)                           # on purpose: run() checks again, but this one runs before data_root is read
     root = check_data_root(data_root)
     feeds, health, proposals = read_previous(root)
     result = run(directory, fetcher, budget, now, previous_feeds=feeds, previous_health=health,

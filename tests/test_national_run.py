@@ -600,8 +600,10 @@ def test_daylight_and_no_platform_entries_need_no_host_ok(tmp_path):
     nothing, there being no Legistar entry)."""
     daylight = {"gov": "place-4715160", "also": [], "status": "covered", "platform": "daylight",
                 "daylight": {"body": "city", "full_url": "city/"}}
-    r = nr.run(nat.Directory(govs=(daylight, CANT), alias={}), fetcher(Net()), 100, NOW)
+    net = Net()
+    r = nr.run(nat.Directory(govs=(daylight, CANT), alias={}), fetcher(net), 100, NOW)
     assert r.outcomes == {}
+    assert net.calls == []
 
 
 def test_read_body_refuses_an_entry_without_host_ok():
