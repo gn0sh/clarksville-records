@@ -12,3 +12,9 @@ Reviewer: code-reviewer, opus/high, 2026-11-19. Verdict: APPROVE WITH NITS, find
 
 Checked and sound: check order in _raw_get, second-tenant escalation, 429/robots/non-tenant/non-object JSON host blocks,
 cap semantics, cross-tenant and cross-host redirect refusal, per-host delay and robots, unchanged non-shared-host behaviour.
+
+## Delta 3974975 (resumed reviewer): APPROVE WITH NITS
+Findings 1-4 fixed and hold (probe re-run). New:
+5. nit `national/tenant-block-escape` (2nd hit): `//v1/salem/events` and `/%2fv1/salem/events` reach a blocked tenant
+   (fetch.py ambiguous_tenant_path ~236). Loop rule: architect states the invariant first.
+6. nit `national/tenant-robots-host-block`: robots() hop into a capped tenant raises RequestCapReached, nothing cached.
