@@ -40,12 +40,36 @@ def _date(value, where: str) -> str | None:
     raise SeatsError(f"{where}: {value!r} is not a YYYY-MM-DD date")
 
 
+AT_LARGE_SEAT = "at-large"
+
+
+def title_slug(title: str) -> str:
+    """'Vice Mayor' -> 'vice-mayor': the slug of a printed title word (seat `title-<slug>`, ADR 0012 decision 5)."""
+    return re.sub(r"[^a-z0-9]+", "-", title.casefold()).strip("-")
+
+
+def at_large_seats() -> dict[str, str] | None:
+    """For an at-large primary (config.PRIMARY `seats: at_large`): {seat: label}, the title seats in `titles` order,
+    then `at-large`. The labels are the printed title words and "<member_title>, at large"; never who holds them.
+    None for any other site, so a district or ward site's seat words and order are untouched."""
+    p = config.PRIMARY
+    if p.get("seats") != "at_large":
+        return None
+    out = {f"title-{title_slug(t)}": t for t in p.get("titles") or []}
+    out[AT_LARGE_SEAT] = f"{p['member_title']}, at large" if p.get("member_title") else "At large"
+    return out
+
+
 def seat_label(seat: str) -> str:
-    """'district-7' -> 'District 7', 'ward-3' -> 'Ward 3', other seats by their configured label."""
+    """'district-7' -> 'District 7', 'ward-3' -> 'Ward 3', 'title-vice-mayor' -> 'Vice Mayor' and 'at-large' ->
+    'Councilmember, at large' (an at-large primary), other seats by their configured label."""
     m = SEAT_RE.match(seat)
     if m:
         word = config.SITE["district_label"] if m.group(1) == "district" else config.SITE["ward_label"]
         return f"{word} {int(m.group(2))}"
+    at_large = at_large_seats()
+    if at_large and seat in at_large:
+        return at_large[seat]
     for s in config.SITE["other_seats"]:
         if s["seat"] == seat:
             return s["label"]
@@ -53,10 +77,15 @@ def seat_label(seat: str) -> str:
 
 
 def seat_order(seat: str) -> tuple:
-    """Districts by number, then wards by number, then other seats in the configured order (design 6A.3)."""
+    """Districts by number, then wards by number, then other seats in the configured order (design 6A.3). On an
+    at-large site the title seats come first, in `titles` order, then `at-large`: this orders one member's own records
+    (so the title held on a date is found before the membership label, Seats.on), never the members themselves."""
     m = SEAT_RE.match(seat)
     if m:
         return (0 if m.group(1) == "district" else 1, int(m.group(2)), "")
+    at_large = at_large_seats()
+    if at_large and seat in at_large:
+        return (-1, list(at_large).index(seat), seat)
     others = [s["seat"] for s in config.SITE["other_seats"]]
     return (2, others.index(seat) if seat in others else len(others), seat)
 

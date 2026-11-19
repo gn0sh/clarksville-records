@@ -444,7 +444,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
           rpc=DEFAULT, today=None, county_agendas=DEFAULT, morning_manifests=DEFAULT,
           export: bool = True, fetch_manifests=DEFAULT, county_committees=DEFAULT, vote_lists: bool = True,
-          city_budget: bool = True, city_committees=DEFAULT, general_fund_dollar: bool = True) -> dict:
+          city_budget: bool = True, city_committees=DEFAULT, general_fund_dollar: bool = True,
+          city: str | None = None) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -495,10 +496,17 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     card, as when the books are not collected; the full site has them).
     `city_committees`: config/site.yml `city_committees:` as committees.load_config returns it, or None for no
     committee pages; left out, that block (sitegen/committees.py). A real committees.json is built only beside real
-    facts, a FIXTURE one only beside fixture facts."""
+    facts, a FIXTURE one only beside fixture facts.
+    `city`: the city the caller means to build (`--city`). The settings are read once, at import, for config.CITY
+    (ADR 0012 decision 1), so another city is refused: it needs a new process. None: config.CITY."""
+    if city is not None and city != config.CITY:
+        raise BuildError(f"sitegen was loaded for {config.CITY}; run a new process for {city}")
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
+    if target == "pages" and config.CITY_STATUS != "live":    # a draft city is never built for the public host
+        raise BuildError(f"{config.CITY} is {config.CITY_STATUS}, not live: a pages build is for a live city only "
+                         "(build it with --target preview)")
     facts_path, out = Path(facts_path), Path(out_dir)
     facts = load_facts(facts_path)
     fixture = bool(facts.get("fixture"))

@@ -1,0 +1,18 @@
+Request behind escribe-GetCalendarMeetings-2026-06-01_2026-11-18.json (task E0, team cloud session,
+captured 2026-11-18/19, one request, robots.txt 404 read first).
+
+Method:  POST
+URL:     https://pub-salem.escribemeetings.com/MeetingsCalendarView.aspx/GetCalendarMeetings
+Headers: Content-Type: application/json; charset=utf-8   (inferred: an ASP.NET page method takes JSON)
+Body:    {"calendarStartDate": "2026-06-01", "calendarEndDate": "2026-11-18"}
+         key names: inferred (the call the public calendar page makes; the capture did not record the body).
+         date format YYYY-MM-DD: inferred. Whether the end date is inclusive: unknown (the answer has a meeting on
+         2026-11-17 and none on 2026-11-18).
+
+Answer:  200, application/json, {"d": [meeting, ...]}, 27 meetings, 133,302 bytes as captured.
+
+Trimmed for the tests (2026-11-19): 6 of the 27 meetings (council with PDF minutes; council with PDF and HTML
+minutes; council without minutes; a work session; a special meeting with only an AgendaCover; the Salem Housing
+Authority), only the fields collector/escribe.py reads (meeting ID, MeetingName, StartDate, Url; per document
+Type, Format, Url), at most one AdditionalDocuments entry per meeting. Values are unchanged. Dropped: the meeting
+location and address, share and live-stream links, flags, document titles and labels.

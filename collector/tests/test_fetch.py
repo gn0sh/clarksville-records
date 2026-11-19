@@ -1,5 +1,6 @@
 """Polite fetcher tests: robots.txt obeyed, 10 s per host, stop on 403/429. No network."""
 import io
+import json
 import urllib.error
 
 import pytest
@@ -580,6 +581,37 @@ def test_host_matches_is_the_public_host_rule():
     assert county_agenda.host_matches is fetch.host_matches and fin_run.host_matches is fetch.host_matches
 
 
+def test_a_trailing_dot_never_matches_an_allowlist():
+    # fetch-host/trailing-dot-denied: the dot-strip widens the DENIED side only; an ALLOW check stays exact
+    from collector import county_agenda, fetch, fin_run
+    assert fetch.host_matches("h.example", ("h.example",)) and fetch.host_matches("a.h.example:443", ("h.example",))
+    for host in ("h.example.", "a.h.example.", "H.EXAMPLE.:443"):
+        assert not fetch.host_matches(host, ("h.example",)), host
+    assert not fetch.host_matches("h.example", ("h.example.",))          # nor does a dotted name in the list
+    assert not county_agenda.allowed_url("https://mcgtn.org./x.pdf") and county_agenda.allowed_url("https://mcgtn.org/x.pdf")
+    assert not county_agenda.allowed_url("https://www.montgomerytn.gov./x.pdf")
+    from types import SimpleNamespace
+    cfg = SimpleNamespace(bonfire_hosts=())
+    assert fin_run.precheck("https://h.example./a.pdf", cfg, ("h.example",))[1].startswith("host not on the allowlist")
+    assert fin_run.precheck("https://h.example/a.pdf", cfg, ("h.example",)) is None
+
+
+def test_a_trailing_dot_still_matches_a_denied_host():
+    # fetch-host/trailing-dot-denied: "cityofclarksville.com." is the same host as cityofclarksville.com
+    from collector import fetch
+    for host in ("cityofclarksville.com.", "www.cityofclarksville.com.", "CITYOFCLARKSVILLE.COM.:443"):
+        assert fetch.host_denied(host, fetch.DENIED_HOSTS), host
+    assert fetch.host_denied("h.example", ("h.example.",)) and not fetch.host_denied("h.example..", ("h.example",))
+    assert not fetch.host_denied("evilh.example.", ("h.example",)) and not fetch.host_denied("h.example.net.", ("h.example",))
+    f, net, _ = make({})
+    with pytest.raises(HostRefused, match="denied in code"):
+        f.get("https://cityofclarksville.com./x.pdf")
+    assert f.log[-1]["detail"] == "denied host" and net.calls == []
+    with pytest.raises(HostRefused, match="not on the allowlist"):     # otherwise unchanged: never an allowed host
+        f.get("https://h.example./a.pdf")
+    assert net.calls == []
+
+
 class HeaderNet:
     """Records each request's conditional headers; `answers` is url -> list of (status, body, headers) in order."""
 
@@ -663,3 +695,114 @@ def test_a_304_never_skips_or_shortens_the_crawl_delay():
     assert clock.slept == [30.0] * 4
     gets = [(x["url"], x["detail"]) for x in f.log if x["event"] == "get" and x["url"] != sent[0][0]]
     assert gets == [(u, "304"), (v, "304"), (u, "200"), (v, "304")]   # a 304 is logged as the request it was
+
+
+# ------------------------------------------------------------------ post_json (ADR 0012 A1.4)
+CAL = "https://h.example/MeetingsCalendarView.aspx/GetCalendarMeetings"
+
+
+class PostNet:
+    """Records method, URL, body and headers of each request; `answers` is url -> (status, body, headers)."""
+
+    def __init__(self, answers):
+        self.answers, self.seen = answers, []
+
+    def __call__(self, req, timeout):
+        url = req.full_url
+        self.seen.append((req.get_method(), url, req.data, dict(req.header_items())))
+        status, body, headers = self.answers.get(url, (404, b"", {}))
+        if status >= 300:
+            raise urllib.error.HTTPError(url, status, "x", headers, io.BytesIO(body))
+        return FakeResp(body, status, headers)
+
+
+def make_post(answers, post_paths=(("h.example", "/MeetingsCalendarView.aspx/GetCalendarMeetings"),)):
+    net, clock = PostNet(answers), Clock()
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example", "g.example"), post_paths=post_paths)
+    return f, net, clock
+
+
+def test_post_json_sends_only_the_payload_as_json_and_waits_the_host_delay():
+    from collector.fetch import USER_AGENT
+    f, net, clock = make_post({CAL: (200, b'{"d": []}', {"Content-Type": "application/json"})})
+    status, body, _ = f.post_json(CAL, {"calendarStartDate": "2026-07-01", "calendarEndDate": "2026-12-31"})
+    assert (status, body) == (200, b'{"d": []}')
+    assert [(m, u) for m, u, *_ in net.seen] == [("GET", "https://h.example/robots.txt"), ("POST", CAL)]
+    _, _, data, headers = net.seen[1]
+    assert json.loads(data) == {"calendarStartDate": "2026-07-01", "calendarEndDate": "2026-12-31"}
+    assert headers == {"Content-type": "application/json; charset=utf-8", "User-agent": USER_AGENT}   # no cookie
+    assert clock.slept == [10.0]
+    f.post_json(CAL, {})
+    assert clock.slept == [10.0, 10.0]                         # MIN_DELAY before every request
+    assert [x["event"] for x in f.log if x["url"] == CAL] == ["post", "post"]
+
+
+@pytest.mark.parametrize("url", ["https://h.example/Other.aspx/GetCalendarMeetings",
+                                 "https://g.example/MeetingsCalendarView.aspx/GetCalendarMeetings",
+                                 CAL + "?x=1", CAL + "#f", CAL.lower(),
+                                 "http://h.example/MeetingsCalendarView.aspx/GetCalendarMeetings",
+                                 "https://h.example:8443/MeetingsCalendarView.aspx/GetCalendarMeetings",
+                                 "https://elsewhere.example/MeetingsCalendarView.aspx/GetCalendarMeetings",
+                                 "https://cityofclarksville.com/MeetingsCalendarView.aspx/GetCalendarMeetings"])
+def test_post_to_an_undeclared_path_or_host_is_refused_with_no_request(url):
+    f, net, _ = make_post({})
+    with pytest.raises(HostRefused):
+        f.post_json(url, {"a": 1})
+    assert net.seen == []
+
+
+def test_a_fetcher_with_no_post_paths_never_posts():
+    f, net, _ = make({})
+    with pytest.raises(HostRefused, match="not a declared POST path"):
+        f.post_json("https://h.example/MeetingsCalendarView.aspx/GetCalendarMeetings", {})
+    assert net.calls == []
+
+
+def test_post_refused_when_robots_disallows_it():
+    robots = b"User-agent: *\nDisallow: /MeetingsCalendarView.aspx\n"
+    f, net, _ = make_post({"https://h.example/robots.txt": (200, robots, {})})
+    with pytest.raises(RobotsDisallowed):
+        f.post_json(CAL, {})
+    assert [m for m, *_ in net.seen] == ["GET"]                # robots.txt only
+
+
+@pytest.mark.parametrize("code", [301, 302, 303, 307, 308, 304])
+def test_a_3xx_answer_to_a_post_is_a_failure_never_followed(code):
+    from collector.fetch import FetchFailed
+    f, net, _ = make_post({CAL: (code, b"", {"Location": "https://h.example/elsewhere"})})
+    with pytest.raises(FetchFailed, match="never follows"):
+        f.post_json(CAL, {})
+    assert [u for _, u, *_ in net.seen] == ["https://h.example/robots.txt", CAL]
+
+
+def test_a_post_answer_is_capped_at_5_mb():
+    from collector.fetch import MAX_POST_BYTES, FetchFailed
+    assert MAX_POST_BYTES == 5 * 1024 * 1024
+    f, _, _ = make_post({CAL: (200, b"x" * (MAX_POST_BYTES + 1), {})})
+    with pytest.raises(FetchFailed, match="larger than"):
+        f.post_json(CAL, {})
+    f, _, _ = make_post({CAL: (200, b"x" * MAX_POST_BYTES, {})})
+    assert len(f.post_json(CAL, {})[1]) == MAX_POST_BYTES
+
+
+def test_a_post_obeys_the_block_rule_and_the_request_cap():
+    from collector.fetch import RequestCapReached
+    f, net, _ = make_post({CAL: (429, b"", {})})
+    with pytest.raises(HostBlocked):
+        f.post_json(CAL, {})
+    with pytest.raises(HostBlocked):
+        f.post_json(CAL, {})
+    assert len([1 for m, *_ in net.seen if m == "POST"]) == 1   # never asked again
+    f, net, _ = make_post({CAL: (200, b"{}", {})})
+    f.limit_hosts(("h.example",), 2)
+    f.post_json(CAL, {})
+    with pytest.raises(RequestCapReached):
+        f.post_json(CAL, {})
+
+
+def test_get_is_unchanged_by_post_paths():
+    f, net, _ = make_post({"https://h.example/a.pdf": (200, b"%PDF", {})})
+    assert f.get("https://h.example/a.pdf")[1] == b"%PDF"
+    assert [(m, d) for m, _, d, _ in net.seen] == [("GET", None), ("GET", None)]
+    assert [x["event"] for x in f.log] == ["get"]

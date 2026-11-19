@@ -82,6 +82,10 @@ READERS: dict[str, Reader] = {
         "Legistar Web API", "collector.legistar", "load_config",
         ("city", "client", "body_name", "official_title", "launch_days", "earliest", "vote_values", "kind_rules"),
         note="listing and vote rows only; not wired into a daily run yet"),
+    "escribe": Reader(
+        "eScribe meetings portal", "collector.escribe", "load_config",
+        ("city", "host", "body_names", "agenda_types", "minutes_types", "kind_rules", "launch_days"),
+        host_keys=("host",), link_keys=("video_hosts",)),
     "municode": Reader("Municode Meetings", None, None, note="wanted for Columbus GA and Fort Collins"),
     # Clarksville / Montgomery County only: their specifics live in code or in one locality's file.
     "county_minutes": Reader("Montgomery County Commission minutes", "collector.discover", None, shared=False,

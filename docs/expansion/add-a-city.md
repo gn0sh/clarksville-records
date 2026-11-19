@@ -26,6 +26,10 @@ This writes `config/cities/murfreesboro-tn/`:
 - `city.yml`: the city's settings. It starts as `status: draft`, with domain `murfreesboro.daylight.gnoshcodes.com`.
 - `agenda_center.yml`: the settings for the portal reader.
 - `platform-facts.md`: where you write down every check you make (robots.txt, terms, page layout).
+- `site.yml`: the site settings (ADR 0012): the place name, the primary body (`primary:`, including how members
+  are elected, `seats`, and the official page that says so, `seat_basis`), the bodies the "unofficial" notice
+  names, and the item types. The shared wording comes from `config/site.yml` and can't be set here.
+- `corrections-log.json`: the city's own corrections log, empty.
 
 Anything not yet checked against a real source is marked `UNVERIFIED`. On its own, `UNVERIFIED` means the value is
 still missing. In a comment after a value, it means the value is filled in but not yet checked.

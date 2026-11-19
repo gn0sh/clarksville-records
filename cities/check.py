@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import brand as brand_mod
 from .errors import CityError
-from .registry import ROOT, UNVERIFIED, check_recorded, load_city
+from .registry import ROOT, UNVERIFIED, check_recorded, is_unverified, load_city
 
 HOST_LINE = re.compile(r"^\s*(robots|terms):")
 
@@ -28,6 +28,28 @@ def _marks(path: Path, root: Path, skip_host_lines: bool) -> tuple[list[str], li
     return missing, verify
 
 
+def _site_items(city: dict) -> list[tuple[bool, str]]:
+    """A new city's site file: there is one, it names the primary body, and an at-large council's seat basis (the
+    official page saying members are elected at large) is recorded. A legacy settings file (Clarksville) has none."""
+    if city.get("settings"):
+        return []
+    if not city.get("site_file"):
+        return [(False, f"site: no site_file yet (config/cities/{city['slug']}/site.yml: the primary body, the place "
+                        "name)")]
+    primary = city["settings_data"].get("primary")
+    if not primary:
+        return [(False, f"site: {city['site_file']} has no primary: block (the body the site is built around)")]
+    out = [(True, f"site: {city['site_file']}, primary body {primary['key']}")]
+    basis = primary.get("seat_basis")
+    if primary["seats"] == "at_large" or basis is not None or is_unverified(primary["seats"]):
+        url = (basis or {}).get("url")
+        ok = bool(url) and not is_unverified(url) and not any(is_unverified(v) for v in basis.values())
+        out.append((ok, f"seat basis: {url}" if ok else
+                    "seat basis: not recorded (primary.seat_basis: the official page that says how members are "
+                    "elected); a pages build refuses it"))
+    return out
+
+
 def checklist(slug: str, root: Path = ROOT) -> tuple[list[tuple[bool, str]], bool, dict]:
     """[(done, line)], ready, the city. Raises CityError when the city file itself is invalid."""
     city = load_city(slug, root)
@@ -36,10 +58,12 @@ def checklist(slug: str, root: Path = ROOT) -> tuple[list[tuple[bool, str]], boo
     items.append((True, f"brand: {brand['site_name']} by {brand['operator']}; Buy Me a Coffee {brand['support_url']} "
                         "(shared, locked)"))
     items.append((True, f"platform facts: {city['platform_facts']}"))
-    files = [(city["_path"], True)] + [(root / s["config"], False) for s in city["sources"] if s.get("config")]
+    files = [(city["_path"], True)] + ([(root / city["site_file"], False)] if city.get("site_file") else []) + [
+        (root / s["config"], False) for s in city["sources"] if s.get("config")]
     for path, is_city in files:
         missing, verify = _marks(path, root, skip_host_lines=is_city)
         items += [(False, f"missing: {t}") for t in missing] + [(False, f"UNVERIFIED: {t}") for t in verify]
+    items += _site_items(city)
     if not city["allowed_hosts"]:
         items.append((False, "hosts: none listed yet (add every host collection will ask to allowed_hosts)"))
     for h in city["allowed_hosts"]:

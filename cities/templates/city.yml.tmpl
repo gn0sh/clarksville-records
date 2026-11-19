@@ -9,6 +9,7 @@ timezone: $tz   # UNVERIFIED: given to `cities new`; confirm the city's own zone
 status: draft                      # live only after the owner's go-ahead to deploy (a hard stop)
 domain: $domain
 platform_facts: config/cities/$slug/platform-facts.md
+site_file: config/cities/$slug/site.yml   # the site settings: primary body, place name (ADR 0012)
 sources:
   - $source_line
 # Every host collection may ask. robots/terms: when and where each was read (e.g. "allows /x; 2026-11-20,

@@ -1,7 +1,7 @@
 """`python -m cities new`: a draft city folder from cities/templates, every unchecked value marked UNVERIFIED.
 
-Writes config/cities/<slug>/city.yml, the portal's source file (when the portal has one) and platform-facts.md, then
-loads the result with the registry's own checks. Fetches nothing."""
+Writes config/cities/<slug>/city.yml, site.yml, an empty corrections-log.json, the portal's source file (when the
+portal has one) and platform-facts.md, then loads the result with the registry's own checks. Fetches nothing."""
 from __future__ import annotations
 
 import shutil
@@ -24,10 +24,10 @@ def _render(template: str, **values) -> str:
 
 def new_city(slug: str, name: str, state: str, portal: str, tz: str, root: Path = ROOT,
              today: date | None = None) -> list[Path]:
-    m = SLUG_RE.match(slug)
+    m = SLUG_RE.fullmatch(slug)
     if not m:
         raise CityError(f"slug {slug!r}: write it <place>-<state> in lowercase, e.g. salem-or")
-    if not STATE_RE.match(state) or m.group(1) != state.lower():
+    if not STATE_RE.fullmatch(state) or m.group(1) != state.lower():
         raise CityError(f"state {state!r}: the two-letter code in capitals, matching the slug's ending")
     if portal not in READERS:
         raise CityError(f"portal {portal!r} is unknown (known: {', '.join(sorted(READERS))})")
@@ -58,11 +58,14 @@ def new_city(slug: str, name: str, state: str, portal: str, tz: str, root: Path 
     folder.mkdir(parents=True)
     written = []
     try:
-        for fname, tmpl in [("city.yml", "city.yml.tmpl"), ("platform-facts.md", "platform-facts.md.tmpl")] + (
-                [(f"{portal}.yml", src_tmpl)] if has_src else []):
+        for fname, tmpl in [("city.yml", "city.yml.tmpl"), ("platform-facts.md", "platform-facts.md.tmpl"),
+                            ("site.yml", "site.yml.tmpl")] + ([(f"{portal}.yml", src_tmpl)] if has_src else []):
             p = folder / fname
             p.write_text(_render(tmpl, **values), encoding="utf-8")
             written.append(p)
+        log = folder / "corrections-log.json"           # the city's own corrections log, empty (ADR 0012 decision 3)
+        log.write_text("[]\n", encoding="utf-8")
+        written.append(log)
         load_city(slug, root)
     except Exception:
         shutil.rmtree(folder)                      # only the folder this call just made

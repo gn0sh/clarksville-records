@@ -12,5 +12,10 @@ support_url: https://buymeacoffee.com/gnoshcodes
 support_label: Buy Me a Coffee
 support_line: "This service is free and always will be, but web hosting and sending email cost money. If it is useful to you, please consider supporting the project."
 support_enabled: true
+# Used only when a city sets `place_name` (ADR 0012 decision 9); {site_name} and {place} are filled in. A city without
+# one (Clarksville) keeps its unchanged footer and the support_line above.
+named_lines:
+  footer: "{site_name} {place} is provided as a free service by"
+  support: "{site_name} {place} is free and always will be, but web hosting and sending email cost money. If it is useful to you, please consider supporting the project."
 corrections:
   email: "brian@gnoshcodes.com"
