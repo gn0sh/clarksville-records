@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 import urllib.error
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
@@ -146,11 +146,12 @@ def test_a_reader_exception_text_is_never_printed(setup, capsys, monkeypatch):
     def boom(entry, fetcher, now, cache_root):
         raise RuntimeError(f"HTTP 403 from the site: {SECRET} {SERVER}")
     monkeypatch.setattr(lu, "read_body", boom)
-    assert run_cli(setup) == 0                                          # one body's failure is never the run's
+    assert run_cli(setup) == 3                     # one body's failure is never the run's, but it is flagged
     out, err = capsys.readouterr()
     for text in ("SECRET", "Forbidden", "secret-edge", "Server", "RuntimeError", "Traceback"):
         assert text not in out + err
     assert out.splitlines()[-1] == "counts collector-error=3 bodies=3 feeds=0 proposals=0 requests=0/300"
+    assert set(json.loads((setup["data_root"] / "health.json").read_text())) == {g["gov"] for g in GOVS}  # written
 
 
 @pytest.mark.parametrize("exc", [HostBlocked, fetch.TenantBlocked, OSError, RecursionError, KeyError, ValueError])
@@ -250,21 +251,58 @@ def test_the_default_budget_is_300_and_the_default_directory_is_the_loader_s(set
     loaded = []
     monkeypatch.setattr(nat, "load_directory", lambda *a: loaded.append(a) or "the directory")
 
-    def fake_collect(root, directory, fetcher, budget, now, *, clock):
-        seen.update(directory=directory, budget=budget, now=now, clock=clock())
+    def fake_collect(root, directory, fetcher, budget, now, *, clock, deadline):
+        seen.update(directory=directory, budget=budget, now=now, clock=clock(), deadline=deadline)
         return nr.RunResult({}, {}, [], {})
     monkeypatch.setattr(nr, "collect", fake_collect)
     assert cli.main([str(setup["data_root"])]) == 0
     assert loaded == [()]                                               # load_directory() with its own default path
-    assert seen == {"directory": "the directory", "budget": 300, "now": NOW, "clock": NOW}
+    assert seen == {"directory": "the directory", "budget": 300, "now": NOW, "clock": NOW,
+                    "deadline": NOW + timedelta(minutes=60)}
 
 
-@pytest.mark.parametrize("value", ["0", "-1", "451", "ten", "1e3"])
+def test_the_budget_cap_and_the_deadline_leave_a_margin_under_the_job_timeout():
+    """national-budget/max-no-margin: a full-spend run at the 10 s floor ends by the deadline, 15 minutes before the
+    job's 75 minute timeout."""
+    assert cli.RUN_SECONDS == 60 * 60 and cli.MAX_BUDGET == 360
+    assert cli.MAX_BUDGET * fetch.MIN_DELAY <= cli.RUN_SECONDS <= (cli.JOB_MINUTES - 15) * 60
+
+
+def test_a_run_with_no_body_read_ok_exits_3_after_writing(setup, capsys, monkeypatch):
+    monkeypatch.setattr(cli, "RUN_SECONDS", 0)                          # the deadline is the start: nothing is read
+    assert run_cli(setup) == 3
+    out, _ = capsys.readouterr()
+    assert out.splitlines()[-1] == "counts budget-skipped=3 bodies=3 feeds=0 proposals=0 requests=0/300"
+    assert setup["net"].calls == []
+    health = json.loads((setup["data_root"] / "health.json").read_text())
+    assert {h["last_error"] for h in health.values()} == {"budget-skipped"}
+
+
+@pytest.mark.parametrize("outcomes, code", [({}, 0), ({"place-4100001": "ok"}, 0),
+                                            ({"place-4100001": "ok", "place-4100002": "host-stopped"}, 0),
+                                            ({"place-4100001": "ok", "place-4100002": "collector-error"}, 3),
+                                            ({"place-4100001": "host-stopped"}, 3),
+                                            ({"place-4100001": "budget-skipped"}, 3)])
+def test_exit_code_flags_a_collector_error_or_no_ok(outcomes, code):
+    assert cli.exit_code(nr.RunResult({}, {}, [], outcomes)) == code
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "361", "ten", "1e3"])
 def test_a_bad_budget_is_a_usage_error(setup, value, capsys):
     with pytest.raises(SystemExit) as e:
         run_cli(setup, "--budget", value)
     assert e.value.code == 2
     assert setup["built"] == []
+    err = capsys.readouterr().err                                       # cli-test/usage-error-stderr
+    assert "must be" in err and repr(value) not in err and value not in err.replace(":", " ").split()
+
+
+@pytest.mark.parametrize("abbrev", ["--budg", "--dir"])
+def test_option_abbreviations_are_refused(setup, abbrev, capsys):
+    """cli-log/argparse-echo: allow_abbrev=False, so only the exact option names the workflow passes are read."""
+    with pytest.raises(SystemExit) as e:
+        run_cli(setup, abbrev, "5")
+    assert e.value.code == 2 and setup["built"] == []
 
 
 def test_python_dash_m_runs_the_entry_point_without_a_traceback(tmp_path):

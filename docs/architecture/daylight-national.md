@@ -592,8 +592,8 @@ and `collect()` completes and writes its outputs.
   `TenantBlocked` (tested before `HostBlocked`) stops its tenant and denies `<client>.legistar.com` for the run;
   another `HostBlocked`, or robots.txt that could not be read (`robots_refused` in the log), marks the rest
   `host-stopped`, as does robots.txt answering a server error (fetcher `robots_unreadable(host)`); a cap marks them
-  `budget-skipped`. After 3 failures in a row of the same one of `not-enabled-suspected` / `token-suspected` / `robots`
-  (`failure_streak`), a `status` proposal names the `cant-cover` reason it suggests; a good read clears it. Proposals
+  `budget-skipped`, as does the run's wall-clock `deadline` (4.6). After 3 failures in a row of the same one of
+  `not-enabled-suspected` / `token-suspected` / `robots` (`failure_streak`), a `status` proposal names the `cant-cover` reason it suggests; a good read clears it. Proposals
   read back are re-checked (status name pattern, `allowed_url` for the body's client). `collect` refuses a symlinked
   data root, `bodies/` or `cache/` before reading anything; body files drop `body.full_url`. The directory is never
   written.
@@ -610,10 +610,17 @@ requirements, and S2's D1/D2 review checks each.
   `RunResult.outcomes` (body ids and 3.7 kinds) and counts; its entry point catches `Exception` and prints only the
   exception's type name and the body id.
 - **As built (D1 entry point, 2026-11-19):** `python -m collector.national DATA_ROOT [--budget N] [--directory
-  PATH]` (`collector/national/__main__.py`). Budget default 300, 1 to 450 (75 min at the 10 s floor). stdout:
-  `body <id> <kind>` per body and one `counts ...` line; a failed run prints `failed: <type name>` (plus `body
-  <id>` for `HostNotApproved`, which now carries a checked `gov`) to stderr and exits 1; 130 interrupted, 2
-  bad arguments; 0 a completed run whatever its per-body outcomes.
+  PATH]` (`collector/national/__main__.py`; no option abbreviations). Budget default 300, 1 to 360: the job's 75
+  min timeout less a 15 min margin (setup, the body in flight, writes, commit and attest) is 60 min, at the 10 s
+  floor (`national-budget/max-no-margin`). **Deadline** (`national-budget/no-wall-deadline`): the run stops reading
+  60 min after it starts by the wall clock, whatever the request count (a robots.txt Crawl-delay above 10 s
+  stretches every wait): `run`/`collect(..., deadline=)` record the bodies not read, and a body whose fetcher wait
+  would end past it (`DeadlineReached`, a `RequestCapReached`, raised before the request is sent), `budget-skipped`,
+  and the outputs are still written. stdout: `body <id> <kind>` per body and one `counts ...` line; a failed run
+  prints `failed: <type name>` (plus `body <id>` for `HostNotApproved`, which carries a checked `gov`) to stderr and
+  exits 1. Exit 0 a completed run with a body read `ok` (or none to read); **3** a completed run, outputs written,
+  with any `collector-error` or no body `ok` (`cli-exit/silent-all-failed`: D1 commits the outputs and flags the
+  run); 2 bad arguments; 130 interrupted.
 - **D1 data path.** The job checks `national-data` out at a path it creates itself (a fresh `actions/checkout` with
   `path:` into a new directory), never through an existing `data/` tree, because `check_data_root` checks the data
   root, `bodies/` and `cache/` but not their parent `data/`.

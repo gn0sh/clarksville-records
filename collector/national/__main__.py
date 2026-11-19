@@ -7,9 +7,15 @@ within the request budget, write `bodies/`, `health.json` and `proposals.json` b
 - **Fetcher** (4.6 "D1 fetcher"): `PoliteFetcher(allowed_hosts=("webapi.legistar.com",),
   max_bytes=lu.MAX_RESPONSE_BYTES)`, never the Clarksville collector's ALLOWED_HOSTS or 200 MiB MAX_BYTES. Delay,
   robots.txt and the tenant rule are the fetcher's own.
-- **Budget**: `--budget` requests on webapi.legistar.com for the run (default 300, ADR 0013 decision 6's
-  NATIONAL_REQUEST_BUDGET: about 100 bodies at about 3 requests each), at most MAX_BUDGET: the job's 75 minute
-  timeout at the 10 s floor is 450 requests, and a run cut off by the timeout writes nothing.
+- **Budget** (`national-budget/max-no-margin`): `--budget` requests on webapi.legistar.com for the run (default 300,
+  ADR 0013 decision 6's NATIONAL_REQUEST_BUDGET: about 100 bodies at about 3 requests each), at most MAX_BUDGET = 360:
+  RUN_SECONDS (the job's 75 minute timeout less a MARGIN_MINUTES = 15 minute margin) over the fetcher's 10 s floor.
+  The margin is for the job's setup before this command, the requests of the body in flight at the deadline (each
+  can take up to the fetcher's 120 s request timeout), the writes, and the commit and attest steps after it. A run
+  killed by the job's timeout writes nothing, so the run must end well inside it.
+- **Deadline** (`national-budget/no-wall-deadline`): the run stops reading at start + RUN_SECONDS by the wall clock,
+  whatever the request count (a robots.txt Crawl-delay above 10 s stretches every wait): the bodies not read record
+  `budget-skipped` and the outputs are still written (`run.run`'s `deadline`).
 - **Data root** (4.6 "D1 data path"): a path the workflow creates itself (a fresh checkout of `national-data`); a
   symlinked root, `bodies/` or `cache/` is refused (`run.check_data_root`), as is a root that exists and is not a
   folder. Nothing else in the tree is checked here; the workflow owns the path.
@@ -19,17 +25,19 @@ within the request budget, write `bodies/`, `health.json` and `proposals.json` b
   line to stderr with the exception's type name (and the body id when the exception carries a well-formed one) and
   exits 1. KeyboardInterrupt prints one line and exits 130; argparse's own usage errors exit 2.
 
-Exit codes: 0 the run completed (per-body failures are data, in health.json, not the exit code), 1 the run failed and
-wrote nothing past the failure, 2 bad arguments, 130 interrupted.
+Exit codes: 0 the run completed and read at least one body (or the directory has none to read); 3 the run completed
+and wrote its outputs, but some body ended `collector-error` or no body was read `ok` (`cli-exit/silent-all-failed`:
+the workflow should still commit the outputs, and flag the run); 1 the run failed and wrote nothing past the
+failure; 2 bad arguments; 130 interrupted.
 """
 from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from collector.fetch import PoliteFetcher
+from collector.fetch import MIN_DELAY, PoliteFetcher
 from collector.national import legistar_upcoming as lu
 from collector.national import run as nr
 from sitegen import national as nat
@@ -37,7 +45,11 @@ from sitegen.national_guards import id_layer
 
 PROG = "python -m collector.national"
 DEFAULT_BUDGET = 300             # ADR 0013 decision 6: NATIONAL_REQUEST_BUDGET default
-MAX_BUDGET = 450                 # 75 min timeout / 10 s floor: past this the job is killed before it writes
+JOB_MINUTES = 75                 # ADR 0013 decision 6: the national-update job's timeout
+MARGIN_MINUTES = 15              # setup before, the body in flight at the deadline, writes, commit and attest after
+RUN_SECONDS = (JOB_MINUTES - MARGIN_MINUTES) * 60       # the run's wall-clock deadline, from its start
+MAX_BUDGET = int(RUN_SECONDS // MIN_DELAY)              # 360: a full-spend run at the 10 s floor ends by the deadline
+EXIT_OK, EXIT_FAILED, EXIT_FLAGGED, EXIT_INTERRUPTED = 0, 1, 3, 130
 KINDS = (nr.OK, *nr.LAST_ERRORS)  # the only outcome words ever printed (3.7)
 
 
@@ -64,7 +76,8 @@ def _budget(text: str) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog=PROG, description="One Daylight Digest national collection run.")
+    ap = argparse.ArgumentParser(prog=PROG, description="One Daylight Digest national collection run.",
+                                 allow_abbrev=False)
     ap.add_argument("data_root", type=Path, help="the data/national folder of a fresh national-data checkout")
     ap.add_argument("--budget", type=_budget, default=DEFAULT_BUDGET,
                     help=f"requests on {nr.HOST} this run (default {DEFAULT_BUDGET}, at most {MAX_BUDGET})")
@@ -124,10 +137,21 @@ def _main(argv) -> int:
     root = checked_root(args.data_root)
     directory = nat.load_directory() if args.directory is None else nat.load_directory(args.directory)
     fetcher = build_fetcher()
-    result = nr.collect(root, directory, fetcher, args.budget, _wall(), clock=_wall)
+    start = _wall()
+    result = nr.collect(root, directory, fetcher, args.budget, start, clock=_wall,
+                        deadline=start + timedelta(seconds=RUN_SECONDS))
     for line in report(result, fetcher.sent(nr.HOST), args.budget):
         _say(line)
-    return 0
+    return exit_code(result)
+
+
+def exit_code(result: nr.RunResult) -> int:
+    """EXIT_FLAGGED when some body ended `collector-error` or, with at least one body, none ended `ok`; the outputs
+    are written either way (this runs after collect)."""
+    kinds = list(result.outcomes.values())
+    if "collector-error" in kinds or (kinds and nr.OK not in kinds):
+        return EXIT_FLAGGED
+    return EXIT_OK
 
 
 def main(argv=None) -> int:
@@ -138,10 +162,10 @@ def main(argv=None) -> int:
         raise                                          # argparse: usage errors (2) and --help (0)
     except KeyboardInterrupt:
         _say(f"{PROG}: interrupted", sys.stderr)
-        return 130
+        return EXIT_INTERRUPTED
     except Exception as err:                           # HostNotApproved, HostBlocked, OSError, anything unforeseen
         _say(_failure(err), sys.stderr)
-        return 1
+        return EXIT_FAILED
 
 
 def _last_resort(exc_type, exc, tb) -> None:
