@@ -4,7 +4,7 @@ import urllib.error
 
 import pytest
 
-from collector.fetch import HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
+from collector.fetch import FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
 
 
 class FakeResp(io.BytesIO):
@@ -663,3 +663,48 @@ def test_a_304_never_skips_or_shortens_the_crawl_delay():
     assert clock.slept == [30.0] * 4
     gets = [(x["url"], x["detail"]) for x in f.log if x["event"] == "get" and x["url"] != sent[0][0]]
     assert gets == [(u, "304"), (v, "304"), (u, "200"), (v, "304")]   # a 304 is logged as the request it was
+
+
+# --- fetch/error-body-unbounded (security S2a finding 3; architecture daylight-national 4.4.2 site 8) ---------------
+@pytest.mark.parametrize("code", [404, 500, 304, 410])
+def test_an_error_answer_body_is_capped_like_a_200(code):
+    """fetch/error-body-unbounded: a non-403/429 error answer (a 5xx after its retry included) is read at most
+    max_bytes + 1 and a larger one fails the fetch with the same size trip as a 200 answer."""
+    from collector import limits
+    big = b"x" * (3 * 1024 * 1024)
+    net, clock = FakeNet({"https://h.example/a": (code, big)}), Clock()
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example",), max_bytes=1024)
+    start = limits.mark()
+    with pytest.raises(FetchFailed, match="larger than 1024 bytes"):
+        f.get("https://h.example/a")
+    assert any("fetch.MAX_BYTES" in t for t in limits.tripped(start))
+    expected = 3 if code >= 500 else 2              # robots.txt, the request, and a 5xx's one retry
+    assert len(net.calls) == expected
+
+
+def test_an_error_answer_within_the_cap_is_returned_unchanged():
+    f, _, _ = make({"https://h.example/a": (404, b"not here")})
+    assert f.get("https://h.example/a")[:2] == (404, b"not here")
+
+
+@pytest.mark.parametrize("exc", [OSError("reset"), ValueError("closed"), RuntimeError("x")])
+def test_an_error_answer_whose_body_cannot_be_read_is_fetch_failed(exc):
+    """fetch/error-body-unbounded (4.4.2 site 8): any error reading it -> FetchFailed (logged), never a raw exception."""
+    class Bad:
+        def read(self, *a):
+            raise exc
+
+        def close(self):
+            pass
+
+    def opener(req, timeout):
+        if req.full_url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(req.full_url, 404, "x", {}, io.BytesIO(b""))
+        raise urllib.error.HTTPError(req.full_url, 404, "x", {}, Bad())
+    clock = Clock()
+    f = PoliteFetcher(opener=opener, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example",))
+    with pytest.raises(FetchFailed, match="unreadable"):
+        f.get("https://h.example/a")
+    assert f.log[-1]["event"] == "error"

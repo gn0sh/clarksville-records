@@ -42,7 +42,10 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   (TenantBlocked, a HostBlocked). Anything else stops the whole host: a 403 on robots.txt, on a path that is no
   tenant's, with a body that is not a JSON object, or from a second distinct tenant on the same host; and every 429.
   The delay, robots.txt and limit_hosts stay per host; limit_tenant(url, n) adds a per-tenant cap inside the host
-  cap, and a redirect from a tenant-capped URL may only go to the same tenant (counted against its cap). One parser,
+  cap. A redirect never changes the tenant key, capped or not (national/tenant-redirect-uncapped): a tenant URL's
+  redirect stays in that tenant (counted against its cap) and a host-level URL, robots.txt included, never
+  redirects into a tenant. Classifying a 403/429 fails closed (architecture 4.4.2): any error while reading or
+  parsing the answer is a host block, recorded before the raise. One parser,
   shared_path (architecture 4.4.1, national/tenant-block-escape), keys every URL sent to a shared host; a path outside
   its strict grammar (any "%", empty or dot segment, leading or trailing dot, backslash, ";", "+", non-ASCII, or a
   /v1/ client that is not 2-40 letters, digits, hyphens) is refused with no request (TenantPathRefused), never
@@ -67,6 +70,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from . import limits
+from .safe_json import parse_json
 
 USER_AGENT = ("clarksville-records research collector "
               "(+https://github.com/gn0sh/clarksville-records; polite, 10s/host)")
@@ -253,9 +257,11 @@ def tenant_key(url: str) -> str | None:
 
 
 def _json_object(body: bytes) -> bool:
+    """True when `body` parses as a JSON object (fetch/403-body-parse-escapes: parse_json never raises, so a nested or
+    odd body is "not a JSON object", a host block)."""
     try:
-        return isinstance(json.loads(body.decode("utf-8-sig")), dict)
-    except (UnicodeDecodeError, ValueError):
+        return isinstance(parse_json(body, "utf-8-sig"), dict)
+    except Exception:
         return False
 
 
@@ -402,13 +408,19 @@ class PoliteFetcher:
                 raise HostRefused(f"{target}: a redirect from {origin} leaves its capped hosts; not followed")
 
     def check_tenant_redirect(self, origin_url: str, target_url: str) -> None:
-        """A redirect from a tenant-capped URL must stay in that tenant, so it counts against the tenant's cap.
-        Raises HostRefused, with no request, otherwise."""
-        t = tenant_key(origin_url)
-        if t in self._tenant_caps and tenant_key(target_url) != t:
+        """A redirect never changes the tenant key (national/tenant-redirect-uncapped, S2a finding 8): from a tenant
+        URL it stays in that tenant (so it counts against the tenant's cap, if any), and a host-level URL (robots.txt
+        included) never leads into a tenant. Hosts that are not shared have no tenant on either side. Raises
+        HostRefused, with no request, otherwise."""
+        t, to = tenant_key(origin_url), tenant_key(target_url)
+        if t in self._tenant_caps and to != t:
             self.log.append({"event": "refused", "host": split_url(target_url).netloc, "url": target_url,
                              "detail": f"redirect from capped tenant {t}"})
             raise HostRefused(f"{target_url}: a redirect from capped tenant {t} leaves it; not followed")
+        if to != t:     # national/tenant-redirect-uncapped (S2a finding 8): capped or not, a redirect keeps its tenant
+            self.log.append({"event": "refused", "host": split_url(target_url).netloc, "url": target_url,
+                             "detail": f"redirect changes tenant {t} -> {to}"})
+            raise HostRefused(f"{target_url}: a redirect from tenant {t} to tenant {to}; not followed")
 
     def delay_for(self, host: str) -> float:
         floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if host_matches(host, (k,))])
@@ -488,16 +500,12 @@ class PoliteFetcher:
                 return r.status, body, dict(r.headers)
         except urllib.error.HTTPError as e:
             if e.code in (403, 429):
-                if e.code == 403 and self._proxy_said_403(host, started):
-                    raise self._note_proxy_refusal(host, url, "HTTP 403 recorded by the proxy") from None
-                try:
-                    body = e.read(BLOCK_BODY_BYTES) or b""
-                except (OSError, http.client.HTTPException):
-                    body = b""      # fetch/403-body-read-escapes: an unreadable body is not JSON, so a host block
-                snippet = body[:200].decode("utf-8", "replace")
-                reason = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
-                          f"body={snippet!r}")
-                if _tenant_ok and self._tenant_only_block(e.code, key, tenant, body):
+                # architecture 4.4.2 (fetch/403-body-*): the decision never raises; the block is recorded and raised
+                # here, outside its guard, so a refusal always leaves a block behind before anything else happens
+                kind, reason = self._refusal_decision(e, e.code, host, key, tenant, url, started, _tenant_ok)
+                if kind == "proxy":
+                    raise self._note_proxy_refusal(host, url, reason) from None
+                if kind == "tenant":
                     self._tenant_blocked[tenant] = reason
                     self.log.append({"event": "blocked", "host": host, "url": url, "tenant": tenant,
                                      "detail": reason})
@@ -510,7 +518,18 @@ class PoliteFetcher:
                 return self._raw_get(url, _retry=False, _headers=_headers, _tenant_ok=_tenant_ok)
             if e.code == 304:   # a conditional GET's "unchanged": a request like any other, logged as one
                 self.log.append({"event": "get", "host": host, "url": url, "detail": "304"})
-            return e.code, (e.read() or b""), dict(e.headers or {})
+            # fetch/error-body-unbounded (4.4.2 site 8): the same cap and size trip as a 200 answer; a body that
+            # cannot be read fails this one fetch, never with a raw exception
+            try:
+                body = e.read(self.max_bytes + 1) or b""
+            except Exception as x:
+                detail = f"HTTP {e.code} answer body unreadable: {type(x).__name__}"
+                self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
+                raise FetchFailed(f"{url}: {detail}") from None
+            if len(body) > self.max_bytes:
+                limits.trip("fetch.MAX_BYTES", url, f"{len(body)}+ B", f"{self.max_bytes} B")
+                raise FetchFailed(f"{url}: larger than {self.max_bytes} bytes")
+            return e.code, body, dict(e.headers or {})
         except (urllib.error.URLError, OSError) as e:
             if _is_tunnel_refusal(e):
                 raise self._note_proxy_refusal(host, url, str(getattr(e, "reason", e))) from None
@@ -532,6 +551,30 @@ class PoliteFetcher:
             detail = f"invalid URL or response: {type(e).__name__}: {e}"
             self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
             raise FetchFailed(f"{url!r}: {detail}") from None
+
+    def _refusal_decision(self, e, code: int, host: str, key: str, tenant: str | None, url: str, started,
+                          tenant_ok: bool) -> tuple[str, str]:
+        """Architecture 4.4.2 (classify fails closed, fetch/403-body-*): a site's 403/429 answer -> ("proxy" | "tenant"
+        | "host", reason). Every read, decode, parse and the decision itself run inside one guard: any Exception
+        (OSError, ValueError, RecursionError, MemoryError, TypeError, AttributeError, ...) makes the answer a host
+        block. Never raises an Exception, so the caller always records a block before it raises."""
+        try:
+            if code == 403 and self._proxy_said_403(host, started):
+                return "proxy", "HTTP 403 recorded by the proxy"
+            try:
+                body = e.read(BLOCK_BODY_BYTES) or b""
+            except Exception:
+                body = b""      # fetch/403-body-read-escapes: an unreadable body is not JSON, so a host block
+            if not isinstance(body, (bytes, bytearray)):
+                body = b""
+            snippet = bytes(body[:200]).decode("utf-8", "replace")
+            server = (e.headers or {}).get("Server")
+            reason = f"HTTP {code} from the site on {url} server={server!r} body={snippet!r}"
+            if tenant_ok and self._tenant_only_block(code, key, tenant, bytes(body)):
+                return "tenant", reason
+            return "host", reason
+        except Exception as x:
+            return "host", f"HTTP {code} from the site on {url} (answer not classifiable: {type(x).__name__})"
 
     def _tenant_only_block(self, code: int, site: str, tenant: str | None, body: bytes) -> bool:
         """True when a site's 403/429 stops only `tenant`: a 403 on a tenant path (robots.txt never is one) with a JSON
@@ -568,19 +611,31 @@ class PoliteFetcher:
                     self._robots_capped[exact] = str(e)    # a host cap: later get()s report the cap, not robots
                 refused = True
                 self._robots_unreadable[exact] = f"refused: {type(e).__name__}"
+            delay = None
             if refused:
                 rp.disallow_all = True
             elif status == 200:
-                rp.parse(body.decode("utf-8", "replace").splitlines())
+                try:
+                    rp.parse(body.decode("utf-8", "replace").splitlines())
+                    delay = rp.crawl_delay(self.user_agent) or rp.crawl_delay("*")
+                    delay = float(delay) if delay else None
+                except Exception as e:
+                    # architecture 4.4.2 site 9: a robots.txt we cannot parse (e.g. a Crawl-delay of 5,000 digits,
+                    # which int() refuses, or one float() overflows) is unreadable: disallow all, cached, never re-asked
+                    rp = urllib.robotparser.RobotFileParser()
+                    rp.disallow_all = True
+                    delay = None
+                    self._robots_unreadable[exact] = "unparseable"
+                    self.log.append({"event": "robots_refused", "host": host, "url": url,
+                                     "detail": f"robots.txt not parseable: {type(e).__name__}"})
             elif 400 <= status < 500:
                 rp.allow_all = True          # no robots.txt = no rules (RFC 9309)
             else:
                 rp.disallow_all = True       # server error: be conservative
                 self._robots_unreadable[exact] = f"HTTP {int(status)}"
             self._robots[exact] = rp
-            delay = rp.crawl_delay(self.user_agent) or rp.crawl_delay("*")
             if delay:                        # the site's delay is the largest any of its hosts asks for
-                self._delay[key] = max(float(delay), self._delay.get(key, 0.0))
+                self._delay[key] = max(delay, self._delay.get(key, 0.0))
         return self._robots[exact]
 
     def robots_unreadable(self, host: str) -> str | None:

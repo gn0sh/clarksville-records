@@ -195,11 +195,13 @@ def test_a_proxy_recorded_403_on_a_tenant_path_blocks_nothing():
 
 
 def test_a_redirect_into_a_blocked_tenant_is_not_requested():
+    """Since S2a finding 8 (national/tenant-redirect-uncapped) a redirect to another tenant is refused before the
+    blocked-tenant check is even reached."""
     f, net, _ = make({f"{H}/v1/ta/events": (403, JSON_403),
                       f"{H}/v1/tb/events": (302, b"", {"Location": f"{H}/v1/ta/other"})})
     with pytest.raises(TenantBlocked):
         f.get(f"{H}/v1/ta/events")
-    with pytest.raises(TenantBlocked):
+    with pytest.raises(HostRefused):
         f.get(f"{H}/v1/tb/events")
     assert f"{H}/v1/ta/other" not in urls(net)
 
@@ -352,10 +354,12 @@ def test_redirect_forms_from_a_capped_tenant_never_reach_salem(loc, exc):
     assert urls(net) == [f"{H}/robots.txt", f"{H}/v1/ta/x"]
 
 
-@pytest.mark.parametrize("loc, exc", [("/V1/Salem/y", TenantBlocked), ("../salem/y", TenantBlocked),
-                                      ("/v1/salem/../salem/y", TenantBlocked),   # urljoin resolves it
+@pytest.mark.parametrize("loc, exc", [("/V1/Salem/y", HostRefused), ("../salem/y", HostRefused),
+                                      ("/v1/salem/../salem/y", HostRefused),   # urljoin resolves it
                                       (f"{H}/v1/salem/../salem/y", HostRefused), ("/%2fv1/salem/y", HostRefused)])
 def test_redirect_forms_from_an_uncapped_tenant_never_reach_a_blocked_salem(loc, exc):
+    """national/tenant-redirect-uncapped (S2a finding 8): ta -> salem changes the tenant, so it is refused (HostRefused)
+    even though ta has no cap; salem is never asked."""
     f, net, _ = make({f"{H}/v1/salem/e": (403, JSON_403), f"{H}/v1/ta/x": (302, b"", {"Location": loc})})
     with pytest.raises(TenantBlocked):
         f.get(f"{H}/v1/salem/e")
@@ -393,34 +397,39 @@ def test_a_403_on_a_plain_non_tenant_path_still_blocks_the_host(path):
 
 
 # ------------------------------------------------------------------ national/tenant-robots-host-block
-def test_robots_txt_redirecting_to_a_tenant_json_403_blocks_the_host_once():
+def test_robots_txt_redirecting_into_a_tenant_is_refused_and_stops_the_host():
+    """national/tenant-redirect-uncapped (S2a finding 8): robots.txt (no tenant) -> /v1/zz/ (tenant zz) changes the
+    tenant key, so the hop is refused with no request; robots.txt is cached unreadable (disallow_all, 4.4.1 consumer 6)
+    and no tenant of the host is fetched. Before the fix the hop was sent and its JSON 403 blocked the host."""
+    from collector.fetch import RobotsDisallowed
     f, net, _ = make({f"{H}/robots.txt": (302, b"", {"Location": f"{H}/v1/zz/robots"}),
                       f"{H}/v1/zz/robots": (403, JSON_403), f"{H}/v1/ta/e": (200, b"[]"), f"{H}/v1/tb/e": (200, b"[]")})
-    with pytest.raises(HostBlocked) as e:
-        f.get(f"{H}/v1/ta/e")
-    assert not isinstance(e.value, TenantBlocked)
-    for u in (f"{H}/v1/ta/e", f"{H}/v1/tb/e", f"{H}/v1/tb/e"):
-        with pytest.raises(HostBlocked):
+    for u in (f"{H}/v1/ta/e", f"{H}/v1/ta/e", f"{H}/v1/tb/e", f"{H}/v1/tb/e"):
+        with pytest.raises(RobotsDisallowed):
             f.get(u)
-    assert urls(net) == [f"{H}/robots.txt", f"{H}/v1/zz/robots"]     # robots.txt asked once
-    assert "webapi.legistar.com" in f._blocked and not f._tenant_blocked
+    assert urls(net) == [f"{H}/robots.txt"]                            # robots.txt asked once, the hop never
+    assert f._robots["webapi.legistar.com"].disallow_all and f.robots_unreadable("webapi.legistar.com")
+    assert not f._tenant_blocked
 
 
-def test_robots_txt_redirecting_into_an_already_blocked_tenant_blocks_the_host():
-    """robots.txt is read per exact host: www. has its own, which redirects into the blocked tenant."""
+def test_robots_txt_redirecting_into_an_already_blocked_tenant_never_reaches_it():
+    """robots.txt is read per exact host: www. has its own, which redirects into the blocked tenant. Since S2a
+    finding 8 (national/tenant-redirect-uncapped) that hop changes the tenant key and is refused: www's robots.txt is
+    cached unreadable, so nothing more is asked there."""
+    from collector.fetch import RobotsDisallowed
     W = "https://www.webapi.legistar.com"
     f, net, _ = make({f"{H}/v1/zz/e": (403, JSON_403),
                       f"{W}/robots.txt": (302, b"", {"Location": f"{H}/v1/zz/robots"})})
     with pytest.raises(TenantBlocked):
         f.get(f"{H}/v1/zz/e")
     n = len(net.calls)
-    with pytest.raises(HostBlocked) as e:
+    with pytest.raises(RobotsDisallowed):
         f.get(f"{W}/v1/ta/e")
-    assert not isinstance(e.value, TenantBlocked)
     assert len(net.calls) == n + 1                # www robots.txt only; the blocked tenant is not asked
-    with pytest.raises(HostBlocked):
+    with pytest.raises(RobotsDisallowed):
         f.get(f"{W}/v1/tb/e")
     assert len(net.calls) == n + 1
+    assert f.robots_unreadable("www.webapi.legistar.com")
 
 
 def test_robots_txt_hop_into_a_capped_tenant_is_a_refused_robots_not_a_host_cap():
@@ -452,7 +461,9 @@ def test_robots_txt_at_the_host_cap_caches_disallow_and_still_reports_the_cap():
 
 
 def test_a_robots_txt_hop_cannot_leave_a_capped_tenant():
-    """national/tenant-cap-redirect: /robots.txt -> /v1/ta/robots.txt (ta capped, 1 left) -> /v1/tb/robots.txt."""
+    """national/tenant-cap-redirect: /robots.txt -> /v1/ta/robots.txt (ta capped, 1 left) -> /v1/tb/robots.txt. Since
+    S2a finding 8 (national/tenant-redirect-uncapped) the first hop already changes the tenant key and is refused, so
+    neither ta nor tb is asked."""
     from collector.fetch import RobotsDisallowed
     f, net, _ = make({f"{H}/robots.txt": (302, b"", {"Location": f"{H}/v1/ta/robots.txt"}),
                       f"{H}/v1/ta/robots.txt": (302, b"", {"Location": f"{H}/v1/tb/robots.txt"}),
@@ -460,8 +471,8 @@ def test_a_robots_txt_hop_cannot_leave_a_capped_tenant():
     f.limit_tenant(f"{H}/v1/ta/x", 1)
     with pytest.raises(RobotsDisallowed):
         f.get(f"{H}/v1/tc/e")
-    assert urls(net) == [f"{H}/robots.txt", f"{H}/v1/ta/robots.txt"]     # tb never asked
-    assert any(e["event"] == "refused" and "capped tenant" in e["detail"] for e in f.log)
+    assert urls(net) == [f"{H}/robots.txt"]                            # ta and tb never asked
+    assert any(e["event"] == "refused" and "changes tenant" in e["detail"] for e in f.log)
     assert f._robots["webapi.legistar.com"].disallow_all
 
 
@@ -542,3 +553,210 @@ def test_a_403_body_with_a_utf8_bom_is_still_json():
     f, _, _ = make({f"{H}/v1/ta/e": (403, b'\xef\xbb\xbf{"Message":"no"}')})
     with pytest.raises(TenantBlocked):
         f.get(f"{H}/v1/ta/e")
+
+
+# ------------------------------------------------------------------ architecture 4.4.2: classify fails closed
+# Problem family fetch/403-body-* (S2a finding 1, fetch/403-body-parse-escapes): any error while reading, decoding,
+# parsing or classifying a 403/429 answer is a host block, recorded before the raise; the next get to another tenant of
+# the same host sends nothing.
+
+class _Body:
+    """A 403/429 answer body whose read returns `data` or raises `exc`."""
+
+    def __init__(self, data=b"", exc=None):
+        self.data, self.exc = data, exc
+
+    def read(self, *a):
+        if self.exc is not None:
+            raise self.exc
+        return self.data
+
+    def close(self):
+        pass
+
+
+def _refusing(code=403, data=b"", exc=None, headers="dict", proxy=lambda: []):
+    """A fetcher whose /v1/ta/e answers `code`; robots.txt is 404 and every other URL 200. -> (fetcher, calls)."""
+    import io
+    import urllib.error
+    from collector.tests.test_fetch import FakeResp
+    calls = []
+
+    def opener(req, timeout):
+        calls.append(req.full_url)
+        if req.full_url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(req.full_url, 404, "x", {}, io.BytesIO(b""))
+        if req.full_url == f"{H}/v1/ta/e":
+            hdrs = {"Server": "x"} if headers == "dict" else headers
+            raise urllib.error.HTTPError(req.full_url, code, "x", hdrs, _Body(data, exc))
+        return FakeResp(b"[]", 200)
+
+    clock = Clock()
+    f = PoliteFetcher(opener=opener, clock=clock.now, sleep=clock.sleep, proxy_failures=proxy,
+                      allowed_hosts=("webapi.legistar.com",))
+    return f, calls
+
+
+def _assert_host_stopped(f, calls):
+    with pytest.raises(HostBlocked) as e:
+        f.get(f"{H}/v1/ta/e")
+    assert not isinstance(e.value, TenantBlocked)
+    assert "webapi.legistar.com" in f._blocked and not f._tenant_blocked
+    assert any(x["event"] == "blocked" for x in f.log)
+    n = len(calls)
+    with pytest.raises(HostBlocked):
+        f.get(f"{H}/v1/tb/e")                    # another tenant of the same host
+    assert len(calls) == n                       # zero requests after the refusal
+
+
+def test_a_nested_json_403_body_stops_the_host_with_zero_further_calls():
+    """fetch/403-body-parse-escapes (S2a finding 1): `[` * 60000 (inside BLOCK_BODY_BYTES) used to raise
+    RecursionError inside the 403 handler, before any block was recorded, so the next tenant was asked."""
+    f, calls = _refusing(data=b"[" * 60000)
+    _assert_host_stopped(f, calls)
+
+
+def test_a_deep_but_parseable_json_object_403_body_is_a_host_block():
+    """fetch/403-body-parse-escapes: nesting past the parse_json depth cap is not a JSON object: host, not tenant."""
+    f, calls = _refusing(data=b'{"a":' * 40 + b"1" + b"}" * 40)
+    _assert_host_stopped(f, calls)
+
+
+def test_a_403_with_no_headers_stops_the_host():
+    """fetch/403-body-* (4.4.2 site 4): e.headers None used to raise AttributeError in the reason."""
+    f, calls = _refusing(data=JSON_403, headers=None)
+    with pytest.raises(TenantBlocked):           # headers are not evidence either way: a clean JSON 403 still parses
+        f.get(f"{H}/v1/ta/e")
+    f2, calls2 = _refusing(data=b"not json", headers=None)
+    _assert_host_stopped(f2, calls2)
+
+
+@pytest.mark.parametrize("exc", [ValueError("read of closed file"), RecursionError(), MemoryError(), TypeError("x"),
+                                 AttributeError("x"), KeyError("x"), RuntimeError("x")])
+def test_a_403_whose_body_read_raises_any_error_stops_the_host(exc):
+    """fetch/403-body-read-escapes (4.4.2 site 2): not only OSError/HTTPException; a ValueError from reading a closed
+    response, or anything else, means an unreadable body, so a host block."""
+    f, calls = _refusing(exc=exc)
+    _assert_host_stopped(f, calls)
+
+
+@pytest.mark.parametrize("entry", [
+    "not a dict",                                                              # AttributeError on .get
+    {"ts": "2999-01-01T00:00:00", "host": "webapi.legistar.com", "detail": "403"},   # zone-less ts: TypeError
+    ["webapi.legistar.com", "403"],                                              # a list: AttributeError
+])
+def test_a_bad_proxy_log_entry_stops_the_host(entry):
+    """fetch/403-body-* (4.4.2 site 1): a proxy status entry we cannot read is not attribution to the proxy."""
+    f, calls = _refusing(data=JSON_403, proxy=lambda: [entry])
+    _assert_host_stopped(f, calls)
+
+
+def test_a_proxy_status_reader_that_raises_stops_the_host():
+    def boom():
+        raise OSError("status page gone mid-read")
+    f, calls = _refusing(data=JSON_403, proxy=boom)
+    _assert_host_stopped(f, calls)
+
+
+EXC_TYPES = [OSError, ValueError, UnicodeDecodeError, RecursionError, MemoryError, TypeError, AttributeError, KeyError]
+
+
+def _make_exc(t):
+    return UnicodeDecodeError("utf-8", b"\xff", 0, 1, "x") if t is UnicodeDecodeError else t("x")
+
+
+@pytest.mark.parametrize("exc_type", EXC_TYPES)
+@pytest.mark.parametrize("helper", ["_proxy_said_403", "_tenant_only_block", "_json_object"])
+def test_any_error_in_a_classifier_helper_is_a_host_block(monkeypatch, exc_type, helper):
+    """fetch/403-body-* (4.4.2 table test): each helper of the decision raising each exception type -> HostBlocked,
+    the block recorded, zero further calls to the host."""
+    from collector import fetch as F
+
+    def boom(*a, **k):
+        raise _make_exc(exc_type)
+    if helper == "_json_object":
+        monkeypatch.setattr(F, "_json_object", boom)
+    else:
+        monkeypatch.setattr(F.PoliteFetcher, helper, boom)
+    f, calls = _refusing(data=JSON_403)
+    _assert_host_stopped(f, calls)
+    assert "not classifiable" in f._blocked["webapi.legistar.com"]
+
+
+@pytest.mark.parametrize("code", [403, 429])
+def test_refusal_decision_never_raises(code):
+    """fetch/403-body-*: _refusal_decision returns ("host", reason) on an answer whose every attribute is broken."""
+    class Broken:
+        @property
+        def headers(self):
+            raise RuntimeError("x")
+
+        def read(self, *a):
+            raise RuntimeError("x")
+    f, _ = _refusing()
+    kind, reason = f._refusal_decision(Broken(), code, "webapi.legistar.com", "webapi.legistar.com",
+                                       "webapi.legistar.com/ta", f"{H}/v1/ta/e", f.wall(), True)
+    assert kind == "host" and f"HTTP {code}" in reason
+
+
+def test_a_429_with_a_nested_body_stops_the_host():
+    f, calls = _refusing(code=429, data=b"[" * 60000)
+    _assert_host_stopped(f, calls)
+
+
+@pytest.mark.parametrize("robots", [
+    b"User-agent: *\nCrawl-delay: " + b"9" * 5000 + b"\n",     # isdecimal(), but int() refuses > 4300 digits
+    b"User-agent: *\nRequest-rate: " + b"9" * 5000 + b"/5\n",
+    b"User-agent: *\nCrawl-delay: " + b"9" * 400 + b"\n",      # parses; float() of the delay overflows
+], ids=["crawl-delay-int", "request-rate-int", "crawl-delay-float"])
+def test_an_unparseable_200_robots_txt_is_disallow_all_cached(robots):
+    """fetch/403-body-* (4.4.2 site 9): rp.parse or the crawl delay raising (real stdlib ValueError/OverflowError)
+    caches disallow_all, logs robots_refused, marks it unparseable and never re-asks."""
+    from collector.fetch import RobotsDisallowed
+    f, net, _ = make({f"{H}/robots.txt": (200, robots), f"{H}/v1/ta/e": (200, b"[]")})
+    for _ in range(3):
+        with pytest.raises(RobotsDisallowed):
+            f.get(f"{H}/v1/ta/e")
+    assert urls(net) == [f"{H}/robots.txt"]
+    assert f._robots["webapi.legistar.com"].disallow_all
+    assert f.robots_unreadable("webapi.legistar.com") == "unparseable"
+    assert [e["event"] for e in f.log].count("robots_refused") == 1
+
+
+def test_a_robots_parse_error_of_any_type_is_disallow_all(monkeypatch):
+    import urllib.robotparser
+    from collector.fetch import RobotsDisallowed
+
+    def boom(self, lines):
+        raise RecursionError("x")
+    monkeypatch.setattr(urllib.robotparser.RobotFileParser, "parse", boom)
+    f, net, _ = make({f"{H}/robots.txt": (200, b"User-agent: *\n"), f"{H}/v1/ta/e": (200, b"[]")})
+    with pytest.raises(RobotsDisallowed):
+        f.get(f"{H}/v1/ta/e")
+    assert f.robots_unreadable("webapi.legistar.com") == "unparseable"
+
+
+# ------------------------------------------------------------------ national/tenant-redirect-uncapped (S2a finding 8)
+@pytest.mark.parametrize("loc", [f"{H}/v1/other/events", "/v1/OTHER/x", "../other/x", f"{H}/v1/", f"{H}/robots.txt"])
+def test_an_uncapped_fetcher_refuses_a_redirect_that_changes_the_tenant(loc):
+    """national/tenant-redirect-uncapped: no limit_tenant at all; salem -> other (or to a host-level path) is refused
+    with no request to the target."""
+    f, net, _ = make({f"{H}/v1/salem/events": (302, b"", {"Location": loc})})
+    assert not f._tenant_caps
+    with pytest.raises(HostRefused):
+        f.get(f"{H}/v1/salem/events")
+    assert urls(net) == [f"{H}/robots.txt", f"{H}/v1/salem/events"]
+    assert any(e["event"] == "refused" and "changes tenant" in e["detail"] for e in f.log)
+
+
+def test_an_uncapped_redirect_inside_one_tenant_is_followed():
+    f, net, _ = make({f"{H}/v1/salem/a": (302, b"", {"Location": "/v1/Salem/b"}), f"{H}/v1/Salem/b": (200, b"[]")})
+    assert f.get(f"{H}/v1/salem/a")[1] == b"[]"
+
+
+def test_a_redirect_between_hosts_that_are_not_shared_is_unchanged():
+    """Clarksville hosts have no tenant on either side: their redirects are not touched by finding 8."""
+    from collector.tests.test_fetch import make as plain_make
+    f, net, _ = plain_make({"https://h.example/a": (302, b"", {"Location": "https://g.example/b"}),
+                            "https://g.example/b": (200, b"x")})
+    assert f.get("https://h.example/a")[1] == b"x"
