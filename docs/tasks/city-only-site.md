@@ -6,7 +6,8 @@ sitegen tasks) in session and pastes the output in its PR. No task fetches anyth
 `data/`. Every PR goes to `code-reviewer`. PRs touching the fetcher allowlist (T1, C1) or the workflow, rulesets or
 deploy (D1-D3) also go to `security-engineer`. Problem families: `city-only/clarksville-identical`,
 `city-only/no-county-leak`, `at-large/title-from-record`, `city-only/import-layers`, and from ADR 0012 amendment A1
-(2026-11-19, Salem first): `at-large/*` (second hit: `at-large/member-gap`; invariant and consumers in decision 5),
+(2026-11-19, Salem first): `at-large/*` (second hit: `at-large/member-gap`; third hit: `at-large/short-confirm-blesses-cutoffs`, rule restated;
+invariant and consumers in decision 5),
 `stitch/*`, `escribe/*`. PRs touching `collector/fetch.py` (E1's `post_json`) also go to `security-engineer`.
 
 **ADR 0011 overlap (checked 2026-11-19 against `origin/claude/data-off-main-b1` and `-b1b`).** B1 and B1b edit
@@ -118,7 +119,7 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
 ### T5b: At-large member gaps, review nits 3-5 (must-fix `at-large/member-gap`)
 - Second hit in the `at-large/*` family: the invariant and every consumer of `at_large_rows` are in ADR 0012 decision
   5. Run at opus/high (a state rule). The engineer reads that table first and checks each consumer.
-- Files: `sitegen/council.py` (`AT_LARGE_GAP_LISTS = 2`; the gap split in `at_large_rows`; `_END` sentinel in the
+- Files: `sitegen/council.py` (`AT_LARGE_GAP_LISTS`, now 3, see below; the gap split in `at_large_rows`; `_END` sentinel in the
   title loop; refuse `pro_tem` + `title` on one print; extract `title_runs(prints, facts, titles)`, used by
   `at_large_rows` and later by a wards primary), `cities/registry.py` (`_check_primary` refuses duplicate
   `title_slug`s), `tests/test_at_large_seats.py`, `tests/test_cities.py`. No `views.py` change here (the
@@ -130,6 +131,29 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
   meeting; `primary.titles: [Vice Mayor, Vice-Mayor]` fails naming both; a print with `meeting_id: null` does not end
   a title run; every T5 test still passes.
 - Done when: the tests pass, T0 passes, and the reviewer confirms each row of the consumer table.
+- **Third hit, restated rule (2026-11-19, `at-large/short-confirm-blesses-cutoffs`).** Read decision 5's "Member
+  gaps" bullet, its worked examples and the consumer table first; run at opus/high. Code: `_complete_lists` returns
+  `{list key: frozenset of officials}` for the complete lists only (every name resolves; no size test, no reference);
+  `_member_runs` splits between two consecutive prints only when the complete lists between them hold
+  `AT_LARGE_GAP_LISTS` = 3 in a row with equal sets (lists not complete are skipped). Delete `AT_LARGE_SHORT_CONFIRM`.
+  `latest_list_incomplete` and the tail are unchanged. Fixture: T4's M1-M5 plus later copies of M5 (`_later`, y1-y5).
+- Tests to change: the 2-list split test becomes D out at y1-y3, back at y4: records (M1, M5, M5) and (y4, y4, None),
+  `on(D, y2)` None, its docstring saying the same input from a repeated page defect splits too (accepted cost 2); a
+  member out of 2 lists of any kind keeps one record; "three missing lists with one incomplete" becomes D out at
+  y1-y4 with y2 unresolved, back at y5: split, and D out at y1-y3 with y2 unresolved, back at y4: one record; the
+  title-gap test gives A a 3-list gap with equal sets (A two membership records; the Vice Mayor records unchanged);
+  `AT_LARGE_GAP_LISTS == 3` and `not hasattr(council, "AT_LARGE_SHORT_CONFIRM")`.
+- Tests to add (each asserts every at-large record, not only the member named):
+  1. Counterexample (a): G leaves for good after M3, no H anywhere; D cut at M5 and y1 (`_later(..., 4)`). D: one
+     record (M1, y4, None); G: one record (M1, M3, M3); A, B, C, E, F one current record each.
+  2. Counterexample (b): no vacancy change beyond the fixture's; D cut at M2 and M3, E cut at M4. D (M1, M5, None) and
+     E (M1, M5, None), one record each; 8 at-large records in all; `on(D, M2)` is the at-large label.
+  3. Real vacancy of 3+ lists: G leaves after M3, no H, back at y2: G (M1, M3, M3) and (y2, y4, None), each with its
+     own first source, `on(G, M5)` None; back at y1 instead: one record (M1, y4). (Keep the existing test's cases.)
+  4. Absence across a membership change: D out at M2-M5, back at y1 (sets {A-C,E-G} twice, then {A-C,E,F,H} twice):
+     one record (M1, y4, None). Build the later lists first (`_later`), then remove D, so y1-y4 still print D.
+- Done when (third hit): these tests pass with the earlier T5b and T5 tests, T0 passes, and the reviewer checks each
+  consumer-table row, including `current_of_seat`/`held_over_of_seat` (T6 must not call them with `at-large`).
 
 ### T4b: Salem-shaped fixture data (the milestone 1 slice)
 - Files: new `tests/fixtures/cities/salem-or/facts.json` (`fixture: true`, schema-valid) and `wards.json` (ward

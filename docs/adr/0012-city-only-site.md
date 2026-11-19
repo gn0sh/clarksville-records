@@ -163,22 +163,59 @@ Search. No door names a body this build does not make. The overview of hub cards
   the title record covering the date ("Vice Mayor"), or else the membership label. A meeting whose list prints no
   title for anyone shows only the membership label: nothing is carried across an unprinted gap, except inside one
   run, which is the existing rule for wards.
-- **Member gaps (task T5b; must-fix `at-large/member-gap` from the PR #62 T5 code review).** A membership record is
-  not simply "first to last print": a member who leaves and returns years later must not show one unbroken record
-  across the gap. Rule: walk the member's prints in date order against the *complete* attendance lists between them.
-  A list is complete when every name it prints resolves to an official (no unresolved row in the prints, no
-  attendance entry without an `official_id`) and it is not a configured seating. A list "prints" a member when it
-  names them present or absent (wards.json holds both). When a member is missing from **N = 2** consecutive
-  complete lists, the record ends at their last print before the gap, and their next print starts a new record with
-  its own first source page. Incomplete lists inside a gap neither count toward N nor break the streak. One missing
-  complete list never splits a record. This mirrors holder_rows' one-list-drop rule (one list is not enough to
-  close a record). N is a module constant (`AT_LARGE_GAP_LISTS = 2`), not a setting. The tail (after a member's last
-  print, up to L) keeps the existing rule: the record reads "seen to" its last print, or is `held_over` when L's
-  list is incomplete. A reprint after a one-list tail gap rejoins the same record on the next build.
-- **Short lists (T5b review, `at-large/complete-list-truncated`).** A list that resolves fewer officials than the
-  latest complete list before it is cut off, so it is not complete, unless `AT_LARGE_SHORT_CONFIRM` (= N + 1 = 3)
-  short lists in a row confirm a smaller council (a vacancy); then that run is complete and its size is the new
-  reference. So two cut-off lists never split a record, and a vacancy of three or more lists still does.
+- **Member gaps: when a membership record splits (T5b; family `at-large/*`; restated 2026-11-19 after the third hit,
+  `at-large/short-confirm-blesses-cutoffs`; this replaces the earlier N = 2 rule and its "Short lists" amendment).**
+  A member who leaves and returns must not show one unbroken record across the gap (must-fix `at-large/member-gap`).
+  But no list shows by its own content whether it is full or cut off: a page not read to the end prints fewer names,
+  exactly as a council with a vacancy does. So the rule never tries to spot a cut-off list. It splits only on evidence
+  a cut-off rarely gives: the same council, without the member, printed several lists running.
+  1. **Complete list.** An attendance list is one `(date, meeting_id)` of the prints (a configured seating is not a
+     list). It is complete when every name it prints resolves to an official: no print whose `official_id` is not an
+     official, and no attendance entry without an official in that date's meetings. Its **set** is the officials it
+     prints, present or absent. Size plays no part: a cut-off list whose names all resolve is complete. A list that is
+     not complete is skipped: it neither joins nor breaks a run.
+  2. **Split.** Take two consecutive prints of one member, p then q. Every list strictly between them leaves the
+     member out. The record splits between them (it ends at p; q starts a new record with its own first source page)
+     only when those lists hold a **stable run**: `AT_LARGE_GAP_LISTS` = **3** complete lists in a row (counting
+     complete lists only) whose sets are exactly equal. Otherwise p and q stay in one record, however many lists lie
+     between. Absence alone never splits a record. The constant is a module constant, not a setting.
+     `AT_LARGE_SHORT_CONFIRM` and the size reference go.
+  3. **Tail.** After a member's last print nothing splits. The record reads "seen to" that print, or is `held_over`
+     when L's list is incomplete under `latest_list_incomplete` (holder_rows' one-list-drop rule, unchanged). A
+     later reprint rejoins it unless a stable run lies between.
+- **Why this rule.** The reviewer's rule (short lists count only in 3 same-set runs, full-size lists always count,
+  2 lists split) also fixes both counterexamples. But it keeps a list-size reference carried across lists, and it
+  still splits on 2 full-size lists, so a cut-off that lands on the day a newcomer joins counts. Every split this
+  rule makes, the reviewer's would make too, so this one is strictly more cautious, which a neutral site needs (a
+  wrong split publicly says an official left and came back). "Never split, one record with a gap note" makes no wrong
+  split, but reopens `at-large/member-gap`: someone gone for years shows as seated throughout. A plain "3 complete
+  lists" count, without the same-set test, also fixes both counterexamples, but would split on 3 cut-offs that each
+  lose the member among other changes. The same-set test only costs absences that span a membership change.
+- **Accepted costs (judgment call, confidence medium; at-large is used only by Murfreesboro, on hold).**
+  1. A real departure shorter than 3 complete lists, or one whose lists never hold one set for 3 complete lists
+     running (the council changes during the gap), reads as one record. The site then says "seen in attendance lists
+     from X to Y", which is still true (seen at both ends). `Seats.on(date)` labels a meeting inside the gap, but such
+     a meeting rarely names the member anywhere else: their list leaves them out and they cast no vote. It never
+     states a departure that did not happen.
+  2. A page defect that cuts the same member's line from 3 or more lists running, and from nothing else, then stops,
+     splits the record. The data cannot tell this from a real 3-list absence. A defect that never stops never splits
+     (it is a tail). Revisit with Murfreesboro's real lists before that city ships.
+  3. Lists with an unresolved name are skipped, so a gap made mostly of unread lists may not split.
+- **Worked examples** (the T4 fixture: M1-M3 print A-G; M4-M5 print A-F and H; y1-y5 are later copies of M5; "cut"
+  means the member's line is missing although they still serve):
+
+  | Case | Lists between the member's prints (sets) | Result |
+  |---|---|---|
+  | (a) G leaves for good after M3, nobody replaces G (no H); D cut at M5 and y1 | D: M5, y1 = {A-C,E,F} | 2 lists, no stable run: D one record, M1 to y4, current. G: tail, ends M3. (The old rule confirmed M4, M5, y1 as a vacancy and split D.) |
+  | (b) No vacancy; D cut at M2 and M3, E cut at M4 | D: M2, M3 = {A-C,E-G}; E: M4 | 2 lists and 1 list: every member keeps one record. (The old rule counted 3 short lists as confirmed and split D.) |
+  | Real vacancy of 3+ lists: G leaves after M3, nobody replaces G, G back at y2 | G: M4, M5, y1 = {A-F} | stable run: G gets M1-M3 and y2-y4, each with its own first source; `on(G, M5)` is None |
+  | Same vacancy, G back at y1 | G: M4, M5 = {A-F} | 2 lists: one record, M1 to y4 (cost 1) |
+  | D leaves after M5, back at y4 | D: y1, y2, y3 = {A-C,E,F,H} | stable run: D gets M1-M5 and y4 on |
+  | D cut at y1, y2 and y3 by one repeated defect | the same lists as the row above | the same split (cost 2) |
+  | D out at M2-M5, back at y1, while G gives way to H at M4 | D: M2, M3 = {A-C,E-G}; M4, M5 = {A-C,E,F,H} | no 3 equal sets: one record (cost 1) |
+  | D out at y1-y3, y2 prints an unresolved name | D: y1, y3 (y2 skipped) | 2 complete lists: one record |
+  | D out at y1-y4, y2 unresolved, back at y5 | D: y1, y3, y4 = {A-C,E,F,H} | stable run (y2 skipped): split |
+
 - **Review nits 3-5 (T5b).** (3) A print with `pro_tem: true` never carries a `title`. The collector never writes
   both, and `at_large_rows` refuses a prints file that has both (SeatsError naming the meeting), so "Mayor Pro Tem"
   can never become a Mayor title record. (4) `registry._check_primary` refuses two `primary.titles` with the same
@@ -186,20 +223,22 @@ Search. No door names a body this build does not make. The overview of hub cards
   (5) The title-run loop ends on a private sentinel (`_END = object()`), not `None`, so a print whose `meeting_id`
   is null is never read as the end of the lists.
 - **Invariant (family `at-large/*`).** This is stated before the next fix because the member gap is the family's
-  second hit (loop rule). Every at-large record is a maximal run of attendance-list prints. A membership record is
-  one member's prints, with no N consecutive complete lists inside it that omit them. A title record is the lists
-  that print that title beside exactly that one member, with no read list inside it that prints the title for
-  nobody or for two. Its `start`, `seen_to`, `source` and `last_source` all come from prints inside the run.
+  second hit (loop rule); its membership half was restated after the third hit. Every at-large record is a maximal
+  run of attendance-list prints. A membership record is one member's prints, and two consecutive prints of that
+  member are in one record exactly when the lists between them hold no stable run (3 complete lists in a row with
+  equal sets). A title record is the lists that print that title beside exactly that one member, with no read list
+  inside it that prints the title for nobody or for two. Its `start`, `seen_to`, `source` and `last_source` all come from prints inside the run.
   Nothing comes from `officials[].title`, roll calls, config naming a holder, or term dates. A title is a label in
   a member's own records, never an order between members.
 - **Every consumer of `at_large_rows`** (each must hold the invariant; T5b checks each one):
 
   | Consumer | Reads | Check |
   |---|---|---|
-  | `sitegen/council.py` `at_large_rows`, `printings()` | rows, prints | each split record keeps its own `printings` |
+  | `sitegen/council.py` `at_large_rows`, `_complete_lists`, `_member_runs`, `printings()` | rows, prints | a split only across a stable run (the worked examples are tests); each split record keeps its own `printings` |
   | `sitegen/council.py` `title_conflicts` (run log in the T6 build) | prints | the sentinel fix covers its loop too |
-  | `sitegen/seats.py` `Seats` (`dates_text`, `held_over_text`, `on`, `seat_text`, `header_text`, `of`, `for_seat`, `current_of_seat`, `is_current`, `is_held_over`, `covers_to`) with `AT_LARGE_WORDING` | rows, L | two records for one member: `on(date)` inside the gap is None (no label); `seat_text` reads the current record only |
-  | `sitegen/seats.py` `at_large_seats`, `seat_label`, `seat_order` | PRIMARY | labels and one member's own record order only |
+  | `sitegen/seats.py` `Seats` (`dates_text`, `held_over_text`, `on`, `seat_text`, `header_text`, `of`, `for_seat`, `is_current`, `is_held_over`, `covers_to`) with `AT_LARGE_WORDING` | rows, L | two records for one member: `on(date)` inside the gap is None (no label); `seat_text` reads the current record only |
+  | `sitegen/seats.py` `Seats.current_of_seat` (:420), `held_over_of_seat` (:364), and their callers `council.seat_list` (~532-547), `views.district_rows` (~1453), the district page (~1790) | rows of one seat | finding `at-large/seat-single-holder`: each returns **one** record, so it is never called with `at-large` (every member holds that seat at once; it would pick one member and drop the rest). Valid for `title-*` seats, which have one holder per list by the title invariant. T6 lists members from `is_current` per official, never by seat, and adds a test that the card and Officials page show every current member |
+| `sitegen/seats.py` `at_large_seats`, `seat_label`, `seat_order` | PRIMARY | labels and one member's own record order only |
   | `sitegen/views.py` `Index.person` (meeting pages, ~line 300), `current_basis_lines` and `_card` (~574-595), `base` (~833), `roster_official` (~953), `body_records`, `_seat_on`, `search_index` (~1929-1998) | Seats | a meeting inside a gap shows no seat label; the search label comes from the current record |
   | `sitegen/views.py` `officials_page.seat_key` (~649) | `seat_order` of current records | **must change in T6**: for `at_large` it sorts by surname only. Today the title seats' order (-1, ...) would list the Mayor and Vice Mayor first, which breaks "titles never move a member up the list" |
   | `sitegen/build.py` (T6 builds `ix` from these rows), `qa/site_checks.py` at-large card checks (T9), `tests/test_at_large_seats.py` | rows | T6 and T9 are written against the gap rule |
