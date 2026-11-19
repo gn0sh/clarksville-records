@@ -97,6 +97,24 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   hscroll     no horizontal scroll at 390 px (contracts pages also at 360 px) for the page types (index, official, meeting, items, and when present
               officials, district, search, votes); needs Playwright (node)
 
+Daylight Digest (config/site.yml national.enabled; docs/architecture/daylight-national.md 1a, 4.0, 6, 7a; task B13).
+Every exemption below names the `digest/` prefix (DIGEST); pages outside it are checked exactly as before.
+  digest/csp  per-file policies: digest/geo-frame.html has exactly the frame CSP of 4.0 (default-src 'none', its one
+              inline script by hash and the Census geographies path, base-uri and form-action 'none'), restated here
+              and equal to sitegen.national.geo_frame_csp, and loads, links and frames nothing else; digest/index.html
+              has script-src 'self' (no Census), frame-src 'self', the morning note's form origin in form-action and
+              connect-src, the counter's origin in connect-src while it counts; every other digest page has the
+              site's normal CSP; no CSP but the frame's names the Census on a digest page, the geographies path on
+              any page, or the Census at all on a page without the landing address box; only digest/index.html names
+              the frame
+  Scoped exemptions (each on `digest/` only): the geo frame (DIGEST_FRAME) is a framed document, not a site page, so
+  footer, external, unofficial, switch and header skip it (digest/csp holds it); header: a digest page carries the
+  usual header after the three substitutions of 7a (plate place, no moon, no sky-in span); switch: a digest page has
+  none; external: digest/index.html also loads static/us-count.js with the counter's /count, and its connect-src and
+  form-action are digest/csp's; sources: an unmarked outbound link on a digest page is https, rel "noopener
+  noreferrer", and a directory entry's official, checked or reason URL, the geocoder's privacy page, or a URL of the
+  coming-up page's own JSON.
+
 Councils (config/site.yml `councils`, each config/localities/<locality>/council.yml): a real build also has each
 council's pages under its folder, built from the council's own facts file. links, sources, unverified, layout, totals,
 provenance, name-links, footer, external, hscroll and row-height cover them too, each against the council's facts and
@@ -133,6 +151,22 @@ from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # no
 # (allowed URLs, the CSP, form actions, caps, schemes) is restated in this file and never computed by the code under
 # test.
 from sitegen.feeds import CONTRACTS_FEED, PER_BODY_FEEDS  # noqa: E402
+# Daylight Digest: the frame's CSP is compared to the builder's own function as well as to the policy restated here
+# (task B13), and the directory's URLs come from its one reader (architecture 11.3 item 10).
+from sitegen import national as national_mod  # noqa: E402
+
+DIGEST = "digest/"                          # every digest exemption in this file names this prefix (architecture 7a)
+DIGEST_FRAME = DIGEST + "geo-frame.html"    # the geo frame (4.0): a framed document, not a site page
+DIGEST_INDEX = DIGEST + "index.html"        # the lookup page, the one parent of the frame
+DIGEST_PAGE_LABELS = ROOT / "config" / "national" / "page-labels.yml"
+# Restated from sitegen/national.py CENSUS_GEOGRAPHIES (4.0): the one source the frame's script-src adds.
+CENSUS_GEOGRAPHIES = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
+
+
+def site_pages(pages: dict) -> dict:
+    """Every page a visitor opens: all but the geo frame (DIGEST_FRAME), which only digest/index.html loads, sandboxed
+    and out of sight, and which digest/csp holds instead (scoped exemption, `digest/` prefix)."""
+    return {rel: pg for rel, pg in pages.items() if rel != DIGEST_FRAME}
 
 # Per build target (sitegen.config.MAX_FILES_BY_TARGET says the same): preview 500, under the artifact limit of 511
 # files per version; pages 3000 (GitHub Pages has no such limit). MAX_FILES is the preview's.
@@ -1148,6 +1182,7 @@ class Page(HTMLParser):
         self.fact_hrefs = []          # hrefs inside an element carrying data-fact-id
         self.ext_hrefs = []           # <a data-ext="roster|map|county|support">: a sourced link that is not a minutes PDF
         self.links: list[tuple[str, str | None]] = []   # every <a href>, one entry per element: (href, data-ext)
+        self.rels: list[str | None] = []   # the rel attribute of each entry of self.links, in the same order
         self.fact_texts: list[tuple[str, str]] = []   # (fact id, text) of each outermost data-fact-id element
         self._stack, self._fact_depth, self._fact_buf = [], None, None
         self.json_blocks: dict[str, list[str]] = defaultdict(list)   # <script type="application/json" id=...> text
@@ -1186,6 +1221,7 @@ class Page(HTMLParser):
         if tag == "a" and "href" in a:
             self.hrefs.append(a["href"] or "")
             self.links.append((a["href"] or "", a.get("data-ext")))
+            self.rels.append(a.get("rel"))
             if a.get("data-ext") in EXT_KINDS:
                 self.ext_hrefs.append(a["href"] or "")
         if "data-fact-id" in a:
@@ -1331,9 +1367,12 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
 
 def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
                   allowed: set[str] | None = None, fin: dict | None = None,
-                  videos: set[str] | None = None) -> tuple[list[str], str]:
+                  videos: set[str] | None = None,
+                  digest: dict[str, set[str]] | None = None) -> tuple[list[str], str]:
     """`allowed`: the exact external URLs a page may link that are not minutes PDFs (allowed_external). `videos`: the
-    meetings' video_url values; a data-ext="video" link is one of them, alone or with #t=<whole seconds>."""
+    meetings' video_url values; a data-ext="video" link is one of them, alone or with #t=<whole seconds>. `digest`
+    (digest_link_urls): for each page under `digest/` only, the exact URLs an unmarked outbound link may have (B4
+    writes digest links without data-ext); every outbound link on such a page carries rel="noopener noreferrer"."""
     allowed = set() if allowed is None else allowed
     videos = set() if videos is None else videos
     problems = []
@@ -1346,9 +1385,12 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
     real_pages: dict[str, int | None] = {}
     seen = doc_level = 0
     for rel, pg in pages.items():
-        for href, ext in pg.links:   # each <a> on its own: one allowed link never excuses another
+        for (href, ext), rel_attr in zip(pg.links, pg.rels):   # each <a> on its own: one allowed link never excuses another
             if urlsplit(href).scheme not in ("http", "https"):
                 continue
+            in_digest = digest is not None and rel.startswith(DIGEST)
+            if in_digest and sorted((rel_attr or "").split()) != ["noopener", "noreferrer"]:
+                problems.append(f"{rel}: outbound link {href!r} has rel {rel_attr!r}, not \"noopener noreferrer\"")
             base, _, frag = href.partition("#")
             src = by_url.get(base) or by_url.get(unquote(base))
             if src is None and rel.startswith("contracts/") and base in doc_urls:
@@ -1357,6 +1399,14 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
                 m = VIDEO_HREF.fullmatch(href)
                 if not m or m.group(1) not in videos:
                     problems.append(f"{rel}: video link {href!r} is not a meeting's video_url with an optional #t=<seconds>")
+                continue
+            if src is None and in_digest and ext is None:
+                # scoped exemption (`digest/` prefix): a national page links officials' sites by the directory
+                if not href.startswith("https://"):
+                    problems.append(f"{rel}: digest link {href!r} is not https")
+                elif href not in digest.get(rel, set()):
+                    problems.append(f"{rel}: digest link {href!r} is not a URL of the directory, the geocoder's privacy "
+                                    "page or the page's own JSON")
                 continue
             if src is None:
                 if ext not in EXT_KINDS:
@@ -2162,16 +2212,23 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
     configured labels; each is a plain link (so it works without script) that resolves to one built page, the same
     page from everywhere, All to the home page; and exactly the pages that are an option's own destination mark that
     option aria-current. A body's hub page carries its section cards, and every "coming" card there is marked Coming
-    and links an official page. A config without the block has no switch to check."""
+    and links an official page. A config without the block has no switch to check. Scoped exemption (architecture
+    7a, prefix `digest/`): a Daylight Digest page has no switch at all, and no option links one."""
     cfg = _site_cfg() if cfg is None else cfg
     sw = cfg.get("switch") or {}
     if not sw.get("label") or not sw.get("bodies"):
         return [], "no switch: block in config/site.yml"
     labels = {"all": sw["all"]["label"], **{k: b["label"] for k, b in sw["bodies"].items()}}
-    problems, seen = [], {}
+    problems, seen, n_digest = [], {}, 0
     for rel in sorted(pages):
         raw = (site / rel).read_text(encoding="utf-8")
         navs = SWITCH_NAV.findall(raw)
+        if rel.startswith(DIGEST):
+            n_digest += 1
+            n = len(navs) or raw.count('class="body-switch"')
+            if n:
+                problems.append(f"{rel}: {n} body switches on a digest page (want 0)")
+            continue
         if len(navs) != 1:
             problems.append(f"{rel}: {len(navs)} body switches (want 1)")
             continue
@@ -2196,6 +2253,8 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
             target = resolve(rel, href)
             if target is None or target not in pages:
                 problems.append(f"{rel}: body switch option {key!r} links {href!r}, not a built page")
+            elif target.startswith(DIGEST):
+                problems.append(f"{rel}: body switch option {key!r} links the digest page {target}")
             elif seen.setdefault(key, target) != target:
                 problems.append(f"{rel}: body switch option {key!r} links {target}, elsewhere {seen[key]}")
             if (target == rel) != (key == here):
@@ -2222,8 +2281,9 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
                 problems.append(f"{rel}: a coming card links no official page")
             if re.search(r'<a href="', card):
                 problems.append(f"{rel}: a coming card links a page of this site as if it were collected")
-    return problems, (f"the switch on {len(pages)} pages, options {', '.join(seen)}; "
-                      f"{n_coming} coming cards, each tagged and linked to an official page")
+    return problems, (f"the switch on {len(pages) - n_digest} pages, options {', '.join(seen)}; "
+                      f"{n_coming} coming cards, each tagged and linked to an official page"
+                      + (f"; none on {n_digest} digest/ pages" if n_digest else ""))
 
 
 SITE_HEADER = re.compile(r'<header class="site-header[^"]*">.*?</header>', re.S)
@@ -2244,9 +2304,13 @@ def check_header(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
     every built page has one site header, and it is the same markup on every page (site/templates/_header.html.j2):
     the sky's sun (and the moon's place, when the config names one), the Menu button, the name plate, the unofficial
     tag and the date line, whose link leads to the day page from wherever the page is. Every page also loads the two
-    scripts the header needs: static/js-flag.js in its head and static/sky.js."""
+    scripts the header needs: static/js-flag.js in its head and static/sky.js.
+    Scoped exemption (architecture 7a, prefix `digest/`): the usual header is the most common one among pages outside
+    `digest/`, which are held to it exactly as before; each Daylight Digest page holds the usual header after exactly
+    the three substitutions of digest_header (its plate place, no moon, no sky-in span), and nothing else. A digest
+    page with the usual header, or any other difference, fails. The scripts and the date link apply to every page."""
     cfg = _site_cfg() if cfg is None else cfg
-    problems, seen = [], {}
+    problems, seen, digest = [], {}, {}
     want = ['<header class="site-header has-sky">', '<div class="sky-sun" id="sky-sun">', 'id="nav-open"',
             'class="plate-name"', 'class="unofficial-tag"', '<div class="sky-hero" id="sky-hero" data-tz="',
             '<span id="sky-weekday"></span>', '<time class="sky-date" id="sky-date"></time>']
@@ -2258,7 +2322,7 @@ def check_header(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
         if header is None:
             problems.append(f"{rel}: {len(SITE_HEADER.findall(raw))} site headers (want 1)")
             continue
-        seen.setdefault(header, []).append(rel)
+        (digest if rel.startswith(DIGEST) else seen).setdefault(header, []).append(rel)
         root = "../" * rel.count("/")
         head = raw[:raw.index("</head>")] if "</head>" in raw else ""
         if f'<script src="{root}static/js-flag.js"></script>' not in head:
@@ -2269,7 +2333,8 @@ def check_header(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
         if not m or resolve(rel, m.group(1)) != "today.html":
             problems.append(f"{rel}: the header's date does not link the day page")
     if not seen:
-        return problems, "no page has a site header"
+        return problems + [f"{rels[0]}: a digest page's header, with no usual header outside {DIGEST} to hold it to"
+                           for rels in digest.values()], "no page outside digest/ has a site header"
     usual = max(seen, key=lambda h: len(seen[h]))
     for header, rels in seen.items():
         if header != usual:
@@ -2278,7 +2343,66 @@ def check_header(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
     problems += [f"{seen[usual][0]}: the header has no {part!r}" for part in want if part not in usual]
     if "today.html" not in pages:
         problems.append("today.html: the day page the header's date links is not built")
-    return problems, f"one header on {len(seen[usual])} of {len(pages)} pages, with the sky and the date line"
+    note = f"one header on {len(seen[usual])} of {len(pages)} pages, with the sky and the date line"
+    if digest:
+        expected, why = digest_header(usual)
+        problems += [f"{seen[usual][0]}: {w}" for w in why]
+        moon = '<span class="sky-moon" id="sky-moon" data-lat="'
+        problems += [f"{DIGEST}: the digest header has no {part!r}" for part in want
+                     if part != moon and part not in expected]
+        for header, rels in digest.items():
+            more = f" (and {len(rels) - 1} more pages like it)" if len(rels) > 1 else ""
+            if header == usual:
+                problems.append(f"{rels[0]}: a digest page with the usual header, not its digest variant{more}")
+            elif header != expected:
+                problems.append(f"{rels[0]}: its header is not the one on {seen[usual][0]} with only the three "
+                                f"digest substitutions (plate place, no moon, no sky-in span){more}")
+        n = sum(len(r) for r in digest.values())
+        note = (f"one header on {len(seen[usual])} of {len(pages)} pages, with the sky and the date line; "
+                f"its digest variant on {sum(len(r) for h, r in digest.items() if h == expected)} of {n} {DIGEST} pages")
+    return problems, note
+
+
+def digest_label(key: str) -> str | None:
+    """One label of config/national/page-labels.yml (`labels:` key), or None (restated: the file is read here)."""
+    try:
+        doc = yaml.safe_load(DIGEST_PAGE_LABELS.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return None
+    text = ((doc or {}).get("labels") or {}).get(key) if isinstance(doc, dict) else None
+    return text if isinstance(text, str) else None
+
+
+def _jinja_escape(text: str) -> str:
+    """Jinja's autoescape of a value (markupsafe), restated."""
+    return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&#34;")
+            .replace("'", "&#39;"))
+
+
+PLATE_PLACE = re.compile(r'<span class="plate-place">[^<]*</span>')
+MOON_FRAME = re.compile(r'<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon"[^>]*>'
+                        r'</span></div>')
+SKY_IN = re.compile(r'<span class="sky-in">[^<]*</span>')
+
+
+def digest_header(usual: str, place: str | None = None) -> tuple[str, list[str]]:
+    """(the header every `digest/` page must carry, problems): the usual header after the three substitutions of
+    architecture 7a and nothing else: the plate place reads page-labels.yml `digest.place`; the moon frame is gone; the
+    date line's " in <place>" span (sky-in) is gone. A substitution the usual header gives no place for is a problem
+    (the moon only when the usual header has one: config sky_place)."""
+    place = digest_label("digest.place") if place is None else place
+    why = []
+    if not place:
+        why.append(f"no digest.place label in {DIGEST_PAGE_LABELS.relative_to(ROOT)}")
+    if len(PLATE_PLACE.findall(usual)) != 1:
+        why.append("the header has no single plate place for the digest header to replace")
+    if len(SKY_IN.findall(usual)) != 1:
+        why.append("the header has no single sky-in span for the digest header to drop")
+    if len(MOON_FRAME.findall(usual)) > 1:
+        why.append("the header has more than one moon frame")
+    out = PLATE_PLACE.sub(lambda m: f'<span class="plate-place">{_jinja_escape(place or "")}</span>', usual, count=1)
+    out = MOON_FRAME.sub("", out, count=1)
+    return SKY_IN.sub("", out, count=1), why
 
 
 NOT_COLLECTED_BLOCKS = re.compile(
@@ -2309,6 +2433,7 @@ CSP_FIXED = {"default-src": ["'self'"], "connect-src": ["'none'"], "object-src":
              "frame-src": ["'self'"], "img-src": ["'self'", "data:"], "form-action": ["'self'"]}
 GOATCOUNTER_PRIVACY = "https://www.goatcounter.com/help/privacy"   # restated from sitegen/analytics.py PRIVACY_URL
 COUNT_JS = re.compile(r"(^|/)static/count\.js$")
+US_COUNT_JS = re.compile(r"(^|/)static/us-count\.js$")   # the digest counter button's script (architecture 3.9)
 GOATCOUNTER_CODE = re.compile(r"[a-z0-9][a-z0-9-]{1,48}[a-z0-9]")   # restated from sitegen/analytics.py CODE
 HASH_SRC = re.compile(r"'sha256-[A-Za-z0-9+/]{43}='")
 
@@ -2329,7 +2454,9 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     """No third-party resource in the HTML. The one runtime call out, the landing address box's geocoder (only on
     submit, from a sandboxed iframe), may go only to config/site.yml geocoder_url, exactly: the box's settings block
     and the page's CSP script-src both hold it. A page that loads address.js without its settings block fails
-    (qa-guard/addr-config-silent-miss), as does a page without the CSP meta (third-party-script/no-csp)."""
+    (qa-guard/addr-config-silent-miss), as does a page without the CSP meta (third-party-script/no-csp).
+    Scoped exemption (prefix `digest/`, architecture 3.9 and 6): digest/index.html alone also loads static/us-count.js
+    with exactly the counter's /count address, and its connect-src and form-action are held by digest/csp."""
     problems = []
     # The one form that may post off the site: the morning note's sign-up form on alerts.html, only while config
     # morning_note.enabled is true, and only to its form_action exactly; that page's CSP form-action then holds
@@ -2361,8 +2488,17 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     for rel, pg in pages.items():
         if pg.counters and counter is None:
             problems.append(f"{rel}: loads a visitor counter while config analytics.code is empty")
-        for src, end in pg.counters:
-            if not COUNT_JS.search(src) or (counter and end != counter + "/count") or len(pg.counters) != 1:
+        tags = pg.counters
+        if rel == DIGEST_INDEX:     # the counter button's own script (3.9), beside count.js
+            us = [(src, end) for src, end in tags if US_COUNT_JS.search(src)]
+            tags = [t for t in tags if t not in us]
+            if len(us) > 1 or any(counter is None or end != counter + "/count" for _, end in us):
+                problems.append(f"{rel}: counter button tags {us!r} are not one static/us-count.js with "
+                                f"{(counter or '') + '/count'!r}")
+        elif any(t == "script" and US_COUNT_JS.search(src) for t, src in pg.resources):
+            problems.append(f"{rel}: loads static/us-count.js (only {DIGEST_INDEX} may)")
+        for src, end in tags:
+            if not COUNT_JS.search(src) or (counter and end != counter + "/count") or len(tags) != 1:
                 problems.append(f"{rel}: visitor counter tag {src!r} {end!r} is not the one static/count.js with "
                                 f"{(counter or '') + '/count'!r}")
     for rel, pg in pages.items():
@@ -2390,6 +2526,8 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             continue
         pol = parse_csp(pg.csp[0])
         for k, v in CSP_FIXED.items():
+            if rel == DIGEST_INDEX and k in ("connect-src", "form-action"):
+                continue            # digest/csp holds these two for the lookup page
             if k == "connect-src" and pg.counters and counter:
                 v = [counter]
             if k == "form-action" and note_action and rel == NOTE_PAGE:
@@ -2416,6 +2554,161 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             if f"'sha256-{digest}'" not in scripts:
                 problems.append(f"{rel}: CSP script hash is not the address box's frame script")
     return problems
+
+
+# --- Daylight Digest (docs/architecture/daylight-national.md 4.0 and 6; task B13) --------------------------------------
+
+# The site's base policy (sitegen/views.py CSP_BASE), restated: what every static digest page carries, the lookup
+# page and the counter's origin aside.
+DIGEST_CSP = {"default-src": ["'self'"], "script-src": ["'self'"], "style-src": ["'self'", "'unsafe-inline'"],
+              "style-src-elem": ["'self'"], "connect-src": ["'none'"], "img-src": ["'self'", "data:"],
+              "object-src": ["'none'"], "base-uri": ["'none'"], "form-action": ["'self'"], "frame-src": ["'self'"]}
+INLINE_SCRIPT = re.compile(r"<script>(.*?)</script>", re.S)
+
+
+def note_form_origin(cfg: dict) -> str | None:
+    """The morning note's form origin while config morning_note.enabled is true and form_action is an https URL with a
+    host (restated from sitegen/morning_page.py form_origin), else None."""
+    mn = cfg.get("morning_note") or {}
+    action = mn.get("form_action")
+    if mn.get("enabled") is not True or not isinstance(action, str):
+        return None
+    u = urlsplit(action)
+    return f"https://{u.netloc}" if u.scheme == "https" and u.netloc and not re.search(r"[\s;*@]", u.netloc) else None
+
+
+def frame_csp(js: str) -> str:
+    """The geo frame's whole policy (4.0), restated: nothing by default, scripts only its one inline script by hash and
+    the Census geographies path, base-uri and form-action closed."""
+    digest = base64.b64encode(hashlib.sha256(js.encode("utf-8")).digest()).decode("ascii")
+    return (f"default-src 'none'; script-src 'sha256-{digest}' {CENSUS_GEOGRAPHIES}; base-uri 'none'; "
+            "form-action 'none'")
+
+
+def digest_link_urls(site: Path, pages: dict[str, "Page"], cfg: dict) -> dict[str, set[str]]:
+    """{digest page: the exact URLs an unmarked outbound link on it may have}: every directory entry's official_url,
+    checked_url and reason_url (read through sitegen/national.py, its one reader, 11.3 item 10), config
+    geocoder_privacy_url (the lookup page's Census privacy link), and on a coming-up page digest/<st>/<id>.html the
+    URLs of its own digest/<st>/<id>.json (body official_url, meeting_url, agenda url, item source urls; B14 holds
+    those to https_link and the host allowlist). Empty when no page is under `digest/`."""
+    rels = [rel for rel in pages if rel.startswith(DIGEST)]
+    if not rels:
+        return {}
+    base: set[str] = set()
+    try:
+        for g in national_mod.load_directory().govs:
+            base |= {g[k] for k in ("official_url", "checked_url", "reason_url") if isinstance(g.get(k), str)}
+    except national_mod.NationalConfigError:
+        pass                            # no URL is allowed; the build itself refuses such a directory
+    if isinstance(cfg.get("geocoder_privacy_url"), str):
+        base.add(cfg["geocoder_privacy_url"])
+    out = {}
+    for rel in rels:
+        urls = set(base)
+        data = site / (rel[:-len(".html")] + ".json")
+        if rel.count("/") == 2 and data.is_file():
+            try:
+                doc = json.loads(data.read_text(encoding="utf-8"))
+            except ValueError:
+                doc = {}
+            doc = doc if isinstance(doc, dict) else {}
+            body = doc.get("body")
+            urls.add(body.get("official_url") if isinstance(body, dict) else None)
+            for m in doc.get("meetings") or []:
+                if not isinstance(m, dict):
+                    continue
+                urls.add(m.get("meeting_url"))
+                urls.add(m["agenda"].get("url") if isinstance(m.get("agenda"), dict) else None)
+                for it in m.get("items") or []:
+                    src = it.get("source") if isinstance(it, dict) else None
+                    urls.add(src.get("url") if isinstance(src, dict) else None)
+        out[rel] = {u for u in urls if isinstance(u, str) and u}
+    return out
+
+
+def check_digest_csp(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) -> tuple[list[str], str]:
+    """digest/csp (architecture 4.0 and 6; security finding 1, national/csp-jsonp-gadget), per file:
+    - digest/geo-frame.html: one CSP meta, exactly frame_csp(<its one inline script>) and equal to
+      sitegen.national.geo_frame_csp of that script; the no-referrer meta; no other script, resource, form or link.
+    - digest/index.html: script-src 'self' (the Census only in the frame's CSP), frame-src 'self'; connect-src the
+      morning note's form origin and, while the page counts, the counter's origin ('none' with neither); form-action
+      'self' and the form origin; the rest the site's base policy; its settings name the frame "geo-frame.html".
+    - every other digest page: the site's base policy, connect-src the counter's origin while it counts.
+    - no CSP but the frame's names the Census on a digest page; none names the geographies path on any page; a page
+      outside `digest/` names the Census only beside the landing address box (addr-config, task F7 moves it); no page
+      but digest/index.html names the frame."""
+    cfg = _site_cfg() if cfg is None else cfg
+    digest = sorted(rel for rel in pages if rel.startswith(DIGEST))
+    if not digest:
+        return [], f"no {DIGEST} pages (national.enabled off)"
+    problems = []
+    code = (cfg.get("analytics") or {}).get("code") or ""
+    counter = f"https://{code}.goatcounter.com" if code and GOATCOUNTER_CODE.fullmatch(code) else None
+    form = note_form_origin(cfg)
+    # the frame
+    if DIGEST_FRAME not in pages:
+        problems.append(f"{DIGEST_FRAME}: not built beside {DIGEST_INDEX}")
+    else:
+        raw, pg = (site / DIGEST_FRAME).read_text(encoding="utf-8"), pages[DIGEST_FRAME]
+        scripts = INLINE_SCRIPT.findall(raw)
+        if len(pg.csp) != 1:
+            problems.append(f"{DIGEST_FRAME}: {len(pg.csp)} Content-Security-Policy metas (want 1)")
+        elif len(scripts) != 1 or raw.count("<script") != 1:
+            problems.append(f"{DIGEST_FRAME}: {raw.count('<script')} scripts (want its one inline script)")
+        else:
+            if pg.csp[0] != frame_csp(scripts[0]):
+                problems.append(f"{DIGEST_FRAME}: CSP {pg.csp[0]!r} is not {frame_csp(scripts[0])!r}")
+            if pg.csp[0] != national_mod.geo_frame_csp(scripts[0]):
+                problems.append(f"{DIGEST_FRAME}: CSP is not sitegen.national.geo_frame_csp of its script")
+        if pg.resources or pg.hrefs:
+            problems.append(f"{DIGEST_FRAME}: loads or links {[*pg.resources, *pg.hrefs][:3]!r} (want nothing)")
+        if '<meta name="referrer" content="no-referrer">' not in raw:
+            problems.append(f"{DIGEST_FRAME}: no referrer meta \"no-referrer\"")
+    # the Census and the frame, every page
+    for rel in sorted(pages):
+        if rel == DIGEST_FRAME:
+            continue
+        pg, csp = pages[rel], " ".join(pages[rel].csp).lower()
+        if "census.gov" in csp and rel.startswith(DIGEST):
+            problems.append(f"{rel}: names the Census in its CSP (only {DIGEST_FRAME} may)")
+        elif "/geocoder/geographies" in csp:
+            problems.append(f"{rel}: names the Census geographies path in its CSP (only {DIGEST_FRAME} may)")
+        elif "census.gov" in csp and not pg.json_blocks.get("addr-config"):
+            problems.append(f"{rel}: names the Census in its CSP without the landing address box")
+        if rel != DIGEST_INDEX and "geo-frame.html" in (site / rel).read_text(encoding="utf-8"):
+            problems.append(f"{rel}: names the geo frame (only {DIGEST_INDEX} may)")
+    # each digest page's own policy
+    n = 0
+    for rel in digest:
+        if rel == DIGEST_FRAME:
+            continue
+        pg = pages[rel]
+        if len(pg.csp) != 1:
+            problems.append(f"{rel}: {len(pg.csp)} Content-Security-Policy metas (want 1)")
+            continue
+        n += 1
+        want = {k: list(v) for k, v in DIGEST_CSP.items()}
+        counts = counter if counter and pg.counters else None
+        if rel == DIGEST_INDEX:
+            want["connect-src"] = [o for o in (form, counts) if o] or ["'none'"]
+            want["form-action"] = ["'self'", *([form] if form else [])]
+        elif counts:
+            want["connect-src"] = [counts]
+        pol = parse_csp(pg.csp[0])
+        for k in sorted(set(want) | set(pol)):
+            if k not in pol or k not in want or sorted(pol[k]) != sorted(want[k]):
+                problems.append(f"{rel}: CSP {k} is {pol.get(k)!r}, want {want.get(k)!r}")
+    if DIGEST_INDEX in pages:
+        try:
+            frame = json.loads((pages[DIGEST_INDEX].json_blocks.get("digest-config") or ["{}"])[0]).get("frame")
+        except (ValueError, AttributeError):
+            frame = None
+        if not isinstance(frame, str) or resolve(DIGEST_INDEX, frame) != DIGEST_FRAME:
+            problems.append(f"{DIGEST_INDEX}: its settings name the frame {frame!r}, not geo-frame.html")
+    else:
+        problems.append(f"{DIGEST_INDEX}: not built, but other {DIGEST} pages are")
+    return problems, (f"{DIGEST_FRAME} holds the frame CSP of 4.0; {n} other {DIGEST} pages hold their policies; "
+                      "the Census in no other digest CSP")
 
 
 class UnofficialText(HTMLParser):
@@ -3659,7 +3952,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
                                    allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc) | cal_urls
                                    | ({agendas["index_url"]} if agendas else set())
                                    | ({cmx["listing_url"]} | {m["url"] for m in cmx["meetings"] if not m.get("source_id")}
-                                      if cmx else set()), fin_all, videos)
+                                      if cmx else set()), fin_all, videos, digest_link_urls(site, pages, cfg))
     if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
         problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")
     problems += cal_problems
@@ -3717,12 +4010,17 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("provenance", problems, note)
     problems, note = check_name_links(site, facts, read_roster(seats_path), cs)
     rep.add("name-links", problems, note)
-    rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
+    # the geo frame is a framed document, not a site page: footer, external, unofficial, switch and header skip it
+    # (scoped exemption, `digest/` prefix) and digest/csp holds it
+    visited = site_pages(pages)
+    rep.add("footer", check_footer(visited, operator), f"'Provided as a free service by {operator}.' on {len(visited)} pages")
     problems, note = check_old_brand(site)
     rep.add("brand/no-old-gnoshcodes", problems, note)
     problems, note = check_old_daylight_colors(site)
     rep.add("brand/no-old-daylight-colors", problems, note)
-    rep.add("external", check_external(pages, site, cfg))
+    rep.add("external", check_external(visited, site, cfg))
+    problems, note = check_digest_csp(site, pages, cfg)
+    rep.add("digest/csp", problems, note)
     problems, note = check_report_channel(pages, cfg, target)
     rep.add("report-channel", problems, note)
     # the contracts feed links each solicitation's first document, a finance.json source
@@ -3744,11 +4042,11 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("transcripts", problems, note)
     problems, note = check_private_details(site, cs)
     rep.add("transcripts/private-addresses", problems, note)
-    problems, note = check_unofficial(site, pages, cfg)
+    problems, note = check_unofficial(site, visited, cfg)
     rep.add("unofficial/notice-on-every-page", problems, note)
-    problems, note = check_switch(site, pages, cfg)
+    problems, note = check_switch(site, visited, cfg)
     rep.add("switch/on-every-page", problems, note)
-    problems, note = check_header(site, pages, cfg)
+    problems, note = check_header(site, visited, cfg)
     rep.add("header/same-on-every-page", problems, note)
     problems, note = check_not_collected(site, pages, cfg)
     rep.add("notcollected/never-coming", problems, note)
