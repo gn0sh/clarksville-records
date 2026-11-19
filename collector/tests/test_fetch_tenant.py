@@ -36,7 +36,7 @@ def urls(net):
     (f"{H}/v1/", None),
     (f"{H}/", None),
     (f"{H}/v2/salem/events", None),
-    (f"{H}/V1/salem/events", None),            # only the client segment is case-folded
+    (f"{H}/V1/salem/events", "webapi.legistar.com/salem"),   # /V1/ is /v1/ (national/tenant-block-escape)
     (f"{H}/v1/s/events", None),                # shorter than 2
     (f"{H}/v1/{'a' * 41}/events", None),       # longer than 40
     (f"{H}/v1/sa%6Cem/events", None),          # percent-encoded: not a plain client name
@@ -256,3 +256,111 @@ def test_a_redirect_inside_a_capped_tenant_counts_against_its_cap():
     f.limit_tenant(f"{H}/v1/ta/r", 2)
     assert f.get(f"{H}/v1/ta/r")[1] == b"[]"
     assert f.remaining_tenant(f"{H}/v1/ta/r") == 0
+
+
+# ------------------------------------------------------------------ national/tenant-block-escape
+ESCAPES = [f"{H}/V1/ta/e", f"{H}/v1/TA/e", f"{H}/v1/%74a/e", f"{H}/v1/ta/../ta/e", f"{H}/v1/tb/../ta/e",
+           f"{H}/v1/tb/%2e%2e/ta/e", f"{H}/v1/tb/%2E%2E/ta/e", f"{H}/v1/tb/x%2f..%2f..%2fta/e",
+           f"{H}/v1/tb/%252e%252e/ta/e", f"{H}/v1/./ta/e", f"{H}/v1/tb\\..\\ta/e", f"{H}/v1//ta/e",
+           f"{H}/%761/ta/e", f"{H}/v1/ta./e", f"{H}/./v1/ta/e"]
+
+
+@pytest.mark.parametrize("alt", ESCAPES)
+def test_no_other_spelling_reaches_a_blocked_tenant(alt):
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({f"{H}/v1/ta/e": (403, JSON_403), alt: (200, b"[]")})
+    with pytest.raises(TenantBlocked):
+        f.get(f"{H}/v1/ta/e")
+    n = len(net.calls)
+    with pytest.raises((TenantBlocked, SchemeRefused)):
+        f.get(alt)
+    assert len(net.calls) == n and alt not in urls(net)
+
+
+@pytest.mark.parametrize("alt", ESCAPES)
+def test_no_other_spelling_steps_around_a_tenant_cap(alt):
+    f, net, _ = make({f"{H}/v1/ta/e": (200, b"[]"), alt: (200, b"[]")})
+    f.limit_tenant(f"{H}/v1/ta/e", 1)
+    f.get(f"{H}/v1/ta/e")
+    n = len(net.calls)
+    with pytest.raises((RequestCapReached, HostRefused)):
+        f.get(alt)
+    assert len(net.calls) == n
+
+
+@pytest.mark.parametrize("loc", [f"{H}/v1/ta/../tb/y", f"{H}/v1/ta/%2e%2e/tb/y", f"{H}/V1/tb/y", "../tb/y"])
+def test_a_redirect_spelling_cannot_leave_a_capped_tenant_or_reach_a_blocked_one(loc):
+    f, net, _ = make({f"{H}/v1/tb/y": (403, JSON_403), f"{H}/v1/ta/x": (302, b"", {"Location": loc}),
+                      f"{H}/v1/tb/z": (403, JSON_403)})
+    with pytest.raises(TenantBlocked):
+        f.get(f"{H}/v1/tb/z")                     # tenant tb blocked
+    f.limit_tenant(f"{H}/v1/ta/x", 5)
+    n = len(net.calls)
+    with pytest.raises(HostRefused):              # refused before any request: tenant ta's cap, or the spelling
+        f.get(f"{H}/v1/ta/x")
+    assert len(net.calls) == n + 1                # only /v1/ta/x itself
+    assert f"{H}/v1/tb/y" not in urls(net)
+
+
+def test_the_refusal_is_a_scheme_refused_logged_with_no_request():
+    from collector.fetch import SchemeRefused, TenantPathRefused
+    f, net, _ = make({})
+    with pytest.raises(TenantPathRefused) as e:
+        f.get(f"{H}/v1/%73alem/events")
+    assert isinstance(e.value, SchemeRefused) and net.calls == []
+    assert f.log[-1]["event"] == "refused"
+
+
+@pytest.mark.parametrize("url", ["https://h.example/v1/%73alem/x", "https://h.example/a/../b", "https://h.example/V1/x"])
+def test_other_hosts_keep_their_paths(url):
+    f, net, _ = make({url: (200, b"x")})
+    assert f.get(url)[1] == b"x"
+
+
+@pytest.mark.parametrize("path", ["/", "/v1/", "/v2/x"])
+def test_a_403_on_a_plain_non_tenant_path_still_blocks_the_host(path):
+    f, net, _ = make({f"{H}{path}": (403, JSON_403), f"{H}/v1/tb/e": (200, b"[]")})
+    with pytest.raises(HostBlocked) as e:
+        f.get(f"{H}{path}")
+    assert not isinstance(e.value, TenantBlocked)
+    n = len(net.calls)
+    with pytest.raises(HostBlocked):
+        f.get(f"{H}/v1/tb/e")
+    assert len(net.calls) == n
+
+
+# ------------------------------------------------------------------ national/tenant-robots-host-block
+def test_robots_txt_redirecting_to_a_tenant_json_403_blocks_the_host_once():
+    f, net, _ = make({f"{H}/robots.txt": (302, b"", {"Location": f"{H}/v1/zz/robots"}),
+                      f"{H}/v1/zz/robots": (403, JSON_403), f"{H}/v1/ta/e": (200, b"[]"), f"{H}/v1/tb/e": (200, b"[]")})
+    with pytest.raises(HostBlocked) as e:
+        f.get(f"{H}/v1/ta/e")
+    assert not isinstance(e.value, TenantBlocked)
+    for u in (f"{H}/v1/ta/e", f"{H}/v1/tb/e", f"{H}/v1/tb/e"):
+        with pytest.raises(HostBlocked):
+            f.get(u)
+    assert urls(net) == [f"{H}/robots.txt", f"{H}/v1/zz/robots"]     # robots.txt asked once
+    assert "webapi.legistar.com" in f._blocked and not f._tenant_blocked
+
+
+def test_robots_txt_redirecting_into_an_already_blocked_tenant_blocks_the_host():
+    """robots.txt is read per exact host: www. has its own, which redirects into the blocked tenant."""
+    W = "https://www.webapi.legistar.com"
+    f, net, _ = make({f"{H}/v1/zz/e": (403, JSON_403),
+                      f"{W}/robots.txt": (302, b"", {"Location": f"{H}/v1/zz/robots"})})
+    with pytest.raises(TenantBlocked):
+        f.get(f"{H}/v1/zz/e")
+    n = len(net.calls)
+    with pytest.raises(HostBlocked) as e:
+        f.get(f"{W}/v1/ta/e")
+    assert not isinstance(e.value, TenantBlocked)
+    assert len(net.calls) == n + 1                # www robots.txt only; the blocked tenant is not asked
+    with pytest.raises(HostBlocked):
+        f.get(f"{W}/v1/tb/e")
+    assert len(net.calls) == n + 1
+
+
+def test_a_403_body_with_a_utf8_bom_is_still_json():
+    f, _, _ = make({f"{H}/v1/ta/e": (403, b'\xef\xbb\xbf{"Message":"no"}')})
+    with pytest.raises(TenantBlocked):
+        f.get(f"{H}/v1/ta/e")

@@ -42,7 +42,12 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   (TenantBlocked, a HostBlocked). Anything else stops the whole host: a 403 on robots.txt, on a path that is no
   tenant's, with a body that is not a JSON object, or from a second distinct tenant on the same host; and every 429.
   The delay, robots.txt and limit_hosts stay per host; limit_tenant(url, n) adds a per-tenant cap inside the host
-  cap, and a redirect from a tenant-capped URL may only go to the same tenant (counted against its cap).
+  cap, and a redirect from a tenant-capped URL may only go to the same tenant (counted against its cap). A path on a
+  shared host that could name a tenant in two spellings is refused with no request (TenantPathRefused,
+  national/tenant-block-escape): a dot segment anywhere (".", "..", "%2e", also behind "%2f" or a backslash), or a
+  /v1/ client segment that is not plain letters, digits and hyphens (2-40; "%" included). /V1/ is /v1/. robots.txt
+  is never a tenant: any 403 while reading it, a redirect hop included, stops the host
+  (national/tenant-robots-host-block). Callers that treat a tenant apart catch TenantBlocked before HostBlocked.
 """
 from __future__ import annotations
 
@@ -100,7 +105,8 @@ class HostBlocked(Exception):
 
 class TenantBlocked(HostBlocked):
     """One tenant of a shared host answered 403 (or is already marked blocked): that tenant only, for the rest of the
-    run. A HostBlocked, so every existing `except HostBlocked` caller still stops."""
+    run. A HostBlocked, so every existing `except HostBlocked` caller still stops; a caller that carries on with the
+    host's other tenants must catch TenantBlocked before HostBlocked."""
 
 
 class RobotsDisallowed(Exception):
@@ -113,6 +119,11 @@ class HostRefused(Exception):
 
 class SchemeRefused(HostRefused):
     """The URL is not https on the default port (or carries user info). No request was made."""
+
+
+class TenantPathRefused(SchemeRefused):
+    """A shared-host path that could reach a tenant in another spelling (a dot segment, an encoded or unusual client
+    segment). Refused with no request, so a tenant block or cap cannot be stepped around."""
 
 
 class ProxyRefused(Exception):
@@ -201,14 +212,56 @@ def tenant_key(url: str) -> str | None:
         return None
     parts = p.path.split("/", 3)            # ["", "v1", "<client>", "rest"]
     if len(parts) >= 3:
+        if parts[1].lower() == "v1":
+            parts[1] = "v1"
         parts[2] = parts[2].lower()
     m = pattern.match("/".join(parts))
     return f"{site}/{m.group(1)}" if m else None
 
 
+PLAIN_CLIENT = re.compile(r"[A-Za-z0-9-]{2,40}")
+
+
+def _fully_unquoted(text: str) -> str:
+    for _ in range(5):                       # %252e -> %2e -> .
+        nxt = urllib.parse.unquote(text)
+        if nxt == text:
+            break
+        text = nxt
+    return text
+
+
+def ambiguous_tenant_path(url: str) -> bool:
+    """national/tenant-block-escape: True when `url` is on a shared host and its path could reach a tenant under
+    another spelling than tenant_key sees: a backslash, a dot segment anywhere once decoded (".", "..", "%2e",
+    "..%2f"), or a /v1/ client segment that is not plain (2-40 letters, digits, hyphens). "/v1/" alone is not
+    ambiguous (no client). False for any other host or a malformed URL (check_url refuses that elsewhere)."""
+    try:
+        p = urllib.parse.urlsplit(url)
+        host = p.hostname or ""
+    except ValueError:
+        return False
+    if site_key(host) not in SHARED_HOSTS:
+        return False
+    if "\\" in p.path:
+        return True
+    decoded = _fully_unquoted(p.path).replace("\\", "/").split("/")
+    if any(seg in (".", "..") for seg in decoded):
+        return True
+    raw = p.path.split("/")
+    if len(decoded) > 1 and decoded[1].lower() == "v1":
+        if raw[1].lower() != "v1":           # /%761/: an encoded v1
+            return True
+        if len(raw) == 3 and raw[2] == "":   # "/v1/": no client at all
+            return False
+        if len(raw) < 3 or not PLAIN_CLIENT.fullmatch(raw[2]):
+            return True
+    return False
+
+
 def _json_object(body: bytes) -> bool:
     try:
-        return isinstance(json.loads(body.decode("utf-8")), dict)
+        return isinstance(json.loads(body.decode("utf-8-sig")), dict)
     except (UnicodeDecodeError, ValueError):
         return False
 
@@ -303,6 +356,10 @@ class PoliteFetcher:
             self.log.append({"event": "refused", "host": parts.netloc, "url": url,
                              "detail": "not https on the default port"})
             raise SchemeRefused(f"{url}: only https:// on the default port is fetched")
+        if ambiguous_tenant_path(url):
+            self.log.append({"event": "refused", "host": parts.netloc, "url": url,
+                             "detail": "shared-host path with a dot segment or an unusual client segment"})
+            raise TenantPathRefused(f"{url}: a shared-host path that could name a tenant another way; not fetched")
 
     def sent(self, host: str) -> int:
         """Requests made to host's site this run (robots.txt, redirects and retries included)."""
@@ -392,7 +449,10 @@ class PoliteFetcher:
         return ProxyRefused(f"{host}: sandbox egress proxy refused ({detail}); the site did not see it")
 
     # ------------------------------------------------------------ requests
-    def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None) -> tuple[int, bytes, dict]:
+    def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None,
+                 _tenant_ok: bool = True) -> tuple[int, bytes, dict]:
+        """One request. `_tenant_ok=False` (robots.txt and its redirect hops): no answer stops only a tenant; a 403
+        or a hop into an already blocked tenant stops the host (national/tenant-robots-host-block)."""
         host = split_url(url).netloc
         key = site_key(host)
         self.check_host(host)
@@ -401,6 +461,10 @@ class PoliteFetcher:
         if key in self._blocked:
             raise HostBlocked(f"{host}: {self._blocked[key]}")
         if tenant in self._tenant_blocked:
+            if not _tenant_ok:
+                self._blocked[key] = f"robots.txt led to blocked tenant {tenant} ({url})"
+                self.log.append({"event": "blocked", "host": host, "url": url, "detail": self._blocked[key]})
+                raise HostBlocked(self._blocked[key])
             raise TenantBlocked(f"{tenant}: {self._tenant_blocked[tenant]}")
         if self._proxy_refused.get(key, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
             raise ProxyRefused(f"{host}: skipped after {PROXY_REFUSALS_BEFORE_SKIP} proxy refusals this run")
@@ -433,7 +497,7 @@ class PoliteFetcher:
                 snippet = body[:200].decode("utf-8", "replace")
                 reason = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
                           f"body={snippet!r}")
-                if self._tenant_only_block(e.code, key, tenant, body):
+                if _tenant_ok and self._tenant_only_block(e.code, key, tenant, body):
                     self._tenant_blocked[tenant] = reason
                     self.log.append({"event": "blocked", "host": host, "url": url, "tenant": tenant,
                                      "detail": reason})
@@ -443,7 +507,7 @@ class PoliteFetcher:
                 raise HostBlocked(reason) from None
             if e.code >= 500 and _retry:
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"HTTP {e.code}"})
-                return self._raw_get(url, _retry=False, _headers=_headers)
+                return self._raw_get(url, _retry=False, _headers=_headers, _tenant_ok=_tenant_ok)
             if e.code == 304:   # a conditional GET's "unchanged": a request like any other, logged as one
                 self.log.append({"event": "get", "host": host, "url": url, "detail": "304"})
             return e.code, (e.read() or b""), dict(e.headers or {})
@@ -455,7 +519,7 @@ class PoliteFetcher:
                 # exchange): the site sent no refusal, so one retry after the host delay (_wait), like a server error
                 self._resets[key] = self._resets.get(key, 0) + 1
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"connection reset: {e}"})
-                return self._raw_get(url, _retry=False, _headers=_headers)
+                return self._raw_get(url, _retry=False, _headers=_headers, _tenant_ok=_tenant_ok)
             detail = str(e)
             if _is_reset(e) and _retry:
                 detail += f" (not retried: {self.reset_retries} resets already retried on {host} this run)"
@@ -485,7 +549,7 @@ class PoliteFetcher:
         if exact not in self._robots:
             rp = urllib.robotparser.RobotFileParser()
             url = f"{scheme}://{host}/robots.txt"
-            status, body, headers = self._raw_get(url)
+            status, body, headers = self._raw_get(url, _tenant_ok=False)
             hops = 0
             refused = False
             while status in REDIRECT_CODES and hops < MAX_REDIRECTS:
@@ -499,7 +563,7 @@ class PoliteFetcher:
                     break
                 hops += 1
                 url = nxt
-                status, body, headers = self._raw_get(url)
+                status, body, headers = self._raw_get(url, _tenant_ok=False)
             if refused:
                 rp.disallow_all = True
             elif status == 200:
