@@ -14,8 +14,10 @@ B4): with config/site.yml `national.enabled: true` the build writes, under `dige
 - `<st>/<body id>.html` and `.json` per covered government: the coming-up page, printed from the JSON only (consumer 3
                     of section 11), and its `daylight-upcoming/1` feed (3.5), checked against the schema again here.
 
-and `apply_site_fragments` adds the two fixed fragments to the pages that already exist (7a): the Menu group
-"Daylight Digest" in the footer list of every page, and the one front-page line under the address card. Nothing else
+and `apply_site_fragments` adds the three fixed fragments to the pages that already exist (7a): the Menu group
+"Daylight Digest" in the footer list of every page, the one front-page line under the address card, and on the Method
+page the one sentence about what this site keeps in your browser, which names the digest pages' three keys and links
+how.html (design 9a, AC9.3; QA national/method-page-claims). Nothing else
 in an existing page changes; with the switch off this module is not called and the build is byte-identical.
 
 Every digest page but the frame also links `static/digest.css` (design 0a), the digest pages' own stylesheet: no
@@ -63,7 +65,7 @@ LINK_KEYS = ("election_url", "census_url")
 
 # Page label keys: a group and a name, or a state's USPS code, or a time zone name.
 PAGE_LABEL_KEY_RE = re.compile(
-    r"^((digest|menu|front|crumb|index|lookup|form|count|covered|requested|how|body)\.[a-z0-9][a-z0-9-]*"
+    r"^((digest|menu|front|method|crumb|index|lookup|form|count|covered|requested|how|body)\.[a-z0-9][a-z0-9-]*"
     r"|state\.[A-Z]{2}|tz\.[A-Za-z_]+(/[A-Za-z_+-]+){0,2})$")
 SCRIPT_GROUPS = ("lookup.", "form.", "count.")      # embedded in digest/index.html for national.js (F2)
 # Topic labels on a coming-up page (AC4.7; spec: "in M1 the morning note's lists"). Each pair is a morning note list
@@ -76,7 +78,7 @@ SCRIPT_GROUPS = ("lookup.", "form.", "count.")      # embedded in digest/index.h
 TOPICS = (("zoning", "rezoning"), ("budget", "budget"))
 # The keys the templates and this module read (the script groups are F2's and are checked by F2's tests).
 REQUIRED_PAGE_LABELS = (
-    "digest.place", "menu.group", "menu.find", "menu.covered", "front.line", "crumb.home", "crumb.covered",
+    "digest.place", "menu.group", "menu.find", "menu.covered", "front.line", "method.keys", "crumb.home", "crumb.covered",
     "index.title", "index.h1", "index.lede", "index.who", "index.cover-link", "index.input-label",
     "index.placeholder", "index.find", "index.privacy", "index.privacy-detail", "index.toggle-summary",
     "index.toggle-body", "index.census-notice", "index.noscript",
@@ -96,12 +98,16 @@ REQUIRED_PAGE_LABELS = (
 LINK_RE = re.compile(r"\[([^\[\]]+)\]")
 FIELD_RE = re.compile(r"\{([a-z]+)\}")
 
-# The two fragments added to existing pages (7a (b), (c)): fixed text but for the page's own `root` prefix.
+# The three fragments added to existing pages (7a (b), (c); design 9a): fixed text but for the page's own `root` prefix.
 MENU_ANCHOR = "    </ul>\n  </nav>\n</footer>"
 MENU_ROOT_RE = re.compile(r'<nav id="site-nav" class="site-nav" aria-label="All pages" data-root="((?:\.\./)*)"')
 FRONT_PAGE = "index.html"
 FRONT_START = '<section class="find" aria-labelledby="find-h">'
 SECTION_TAG_RE = re.compile(r"<section\b|</section>")
+METHOD_PAGE = "method.html"
+# The Method page's sentence that is true only with the switch off (site/templates/method.html.j2); the switch on
+# puts method_fragment in its place.
+METHOD_SENTENCE = "These two keys are all this site keeps in your browser."
 
 
 class NationalBuildError(ValueError):
@@ -215,7 +221,7 @@ def label_html(text: str, href: str | None = None, *, ext: bool = False, sr: str
     return escape(_fill(before, values)) + link + escape(_fill(after, values))
 
 
-# --- the two fragments on existing pages (7a) --------------------------------------------------------------------------
+# --- the three fragments on existing pages (7a) --------------------------------------------------------------------------
 
 def menu_fragment(root: str, labels: Mapping[str, str]) -> str:
     """The Menu group, inserted as the last entry of the footer list that static/nav.js copies into the drawer."""
@@ -233,6 +239,18 @@ def menu_fragment(root: str, labels: Mapping[str, str]) -> str:
 def front_fragment(labels: Mapping[str, str]) -> str:
     """The front page's one line, right after its address card (the `find` section)."""
     return f'\n  <p class="digest-line"><a href="{INDEX}">{escape(labels["front.line"])}</a></p>'
+
+
+def method_fragment(labels: Mapping[str, str]) -> str:
+    """The Method page's sentence with the switch on (design 9a): the two Clarksville keys, plus the digest pages'
+    three, linked to how.html (the Method page sits at the site root)."""
+    return str(label_html(labels["method.keys"], HOW))
+
+
+def _with_method_line(html: str, labels) -> str:
+    if html.count(METHOD_SENTENCE) != 1:
+        raise NationalBuildError(f"{METHOD_PAGE}: no single sentence {METHOD_SENTENCE!r}")
+    return html.replace(METHOD_SENTENCE, method_fragment(labels), 1)
 
 
 def _with_menu(rel: str, html: str, labels) -> str:
@@ -258,12 +276,15 @@ def _with_front_line(html: str, labels) -> str:
 
 def apply_site_fragments(pages: Mapping[str, str], labels: Mapping[str, str]) -> dict[str, str]:
     """{site path: html} -> the same pages with the Menu group in every page's footer list and, on the front page,
-    the one line under the address card. Pure; each fragment is fixed text and is added exactly once."""
+    the one line under the address card, and on the Method page its browser-keys sentence. Pure; each fragment is
+    fixed text and is added exactly once."""
     out = {}
     for rel, html in pages.items():
         html = _with_menu(rel, html, labels)
         if rel == FRONT_PAGE:
             html = _with_front_line(html, labels)
+        elif rel == METHOD_PAGE:
+            html = _with_method_line(html, labels)
         out[rel] = html
     return out
 
