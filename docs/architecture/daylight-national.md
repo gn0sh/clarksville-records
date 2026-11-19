@@ -431,6 +431,45 @@ lines.
   On 429: host block. Exceptions: `TenantBlocked(HostBlocked)` so existing `except HostBlocked` callers still stop.
 - `limit_tenant(url, n)`: per-tenant cap inside the host cap.
 
+#### 4.4.1 Invariant: one tenant key per server-side client (`national/tenant-block-escape`, stated after the 2nd hit)
+**Invariant.** For a shared host, every URL the fetcher sends either has a tenant key equal to that of every other
+spelling the server may treat as the same client, or is refused before any request. A blocked or capped tenant is
+then unreachable by any spelling, because no un-keyed spelling of it is ever sent.
+
+**Design: refuse anything not already canonical; never rewrite.** One parser, `shared_path(url) -> (site, tenant |
+None)`, run on the raw path exactly as it will be sent (urllib sends `Request(url)`'s path unchanged; the proxy is a
+CONNECT tunnel). On a shared host the raw path must match `^/(SEG(/SEG)*/?)?$` with
+`SEG = [A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*` (empty path counts as `/`); else `TenantPathRefused`. That one grammar
+closes every family member at once: no `%` (so no `%73`, `%2f`, `%2e`, double encoding), no empty segment (`//v1/`),
+no dot segment or leading/trailing dot (`..`, IIS `salem.`), no backslash, `;`, `+` or non-ASCII. Then, if segment 1
+case-folds to `v1`: segment 2 must fullmatch `[A-Za-z0-9-]{2,40}` (else refused) and the tenant is
+`site + "/" + seg2.lower()`, with or without further segments (`/v1/salem` is salem's too). Case is the only variation
+mapped rather than refused: it is ASCII-only by the grammar, and Legistar (IIS) treats it as one client. The query is
+not part of the key (the client comes from the route). Why refuse rather than canonicalise and send the canonical
+form: we cannot know every normalisation the server does, sending a URL other than the one asked for changes what a
+redirect meant, and our own readers (4.5 `events_url`) only ever build canonical paths, so refusal costs nothing
+legitimate. `ambiguous_tenant_path` and the split/regex in `tenant_key` are replaced by `shared_path`;
+`tenant_key(url)` returns its tenant, None for a non-shared host or a malformed URL, and raises `TenantPathRefused`
+for a non-canonical shared path (None must only ever mean "host-level and allowed").
+
+**Every consumer in `collector/fetch.py` and how it uses the key** (all through `tenant_key`, never their own parse):
+1. `check_url`: calls `shared_path` on every URL and every hop (`get`, `_raw_get`, `_location`); refused = no request,
+   log `refused` with the raw URL.
+2. `_raw_get` block check: `tenant_key` after `check_url`; looked up in `_tenant_blocked`; with `_tenant_ok=False` a
+   hit is a host block (unchanged).
+3. `_raw_get` cap check and count: `remaining_tenant(url)` and `_tenant_sent[tenant]` use that same key; retries
+   re-enter `_raw_get`, so they are re-checked and counted.
+4. `limit_tenant` / `remaining_tenant`: same key; a non-canonical URL raises `TenantPathRefused`, a non-tenant
+   URL `ValueError` (unchanged).
+5. `check_tenant_redirect`: origin and target keys; the target has already passed `check_url` in `_location`.
+6. `robots()`: robots.txt has tenant None (host-level); every hop goes through `_raw_get(_tenant_ok=False)`. Any
+   `HostRefused` (`TenantPathRefused` included) or `RequestCapReached` on the first request or a hop caches
+   `disallow_all` for that exact host for the run and logs `robots_refused` (reviewer nit 6). Caps only ever lower,
+   so nothing would become fetchable later; without the cache every `get()` re-asks.
+7. `_tenant_only_block` (403 classifier): gets the key from `_raw_get`; "second distinct tenant" compares keys by the
+   `site + "/"` prefix, so spellings of one client never count as two tenants.
+8. Log: `blocked` and `cap` events carry `tenant` as the canonical key, so health and C3 group by it.
+
 ### 4.5 Legistar upcoming reader (`collector/national/legistar_upcoming.py`, M2)
 - `events_url(client, body_id, start, end) -> str` (`$filter=EventBodyId eq N and EventDate ge ... lt ...`).
 - `agenda_state(event, final_statuses) -> "final" | "not-final" | "not-posted"`.
