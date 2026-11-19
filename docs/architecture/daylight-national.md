@@ -91,10 +91,12 @@ Build checks (refuse to build): unknown key; bad id; duplicate id across `gov` a
 `reason` with no label in `labels.yml`. Added by security review (findings 5, 7), all by `yaml.safe_load` and strict
 regex, each with a test:
 - `items: shown` is refused unless `SHOWN_REVIEWED` in `sitegen/national.py` has a row for that `gov` whose
-  `body_name` and `digest` equal the entry's; the digest (`review_digest`) hashes the whole entry, every key (11.2),
-  so any edit to a shown entry is refused until a reviewed code change pins the new digest (the error prints both).
-  The loaded entry carries `review` (the digest when shown, else null). Two covered entries with one source
-  (`daylight:<body>`, `legistar:<client>:<body_id>`) are refused. See section 11. A missing `items` means `withheld`.
+  `entry` (the readable canonical entry, every key; 11.2) equals the entry's `norm_entry`, so any edit to a shown
+  entry is refused until a reviewed code change updates the row (the error prints the changed keys and the whole new
+  row). The loaded entry carries `review` (`review_digest` of that canonical entry when shown, else null). Two
+  covered entries with one source (`daylight:<body>`, `legistar:<client>:<body_id>`) are refused; a can't-cover
+  entry carries no `platform`, platform keys or `host_ok`, and `host_ok` is refused on a daylight entry. Only plain
+  YAML values load (text, whole numbers, true/false, null, dates as values, lists, mappings with text keys). See section 11. A missing `items` means `withheld`.
 - a non-`daylight` platform without `host_ok: {date, link}` is refused (build and collector both).
 - `daylight.full_url` and the pagedir `page` match `^[a-z0-9][a-z0-9/_.-]*$` (no scheme, no `..`, no leading slash);
   `legistar.client` matches `^[a-z0-9-]{2,40}$`; `tz` is a name in `zoneinfo.available_timezones()`;
@@ -562,13 +564,13 @@ pinned one field (prefix, name, then the (gov, name) pair) while the meaning of 
 ### 11.1 Every input and consumer, config to published bytes
 | # | Input or consumer | Decides or carries | Bound by (v3) | Checked at |
 |---|---|---|---|---|
-| 1 | `directory.yml` `items` | decides | `shown` needs a `SHOWN_REVIEWED` row whose digest equals the entry's; missing = withheld; `withheld` needs no review (narrowing) | load |
+| 1 | `directory.yml` `items` | decides | `shown` needs a `SHOWN_REVIEWED` row whose `entry` equals the entry's canonical form; missing = withheld; `withheld` needs no review (narrowing) | load |
 | 2 | `gov`, `body_name`, `state`, `status` | whose page | in the digest; `shown_refusal` still runs (no `sd*`, a general layer, ASCII, stem denylist unless `denylist_ok`) | load |
 | 3 | `also` | attaches other Census ids' cards to this entry (pagedir `alias`, read by `national.js`) | in the digest (sorted); same layer; unique across `gov` and `also` | load |
 | 4 | `platform`, `daylight.{body,full_url}`, `legistar.{client,body_id,tz,final_statuses}`, `host_ok` | which source | in the digest; one covered entry per source key (`daylight:<body>`, `legistar:<client>:<body_id>`) | load |
 | 5 | `official_url`, `checked`, `checked_url`, `checked_doc` | links only | in the digest (cost: re-checking a shown entry needs a digest update; accepted, shown entries are few) | load |
 | 6 | any key added later | unknown | in the digest automatically (every key is hashed; unknown keys stay refused) | load |
-| 7 | `SHOWN_REVIEWED` (`sitegen/national.py`) | decides | a code change reviewed by `code-reviewer`; checklist: read the same PR's diff of that entry and the row's source comment (one source per `also` id); one row per `gov` | review, test |
+| 7 | `SHOWN_REVIEWED` (`sitegen/national.py`) | decides | a code change reviewed by `code-reviewer`; checklist: read the row's own `entry` text in the diff (every field it vouches for, above all `platform`, `daylight.body` or `legistar.client`/`body_id`, and `also`), whatever earlier PRs did to the YAML, and its source comment (one source per `also` id); one row per `gov` (security `privacy-withhold/review-row-opaque`) | review, test |
 | 8 | `gov-flags.yml` hide, show, rules, lines | only whether a Census unit makes a card | never maps a unit to an entry and never names `items`: closed key sets (`_unknown`); pagedir `alias` is built only from directory `also` | load, test |
 | 9 | `labels.yml`, `body_name` text | curated words, not item text | reviewed as text in their own PR; outside this invariant | - |
 | 10 | `site.yml` `county_key`, `council.yml` `body_key`, `calendar` | map `daylight.body` to stored data | items flow only by the county route: the adapter fixes `COUNTY_BODY_KEY = "county"` in code and raises `FeedError` unless `config.SITE["county_key"]` equals it and no council's `body_key` equals it; council feeds never carry items (`not-read`) | adapter |
@@ -588,19 +590,27 @@ pinned one field (prefix, name, then the (gov, name) pair) while the meaning of 
 | 24 | integrity of `national-data` files | forged text with a correct digest (the digest is public, not a MAC) | D1/D2 attestation, not this invariant | deploy |
 
 ### 11.2 The fix (owner backend-engineer, opus/high per the data-integrity rule)
-- `sitegen/national.py`: `ShownReview(gov: str, body_name: str, digest: str, denylist_ok: bool = False)`, one row per
-  `gov`, each commented with its source link, the source for each `also` id, and the review date. `review_digest(e)`:
+- `sitegen/national.py`: `ShownReview(gov: str, entry: dict, denylist_ok: bool = False)`, one row per `gov`, `entry`
+  the readable canonical entry (`norm_entry`, so the row's own diff shows every field it vouches for; security
+  `privacy-withhold/review-row-opaque`), `digest` a property (`review_digest(entry)`), each row commented with its
+  source link, the source for each `also` id, and the review date. `review_digest(e)`:
   `sha256` hex of `json.dumps({"schema": DIRECTORY_SCHEMA, "entry": norm(e)}, sort_keys=True, separators=(",", ":"),
   ensure_ascii=True)`, where `norm` is the raw `safe_load` mapping with every key kept, `also` defaulted to `[]` and
   sorted, `items` defaulted, and every `date` written as ISO text (so YAML key order, `also` order and a quoted date
-  do not change it). `load_directory` computes it after every other per-entry check; for `items: shown` it calls
-  `shown_refusal(gov, body_name, digest)`, which adds "digest must equal the row's" to today's checks; the error
-  names both digests so a reviewed update is one line. The loaded entry gains `review`: the digest when shown, else
-  `None`. After the entries: refuse two covered entries with one source key (row 4).
+  do not change it; `norm_entry` of a loaded entry leaves out its `review`). `load_directory` computes the
+  canonical entry after every other per-entry check; for `items: shown` it calls `shown_refusal(gov, body_name,
+  canonical)`, which adds "the row's `entry` must equal it" to today's checks; the error names the changed keys and
+  prints the whole canonical entry as the row to review and paste. The loaded entry gains `review`: the digest when
+  shown, else `None`. After the entries: refuse two covered entries with one source key (row 4).
 - `sitegen/national_guards.py`: `is_shown(entry) -> bool` (`items == "shown"` and `review` is a 64-hex string);
   `bind_feed(feed, entry) -> (feed, BindCounts)`: raises `BindError` (new, in the guards module, which imports only
-  `config`) if `body.id != entry["gov"]` or `body.platform != entry["platform"]`; keeps items only when `is_shown(entry)` and `feed["review"] == entry["review"]`, else empties
-  every meeting (`items: []`, `item_count: null`, `items_withheld: true`) and sets `review: null`; counts
+  `config`) unless `meetings` is a list of objects and every top-level key is one the schema names, and if `body.id
+  != entry["gov"]` or `body.platform != entry["platform"]` (an error repeats an id only when `id_layer` accepts it,
+  else `<bad id>`, and any other value only up to 40 characters); rewrites `body` (id, name, tz, official_url,
+  platform, full_url) from the entry; keeps items only when `is_shown(entry)` and `feed["review"] == entry["review"]`,
+  else empties every meeting (`items: []`, `item_count: null`, `items_withheld: true`) and sets `review: null`; for
+  an entry that is not shown also sets each meeting's `title` to the fixed `Meeting` (`title_ours: true`) and nulls
+  `time` and `agenda.status_as_posted` (security `privacy-withhold/free-text-outside-items`); counts
   `withheld_stripped` (entry not shown) and `review_mismatch` (shown, other digest). So a published `review` is
   non-null exactly when the file carries items read under that review.
 - Adapter: `_shown` becomes `is_shown`; `_feed` writes `review`; `COUNTY_BODY_KEY` check (row 10).

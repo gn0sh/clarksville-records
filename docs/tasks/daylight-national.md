@@ -52,7 +52,7 @@ Definitions of done:
   `sd*` id (`privacy-withhold/national-prefix`), a missing `items` meaning withheld, a non-daylight entry with no
   `host_ok` (`national/r5-not-enforced`), a bad `full_url`/`page`, `client`, `tz` or `final_statuses`, and a missing
   `state`; the page directory (3.4) is produced by a pure function with a test, written with `|tojson`. Section 11
-  v3: `shown` needs the entry's whole-entry `review_digest` pinned in `SHOWN_REVIEWED` (tests 11.3 items 1-4: shipped
+  v3: `shown` needs the entry's whole canonical entry, readable, in its `SHOWN_REVIEWED` row (tests 11.3 items 1-4: shipped
   digests equal their rows, the mutation sweep, the canonical form, one covered entry per source; 8: pagedir `alias`
   only from `also`, gov-flags cannot alias or name `items`; 10: single reader of `directory.yml`, the sender imports no
   `sitegen.national*`).

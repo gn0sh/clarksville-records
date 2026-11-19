@@ -131,8 +131,24 @@ BAD = [
     ("covered-no-platform", [changed(COVERED, platform=..., daylight=...)], "platform: a covered entry needs"),
     ("covered-no-platform-keys", [changed(COVERED, daylight=...)], "daylight: missing platform keys"),
     ("daylight-no-full-url", [changed(COVERED, daylight__full_url=...)], "full_url: missing"),
-    ("platform-keys-without-platform", [changed(CANT, daylight={"body": "x", "full_url": "x/"})],
+    ("platform-keys-without-platform", [changed(COVERED, platform=..., items="withheld")],
      "daylight: platform keys without"),
+    # security privacy-withhold/source-unique-covered-only: a can't-cover entry names no source
+    ("cant-cover-with-daylight-keys", [changed(CANT, daylight={"body": "county", "full_url": "x/"})],
+     "daylight: a cant-cover entry has no platform"),
+    ("cant-cover-with-platform", [changed(CANT, platform="daylight", daylight={"body": "county", "full_url": "x/"})],
+     "platform: a cant-cover entry has no platform"),
+    ("cant-cover-with-host-ok", [changed(CANT, host_ok={"date": "2026-12-01", "link": "https://github.com/x"})],
+     "host_ok: a cant-cover entry has no platform"),
+    # security national/host-ok-unchecked
+    ("daylight-with-host-ok", [changed(COVERED, host_ok={"date": "2026-12-01", "link": "https://github.com/x"})],
+     "host_ok: only a platform other than daylight"),
+    ("binary-value", [changed(COVERED, body_name=b"Clarksville City Council")], "bytes value is not allowed"),
+    ("float-value", [changed(LEGISTAR, legistar__body_id=138.0)], "float value is not allowed"),
+    ("set-value", [changed(COVERED, also={"place-4715161"})], "set value is not allowed"),
+    ("date-key", [changed(COVERED, daylight={"body": "city", "full_url": "city/", date(2026, 1, 1): "x"})],
+     "every key must be text"),
+    ("timestamp-value", [changed(COVERED, checked=datetime(2026, 11, 19, 1, 2, 3))], "datetime value is not"),
     ("other-platforms-keys", [changed(COVERED, legistar=LEGISTAR["legistar"])], "legistar: keys for another"),
     ("unknown-platform", [changed(COVERED, platform="boarddocs", daylight=...)], "platform: unknown platform"),
     ("unknown-platform-keys", [changed(COVERED, platform="boarddocs", daylight=..., boarddocs={})], "unknown key"),
@@ -226,8 +242,8 @@ SHIPPED_REVIEWED = nat.SHOWN_REVIEWED
 
 
 def reviewed(monkeypatch, *entries, denylist_ok=False):
-    """The shipped table plus a row pinning each entry's whole-entry digest (each call replaces earlier additions)."""
-    rows = tuple(nat.ShownReview(e["gov"], e["body_name"], nat.review_digest(e), denylist_ok) for e in entries)
+    """The shipped table plus a row pinning each whole entry, readable (each call replaces earlier additions)."""
+    rows = tuple(nat.ShownReview(e["gov"], nat.norm_entry(e), denylist_ok) for e in entries)
     monkeypatch.setattr(nat, "SHOWN_REVIEWED", SHIPPED_REVIEWED + rows)
 
 
@@ -299,8 +315,10 @@ def test_11_3_1_shipped_digests_equal_their_rows():
     assert len(rows) == len(nat.SHOWN_REVIEWED), "one SHOWN_REVIEWED row per gov"
     assert set(shown) == set(rows) == {"place-4715160", "county-47125"}
     for gov, g in shown.items():
-        assert g["review"] == rows[gov].digest and g["body_name"] == rows[gov].body_name
-        assert len(g["review"]) == 64
+        row = rows[gov]
+        assert nat.norm_entry(g) == row.entry                 # the row is the readable canonical entry
+        assert nat.norm_entry(row.entry) == row.entry and row.entry["gov"] == row.gov
+        assert g["review"] == row.digest == nat.review_digest(g) and len(g["review"]) == 64
     assert not any(r.denylist_ok for r in nat.SHOWN_REVIEWED)
     assert all(g["review"] is None for g in d.govs if g["items"] != "shown")
 
@@ -335,9 +353,13 @@ SWEEP = [(e["gov"], name, m) for e in shipped_shown() for name, m in mutations(e
 
 @pytest.mark.parametrize("gov,change,e", SWEEP, ids=[f"{g}-{c}" for g, c, _ in SWEEP])
 def test_11_3_2_any_change_to_a_shown_entry_is_refused(tmp_path, gov, change, e):
-    with pytest.raises(nat.NationalConfigError, match=r"digest|SHOWN_REVIEWED row ShownReview") as err:
+    with pytest.raises(nat.NationalConfigError, match="differs from its SHOWN_REVIEWED row in") as err:
         load(tmp_path, e)
-    assert nat.review_digest(e) in str(err.value)          # the error prints the new digest for a reviewed update
+    # the error prints the whole new canonical entry, readable, as a row to review and paste
+    msg = str(err.value)
+    for k, v in nat.norm_entry(e).items():
+        assert f"{k!r}: {v!r}," in msg
+    assert f"ShownReview({e['gov']!r}, {{" in msg
 
 
 @pytest.mark.parametrize("gov,change,e", SWEEP, ids=[f"{g}-{c}" for g, c, _ in SWEEP])
@@ -664,3 +686,30 @@ def test_now_is_not_read():
     later = BUILT + timedelta(days=10)
     p = nat.page_directory(d, nat.GovFlags(), LABELS, built_at=later, last_ok_at={"place-4715160": "2026-11-19T14:00:00Z"})
     assert p["built"] == "2026-11-29" and p["govs"]["place-4715160"]["stale"] is True
+
+
+def test_review_row_opaque_two_pr_sequence_shows_the_source_change(tmp_path, monkeypatch):
+    """security privacy-withhold/review-row-opaque: PR1 narrows to withheld and changes the source; PR2 flips shown.
+    PR2's row diff must carry the changed source key itself, not only a new hash."""
+    pr1 = changed(COVERED, items="withheld", daylight={"body": "county", "full_url": "city/"})
+    assert load(tmp_path, pr1).govs[0]["review"] is None
+    pr2 = dict(pr1, items="shown")
+    with pytest.raises(nat.NationalConfigError, match="row in daylight") as err:
+        load(tmp_path, pr2)
+    assert "'daylight': {'body': 'county', 'full_url': 'city/'}," in str(err.value)
+    reviewed(monkeypatch, pr2)          # the reviewed row names daylight.body county in its own text
+    row = nat.SHOWN_REVIEWED[-1]
+    assert row.entry["daylight"]["body"] == "county"
+
+
+def test_row_for_a_new_gov_prints_the_whole_entry(tmp_path):
+    e = changed(COVERED, gov="place-4799999", body_name="Town Board")
+    with pytest.raises(nat.NationalConfigError, match="needs a SHOWN_REVIEWED row") as err:
+        load(tmp_path, e)
+    assert "ShownReview('place-4799999', {" in str(err.value) and "'body_name': 'Town Board'," in str(err.value)
+
+
+def test_bad_gov_id_is_not_echoed(tmp_path):
+    with pytest.raises(nat.NationalConfigError) as err:
+        load(tmp_path, changed(COVERED, gov="place-" + "9" * 300))
+    assert "9" * 50 not in str(err.value).split(": gov:")[0]

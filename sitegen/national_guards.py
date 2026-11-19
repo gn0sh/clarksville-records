@@ -260,34 +260,76 @@ class BindCounts:
         return ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
 
 
+FEED_KEYS = ("schema", "review", "body", "checked_at", "last_ok_at", "meetings")   # daylight-upcoming/1, top level
+WITHHELD_TITLE = "Meeting"      # the fixed title of every meeting of a government that is not shown
+MAX_ECHO = 40                   # characters of an outside value an error message may repeat
+
+
+def _echo_id(value) -> str:
+    """An id for an error message: the id when id_layer accepts it, else `<bad id>` (security
+    `privacy-withhold/error-echo`)."""
+    return value if id_layer(value) else "<bad id>"
+
+
+def _echo(value) -> str:
+    text = repr(value)
+    return text if len(text) <= MAX_ECHO else text[:MAX_ECHO] + "..."
+
+
+def _body(entry: dict) -> dict:
+    """The feed's `body`, every field from the directory entry (never from the feed)."""
+    platform = entry.get("platform")
+    keys = entry.get(platform) if isinstance(platform, str) and isinstance(entry.get(platform), dict) else {}
+    return {"id": entry.get("gov"), "name": entry.get("body_name"),
+            "tz": keys.get("tz") or config.SITE["site_timezone"], "official_url": entry.get("official_url"),
+            "platform": platform, "full_url": keys.get("full_url") if platform == "daylight" else None}
+
+
 def bind_feed(feed: dict, entry: dict) -> tuple[dict, BindCounts]:
     """The last gate before any write of a `daylight-upcoming/1` feed (11.2). Returns a copy and what was stripped.
 
-    Raises BindError when `feed` is not an object with a `body`, or `body.id` is not the entry's `gov`, or
-    `body.platform` is not the entry's `platform`. Items are kept only when `is_shown(entry)` and the feed's `review`
-    equals the entry's; otherwise every meeting is emptied (`items: []`, `item_count: null`, `items_withheld: true`)
-    and `review` set to null. So a written `review` is non-null only when the entry is shown under that review."""
+    Raises BindError when `feed` is not an object with a `body` and a list of meeting objects, holds a top-level key
+    the schema does not name, or its `body.id` or `body.platform` is not the entry's (`privacy-withhold/bind-shape`).
+    `body` is rewritten from the directory entry (id, name, tz, official_url, platform, full_url). Items are kept only
+    when `is_shown(entry)` and the feed's `review` equals the entry's; otherwise every meeting is emptied (`items: []`,
+    `item_count: null`, `items_withheld: true`) and `review` set to null. For an entry that is not shown, each
+    meeting's `title` is the fixed WITHHELD_TITLE (`title_ours: true`) and `time` and `agenda.status_as_posted` are
+    null, so no free text from the source is published for it (`privacy-withhold/free-text-outside-items`). A written
+    `review` is non-null only when the entry is shown under that review. Error messages repeat an id only when
+    id_layer accepts it and any other value only up to MAX_ECHO characters."""
+    if not isinstance(entry, dict):
+        raise BindError("not a directory entry")
+    gov = _echo_id(entry.get("gov"))
     body = feed.get("body") if isinstance(feed, dict) else None
-    if not isinstance(body, dict) or not isinstance(entry, dict):
-        raise BindError("not a feed with a body")
+    if not isinstance(body, dict):
+        raise BindError(f"{gov}: not a feed with a body")
+    extra = sorted(str(k) for k in feed if k not in FEED_KEYS)
+    if extra:
+        raise BindError(f"{gov}: unknown top-level key {_echo(extra[0])}")
+    meetings = feed.get("meetings")
+    if not isinstance(meetings, list) or not all(isinstance(m, dict) for m in meetings):
+        raise BindError(f"{gov}: meetings must be a list of objects")
     if body.get("id") != entry.get("gov"):
-        raise BindError(f"feed body.id {body.get('id')!r} is not the entry's gov {entry.get('gov')!r}")
+        raise BindError(f"feed body.id {_echo_id(body.get('id'))} is not the entry's gov {gov}")
     if body.get("platform") != entry.get("platform"):
-        raise BindError(f"{entry.get('gov')}: feed platform {body.get('platform')!r} is not the entry's "
-                        f"{entry.get('platform')!r}")
+        raise BindError(f"{gov}: feed platform {_echo(body.get('platform'))} is not the entry's "
+                        f"{_echo(entry.get('platform'))}")
     out = copy.deepcopy(feed)
+    out["body"] = _body(entry)
     counts = BindCounts()
-    if is_shown(entry) and out.get("review") == entry["review"]:
-        return out, counts
     shown = is_shown(entry)
-    for m in out.get("meetings") or []:
-        if not isinstance(m, dict):
-            continue
+    if shown and out.get("review") == entry["review"]:
+        return out, counts
+    for m in out["meetings"]:
         if m.get("items") or m.get("item_count") is not None:
             if shown:
                 counts.review_mismatch += 1
             else:
                 counts.withheld_stripped += 1
         m["items"], m["item_count"], m["items_withheld"] = [], None, True
+        if not shown:
+            m["title"], m["title_ours"], m["time"] = WITHHELD_TITLE, True, None
+            if isinstance(m.get("agenda"), dict):
+                m["agenda"]["status_as_posted"] = None
     out["review"] = None
     return out, counts

@@ -329,3 +329,80 @@ def test_bind_error_is_a_value_error_and_guards_import_only_config():
     assert issubclass(g.BindError, ValueError)
     src = g.__file__ and open(g.__file__, encoding="utf-8").read()
     assert "from . import config" in src and "from .national" not in src and "import sitegen.national" not in src
+
+
+
+# --- security review of v3 (docs/reviews/security-daylight-national-withhold-v3.md) -------------------------------
+
+def withheld_feed():
+    f = feed(title="Hearing for Jane Doe", time="6 PM at Jane Doe's house")
+    f["meetings"][0]["agenda"]["status_as_posted"] = "Final (Jane Doe)"
+    f["body"]["name"] = "Jane Doe Youth Council"
+    return f
+
+
+def test_free_text_outside_items_withheld_entry():
+    out, _ = g.bind_feed(withheld_feed(), county_entry(items="withheld", review=None))
+    m = out["meetings"][0]
+    assert (m["title"], m["title_ours"], m["time"], m["agenda"]["status_as_posted"]) == (g.WITHHELD_TITLE, True,
+                                                                                        None, None)
+    assert "Jane" not in json.dumps(out)
+
+
+def test_free_text_kept_for_a_shown_entry():
+    out, _ = g.bind_feed(feed(title="Formal Session", time="6:00 PM"), county_entry())
+    assert (out["meetings"][0]["title"], out["meetings"][0]["time"]) == ("Formal Session", "6:00 PM")
+
+
+@pytest.mark.parametrize("entry", [{}, {"items": "withheld", "review": None}])
+def test_body_is_rewritten_from_the_entry(entry):
+    e = county_entry(**entry)
+    f = withheld_feed()
+    f["body"].update(tz="Mars/Base", official_url="https://evil.example/", full_url="x/", extra="y")
+    out, _ = g.bind_feed(f, e)
+    assert out["body"] == {"id": "county-47125", "name": "Montgomery County Commission", "tz": "America/Chicago",
+                           "official_url": e["official_url"], "platform": "daylight",
+                           "full_url": "meetings/agendas.html"}
+
+
+def test_body_tz_from_a_legistar_entry():
+    e = {"gov": "place-4164900", "body_name": "Salem City Council", "official_url": "https://salem.legistar.com/",
+         "platform": "legistar", "legistar": {"client": "salem", "body_id": 1, "tz": "America/Los_Angeles"},
+         "items": "withheld", "review": None}
+    f = feed()
+    f["body"].update(id="place-4164900", platform="legistar")
+    out, _ = g.bind_feed(f, e)
+    assert out["body"]["tz"] == "America/Los_Angeles" and out["body"]["full_url"] is None
+
+
+@pytest.mark.parametrize("meetings", [{"a": {}}, "x", None, [1], [{}, []]])
+def test_bind_shape_meetings_must_be_a_list_of_objects(meetings):
+    f = feed()
+    f["meetings"] = meetings
+    with pytest.raises(g.BindError, match="meetings must be a list of objects"):
+        g.bind_feed(f, county_entry())
+
+
+def test_bind_shape_unknown_top_level_key_refused():
+    f = dict(feed(), notes="Jane Doe")
+    with pytest.raises(g.BindError, match="unknown top-level key 'notes'"):
+        g.bind_feed(f, county_entry())
+
+
+def test_error_echo_bad_id_and_long_values():
+    f = feed()
+    f["body"]["id"] = "<script>" + "x" * 500
+    with pytest.raises(g.BindError) as err:
+        g.bind_feed(f, county_entry())
+    assert "<bad id>" in str(err.value) and "script" not in str(err.value)
+    f = feed()
+    f["body"]["platform"] = "p" * 500
+    with pytest.raises(g.BindError) as err:
+        g.bind_feed(f, county_entry())
+    assert len(str(err.value)) < 200
+    with pytest.raises(g.BindError) as err:
+        g.bind_feed(dict(feed(), **{"k" * 500: 1}), county_entry())
+    assert len(str(err.value)) < 200
+    with pytest.raises(g.BindError) as err:
+        g.bind_feed(feed(), county_entry(gov="<img>" * 50))
+    assert "<img>" not in str(err.value)

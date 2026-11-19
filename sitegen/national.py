@@ -9,8 +9,8 @@ docs/platform-facts.md "Census TIGER/Line codes".
 Not wired into sitegen.build yet (B4 does that behind `national.enabled`), so nothing here changes a Clarksville page.
 
 Invariant `privacy-withhold/national-prefix` (architecture section 11): item text is published only for a government
-whose entry says `items: shown` and whose whole entry has the digest pinned in SHOWN_REVIEWED (section 11 v3). A
-missing `items` is `withheld`; `shown` is refused unless the entry's `review_digest` equals its row's and the
+whose entry says `items: shown` and whose whole entry is the readable row in SHOWN_REVIEWED (section 11 v3). A
+missing `items` is `withheld`; `shown` is refused unless the entry's `norm_entry` equals its row's `entry` and the
 fail-closed guard (`shown_refusal`) passes. The loaded entry carries `review` (the digest when shown, else None);
 consumers decide with `national_guards.is_shown(entry)` and write through `national_guards.bind_feed`, never an id
 prefix.
@@ -92,36 +92,48 @@ MAX_NAME = 160
 MAX_LABEL = 300
 
 # `items: shown` (invariant `privacy-withhold/national-prefix`, architecture 3.2 and section 11 v3; finding 5).
-# The rule is the reviewed digest: an entry may say `shown` only when SHOWN_REVIEWED has a row for its `gov` whose
-# `body_name` and `digest` equal the entry's. The digest (`review_digest`) hashes the WHOLE entry, every key, so a
-# change of platform, source keys (`daylight.body`, `legistar.client`/`body_id`), `also`, URLs or dates, or any key
-# added later, refuses the entry until a reviewed code change pins the new digest (the error prints both). Adding
-# or changing a row is a code change, so it goes through code review; its comment names the source showing the body
-# is the government's own council or commission, the source for each `also` id, and the review date. A second,
-# fail-closed guard still runs on every shown entry: no school district id, a place, county or county subdivision
-# id, ASCII only (a Cyrillic "о" in "Yоuth" hides the word), and no stem of SHOWN_DENYLIST_RE unless the row says
-# `denylist_ok=True` (a place name such as College Station or Childress County). `withheld` needs no row: an edit
-# to the YAML alone can narrow what is published, never widen it.
+# The rule is the reviewed entry: an entry may say `shown` only when SHOWN_REVIEWED has a row for its `gov` whose
+# `entry` equals the entry in canonical form (`norm_entry`: every key, `also` sorted, `items` defaulted, dates as ISO
+# text). The row holds the readable entry, not a hash, so the reviewer of the PR that adds or changes a row sees every
+# field it vouches for (platform, source keys `daylight.body` / `legistar.client` and `body_id`, `also`, URLs, dates)
+# in that one diff, whatever earlier PRs did to the YAML (security `privacy-withhold/review-row-opaque`). A build
+# refused for a changed shown entry prints the whole canonical entry to paste. The `review` digest stamped on feeds is
+# `review_digest` of that same canonical entry. Adding or changing a row is a code change, so it goes through code
+# review; its comment names the source showing the body is the government's own council or commission, the source
+# for each `also` id, and the review date. A second, fail-closed guard still runs on every shown entry: no school
+# district id, a place, county or county subdivision id, ASCII only (a Cyrillic "о" in "Yоuth" hides the word), and
+# no stem of SHOWN_DENYLIST_RE unless the row says `denylist_ok=True` (a place name such as College Station or
+# Childress County). `withheld` needs no row: an edit to the YAML alone can narrow what is published, never widen it.
 
 
 class ShownReview(NamedTuple):
     gov: str
-    body_name: str
-    digest: str                    # review_digest of the whole reviewed entry (64 hex)
+    entry: dict                    # the reviewed entry in canonical form (norm_entry), every key, readable
     denylist_ok: bool = False      # True only for a place-name hit on SHOWN_DENYLIST_RE, said in the comment
+
+    @property
+    def digest(self) -> str:
+        """review_digest of the reviewed entry: the `review` stamped on this government's feeds."""
+        return review_digest(self.entry)
 
 
 SHOWN_REVIEWED: tuple[ShownReview, ...] = (
     # source https://clarksvilletn.portal.civicclerk.com/ (the council's own agenda portal; docs/platform-facts.md
     # "CivicClerk, City Council 2024 on"); daylight.body `city` = config/localities/clarksville-tn/council.yml
-    # body_key; no `also` ids; reviewed 2026-11-19 (B1 code review; digest re-pinned for section 11 v3)
-    ShownReview("place-4715160", "Clarksville City Council",
-                "36afc1f85fe4c21495f0f32b5f67b405bfce75e74373e6da6473b93e08f03e3a"),
+    # body_key; no `also` ids; reviewed 2026-11-19 (B1 code review; readable row for security finding 1)
+    ShownReview("place-4715160", {
+        "gov": "place-4715160", "also": [], "body_name": "Clarksville City Council", "state": "TN",
+        "status": "covered", "official_url": "https://www.clarksvilletn.gov/", "checked": "2026-11-19",
+        "checked_url": "https://clarksvilletn.portal.civicclerk.com/", "items": "shown", "platform": "daylight",
+        "daylight": {"body": "city", "full_url": "city/"}}),
     # source https://montgomerytn.gov/commission/agenda (the commission's own agenda page; docs/platform-facts.md
     # "Montgomery County, TN"); daylight.body `county` = national_clarksville.COUNTY_BODY_KEY; no `also` ids;
-    # reviewed 2026-11-19 (B1 code review; digest re-pinned for section 11 v3)
-    ShownReview("county-47125", "Montgomery County Commission",
-                "0aaee273dc246526356abc3c83eca275e6c9199f96c06ce4070b99a1b1bd072a"),
+    # reviewed 2026-11-19 (B1 code review; readable row for security finding 1)
+    ShownReview("county-47125", {
+        "gov": "county-47125", "also": [], "body_name": "Montgomery County Commission", "state": "TN",
+        "status": "covered", "official_url": "https://montgomerytn.gov/commission/agenda", "checked": "2026-11-19",
+        "checked_url": "https://montgomerytn.gov/commission/agenda", "items": "shown", "platform": "daylight",
+        "daylight": {"body": "county", "full_url": "meetings/agendas.html"}}),
 )
 
 # Stems of bodies whose items may name children, students or pretend officials. Child-specific stems match anywhere
@@ -254,6 +266,22 @@ def load_labels(path: Path = LABELS_PATH) -> dict[str, str]:
 
 # --- directory.yml ------------------------------------------------------------------------------------------------
 
+def _plain(path: Path, where: str, value, key: str = "") -> None:
+    """Refuse any value a curated entry never needs (security `national/host-ok-unchecked`): only text, whole numbers,
+    true/false, null, dates (as values), lists and mappings with text keys. Binary, sets, timestamps, floats and
+    non-text keys stop the build here, never as a TypeError later."""
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if not isinstance(k, str):
+                _fail(path, where, key or "entry", "every key must be text (a date or number key is refused)")
+            _plain(path, where, v, f"{key}.{k}" if key else k)
+    elif isinstance(value, list):
+        for v in value:
+            _plain(path, where, v, key)
+    elif isinstance(value, datetime) or not (value is None or isinstance(value, (str, int, date))):
+        _fail(path, where, key or "entry", f"a {type(value).__name__} value is not allowed (plain YAML only)")
+
+
 def _iso_dates(value):
     if isinstance(value, date):
         return value.isoformat()
@@ -267,8 +295,9 @@ def _iso_dates(value):
 def norm_entry(e: Mapping) -> dict:
     """The raw `safe_load` mapping of one directory entry in canonical form (section 11.2): every key kept, `also`
     defaulted to [] and sorted, `items` defaulted, every date written as ISO text (so YAML key order, `also` order and
-    a quoted or plain date never change the digest)."""
-    out = _iso_dates(dict(e))
+    a quoted or plain date never change it). A loaded entry gives the same result: its `review` (set by the loader,
+    never a YAML key) is left out."""
+    out = _iso_dates({k: v for k, v in dict(e).items() if k != "review"})
     out["also"] = sorted(out.get("also") or [])
     out.setdefault("items", ITEMS_DEFAULT)
     return out
@@ -290,9 +319,16 @@ def source_key(e: Mapping) -> str | None:
     return None
 
 
-def shown_refusal(gov_id: str, body_name: str, digest: str) -> str | None:
-    """Why `items: shown` is refused for this entry, or None when it is allowed (the reviewed digest, then the
-    fail-closed guard; see SHOWN_REVIEWED). `digest` is the entry's review_digest."""
+def _row_text(gov_id: str, entry: dict) -> str:
+    """A SHOWN_REVIEWED row to paste: the whole canonical entry, readable."""
+    lines = [f"    ShownReview({gov_id!r}, {{"]
+    lines += [f"        {k!r}: {entry[k]!r}," for k in entry]
+    return "\n".join(lines + ["    }),"])
+
+
+def shown_refusal(gov_id: str, body_name: str, canonical: dict) -> str | None:
+    """Why `items: shown` is refused for this entry, or None when it is allowed (the reviewed entry, then the
+    fail-closed guard; see SHOWN_REVIEWED). `canonical` is the entry's norm_entry."""
     layer = id_layer(gov_id)
     if layer in SCHOOL_LAYERS:
         return "`shown` is never allowed for a school district (privacy-withhold)"
@@ -301,14 +337,15 @@ def shown_refusal(gov_id: str, body_name: str, digest: str) -> str | None:
     if not body_name.isascii():
         return "`shown` needs a body_name in ASCII letters only (privacy-withhold/body-name-word-check)"
     review = next((r for r in SHOWN_REVIEWED if r.gov == gov_id), None)
-    if review is None or review.body_name != body_name:
-        return (f"`shown` needs a SHOWN_REVIEWED row ShownReview({gov_id!r}, {body_name!r}, {digest!r}) in "
-                "sitegen/national.py, added through code review (privacy-withhold); leave it withheld")
-    if review.digest != digest:
-        return (f"`shown` entry digest {digest} differs from the SHOWN_REVIEWED row's {review.digest}: the entry "
-                "changed since it was reviewed; re-review it and pin the new digest, or leave it withheld "
-                "(privacy-withhold/reviewed-pair-unbound-source)")
-    if SHOWN_DENYLIST_RE.search(body_name) and not review.denylist_ok:
+    if review is None:
+        return ("`shown` needs a SHOWN_REVIEWED row in sitegen/national.py, added through code review with its source "
+                "(privacy-withhold); leave it withheld. The row to review and paste:\n" + _row_text(gov_id, canonical))
+    if review.entry != canonical:
+        changed = sorted(k for k in set(review.entry) | set(canonical) if review.entry.get(k) != canonical.get(k))
+        return (f"`shown` entry differs from its SHOWN_REVIEWED row in {', '.join(changed)}: the entry changed since "
+                "it was reviewed; re-review it (privacy-withhold/review-row-opaque) or leave it withheld. The row to "
+                "review and paste:\n" + _row_text(gov_id, canonical))
+    if SHOWN_DENYLIST_RE.search(body_name) and not review.denylist_ok:   # body_name is part of the entry
         return ("`shown` body_name holds a school, youth or special-purpose word; only a reviewed pair with "
                 "denylist_ok=True passes (privacy-withhold/body-name-word-check)")
     return None
@@ -320,6 +357,8 @@ def _check_platform(path: Path, where: str, e: dict) -> None:
     if platform is not None and not isinstance(platform, str):
         _fail(path, where, "platform", "must be a platform name")
     if platform is None:
+        if "host_ok" in e:
+            _fail(path, where, "host_ok", "host_ok without a platform that needs it")
         if present:
             _fail(path, where, present[0], "platform keys without `platform`")
         if e["status"] == "covered":
@@ -338,6 +377,8 @@ def _check_platform(path: Path, where: str, e: dict) -> None:
     if missing:
         _fail(path, f"{where}.{platform}", missing[0], "missing")
     if platform == "daylight":
+        if "host_ok" in e:
+            _fail(path, where, "host_ok", "only a platform other than daylight takes host_ok")
         if not isinstance(keys["body"], str) or not BODY_KEY_RE.fullmatch(keys["body"]):
             _fail(path, f"{where}.daylight", "body", "must match " + BODY_KEY_RE.pattern)
         if not _safe_path(keys["full_url"]):
@@ -391,8 +432,9 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
         where = f"govs[{n}]"
         if not isinstance(e, dict):
             _fail(path, where, "gov", "entry must be a mapping")
-        if isinstance(e.get("gov"), str):
+        if isinstance(e.get("gov"), str) and id_layer(e["gov"]):
             where = f"govs[{n}] {e['gov']}"
+        _plain(path, where, e)
         _unknown(path, where, e, ENTRY_KEYS)
         for k in ENTRY_REQUIRED:
             if k not in e:
@@ -448,10 +490,17 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
         items = e.get("items", ITEMS_DEFAULT)
         if not isinstance(items, str) or items not in ITEMS:
             _fail(path, where, "items", "must be shown or withheld")
+        if status == "cant-cover":
+            # security `privacy-withhold/source-unique-covered-only`: a can't-cover entry names no source at all, so
+            # source uniqueness (covered entries) and the host OK rule have nothing to miss
+            for k in ("platform", "host_ok", *PLATFORM_KEYS):
+                if k in e:
+                    _fail(path, where, k, "a cant-cover entry has no platform, source keys or host_ok")
         _check_platform(path, where, e)
-        digest = review_digest(e)            # after every other per-entry check (11.2)
+        canonical = norm_entry(e)            # after every other per-entry check (11.2)
+        digest = review_digest(canonical)
         if items == "shown":
-            why = shown_refusal(gov, body_name, digest)
+            why = shown_refusal(gov, body_name, canonical)
             if why:
                 _fail(path, where, "items", why)
         g = dict(e, also=list(also), items=items, checked=checked, review=digest if items == "shown" else None)
