@@ -101,7 +101,8 @@ REDIRECT_CODES = (301, 302, 303, 307, 308)
 # (matched after the client segment is lowercased). Architecture daylight-national 4.4.
 SHARED_HOSTS = {"webapi.legistar.com": re.compile(r"^/v1/([a-z0-9-]{2,40})/")}
 BLOCK_BODY_BYTES = 64 * 1024     # how much of a 403 body is read to decide tenant or host block
-ANSWER_CHUNK = 64 * 1024         # one body read when max_answer_seconds is set (read1: at most one socket read)
+ANSWER_CHUNK = 64 * 1024         # one body read when max_answer_seconds is set (read1: one socket read of body
+                                 # data, but on a chunked answer also the chunk-size lines and trailer: 4.4.4)
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -466,8 +467,11 @@ class PoliteFetcher:
 
     def _read_answer(self, r, limit: int, t0, url: str) -> bytes:
         """The answer body, at most `limit` bytes: one read(limit) when max_answer_seconds is None (today's), else
-        ANSWER_CHUNK reads (read1 when the answer has it: at most one blocking socket read each) and FetchFailed once
-        clock() - t0 passes max_answer_seconds."""
+        ANSWER_CHUNK reads (read1 when the answer has it) and FetchFailed once clock() - t0 passes max_answer_seconds,
+        checked after each read and once more after the last. read1 is one socket read of body data, but on a chunked
+        answer http.client also reads the chunk-size lines (with extensions) and the trailer with readline: many socket
+        reads, each up to the socket timeout. Those are not cut short, so a dripped chunked answer can overrun A before
+        it fails here; the job timeout is the backstop (4.4.4 residual, section 8)."""
         if self.max_answer_seconds is None:
             return r.read(limit)
         read = getattr(r, "read1", None) or r.read
@@ -479,8 +483,14 @@ class PoliteFetcher:
             parts.append(chunk)
             total += len(chunk)
             if self.clock() - t0 > self.max_answer_seconds:
-                raise FetchFailed(f"{url}: answer slower than {self.max_answer_seconds:g} s")
+                self._too_slow(url)
+        if self.clock() - t0 > self.max_answer_seconds:  # the last (empty) read: a dripped chunked trailer
+            self._too_slow(url)
         return b"".join(parts)
+
+    def _too_slow(self, url: str):
+        self.log.append({"event": "error", "host": split_url(url).netloc, "url": url, "detail": "answer too slow"})
+        raise FetchFailed(f"{url}: answer slower than {self.max_answer_seconds:g} s")
 
     def _open(self, req):
         if self.opener is not None:
@@ -571,8 +581,7 @@ class PoliteFetcher:
             try:
                 body = self._read_answer(e, self.max_bytes + 1, t0, url) or b""
             except FetchFailed:
-                self.log.append({"event": "error", "host": host, "url": url, "detail": "answer too slow"})
-                raise
+                raise                                  # too slow: _read_answer logged it
             except Exception as x:
                 detail = f"HTTP {e.code} answer body unreadable: {type(x).__name__}"
                 self.log.append({"event": "error", "host": host, "url": url, "detail": detail})

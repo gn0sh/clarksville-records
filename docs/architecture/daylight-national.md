@@ -608,7 +608,13 @@ requests sent at 30-90 s against a 20 s deadline. The check also uses `>`, so a 
   single `read(max_bytes + 1)`.
 - Residual (accepted, recorded in 8): a server that drips its TLS handshake or headers can stretch `T_open` beyond
   2T; the job timeout is the backstop (nothing written, the pages show stale). Legistar is an approved API, not a
-  hostile one; the D1 job flags a run killed by its timeout so a repeat is seen.
+  hostile one; the D1 job flags a run killed by its timeout so a repeat is seen. The same holds for **chunked
+  framing** (`national-budget/chunked-framing-drip`): on `Transfer-Encoding: chunked`, `read1` also reads the
+  chunk-size lines (with extensions, up to 64 KiB) and the trailer with `readline`, many socket reads each up to `T`,
+  which the per-read check cannot cut short. The reader checks `clock() - t0 > A` once more after its last read, so
+  such an answer fails the fetch (never accepted), but only after the drip ends: X = 360 s does not bound it. The job
+  timeout is the backstop; enforcing `A` below http.client (a raw reader, or a per-request watchdog that shuts the
+  socket) is in the backlog.
 
 **Margin check (the 15 of 75 min).** The deadline is `start + RUN_SECONDS` where `start` is taken inside the CLI, so
 the margin covers: job setup before the CLI starts (checkout of `national-data`, Python, install: at most 3 min, D1
@@ -867,7 +873,7 @@ from a digest page names it). The golden test removes (b) and (c) by their exact
 | Shared `national-data` provenance doubles ADR 0011 surface | medium | security review of D1 and D2 |
 | Metadata clobber between morning and weekly senders | high if built separately | one sender package, merged object, shared concurrency (ADR 0013 decision 8) |
 | City Council shows no items in M1 | certain | plain label and agenda link; B9 later |
-| A server drips its TLS handshake or headers, stretching the request in flight past X = 360 s (4.4.4) | low (Legistar is an approved API) | job timeout is the backstop (nothing written, pages go stale); D1 flags a run killed by its timeout so a repeat is seen; then the margin grows or the reader gets a per-host total cap |
+| A server drips its TLS handshake, headers or chunked framing (chunk-size lines, extensions, trailer), stretching the request in flight past X = 360 s (4.4.4) | low (Legistar is an approved API) | job timeout is the backstop (nothing written, pages go stale); a dripped chunked answer still fails the fetch by the reader's final `A` check; D1 flags a run killed by its timeout so a repeat is seen; then the margin grows or `A` is enforced below http.client (backlog) |
 
 ## 9. Assumptions
 - AS1. Spec v2's M1 scope is as the manager's brief states (lookup, statuses, Request it, What we cover, Clarksville and
