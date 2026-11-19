@@ -218,7 +218,7 @@ attendance, motion or person's name field exists in this schema (AC4.4); a test 
 
 ### 3.6 ICS and Atom (M4; contract fixed now so M1 ids and URLs hold)
 - `digest/<st>/<body id>.ics`: one VEVENT per meeting. `UID: <body id>/<meeting id>@daylight.gnoshcodes.com`; `DTSTART;VALUE=DATE`
-  when `time` is null, else a UTC `DTSTART:<yyyymmdd>T<hhmmss>Z` from the parsed time in `<tz>` (C4, 2026-11-19: RFC 5545 3.2.19 requires a VTIMEZONE for every TZID, which the writer does not emit) (unparseable: all-day, time in the summary as
+  when `time` is null, else a UTC `DTSTART:<yyyymmdd>T<hhmmss>Z` from the parsed time in `<tz>` (C4, 2026-11-19: RFC 5545 3.2.19 requires a VTIMEZONE for every TZID, which the writer does not emit); a timed event carries `DURATION:PT1H`, since a posting gives no end (unparseable: all-day, time in the summary as
   posted); `SUMMARY` = body name + meeting title; `URL` = the coming-up page; `DESCRIPTION` = agenda link and a fixed
   label (no item text: keeps calendar entries small and avoids clipping verbatim text). `SEQUENCE` bumps when the
   agenda state or URL changes. **Written in Python by our own writer** (never a template), with RFC 5545 3.3.11 text

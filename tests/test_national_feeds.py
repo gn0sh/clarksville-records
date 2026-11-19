@@ -130,7 +130,7 @@ def test_parser_reads_back_exactly_the_expected_events():
          "SUMMARY": "Montgomery County Commission: Formal Session",
          "DESCRIPTION": "Agenda posted: https://example.gov/a.pdf", "URL": PAGE},
         {"UID": "county-47125/2026-12-15-work@daylight.gnoshcodes.com", "DTSTAMP": stamp,
-         "DTSTART": "20261216T000000Z", "SEQUENCE": "0",       # 6 PM CST = 00:00 UTC next day
+         "DTSTART": "20261216T000000Z", "DURATION": "PT1H", "SEQUENCE": "0",       # 6 PM CST = 00:00 UTC next day
          "SUMMARY": "Montgomery County Commission: Work Session",
          "DESCRIPTION": "Agenda not posted yet.", "URL": PAGE},
         {"UID": "county-47125/2026-12-16-x@daylight.gnoshcodes.com", "DTSTAMP": stamp,
@@ -138,6 +138,31 @@ def test_parser_reads_back_exactly_the_expected_events():
          "SUMMARY": "Montgomery County Commission: Special, after the 5 pm meeting",
          "DESCRIPTION": "Agenda posted, not final yet.", "URL": PAGE},
     ]
+
+
+@pytest.mark.parametrize("day,want", [("2026-07-14", "20260714T230000Z"),     # CDT, UTC-5
+                                      ("2026-10-31", "20261031T230000Z"),     # the day before the Nov 1 change
+                                      ("2026-11-02", "20261103T000000Z"),     # just after it: CST, UTC-6
+                                      ("2027-03-15", "20270315T230000Z")])    # after the March change
+def test_timed_start_follows_dst(day, want):
+    ev = parse_ics(nf.render_ics(_feed(title="T", date=day, time="6:00 PM"), PAGE))[0]
+    assert ev["DTSTART"] == want and ev["DURATION"] == "PT1H"
+
+
+@pytest.mark.parametrize("tz", ["Mars/Olympus", "../etc/passwd", ""])
+def test_bad_tz_gives_all_day_event(tz):
+    f = _feed(title="T", time="6:00 PM")
+    f["body"]["tz"] = tz
+    if not tz:
+        f["body"]["tz"] = "America/Chicago\x00"
+    ev = parse_ics(nf.render_ics(f, PAGE))[0]
+    assert ev["DTSTART;VALUE=DATE"] == "20261214" and "DURATION" not in ev and "DTSTART" not in ev
+    assert ev["SUMMARY"] == "Montgomery County Commission: T, 6:00 PM"
+
+
+def test_atom_unknown_state_uses_fixed_label():
+    root = ET.fromstring(nf.render_atom(_feed(agenda={"state": "odd", "url": "https://example.gov/a.pdf"}), "tn"))
+    assert root.find(f"{A}entry/{A}summary").text.endswith("Agenda not posted yet.")
 
 
 def test_page_url_must_be_https():
