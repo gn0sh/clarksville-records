@@ -245,7 +245,8 @@
   EL-3, presenters' surnames). No school board item text is stored, only the count of lines
   (docs/architecture/agenda-withhold-invariant.md).
 - No minutes and no votes for any of these bodies on montgomerytn.gov. CMCSS minutes: cmcss.net (Cloudflare challenge,
-  not collected). 2025 agendas: d6.mcgtn.org (blocked by this environment's network policy; not fetched).
+  not collected). Evidence for the block: the 2026-11-10 test in docs/research/rpc-cmcss-sources.md (not rechecked
+  since; the Daylight Digest CMCSS card cites this section, reason `blocks-readers-cmcss`). 2025 agendas: d6.mcgtn.org (blocked by this environment's network policy; not fetched).
 - CMCSS board videos (Brian 2026-11-18: link, never copy): the district's channel "CMCSS Focus"
   (https://www.youtube.com/@CMCSSFocus, channel id UC7te1VFbkqSPY48oUiQB7mQ), titles like "CMCSS School Board Meeting
   11-17-2026". Linked by `config/localities/montgomery-tn/school-board-videos.yml`: 31 (date, id) pairs read from the
