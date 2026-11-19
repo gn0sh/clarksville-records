@@ -33,3 +33,6 @@
 - nits: grapheme-safe cut, zero-width/invisible characters, dirty-feed no-mutation test, non-dict feed error type.
 - Holds: scheme/host/userinfo/port/backslash cases, Legistar host checks, meeting filter-then-cap, deepcopy, fullmatch.
 - Tracking: "called at collection and at build" carried into B3/B4 and the M2 collector.
+- B14 delta re-review (0e325282): APPROVE, all 7 fixed, 149 passed. Nits kept open, accepted by manager: U+200C/200D
+  are stripped (`national/untrusted-size/zwj-stripped`; US agenda text rarely needs them; revisit if a covered
+  government publishes in a script that does), and a flag emoji can split at the 2,000 cut (marked `cut` anyway).
