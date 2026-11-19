@@ -12,3 +12,6 @@ Holds up: once-per-subscriber counting via set; regular rows only; malformed/unk
 6. nit (:128): map `also` aliases to the canonical id.
 
 Most serious: finding 1 (a second keyed HTTP client without the listing-count check gives silently wrong counts).
+
+## Delta at 15e856d / 3fc6da1
+APPROVE with nits at 15e856d: all 6 findings closed. Should-fix `national/report-run-steps` (delta): -MaskInput fails on stock Windows PowerShell 5.1; fixed in 3fc6da1 with the `-AsSecureString` + NetworkCredential form (manager-checked: --help text, 17 passed). Nit `national/report-test-coupling` (FakeHTTP imported from another test module) accepted as is.
