@@ -101,3 +101,9 @@
   Referer); post body exactly email + own/ticked tags; native fallback clean; counter guards; double submit; hostile
   stored values drawn as text; timeout; failed post stores nothing; no CSP violations; one focus move per result.
 - F2 delta (013f4d66): APPROVE; race closed (storage stays empty after Forget + late resolve); new links can't carry the address. Nit kept: card B can tick card A while A is sending (duplicate tag, harmless).
+
+## F3 (6f3de179), code-reviewer sonnet/medium: APPROVE with one should-fix
+- Mutations caught: extra post field, extra storage key, page title holding the street, address in the URL.
+- should-fix `tests/browser-silent-skip`: the hook skips silently without node/Playwright; fail when CI or
+  REQUIRE_BROWSER is set, and assert the node summary shows failed 0 with checks run.
+- nits: STOP list drops "main"/"street"; CSP violations also seen via console text only.
