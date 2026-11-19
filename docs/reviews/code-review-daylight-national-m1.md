@@ -100,3 +100,4 @@
 - Held in Chromium with all outside hosts stubbed: address only in the Census request (not URL, title, history,
   Referer); post body exactly email + own/ticked tags; native fallback clean; counter guards; double submit; hostile
   stored values drawn as text; timeout; failed post stores nothing; no CSP violations; one focus move per result.
+- F2 delta (013f4d66): APPROVE; race closed (storage stays empty after Forget + late resolve); new links can't carry the address. Nit kept: card B can tick card A while A is sending (duplicate tag, harmless).
