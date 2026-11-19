@@ -479,6 +479,14 @@ for a non-canonical shared path (None must only ever mean "host-level and allowe
 - `run(directory, fetcher, budget, now) -> (feeds, health, proposals)`; never raises on one body's failure.
 - Items only when `is_shown(entry)`, only for the entry's `client`/`body_id` (events with another `EventBodyId`
   dropped and counted), `review` stamped, `bind_feed` before writing; cache rules in section 11.1 rows 18-19 (M2).
+- As built (C2, 2026-11-19): `read_body(entry, fetcher, now, cache_root) -> BodyRead(feed, proposals, counts)` reads
+  one body and raises (`ReadError.kind` is a 3.7 `last_error` value; fetcher exceptions pass through); `run` (budget
+  order, health, never raising) is C3's, around it. `prune_cache(directory, cache_root)` is row 19's first step.
+  `final` is an exact match of `EventAgendaStatusName` against `final_statuses` (default all of
+  `LEGISTAR_FINAL_STATUSES`), not ADR 0013's `^final\b` regex: fail closed. Proposals for a name that is neither
+  final nor `Draft`. Meeting id `<date>-e<EventId>`; `title` is `EventComment` or the fixed `Meeting`. Cache file
+  `{schema: daylight-legistar-cache/1, review, body, event_id, last_published, items}`, written only from the bound
+  feed.
 
 ## 5. Key flows
 1. **Lookup (M1):** `/digest/` loads (directory embedded; a page-view count if counting is on, path only; the saved
