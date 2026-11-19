@@ -46,10 +46,11 @@ def pytest_configure(config):
 
 
 def pytest_unconfigure(config):
+    """Closing the file releases the lock. The file stays: unlinking it would race a second session that opened the
+    old path and then locks a file no one else sees (main-protect/test-flake-lock-unlink); a leftover blocks nothing."""
     held = getattr(config, "_records_basetemp_lock", None)
     if held:
-        f, lock = held
-        lock.unlink(missing_ok=True)
+        f, _lock = held
         f.close()
 
 

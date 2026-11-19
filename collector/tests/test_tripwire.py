@@ -304,7 +304,7 @@ def test_a_duplicate_id_never_hides_a_change(repo, monkeypatch):
 @pytest.mark.parametrize("status", ["verified", "unverified"])
 def test_removing_one_copy_of_a_duplicate_id_holds(tmp_path, monkeypatch, capsys, status):
     """N2: the live site shows an id twice; this run keeps one copy (the same values). That copy's removal is a hit,
-    shown or not, and its entry pins the view that disappears."""
+    shown or not, and its entry pins the transition: the live view and the surviving one."""
     live = copy.deepcopy(FACTS)
     live["roll_calls"] += [_rc("rc-9", status=status), _rc("rc-9", status=status)]
     r = Repo(tmp_path, _tree(facts=live))
@@ -316,12 +316,75 @@ def test_removing_one_copy_of_a_duplicate_id_holds(tmp_path, monkeypatch, capsys
     entries = _hit_lines(out)
     assert [(x["change"], x["fact_id"]) for x in entries] == [("removed", "rc-9")], out
     view = tripwire.published({"data/facts.json": live})[("data/facts.json", "rc-9")]
-    assert view[0] == 2 and entries[0]["value_sha256"] == tripwire.value_view(view)
+    left = tripwire.published({"data/facts.json": one})[("data/facts.json", "rc-9")]
+    assert view[0] == 2 and left[0] == 1 and entries[0]["value_sha256"] == tripwire.change_sha256(view, left)
     r.listed(entries)
     assert r.main(monkeypatch, r.info(r.d)) == tripwire.PASS
     r.run_data(_tree(facts=live))                                  # both copies kept: no hit
     r.listed([])
     assert r.main(monkeypatch, r.info(r.d)) == tripwire.PASS
+
+
+@pytest.mark.parametrize("status", ["verified", "unverified"])
+def test_a_duplicate_ids_surviving_copy_that_changes_after_listing_holds(tmp_path, monkeypatch, capsys, status):
+    """data-off-main/ipub-entry-pins-only-before (B4 fix review, finding 1): the live site shows rc-9 twice; run 1 keeps
+    one copy and its removal is listed. Run 2 keeps one copy whose shown view differs (other values while verified, or
+    verified no longer / now): that is not the reviewed transition, so it holds, and a removal of both copies holds
+    too. Values that are not shown (unverified) are not published, so they may differ."""
+    live = copy.deepcopy(FACTS)
+    live["roll_calls"] += [_rc("rc-9", status=status), _rc("rc-9", status=status)]
+    r = Repo(tmp_path, _tree(facts=live))
+    one = copy.deepcopy(live)
+    one["roll_calls"].pop()
+    r.run_data(_tree(facts=one))
+    assert r.main(monkeypatch, r.info(r.d)) == tripwire.HIT
+    r.listed(_hit_lines(capsys.readouterr().out))
+    assert r.main(monkeypatch, r.info(r.d)) == tripwire.PASS
+    flip = {"verification": {"status": "unverified" if status == "verified" else "verified"}}
+    for survivor, want in [({"outcome": "failed"}, tripwire.HIT if status == "verified" else tripwire.PASS),
+                           (flip, tripwire.HIT), ({"outcome": "tabled", **flip}, tripwire.HIT)]:
+        other = copy.deepcopy(one)
+        other["roll_calls"][-1].update(survivor)
+        r.run_data(_tree(facts=other))
+        assert r.main(monkeypatch, r.info(r.d)) == want, survivor
+        if want == tripwire.HIT:
+            assert "tripwire: removed: rc-9 (data/facts.json) value_sha256 " in capsys.readouterr().out
+    gone = copy.deepcopy(live)
+    gone["roll_calls"] = [x for x in gone["roll_calls"] if x["id"] != "rc-9"]
+    r.run_data(_tree(facts=gone))
+    assert r.main(monkeypatch, r.info(r.d)) == tripwire.HIT
+
+
+def test_a_changed_entry_pins_the_live_value_too(repo, monkeypatch, capsys):
+    """An entry for A -> B does not let C -> B through: once the live site shows C (another listed change), the old
+    entry for the same new value matches nothing."""
+    b = copy.deepcopy(FACTS)
+    b["roll_calls"][0]["outcome"] = "failed"
+    repo.run_data(_tree(facts=b))
+    assert repo.main(monkeypatch, repo.info(repo.d)) == tripwire.HIT
+    a_to_b = _hit_lines(capsys.readouterr().out)
+    c = copy.deepcopy(FACTS)
+    c["roll_calls"][0]["outcome"] = "tabled"
+    d1 = repo.commit(_tree(facts=c))                              # the live site now shows C
+    raw = repo.info(d1)
+    repo.listed(a_to_b)
+    repo.run_data(_tree(facts=b))
+    assert repo.main(monkeypatch, raw) == tripwire.HIT
+    c_to_b = _hit_lines(capsys.readouterr().out)
+    assert [x["value_sha256"] for x in c_to_b] != [x["value_sha256"] for x in a_to_b]
+    repo.listed(c_to_b)
+    assert repo.main(monkeypatch, raw) == tripwire.PASS
+
+
+def test_change_sha256_is_canonical_json_of_both_views():
+    """The digest a person copies: sha256 of {"after": view, "before": view}, sorted keys, no spaces; a fact that is
+    gone has the empty view {"copies": 0, "shown": []}."""
+    v = (1, ['["passed"]'])
+    want = hashlib.sha256(b'{"after":{"copies":0,"shown":[]},"before":{"copies":1,"shown":["[\\"passed\\"]"]}}')
+    assert tripwire.change_sha256(v, None) == want.hexdigest()
+    assert tripwire.change_sha256(v, None) == tripwire.change_sha256(v, (0, []))
+    assert tripwire.change_sha256(v, (1, [])) != tripwire.change_sha256(v, None)
+    assert tripwire.change_sha256(v, (1, [])) != tripwire.change_sha256((2, ['["passed"]'] * 2), (1, []))
 
 
 @pytest.mark.parametrize("why", ["error", "http-500", "not-json", "bad-fields", "d-not-on-records-data",
@@ -636,10 +699,31 @@ def test_the_held_issue_has_one_fixed_title_and_its_own_text_per_kind(tmp_path, 
     if kind in ("hit", "not-read"):
         assert "tripwire: changed: rc-1 (data/facts.json)" in body and "not ours" not in body
     assert "`evil`" not in body
+    if kind == "hit":
+        # data-off-main/held-issue-stale-fields: the entry's fields are schema 2.x's, copied from the hit line
+        flat = " ".join(body.split())
+        assert "copy path, fact_id, change and value_sha256" in flat
+        assert '"tripwire: <change>: <fact_id> (<path>) value_sha256 <digest>"' in flat and "listed_on and reason" in flat
     if kind == "not-read":
         # S1b: the way out of a stuck hold is a reviewed code PR; a rebuild-only run runs the same check
         assert "a rebuild-only run (collect = false) does not help" in " ".join(body.split())
         assert "reviewed code pull request" in " ".join(body.split())
+
+
+def test_the_held_issue_cuts_the_report_by_whole_lines(tmp_path):
+    """data-off-main/held-issue-truncation: every hit line in the issue is whole (a cut digest would be copied wrong);
+    past 40 lines the issue says how many more are in the run log."""
+    lines = [f"tripwire: changed: rc-{i:03d}-{'x' * 150} (data/localities/clarksville-tn/facts.json) value_sha256 "
+             f"{hashlib.sha256(str(i).encode()).hexdigest()}" for i in range(55)]
+    body, _ = _issue_body(tmp_path, HELD_ISSUE_STEP, {"KIND": "hit"},
+                          {"tripwire.txt": "\n".join(lines + ["tripwire: held: 55 published fact(s) changed"]) + "\n"})
+    shown = [ln for ln in body.splitlines() if ln.startswith("tripwire: ")]
+    assert shown == lines[:40]
+    assert "(16 more lines are in the tripwire step of the run log.)" in body
+    (tmp_path / "few").mkdir()
+    body, _ = _issue_body(tmp_path / "few", HELD_ISSUE_STEP, {"KIND": "hit"},
+                          {"tripwire.txt": "\n".join(lines[:3]) + "\n"})
+    assert [ln for ln in body.splitlines() if ln.startswith("tripwire: ")] == lines[:3] and "more lines" not in body
 
 
 def test_the_report_is_replayed_with_workflow_commands_stopped(tmp_path):

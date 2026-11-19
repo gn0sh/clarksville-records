@@ -156,12 +156,15 @@ after a hit.
 
 **B4 notes (review of 2bfd7eb9, decisions).**
 - S2 `data-off-main/ipub-list-never-spent` (manager's decision, 2026-11-18): each `config/published-fact-changes.yml`
-  entry is pinned to `path` + `fact_id` + `change` + `value_sha256` (the sha256 of the fact's view after the change,
-  or of the view that disappears for `removed`; `collector/tripwire.py` `value_view`) and lets through only that exact
-  change. Once the live `build-info.json` shows that value, the entry matches nothing new; a later change of the same
-  fact needs a new entry. The hit line prints the four values to copy. One entry per (`path`, `fact_id`). Residual: a
-  `removed` entry would match again only if the same fact comes back with the very same value and is removed again;
-  spent entries are deleted in any later PR.
+  entry is pinned to `path` + `fact_id` + `change` + `value_sha256` and lets through only that exact transition.
+  B4 fix 2 (`data-off-main/ipub-entry-pins-only-before`, second hit; invariant and consumers in
+  `docs/architecture/ipub-tripwire-invariant.md`): `value_sha256` is `collector/tripwire.py` `change_sha256`, the
+  sha256 of `{"before": live view, "after": this run's view or the empty view}` for both kinds, so a duplicate id's
+  surviving copy (or a fact changed again from another live value) can't ride on an old entry. Once the live
+  `build-info.json` shows the new view, the entry matches nothing new; a later change of the same fact needs a new
+  entry. The hit line prints the four values to copy. One entry per (`path`, `fact_id`). Residual: an entry matches
+  again only if the live site shows the very same before view again and the run makes the very same after view (the
+  transition a person already reviewed); spent entries are deleted in any later PR.
 - S1b: the live tree is always `D` or `D+1` (`MAX_WALK` 2). A stuck "could not read" hold is left by a reviewed code
   PR, not by a rebuild-only run (which runs the same check).
 - S1: the deploy-held issue opens on `main` only. N1: the report is replayed between `::stop-commands::<token>` and

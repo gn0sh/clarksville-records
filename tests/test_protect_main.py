@@ -417,7 +417,8 @@ def test_a_second_session_with_the_same_basetemp_stops(tmp_path):
                         "tests/test_protect_main.py::test_protect_main_creates_r1pp_rd_rt_and_turns_r2_off"],
                        cwd=ROOT, capture_output=True, text=True, timeout=300)
     assert r.returncode == 0, r.stdout + r.stderr                # free again: it runs, and releases the lock
-    assert not lock.exists()
+    with open(lock, "a+") as f:                                  # the file stays (no unlink race), but it is free
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
 
 @pytest.mark.parametrize("key", _READS + ["checks: rulesets list", "checks: R2"])

@@ -602,7 +602,9 @@ jobs:
               hit)
                 echo "This run would change or remove votes, roll calls or outcomes that are on the live site. Check each fact"
                 echo "below against its source document. If the change is right, list it in config/published-fact-changes.yml"
-                echo "(fact_id, change: changed or removed, listed_on, reason) by a reviewed pull request; the next run deploys."
+                echo "by a reviewed pull request, one entry per line below: copy path, fact_id, change and value_sha256 from"
+                echo "the line \"tripwire: <change>: <fact_id> (<path>) value_sha256 <digest>\" exactly, then add listed_on and"
+                echo "reason. The digest pins this exact change (the live value and the new one); the next run deploys."
                 echo "If it is wrong, fix the collector by pull request." ;;
               not-read)
                 echo "The check could not read the live site's build-info.json, the records-data tree it names, or this run's"
@@ -620,9 +622,15 @@ jobs:
             echo "The check's report:"
             echo
             echo '```'
-            report=$(grep -a '^tripwire: ' "$RUNNER_TEMP/tripwire.txt" 2>/dev/null | tr -d '`' | head -c 3000) || report=""
-            [ -n "$report" ] || report=unknown
-            echo "$report"
+            # Whole lines only (data-off-main/held-issue-truncation): a cut line would carry a wrong digest to copy.
+            # At most 40 lines (an id is at most 200 characters and a path 300, well under the issue size limit).
+            all=$(grep -a '^tripwire: ' "$RUNNER_TEMP/tripwire.txt" 2>/dev/null | tr -d '`') || all=""
+            [ -n "$all" ] || all=unknown
+            total=$(printf '%s\n' "$all" | wc -l)
+            printf '%s\n' "$all" | head -n 40
+            if [ "$total" -gt 40 ]; then
+              echo "($((total - 40)) more lines are in the tripwire step of the run log.)"
+            fi
             echo '```'
           } > "$body"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$HELD_TITLE\" in:title" \

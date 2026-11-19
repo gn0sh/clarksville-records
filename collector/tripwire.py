@@ -15,10 +15,11 @@ Published facts, per file (every facts.json and rpc.json under data/, keyed by p
 - rpc.json motions (the Regional Planning Commission): the same, "confirmed" standing for verified; outcome, tally,
   nays and abstentions are its values.
 A new fact is never a hit. An id that appears more than once keeps every copy: a copy that disappears is a removal.
-A listed entry lets through exactly one change (ADR 0011 B4 notes, S2): its path, fact_id, change and value_sha256 must
-all match, where value_sha256 is the sha256 of the fact's view (value_view: the number of copies and the shown values)
-after a "changed", or of the view that disappears for a "removed". The hit line prints that digest. Once the live site
-shows that value the entry matches nothing new, so a later change of the same fact needs a new entry (it is spent).
+A listed entry lets through exactly one transition (ADR 0011 B4 notes, S2; docs/architecture/ipub-tripwire-invariant.md):
+its path, fact_id, change and value_sha256 must all match, where value_sha256 is change_sha256(before, after), the
+sha256 of the fact's view (copies and shown values) on the live site AND in this run, for both kinds (a "removed" fact
+that is gone has the empty view). The hit line prints that digest. Once the live site shows the new view the entry
+matches nothing new, so a later change of the same fact needs a new entry (it is spent).
 
 Finding the live tree: build-info.json names D (the records-data head the live run started from) and the sha256 of
 the listing it deployed. That is always D itself (a rebuild-only run, or no data change) or D+1, the push job's one
@@ -206,27 +207,38 @@ def published(files: dict[str, object]) -> dict[tuple[str, str], tuple[int, list
     return {k: (n, sorted(v)) for k, (n, v) in out.items()}
 
 
-def value_view(view: tuple[int, list] | None) -> str:
-    """The sha256 a published-fact-changes.yml entry pins: of the fact's (copies, shown values), canonical JSON."""
-    n, shown = view if view is not None else (0, [])
-    return hashlib.sha256(json.dumps({"copies": n, "shown": shown}, sort_keys=True,
+EMPTY_VIEW: tuple[int, list] = (0, [])
+
+
+def _view(view: tuple[int, list] | None) -> dict:
+    n, shown = view if view is not None else EMPTY_VIEW
+    return {"copies": n, "shown": shown}
+
+
+def change_sha256(before: tuple[int, list] | None, after: tuple[int, list] | None) -> str:
+    """The value_sha256 a published-fact-changes.yml entry pins: the sha256 of canonical JSON {"before": view on the
+    live site, "after": view in this run (the empty view when the fact is gone)}, each view {"copies", "shown"}. Both
+    sides, for both kinds, so an entry lets through exactly one transition (data-off-main/ipub-entry-pins-only-before)."""
+    return hashlib.sha256(json.dumps({"before": _view(before), "after": _view(after)}, sort_keys=True,
                                      separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def hits(live: dict[str, object], new: dict[str, object], listed: list[dict]) -> list[tuple[str, str, str, str]]:
     """[(change, path, fact id, value_sha256)] for each published fact that changed, lost a copy or disappeared and
-    is not listed for exactly that change (path, fact_id, change and value_sha256)."""
+    is not listed for exactly that transition (path, fact_id, change and change_sha256(before, after))."""
     allowed = {(e["path"], e["fact_id"], e["change"], e["value_sha256"]) for e in listed}
     before, after = published(live), published(new)
     out = []
     for key, (copies, shown) in sorted(before.items()):
         path, fid = key
-        if key not in after or after[key][0] < copies:
-            change, digest = "removed", value_view(before[key])
-        elif shown and after[key][1] != shown:
-            change, digest = "changed", value_view(after[key])
+        now = after.get(key)
+        if now is None or now[0] < copies:
+            change = "removed"
+        elif shown and now[1] != shown:
+            change = "changed"
         else:
             continue
+        digest = change_sha256(before[key], now)
         if (path, fid, change, digest) not in allowed:
             out.append((change, path, fid, digest))
     return out

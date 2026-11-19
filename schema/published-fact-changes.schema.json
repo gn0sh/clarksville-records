@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "clarksville-records/published-fact-changes/2.0",
+  "$id": "clarksville-records/published-fact-changes/2.1",
   "title": "config/published-fact-changes.yml",
-  "description": "The reviewed list of published facts a deploy may change or remove (I-pub, ADR 0011 decision 4). The content tripwire holds any deploy that changes or drops a vote, roll call or outcome already on the live site unless that exact change is listed here: path, fact_id, change and value_sha256 must all match (ADR 0011 B4 notes, S2), so an entry is spent once the live site shows that value. Changed only by a person's reviewed pull request; allow_shrink never counts. An empty list means no published fact may change. Each (path, fact_id) appears at most once, and listed_on must be a real day (collector/reviewed_lists.py applies both).",
+  "description": "The reviewed list of published facts a deploy may change or remove (I-pub, ADR 0011 decision 4). The content tripwire holds any deploy that changes or drops a vote, roll call or outcome already on the live site unless that exact transition is listed here: path, fact_id, change and value_sha256 must all match (ADR 0011 B4 notes, S2; docs/architecture/ipub-tripwire-invariant.md), so an entry is spent once the live site shows the new view. Changed only by a person's reviewed pull request; allow_shrink never counts. An empty list means no published fact may change. Each (path, fact_id) appears at most once, and listed_on must be a real day (collector/reviewed_lists.py applies both).",
   "type": "array",
   "items": {
     "type": "object",
@@ -36,7 +36,7 @@
         ]
       },
       "value_sha256": {
-        "description": "The value_sha256 the tripwire prints for this fact's hit: for changed, the sha256 of the new value this run would publish; for removed, of the value that disappears (collector/tripwire.py value_view). Only that exact change passes.",
+        "description": "The value_sha256 the tripwire prints on this fact's hit line (copy it from there): the sha256 of the fact's view on the live site and in this run together, for both changed and removed (a fact that is gone has the empty view; collector/tripwire.py change_sha256). Only that exact transition passes.",
         "type": "string",
         "pattern": "^[0-9a-f]{64}$"
       },
