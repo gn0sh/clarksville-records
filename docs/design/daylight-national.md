@@ -1,7 +1,9 @@
 # Design: daylight-national (Daylight Digest, the national website)
 
-Status: draft v1.1, 2026-11-19 (v1.1: U1 copy follow-ups: counter text, location disclosure, device-list wording,
-Method wording in 9a, one confirmation email for the whole newsletter, two more Can't cover reasons). Owner:
+Status: draft v1.2, 2026-11-19 (v1.1: U1 copy follow-ups: counter text, location disclosure, device-list wording,
+Method wording in 9a, one confirmation email for the whole newsletter, two more Can't cover reasons. v1.2: M1 copy
+settled against `config/national/page-labels.yml`: coming-up page lines in section 5, the election office and
+Census Geocoder lines and the one-government summary in sections 2 and 3, and the styling note 0a). Owner:
 ux-designer. Spec: `docs/specs/daylight-national.md` (v2.1: request by email
 is the main path; weekly email and feeds are both M4). Panel input:
 `docs/research/focus-group-daylight-national.md` (Recommended changes). Website only; no app.
@@ -57,6 +59,95 @@ Icons are `aria-hidden`; the pill text is real text. In dark mode the pill uses 
 - Changes without a page load are announced through one `role="status"` region per card or form. Errors are text
   next to the field, joined by `aria-describedby`, never color alone.
 - No animation needed anywhere; a spinner is text ("Looking up...") only.
+
+### 0a. Digest styling note (M1, for the frontend)
+
+`site/static/style.css` has no `digest-*` rules yet. Everything below uses its existing tokens; add no new color.
+Brand navy is `--blue` (fills, borders) and `--link` (text and outlines; it turns light blue in dark mode, so
+use it instead of `--blue` for anything drawn on `--surface`). Brand orange `--sun` is the focus ring only: no
+orange text, fill or border on a digest page. No red or green anywhere (R2). Class names are the ones
+`site/static/national.js` and `site/templates/digest/` already write.
+
+**Status pill** (`.chip.digest-pill`, in `p.digest-status`). Start from `.chip`; set `font-size: var(--t-sm)`,
+`font-weight: 600`, `padding: 3px 10px`, `border-width: 2px`, `white-space: nowrap`, and `margin: 0 0 8px` on the
+wrapping `p`. The mark (`aria-hidden` span) keeps `.chip`'s 6px gap.
+
+| Class | Fill | Border | Text | Contrast, light / dark |
+|---|---|---|---|---|
+| `.digest-pill-covered` | `--blue` | `2px solid var(--blue)` | `--on-blue` | about 16:1 / 4.9:1 |
+| `.digest-pill-not-covered-yet` | `--surface` | `2px solid var(--link)` | `--link` | about 16:1 / 8.9:1 |
+| `.digest-pill-cant-cover` | `--surface` | `2px dashed var(--link)` | `--link` | same |
+
+The dark-mode Covered pill (white on `--blue` #4F6FB0) clears 4.5:1 by a small margin; keep its text at weight
+600 and do not lighten the fill.
+
+Dashed already means "not collected" on this site (`.chip-status`, `.nc`), so Can't cover reuses that reading.
+The three differ by word, mark and edge, never by color alone; in forced-colors mode the fill drops and the
+border and words remain. Every card keeps the same `.bodies-card` frame and the same `--mark` top edge whatever
+its status: a card's edge never carries status.
+
+**Card list.** `.digest-cards` is one column (`grid-template-columns: 1fr; max-width: 44rem`), so the fixed slot
+order reads top to bottom and an open form never sits beside another card. `.digest-board` and `.digest-reason`
+are `--fg` (they are facts, not hints); `.digest-checked` stays `--muted`.
+
+**Buttons in a card.**
+- "Request it", "Request again", "Use a different email" (`.digest-request-btn`): outlined navy. `background:
+  var(--surface); border: 2px solid var(--link); color: var(--link); font-weight: 600`; full width at 480px and
+  under. Hover: `background: var(--surface-2)`.
+- "Send me the confirmation email" (`.digest-send`): filled, `background: var(--blue); border-color: var(--blue);
+  color: var(--on-blue)`; hover `--blue-hover`. Same as `.sol-filters button[type="submit"]`. Full width at 480px
+  and under. With `aria-disabled="true"` ("Sending..."): `opacity: .6; cursor: progress`, as `.addr-form` does.
+- "Cancel" and "None of these": plain `.more-btn`.
+- The counter, "No email? Just count me." (`.digest-count-btn`): a link-style button, so it reads as the lesser
+  path under "Request it". Undo `.more-btn`: `background: none; border: 0; padding: 0; margin: 4px 0 0`. Then
+  `display: inline-flex; align-items: center; min-height: 44px; font: inherit; font-size: var(--t-sm);
+  color: var(--link); text-decoration: underline; text-underline-offset: 3px; text-align: left; cursor: pointer`.
+  Hover: `text-decoration-thickness: 2px`. Focus: the standard `3px solid var(--focus)` ring, 2px offset (about
+  4:1 on `--surface`). With `aria-disabled="true"`: `color: var(--muted); text-decoration: none; cursor: progress`.
+  It stays a `<button>`; only the look is a link.
+
+**Message lines** (`p.digest-msg`, `role="status"`; `p.digest-err` beside the email field). Base for both:
+`color: var(--fg); font-size: var(--t-sm); margin: 8px 0`, and `:empty { display: none }` as `.addr-result` does.
+The script puts sent, failed and returning text in the same `p.digest-msg`; the frontend adds
+`data-state="sent|failed|returning|counted"` to it so each can be told apart. With no `data-state` the base style
+still reads correctly.
+
+| Line | Label | Look |
+|---|---|---|
+| Sent | `form.sent` | A box in the `.note` pattern (`background: var(--surface-2); padding: 8px 12px; border-radius: var(--radius)`), `border-left: 4px solid var(--link)`, text `--fg`. The check mark is already in the text. |
+| Counted | `count.done` | Same box as Sent. |
+| Failed | `form.failed`, `count.failed` | Same box, `border-left: 4px solid var(--fg)`, text `--fg` at weight 600. No red; the words say what went wrong. |
+| Bad email | `form.bad-email` in `.digest-err` | `--fg`, weight 600, `margin: 4px 0 8px`, directly under the field. The field with `aria-invalid="true"` keeps its 2px `--fg` border and gets a 4px `--fg` left edge. |
+| Returning | `form.returning` | Plain `--fg` text, no box. |
+
+Focus moves to these lines after a send; they show the standard focus ring only on `:focus-visible`.
+
+**Picker lines.**
+- Match picker (`ul.digest-pick`, `.digest-pick-btn`): `list-style: none; padding: 0; display: grid; gap: 8px;
+  max-width: 44rem`. Each button is full width, `text-align: left; min-height: 44px; overflow-wrap: anywhere;
+  font-size: var(--t-md)`, with `.more-btn`'s `--mark` border. Hover: `background: var(--surface-2)`. The Census
+  prints these in capitals; leave the case alone.
+- "Also request" (`fieldset.digest-also`, rows `.mn-check`): stack the rows (`flex-direction: column; gap: 0`),
+  each row `min-height: 44px`. The legend is `--fg`, weight 600, `--t-sm`. `.mn-check` was made for the navy
+  morning-note card, so on a white card set the tick box to `accent-color: var(--blue)` and the name to `--fg`.
+
+**In-card form text** (`form.digest-req-form`). `.bodies-card p` turns every paragraph in a card to `--muted` at
+`--t-sm`, and `.hint` to `--muted` at `--t-xs`. That is right for hints and wrong for promises and disclosures a
+person should read before sending. Inside the form:
+- Honest line (`form.honest-not-yet`, `form.honest-cant`; the first `p`): `color: var(--fg); font-size:
+  var(--t-sm); line-height: 1.5`.
+- Privacy lines (`form.privacy-1`, `form.privacy-2`; `p.hint`): `color: var(--fg); font-size: var(--t-sm)`, not
+  `--t-xs`. Their link is `--link`, underlined.
+- One rule covers both: `.digest-req-form p { color: var(--fg); font-size: var(--t-sm); }`. Classes
+  `digest-honest` and `digest-privacy` are welcome if the frontend wants hooks.
+- `h4` ("Email me when it opens"): `--font-head`, `--t-md`, weight 700, `margin: 12px 0 4px`. The form is set
+  off from the card above by `border-top: 1px solid var(--border); padding-top: 12px`.
+- Email field: `width: 100%; min-height: 44px; padding: 8px 12px; border: 2px solid var(--fg); border-radius:
+  var(--radius-lg); background: var(--surface); color: var(--fg)`, as the address input. Its label is `--fg`,
+  weight 600, `--t-sm`.
+- Still muted, on purpose: "We'll email you if it opens." (`lookup.request-hint`, `.hint`), the lines under the
+  list (`lookup.under-list`, `lookup.election`), "Census matched" and the device line. `--muted` on `--surface`
+  is about 7.5:1, so these pass AA; the point above is rank, not a contrast failure.
 
 ## 1. Entry page (M1): US1, US9, AC1.9, AC1.10
 
@@ -158,15 +249,15 @@ All messages render in `#addr-result` (`role="status"`) inside the card, directl
 | Typing | Nothing changes. No live checks, no suggestions. | Find is always enabled. |
 | Empty submit | "Type a street address with its city and state." | Focus stays in the input. Nothing is sent. |
 | Looking up | Button reads "Looking up..." and is `aria-disabled`; status: "Looking up the address with the Census Bureau..." After 6 seconds add: "Still looking. The Census service can be slow." | Input stays editable; a second submit is ignored. |
-| Census down (15 s or error) | "The Census lookup is not answering. We can't find your area without it, and we won't guess. Try again in a few minutes." [Try again] and "Or browse [What we cover]." | AC1.6. Try again resends the text still in the box. Focus moves to Try again. |
+| Census down (15 s, error, or our lookup frame blocked) | "The Census lookup is not answering. We can't find your area without it, and we won't guess. Try again in a few minutes." [Try again] and "Or browse [What we cover]." Then, on its own line: "You can also try the Census Bureau's own lookup page. It is a technical page that lists the areas for an address, not what we cover. [Census Geocoder (opens the Census Bureau's site)]" (`lookup.down-census`) | AC1.6. Try again resends the text still in the box. Focus moves to Try again. The page can't tell a blocked frame from a slow Census, so the last line says "try", not "use". Its link is the plain address in section 3, "Outside links": the typed address is never added to it. |
 | Not found | "We couldn't find that address." Tip: "Check the spelling, add the city, state and ZIP, and leave off the apartment number. The Census does not know PO boxes." | AC1.4. Focus returns to the input, text kept for editing. |
 | More than one match | `h2` "Which one is yours?" then one full-width button per match showing the Census's matched address text, and "None of these" (returns to the input). | AC1.5. Focus moves to the `h2`. Max 20; above that show Not found tips. |
 | Found | Section 3 list. Line above it: "Census matched: 1 PUBLIC SQ, CLARKSVILLE, TN, 37040" (page text only, never saved; lets the person catch a wrong match). | Focus moves to the list `h2` (`tabindex="-1"`). |
 | Unincorporated | List shows no city or town card. Line in that slot: "This address is not inside a city or town." | AC2.5. |
 | New England town (or NY town, township state) | The town or township card shows in its fixed slot. If no county government exists: "No county is listed here because the county is not a working government." | AC2.10, AC2.11. One fixed sentence for every state. |
 | Consolidated city-county, independent city | One card. Line under the list head: "The city and county here are one government." (consolidated) or "This city is not part of any county." (independent city) | AC2.7. |
-| Nothing covered (most of the US in M1) | Summary line: "We found 3 local governments. None are covered yet. Request the ones you want and we'll email you if one opens." Cards follow as usual. | Never a blank page; each card still gives the official link when we have it. |
-| Nothing listable returned | "The Census found this address, but we can't list a local government for it yet." plus the AC2.9 line and the election office link. | Covers AC2.12 units of unknown status. |
+| Nothing covered (most of the US in M1) | Summary line: "We found 3 local governments. None are covered yet. Request the ones you want and we'll email you if one opens." With one government: "We found 1 local government. It is not covered. Request it and we'll email you if it opens." Cards follow as usual. | Never a blank page; each card still gives the official link when we have it. |
+| Nothing listable returned | "The Census found this address, but we can't list a local government for it yet." plus the AC2.9 line and the election office line without its question (`lookup.election-none`, section 3). | Covers AC2.12 units of unknown status. There is no list here, so "Not sure this list is right?" is left off. |
 
 **Accessibility.** After each result, exactly one focus move (to the result heading, the input or Try again).
 Status text is also visible text, never only announced. Timeouts never clear what was typed.
@@ -224,6 +315,7 @@ from our directory when we have one, status pill, then the actions for that stat
 |---|---|
 | Slot labels | CITY OR TOWN / COUNTY / TOWNSHIP OR TOWN / SCHOOL DISTRICT |
 | Summary | We found {n} local governments. {a} covered, {b} not covered yet, {c} we can't cover. (zero parts are left out) |
+| Summary, one government (`lookup.summary-found-one`; then the usual parts, or `lookup.summary-none-one` when it is not covered) | We found 1 local government. / It is not covered. Request it and we'll email you if it opens. |
 | Covered, main link | See what's coming up |
 | Covered, Clarksville and Montgomery County only (AC8.3) | Full Daylight pages (votes and past meetings) |
 | Covered, same two, while the morning note is live (A12) | Get the morning note |
@@ -234,7 +326,8 @@ from our directory when we have one, status pill, then the actions for that stat
 | Can't cover, proof line | Checked {date}. [Source] |
 | Button, and the hint under it | Request it / We'll email you if it opens. |
 | Under the list (AC2.9) | Some governments, such as water or transit boards, can't be found by address yet. |
-| Election office line | Not sure this list is right? Your local election office has the official answer. [Find it] |
+| Election office line (`lookup.election`; under the AC2.9 line) | Not sure this list is right? It is the Census Bureau's answer, shown as the Census gives it. Your state or local election office can tell you which city or town, county and school district your address is in. [Find an election office on USA.gov] |
+| Election office line, no list (`lookup.election-none`; section 2, last row) | Your state or local election office can tell you which city or town, county and school district your address is in. [Find an election office on USA.gov] |
 | Device line | This list is kept on this device only, with a note of which governments you requested or counted here. "Forget this list" removes all of it. [Forget this list] |
 
 **"Request it" (US5, spec v2.1): the main path is "Email me when it opens".** Tapping "Request it" opens a short
@@ -290,6 +383,29 @@ approved digest line ("We never sell or share your information. We keep only you
 digest. No ads, no sponsors.") and changes one fact: a request also stores the governments, so "only your email
 address" would be untrue here (open question Q7). "Street address" is used wherever "email address" is near, so
 the two can't be confused.
+
+**Outside links (v1.2).** Two lines point off the site. Their addresses are settings (proposed `election_url` and
+`census_url` in `#digest-config`, https only, like `privacy_url`), never label text. Both open with
+`rel="noopener noreferrer"`, and a line whose address is missing is left out whole.
+
+| Line | Address | Why this one |
+|---|---|---|
+| `lookup.election`, `lookup.election-none` | `https://www.usa.gov/state-election-office` ("State and local election offices", USAGov, run by the US General Services Administration; read 2026-11-19) | It is a plain directory of election offices and nothing else. The other two federal choices lead with a call to act: vote.gov opens on "Register to vote or update your registration" and has no office finder on its front page; the Election Assistance Commission's page is titled "Register And Vote in Your State" (`https://www.eac.gov/voters/register-and-vote-in-your-state`, the fallback). A neutral records site should send people to a directory, not to a registration prompt. The page lists each state's election site and the local offices are reached from there, so the label says "state or local" and "an election office", not "your local office". |
+| `lookup.down-census` | `https://geocoding.geo.census.gov/geocoder/` (the Census Geocoder's front page; read 2026-11-19) | The Census Bureau's own page for the same lookup. It is technical (the person picks "Find Geographies", then a "Benchmark"), and the label says so. The address a person typed is never put in the link. |
+
+What the election line claims, and what it doesn't: the list is the Census Bureau's answer and we show it as
+given; an election office can tell a person which city or town, county and school district an address is in. It
+does not say we checked the list, that the election office confirms our list, or that either source is "official"
+for our purposes. It asks nobody to register or vote.
+
+**Wiring for the frontend (`site/static/national.js`).** Label keys follow the file's own shape (`covered.count`
+and `covered.count-one`), and all match the script's `STRING_RE`:
+- `summary()`: when `govs.length === 1`, the head is `lookup.summary-found-one`; and when that one government is
+  not covered, the tail is `lookup.summary-none-one` instead of `lookup.summary-none`. The "{n} covered" parts
+  need no singular.
+- `showList()`: `lookup.election` goes in a `p.muted` right after `lookup.under-list` when there are cards;
+  `lookup.election-none` goes there in the nothing-listable branch.
+- `finish()`: `lookup.down-census` goes in its own `p` after `lookup.down-browse`.
 
 Rules: the success text is the same whether or not that email already asked (the page never reveals who is on a
 list). A repeat request adds no second count (AC5.5). No count is shown to the public (AC5.4). The email is never
@@ -360,7 +476,9 @@ the offline estimate exists. Jump list and filter: when the row counts above are
 **Content, in priority order (identical on every page, AC4.9).**
 1. Crumb, eyebrow (state and slot), `h1` (board name), "Coming up" as the page's subject line.
 2. "Unofficial copy. Official record:" line with the link to the government's own meetings page (existing rule).
-3. Last-checked line; the stale notice replaces it when it applies (AC4.6).
+3. Freshness line. M1: "Newest record we have: {date}." The site does not yet record when it last looked at a
+   government's site, so no M1 page names a check time. M2: the last-checked line, and the stale notice that
+   replaces it when it applies (AC4.6).
 4. Meetings from today on, soonest first. Each meeting: date and time (`h2`), meeting name as posted, time zone
    label, official agenda link, then its items or one of the fixed notices.
 5. Each item: number as posted, item title verbatim, topic label when the word list matches (AC4.7), and the rest
@@ -376,7 +494,8 @@ the offline estimate exists. Jump list and filter: when the row counts above are
 | Coming up                          |
 | Unofficial copy. Official record:  |
 | clarksvilletn.gov meetings >       |
-| Last checked November 19, 2026.    |
+| Newest record we have: November    |
+| 19, 2026.                          |
 |                                    |
 | Thursday, December 3, 2026, 6 PM   |  h2
 | Regular Session (as posted)        |
@@ -402,14 +521,20 @@ the offline estimate exists. Jump list and filter: when the row counts above are
 |---|---|
 | Subject line under h1 | Coming up |
 | Unofficial line (existing) | Unofficial copy. Official record: [the government's meetings page] |
-| Last checked | Last checked {date}. |
-| Stale, more than 3 days (AC4.6) | We last checked this government's site on {date}, {n} days ago. Newer meetings or agendas may be missing. [Official meetings page] |
-| Stale, more than 7 days | We couldn't check this government this week. [Official meetings page] |
+| Freshness, M1 (`body.newest`) | Newest record we have: {date}. |
+| Freshness, M1, nothing held (`body.no-records`) | We have no records for this government yet. |
+| Last checked (M2, once check runs are recorded) | Last checked {date}. |
+| Stale, more than 3 days (AC4.6; M2) | We last checked this government's site on {date}, {n} days ago. Newer meetings or agendas may be missing. [Official meetings page] |
+| Stale, more than 7 days (M2) | We couldn't check this government this week. [Official meetings page] |
 | Time zone | {Central Time}, as the government posts it. |
+| No start time in our record (`body.no-time`; takes the time zone line's place) | We don't have a start time for this meeting. |
 | Agenda link | Official agenda |
 | No or draft agenda (AC4.3) | Agenda not posted yet. [Official meetings page] |
 | Incomplete (AC4.4) | This list may be incomplete. The official agenda is the full record. [Official agenda] |
-| Long item toggle | Full text of this item |
+| Items not shown for this government (`body.withheld`) | We don't list this meeting's agenda items here. The official agenda is the full record. [Official agenda] |
+| Item text cut short in our record (`body.cut`; under that item) | This item is cut short here. The rest is in the official agenda. [Official agenda] |
+| Item's page in the official agenda (`body.item-page`; one link under the item) | [Official agenda, page {page}] |
+| Long item toggle (not built in M1; see the layout rule) | Full text of this item |
 | Topic labels | Zoning and land use / Budget and taxes / Contracts and purchases / Appointments |
 | Topic note, once per page | Topic labels come from a fixed word list, not AI. [How topics are picked] |
 | No meetings | No upcoming meetings are posted. [Official meetings page] |
@@ -422,14 +547,24 @@ and unedited, so it is still page text (AC0.1, AC4.2). Nothing is shortened, rew
 label is a small outlined mono chip after the title; it is text, and its accessible name is "Topic: Zoning and
 land use". No votes, outcomes or attendance appear for any body outside the two Tennessee ones (AC4.5).
 
+Copy notes for the M1 lines (v1.2). (a) The freshness line says how new our newest record is and stops there. It
+must never read as a check time: no "checked", "updated", "as of" or "current" on an M1 page. (b) "We don't have
+a start time" speaks for our record only; it does not say the government posted none. (c) The withheld line gives
+no reason, because the reason is ours (we publish item text only for governments reviewed for it), not something
+about the government. (d) M1 as built does not use the toggle: when our record holds only the start of an item,
+the page says so in plain words ("cut short here") and links the official agenda, so a shortened item never looks
+whole. (e) "Official agenda, page {page}" uses the same two words as the meeting's agenda link, so a person
+learns one name for the government's document.
+
 **Follow block, M4 (US11 and US7, both built in M4).** `h2` "Follow this government": "Get it by email once a week" (to section 6,
 with this government ticked), "Add its meetings to my calendar" (calendar feed), "RSS feed, for a news reader app
 (also called a feed reader)" with a "Copy feed link" button ("Copied" in a status line), and the line "These links
 do not track you." (AC11.3). The JSON feed (AC4.11) is linked from the Method page, not from this block.
 
-**States.** Static page: no loading state. Empty: the "No upcoming meetings are posted." line with the last-checked
-line still above it, so silence never looks like a fault. Error: the two stale notices; they sit above the first
-meeting in a bordered note with a 4px navy left rule (not orange, not red).
+**States.** Static page: no loading state. Empty: the "No upcoming meetings are posted." line with the freshness
+line still above it, so silence never looks like a fault. Error (M2): the two stale notices; they sit above the first
+meeting in a bordered note with a 4px navy left rule (not orange, not red). The withheld, incomplete and cut-short
+lines use the same note with a `--mark-soft` rule (the existing `.note`).
 
 **Accessibility.** Heading outline: `h1` board, `h2` each meeting (date first, so the headings list reads as a
 calendar), `h3` each item. Dates use `<time datetime>`. Official links name their target ("Official agenda,
@@ -658,7 +793,9 @@ Official record:" line, morning-note card form styling, About jump list, "Report
 
 **New:** status pill (3 variants); government card; who-runs-it line; match picker; summary count line; in-card
 request form with its states and "Also request" tick boxes; request-confirmed page; optional "Just count me"
-button (only if built); note box with navy left rule (stale, incomplete); meeting block; agenda item with topic
+button (only if built; a link-style button, section 0a); message lines for sent, failed and counted (0a);
+election office line and Census Geocoder line (two outside links, section 3); note box with navy left rule
+(stale, incomplete); meeting block; agenda item with topic
 chip and full-text toggle; two request email templates (M1); Follow block with Copy feed link (M4); topic radio
 pair (M4); letter composer with character count (M3); weekly email template (M4).
 
@@ -697,8 +834,18 @@ Checked against spec v2.1 (request by email as the main path; weekly email and f
 - Q3. Keep the list of governments on the device after a lookup? Yes, with "Forget this list". Updated by
   architecture N2: the device keeps each government's name and ID, not IDs only (a government outside the directory
   has no name anywhere else). Copy checked: sections 1, 3 and 9a say "names and IDs" (spec change P10).
-- Q4. Election office link target. **Recommended: PM picks one official federal page and records it in
-  `docs/platform-facts.md`; the line is left out until then.**
+- Q4. Election office link target. **Recommended (v1.2): `https://www.usa.gov/state-election-office`, with the
+  reasons in section 3, "Outside links"; fallback `https://www.eac.gov/voters/register-and-vote-in-your-state`.
+  The manager confirms and records it in `docs/platform-facts.md`; the line is left out until the address is a
+  setting.**
+- Q10. The Census link in `lookup.down-census` points at the Geocoder's front page, where a person must still
+  find "Find Geographies". The form itself is at
+  `https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress?form` (read 2026-11-19). **Recommended:
+  keep the front page for M1 (a stable address the Census links everywhere); switch to the form address if a
+  panel reader gets lost. The label works for both.**
+- Q11. "Newest record we have: {date}." can be read as the date of a meeting, when it is the day we first got our
+  newest record. **Recommended: keep it for M1 (it never implies a check time, and a test pins the words); when
+  the line is next touched, use "We got our newest record on {date}."**
 - Q5. Header on Digest pages (D1, D2 change two site checks). **Recommended: as designed.**
 - Q6. Can the Buttondown form stay on our page, add several tags at once, add tags to an address that is already
   confirmed, and send people back to `digest/requested.html` after they confirm? **Recommended: architect tests on

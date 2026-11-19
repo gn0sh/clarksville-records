@@ -11,10 +11,14 @@
 #   digest/index.html as JSON (`#digest-strings`), drawn with textContent; the same two rules apply there.
 # - state.<USPS> names a state folder's heading; a directory entry whose state has no label fails the build.
 # - tz.<zone> names a time zone; a feed whose zone has no label fails the build.
-# Open (ux-designer to confirm, B4 handoff): index.who is the design's DRAFT (Brian approves the facts, design Q2);
-# body.withheld, body.cut, body.item-page and body.no-time are engineer drafts in the design's words. body.newest and
-# body.no-records are the manager's M1 wording (B4 review, national-freshness/checked-at-is-first-fetch): M1 records no
-# check run, so the page says how new our newest record is; the design's "Last checked" and stale lines return in M2.
+# Open: index.who is the design's DRAFT (Brian approves the facts, design Q2).
+# Settled by ux-designer, design v1.2 (2026-11-19): body.withheld, body.cut, body.item-page, body.no-time, body.newest
+# and body.no-records (design section 5). M1 records no check run (B4 review, national-freshness/
+# checked-at-is-first-fetch), so the page says how new our newest record is and never names a check time; the design's
+# "Last checked" and stale lines return in M2.
+# Added in v1.2, not yet read by national.js (the frontend wires them; design sections 2 and 3):
+# lookup.summary-found-one, lookup.summary-none-one, lookup.election, lookup.election-none, lookup.down-census.
+# Their link targets are settings, never label text (design section 3, "Outside links").
 schema: daylight-pagelabels/1
 labels:
   digest.place: United States
@@ -55,6 +59,7 @@ labels:
   lookup.down: The Census lookup is not answering. We can't find your area without it, and we won't guess. Try again in a few minutes.
   lookup.retry: Try again
   lookup.down-browse: Or browse [What we cover].
+  lookup.down-census: "You can also try the Census Bureau's own lookup page. It is a technical page that lists the areas for an address, not what we cover. [Census Geocoder (opens the Census Bureau's site)]"
   lookup.not-found: We couldn't find that address.
   lookup.not-found-tip: Check the spelling, add the city, state and ZIP, and leave off the apartment number. The Census does not know PO boxes.
   lookup.pick-h: Which one is yours?
@@ -63,10 +68,12 @@ labels:
   lookup.nothing-listable: The Census found this address, but we can't list a local government for it yet.
   lookup.list-h: Local governments for this address
   lookup.summary-found: We found {n} local governments.
+  lookup.summary-found-one: We found 1 local government.
   lookup.summary-covered: "{n} covered"
   lookup.summary-not-yet: "{n} not covered yet"
   lookup.summary-cant: "{n} we can't cover"
   lookup.summary-none: None are covered yet. Request the ones you want and we'll email you if one opens.
+  lookup.summary-none-one: It is not covered. Request it and we'll email you if it opens.
   lookup.status-covered: Covered
   lookup.status-not-yet: Not covered yet
   lookup.status-cant: Can't cover
@@ -80,6 +87,8 @@ labels:
   lookup.request: Request it
   lookup.request-hint: We'll email you if it opens.
   lookup.under-list: Some governments, such as water or transit boards, can't be found by address yet.
+  lookup.election: "Not sure this list is right? It is the Census Bureau's answer, shown as the Census gives it. Your state or local election office can tell you which city or town, county and school district your address is in. [Find an election office on USA.gov]"
+  lookup.election-none: "Your state or local election office can tell you which city or town, county and school district your address is in. [Find an election office on USA.gov]"
   lookup.saved-h: Your saved list
   lookup.device-line: This list is kept on this device only, with a note of which governments you requested or counted here. "Forget this list" removes all of it.
   lookup.forget: Forget this list
@@ -137,16 +146,16 @@ labels:
   body.official-record: "Unofficial copy. Official record: [{host}]."
   body.newest: "Newest record we have: {date}."
   body.no-records: We have no records for this government yet.
-  body.no-time: Time not listed here.
+  body.no-time: We don't have a start time for this meeting.
   body.tz: "{tz}, as the government posts it."
   body.as-posted: (as posted)
   body.agenda: "[Official agenda]"
   body.agenda-for: ", {date} meeting"
   body.not-posted: Agenda not posted yet. [Official meetings page]
   body.incomplete: This list may be incomplete. The official agenda is the full record. [Official agenda]
-  body.withheld: Agenda items are not listed here. The official agenda is the full record. [Official agenda]
-  body.cut: The rest of this item is in the official agenda. [Official agenda]
-  body.item-page: "[Agenda page {page}]"
+  body.withheld: We don't list this meeting's agenda items here. The official agenda is the full record. [Official agenda]
+  body.cut: This item is cut short here. The rest is in the official agenda. [Official agenda]
+  body.item-page: "[Official agenda, page {page}]"
   body.no-meetings: No upcoming meetings are posted. [Official meetings page]
   body.full: Votes and past meetings are on the [full Daylight pages].
   body.morning: "[Get the morning note]"
