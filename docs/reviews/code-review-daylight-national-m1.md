@@ -60,3 +60,15 @@
   entry to platform legistar with another client/body_id, or another `daylight.body`, still loads `items: shown`.
   nit `privacy-withhold/alias-on-shown`: `also` ids on a shown entry attach other governments' cards to it.
   Loop limit: this family has been hit repeatedly after section 11; architect re-plan (opus/xhigh) runs before the fix.
+
+## F1 (1ad67c9b) and F5 (1eb3d584), code-reviewer opus/high: REQUEST CHANGES
+- must-fix `national/csp-jsonp-gadget` (new hole): geo-frame.html doesn't check it is sandboxed; an outside site can
+  embed it unsandboxed and drive the Census JSONP in our origin. Fix: bail unless `self.origin === "null"` and
+  `parent !== self`.
+- should-fix `contract/school-order` (UX order elementary, secondary, unified), `governments/show-rule` (a `show: true`
+  state rule would keep N/F/S units; fail closed), `docs/contract-drift` (4.1, 3.3, gov-flags comment).
+- nits: escape bidi characters in BAD_TEXT and add U+061C; fixture is a reconstruction, re-record before R1; stored id
+  regex looser than layerOf (F2 renders through layerOf).
+- Holds: frameMessage rejects (source, origin, type, size, JSON), lookup ordering and cleanup, single answer, callback
+  fixed, address never in URL/title/history/Referer, CSP hash over the exact inlined text, prototype keys, storage
+  hostile values, all classification cases (Clarksville, CT, MA, Richmond, Baltimore, Nashville, RI).
