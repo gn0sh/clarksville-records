@@ -119,8 +119,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
           REF: ${{ github.ref }}
-          MAIN_PR_BASELINE: ""   # ADR 0011 Amendment (c): the cutover PR pins its base sha (runbook 4.7.1); empty on main = refused
-          RECORDS_DATA_SEED_DIGEST: ""   # ADR 0011: sha256 of the seed's listing, set by the cutover PR; empty = none
+          MAIN_PR_BASELINE: "1922fda3afec13759ade9cb8dd4dc7fffee5b2fa"   # ADR 0011 Amendment (c): the cutover PR pins its base sha (runbook 4.7.1); empty on main = refused
+          RECORDS_DATA_SEED_DIGEST: "e873414ce8de2d811b9e7e53403e02920bd7af174aeb8740a3e34e2f2139951a"   # ADR 0011: sha256 of the seed's listing, set by the cutover PR; empty = none
         run: |
           set -euo pipefail
           D=""; is_seed=no

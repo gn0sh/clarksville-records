@@ -107,6 +107,8 @@ PS51_ONLY = (
     "the nested `powershell -NoProfile -File` calls: Windows runs 5.1 there even from a pwsh 7 console; here the "
     "shim runs pwsh 7",
     "Python discovery (py -3 first): Linux has only python3",
+    "GitRun's stdin on a UTF-8 console: 5.1 writes [Console]::InputEncoding's BOM at Process.Start (pwsh 7 strips "
+    "it), so the preamble-free swap around Start is pinned by text only",
     "Ctrl+C: a console CancelKeyPress on Windows, SIGINT here",
     "[Environment]::GetFolderPath('MyDocuments') (u3's backup): HOME here; on Windows possibly a OneDrive folder",
     "the exit code of `powershell -File` on a parameter binding failure: pwsh 7 exits 1 (protect-main.ps1, an "

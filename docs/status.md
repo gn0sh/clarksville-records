@@ -10,9 +10,10 @@
 **Backlog (Nov 17):** confirm the CI Tests step time on the next daily run after PR #30; GitHub's scheduled trigger fires late or not at all (Nov 16 ran 19:29 UTC; Nov 17 none by 09:26): consider a backup check; low follow-up schema-memo/digest-alias (key the schema memo on parsed JSON only; unreachable today).
 
 ## Waiting on the CEO
-- None open (Nov 19 12:50 AM CT). Next ask: the C1 cutover card ("Cut over Daylight's data to records-data today? yes / no"), typed on the big PC, after the cutover PR is reviewed.
+- None open (Nov 19 8:40 AM CT; Brian ran -Plan on the big PC). Next ask: the C1 cutover card ("Cut over Daylight's data to records-data today? yes / no"), typed on the big PC, after the cutover PR is reviewed.
 
 ## Problem keys (Nov 16-18)
+- Nov 19: data-off-main/ps-stdin-bom (new family, PowerShell 5.1 only): .NET Framework's Process.Start writes [Console]::InputEncoding's BOM into git's stdin on a UTF-8 console; update-index refused the seed. Fixed in GitRun (preamble-free swap around Start), text-pinned.
 - Nov 18 data-off-main families: main-protect (fetch-data-symlink, writer-set, phase0-attest, r2-on-without-codeowners; S1-1, S1-6, S1-7 are hardening, not hits), data-prov, data-off-main, finance-pages (county-bytes was a false hit).
 - Nov 18: main-protect/v1-probe family hit again (V1' FAIL, code-owner rule never binds); ADR 0011 is the architect's re-plan. Two more failures of that re-plan escalate to Brian. Open follow-ups: v1-probe/window-second-known-untested (should-fix, PR #53), v1-probe/ps51-stdin-bom-throw (low, PR #48).
 - main-protect/: 3 hits (M1; V1 bot-merge family; S-1 shape-check-locale-fail-open). Invariant re-stated twice: docs/architecture/main-protect-invariant.md (I-data, Baseline window check). A 4th hit escalates to Brian per the loop rule.
@@ -23,6 +24,10 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-19 | manager | n/a | pin commit: MAIN_PR_BASELINE 1922fda3, RECORDS_DATA_SEED_DIGEST e873414c (from -Plan; digest re-derived in the cloud from git alone: same), GitRun stdin BOM fix | done; delta review + security re-confirm next |
+| 2026-11-19 | manager (RC, Brian's big PC) | n/a | `-Plan -Ref 7934721` under Windows PowerShell 5.1.26100 (first 5.1 run: named binding works) | exit 0: seed 23 files (22 moved inputs left out), shape + phone checks pass, window 4c5cd910..1922fda3 = 25 commits, only Bot merges the known canaries #40, #49; found ps-stdin-bom on a chcp 65001 console |
+| 2026-11-19 | manager | n/a | full suite at 7934721 (data/ from main, moved inputs removed; PWSH not available: pwsh download refused by the sandbox) | 6298 passed, 313 skipped, 1 failed by design (baseline unset, fixed by the pin commit) |
+| 2026-11-19 | manager | n/a | Daily update dispatched by hand 09:52 UTC (schedule missed again), run 44500392350 | success; deployed #61, #63 |
 | 2026-11-19 | manager | n/a | merge claude/adr0011-s1, decision 5 to 10 approvals, re-pin test (f4d88591) | done |
 | 2026-11-18 | security-engineer | opus/high | S1 security review of data-off-main 5fb948f2 | OK with follow-ups (S1-1..S1-7); script fixes 7f05bd8a; docs/reviews/s1-security-data-off-main-5fb948f2.md |
 | 2026-11-18 | code-reviewer | opus/high | B4 at 5fb948f2 | approve with nits (S1/S1b held-issue, S2 fact pin, N1-N4); fixes by backend-engineer |

@@ -195,7 +195,13 @@ function GitRun([string[]]$GitArgs, [byte[]]$InBytes = $null, [string]$Index = '
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardInput = $true
     if ($Index) { $psi.EnvironmentVariables['GIT_INDEX_FILE'] = $Index }
-    $p = [Diagnostics.Process]::Start($psi)
+    # Windows PowerShell 5.1 (.NET Framework) wraps stdin in a StreamWriter of [Console]::InputEncoding and writes its
+    # preamble at Start: on a UTF-8 console (chcp 65001) a BOM came before update-index's input ("malformed index
+    # info", the 2026-11-19 -Plan run). So Start runs with a preamble-free InputEncoding, put back right after; if
+    # that can't be set, git still gets the BOM and refuses (fail closed). pwsh 7 strips the preamble itself.
+    $ie = $null
+    try { if ([Console]::InputEncoding.GetPreamble().Length -gt 0) { $ie = [Console]::InputEncoding; [Console]::InputEncoding = New-Object Text.UTF8Encoding($false) } } catch { }
+    try { $p = [Diagnostics.Process]::Start($psi) } finally { if ($null -ne $ie) { try { [Console]::InputEncoding = $ie } catch { } } }
     $ms = New-Object IO.MemoryStream
     $copy = $p.StandardOutput.BaseStream.CopyToAsync($ms)
     if ($null -ne $InBytes) { $p.StandardInput.BaseStream.Write($InBytes, 0, $InBytes.Length) }

@@ -1517,6 +1517,21 @@ def test_ps1_is_ascii_bom_less_and_51_safe():
         assert bad not in ps1, bad
 
 
+def test_ps1_gitrun_starts_git_with_a_preamble_free_stdin_encoding():
+    """ps-stdin-bom (2026-11-19 -Plan on Brian's PC): under Windows PowerShell 5.1 on a UTF-8 console (chcp 65001)
+    .NET Framework's Process.Start writes [Console]::InputEncoding's BOM into git's stdin before GitRun's bytes, and
+    update-index refused ("malformed index info"). GitRun swaps in a preamble-free UTF8Encoding around Start only,
+    and puts the console's encoding back in a finally. pwsh 7 can't show the bug (it strips the preamble): text pin."""
+    ps1 = PS1.read_text(encoding="ascii")
+    body = ps1[ps1.index("function GitRun("):ps1.index("function GitText(")]
+    swap = body.index("[Console]::InputEncoding = New-Object Text.UTF8Encoding($false)")
+    start = body.index("$p = [Diagnostics.Process]::Start($psi)")
+    restore = body.index("finally { if ($null -ne $ie) { try { [Console]::InputEncoding = $ie }")
+    assert "GetPreamble().Length -gt 0" in body[:swap] and swap < start < restore
+    assert body.count("[Diagnostics.Process]::Start(") == 1
+    assert ps1.count("[Diagnostics.Process]::Start(") == 1 and ps1.count("RedirectStandardInput") == 1
+
+
 def test_ps1_uses_the_same_gh_filters_as_the_sh():
     assert _jq_filters(PS1.read_text(encoding="utf-8")) == _jq_filters(SH.read_text(encoding="utf-8"))
 
