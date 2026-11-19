@@ -708,3 +708,36 @@ def test_an_error_answer_whose_body_cannot_be_read_is_fetch_failed(exc):
     with pytest.raises(FetchFailed, match="unreadable"):
         f.get("https://h.example/a")
     assert f.log[-1]["event"] == "error"
+
+
+class _RecordingBody(io.BytesIO):
+    """An error answer's body that records the size each read() was asked for."""
+
+    def __init__(self, data):
+        super().__init__(data)
+        self.read_sizes = []
+
+    def read(self, size=-1):
+        self.read_sizes.append(size)
+        return super().read(size)
+
+
+@pytest.mark.parametrize("status", [404, 500])
+def test_an_error_answers_body_is_read_with_the_size_cap(status):
+    """fetch/error-body-unbounded: reading an error answer's body asks for max_bytes + 1, never an unbounded read."""
+    bodies = []
+
+    def opener(req, timeout):
+        if req.full_url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(req.full_url, 404, "x", {}, io.BytesIO(b""))
+        body = _RecordingBody(b"x" * 50)
+        bodies.append(body)
+        raise urllib.error.HTTPError(req.full_url, status, "x", {}, body)
+
+    clock = Clock()
+    f = PoliteFetcher(opener=opener, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example",), max_bytes=10)
+    with pytest.raises(FetchFailed):
+        f.get("https://h.example/page")
+    assert any(b.read_sizes for b in bodies)      # (a 500 is retried once first, unread)
+    assert all(size == 11 for b in bodies for size in b.read_sizes)   # max_bytes + 1, never -1 / None / no argument

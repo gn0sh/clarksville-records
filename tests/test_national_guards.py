@@ -515,3 +515,14 @@ def test_the_loader_and_the_collector_refuse_a_future_host_ok(tmp_path):
     nr.check_host_ok(d, date(2026, 11, 20))
     with pytest.raises(nr.HostNotApproved):
         nr.run(d, None, 0, datetime(2026, 11, 19, 12, tzinfo=timezone.utc))
+
+
+@pytest.mark.parametrize("link", ["https://github.com/gn0sh/../other/x", "https://github.com/gn0sh/./x",
+                                  "https://github.com/gn0sh/x/..", "https://github.com/gn0sh//x",
+                                  "https://github.com/gn0sh/%2e%2e/other/x", "https://github.com/gn0sh/%2E%2E/x",
+                                  "https://github.com/gn0sh/.%2e/x", "https://github.com/gn0sh/%252e%252e/x",
+                                  "https://github.com/gn0sh/x\\..\\y", "https://github.com/gn0sh/x%5c..%5cy",
+                                  "https://claude.ai/chat/../x", "https://claude.ai//x"])
+def test_host_ok_link_with_dot_empty_encoded_or_backslash_segments_is_refused(link):
+    """national/r5-self-attested: a path that climbs out of the team's prefix is not a link to where the OK lives."""
+    assert g.host_ok_problem({"date": "2026-11-18", "link": link}, TODAY)[0] == "link"

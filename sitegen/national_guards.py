@@ -29,7 +29,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, fields
 from datetime import date, datetime
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from . import config
 
@@ -122,7 +122,25 @@ def _host_ok_link(link) -> bool:
         return False
     u = urlsplit(link)
     prefix = HOST_OK_LINK_HOSTS.get((u.hostname or "").lower())
-    return prefix is not None and u.path.startswith(prefix)
+    return prefix is not None and u.path.startswith(prefix) and _path_segments_plain(u.path)
+
+
+def _path_segments_plain(path: str) -> bool:
+    """national/r5-self-attested: no `.`/`..` segment (also percent-encoded, even twice), no empty segment (one
+    trailing slash is fine) and no backslash, so `/gn0sh/../other/x` cannot climb out of the team's prefix."""
+    if "\\" in path:
+        return False
+    once = unquote(path)
+    twice = unquote(once)
+    if "\\" in once or "\\" in twice:
+        return False
+    segments = path.split("/")[1:]
+    if segments and segments[-1] == "":
+        segments = segments[:-1]
+    for seg in segments:
+        if not seg or unquote(unquote(seg)) in (".", ".."):
+            return False
+    return True
 
 
 def host_ok_problem(host_ok, today: date | None = None) -> tuple[str, str] | None:
