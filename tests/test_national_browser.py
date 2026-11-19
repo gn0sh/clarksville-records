@@ -3,8 +3,10 @@
 Builds the fixture site with national.enabled on into a temp folder and runs tests/national_browser.js (Playwright,
 chromium) over it: 12 recorded Census answers, plus a run with webdriver left true and a native-post run with fetch
 removed. The fixture build normally leaves the counter off (sitegen/analytics.py settings returns None for a fixture),
-so this build passes fixture=False to that one call to get the shipped counter tag. Skips when node, Playwright or a
-Chromium is missing."""
+so this build passes fixture=False to that one call to get the shipped counter tag. Missing node, Playwright or a
+Chromium skips only locally; with CI set or REQUIRE_BROWSER=1 it fails (as CR_ALLOW_NO_DATA in
+tests/test_national_clarksville.py). The run must end with its JSON summary: checks > 0 and "failed":0."""
+import json
 import os
 import shutil
 import subprocess
@@ -59,8 +61,22 @@ def monkeypatch_module():
     mp.undo()
 
 
-@pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) or its Chromium not available")
-def test_digest_privacy_in_a_browser(digest_site):
+def _need_browser():
+    if _browser_ok():
+        return
+    why = "Playwright (node) or its Chromium not available"
+    if os.environ.get("CI") or os.environ.get("REQUIRE_BROWSER") == "1":
+        pytest.fail(why + " (CI or REQUIRE_BROWSER=1 set: the browser privacy run is required)")
+    pytest.skip(why)
+
+
+def test_digest_privacy_in_a_browser(request):
+    _need_browser()
+    digest_site = request.getfixturevalue("digest_site")
     res = subprocess.run(["node", str(ROOT / "tests" / "national_browser.js"), str(digest_site)], capture_output=True,
                          text=True, timeout=600, cwd=ROOT, env={**_node_env(), "PYTHON": sys.executable})
     assert res.returncode == 0, res.stdout[-8000:] + res.stderr[-4000:]
+    last = res.stdout.strip().splitlines()[-1] if res.stdout.strip() else ""
+    summary = json.loads(last) if last.startswith("{") else {}
+    assert summary.get("failed") == 0 and summary.get("checks", 0) > 0 and '"failed":0' in last, res.stdout[-4000:]
+    assert len(summary.get("cases", {})) == 12, summary.get("cases")

@@ -47,16 +47,17 @@ const CONFIG = JSON.parse(html.match(/<script type="application\/json" id="diges
 const STRINGS = JSON.parse(html.match(/<script type="application\/json" id="digest-strings">([^<]*)<\/script>/)[1]);
 const COUNTER = (html.match(/data-goatcounter="([^"]+)"/) || [])[1] || null;
 
-let failures = 0;
+let failures = 0, checks = 0;
 const summary = { cases: {}, failures: [] };
 function check(label, ok, detail) {
+  checks += 1;
   console.log((ok ? 'ok   ' : 'FAIL ') + label + (ok || detail === undefined ? '' : '  -> ' + JSON.stringify(detail)));
   if (!ok) { failures += 1; summary.failures.push(label); }
   return ok;
 }
 
 // --- address parts ------------------------------------------------------------------------------------------------
-const STOP = new Set(['street', 'road', 'lane', 'square', 'main']);   // words a static path could hold by chance
+const STOP = new Set(['road', 'lane', 'square']);   // words a static path could hold by chance
 function lineParts(line) {
   const low = line.toLowerCase().replace(/\s+/g, ' ').trim();
   const strong = new Set([low, low.split(',')[0].trim()]);
@@ -368,6 +369,7 @@ async function runNativePost(browser) {
   } finally {
     await browser.close();
   }
+  summary.checks = checks;
   summary.failed = failures;
   console.log(JSON.stringify(summary));
   process.exit(failures ? 1 : 0);
