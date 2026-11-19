@@ -427,15 +427,20 @@
     }
     return m;
   }
-  /* #digest-config -> the checked settings. The request form shows only with an https form_action and privacy_url. */
+  /* #digest-config -> the checked settings. The request form shows only with an https form_action and privacy_url;
+     the election-office and Census lines only with an https election_url / census_url. */
   function configOf(v) {
-    var c = { frame: "geo-frame.html", covered: "covered.html", formAction: null, privacyUrl: null, morning: null };
+    var c = { frame: "geo-frame.html", covered: "covered.html", formAction: null, privacyUrl: null, morning: null,
+              election: null, census: null };
     if (!isObj(v) || v.schema !== CONFIG_SCHEMA) { return c; }
     if (typeof v.frame === "string" && FILE_RE.test(v.frame)) { c.frame = v.frame; }
     if (typeof v.covered === "string" && FILE_RE.test(v.covered)) { c.covered = v.covered; }
     if (httpsUrl(v.form_action) && httpsUrl(v.privacy_url)) { c.formAction = v.form_action; c.privacyUrl = v.privacy_url; }
     if (typeof v.morning === "string" && HREF_RE.test(v.morning) && v.morning.indexOf("..") < 0 &&
         v.morning.indexOf("//") < 0) { c.morning = v.morning; }
+    // fixed outside pages (UX v1.2): the election-office finder and the Census's own lookup; never given the address
+    if (httpsUrl(v.election_url)) { c.election = v.election_url; }
+    if (httpsUrl(v.census_url)) { c.census = v.census_url; }
     return c;
   }
   function readBlock(doc, id) {
@@ -470,6 +475,9 @@
     var busy = false, stillTimer = null, seq = 0;
     var email = "";                 // page memory only: prefills the next card's form; never stored
     var openCard = null;            // the card whose request form is open (one at a time)
+    var epoch = 0;                  // bumped by "Forget this list": a post or count that ends later writes nothing
+    var censusLine = null;          // the down state's Census line, a sibling after #digest-result
+    if (!result.hasAttribute("tabindex")) { result.setAttribute("tabindex", "-1"); }
 
     function S(k) { var v = STR.get(k); return typeof v === "string" ? v : ""; }
     function text(s) { return doc.createTextNode(String(s)); }
@@ -521,6 +529,8 @@
       return parent;
     }
     function say(parts) {
+      if (censusLine && censusLine.parentNode) { censusLine.parentNode.removeChild(censusLine); }
+      censusLine = null;
       result.textContent = "";
       (parts || []).forEach(function (x) { result.appendChild(typeof x === "string" ? text(x) : x); });
     }
@@ -554,9 +564,14 @@
       if (r.kind === "one") { showList(r.matched, r.units); return; }
       // error, timeout or a blocked frame: never a guessed place; Try again resends the text still in the box
       var retry = button(S("lookup.retry"), "more-btn digest-retry");
-      retry.addEventListener("click", function () { focus(input); run(); });
+      // Try again: focus goes to the status line (the button is about to go), then once more after the result
+      retry.addEventListener("click", function () { focus(result); run(); });
       say([S("lookup.down") + " ", retry, " "]);
       put(result, "lookup.down-browse", cfg.covered);
+      if (cfg.census && result.parentNode) {
+        censusLine = put(el("p", "digest-census"), "lookup.down-census", cfg.census, null, true);
+        result.parentNode.insertBefore(censusLine, result.nextSibling);
+      }
       focus(retry);
     }
     form.addEventListener("submit", function (e) { e.preventDefault(); run(); });
@@ -591,8 +606,14 @@
       govs.forEach(function (g) {
         if (g.status === "covered") { a += 1; } else if (g.status === "cant-cover") { c += 1; } else { b += 1; }
       });
-      var head = fill(S("lookup.summary-found"), { n: govs.length });
-      if (!a) { return head + " " + S("lookup.summary-none"); }
+      var one = govs.length === 1;
+      var head = one ? S("lookup.summary-found-one") : fill(S("lookup.summary-found"), { n: govs.length });
+      if (!a) {
+        var tail = S(one ? "lookup.summary-none-one" : "lookup.summary-none");
+        // "None are covered yet. Request the ones you want ...": with no email form, only the first sentence
+        if (!cfg.formAction) { tail = tail.replace(/^([^.]*\.)\s.*$/, "$1"); }
+        return head + " " + tail;
+      }
       var parts = [fill(S("lookup.summary-covered"), { n: a })];
       if (b) { parts.push(fill(S("lookup.summary-not-yet"), { n: b })); }
       if (c) { parts.push(fill(S("lookup.summary-cant"), { n: c })); }
@@ -610,12 +631,14 @@
       if (!r.govs.length) {
         list.appendChild(el("p", null, S("lookup.nothing-listable")));
         list.appendChild(el("p", "muted", S("lookup.under-list")));
+        if (cfg.election) { list.appendChild(put(el("p", "muted"), "lookup.election-none", cfg.election, null, true)); }
       } else {
         list.appendChild(el("p", "coverage", summary(r.govs)));
         r.notes.forEach(function (k) { var t = label(idx, k); if (t) { list.appendChild(el("p", "note", t)); } });
         var kept = saveList(storage, r.govs);
         drawCards(list, r.govs);
         list.appendChild(el("p", "muted", S("lookup.under-list")));
+        if (cfg.election) { list.appendChild(put(el("p", "muted"), "lookup.election", cfg.election, null, true)); }
         if (kept) { deviceLine(list); }
       }
       var again = button(S("lookup.another"), "more-btn");
@@ -627,7 +650,7 @@
     // -- "Your saved list" (3.8): ids re-checked with layerOf (the layer's exact GEOID length) before a card --
     function showSaved() {
       clearSaved();
-      var govs = loadList(storage).filter(function (g) { return !!layerOf(g.id); }).map(function (g) {
+      var govs = loadList(storage).filter(function (g) { return !!layerOf(g.id) && !idx.hide.has(g.id); }).map(function (g) {
         return cardOf({ id: g.id, name: g.name, layer: layerOf(g.id) }, idx.govs.get(g.id));
       });
       if (!govs.length) { return; }
@@ -641,6 +664,7 @@
       box.appendChild(el("p", "your-seats-note", S("lookup.device-line")));
       var b = button(S("lookup.forget"), "your-seats-forget");
       b.addEventListener("click", function () {
+        epoch += 1;
         forget(storage);
         clearList();
         clearSaved();
@@ -726,20 +750,26 @@
       c.body.textContent = "";
       c.form = null;
       c.msg.textContent = "";
+      c.msg.removeAttribute("data-state");
       var words = "lookup.request";
       if (state === "returning") {
         c.msg.textContent = S("form.returning");
+        c.msg.setAttribute("data-state", "returning");
         words = "form.again";
       } else if (state === "sent") {
         var mark = el("span", null, "✓ ");
         mark.setAttribute("aria-hidden", "true");
         c.msg.appendChild(mark);
         c.msg.appendChild(text(S("form.sent")));
+        c.msg.setAttribute("data-state", "sent");
         words = "form.different";
       }
       var b = named(button(S(words), "more-btn digest-request-btn"), c.name);
       b.setAttribute("aria-expanded", "false");
-      b.addEventListener("click", function () { if (c.form) { closeForm(c); } else { openForm(c); } });
+      b.addEventListener("click", function () {
+        if (c.sending) { return; }
+        if (c.form) { closeForm(c); } else { openForm(c); }
+      });
       c.body.appendChild(b);
       c.btn = b;
       if (state === "ready") { c.body.appendChild(el("p", "hint", S("lookup.request-hint"))); }
@@ -810,13 +840,13 @@
       cancel.addEventListener("click", function () { closeForm(c); focus(c.btn); });
       f.appendChild(send);
       f.appendChild(cancel);
-      var sending = false;
       f.addEventListener("submit", function (e) {
-        if (sending) { e.preventDefault(); return; }
+        if (c.sending) { e.preventDefault(); return; }
         var addr = typeof box.value === "string" ? box.value.trim() : "";
         if (!goodEmail(addr)) {
           e.preventDefault();
           err.textContent = S("form.bad-email");
+          err.setAttribute("data-state", "bad-email");
           err.hidden = false;
           box.setAttribute("aria-invalid", "true");
           focus(box);
@@ -837,29 +867,37 @@
         var body = new URLSearchParams();
         body.append("email", addr);
         ids.forEach(function (i) { body.append("tag", "req-" + i); });
-        sending = true;
+        c.sending = true;
+        c.btn.setAttribute("aria-disabled", "true");
         send.textContent = S("form.sending");
         send.setAttribute("aria-disabled", "true");
+        var at = epoch;
         var p;
         try {
           p = Promise.resolve(post(cfg.formAction, { method: "POST", mode: "no-cors", credentials: "omit",
                                                      referrerPolicy: "no-referrer", body: body }));
         } catch (x) { p = Promise.reject(x); }
         p.then(function () {
-          sending = false;
+          c.sending = false;
+          c.btn.removeAttribute("aria-disabled");
+          if (at !== epoch) { return; }        // "Forget this list" while it was in flight: nothing written or drawn
           email = addr;
           markRequested(storage, ids);
           ids.forEach(function (i) { var o = c.view.get(i); if (o && o.req) { drawRequest(o, "sent"); } });
           focus(c.msg);
         }, function () {
-          sending = false;
+          c.sending = false;
+          c.btn.removeAttribute("aria-disabled");
+          if (at !== epoch) { return; }
           send.textContent = S("form.send");
           send.removeAttribute("aria-disabled");
           c.msg.textContent = S("form.failed");
+          c.msg.setAttribute("data-state", "failed");
           focus(c.msg);
         });
       });
       c.msg.textContent = "";
+      c.msg.removeAttribute("data-state");
       c.body.appendChild(f);
       c.form = f;
       c.btn.setAttribute("aria-expanded", "true");
@@ -873,6 +911,7 @@
       var msg = status("digest-msg");
       if (done) {
         msg.textContent = S("count.done");
+        msg.setAttribute("data-state", "counted");
         c.cnt.appendChild(msg);
         return msg;
       }
@@ -882,15 +921,19 @@
         if (counting) { return; }
         counting = true;
         b.setAttribute("aria-disabled", "true");
+        var at = epoch;
         var p;
         try { p = Promise.resolve(count.send(c.id)); } catch (x) { p = Promise.reject(x); }
         p.then(function () {
+          if (at !== epoch) { return; }        // forgotten while in flight
           markCounted(storage, c.id);
           focus(drawCount(c, true));
         }, function () {
           counting = false;
           b.removeAttribute("aria-disabled");
+          if (at !== epoch) { return; }
           msg.textContent = S("count.failed");
+          msg.setAttribute("data-state", "failed");
           focus(msg);
         });
       });

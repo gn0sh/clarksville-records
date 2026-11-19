@@ -354,7 +354,7 @@ def test_newest_record_is_the_newest_fetch_never_invented():
 def test_feeds_claim_no_check_time(loaded):
     """national-freshness/checked-at-is-first-fetch: M1 records no check run, so every feed has last_ok_at null and
     checked_at the newest record's first fetch; the pagedir marks no daylight government stale; the page says
-    "Newest record we have" (or "no records yet"), never "Last checked" or a stale line."""
+    "We got our newest record on" (or "no records yet"), never "Last checked" or a stale line."""
     directory, _f, _l = loaded
     feeds = npg.build_feeds(directory, {"city": ({}, [])}, _agendas("x"), date(2026, 11, 19))
     assert {f["last_ok_at"] for f in feeds.values()} == {None}
@@ -371,8 +371,9 @@ def test_pages_say_newest_record_and_mark_nothing_stale(sites, page_labels):
     assert page_labels["body.no-records"] in council
     county = json.loads(on[f"digest/tn/{COUNTY_ID}.json"])
     text = main_text(on[f"digest/tn/{COUNTY_ID}.html"].decode())
+    assert page_labels["body.newest"] == "We got our newest record on {date}."      # Q11 decision
     if county["checked_at"] != "1970-01-01T00:00:00Z":
-        assert "Newest record we have: " in text
+        assert "We got our newest record on " in text
     for rel in DIGEST_HTML:
         assert "Last checked" not in on[rel].decode() and "couldn't check" not in on[rel].decode(), rel
 

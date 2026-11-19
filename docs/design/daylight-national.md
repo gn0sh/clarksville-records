@@ -476,7 +476,7 @@ the offline estimate exists. Jump list and filter: when the row counts above are
 **Content, in priority order (identical on every page, AC4.9).**
 1. Crumb, eyebrow (state and slot), `h1` (board name), "Coming up" as the page's subject line.
 2. "Unofficial copy. Official record:" line with the link to the government's own meetings page (existing rule).
-3. Freshness line. M1: "Newest record we have: {date}." The site does not yet record when it last looked at a
+3. Freshness line. M1: "We got our newest record on {date}." (Q11, decided 2026-11-19) The site does not yet record when it last looked at a
    government's site, so no M1 page names a check time. M2: the last-checked line, and the stale notice that
    replaces it when it applies (AC4.6).
 4. Meetings from today on, soonest first. Each meeting: date and time (`h2`), meeting name as posted, time zone
@@ -494,7 +494,7 @@ the offline estimate exists. Jump list and filter: when the row counts above are
 | Coming up                          |
 | Unofficial copy. Official record:  |
 | clarksvilletn.gov meetings >       |
-| Newest record we have: November    |
+| We got our newest record on Nov... |
 | 19, 2026.                          |
 |                                    |
 | Thursday, December 3, 2026, 6 PM   |  h2
@@ -521,7 +521,7 @@ the offline estimate exists. Jump list and filter: when the row counts above are
 |---|---|
 | Subject line under h1 | Coming up |
 | Unofficial line (existing) | Unofficial copy. Official record: [the government's meetings page] |
-| Freshness, M1 (`body.newest`) | Newest record we have: {date}. |
+| Freshness, M1 (`body.newest`) | We got our newest record on {date}. |
 | Freshness, M1, nothing held (`body.no-records`) | We have no records for this government yet. |
 | Last checked (M2, once check runs are recorded) | Last checked {date}. |
 | Stale, more than 3 days (AC4.6; M2) | We last checked this government's site on {date}, {n} days ago. Newer meetings or agendas may be missing. [Official meetings page] |
@@ -845,7 +845,7 @@ Checked against spec v2.1 (request by email as the main path; weekly email and f
   panel reader gets lost. The label works for both.**
 - Q11. "Newest record we have: {date}." can be read as the date of a meeting, when it is the day we first got our
   newest record. **Recommended: keep it for M1 (it never implies a check time, and a test pins the words); when
-  the line is next touched, use "We got our newest record on {date}."**
+  the line is next touched, use "We got our newest record on {date}."** Decided 2026-11-19 (manager): changed now.
 - Q5. Header on Digest pages (D1, D2 change two site checks). **Recommended: as designed.**
 - Q6. Can the Buttondown form stay on our page, add several tags at once, add tags to an address that is already
   confirmed, and send people back to `digest/requested.html` after they confirm? **Recommended: architect tests on

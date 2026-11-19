@@ -33,6 +33,11 @@ const BLOCKS = JSON.parse(execFileSync(process.env.PYTHON || 'python3', ['-c', [
 const STR = JSON.parse(BLOCKS.strings);
 const CFG = JSON.parse(BLOCKS.config);
 const ACTION = CFG.form_action;
+// UX v1.2 lines: the builder adds election_url and census_url to #digest-config (another task); the tests give them
+// here, and a config without them draws neither line.
+const ELECTION = 'https://www.usa.gov/election-office';
+const CENSUS_LOOKUP = 'https://geocoding.geo.census.gov/geocoder/geographies/address?form';
+const V12 = { election_url: ELECTION, census_url: CENSUS_LOOKUP };
 assert.ok(/^https:\/\/buttondown\.com\//.test(ACTION), 'the real form_action');
 
 // --- a fake DOM: just what national.js and lookup() use ---------------------------------------------------------
@@ -52,6 +57,17 @@ class Node_ {
   get innerHTML() { throw new Error('innerHTML read'); }
   set innerHTML(v) { throw new Error('innerHTML write'); }
   get firstChild() { return this.children[0] || null; }
+  get nextSibling() {
+    const sib = this.parentNode ? this.parentNode.children : [];
+    return sib[sib.indexOf(this) + 1] || null;
+  }
+  insertBefore(c, ref) {
+    if (!ref) { return this.appendChild(c); }
+    if (c.parentNode) { c.parentNode.removeChild(c); }
+    const i = this.children.indexOf(ref);
+    assert.ok(i >= 0, 'insertBefore: ref is a child');
+    c.parentNode = this; this.children.splice(i, 0, c); return c;
+  }
   appendChild(c) {
     assert.ok(c instanceof Node_, 'appendChild takes a node');
     if (c.parentNode) { c.parentNode.removeChild(c); }
@@ -262,7 +278,10 @@ test('15 s timeout: "not answering" with Try again (focused once) and the browse
   assert.strictEqual(p.find.hasAttribute('aria-disabled'), false);
   assert.strictEqual(p.input.value, ADDRESS);                  // a timeout never clears what was typed
   p.input.value = ADDRESS + ' ';
+  const k = p.doc.focusLog.length;
   fire(retry[0], 'click');
+  focusedOnce(p, k, p.result);                                 // the button is about to go: focus to the status line
+  assert.strictEqual(p.result.getAttribute('tabindex'), '-1');
   assert.strictEqual(p.frames().length, 1);
   p.answer(PUBLIC_SQ);
   assert.strictEqual(p.cards().length, 3);
@@ -749,6 +768,172 @@ test('a new lookup replaces the saved list view; "Look up another address" clear
   fire(buttonNamed(p.list, STR['lookup.another'])[0], 'click');
   assert.strictEqual(p.list.hidden, true);
   focusedOnce(p, n, p.input);
+});
+
+
+// --- review fixes and UX v1.2 wiring ---------------------------------------------------------------------------------
+test('Forget while a post is in flight: the late answer writes nothing, draws nothing, moves no focus', async () => {
+  let resolve;
+  const { p, card, f } = openSalem({ fetch: () => new Promise((r) => { resolve = r; }) });
+  tags(f, 'input')[0].value = 'team@example.com';
+  fire(f, 'submit');
+  fire(buttonNamed(p.list, STR['lookup.forget'])[0], 'click');
+  assert.strictEqual(p.storage.m.size, 0);
+  const n = p.doc.focusLog.length;
+  resolve({ type: 'opaque' });
+  await tick();
+  assert.strictEqual(p.storage.m.size, 0, 'no key rewritten after Forget');
+  none(p.focusesSince(n), 'focus moves');
+  assert.notStrictEqual(cls(card, 'digest-msg')[0].getAttribute('data-state'), 'sent');
+  // a failed post after Forget draws nothing either
+  let reject;
+  const q = openSalem({ fetch: () => new Promise((_, r) => { reject = r; }) });
+  tags(q.f, 'input')[0].value = 'team@example.com';
+  fire(q.f, 'submit');
+  fire(buttonNamed(q.p.list, STR['lookup.forget'])[0], 'click');
+  const m = q.p.doc.focusLog.length;
+  reject(new Error('x'));
+  await tick();
+  none(q.p.focusesSince(m), 'focus moves');
+  assert.strictEqual(cls(q.card, 'digest-msg')[0].textContent, '');
+});
+
+test('Forget while a count is in flight: counted is not written back', async () => {
+  let resolve;
+  const p = makePage({ count: { available: true, send: () => new Promise((r) => { resolve = r; }) } });
+  p.submit('x');
+  p.answer(SALEM);
+  fire(buttonNamed(p.card('Salem city'), STR['count.button'])[0], 'click');
+  fire(buttonNamed(p.list, STR['lookup.forget'])[0], 'click');
+  const n = p.doc.focusLog.length;
+  resolve();
+  await tick();
+  assert.strictEqual(p.storage.m.size, 0);
+  none(p.focusesSince(n), 'focus moves');
+});
+
+test('one post per card: Request it is disabled and inert while sending; Cancel + reopen cannot post twice', async () => {
+  let resolve;
+  const { p, card, f } = openSalem({ fetch: (u, o) => { p.posts.push([u, o]); return new Promise((r) => { resolve = r; }); } });
+  tags(f, 'input')[0].value = 'team@example.com';
+  fire(f, 'submit');
+  const req = buttonNamed(card, STR['lookup.request'])[0];
+  assert.strictEqual(req.getAttribute('aria-disabled'), 'true');
+  fire(req, 'click');                                        // would close (or reopen) the form: ignored
+  assert.strictEqual(tags(card, 'form').length, 1);
+  fire(buttonNamed(f, STR['form.cancel'])[0], 'click');
+  fire(req, 'click');
+  const forms = tags(card, 'form');
+  if (forms.length) { tags(forms[0], 'input')[0].value = 'team@example.com'; fire(forms[0], 'submit'); }
+  assert.strictEqual(p.posts.length, 1);
+  resolve({});
+  await tick();
+  assert.strictEqual(cls(card, 'digest-msg')[0].getAttribute('data-state'), 'sent');
+  assert.strictEqual(buttonNamed(card, STR['form.different'])[0].hasAttribute('aria-disabled'), false);
+});
+
+test('data-state on the message lines: sent, failed, returning, counted, and bad-email on the field line', async () => {
+  const { p, card, f } = openSalem({ fetch: () => Promise.reject(new Error('x')) });
+  const email = tags(f, 'input')[0];
+  email.value = 'nope';
+  fire(f, 'submit');
+  assert.strictEqual(p.doc.getElementById(email.getAttribute('aria-describedby')).getAttribute('data-state'), 'bad-email');
+  email.value = 'team@example.com';
+  fire(f, 'submit');
+  await tick();
+  assert.strictEqual(cls(card, 'digest-msg')[0].getAttribute('data-state'), 'failed');
+  fire(buttonNamed(f, STR['form.cancel'])[0], 'click');
+  fire(buttonNamed(card, STR['lookup.request'])[0], 'click');   // reopening clears the failed line
+  assert.strictEqual(cls(card, 'digest-msg')[0].hasAttribute('data-state'), false);
+  const storage = new FakeStorage({ [REQ]: JSON.stringify({ v: 1, ids: ['county-41047'] }),
+    [CNT]: JSON.stringify({ v: 1, ids: ['county-41047'] }) });
+  const q = makePage({ storage });
+  q.submit('x');
+  q.answer(SALEM);
+  const c = q.card('Marion County');
+  assert.strictEqual(cls(cls(c, 'digest-request')[0], 'digest-msg')[0].getAttribute('data-state'), 'returning');
+  assert.strictEqual(cls(cls(c, 'digest-count')[0], 'digest-msg')[0].getAttribute('data-state'), 'counted');
+  const r = makePage({ count: { available: true, send: () => Promise.reject(new Error('x')) } });
+  r.submit('x');
+  r.answer(SALEM);
+  fire(buttonNamed(r.card('Salem city'), STR['count.button'])[0], 'click');
+  await tick();
+  assert.strictEqual(cls(cls(r.card('Salem city'), 'digest-count')[0], 'digest-msg')[0].getAttribute('data-state'), 'failed');
+});
+
+test('summary: one government reads in the singular; with no email form the "Request ..." sentence is left out', () => {
+  const one = answer(match('1 X ST', unit('county', '41047', 'Marion County', 'A')));
+  const p = makePage();
+  p.submit('x');
+  p.answer(one);
+  assert.strictEqual(cls(p.list, 'coverage')[0].textContent,
+    STR['lookup.summary-found-one'] + ' ' + STR['lookup.summary-none-one']);
+  const q = makePage();
+  q.submit(ADDRESS);
+  q.answer(answer(match('1 PUBLIC SQ', unit('place', '4715160', 'Clarksville city', 'A'))));
+  assert.strictEqual(cls(q.list, 'coverage')[0].textContent, STR['lookup.summary-found-one'] + ' 1 covered.');
+  for (const [ans, head] of [[SALEM, 'We found 3 local governments.'], [one, STR['lookup.summary-found-one']]]) {
+    const r = makePage({ config: { form_action: null, privacy_url: null } });
+    r.submit('x');
+    r.answer(ans);
+    const t = cls(r.list, 'coverage')[0].textContent;
+    assert.ok(!/Request/.test(t), t);
+    assert.ok(t === head + ' None are covered yet.' || t === head + ' It is not covered.', t);
+  }
+});
+
+test('election-office lines link election_url (under the list; nothing-listable has its own); missing -> no line', () => {
+  const p = makePage({ config: V12 });
+  p.submit('x');
+  p.answer(SALEM);
+  const a = tags(p.list, 'a').filter((x) => x.getAttribute('href') === ELECTION);
+  assert.strictEqual(a.length, 1);
+  assert.strictEqual(a[0].getAttribute('rel'), 'noopener noreferrer');
+  assert.strictEqual(a[0].parentNode.textContent, STR['lookup.election'].replace(/[\[\]]/g, ''));
+  const kids = p.list.children.map((c) => c.textContent);
+  assert.strictEqual(kids.indexOf(a[0].parentNode.textContent), kids.indexOf(STR['lookup.under-list']) + 1);
+  const q = makePage({ config: V12 });
+  q.submit('x');
+  q.answer(answer(match('1 LAKE RD', unit('cousub', '4400100000', 'Nowhere', 'N'))));
+  assert.ok(q.list.textContent.includes(STR['lookup.election-none'].replace(/[\[\]]/g, '')));
+  for (const config of [null, { election_url: 'http://www.usa.gov/x' }, { election_url: 'javascript:alert(1)' }]) {
+    const r = makePage(config ? { config } : {});
+    r.submit('x');
+    r.answer(SALEM);
+    none(tags(r.list, 'a').filter((x) => /usa\.gov|javascript/.test(x.getAttribute('href'))), JSON.stringify(config));
+    assert.ok(!r.list.textContent.includes('election office'));
+  }
+});
+
+test('down state: the Census lookup line after the browse line, linking census_url with no address; gone next time', () => {
+  const p = makePage({ config: V12 });
+  p.submit(ADDRESS);
+  p.answer('blocked');
+  const line = cls(p.form, 'digest-census');
+  assert.strictEqual(line.length, 1);
+  assert.strictEqual(line[0].tagName, 'P');
+  assert.ok(line[0] === p.result.nextSibling, 'its own p right after #digest-result');
+  const a = tags(line[0], 'a')[0];
+  assert.strictEqual(a.getAttribute('href'), CENSUS_LOOKUP);
+  assert.strictEqual(a.getAttribute('rel'), 'noopener noreferrer');
+  assert.ok(!/Public|37040/i.test(a.getAttribute('href')));
+  fire(buttonNamed(p.result, STR['lookup.retry'])[0], 'click');
+  none(cls(p.form, 'digest-census'), 'after Try again');
+  p.answer(PUBLIC_SQ);
+  none(cls(p.doc.root, 'digest-census'), 'after a list');
+  const q = makePage();
+  q.submit(ADDRESS);
+  q.answer('blocked');
+  none(cls(q.form, 'digest-census'), 'no census_url');
+});
+
+test('saved list: an id now hidden by gov-flags `hide` is not drawn', () => {
+  const pd = JSON.parse(BLOCKS.pagedir);
+  assert.ok(pd.hide.includes('county-25017'));
+  const storage = new FakeStorage({ [LIST]: JSON.stringify({ v: 1, govs: [
+    { id: 'county-25017', name: 'Suffolk County' }, { id: 'county-41047', name: 'Marion County' }] }) });
+  const p = makePage({ storage });
+  assert.deepStrictEqual(p.cards(p.saved).map((c) => tags(c, 'h3')[0].textContent), ['Marion County']);
 });
 
 // --- focus: exactly one move after each result -----------------------------------------------------------------------

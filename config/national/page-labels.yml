@@ -144,7 +144,7 @@ labels:
   body.eyebrow: "{state} · {slot}"
   body.coming-up: Coming up
   body.official-record: "Unofficial copy. Official record: [{host}]."
-  body.newest: "Newest record we have: {date}."
+  body.newest: "We got our newest record on {date}."
   body.no-records: We have no records for this government yet.
   body.no-time: We don't have a start time for this meeting.
   body.tz: "{tz}, as the government posts it."
