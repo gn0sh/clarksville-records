@@ -1,0 +1,331 @@
+{
+ "result": {
+  "input": {
+   "address": {
+    "address": "1 Public Sq, Clarksville, TN"
+   },
+   "benchmark": {
+    "id": "4",
+    "benchmarkName": "Public_AR_Current",
+    "benchmarkDescription": "Public Address Ranges - Current Benchmark",
+    "isDefault": true
+   },
+   "vintage": {
+    "id": "4",
+    "vintageName": "Current_Current",
+    "vintageDescription": "Current Vintage - Current Benchmark",
+    "isDefault": true
+   }
+  },
+  "addressMatches": [
+   {
+    "matchedAddress": "1 PUBLIC SQ, CLARKSVILLE, TN, 37040",
+    "coordinates": {
+     "x": -87.361481272763,
+     "y": 36.527643783069
+    },
+    "tigerLine": {
+     "tigerLineId": "0",
+     "side": "L"
+    },
+    "addressComponents": {
+     "fromAddress": "1",
+     "toAddress": "99",
+     "preQualifier": "",
+     "preDirection": "",
+     "preType": "",
+     "streetName": "PUBLIC",
+     "suffixType": "SQ",
+     "suffixDirection": "",
+     "suffixQualifier": "",
+     "city": "CLARKSVILLE",
+     "state": "TN",
+     "zip": "37040"
+    },
+    "geographies": {
+     "2020 Census Public Use Microdata Areas": [
+      {
+       "OBJECTID": 1,
+       "OID": "27590000000001",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "4702100",
+       "NAME": "Montgomery County PUMA",
+       "STATE": "47"
+      }
+     ],
+     "2020 Census ZIP Code Tabulation Areas": [
+      {
+       "OBJECTID": 2,
+       "OID": "27590000000002",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "37040",
+       "NAME": "ZCTA5 37040"
+      }
+     ],
+     "Urban Areas": [
+      {
+       "OBJECTID": 3,
+       "OID": "27590000000003",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "17202",
+       "NAME": "Clarksville, TN--KY"
+      }
+     ],
+     "Incorporated Places": [
+      {
+       "OBJECTID": 4,
+       "OID": "27590000000004",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "4715160",
+       "NAME": "Clarksville city",
+       "BASENAME": "Clarksville",
+       "STATE": "47",
+       "PLACE": "15160",
+       "FUNCSTAT": "A",
+       "LSADC": "25",
+       "PLACECC": "C1",
+       "MTFCC": "G4110"
+      }
+     ],
+     "Counties": [
+      {
+       "OBJECTID": 5,
+       "OID": "27590000000005",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "47125",
+       "NAME": "Montgomery County",
+       "BASENAME": "Montgomery",
+       "STATE": "47",
+       "COUNTY": "125",
+       "FUNCSTAT": "A",
+       "LSADC": "06",
+       "COUNTYCC": "H1",
+       "MTFCC": "G4020"
+      }
+     ],
+     "Unified School Districts": [
+      {
+       "OBJECTID": 6,
+       "OID": "27590000000006",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "4703030",
+       "NAME": "Clarksville-Montgomery County School System",
+       "BASENAME": "Clarksville-Montgomery County School System",
+       "STATE": "47",
+       "SDUNI": "03030",
+       "FUNCSTAT": "E",
+       "LSADC": "00",
+       "LOGRADE": "PK",
+       "HIGRADE": "12",
+       "SDTYP": "",
+       "MTFCC": "G5420"
+      }
+     ],
+     "2020 Census Blocks": [
+      {
+       "OBJECTID": 7,
+       "OID": "27590000000007",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "471251001001000",
+       "NAME": "Block 1000",
+       "STATE": "47",
+       "COUNTY": "125"
+      }
+     ],
+     "States": [
+      {
+       "OBJECTID": 8,
+       "OID": "27590000000008",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "47",
+       "NAME": "Tennessee",
+       "STATE": "47",
+       "FUNCSTAT": "A"
+      }
+     ],
+     "Census Block Groups": [
+      {
+       "OBJECTID": 9,
+       "OID": "27590000000009",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "471251001001",
+       "NAME": "Block Group 1",
+       "STATE": "47",
+       "COUNTY": "125"
+      }
+     ],
+     "County Subdivisions": [
+      {
+       "OBJECTID": 10,
+       "OID": "27590000000010",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "4712590886",
+       "NAME": "District 5",
+       "BASENAME": "5",
+       "STATE": "47",
+       "COUNTY": "125",
+       "COUSUB": "90886",
+       "FUNCSTAT": "N",
+       "LSADC": "28",
+       "COUSUBCC": "Z1",
+       "MTFCC": "G4040"
+      }
+     ],
+     "2026 State Legislative Districts - Upper": [
+      {
+       "OBJECTID": 11,
+       "OID": "27590000000011",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "47022",
+       "NAME": "State Senate District 22",
+       "STATE": "47"
+      }
+     ],
+     "Census Divisions": [
+      {
+       "OBJECTID": 12,
+       "OID": "27590000000012",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "6",
+       "NAME": "East South Central Division"
+      }
+     ],
+     "120th Congressional Districts": [
+      {
+       "OBJECTID": 13,
+       "OID": "27590000000013",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "4707",
+       "NAME": "Congressional District 7",
+       "STATE": "47"
+      }
+     ],
+     "2026 State Legislative Districts - Lower": [
+      {
+       "OBJECTID": 14,
+       "OID": "27590000000014",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "47067",
+       "NAME": "State House District 67",
+       "STATE": "47"
+      }
+     ],
+     "Census Regions": [
+      {
+       "OBJECTID": 15,
+       "OID": "27590000000015",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "3",
+       "NAME": "South Region"
+      }
+     ],
+     "Metropolitan Statistical Areas": [
+      {
+       "OBJECTID": 16,
+       "OID": "27590000000016",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "17300",
+       "NAME": "Clarksville, TN-KY Metro Area"
+      }
+     ],
+     "Census Tracts": [
+      {
+       "OBJECTID": 17,
+       "OID": "27590000000017",
+       "AREALAND": 0,
+       "AREAWATER": 0,
+       "CENTLAT": "+36.5",
+       "CENTLON": "-087.3",
+       "INTPTLAT": "+36.5",
+       "INTPTLON": "-087.3",
+       "GEOID": "47125100100",
+       "NAME": "Census Tract 1001",
+       "STATE": "47",
+       "COUNTY": "125"
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

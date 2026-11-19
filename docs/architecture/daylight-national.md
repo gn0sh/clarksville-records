@@ -290,6 +290,14 @@ lines.
   page text only. No `history`, `location` or `document.title` writes anywhere in the script (F3 asserts).
 - Errors: no answer in 15 s -> "The Census lookup is not answering" + Retry; iframe blocked -> the same, plus the
   official Census lookup link. Never a guessed place.
+- As built (F1, 2026-11-19; additive): `classify` "one" also returns `matched` (the Census matched line, page text
+  only), and more than 20 matches is `{kind: "nomatch", many: true}` (the not-found tips); each unit also carries `cc`
+  (PLACECC, COUNTYCC or COUSUBCC). `slot` is the layer name (the card draws label `slot.<slot>`); `notes` holds full
+  label keys (`note.no-city`). Step 5 drops a county subdivision whose COUSUBCC is T5, C2, C5 or C7 when a place is
+  kept (class codes, not name equality). `no-county` fires when the answer had a county and none is kept, whatever
+  dropped it. A `show: true` state rule keeps that layer whatever its FUNCSTAT. Bad pagedir (wrong schema): every
+  kept unit is "not covered yet" with no flags. Storage also has `loadRequested`, `loadCounted` and `storageOf(win)`;
+  `markRequested` keeps at most 200 ids; a stored value over 8,192 characters is not read.
 
 ### 4.2 Request form (in-card, several governments, one post)
 - One form element is drawn inside the card whose "Request it" was tapped (the list itself needs script, so the form
