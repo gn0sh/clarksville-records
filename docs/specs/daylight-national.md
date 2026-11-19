@@ -1,8 +1,8 @@
 # Spec: daylight-national (Daylight Digest, the national website)
 
-Status: draft v2, 2026-11-19 (v1 plus Brain Trust and Focus Group findings). Owner: product-manager. Priority: MVP is
-M1; the rest is ordered below. Product name: **Daylight Digest** (Brian, 2026-11-18). "Daylight" alone still means the
-full Clarksville and Montgomery County site.
+Status: draft v2, 2026-11-19 (v1 plus Brain Trust and Focus Group findings, and Brian's email capacity answer of
+2026-11-18). Owner: product-manager. Priority: MVP is M1; the rest is ordered below. Product name: **Daylight Digest**
+(Brian, 2026-11-18). "Daylight" alone still means the full Clarksville and Montgomery County site.
 Decisions so far: `docs/expansion/national-kickoff.md`. Memo: `docs/expansion/national-digest-memo.md` (sections 1-3, 7,
 8b, 8c, 9). Clarksville rules this keeps: `docs/specs/clarksville-records.md`. Sources: `docs/platform-facts.md`.
 Research: `docs/research/national-open-facts-2026-11-19.md`.
@@ -10,10 +10,10 @@ Research: `docs/research/national-open-facts-2026-11-19.md`.
 ## Goal
 Anyone in the US can browse what Daylight Digest covers, or type their address and see every local government for
 that spot (city or town, county, township or New England town, school district), each with a plain status. Covered
-bodies show what is coming up, verbatim and linked to the official document. For the rest, the person can ask for it
-with one tap and still gets the official agenda page. Later: a weekly email or per-body feeds (after Brian's email
-decision), and a neutral letter asking a government to post records readably. Daylight Digest never sees the address,
-shows the official record only, and has no AI text about named officials. Clarksville stays the full Daylight.
+bodies show what is coming up, verbatim and linked to the official document. For the rest, the person can ask to be
+emailed when it opens and still gets the official agenda page. Later milestones add a weekly email, per-body calendar
+and RSS feeds, and a neutral letter asking a government to post records readably. Daylight Digest never sees the
+address, shows the official record only, and has no AI text about named officials. Clarksville stays the full Daylight.
 
 **Primary user:** anyone in the US following their own local governments (confirmed by CEO, 2026-11-18).
 
@@ -32,13 +32,13 @@ official record only, what their own governments will take up next, and tells th
 1. A person sees what we cover without giving anything, and finds every local body for their address in one step,
    with an honest status for each.
 2. For a covered body, they see the coming-up record, verbatim and linked.
-3. Demand shows us where to build next (the anonymous request counter), with no marketing until January 2027.
+3. Demand shows us where to build next (requests per body), with no marketing until January 2027.
 4. Grow platform by platform (Legistar first), only where requests point, never by guessing or working around a block.
 5. Zero wrong facts: nothing shown is ours to get wrong.
 
 ## Non-goals
-- No iPhone or Android app until the website is complete (Brian's rule). "Website complete" means M1 to M4 are done,
-  or M1 to M3 plus the no-email path (US11) if Brian chooses no national email. M5 is not part of it.
+- No iPhone or Android app until the website is complete (Brian's rule). "Website complete" means M1 to M4 are done.
+  M5 is not part of it.
 - No votes for any body outside Clarksville and Montgomery County unless checked against that body's minutes.
 - No AI-written text about named officials, anywhere. No AI text in M1 at all.
 - No scores, rankings, commentary, endorsements, campaign links, comments or user accounts.
@@ -46,7 +46,7 @@ official record only, what their own governments will take up next, and tells th
 - No state or federal bodies (Census returns congressional and state districts; we ignore them).
 - No special districts (water, fire, transit): the Census geocoder does not return them.
 - No marketing, ads or outreach before the January 2027 formal launch. No paid services without Brian's OK.
-- No national feature takes a Buttondown seat that Clarksville's morning note needs.
+- No change to the content or sending of Clarksville's morning note from any national feature.
 
 ## Rules (every milestone; carried over from Clarksville)
 - R1. Official record only. Every fact on a page or in an email links to its official source document.
@@ -57,8 +57,8 @@ official record only, what their own governments will take up next, and tells th
   shared host (for example `webapi.legistar.com`) makes the data stale, never "can't cover" (see AC4.6).
 - R5. No request to a new government's host until Brian types his OK in the thread (one OK can cover a listed batch).
 - R6. No spend, no deploy and no email to real people without Brian (hard stops 1, 3, 4).
-- R7. The address never reaches Daylight Digest. We keep only body IDs, topics, anonymous request counts and, only
-  an email address held by the email provider (only if the person gives one).
+- R7. The address never reaches Daylight Digest. We keep only body IDs, topics, request tags and the email address,
+  held by Buttondown (plus anonymous counts if the optional counter is built).
 - R8. Demand gate: no new hosts are opened past Salem unless real requests name those bodies. The team reviews the
   counts after the January launch (open question 8).
 
@@ -123,14 +123,14 @@ Daylight Digest can and can't show me.
 - AC2.12 Whether a Census unit is a working government comes from the Census status flag plus a hand-kept table for
   the states the flag gets wrong; a unit not known either way is left off, with the AC2.9 line covering it.
 
-### US3. Choosing bodies and topics for a personal digest (M4, only if Brian chooses national email)
+### US3. Choosing bodies and topics for a personal digest (M4)
 As a resident, I want to pick the bodies and topics I care about, so that my email holds only what I want.
 - AC3.1 Only Covered bodies whose coming-up record is in an email have a tick box. Others have none.
 - AC3.2 Topics are a fixed list, the same for every body (default: Zoning and land use, Budget and taxes, Contracts
   and purchases, Appointments) plus "Everything", which is ticked by default.
 - AC3.3 A topic matches an agenda item by a fixed word list applied to the verbatim item text, identical for every
   body, published on the Method page. No AI decides a topic. QA checks 20 sampled items against the word list.
-- AC3.4 Sign-up posts only the email, body IDs and topic choices to the email provider. No address, district or
+- AC3.4 Sign-up posts only the email, body IDs and topic choices to Buttondown, as tags. No address, district or
   location text is posted (network log check).
 - AC3.5 Sign-up is double opt-in: nothing is sent except the confirmation email until the person confirms.
 - AC3.6 A person can change bodies or topics by signing up again with the same email, and unsubscribe in one click
@@ -166,18 +166,19 @@ As a resident, I want to see what a body will take up next, in its own words, so
   app, the email and the per-body feeds read the same feed).
 
 ### US5. Request it (M1)
-As a resident whose body isn't covered, I want to ask for it with no sign-up, so that the team knows it is wanted.
-- AC5.1 "Request it" sends only the body ID to an anonymous per-body counter. No address, email, name or device ID is
-  sent (network log check). The architect picks the mechanism; it needs no server we run and no new account.
-- AC5.2 After a tap, the button shows as done on that device (only the body ID is kept on the device), and a second
-  tap on the same device does not count again.
-- AC5.3 The confirmation is one fixed label that says honestly what happens next, for example: "Thanks. We counted
-  your request. We open a body only after real requests, one at a time. We may never reach yours." It never
-  promises a date and never says we will email.
-- AC5.4 The team can read the count per body. Counts are not shown publicly (open question 5).
-- AC5.5 A person can request any number of bodies, and no request needs an account.
-- AC5.6 "Email me when it opens" is offered as an optional extra next to the counter (double opt-in, a tag naming the
-  body ID). The confirmation is honest: we may never open this body.
+As a resident whose body isn't covered, I want to ask for it and be told if it opens, so that I don't have to check.
+- AC5.1 "Request it" asks for an email only, then double opt-in. The request is stored at Buttondown as a tag naming
+  the body ID. No address, name or location text is sent (network log check). No account is needed.
+- AC5.2 The confirmation is one fixed label that says honestly what happens next, for example: "Thanks. We'll email
+  you once if we open it. We open a body only after real requests, one at a time, and we may never reach yours." It
+  never promises a date.
+- AC5.3 A requester gets only the confirmation email and, if the body opens, one "it's open" email sent after Brian
+  OKs that send. They never get the morning note or the weekly note unless they sign up for it.
+- AC5.4 The team can see confirmed requests per body (an internal report, kept out of the repo, with no emails in
+  it). Counts are not shown publicly (open question 5).
+- AC5.5 A person can request any number of bodies; a repeat request for the same body adds no second count.
+- AC5.6 Optional, the architect's call: a one-tap anonymous counter for people who won't give an email. It sends only
+  the body ID (no address, email or device ID) and needs no server we run and no new account.
 
 ### US6. The "post your records readably" letter (M3)
 As a resident whose body can't be covered because of how it posts records, I want a ready letter to its office, so
@@ -199,39 +200,40 @@ that I can ask them to post records anyone can read.
 - AC6.6 The filled letter body is under 1,800 characters so the mail link works in common mail apps.
 - AC6.7 Daylight Digest sends nothing, records nothing about the letter (no click count, no copy), and says so.
 
-### US7. The weekly email note (M4, only if Brian chooses national email)
+### US7. The weekly email note (M4)
 As a subscriber, I want one email a week with what's coming up for my bodies and topics, so that I don't have to check.
 - AC7.1 Each subscriber gets at most one Daylight Digest email a week, on one fixed day, covering every body they
-  ticked, each body in its own section. The architect confirms the send method works at our volume on the plan Brian
-  approves; if it doesn't, US11 is the fallback.
+  ticked, each body in its own section. The architect confirms the send method works at our volume; if one send with
+  per-subscriber sections breaks, the architect proposes another send shape with the same result for the reader.
 - AC7.2 Each section lists that body's meetings in the next 14 days, with the matching agenda items verbatim and a
   link to each official document, filtered by the person's topics.
 - AC7.3 A body with nothing coming up says "No meetings posted for the next two weeks." A body whose source was not
   checked in the last 7 days says "We couldn't check this body this week." and links its official site.
 - AC7.4 No votes, no AI text, no text about named officials (same checks as AC4.5 and AC4.8).
-- AC7.5 Footer: one-click unsubscribe, the LLC's business postal address (Brian approves the wording),
-  "Daylight Digest is not a government service", and the privacy link.
+- AC7.5 Footer: one-click unsubscribe, the LLC's business postal address (Brian provides it and approves the wording
+  before the first national send), "Daylight Digest is not a government service", and the privacy link.
 - AC7.6 Brian approves a sample email before the first send to real people (hard stop).
 - AC7.7 Clarksville morning note subscribers are not moved or changed (US8).
 
 ### US8. Clarksville stays the full Daylight (every milestone)
 As a Clarksville or Montgomery County resident, I want everything I have today to keep working.
 - AC8.1 Every existing Daylight page, URL, feed and the morning note work as before; the existing test suite passes.
+  A morning note sent after national sign-ups and requests exist has the same recipients and content rules as before.
 - AC8.2 The front page stays Clarksville's until Brian decides otherwise. The national address page is a new page,
   linked from it.
 - AC8.3 Clarksville City Council and Montgomery County Commission in the national list link to both their coming-up
   pages and their full Daylight pages.
 
 ### US9. Privacy lines (M1)
-As a resident, I want to know what happens to my address before I type it.
+As a resident, I want to know what happens to my address and email before I type them.
 - AC9.1 The address page shows, before submit, a plain sentence first: "We never get your address and never sell
   anything." Then the detail: "Your address goes from your browser straight to the US Census Bureau to find your
   area. Daylight Digest never sees or keeps it." (Final wording from the ux-designer; the facts stay.)
-- AC9.2 Any email sign-up (M4 or US5 extra) says we keep only the bodies and topics picked and names the provider
-  that holds the email, linking its privacy policy.
-- AC9.3 The Method page states the same and lists exactly what is stored and where, including the request counter.
+- AC9.2 Every email form (US5 request, US3 sign-up) says we keep only the bodies and topics picked and that the email
+  is held by Buttondown, linking its privacy policy.
+- AC9.3 The Method page states the same and lists exactly what is stored and where, including request tags.
 
-### US11. Per-body calendar and RSS feeds (M4 no-email path, only if Brian chooses no national email)
+### US11. Per-body calendar and RSS feeds (M4)
 As a resident, I want to follow a covered body in my own calendar or feed reader, so that I get updates with no email.
 - AC11.1 Each coming-up page links a calendar feed (meetings) and an RSS feed (meetings and agenda items), built from
   the AC4.11 JSON feed, with the same verbatim text and official links.
@@ -252,11 +254,12 @@ whether to use it.
 ## Milestones
 - **M1: demand capture and a thin slice on real data, no new collection.** "What we cover" (US12) and address lookup
   (US1) → body list with honest statuses (US2), Clarksville City Council and Montgomery County Commission Covered
-  (already collected, real) and CMCSS Can't cover → "Request it" counter (US5) → coming-up pages for the two covered
+  (already collected, real) and CMCSS Can't cover → "Request it" by email (US5) → coming-up pages for the two covered
   bodies (US4) → who-runs-it and privacy lines (AC1.9, US9) → Clarksville unchanged (US8). Every other body in the
   country reads Not covered yet. Done when Brian enters a Clarksville address and an out-of-state address on his
-  phone, sees the right list, opens a real coming-up page, taps Request it on a team test body and sees the count go
-  up. Putting it live needs Brian's OK (hard stop 1).
+  phone, sees the right list, opens a real coming-up page, requests a body with a team address, confirms, and the
+  request shows in the internal report. Putting it live needs Brian's OK (hard stop 1). Dependency, not a blocker:
+  Brian upgrades Buttondown when capacity is needed.
 - **M2: Legistar wave 1, one body first.** The architect's "national collector" design comes first (per-client block
   state on the shared host, token-required and API-not-enabled as body states, its own workflow and request budget).
   Then Salem City Council (Legistar reader from PR #62). Needs Brian's typed OK before any request to a new host (R5);
@@ -264,24 +267,24 @@ whether to use it.
   and "API not enabled" are shown as Can't cover. Terms check before the first request. Past Salem, R8 applies.
 - **M3: the letter** (US6), only for bodies with real requests. Brian approves the letter wording before it goes live.
 - **M4: national weekly email** (US7, US3) plus the per-body calendar and RSS feeds (US11). Brian upgrades Buttondown
-  when capacity is needed, and approves a sample and the first send (hard stop).
+  when capacity is needed, provides the postal address, and approves a sample and the first send (hard stop).
 - **M5: more platforms**, ordered by request counts: eScribe, CivicClerk, Municode, and BoardDocs placed per open
   question 9. Each new platform: terms check, Brian's OK per host, R8 applies.
 
 ## Later (not scheduled)
 iPhone app on the same feeds (after the website is complete, per Non-goals, and a lessons-learned list is written);
-"email me when it opens" (US5 AC5.6) and "agenda just posted" alerts (open question 10); wards or council districts
-per city where the city publishes a map; keyword or street alerts; votes for tier B bodies once checked against their
-minutes; graduating a city to full Daylight when demand earns it; committees and boards beyond the main elected
-body; AI topic tags (a spend, never about officials); public request counts; special districts; Spanish; Android.
+"agenda just posted" email alerts (open question 10); wards or council districts per city where the city publishes a
+map; keyword or street alerts; votes for tier B bodies once checked against their minutes; graduating a city to full
+Daylight when demand earns it; committees and boards beyond the main elected body; AI topic tags (a spend, never
+about officials); public request counts; special districts; Spanish; Android.
 
 ## Success metrics
 - 0 known wrong facts shown; 100% of shown items have a working official link (automated link check).
 - 0 requests carrying any part of an address to a non-Census host (AC1.2, run on every release).
 - 0 requests to hosts without Brian's OK; 0 robots or block violations (test-enforced, as today).
 - 0 draft agenda items shown (AC4.2 fixture test, every release).
-- From M1 live: requests per body, and lookups that end in at least one request (GoatCounter page counts and the
-  counter), used to pick what opens next. No sign-up targets before January 2027.
+- From M1 live: confirmed requests per body, and lookups that end in at least one request (GoatCounter page counts
+  and the request report), used to pick what opens next. No sign-up targets before January 2027.
 
 ## Assumptions
 - A1. Primary user is anyone in the US (verified: Brian, 2026-11-18).
@@ -293,12 +296,12 @@ body; AI topic tags (a spend, never about officials); public request counts; spe
   most states, but not in Connecticut, Rhode Island, parts of Massachusetts, and New England and New York towns
   (Brain Trust operator, 2026-11-19; unverified: architect checks and builds the hand table in AC2.12).
 - A5. Buttondown's free form accepts several tags on a new address and makes new tags on the fly (verified,
-  2026-11-18 live test). That does not prove tag-filtered sends are free: its pricing page lists "Tagging &
-  segmentation +$9/month" (Brain Trust, 2026-11-19; to re-check on the real account before M4).
-- A6. Buttondown's free plan caps at 100 subscribers (pricing page, per Brain Trust 2026-11-19), and Brian is on the
-  free plan and will not pay (platform-facts, 2026-11-16). So any national email needs Brian's new decision.
-- A7. The anonymous counter can be built with no server we run and no new account (unverified: architect picks the
-  mechanism; if none fits, the architect brings options to the manager before building).
+  2026-11-18 live test). Its pricing page lists tag segmentation as a paid add-on; that is covered by A6.
+- A6. Email capacity and plan features are not a constraint: "i'll upgrade to get more outgoing mail capacity if its
+  determined we need it. assume that is not an issue" (Brian, 2026-11-18 11:32 PM CT). The upgrade itself is Brian's
+  action; the manager sends him one card when the team finds it is needed.
+- A7. Requesters and national subscribers can share Buttondown with the morning note without changing who gets the
+  morning note (unverified: architect picks the mechanism, for example a separate list or tag filters).
 - A8. Clarksville City Council and County Commission upcoming agenda items are already read verbatim (county verified:
   142 items read, 2026-11-10; city item level unverified: architect checks).
 - A9. Legistar has no public client list; "token required" and "API not enabled" are real per-body states (verified:
@@ -309,30 +312,31 @@ body; AI topic tags (a spend, never about officials); public request counts; spe
 - A11. Code starts after Clarksville's data cutover (ADR 0011) (verified: Brian, 2026-11-19).
 - A12. If the morning note is not live when M1 goes live, the Covered bodies' sign-up link is hidden until it is.
 - A13. One body per government in M1 to M4: the main elected board (council, commission, school board, select board).
-- A14. Request counts are a signal, not a vote: they are anonymous and can be inflated. Brian's OK per host still
-  decides every opening.
+- A14. Requests are a signal, not a vote. Confirmed email requests are the count that matters; anonymous counts, if
+  built, are shown separately. Brian's OK per host still decides every opening.
 
 ## Open questions (recommended answers are the defaults)
 1. Front door: does the national address page replace Clarksville's front page? **Default: no. New page, linked from
    the front page; Brian decides the swap at the January launch.**
-2. Does the weekly note include Clarksville bodies? (Only if national email is chosen.) **Default: yes, if ticked. The
-   daily morning note stays a separate, unchanged opt-in.**
-3. Weekly send day? (Only if national email is chosen.) **Default: Monday, early morning Central time.**
-4. When does a body open, or get the letter? **Default: on a supported platform, 3 or more requests, then Brian's
-   typed OK.**
+2. Does the weekly note include Clarksville bodies? **Default: yes, if ticked. The daily morning note stays a
+   separate, unchanged opt-in.**
+3. Weekly send day? **Default: Monday, early morning Central time.**
+4. When does a body open, or get the letter? **Default: on a supported platform, 3 or more confirmed requests, then
+   Brian's typed OK.**
 5. Show request counts publicly? **Default: no, internal only.**
-6. Email when nothing is coming up? (Only if national email is chosen.) **Default: send it with the "No meetings
-   posted" line, so silence never looks like a fault.**
+6. Email when nothing is coming up? **Default: send it with the "No meetings posted" line, so silence never looks
+   like a fault.**
 7. Wave 1 batch size after Salem? **Default: up to 10 Legistar bodies, chosen by requests, in one OK card.**
 8. Demand review after launch: what count keeps national collection going? **Default: review 6 weeks after the
-   January launch; if fewer than 25 requests name bodies on supported platforms, M2 widening and M5 are shelved and
-   the manager brings it to Brian.**
+   January launch; if fewer than 25 confirmed requests name bodies on supported platforms, M2 widening and M5 are
+   shelved and the manager brings it to Brian.**
 9. Where does BoardDocs (most school boards) sit in the platform order? **Default: architect checks its terms and
    whether it has a public feed during M2; it is then ranked with the others by request counts after January.**
 10. "Agenda just posted" alerts, which panelists wanted over a weekly note? **Default: the RSS feed (AC11.2) gives
     this from M4; email alerts when an agenda posts are Later.**
 11. Email capacity: **decided (Brian, 2026-11-18 11:32 PM CT): "i'll upgrade to get more outgoing mail capacity if
-    its determined we need it. assume that is not an issue."** Not a design constraint.
+    its determined we need it. assume that is not an issue."** Not a design constraint. Postal address: the LLC's
+    business address, provided and approved by Brian before the first national send.
 
 ## Risks
 - **Thin coverage where people care most** (school boards, townships, small towns with scanned PDFs). Mitigation:
@@ -341,6 +345,8 @@ body; AI topic tags (a spend, never about officials); public request counts; spe
   is the one-address, all-governments view, the official record only and honesty about coverage.
 - **Email limits** (send size with many per-subscriber sections, 100 API sign-ups a day). Mitigation: architect's
   send design; Brian upgrades when capacity is needed.
+- **National email touching the morning note.** Mitigation: AC5.3, AC8.1, A7.
+- **Asking for an email lowers requests** (a Focus Group skeptic would give none). Mitigation: AC5.6 optional counter.
 - **Wrong body for an address** (geocoding error, New England, consolidations, annexations lag a year). Mitigation:
   AC2.7, AC2.10 to AC2.12, test addresses; a "check with your local election office" link near the list.
 - **Census lookup outage.** Mitigation: AC1.6; no fallback that would send the address to us.
@@ -356,6 +362,8 @@ body; AI topic tags (a spend, never about officials); public request counts; spe
 Both ran on v1 (c7cb106), 2026-11-19; findings are folded into v2 (decision tables in each report).
 - **Brain Trust, 6 members:** `docs/reviews/brain-trust-daylight-national.md`. No Go (four Fix First, two Rethink).
   Minority view kept: four members argued "don't build national yet"; the chair judged that side stronger on demand,
-  but Brian chose to build, and R8 shelves national if requests stay near zero.
+  but Brian chose to build, and R8 shelves national if requests stay near zero. Superseded by Brian's 2026-11-18
+  answer: the email capacity gate and the anonymous-counter-by-default for requests (email requests are now the main
+  path; the counter is optional).
 - **Focus Group, 5 simulated personas:** `docs/research/focus-group-daylight-national.md`. Results are hypotheses to
   check with real people after the January launch. Not changed: the letter stays optional, in M3.
