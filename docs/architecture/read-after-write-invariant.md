@@ -77,3 +77,13 @@ today). Use fixed constants, not environment variables.
   runs out), with no sleep after the last read. A read that keeps returning a third value fails closed and never passes.
   A failed read (exit 1) then the right value passes.
 - Row 12: a 422 then a 2xx gives exactly one PR. A 502 gives one POST and a stop. A wrong `head.sha` stops.
+
+## Implementation notes (backend-engineer, 2026-11-19)
+- M has no row marked Yes (rows 13 and 14 conform), so it does not carry the helper; C and P do, pinned byte-identical
+  per language by `test_raw_one_helper_text_in_every_script_that_uses_it`.
+- Row 10: P reads `git/ref/heads/main` through the helper until it is `--main <sha>`, then both contents reads use
+  `?ref=<sha>`. A failed read there (404) counts as "not yet": up to 10 reads, 3 s apart; the first read that works is
+  final (the sha never changes). Without `--main` each is read once.
+- Row 4: a POST now reads its new id from the 2xx answer (`--jq '.id'`, rule 6), and the list must then read exactly it.
+- Row 12: a 422 is told apart by gh's stderr line `(HTTP 422)` (sh: a file; ps1: `2>&1` as strings, a PS51_ONLY entry).
+- Row 17: step 2 reads the runs again 30 s after the first read, and both must be 0.
