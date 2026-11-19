@@ -23,3 +23,16 @@ Scope: collector/national/__main__.py (new), collector/national/run.py (`HostNot
 - 662 passed (`pytest tests/test_national_cli.py tests/test_national_*.py -q`); ruff clean on the changed files.
 
 Assumption: the 75 min timeout applies to the whole job, including setup and commit (the workflow is not built yet).
+
+## Delta re-review: 433a905..5dce3f3 (2026-11-19)
+Verdict: **REQUEST CHANGES**.
+- Closed: `national-budget/max-no-margin` (cap 360), `cli-exit/silent-all-failed` (exit 3), `cli-log/argparse-echo` (`allow_abbrev=False`), `cli-test/usage-error-stderr`.
+- Partly closed: `national-budget/no-wall-deadline`. A long Crawl-delay is now bounded, but slow answers are not (finding 1).
+
+| # | Severity | Key | Where | Problem | Fix |
+|---|---|---|---|---|---|
+| 1 | must-fix | national-budget/post-deadline-request | run.py:88-95, :415-417; fetch.py:434-436 | The guard is on `sleep`, which runs only when `gap < delay`. With answers of 10 s or more, the body in flight keeps sending after the deadline: up to 12 x 120 s, more than the 15 min margin. Shown by a probe: 5 requests at 30-90 s against a 20 s deadline. | Check the deadline before every request: a default-off `deadline` hook on PoliteFetcher (checked in `_raw_get` before `_wait`), or a run-scoped `remaining` wrapper. Add a slow-answer test. |
+| 2 | should-fix | national-freshness/deadline-stamp-without-request | run.py:319-327, `_record`/`_kept_feed` | The body whose first wait is refused gets `last_attempt_at` and its kept feed's `checked_at` set although no request was sent. | When no request was sent, return stamp None, as the cap pre-check does. Test it. Second hit in the `national-freshness` family. |
+| 3 | nit | national-budget/frozen-clock-deadline | run.py:393-395 | A `deadline` without `clock` compares against a fixed `now`. | Raise ValueError. |
+
+What held: `sleep` restored on every path (try/finally); no budget used by a refused wait, rest of run `budget-skipped`; failure counts, streaks and `last_ok_at` unchanged for skipped bodies; fetch.py untouched; cap 360; exit-code cases correct; 676 tests passed; ruff clean.
