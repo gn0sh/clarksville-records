@@ -282,8 +282,8 @@ function VerifyAttested([string]$f) {   # the gate's I-prov check (ADR 0011 deci
 }
 
 # ---------------------------------------------------------------------------------------------- git helpers
-function FetchMain {
-    GitRun @('fetch', '--quiet', '--no-tags', 'origin', '+refs/heads/main:refs/cutover/main') | Out-Null
+function FetchMain {   # main's head on origin, fetched now; $null when the fetch failed (never a stale refs/cutover/main)
+    if ((GitRun @('fetch', '--quiet', '--no-tags', 'origin', '+refs/heads/main:refs/cutover/main')).Code -ne 0) { return $null }
     return (GitText @('rev-parse', '--verify', '-q', 'refs/cutover/main^{commit}'))
 }
 function FetchRd {   # records-data's head on origin, '' when there is none, $null when it could not be read
@@ -310,6 +310,26 @@ function Parents([string]$c) {
     return @($head -split "`n" | Where-Object { $_ -match '^parent ' }).Count
 }
 function ListingOf([string]$rev) { $r = GitRun @('ls-tree', '-r', '-z', $rev, '--', 'data'); if ($r.Code -ne 0) { return $null }; return ,$r.Out }
+function GitignoreEdit([string]$rev) {   # the rollback's one .gitignore edit: $rev's .gitignore without its data/
+    # lines, as a written blob sha (the same bytes as the .sh's grep -v); '' when $rev has none; $null on a failed
+    # read. The open path writes it into R, the merge path checks R holds it (L1)
+    $gi = GitText @('rev-parse', '--verify', '-q', "${rev}:.gitignore")
+    if (-not $gi) { return '' }
+    $r = GitRun @('cat-file', 'blob', $gi)
+    if ($r.Code -ne 0) { return $null }
+    $text = $latin1.GetString($r.Out)
+    $lines = @()
+    if ($text.Length -gt 0) {
+        $lines = @($text -split "`n")
+        if ($text.EndsWith("`n")) { $lines = @($lines | Select-Object -First ($lines.Count - 1)) }
+    }
+    $kept = @($lines | Where-Object { $_.TrimEnd("`r") -cnotmatch '^/?data/?(\*\*?)?\s*$' })
+    $out = (@($kept | ForEach-Object { $_ + "`n" })) -join ''
+    $hr = GitRun @('hash-object', '-w', '--stdin') $latin1.GetBytes($out)
+    $nb = ($utf8.GetString($hr.Out)).Trim()
+    if ($hr.Code -ne 0 -or $nb -cnotmatch '^[0-9a-f]{40}$') { return $null }
+    return $nb
+}
 
 $script:seedTree = ''; $script:seedDigest = ''; $script:nSeed = 0; $script:nLeft = 0; $script:listing = $null
 function BuildSeed([string]$mainRev, [string]$cfgRev, [switch]$Quiet) {
@@ -464,12 +484,13 @@ function Canon($v) {
     if ($v -is [System.Collections.IEnumerable]) { return '[' + (@(foreach ($x in $v) { Canon $x }) -join ',') + ']' }
     return [string]$v
 }
-function PutR1p {   # PUT scripts\main-ruleset-r1p.json (whitelisted) into main's ruleset, read it back
+function PutR1p {   # PUT main's scripts/main-ruleset-r1p.json (read at rollback step 1; whitelisted), read it back
     $ids = @(gh api --paginate "repos/$repo/rulesets?per_page=100" --jq '.[] | select(.name == $ENV.CO_RULESET) | .id')
     if ($LASTEXITCODE -ne 0) { Write-Host 'Could not list the rulesets.'; return $false }
     if ($ids.Count -ne 1 -or $ids[0] -notmatch '^[0-9]+$') { Write-Host "Expected exactly one ruleset named '$($env:CO_RULESET)', got: $($ids -join ',')"; return $false }
     $id = $ids[0]
-    try { $want = [IO.File]::ReadAllText($r1p, $utf8) | ConvertFrom-Json } catch { Write-Host 'Could not read scripts/main-ruleset-r1p.json.'; return $false }
+    $want = $script:r1pWant   # main's, read at rollback step 1 (L2)
+    if ($null -eq $want) { Write-Host 'Could not read scripts/main-ruleset-r1p.json.'; return $false }
     $path = Join-Path $work 'r1p.json'
     $json = ConvertTo-Json -InputObject (Wl $want) -Depth 20 -Compress
     [IO.File]::WriteAllText($path, $json, $utf8)
@@ -634,13 +655,17 @@ if ($CheckAttested) {
 # ---------------------------------------------------------------------------------------------- -Rollback
 if ($Rollback) {
     NeedGh
-    if (-not (Test-Path -LiteralPath $r1p)) { Refuse 'scripts/main-ruleset-r1p.json is missing' }
     $script:step = 1
     Write-Host "Rollback step 1 ($(Utc)): refusals."
     if (VarSet 'MORNING_NOTE_SEND') { Refuse "MORNING_NOTE_SEND is set, or the variables could not be read (counts as set): Brian deletes it first (Settings > Secrets and variables > Actions > Variables), because R2 on reopens the bot path (F4)" }
     if (VarSet 'MAIN_PR_BASELINE') { Refuse 'the variable MAIN_PR_BASELINE is set, or the variables could not be read (counts as set): Brian deletes it first (F4)' }
     $m = FetchMain
     if (-not $m) { Refuse 'could not fetch main from origin' }
+    # L2 data-off-main/rollback-checkout-unpinned: R1' is main $m's scripts/main-ruleset-r1p.json, never this checkout's
+    $rr = GitRun @('cat-file', 'blob', "${m}:scripts/main-ruleset-r1p.json")
+    $script:r1pWant = $null
+    if ($rr.Code -eq 0) { try { $script:r1pWant = $utf8.GetString($rr.Out) | ConvertFrom-Json } catch { $script:r1pWant = $null } }
+    if ($null -eq $script:r1pWant -or $script:r1pWant -is [Array] -or $null -eq $script:r1pWant.rules) { Refuse "main $m holds no readable scripts/main-ruleset-r1p.json (R1' is read from main)" }
     # The path is chosen by where the cutover merge is (main-protect/r2-on-without-codeowners), never by whether main
     # tracks data/. Every path checks, before any change, the commit R2 will come on over.
     if ($Merge) {
@@ -675,6 +700,17 @@ if ($Rollback) {
         $rp = GitText @('rev-parse', '--verify', '-q', "$Sha^1")
         if (-not $rp) { Refuse "could not read the restore PR's parent" }
         if ((Parents $Sha) -ne 1 -or -not (OnMainLine $rp $m)) { Refuse "the restore PR #$Merge's parent $rp is not on main's first-parent line (N1: R must be one commit on main, as --rollback --cutover-merge opens it; -CutoverMerge)" }
+        # L1 data-off-main/rollback-r-scope-unchecked: against its parent, R changes only data/, the workflow, CODEOWNERS
+        # and .gitignore (plumbing, no rename detection, NUL-separated), and its .gitignore is the open path's edit
+        $sc = GitRun @('diff-tree', '-r', '--no-renames', '--name-only', '-z', $rp, $Sha)
+        if ($sc.Code -ne 0) { Refuse "could not list the restore PR's changes" }
+        $beyond = @(Records $sc.Out | Where-Object { -not ($_.StartsWith('data/', [StringComparison]::Ordinal) -or $_ -ceq ".github/workflows/$wfname" -or $_ -ceq '.github/CODEOWNERS' -or $_ -ceq '.gitignore') })
+        if ($beyond.Count -gt 0) { Refuse (Shown "the restore PR #$Merge changes files beyond data/, the workflow, .github/CODEOWNERS and .gitignore: $($beyond -join ' ') (L1)") }
+        $wantGi = GitignoreEdit $rp
+        if ($null -eq $wantGi) { Refuse "could not read the .gitignore of the restore PR's parent $rp" }
+        $haveGi = GitText @('rev-parse', '--verify', '-q', "${Sha}:.gitignore")
+        if (-not $haveGi) { $haveGi = '' }
+        if ($wantGi -cne $haveGi) { Refuse "the restore PR #$Merge's .gitignore (blob '$haveGi') is not its parent's without the data/ lines (blob '$wantGi'; L1)" }
         Write-Host "Restore PR #$Merge at $Sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE; its data/ is $srcOk."
         Write-Host "Its workflow and .github/CODEOWNERS are those before the cutover merge $CutoverMerge; its parent $rp is on main."
     } elseif ($CutoverMerge -cmatch '^[0-9a-f]{40}$' -and (OnMainLine $CutoverMerge $m)) {
@@ -745,14 +781,9 @@ if ($Rollback) {
             if (-not $b) { Fail "could not restore $f" }
             if ((GitRun @('update-index', '--add', '--cacheinfo', "100644,$b,$f") $null $idx).Code -ne 0) { Fail "could not restore $f" }
         }
-        $gi = GitText @('rev-parse', '--verify', '-q', "${m}:.gitignore")
-        if ($gi) {
-            $text = $latin1.GetString((GitRun @('cat-file', 'blob', $gi)).Out)
-            $kept = @($text -split "`n" | Where-Object { $_.TrimEnd("`r") -cnotmatch '^/?data/?(\*\*?)?\s*$' })
-            $hr = GitRun @('hash-object', '-w', '--stdin') $latin1.GetBytes(($kept -join "`n"))
-            $nb = ($utf8.GetString($hr.Out)).Trim()
-            if ($hr.Code -ne 0 -or (GitRun @('update-index', '--cacheinfo', "100644,$nb,.gitignore") $null $idx).Code -ne 0) { Fail 'could not edit .gitignore' }
-        }
+        $nb = GitignoreEdit $m
+        if ($null -eq $nb) { Fail 'could not edit .gitignore' }
+        if ($nb -and (GitRun @('update-index', '--cacheinfo', "100644,$nb,.gitignore") $null $idx).Code -ne 0) { Fail 'could not edit .gitignore' }
         $t = GitText @('write-tree') $idx
         if (-not $t) { Fail 'could not write the restore tree' }
         $msg = "Roll back ADR 0011's cutover: data/ on main from records-data $src`n`ndata/ from records-data $src ($srcOk); .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $CutoverMerge;`ndata/ out of .gitignore. Every config/ input and its readers stay as the cutover PR left them."
