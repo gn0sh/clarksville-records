@@ -71,6 +71,9 @@ function Utc { return (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss
 function Usage {
     Write-Host 'Usage: .\scripts\u3-toggle.ps1 -Pr <P> [-Merge -Report <review report> | -Rehearse] | -Restore [-From <backup json>] | -Noop | -ShowBody <json>'
 }
+# data-off-main/ps-unknown-args: an argument that matches no parameter stops here, before anything runs. (Not
+# [CmdletBinding()]: in an advanced script the exit code set in the window's finally block is lost after Ctrl+C.)
+if ($args.Count -gt 0) { Write-Host "Unknown argument(s): $($args -join ' '). Nothing was changed."; Usage; exit 1 }
 
 # The one whitelist: every PUT body and every comparison goes through it (order made canonical: rules by type).
 function Wl($o) {
@@ -356,7 +359,7 @@ function RunWindow {
     }
     if ((PutVerify (ReadJsonFile $r1pp)) -cne 'ok') { $script:why = "R1'' did not read back as written; the window closed at once"; return }
     $opened = Utc
-    $deadline = [DateTime]::UtcNow.AddMinutes(20)   # main-protect/u3-window-bound: rule-suite reads included
+    $deadline = (Get-Date).ToUniversalTime().AddMinutes(20)   # main-protect/u3-window-bound: rule-suite reads included
     $env:U3_OPENED = $opened
     Write-Host "U3 WINDOW OPEN $opened BACKUP $($script:backup)"
     Write-Host "If this window ever closes without a RESTORED line: gh api -X PUT repos/$repo/rulesets/$rid --input '$($script:backup)'"
@@ -380,7 +383,7 @@ function RunWindow {
         Write-Host 'Waiting for main to move (checked every 15 s, up to 20 minutes). Now type U3 go in the team thread.'
         $moved = $false; $fails = 0; $refused = ''
         for ($i = 1; $i -le 80; $i++) {
-            if ([DateTime]::UtcNow -ge $deadline) { break }
+            if ((Get-Date).ToUniversalTime() -ge $deadline) { break }
             Start-Sleep -Seconds 15
             $cur = ReadMain
             if (-not $cur) {
@@ -414,7 +417,7 @@ function RunWindow {
     for ($i = 1; $i -le 8; $i++) {
         $ids = @(gh api "repos/$repo/rulesets/rule-suites?ref=main&time_period=hour&per_page=100" --jq '.[] | select(.after_sha == $ENV.U3_AFTER) | .id' 2> $null)
         if ($LASTEXITCODE -eq 0 -and $ids.Count -ge 1 -and [string]$ids[0] -match '^[0-9]+$') { $script:suiteId = [string]$ids[0]; break }
-        if ([DateTime]::UtcNow -ge $deadline) { break }
+        if ((Get-Date).ToUniversalTime() -ge $deadline) { break }
         if ($i -lt 8) { Start-Sleep -Seconds 15 }
     }
     if (-not $script:suiteId) { $script:why = "PR #$Pr merged by $owner as $mergeSha, but no rule suite listed it within the window"; return }
@@ -462,9 +465,16 @@ function CloseWindow {
     Write-Host "U3 VERDICT $($script:verdict) rule-suite ${shownSuite}: $($script:detail)"
     if (-not $script:restored) { $script:code = 3 } elseif ($script:verdict -ceq 'PASS') { $script:code = 0 } else { $script:code = 2 }
 }
+# data-off-main/ps-ctrlc-exit-code: after Ctrl+C PowerShell runs this finally block and then skips everything after
+# it, so the exit code is set inside it (else the run exits 0, even after RESTORE FAILED)
+$script:ran = $false
 try {
     RunWindow
+    $script:ran = $true
 } finally {
-    if ($script:armed) { CloseWindow }
+    if ($script:armed) {
+        if (-not $script:ran -and -not $script:why) { $script:why = 'interrupted (Ctrl+C, a stop signal or an error)' }
+        CloseWindow
+    }
+    exit $script:code
 }
-exit $script:code

@@ -83,6 +83,9 @@
 # Exit: 0 done, 1 refused (nothing changed), 2 stopped after a change (see the undo line).
 # Needs: git, GitHub CLI (winget install GitHub.cli) signed in as gn0sh, Python 3 with requirements.txt installed.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
+# named parameters only: an unknown or .sh-style argument stops here, never binds to a parameter by position
+# (data-off-main/ps-unknown-args)
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Pr = '',
     [string]$Sha = '',
@@ -294,6 +297,11 @@ function FetchRd {   # records-data's head on origin, '' when there is none, $nu
     if ($f.Code -ne 0) { return $null }
     return (GitText @('rev-parse', '--verify', '-q', 'refs/cutover/records-data^{commit}'))
 }
+function HasPath([string]$rev, [string]$path) {   # quiet, as the .sh's git cat-file -e 2>/dev/null: git's stderr
+    # is not redirected here, and cat-file -e prints "fatal: path ... does not exist" on every correct rollback
+    # (data-off-main/ps-fatal-noise)
+    return [bool](GitText @('rev-parse', '--verify', '-q', "${rev}:$path"))
+}
 function TracksData([string]$rev) { $t = GitText @('ls-tree', '--name-only', $rev, '--', 'data'); return [bool]$t }
 function OnMainLine([string]$rev, [string]$main) {   # $rev is a commit on main's first-parent line (the gate's own test);
     # every trust root the rollback reads comes from such a commit (docs/architecture/data-off-main-trust-roots.md)
@@ -446,7 +454,7 @@ function WaitRun([string]$id, [int]$minutes) {   # its conclusion once completed
     }
 }
 function Step8Wait {   # minutes step 8 may wait: at most 360, and the wait ends before 09:00 UTC (data-off-main/window-vs-duration)
-    $now = [DateTime]::UtcNow
+    $now = (Get-Date).ToUniversalTime()
     $left = ((540 - ($now.Hour * 60 + $now.Minute) + 1440) % 1440) - 1
     if ($left -lt 1) { $left = 1 }
     if ($left -lt 360) { return $left }
@@ -564,7 +572,7 @@ function DataVerified([string]$file, [string]$seedPin) {   # J2's attestation (I
 }
 function RestoreOk([string]$rev) {   # what R2 on needs there: data/ tracked, .github/CODEOWNERS, one empty MAIN_PR_BASELINE
     if (-not (TracksData $rev)) { $script:why = "$rev tracks no data/"; return $false }
-    if ((GitRun @('cat-file', '-e', "${rev}:.github/CODEOWNERS")).Code -ne 0) { $script:why = "$rev has no .github/CODEOWNERS"; return $false }
+    if (-not (HasPath $rev '.github/CODEOWNERS')) { $script:why = "$rev has no .github/CODEOWNERS"; return $false }
     if (-not (BaselineEmpty $rev)) { $script:why = "${rev}'s workflow sets MAIN_PR_BASELINE, or it is not exactly one empty value (counts as set)"; return $false }
     return $true
 }
@@ -678,7 +686,7 @@ if ($Rollback) {
         # merge, on main's first-parent line, never taken from R alone (R's author controls R)
         if (-not (OnMainLine $CutoverMerge $m)) { Refuse "--cutover-merge $CutoverMerge is not on main's first-parent line (give the merge sha step 5 printed; -CutoverMerge)" }
         if (TracksData $CutoverMerge) { Refuse "$CutoverMerge tracks data/: that is not the cutover merge (give the merge sha step 5 printed)" }
-        if ((GitRun @('cat-file', '-e', "${CutoverMerge}:.github/CODEOWNERS")).Code -eq 0) { Refuse "$CutoverMerge holds .github/CODEOWNERS: that is not the cutover merge (give the merge sha step 5 printed)" }
+        if (HasPath $CutoverMerge '.github/CODEOWNERS') { Refuse "$CutoverMerge holds .github/CODEOWNERS: that is not the cutover merge (give the merge sha step 5 printed)" }
         $before = GitText @('rev-parse', '--verify', '-q', "$CutoverMerge^1")
         if (-not $before) { Refuse "could not read $CutoverMerge's parent" }
         foreach ($f in @(".github/workflows/$wfname", '.github/CODEOWNERS')) {
@@ -710,14 +718,18 @@ if ($Rollback) {
         if ($null -eq $wantGi) { Refuse "could not read the .gitignore of the restore PR's parent $rp" }
         $haveGi = GitText @('rev-parse', '--verify', '-q', "${Sha}:.gitignore")
         if (-not $haveGi) { $haveGi = '' }
-        if ($wantGi -cne $haveGi) { Refuse "the restore PR #$Merge's .gitignore (blob '$haveGi') is not its parent's without the data/ lines (blob '$wantGi'; L1)" }
+        if ($wantGi -cne $haveGi) {
+            $shownHave = $haveGi; if (-not $shownHave) { $shownHave = 'none' }
+            $shownWant = $wantGi; if (-not $shownWant) { $shownWant = 'none' }
+            Refuse "the restore PR #$Merge's .gitignore (blob '$shownHave') is not its parent's without the data/ lines (blob '$shownWant'; L1)"
+        }
         Write-Host "Restore PR #$Merge at $Sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE; its data/ is $srcOk."
         Write-Host "Its workflow and .github/CODEOWNERS are those before the cutover merge $CutoverMerge; its parent $rp is on main."
     } elseif ($CutoverMerge -cmatch '^[0-9a-f]{40}$' -and (OnMainLine $CutoverMerge $m)) {
         $path = 'open'
         # main-protect/rollback-cutover-merge-unverified: the sha must look like the cutover merge itself
         if (TracksData $CutoverMerge) { Refuse "$CutoverMerge tracks data/: that is not the cutover merge (run $me -Rollback -CutoverMerge <sha> with the merge sha step 5 printed)" }
-        if ((GitRun @('cat-file', '-e', "${CutoverMerge}:.github/CODEOWNERS")).Code -eq 0) { Refuse "$CutoverMerge holds .github/CODEOWNERS: that is not the cutover merge (run $me -Rollback -CutoverMerge <sha> with the merge sha step 5 printed)" }
+        if (HasPath $CutoverMerge '.github/CODEOWNERS') { Refuse "$CutoverMerge holds .github/CODEOWNERS: that is not the cutover merge (run $me -Rollback -CutoverMerge <sha> with the merge sha step 5 printed)" }
         $before = GitText @('rev-parse', '--verify', '-q', "$CutoverMerge^1")
         if (-not $before) { Refuse "could not read $CutoverMerge's parent" }
         if (-not (RestoreOk $before)) { Refuse "the commit before the cutover merge $CutoverMerge does not give R2 what it needs: $($script:why) (F4; is $CutoverMerge the cutover merge?)" }
@@ -838,7 +850,7 @@ if (@('claude', 'none') -cnotcontains $Apps) {
     Refuse '--apps must be claude or none: first open https://github.com/settings/installations, click Configure on each App, and note each one that reaches clarksville-records with any Read and write permission; claude only if none of its Administration, Variables, Secrets and Environments permissions is Read and write (ADR 0011 Amendment (b), S1-2; -Apps here; protect-main needs the answer in step 4)'
 }
 Write-Host "Installed Apps with write on this repository, by Brian's hand check at https://github.com/settings/installations: $Apps."
-$hm = [int][DateTime]::UtcNow.ToString('HHmm')
+$hm = [int](Get-Date).ToUniversalTime().ToString('HHmm')
 if ($hm -ge 500 -and $hm -le 1030) {
     Refuse ("it is {0:D4} UTC, inside the daily run's window (05:00-10:30, so steps 7 and 8 end before the 09:07 run); run it later" -f $hm)
 }

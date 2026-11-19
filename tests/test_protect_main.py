@@ -2,8 +2,9 @@
 R2, S1, S2; PR #54 security review findings F1, F2 and settings drift).
 
 The .sh scripts run here against a stub gh (no GitHub call is ever made: the stub is first on PATH and the GitHub
-tokens are removed from the environment); the .ps1 twins (no PowerShell here) are pinned to the same filters, lines
-and refusals text by text."""
+tokens are removed from the environment). With PWSH set, every test that runs a script also runs its .ps1 twin against
+the same stub (tests/pwsh_twin.py); the .ps1 twins are also pinned to the same filters, lines and refusals text by
+text."""
 import json
 import os
 import re
@@ -13,6 +14,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+import pwsh_twin
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
@@ -96,6 +99,43 @@ PRE_WF = (POST_WF.replace("      - name: Check main's history and the records-da
                    "      - name: Open and merge the data pull request\n"))
 
 pytestmark = pytest.mark.skipif(shutil.which("jq") is None, reason="jq is needed by the scripts and the stub")
+TWIN = {"now": "sh"}
+
+
+def pytest_generate_tests(metafunc):
+    """Each test that runs a script (it takes tmp_path) runs once per twin: "sh", and "ps1" when PWSH is set."""
+    if "tmp_path" in metafunc.fixturenames and metafunc.function.__name__ not in _NOT_A_SCRIPT_RUN:
+        metafunc.parametrize("twin", pwsh_twin.TWINS, indirect=True)
+
+
+@pytest.fixture(autouse=True)
+def twin(request):
+    TWIN["now"] = getattr(request, "param", "sh")
+    yield TWIN["now"]
+    TWIN["now"] = "sh"
+
+
+_NOT_A_SCRIPT_RUN = {"test_a_calls_log_that_is_gone_is_an_error_never_no_calls",
+                     "test_a_second_session_with_the_same_basetemp_stops"}
+PS_FLAGS = {"--check": "-Check", "--pre-cutover": "-PreCutover", "--apps": "-Apps"}
+
+
+def _cmd(sh, args):
+    """The command that runs <sh> with the .sh's <args>, or its .ps1 twin with the same ones."""
+    if TWIN["now"] == "sh":
+        return ["bash", str(sh), *args]
+    return pwsh_twin.argv(sh.with_suffix(".ps1"), pwsh_twin.flags(args, PS_FLAGS))
+
+
+def _as_sh(r):
+    """The .ps1's output in the .sh's spelling, so one assertion holds for both: it names files scripts\\x and its
+    parameters -Apps, -PreCutover and -Check. A refusal by PowerShell's own binder (stderr only) is read as stdout."""
+    if TWIN["now"] == "ps1":
+        out = r.stdout.replace("scripts\\", "scripts/")
+        for sh_flag, ps_flag in PS_FLAGS.items():
+            out = re.sub(r"(?<![\w-])%s\b" % re.escape(ps_flag), sh_flag, out)
+        r.stdout = out if out.strip() else r.stderr
+    return r
 
 # ---------------------------------------------------------------------------------------------- the stub gh
 _GH = r'''#!/usr/bin/env python3
@@ -231,6 +271,9 @@ def _env(tmp_path, st, stub=_GH):
     env = {k: v for k, v in os.environ.items() if k not in CLOUD + ("GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN")}
     env.update({"PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(tmp_path / "calls"),
                 "GH_STATE": str(tmp_path / "state.json"), "HOME": str(tmp_path)})
+    if TWIN["now"] == "ps1":
+        pwsh_twin.install(tmp_path, bindir)
+        env = pwsh_twin.env(env)
     return env
 
 
@@ -244,8 +287,8 @@ def _calls(tmp_path):
 
 def _pm(tmp_path, st=None, args=("--apps", "claude"), **env_over):
     env = {**_env(tmp_path, st or _pm_state()), **env_over}
-    r = subprocess.run(["bash", str(PM_SH), *args], env=env, capture_output=True, text=True, timeout=120)
-    return r, _calls(tmp_path)
+    r = subprocess.run(_cmd(PM_SH, args), env=env, capture_output=True, text=True, timeout=120)
+    return _as_sh(r), _calls(tmp_path)
 
 
 def _writes(made):
@@ -467,8 +510,8 @@ def test_protect_main_a_failed_ruleset_put_stops(tmp_path):
 
 
 def _pm_args(tmp_path, args, st):
-    r = subprocess.run(["bash", str(PM_SH), *args], env=_env(tmp_path, st), capture_output=True, text=True, timeout=120)
-    return r, _calls(tmp_path)
+    r = subprocess.run(_cmd(PM_SH, args), env=_env(tmp_path, st), capture_output=True, text=True, timeout=120)
+    return _as_sh(r), _calls(tmp_path)
 
 
 def test_protect_main_check_only_writes_nothing(tmp_path):
@@ -488,7 +531,9 @@ def test_protect_main_refuses_an_unknown_argument(tmp_path):
     for args in (["--force"], ["--apps"], ["--check", "x"]):
         r, made = _pm_args(tmp_path, args, _pm_state())
         usage = "Usage: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <App names>|none]"
-        assert r.returncode == 1 and usage in r.stdout
+        if TWIN["now"] == "ps1":     # data-off-main/ps-unknown-args: named binding only, so PowerShell itself refuses
+            usage = "parameter"
+        assert r.returncode == 1 and usage in r.stdout, r.stdout
         assert made == []
 
 
@@ -635,8 +680,8 @@ sys.stderr.write("stub: unexpected %r\n" % a); sys.exit(9)
 
 def _mr(tmp_path, args, st=None):
     env = _env(tmp_path, st or _mr_state(), stub=_MR_GH)
-    r = subprocess.run(["bash", str(MR_SH), *args], env=env, capture_output=True, text=True, timeout=60)
-    return r, [c for c in _calls(tmp_path) if c[0] == "api"]
+    r = subprocess.run(_cmd(MR_SH, args), env=env, capture_output=True, text=True, timeout=60)
+    return _as_sh(r), [c for c in _calls(tmp_path) if c[0] == "api"]
 
 
 def test_merge_reviewed_reviews_merges_deletes_then_prints_the_bypass_rule_suite(tmp_path):
@@ -677,7 +722,9 @@ def test_merge_reviewed_refuses_without_reviewing_or_merging(tmp_path, pr, says)
                          ids=["short-sha", "upper-sha", "no-report", "bad-pr"])
 def test_merge_reviewed_refuses_bad_arguments(tmp_path, args):
     r, made = _mr(tmp_path, args)
-    assert r.returncode == 1 and ("Nothing done" in r.stdout or "Usage" in r.stdout), r.stdout
+    # the .ps1's report is a mandatory parameter: its binder refuses (a console would prompt for it)
+    said = ("Nothing done", "Usage", "missing mandatory parameters: Reports")
+    assert r.returncode == 1 and any(x in r.stdout for x in said), r.stdout
     assert not any("-X" in c for c in made)
 
 
@@ -761,7 +808,7 @@ def test_protect_main_records_the_hand_confirmed_apps(tmp_path, apps):
 ], ids=["claude-plus-another", "another", "display-name", "empty", "space-joined", "none-and-claude"])
 def test_protect_main_not_ok_for_other_apps(tmp_path, apps, says):
     r, _ = _pm(tmp_path, args=("--apps", apps))
-    _not_ok(r, says)
+    _not_ok(r, says[:-1] if says.endswith("is not one)") else says)   # the .ps1 adds a note on PowerShell's a,b
 
 
 def test_protect_main_an_app_in_a_bypass_list_is_not_ok(tmp_path):
@@ -778,7 +825,7 @@ def test_protect_main_an_app_in_a_bypass_list_is_not_ok(tmp_path):
     r, _ = _pm(sub, st, args=("--check", "--apps", "claude"))
     _not_ok(r, "R1'': ruleset 27502319 does not match scripts/main-ruleset.json")
     assert "R-D: ruleset 5 does not match scripts/records-data-ruleset.json" in r.stdout
-    assert '"actor_type": "Integration"' in r.stdout
+    assert re.search(r'"actor_type": ?"Integration"', r.stdout), r.stdout      # the .sh's jq, the .ps1's compact Canon
 
 
 def test_protect_main_ps1_takes_apps_the_same_way():
