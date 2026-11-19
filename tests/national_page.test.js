@@ -1051,6 +1051,32 @@ test('focus moves exactly once after each result (found, pick, not found, down, 
   assert.strictEqual(p.focusesSince(n).length, 1, 'sent');
 });
 
+test('official link label: official_label county-site shows the labels.yml text; an entry without it keeps the default', () => {
+  const COUNTY_SITE = "Official agenda page (opens the county's site, which posts the school board's agendas)";
+  const officialLink = (page) => {
+    page.submit(ADDRESS);
+    page.answer(PUBLIC_SQ);
+    const school = page.cards()[2];
+    assert.strictEqual(school.getAttribute('data-status'), 'cant-cover');
+    const links = tags(school, 'a').filter((a) => /^Official agenda page/.test(a.textContent));
+    assert.strictEqual(links.length, 1);
+    return links[0];
+  };
+  // the shipped CMCSS entry carries official_label: county-site
+  const real = officialLink(makePage());
+  assert.strictEqual(real.textContent, COUNTY_SITE);
+  assert.ok(!real.textContent.includes("the government's own site"));
+  assert.strictEqual(real.getAttribute('href'), 'https://montgomerytn.gov/code/webshare/commission-committees-agendas.php');
+  // the same entry with no official_label keeps the default label
+  const pd = JSON.parse(BLOCKS.pagedir);
+  assert.strictEqual(pd.govs['sdu-4703030'].official_label, 'county-site');
+  delete pd.govs['sdu-4703030'].official_label;
+  const plain = officialLink(makePage({ pagedir: JSON.stringify(pd) }));
+  assert.strictEqual(plain.textContent, STR['lookup.official']);
+  assert.ok(plain.textContent.includes("the government's own site"));
+  assert.ok(!plain.textContent.includes("county's site"));
+});
+
 // --- source rules -----------------------------------------------------------------------------------------------------
 test('source: the wiring sets text with textContent and links with setAttribute("href") from checked values only', () => {
   const src = fs.readFileSync(path.join(ROOT, 'site', 'static', 'national.js'), 'utf8')
