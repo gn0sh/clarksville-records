@@ -13,6 +13,10 @@ Security findings 4 (`national/url-scheme-untrusted`) and 12 (`national/untruste
   before reading or publishing item text, and the last gate before any feed is written (BindError on a feed that is
   not the entry's; items stripped and counted unless the entry is shown under the feed's `review`).
 
+`host_ok_problem` / `host_ok_valid` (Brian's rule R5, security finding 7, `national/r5-not-enforced`): an entry on any
+platform but daylight is read only with a valid `host_ok: {date, link}` (exactly those keys, a real date, a link
+`allowed_url` keeps). The directory loader and the collector both call it, so the two cannot drift.
+
 Imports only `sitegen.config` (which imports no other sitegen module) and the standard library, so `sitegen.national`
 and the collector (`collector/national/`, M2) both import it without a cycle.
 """
@@ -22,6 +26,7 @@ import copy
 import re
 import unicodedata
 from dataclasses import dataclass, fields
+from datetime import date, datetime
 from urllib.parse import urlsplit
 
 from . import config
@@ -98,6 +103,39 @@ def allowed_url(url, platform: str = "daylight", client: str | None = None) -> s
                                        else set())
         return url if host.lower() in hosts else ""
     return ""
+
+
+HOST_OK_KEYS = frozenset({"date", "link"})
+
+
+def host_ok_problem(host_ok) -> tuple[str, str] | None:
+    """None when `host_ok` is Brian's recorded OK for a third-party host (R5, finding 7): a mapping of exactly `date`
+    (a date, or a YYYY-MM-DD string) and `link` (an https link `allowed_url` keeps). Else (key, problem), the first
+    problem found, in the words the directory loader prints."""
+    if not isinstance(host_ok, dict):
+        return "host_ok", "must be {date, link} (Brian's OK, R5)"
+    extra = sorted(str(k) for k in host_ok if k not in HOST_OK_KEYS)
+    if extra:
+        return extra[0], "unknown key"
+    for k in sorted(HOST_OK_KEYS):
+        if k not in host_ok:
+            return k, "missing"
+    day = host_ok["date"]
+    if isinstance(day, datetime) or not isinstance(day, (date, str)):
+        return "date", "must be a date (YYYY-MM-DD)"
+    if isinstance(day, str):
+        try:
+            date.fromisoformat(day)
+        except ValueError:
+            return "date", "must be a date (YYYY-MM-DD)"
+    if not allowed_url(host_ok["link"]):
+        return "link", "must be an https link"
+    return None
+
+
+def host_ok_valid(host_ok) -> bool:
+    """True when `host_ok` is a valid recorded OK (`host_ok_problem` finds nothing)."""
+    return host_ok_problem(host_ok) is None
 
 
 def link_or_official(url, official_url: str, platform: str = "daylight", client: str | None = None) -> str:

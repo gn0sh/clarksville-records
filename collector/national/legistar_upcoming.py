@@ -41,7 +41,7 @@ from zoneinfo import ZoneInfo
 from sitegen.national import LEGISTAR_FINAL_STATUSES, Directory
 from sitegen.national_clarksville import UPCOMING_SCHEMA, feed_errors
 from sitegen.national_guards import (LEGISTAR_API_HOST, MAX_TEXT, BindCounts, GuardCounts, allowed_url, bind_feed,
-                                     checked_id, clean_feed, clean_text, cut_text, is_shown)
+                                     checked_id, clean_feed, clean_text, cut_text, host_ok_valid, is_shown)
 
 PLATFORM = "legistar"
 API_ROOT = f"https://{LEGISTAR_API_HOST}/v1"
@@ -378,6 +378,8 @@ def read_body(entry: dict, fetcher, now: datetime, cache_root: Path | None = Non
     if not isinstance(entry, dict) or entry.get("status") != "covered" or entry.get("platform") != PLATFORM:
         raise ValueError("read_body takes a covered Legistar directory entry")
     gov = checked_id(entry.get("gov"))
+    if not host_ok_valid(entry.get("host_ok")):          # R5 (finding 7): no request without Brian's OK for the host
+        raise ValueError(f"{gov}: no valid host_ok (Brian's OK, R5): nothing is sent")
     keys = entry[PLATFORM]
     client, body_id, tz = keys["client"], _whole(keys["body_id"]), keys["tz"]
     if body_id is None:

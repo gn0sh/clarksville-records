@@ -31,7 +31,7 @@ import yaml
 from jinja2.utils import htmlsafe_json_dumps
 
 from . import config
-from .national_guards import BAD_TEXT_RE, GEOID_DIGITS, allowed_url, id_layer
+from .national_guards import BAD_TEXT_RE, GEOID_DIGITS, allowed_url, host_ok_problem, id_layer
 
 NATIONAL_DIR = config.CONFIG_DIR / "national"
 DIRECTORY_PATH = NATIONAL_DIR / "directory.yml"
@@ -79,7 +79,6 @@ ENTRY_KEYS = frozenset({"gov", "also", "body_name", "state", "status", "official
                         "checked_doc", "items", "platform", "host_ok", "reason", "reason_url", "official_label"} | set(PLATFORM_KEYS))
 ENTRY_REQUIRED = ("gov", "body_name", "state", "status", "official_url", "checked")
 CANT_COVER_REQUIRED = ("reason", "reason_url", "checked")
-HOST_OK_KEYS = frozenset({"date", "link"})
 
 PATH_RE = re.compile(r"^[a-z0-9][a-z0-9/_.-]*$")            # daylight.full_url and the pagedir `page`
 CLIENT_RE = re.compile(r"^[a-z0-9-]{2,40}$")                 # legistar.client
@@ -408,13 +407,9 @@ def _check_platform(path: Path, where: str, e: dict) -> None:
     host_ok = e.get("host_ok")
     if not isinstance(host_ok, dict):
         _fail(path, where, "host_ok", f"platform {platform!r} needs host_ok: {{date, link}} (Brian's OK, R5)")
-    _unknown(path, f"{where}.host_ok", host_ok, HOST_OK_KEYS)
-    for k in sorted(HOST_OK_KEYS):
-        if k not in host_ok:
-            _fail(path, f"{where}.host_ok", k, "missing")
-    _date(path, f"{where}.host_ok", "date", host_ok["date"])
-    if not allowed_url(host_ok["link"]):
-        _fail(path, f"{where}.host_ok", "link", "must be an https link")
+    problem = host_ok_problem(host_ok)            # the one check the collector repeats (national_guards)
+    if problem:
+        _fail(path, f"{where}.host_ok", *problem)
     if platform == "legistar":
         client = keys["client"]
         if not isinstance(client, str) or not CLIENT_RE.fullmatch(client):

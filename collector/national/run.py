@@ -2,6 +2,10 @@
 decision 6; task C3): every covered Legistar body in budget order, one `read_body` each (C2), never failing the run on
 one body's failure, then the feeds, `health.json` and `proposals.json` of `data/national/`.
 
+- **Host OK first** (Brian's rule R5, security finding 7, `national/r5-not-enforced`): before any fetcher call (even
+  `limit_hosts`) or cache pruning, every entry on a platform other than daylight must hold a valid `host_ok: {date,
+  link}` (`host_ok_valid`, the loader's own check). One without it refuses the whole run (`HostNotApproved`): a
+  directory that got past the loader is a bug, not one body's failure, and no request goes to an unapproved host.
 - **Budget** (ADR 0013 decision 6): the run's request budget on `webapi.legistar.com` goes to the fetcher's
   `limit_hosts`, and at most TENANT_BUDGET requests per tenant to `limit_tenant`. Order: bodies with a meeting in the
   next SOON_DAYS days whose agenda was not final at the last read, then bodies not read longest (never read first). A
@@ -36,7 +40,7 @@ from collector.fetch import (FetchFailed, HostBlocked, HostRefused, ProxyRefused
 from collector.national import legistar_upcoming as lu
 from sitegen.national import Directory
 from sitegen.national_clarksville import feed_errors
-from sitegen.national_guards import allowed_url, bind_feed, checked_id, id_layer
+from sitegen.national_guards import allowed_url, bind_feed, checked_id, host_ok_problem, id_layer
 
 HOST = lu.LEGISTAR_API_HOST
 TENANT_BUDGET = 12               # ADR 0013 decision 6: at most 12 requests per tenant per run
@@ -59,6 +63,10 @@ PROPOSAL_KINDS = ("status", "agenda-status-name")
 INSTANT_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 MAX_URL = 2_000                  # characters of an evidence_url read back
 BODY_FILE_RE = re.compile(r"[a-z]+-[0-9]{5,10}\.json")
+
+
+class HostNotApproved(ValueError):
+    """An entry on a platform other than daylight has no valid `host_ok` (Brian's OK, R5): the run sends nothing."""
 
 
 class RunResult(NamedTuple):
@@ -137,6 +145,22 @@ def _soon_not_final(entry: dict, feed: dict | None, now: datetime) -> bool:
         if today <= day <= today + timedelta(days=SOON_DAYS) and state != lu.FINAL:
             return True
     return False
+
+
+def check_host_ok(directory: Directory) -> None:
+    """HostNotApproved unless every entry whose `platform` is set and is not daylight (any status) holds a valid
+    `host_ok` (R5, finding 7). Called before the run touches the fetcher, the cache or any file."""
+    govs = getattr(directory, "govs", None)
+    if not isinstance(govs, (tuple, list)):
+        raise HostNotApproved("the directory has no entry list: refused before any request (host_ok, R5)")
+    for e in govs:
+        if not isinstance(e, dict) or e.get("platform") in (None, "daylight"):
+            continue
+        problem = host_ok_problem(e.get("host_ok"))
+        if problem:
+            gov = e.get("gov") if id_layer(e.get("gov")) else "(a bad id)"
+            raise HostNotApproved(f"{gov}: platform {str(e.get('platform'))[:40]!r} has no valid host_ok (Brian's OK, "
+                                  f"R5): {problem[0]}: {problem[1]}; the run is refused and sends no request")
 
 
 def budget_order(entries: list[dict], previous_feeds: dict, previous_health: dict, now: datetime) -> list[dict]:
@@ -313,12 +337,14 @@ def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_f
         clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
     """One national collection run over every covered Legistar entry of `directory`. Never raises for one body: any
     exception in a body's read or its bookkeeping is that body's `collector-error` (`national-run/raise-outside-try`).
+    Raises HostNotApproved, before any fetcher call, for an entry with no valid `host_ok` (`check_host_ok`).
 
     `fetcher` is a collector.fetch.PoliteFetcher (public API: get, limit_hosts, limit_tenant, remaining,
     remaining_tenant, robots_unreadable, log, extra_denied). `budget` is the run's request budget on
     webapi.legistar.com. `now` (aware) orders the run; `clock()` stamps each body as its read starts (default: `now`
     for every body). `previous_*` are the last run's outputs (`read_previous`). `cache_root` is
     `data/national/cache`: pruned first (11.1 row 19)."""
+    check_host_ok(directory)                           # R5: before the fetcher, the cache or any file is touched
     stamp_of = clock or (lambda: now)
     _instant(now)
     previous_feeds = previous_feeds if isinstance(previous_feeds, dict) else {}
@@ -456,7 +482,8 @@ def write_outputs(data_root: Path, result: RunResult) -> None:
 def collect(data_root: Path, directory: Directory, fetcher, budget: int, now: datetime, *,
             clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
     """check_data_root -> read_previous -> run (cache `data_root/cache`, pruned first) -> write_outputs. The directory
-    is never written."""
+    is never written. A directory `check_host_ok` refuses raises before anything is read or written."""
+    check_host_ok(directory)
     root = check_data_root(data_root)
     feeds, health, proposals = read_previous(root)
     result = run(directory, fetcher, budget, now, previous_feeds=feeds, previous_health=health,

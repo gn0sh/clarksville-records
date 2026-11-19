@@ -9,11 +9,13 @@ import html as html_mod
 import json
 import os
 import re
+import shutil
 from datetime import date, datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
+import yaml
 
 from sitegen import build as build_mod, config, county_agendas
 from sitegen import national as nat
@@ -694,6 +696,49 @@ def test_a_covered_entry_without_a_feed_stops_the_build(loaded):
         npg.build_feeds(nat.Directory(govs=tuple(g for g in directory.govs if g["gov"] != COUNTY_ID)
                                       + (dict(directory.get(COUNTY_ID), platform="legistar"),), alias={}),
                         {"city": ({}, [])}, None, date(2026, 11, 19))
+
+
+SALEM_LEGISTAR = {"gov": "place-4164900", "body_name": "Salem City Council", "state": "OR", "status": "covered",
+                  "official_url": "https://salem.legistar.com/Calendar.aspx", "checked": "2026-12-01",
+                  "items": "withheld", "platform": "legistar",
+                  "legistar": {"client": "salem", "body_id": 138, "tz": "America/Los_Angeles"},
+                  "host_ok": {"date": "2026-12-01", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}}
+
+
+def _folder_with(tmp_path, entry) -> Path:
+    """A copy of config/national/ whose directory.yml also lists `entry` (YAML appended, the file's comments kept)."""
+    folder = tmp_path / "national"
+    shutil.copytree(nat.NATIONAL_DIR, folder)
+    p = folder / "directory.yml"
+    doc = yaml.safe_load(p.read_text(encoding="utf-8"))
+    doc["govs"].append(entry)
+    p.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    return folder
+
+
+@pytest.mark.parametrize("host_ok", [..., {"date": "2026-12-01"}, {"date": "soon", "link": "https://example.org/ok"},
+                                     {"date": "2026-12-01", "link": "http://example.org/ok"}],
+                         ids=["missing", "no-link", "bad-date", "http-link"])
+def test_the_build_refuses_a_legistar_entry_without_host_ok_and_writes_nothing(tmp_path, host_ok):
+    """national/r5-not-enforced (finding 7, task D3): the build's one call stops on a non-daylight entry with no valid
+    `host_ok: {date, link}`, before any digest file is written."""
+    entry = dict(SALEM_LEGISTAR)
+    if host_ok is ...:
+        del entry["host_ok"]
+    else:
+        entry["host_ok"] = host_ok
+    folder = _folder_with(tmp_path, entry)
+    out = tmp_path / "site"
+    out.mkdir()
+    with pytest.raises(npg.NationalBuildError, match="host_ok"):
+        npg.run(out, build_mod.make_env(), _SITE_CTX(), councils={"city": ({}, [])}, county_agendas=None,
+                built_day=date(2026, 11, 19), counter=None, fixture=True, folder=folder)
+    assert list(out.rglob("*")) == []
+
+
+def test_the_same_legistar_entry_with_host_ok_passes_the_builds_loader(tmp_path):
+    directory, _f, _l = nat.load_all(_folder_with(tmp_path, SALEM_LEGISTAR))     # the control for the test above
+    assert directory.get("place-4164900")["host_ok"]["link"].startswith("https://")
 
 
 @pytest.mark.parametrize("moved,slot", [(True, "CITY OR TOWN"), (False, "TOWNSHIP OR TOWN")])

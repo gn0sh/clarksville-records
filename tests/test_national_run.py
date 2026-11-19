@@ -521,3 +521,91 @@ def test_previous_proposals_are_rechecked_on_read_back(tmp_path, monkeypatch):
     r = nr.run(d, fetcher(Net(fail={"aa": (500, b"")})), 100, NOW, previous_proposals=previous)
     assert [(p["kind"], p["observed"]) for p in r.proposals] == [("agenda-status-name", "Pending Clerk Review"),
                                                                 ("status", "api-not-enabled")]
+
+
+# --- D3: no request without Brian's OK for the host (R5, finding 7, national/r5-not-enforced) ----------------------
+
+class Spy:
+    """A fetcher that records every attribute read or set (any `get`, `limit_hosts`, `extra_denied`, ...)."""
+
+    def __init__(self):
+        object.__setattr__(self, "touched", [])
+
+    def __getattr__(self, name):
+        self.touched.append(name)
+        return lambda *a, **k: None
+
+    def __setattr__(self, name, value):
+        self.touched.append(name)
+
+
+def without_host_ok(entry, **host_ok):
+    e = copy.deepcopy(entry)
+    if host_ok:
+        e["host_ok"] = host_ok
+    else:
+        e.pop("host_ok")
+    return e
+
+
+BAD_HOST_OK = [
+    ("missing", without_host_ok(SALEM)),
+    ("no-date", without_host_ok(SALEM, link=HOST_OK["link"])),
+    ("bad-date", without_host_ok(SALEM, date="soon", link=HOST_OK["link"])),
+    ("http-link", without_host_ok(SALEM, date=HOST_OK["date"], link="http://github.com/x")),
+    ("extra-key", without_host_ok(SALEM, date=HOST_OK["date"], link=HOST_OK["link"], who="Brian")),
+    ("not-a-mapping", dict(SALEM, host_ok="yes")),
+    ("cant-cover-platform", dict(CANT, platform="legistar")),       # not read by run(), still refused
+]
+
+
+@pytest.mark.parametrize("name,bad", BAD_HOST_OK, ids=[b[0] for b in BAD_HOST_OK])
+def test_run_refuses_a_hand_built_directory_without_host_ok_before_any_request(tmp_path, name, bad):
+    """A Directory built without the loader: one entry lacking a valid host_ok refuses the whole run, and the
+    fetcher is never touched (no get, no limit_hosts) and the cache is not pruned."""
+    cache = tmp_path / "cache"
+    (cache / "place-4199999").mkdir(parents=True)                       # a folder prune_cache would delete
+    d = nat.Directory(govs=(body(1, "aa"), bad), alias={})
+    spy = Spy()
+    with pytest.raises(nr.HostNotApproved, match=r"host_ok \(Brian's OK, R5\)") as exc:
+        nr.run(d, spy, 100, NOW, cache_root=cache)
+    assert bad["gov"] in str(exc.value)
+    assert spy.touched == []
+    assert (cache / "place-4199999").is_dir()
+
+
+def test_run_refusal_sends_nothing_on_a_real_fetcher():
+    net = Net()
+    with pytest.raises(nr.HostNotApproved):
+        nr.run(nat.Directory(govs=(without_host_ok(SALEM),), alias={}), fetcher(net), 100, NOW)
+    assert net.calls == []
+
+
+def test_collect_refuses_without_host_ok_and_writes_nothing(tmp_path):
+    root = tmp_path / "national"
+    spy = Spy()
+    with pytest.raises(nr.HostNotApproved):
+        nr.collect(root, nat.Directory(govs=(body(1, "aa"), without_host_ok(SALEM)), alias={}), spy, 100, NOW)
+    assert spy.touched == [] and not root.exists()
+    root.mkdir()
+    (root / "health.json").write_text("{}\n", encoding="utf-8")         # a previous run's outputs stay as they were
+    with pytest.raises(nr.HostNotApproved):
+        nr.collect(root, nat.Directory(govs=(without_host_ok(SALEM),), alias={}), spy, 100, NOW)
+    assert sorted(p.name for p in root.rglob("*")) == ["health.json"]
+    assert (root / "health.json").read_text(encoding="utf-8") == "{}\n"
+
+
+def test_daylight_and_no_platform_entries_need_no_host_ok(tmp_path):
+    """The check is for third-party hosts only: a directory of daylight and cant-cover entries runs (and reads
+    nothing, there being no Legistar entry)."""
+    daylight = {"gov": "place-4715160", "also": [], "status": "covered", "platform": "daylight",
+                "daylight": {"body": "city", "full_url": "city/"}}
+    r = nr.run(nat.Directory(govs=(daylight, CANT), alias={}), fetcher(Net()), 100, NOW)
+    assert r.outcomes == {}
+
+
+def test_read_body_refuses_an_entry_without_host_ok():
+    net = Net()
+    with pytest.raises(ValueError, match="host_ok"):
+        lu.read_body(without_host_ok(SALEM), fetcher(net), NOW)
+    assert net.calls == []
