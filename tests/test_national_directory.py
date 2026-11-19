@@ -4,7 +4,8 @@ directory and MAX_ANSWER. Problem keys: privacy-withhold/national-prefix, nation
 national/postmessage-hardening."""
 import copy
 import json
-from datetime import datetime, timedelta, timezone
+import re
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 import yaml
@@ -98,7 +99,7 @@ def test_missing_items_means_withheld(tmp_path):
 
 def test_also_same_layer_becomes_alias(tmp_path):
     # a re-coded GEOID keeps its id; the new GEOID, same layer, goes in `also` (3.1)
-    e = changed(COVERED, also=["place-4715161"])
+    e = changed(COVERED, also=["place-4715161"], items="withheld")     # `also` is in the digest: withheld loads
     assert load(tmp_path, e).alias == {"place-4715161": "place-4715160"}
 
 
@@ -224,9 +225,10 @@ def entry_for(gov, name):
 SHIPPED_REVIEWED = nat.SHOWN_REVIEWED
 
 
-def reviewed(monkeypatch, *pairs):
-    """The shipped table plus `pairs` (each call replaces the previous test additions)."""
-    monkeypatch.setattr(nat, "SHOWN_REVIEWED", SHIPPED_REVIEWED + tuple(nat.ShownReview(*p) for p in pairs))
+def reviewed(monkeypatch, *entries, denylist_ok=False):
+    """The shipped table plus a row pinning each entry's whole-entry digest (each call replaces earlier additions)."""
+    rows = tuple(nat.ShownReview(e["gov"], e["body_name"], nat.review_digest(e), denylist_ok) for e in entries)
+    monkeypatch.setattr(nat, "SHOWN_REVIEWED", SHIPPED_REVIEWED + rows)
 
 
 @pytest.mark.parametrize("name", FALSE_ACCEPTS)
@@ -237,41 +239,45 @@ def test_shown_refused_for_a_name_not_in_the_table(tmp_path, name):
 
 @pytest.mark.parametrize("name", FALSE_ACCEPTS)
 def test_shown_refused_for_a_bad_name_even_when_reviewed(tmp_path, monkeypatch, name):
-    # the guard holds even if a bad pair slips into the table without denylist_ok
-    reviewed(monkeypatch, ("place-4799999", name))
+    # the guard holds even if a bad entry slips into the table without denylist_ok
+    e = changed(COVERED, gov="place-4799999", body_name=name)
+    reviewed(monkeypatch, e)
     with pytest.raises(nat.NationalConfigError, match="body-name-word-check"):
-        load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name))
+        load(tmp_path, e)
 
 
 def test_shown_refused_for_cyrillic_even_with_denylist_ok(tmp_path, monkeypatch):
-    name = "Clarksv\u0456lle City Council"              # Cyrillic i, no denylist stem at all
-    reviewed(monkeypatch, ("place-4799999", name, True))
+    e = changed(COVERED, gov="place-4799999", body_name="Clarksv\u0456lle City Council")   # Cyrillic i, no stem
+    reviewed(monkeypatch, e, denylist_ok=True)
     with pytest.raises(nat.NationalConfigError, match="ASCII"):
-        load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name))
+        load(tmp_path, e)
 
 
 @pytest.mark.parametrize("name", ["Town Board", "Arlington County Board", "Board of Commissioners", "Selectboard"])
 def test_shown_refused_for_an_ordinary_body_until_reviewed(tmp_path, monkeypatch, name):
+    e = changed(COVERED, gov="place-4799999", body_name=name)
     with pytest.raises(nat.NationalConfigError, match="SHOWN_REVIEWED"):
-        load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name))
-    reviewed(monkeypatch, ("place-4799999", name))
-    assert load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name)).govs[0]["items"] == "shown"
+        load(tmp_path, e)
+    reviewed(monkeypatch, e)
+    assert load(tmp_path, e).govs[0]["items"] == "shown"
 
 
 @pytest.mark.parametrize("gov,name", PLACE_NAME_HITS)
 def test_place_name_hit_needs_denylist_ok(tmp_path, monkeypatch, gov, name):
-    reviewed(monkeypatch, (gov, name))
+    e = entry_for(gov, name)
+    reviewed(monkeypatch, e)
     with pytest.raises(nat.NationalConfigError, match="denylist_ok"):
-        load(tmp_path, entry_for(gov, name))
-    reviewed(monkeypatch, (gov, name, True))
-    assert load(tmp_path, entry_for(gov, name)).govs[0]["items"] == "shown"
+        load(tmp_path, e)
+    reviewed(monkeypatch, e, denylist_ok=True)
+    assert load(tmp_path, e).govs[0]["items"] == "shown"
 
 
 @pytest.mark.parametrize("gov", ["sdu-4703030", "sds-4703030", "sde-4703030"])
 def test_school_district_refused_even_when_reviewed(tmp_path, monkeypatch, gov):
-    reviewed(monkeypatch, (gov, "Clarksville City Council", True))
+    e = changed(COVERED, gov=gov)
+    reviewed(monkeypatch, e, denylist_ok=True)
     with pytest.raises(nat.NationalConfigError, match="never allowed for a school"):
-        load(tmp_path, changed(COVERED, gov=gov))
+        load(tmp_path, e)
 
 
 @pytest.mark.parametrize("name", FALSE_ACCEPTS[:6] + [n for _, n in PLACE_NAME_HITS])
@@ -279,12 +285,156 @@ def test_withheld_body_name_still_loads(tmp_path, name):
     assert load(tmp_path, changed(COVERED, body_name=name, items="withheld")).govs[0]["items"] == "withheld"
 
 
-def test_shipped_shown_entries_are_the_reviewed_table():
+# --- section 11.3: the whole-entry review digest (privacy-withhold/reviewed-pair-unbound-source) ---------------
+
+def shipped_shown():
+    doc = yaml.safe_load((nat.DIRECTORY_PATH).read_text(encoding="utf-8"))
+    return [e for e in doc["govs"] if e.get("items") == "shown"]
+
+
+def test_11_3_1_shipped_digests_equal_their_rows():
     d = nat.load_directory()
-    shown = {(g["gov"], g["body_name"]) for g in d.govs if g["items"] == "shown"}
-    assert shown == {("place-4715160", "Clarksville City Council"), ("county-47125", "Montgomery County Commission")}
-    assert shown == {(r.gov, r.body_name) for r in nat.SHOWN_REVIEWED}
+    shown = {g["gov"]: g for g in d.govs if g["items"] == "shown"}
+    rows = {r.gov: r for r in nat.SHOWN_REVIEWED}
+    assert len(rows) == len(nat.SHOWN_REVIEWED), "one SHOWN_REVIEWED row per gov"
+    assert set(shown) == set(rows) == {"place-4715160", "county-47125"}
+    for gov, g in shown.items():
+        assert g["review"] == rows[gov].digest and g["body_name"] == rows[gov].body_name
+        assert len(g["review"]) == 64
     assert not any(r.denylist_ok for r in nat.SHOWN_REVIEWED)
+    assert all(g["review"] is None for g in d.govs if g["items"] != "shown")
+
+
+LEGISTAR_BLOCK = {"platform": "legistar",
+                  "legistar": {"client": "clarksville", "body_id": 1, "tz": "America/Chicago"},
+                  "host_ok": {"date": "2026-12-01", "link": "https://github.com/gn0sh/clarksville-records/pull/1"},
+                  "official_url": "https://clarksville.legistar.com/Calendar.aspx",
+                  "checked_url": "https://clarksville.legistar.com/Calendar.aspx"}
+
+
+def mutations(e):
+    """Each one-key change of a shipped shown entry to another valid value (11.3 item 2)."""
+    gov = e["gov"]
+    alt = gov[:-1] + ("8" if gov[-1] != "8" else "7")
+    out = {
+        "body_name": dict(e, body_name="Clarksville Town Council" if gov.startswith("place") else "Other County Commission"),
+        "official_url": dict(e, official_url="https://www.clarksvilletn.gov/agendas"),
+        "checked": dict(e, checked=date(2026, 11, 20)),
+        "checked_url->checked_doc": {**{k: v for k, v in e.items() if k != "checked_url"},
+                                     "checked_doc": "docs/platform-facts.md"},
+        "daylight.body": dict(e, daylight=dict(e["daylight"], body="city2" if e["daylight"]["body"] != "city2" else "c")),
+        "daylight.full_url": dict(e, daylight=dict(e["daylight"], full_url="other/")),
+        "also": dict(e, also=[alt]),
+        "legistar": {**{k: v for k, v in e.items() if k != "daylight"}, **LEGISTAR_BLOCK},
+    }
+    return out
+
+
+SWEEP = [(e["gov"], name, m) for e in shipped_shown() for name, m in mutations(e).items()]
+
+
+@pytest.mark.parametrize("gov,change,e", SWEEP, ids=[f"{g}-{c}" for g, c, _ in SWEEP])
+def test_11_3_2_any_change_to_a_shown_entry_is_refused(tmp_path, gov, change, e):
+    with pytest.raises(nat.NationalConfigError, match=r"digest|SHOWN_REVIEWED row ShownReview") as err:
+        load(tmp_path, e)
+    assert nat.review_digest(e) in str(err.value)          # the error prints the new digest for a reviewed update
+
+
+@pytest.mark.parametrize("gov,change,e", SWEEP, ids=[f"{g}-{c}" for g, c, _ in SWEEP])
+def test_11_3_2_the_same_change_loads_when_withheld(tmp_path, gov, change, e):
+    d = load(tmp_path, dict(e, items="withheld"))
+    assert d.govs[0]["items"] == "withheld" and d.govs[0]["review"] is None
+
+
+def test_11_3_2_shipped_entries_load_unchanged(tmp_path):
+    assert [g["review"] for g in load(tmp_path, *shipped_shown()).govs] == [r.digest for r in SHIPPED_REVIEWED]
+
+
+def test_11_3_3_digest_ignores_key_order_also_order_and_date_quoting():
+    e = changed(COVERED, also=["place-4715161", "place-4715162"], checked=date(2026, 11, 19))
+    reordered = dict(reversed(list(e.items())))
+    reordered["also"] = ["place-4715162", "place-4715161"]
+    quoted = dict(e, checked="2026-11-19")
+    no_items = {k: v for k, v in e.items() if k != "items"}
+    assert nat.review_digest(e) == nat.review_digest(reordered) == nat.review_digest(quoted)
+    assert nat.review_digest(no_items) == nat.review_digest(dict(e, items="withheld"))
+    assert nat.review_digest(e) != nat.review_digest(dict(e, also=["place-4715161"]))
+
+
+def test_11_3_3_yaml_text_order_gives_one_digest(tmp_path):
+    a = ("schema: daylight-directory/1\ngovs:\n  - {gov: place-4715160, also: [], body_name: Clarksville City Council, "
+         "state: TN, status: covered, official_url: 'https://www.clarksvilletn.gov/', checked: 2026-11-19, "
+         "checked_url: 'https://clarksvilletn.portal.civicclerk.com/', items: shown, platform: daylight, "
+         "daylight: {body: city, full_url: city/}}\n")
+    b = ("schema: daylight-directory/1\ngovs:\n  - {daylight: {full_url: city/, body: city}, platform: daylight, "
+         "items: shown, checked_url: 'https://clarksvilletn.portal.civicclerk.com/', checked: '2026-11-19', "
+         "official_url: 'https://www.clarksvilletn.gov/', status: covered, state: TN, body_name: Clarksville City "
+         "Council, also: [], gov: place-4715160}\n")
+    digests = []
+    for text in (a, b):
+        p = tmp_path / "directory.yml"
+        p.write_text(text, encoding="utf-8")
+        digests.append(nat.load_directory(p, LABELS).govs[0]["review"])
+    assert digests[0] == digests[1] == SHIPPED_REVIEWED[0].digest
+
+
+def test_11_3_4_two_covered_entries_with_one_daylight_body_refused(tmp_path):
+    other = changed(COVERED, gov="place-4799999", body_name="Other City Council", items="withheld")
+    with pytest.raises(nat.NationalConfigError, match="source daylight:city is already place-4715160's"):
+        load(tmp_path, COVERED, other)
+
+
+def test_11_3_4_two_covered_entries_with_one_legistar_source_refused(tmp_path):
+    second = changed(LEGISTAR, gov="place-4164901", body_name="Salem Other Council")
+    with pytest.raises(nat.NationalConfigError, match="source legistar:salem:138 is already"):
+        load(tmp_path, LEGISTAR, second)
+    other_body = changed(LEGISTAR, gov="place-4164901", body_name="Salem Other Council", legistar__body_id=139)
+    assert len(load(tmp_path, LEGISTAR, other_body).govs) == 2
+
+
+def test_11_3_8_pagedir_alias_is_the_union_of_also(tmp_path):
+    a = changed(COVERED, also=["place-4715161", "place-4715162"], items="withheld")
+    b = changed(CANT, also=["sdu-4703031"])
+    d = load(tmp_path, a, b)
+    p = nat.page_directory(d, nat.GovFlags(), LABELS, built_at=BUILT, last_ok_at={})
+    assert p["alias"] == {"place-4715161": "place-4715160", "place-4715162": "place-4715160",
+                          "sdu-4703031": "sdu-4703030"}
+    assert set(p["alias"]) == {i for g in d.govs for i in g["also"]}
+
+
+@pytest.mark.parametrize("part,extra", [("hide", "alias"), ("hide", "items"), ("show", "items"), ("show", "alias"),
+                                        ("lines", "items")])
+def test_11_3_8_gov_flags_cannot_alias_or_show_items(tmp_path, part, extra):
+    e = {"id": "county-47037", "why": "x", "source": SRC, extra: "place-4715160" if extra == "alias" else "shown"}
+    if part == "lines":
+        e["line"] = "consolidated"
+    with pytest.raises(nat.NationalConfigError, match=f"{extra}: unknown key"):
+        nat.load_gov_flags(write_flags(tmp_path, **{part: [e]}), LABELS)
+
+
+def test_gov_flags_state_rule_cannot_show(tmp_path):
+    rule = {"state": "47", "layer": "county", "show": True, "why": "x", "source": SRC}
+    with pytest.raises(nat.NationalConfigError, match="state rules only hide; use id-level show"):
+        nat.load_gov_flags(write_flags(tmp_path, rules=[rule]), LABELS)
+
+
+SCAN_DIRS = ("sitegen", "collector", "scripts")
+
+
+def test_11_3_10_only_national_py_opens_directory_yml():
+    """A string literal naming the file, or DIRECTORY_PATH, outside sitegen/national.py means a second reader
+    (prose in a docstring or comment is fine); every other module gets the directory from load_directory."""
+    root = nat.config.REPO_ROOT
+    readers = sorted(str(f.relative_to(root)) for d in SCAN_DIRS for f in (root / d).rglob("*.py")
+                     if re.search(r"[\"']directory\.yml[\"']|DIRECTORY_PATH", f.read_text(encoding="utf-8")))
+    assert readers == ["sitegen/national.py"]
+
+
+def test_11_3_10_morning_sender_imports_no_national_module():
+    root = nat.config.REPO_ROOT
+    offenders = [str(f.relative_to(root)) for f in (root / "sender").rglob("*.py")
+                 if re.search(r"\bnational", f.read_text(encoding="utf-8"))]
+    assert offenders == []
 
 
 def test_load_all_refuses_a_listed_government_in_hide(tmp_path):

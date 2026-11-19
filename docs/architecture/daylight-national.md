@@ -90,9 +90,11 @@ Build checks (refuse to build): unknown key; bad id; duplicate id across `gov` a
 `cant-cover` without `reason`, `reason_url`, `checked`; `covered` without `platform` keys; any URL not https; a
 `reason` with no label in `labels.yml`. Added by security review (findings 5, 7), all by `yaml.safe_load` and strict
 regex, each with a test:
-- `items: shown` is refused unless the exact (`gov`, `body_name`) pair is in the reviewed table `SHOWN_REVIEWED` in
-  `sitegen/national.py` (each pair commented with its source link and review date; adding one is a code change that
-  goes through code review). See section 11. A missing `items` means `withheld`.
+- `items: shown` is refused unless `SHOWN_REVIEWED` in `sitegen/national.py` has a row for that `gov` whose
+  `body_name` and `digest` equal the entry's; the digest (`review_digest`) hashes the whole entry, every key (11.2),
+  so any edit to a shown entry is refused until a reviewed code change pins the new digest (the error prints both).
+  The loaded entry carries `review` (the digest when shown, else null). Two covered entries with one source
+  (`daylight:<body>`, `legistar:<client>:<body_id>`) are refused. See section 11. A missing `items` means `withheld`.
 - a non-`daylight` platform without `host_ok: {date, link}` is refused (build and collector both).
 - `daylight.full_url` and the pagedir `page` match `^[a-z0-9][a-z0-9/_.-]*$` (no scheme, no `..`, no leading slash);
   `legistar.client` matches `^[a-z0-9-]{2,40}$`; `tz` is a name in `zoneinfo.available_timezones()`;
@@ -102,12 +104,13 @@ regex, each with a test:
   `reason`/`reason_url` on a covered entry; both `checked_url` and `checked_doc` (the doc must be an existing
   `docs/*.md` file); a URL with a user name, password or a port other than 443; a body name with control or bidi
   characters; an unknown `platform` (boarddocs, escribe, civicclerk join with their own key checks). Legistar's hosts
-  are `webapi.legistar.com` and `<client>.legistar.com`. A reviewed `shown` pair must also pass a fail-closed
+  are `webapi.legistar.com` and `<client>.legistar.com`. A reviewed `shown` entry must also pass a fail-closed
   guard (`shown_refusal`): no `sd*` id, a `place`, `county` or `cousub` id, an ASCII-only `body_name`, and no school,
-  youth, child, mock, model, shadow, pension or similar stem unless the pair says `denylist_ok=True` (a place-name hit
+  youth, child, mock, model, shadow, pension or similar stem unless the row says `denylist_ok=True` (a place-name hit
   such as College Station; `privacy-withhold/body-name-word-check`, `privacy-withhold/body-name-false-refusal`). An `also` id must
   be in the same layer as `gov` (a re-coded GEOID; `privacy-withhold/also-cross-layer`). A list or mapping where a
-  word belongs is refused. `load_all` refuses a directory `gov` or `also` id that gov-flags hides.
+  word belongs is refused. `load_all` refuses a directory `gov` or `also` id that gov-flags hides. A gov-flags
+  state rule only hides (`show: true` is refused; use an id-level `show`).
 - Architect to confirm (code review, `contract/legistar-official-url`): a Legistar entry's `official_url`,
   `checked_url` and `reason_url` must today be on `<client>.legistar.com` or `webapi.legistar.com`; a government whose
   official agenda page is on its own site cannot be listed until this is decided.
@@ -164,7 +167,7 @@ The contract the coming-up page, the M4 ICS and Atom, the future app and the wee
 builder (M1, Clarksville) or copied from `national-data` (M2+). The M1 builder writes this JSON and the page only; the
 ICS and Atom writers are M4 (spec v2.1).
 ```json
-{"schema": "daylight-upcoming/1",
+{"schema": "daylight-upcoming/1", "review": "<64 hex: the entry's review digest, or null>",
  "body": {"id": "county-47125", "name": "Montgomery County Commission", "tz": "America/Chicago",
           "official_url": "https://montgomerytn.gov/commission/agenda", "platform": "daylight",
           "full_url": "meetings/agendas.html"},
@@ -180,8 +183,10 @@ ICS and Atom writers are M4 (spec v2.1).
 Field rules: `meetings` from today (body's time zone) on, soonest first. `agenda.state`: `final` (items may be
 shown), `not-final` (Legistar status not final: no items), `not-read` (posted, items not read by us: Clarksville City
 Council in M1), `not-posted`. `items` is empty unless `state == final` and `items_withheld == false`.
-`items_withheld` is true unless the government's directory entry says `items: shown` (default withheld; never allowed
-for `sd*` ids; invariant in section 11), and `item_count` is then null (Clarksville feeds may carry a count they
+`review` (required) is the directory entry's review digest when it is shown, else null; null forces every meeting
+withheld (schema `allOf`), and every write goes through `national_guards.bind_feed` (section 11.2).
+`items_withheld` is true unless `national_guards.is_shown(entry)` (default withheld; never allowed for `sd*` ids;
+invariant in section 11), and `item_count` is then null (Clarksville feeds may carry a count they
 already store; M2 withheld bodies do not). `text` is the source's words,
 whitespace joined, nothing else changed, capped at 2,000 characters per item (longer is cut at the cap and marked
 `"cut": true`, the page then links the official agenda for the rest), at most 150 items per meeting and 60 meetings per
@@ -213,7 +218,7 @@ attendance, motion or person's name field exists in this schema (AC4.4); a test 
 host-stopped | rate-limited | robots | budget-skipped | server-error | not-enabled-suspected | token-suspected"}}`),
 `data/national/proposals.json` (`[{"body", "kind": "status" | "agenda-status-name", "observed", "evidence_url",
 "first_seen", "count"}]`). Cache: `data/national/cache/<body id>/<event id>.json` (items keyed by
-`EventAgendaLastPublishedUTC`).
+`EventAgendaLastPublishedUTC`). Body files and cache files carry `review`; rules in section 11.1 rows 16, 18-19 (M2).
 
 ### 3.8 Device storage (`localStorage`, digest pages only; the whole list of what this site keeps on a device)
 | Key | Value | Written when | Read by |
@@ -348,7 +353,7 @@ lines.
 
 ### 4.3 National builder (`sitegen/national.py`)
 - `load_directory(path) -> Directory` (raises `NationalConfigError` naming the entry and key).
-- `clarksville_feeds(directory, councils, county_agendas, today, *, checked_at, counts=None)
+- `clarksville_feeds(directory, councils, county_agendas, today, *, checked_at, counts=None, bind_counts=None)
   -> dict[body_id, UpcomingFeed]` (B3: `sitegen/national_clarksville.py`): council meetings with `agenda.state =
   not-read` (or `not-posted`), county agenda-only meetings with items as stored. `councils` is `{council.yml body_key:
   (facts, listing)}`. `directory` supplies each feed's body and its `items` field (section 11); an entry gets the
@@ -357,11 +362,16 @@ lines.
   (aware) is when the inputs were collected (both `checked_at` and `last_ok_at`); `counts` receives the guards'
   counts per body for the run log. The inputs are loaded by the caller with the build's loaders; listing rows pass
   `sitegen/days.py calendar_rows` (the day page's rule). A posted council agenda whose link `allowed_url` refuses is
-  `not-read` with a null `agenda.url`; a facts meeting whose only listing rows are called off is left out. Titles are
+  `not-read` with a null `agenda.url`; a facts meeting whose only listing rows are called off is left out. Stored
+  items are read only when `is_shown(entry)` and only on the county route (`COUNTY_BODY_KEY = "county"`, fixed in
+  code; `FeedError` unless `config.SITE["county_key"]` equals it and no council's `body_key` does); each feed carries
+  `review` and passes `bind_feed` before the schema check (section 11). Titles are
   the body's kind labels, or the fixed `Meeting` for an unlabelled kind (`title_ours` stays true). Each feed is
   checked against `schema/daylight-upcoming.schema.json` (`FeedError`). `meeting_url` is null for both bodies (no
   per-meeting source page; the page uses `official_url`).
-- `build_national(out_dir, directory, feeds, labels, share, counter_on) -> list[path]`: writes `digest/index.html`,
+- `build_national(out_dir, directory, feeds, labels, share, counter_on) -> list[path]`: writes each `.json` and
+  `.html` only from `bind_feed(feed, entry)` output, only for a feed whose `body.id` is a covered directory entry, and
+  prints items only from that bound object (section 11.1 row 15). Writes `digest/index.html`,
   `digest/covered.html` ("What we cover": covered and can't-cover entries by state, then name; share sentence only if
   `share` is given), `digest/requested.html`, and per covered government `digest/<st>/<body id>.html` and `.json`.
   Called from `sitegen.build` only when `national.enabled`. Pages render with the header variant (7a); the pages
@@ -385,6 +395,8 @@ lines.
   `items: shown`; for any other the items request is never made and `item_count` is null (a count would need the same request; if the
   spec wants counts for school boards that is a separate decision, not a default). `may_be_incomplete = true`.
 - `run(directory, fetcher, budget, now) -> (feeds, health, proposals)`; never raises on one body's failure.
+- Items only when `is_shown(entry)`, only for the entry's `client`/`body_id` (events with another `EventBodyId`
+  dropped and counted), `review` stamped, `bind_feed` before writing; cache rules in section 11.1 rows 18-19 (M2).
 
 ## 5. Key flows
 1. **Lookup (M1):** `/digest/` loads (directory embedded; a page-view count if counting is on, path only; the saved

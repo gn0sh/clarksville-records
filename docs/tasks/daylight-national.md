@@ -51,13 +51,19 @@ Definitions of done:
   `yaml.safe_load`) refuses each bad case in architecture 3.2 with a test per case, including: `items: shown` on an
   `sd*` id (`privacy-withhold/national-prefix`), a missing `items` meaning withheld, a non-daylight entry with no
   `host_ok` (`national/r5-not-enforced`), a bad `full_url`/`page`, `client`, `tz` or `final_statuses`, and a missing
-  `state`; the page directory (3.4) is produced by a pure function with a test, written with `|tojson`.
+  `state`; the page directory (3.4) is produced by a pure function with a test, written with `|tojson`. Section 11
+  v3: `shown` needs the entry's whole-entry `review_digest` pinned in `SHOWN_REVIEWED` (tests 11.3 items 1-4: shipped
+  digests equal their rows, the mutation sweep, the canonical form, one covered entry per source; 8: pagedir `alias`
+  only from `also`, gov-flags cannot alias or name `items`; 10: single reader of `directory.yml`, the sender imports no
+  `sitegen.national*`).
 - **B14** Done when (finding 4, `national/url-scheme-untrusted`; finding 12, `national/untrusted-size`): one helper
   accepts an outside URL only if `config.https_link` passes and, for a non-daylight platform, its host is on that
   platform's allowlist, and is called at collection and at build; a bad URL becomes null and the page uses
   `official_url`; ids that become a path or tag match the id regex in builder and collector; item text is cut at 2,000
   characters (`cut: true`), 150 items per meeting, 60 meetings per government; bidi overrides and controls are stripped
-  and counted; one test per rule, with `javascript:`, `http:`, a credentialed URL and a bidi string.
+  and counted; one test per rule, with `javascript:`, `http:`, a credentialed URL and a bidi string. Section 11 v3:
+  `is_shown(entry)` and `bind_feed(feed, entry)` (BindError on another body id or platform; withheld or stale-review
+  items stripped and counted) in `sitegen/national_guards.py`, tested per 11.3 item 6.
 - **B2** Done when: the FUNCSTAT, COUNTYCC/PLACECC/COUSUBCC meanings used by `governments` are quoted with their
   TIGER/Line documentation source in `docs/platform-facts.md`; gov-flags seeded for CT and RI counties, the MA
   counties without government, Nashville (with its `lines: consolidated`), the VA independent-city pattern (with
@@ -67,7 +73,8 @@ Definitions of done:
   county items equal `agendas.json` titles byte for byte (within the B14 caps); council meetings have `agenda.state`
   `not-read` or `not-posted`; no field outside the schema (test); `time` null; the `items_withheld` flag comes from
   the directory's `items` field, never from an id prefix (`privacy-withhold/national-prefix`); tests use the repo's
-  real data files.
+  real data files. Section 11 v3: items read only when `is_shown`, only on the fixed `COUNTY_BODY_KEY` route; feeds
+  carry `review` and pass `bind_feed`; the schema requires `review` (null forces withheld) (11.3 item 5).
 - **B7** Done when: a sender test shows a confirmed subscriber with only `req-` tags gets no morning note edition, and
   one with `note-` and `req-` tags gets exactly the note it would get without the `req-` tag.
 - **B4** (revised) Done when: with `national.enabled: true` the build writes `digest/index.html`, `covered.html`,
@@ -77,7 +84,9 @@ Definitions of done:
   (M4); every visible string is verbatim source text or from `labels.yml` (a test lists them, AC4.5, AC4.8), in
   "government" words; "Report an error" present; the coming-up page prints items only from the JSON, and a withheld
   government shows the fixed label (consumers 2 and 3 of architecture section 11, tested with the fixtures there);
-  the JSON validates against a schema in `schema/` with no extra key.
+  the JSON validates against a schema in `schema/` with no extra key. Section 11 v3: `.json` and `.html` only from
+  `bind_feed` output for covered directory entries; the builder sweep of 11.3 item 7 (`SENTINEL-ITEM-TEXT` only in the
+  bound shown government's files, including a copied file with a stale `review`).
 - **B13** Done when: with `national.enabled` on, `qa/site_checks.py` passes on the whole build; `header/same-on-every-page`
   holds pages outside `digest/` to exactly the old rule and digest pages to the old header plus the three named
   substitutions (plate place, no moon, no `sky-in` span), and a digest page with the Clarksville header, or any other

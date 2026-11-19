@@ -10,6 +10,7 @@ from sitegen import national as nat
 from sitegen import national_guards as g
 
 OFFICIAL = "https://montgomerytn.gov/commission/agenda"
+REVIEW = next(r.digest for r in nat.SHOWN_REVIEWED if r.gov == "county-47125")
 
 
 def feed(**meeting):
@@ -20,7 +21,7 @@ def feed(**meeting):
          "items": [{"seq": 1, "number": "CZ-12-2026", "text": "Application of Chris Blackwell from AG to E-1",
                     "source": {"url": "https://mcgtn.org/a.pdf#page=1", "page": 1}}]}
     m.update(meeting)
-    return {"schema": "daylight-upcoming/1",
+    return {"schema": "daylight-upcoming/1", "review": REVIEW,
             "body": {"id": "county-47125", "name": "Montgomery County Commission", "tz": "America/Chicago",
                      "official_url": OFFICIAL, "platform": "daylight", "full_url": "meetings/agendas.html"},
             "checked_at": "2026-11-19T14:02:00Z", "last_ok_at": "2026-11-19T14:02:00Z", "meetings": [m]}
@@ -262,3 +263,69 @@ def test_clean_feed_does_not_mutate_a_dirty_input():
 def test_non_object_feed_refused(bad):
     with pytest.raises(g.UnsafeIdError):
         g.clean_feed(bad)
+
+
+# --- is_shown and bind_feed: the shown gate (section 11.2, 11.3 item 6; privacy-withhold/national-prefix) ---------
+
+def county_entry(**changes):
+    e = dict(nat.load_directory().get("county-47125"))
+    e.update(changes)
+    return e
+
+
+def test_is_shown_needs_items_shown_and_a_review_digest():
+    e = county_entry()
+    assert g.is_shown(e)
+    assert not g.is_shown(county_entry(items="withheld"))
+    assert not g.is_shown(county_entry(review=None))
+    assert not g.is_shown(county_entry(review="x" * 64))
+    assert not g.is_shown({k: v for k, v in e.items() if k != "items"})
+    assert not g.is_shown(None) and not g.is_shown({"items": "shown", "review": REVIEW.upper()})
+
+
+def test_bind_shown_and_matching_is_unchanged():
+    f = feed()
+    out, counts = g.bind_feed(f, county_entry())
+    assert out == f and out is not f
+    assert (counts.withheld_stripped, counts.review_mismatch) == (0, 0)
+
+
+def test_bind_withheld_entry_strips_and_counts():
+    out, counts = g.bind_feed(feed(), county_entry(items="withheld", review=None))
+    m = out["meetings"][0]
+    assert (m["items"], m["item_count"], m["items_withheld"], out["review"]) == ([], None, True, None)
+    assert (counts.withheld_stripped, counts.review_mismatch) == (1, 0)
+    assert "Blackwell" not in json.dumps(out)
+
+
+def test_bind_stale_review_strips_and_counts():
+    out, counts = g.bind_feed(feed(), county_entry(review="0" * 64))
+    assert out["meetings"][0]["items"] == [] and out["review"] is None
+    assert (counts.withheld_stripped, counts.review_mismatch) == (0, 1)
+    out, counts = g.bind_feed(dict(feed(), review=None), county_entry())     # a feed read before any review
+    assert out["meetings"][0]["items"] == [] and counts.review_mismatch == 1
+
+
+def test_bind_counts_summary_has_counts_only():
+    _, counts = g.bind_feed(feed(), county_entry(items="withheld", review=None))
+    assert counts.summary() == "withheld_stripped=1, review_mismatch=0"
+
+
+@pytest.mark.parametrize("change", [{"id": "place-4715160"}, {"platform": "legistar"}, {"id": None}])
+def test_bind_other_body_or_platform_raises(change):
+    f = feed()
+    f["body"].update(change)
+    with pytest.raises(g.BindError):
+        g.bind_feed(f, county_entry())
+
+
+@pytest.mark.parametrize("bad", [None, [], {"meetings": []}, {"body": "county-47125"}])
+def test_bind_not_a_feed_raises(bad):
+    with pytest.raises(g.BindError):
+        g.bind_feed(bad, county_entry())
+
+
+def test_bind_error_is_a_value_error_and_guards_import_only_config():
+    assert issubclass(g.BindError, ValueError)
+    src = g.__file__ and open(g.__file__, encoding="utf-8").read()
+    assert "from . import config" in src and "from .national" not in src and "import sitegen.national" not in src

@@ -9,14 +9,17 @@ docs/platform-facts.md "Census TIGER/Line codes".
 Not wired into sitegen.build yet (B4 does that behind `national.enabled`), so nothing here changes a Clarksville page.
 
 Invariant `privacy-withhold/national-prefix` (architecture section 11): item text is published only for a government
-whose entry says `items: shown`. A missing `items` is `withheld`; `shown` is refused unless the exact (gov id,
-body_name) pair is in the reviewed table SHOWN_REVIEWED and passes the fail-closed guard (`shown_refusal`). Consumers read
-`gov["items"]` from the loaded directory, never an id prefix.
+whose entry says `items: shown` and whose whole entry has the digest pinned in SHOWN_REVIEWED (section 11 v3). A
+missing `items` is `withheld`; `shown` is refused unless the entry's `review_digest` equals its row's and the
+fail-closed guard (`shown_refusal`) passes. The loaded entry carries `review` (the digest when shown, else None);
+consumers decide with `national_guards.is_shown(entry)` and write through `national_guards.bind_feed`, never an id
+prefix.
 """
 from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import re
 import zoneinfo
 from dataclasses import dataclass, field
@@ -42,7 +45,7 @@ PAGEDIR_SCHEMA = "daylight-pagedir/1"
 
 # Ids (3.1): `<layer>-<GEOID>`. GEOID_DIGITS, ID_RE, id_layer and allowed_url live in sitegen/national_guards.py,
 # shared with the collector (task B14), and are imported above.
-LAYERS = tuple(GEOID_DIGITS)                       # also the card order of governments() (4.1, step 7)
+LAYERS = tuple(GEOID_DIGITS)       # the six Census layers (3.1); card order is national.js ORDER (4.1, step 7)
 SCHOOL_LAYERS = ("sdu", "sds", "sde")
 
 # USPS code -> state FIPS code (the GEOID's first two digits): the 50 states, DC and the territories the Census
@@ -88,29 +91,37 @@ ROOT_RE = re.compile(r"^(\.\./)*$")
 MAX_NAME = 160
 MAX_LABEL = 300
 
-# `items: shown` (invariant `privacy-withhold/national-prefix`, architecture 3.2 and section 11; security finding 5).
-# The rule is the reviewed table: an entry may say `shown` only when its exact (gov id, body_name) pair is in
-# SHOWN_REVIEWED. Adding a pair is a code change, so it goes through code review, and its comment names the source
-# that shows the body is the government's own council or commission and the review date (manager decision after the
-# B1/B2 delta review, 2026-11-19: a name heuristic alone both let "Mock City Council" through and refused "College
-# Station City Council"). A second, fail-closed guard still runs on every shown entry: no school district id, a place,
-# county or county subdivision id, ASCII letters only (a Cyrillic "о" in "Yоuth" hides the word), and no stem of
-# SHOWN_DENYLIST_RE unless the pair says `denylist_ok=True` (a place name such as College Station or Childress County).
+# `items: shown` (invariant `privacy-withhold/national-prefix`, architecture 3.2 and section 11 v3; finding 5).
+# The rule is the reviewed digest: an entry may say `shown` only when SHOWN_REVIEWED has a row for its `gov` whose
+# `body_name` and `digest` equal the entry's. The digest (`review_digest`) hashes the WHOLE entry, every key, so a
+# change of platform, source keys (`daylight.body`, `legistar.client`/`body_id`), `also`, URLs or dates, or any key
+# added later, refuses the entry until a reviewed code change pins the new digest (the error prints both). Adding
+# or changing a row is a code change, so it goes through code review; its comment names the source showing the body
+# is the government's own council or commission, the source for each `also` id, and the review date. A second,
+# fail-closed guard still runs on every shown entry: no school district id, a place, county or county subdivision
+# id, ASCII only (a Cyrillic "о" in "Yоuth" hides the word), and no stem of SHOWN_DENYLIST_RE unless the row says
+# `denylist_ok=True` (a place name such as College Station or Childress County). `withheld` needs no row: an edit
+# to the YAML alone can narrow what is published, never widen it.
 
 
 class ShownReview(NamedTuple):
     gov: str
     body_name: str
+    digest: str                    # review_digest of the whole reviewed entry (64 hex)
     denylist_ok: bool = False      # True only for a place-name hit on SHOWN_DENYLIST_RE, said in the comment
 
 
 SHOWN_REVIEWED: tuple[ShownReview, ...] = (
-    # https://clarksvilletn.portal.civicclerk.com/ (the council's own agenda portal; facts in docs/platform-facts.md
-    # "CivicClerk, City Council 2024 on"); reviewed 2026-11-19, B1 code review
-    ShownReview("place-4715160", "Clarksville City Council"),
-    # https://montgomerytn.gov/commission/agenda (the commission's own agenda page; docs/platform-facts.md
-    # "Montgomery County, TN"); reviewed 2026-11-19, B1 code review
-    ShownReview("county-47125", "Montgomery County Commission"),
+    # source https://clarksvilletn.portal.civicclerk.com/ (the council's own agenda portal; docs/platform-facts.md
+    # "CivicClerk, City Council 2024 on"); daylight.body `city` = config/localities/clarksville-tn/council.yml
+    # body_key; no `also` ids; reviewed 2026-11-19 (B1 code review; digest re-pinned for section 11 v3)
+    ShownReview("place-4715160", "Clarksville City Council",
+                "36afc1f85fe4c21495f0f32b5f67b405bfce75e74373e6da6473b93e08f03e3a"),
+    # source https://montgomerytn.gov/commission/agenda (the commission's own agenda page; docs/platform-facts.md
+    # "Montgomery County, TN"); daylight.body `county` = national_clarksville.COUNTY_BODY_KEY; no `also` ids;
+    # reviewed 2026-11-19 (B1 code review; digest re-pinned for section 11 v3)
+    ShownReview("county-47125", "Montgomery County Commission",
+                "0aaee273dc246526356abc3c83eca275e6c9199f96c06ce4070b99a1b1bd072a"),
 )
 
 # Stems of bodies whose items may name children, students or pretend officials. Child-specific stems match anywhere
@@ -243,9 +254,45 @@ def load_labels(path: Path = LABELS_PATH) -> dict[str, str]:
 
 # --- directory.yml ------------------------------------------------------------------------------------------------
 
-def shown_refusal(gov_id: str, body_name: str) -> str | None:
-    """Why `items: shown` is refused for this entry, or None when it is allowed (the reviewed table, then the
-    fail-closed guard; see SHOWN_REVIEWED)."""
+def _iso_dates(value):
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _iso_dates(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_iso_dates(v) for v in value]
+    return value
+
+
+def norm_entry(e: Mapping) -> dict:
+    """The raw `safe_load` mapping of one directory entry in canonical form (section 11.2): every key kept, `also`
+    defaulted to [] and sorted, `items` defaulted, every date written as ISO text (so YAML key order, `also` order and
+    a quoted or plain date never change the digest)."""
+    out = _iso_dates(dict(e))
+    out["also"] = sorted(out.get("also") or [])
+    out.setdefault("items", ITEMS_DEFAULT)
+    return out
+
+
+def review_digest(e: Mapping) -> str:
+    """sha256 hex of the canonical JSON of the whole entry (section 11.2): what a SHOWN_REVIEWED row pins."""
+    text = json.dumps({"schema": DIRECTORY_SCHEMA, "entry": norm_entry(e)}, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True)
+    return hashlib.sha256(text.encode("ascii")).hexdigest()
+
+
+def source_key(e: Mapping) -> str | None:
+    """The source a covered entry reads (11.1 row 4): `daylight:<body>` or `legistar:<client>:<body_id>`; else None."""
+    if e.get("platform") == "daylight":
+        return f"daylight:{e['daylight']['body']}"
+    if e.get("platform") == "legistar":
+        return f"legistar:{e['legistar']['client']}:{e['legistar']['body_id']}"
+    return None
+
+
+def shown_refusal(gov_id: str, body_name: str, digest: str) -> str | None:
+    """Why `items: shown` is refused for this entry, or None when it is allowed (the reviewed digest, then the
+    fail-closed guard; see SHOWN_REVIEWED). `digest` is the entry's review_digest."""
     layer = id_layer(gov_id)
     if layer in SCHOOL_LAYERS:
         return "`shown` is never allowed for a school district (privacy-withhold)"
@@ -253,10 +300,14 @@ def shown_refusal(gov_id: str, body_name: str) -> str | None:
         return "`shown` needs a place, county or county subdivision id (privacy-withhold)"
     if not body_name.isascii():
         return "`shown` needs a body_name in ASCII letters only (privacy-withhold/body-name-word-check)"
-    review = next((r for r in SHOWN_REVIEWED if (r.gov, r.body_name) == (gov_id, body_name)), None)
-    if review is None:
-        return ("`shown` needs this exact (gov, body_name) pair in sitegen/national.py SHOWN_REVIEWED, added through "
-                "code review (privacy-withhold); leave it withheld")
+    review = next((r for r in SHOWN_REVIEWED if r.gov == gov_id), None)
+    if review is None or review.body_name != body_name:
+        return (f"`shown` needs a SHOWN_REVIEWED row ShownReview({gov_id!r}, {body_name!r}, {digest!r}) in "
+                "sitegen/national.py, added through code review (privacy-withhold); leave it withheld")
+    if review.digest != digest:
+        return (f"`shown` entry digest {digest} differs from the SHOWN_REVIEWED row's {review.digest}: the entry "
+                "changed since it was reviewed; re-review it and pin the new digest, or leave it withheld "
+                "(privacy-withhold/reviewed-pair-unbound-source)")
     if SHOWN_DENYLIST_RE.search(body_name) and not review.denylist_ok:
         return ("`shown` body_name holds a school, youth or special-purpose word; only a reviewed pair with "
                 "denylist_ok=True passes (privacy-withhold/body-name-word-check)")
@@ -397,14 +448,24 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
         items = e.get("items", ITEMS_DEFAULT)
         if not isinstance(items, str) or items not in ITEMS:
             _fail(path, where, "items", "must be shown or withheld")
+        _check_platform(path, where, e)
+        digest = review_digest(e)            # after every other per-entry check (11.2)
         if items == "shown":
-            why = shown_refusal(gov, body_name)
+            why = shown_refusal(gov, body_name, digest)
             if why:
                 _fail(path, where, "items", why)
-        _check_platform(path, where, e)
-        g = dict(e, also=list(also), items=items, checked=checked)
+        g = dict(e, also=list(also), items=items, checked=checked, review=digest if items == "shown" else None)
         out.append(g)
         alias.update({a: gov for a in also})
+    sources: dict[str, str] = {}
+    for g in out:
+        key = source_key(g) if g["status"] == "covered" else None
+        if key is None:
+            continue
+        if key in sources:
+            _fail(path, f"govs {g['gov']}", g["platform"],
+                  f"source {key} is already {sources[key]}'s: one covered entry per source (11.1 row 4)")
+        sources[key] = g["gov"]
     return Directory(govs=tuple(out), alias=alias)
 
 
@@ -457,6 +518,8 @@ def load_gov_flags(path: Path = FLAGS_PATH, labels: Mapping[str, str] | None = N
             _fail(path, where, "layer", "unknown layer")
         if not isinstance(r["show"], bool):
             _fail(path, where, "show", "must be true or false")
+        if r["show"]:
+            _fail(path, where, "show", "state rules only hide; use id-level show")
         if (r["state"], r["layer"]) in seen_rules:
             _fail(path, where, "layer", "duplicate rule for this state and layer")
         seen_rules.add((r["state"], r["layer"]))

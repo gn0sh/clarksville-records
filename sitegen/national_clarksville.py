@@ -21,10 +21,13 @@ them in; nothing here opens a data/ path, so the data move of ADR 0011 does not 
   is neither the county's key nor a key with inputs and a council.yml stops the build (FeedError), so no entry is
   ever given another council's meetings.
 
-Invariant `privacy-withhold/national-prefix` (section 11): `items_withheld` is the directory entry's `items` field
-(`gov["items"] != "shown"`, a missing field meaning withheld), never an id prefix. A withheld government's meetings
-carry `items: []` and `item_count: null`, and its stored item text is never read. Which feed a directory entry gets
-comes from its `daylight.body` key (config.yml `county_key`, council.yml `body_key`), also never from its id.
+Invariant `privacy-withhold/national-prefix` (section 11 v3): stored item text is read only when
+`national_guards.is_shown(gov)` (the entry says `items: shown` and its whole-entry review digest matched its
+SHOWN_REVIEWED row), never by an id prefix. A withheld government's meetings carry `items: []` and `item_count:
+null`, and its stored item text is never read. Each feed carries `review` (the digest when shown, else null) and goes
+through `bind_feed` before the schema check. Items flow only by the county route: the code fixes COUNTY_BODY_KEY and
+stops the build (FeedError) unless config.SITE `county_key` equals it and no council.yml `body_key` does (11.1 row
+10); council feeds never carry items.
 """
 from __future__ import annotations
 
@@ -40,11 +43,12 @@ from jsonschema import Draft202012Validator, FormatChecker
 from . import config
 from .days import calendar_rows
 from .national import Directory
-from .national_guards import GuardCounts, allowed_url, clean_feed
+from .national_guards import BindCounts, GuardCounts, allowed_url, bind_feed, clean_feed, is_shown
 
 UPCOMING_SCHEMA = "daylight-upcoming/1"
 UPCOMING_SCHEMA_PATH = config.REPO_ROOT / "schema" / "daylight-upcoming.schema.json"
 PLATFORM = "daylight"
+COUNTY_BODY_KEY = "county"     # the only daylight.body whose feed carries items (11.1 row 10), fixed in code
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 NOT_READ = "not-read"          # posted, items not read by us (the City Council in M1)
@@ -83,12 +87,6 @@ def _instant(t: datetime) -> str:
     if not isinstance(t, datetime) or t.tzinfo is None:
         raise ValueError("checked_at must be a datetime with a time zone")
     return t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _shown(gov: Mapping) -> bool:
-    """The one place this adapter decides whether item text may be published: the directory's `items` field only
-    (default withheld; privacy-withhold/national-prefix)."""
-    return gov.get("items", "withheld") == "shown"
 
 
 def _iso_day(value) -> bool:
@@ -169,7 +167,7 @@ def county_meetings(agendas: dict | None, today: date, kind_labels: Mapping[str,
 
 
 def _feed(gov: Mapping, tz: str, meetings: list[dict], stamp: str) -> dict:
-    return {"schema": UPCOMING_SCHEMA,
+    return {"schema": UPCOMING_SCHEMA, "review": gov["review"] if is_shown(gov) else None,
             "body": {"id": gov["gov"], "name": gov["body_name"], "tz": tz, "official_url": gov["official_url"],
                      "platform": PLATFORM, "full_url": gov["daylight"]["full_url"]},
             "checked_at": stamp, "last_ok_at": stamp, "meetings": meetings}
@@ -177,24 +175,30 @@ def _feed(gov: Mapping, tz: str, meetings: list[dict], stamp: str) -> dict:
 
 def clarksville_feeds(directory: Directory, councils: Mapping[str, tuple[dict, list]], county_agendas: dict | None,
                       today: date, *, checked_at: datetime,
-                      counts: dict[str, GuardCounts] | None = None) -> dict[str, dict]:
+                      counts: dict[str, GuardCounts] | None = None,
+                      bind_counts: dict[str, BindCounts] | None = None) -> dict[str, dict]:
     """{body id: `daylight-upcoming/1` feed} for every covered daylight entry of the directory. `councils` maps a
     council's council.yml `body_key` to its (facts, listing); an entry gets the county feed when its `daylight.body`
-    is config.SITE `county_key`, that council's feed when it is a key of `councils` with a council.yml, and any other
+    is COUNTY_BODY_KEY (`county`), that council's feed when it is a key of `councils` with a council.yml, and any other
     key stops the build (FeedError). `today` is the build day in the body's zone; `checked_at` (aware) is when the
     inputs were collected, written as `checked_at` and `last_ok_at`. Each feed goes through
-    `national_guards.clean_feed` and is then checked against the schema (FeedError). `counts`, if given, receives each
-    feed's GuardCounts for the run log."""
+    `national_guards.clean_feed`, then `bind_feed` with its entry, and is then checked against the schema
+    (FeedError). `counts` and `bind_counts`, if given, receive each feed's GuardCounts and BindCounts for the run log.
+    Stops the build (FeedError) unless config.SITE `county_key` is COUNTY_BODY_KEY and no council's `body_key` is."""
     stamp = _instant(checked_at)
     tz = config.SITE["site_timezone"]
-    county_key = config.SITE["county_key"]
+    if config.SITE.get("county_key") != COUNTY_BODY_KEY:
+        raise FeedError(f"config.SITE county_key {config.SITE.get('county_key')!r} is not {COUNTY_BODY_KEY!r}: the "
+                        "county route is the only one that carries items (privacy-withhold, 11.1 row 10)")
+    if any(c.get("body_key") == COUNTY_BODY_KEY for c in config.COUNCILS):
+        raise FeedError(f"a council.yml body_key is {COUNTY_BODY_KEY!r}, the county's key (11.1 row 10)")
     feeds: dict[str, dict] = {}
     for gov in directory.govs:
         if gov.get("status") != "covered" or gov.get("platform") != PLATFORM:
             continue
         key = (gov.get("daylight") or {}).get("body")
-        withheld = not _shown(gov)
-        if key == county_key:
+        withheld = not is_shown(gov)
+        if key == COUNTY_BODY_KEY:
             meetings = county_meetings(county_agendas, today, config.KIND_LABELS, withheld)
         elif key in councils and (cfg := council_cfg(key)) is not None:
             facts, listing = councils[key]
@@ -203,12 +207,18 @@ def clarksville_feeds(directory: Directory, councils: Mapping[str, tuple[dict, l
             raise FeedError(f"{gov['gov']}: daylight.body {key!r} is neither the county's key nor a council with "
                             "inputs and a council.yml")
         feed, n = clean_feed(_feed(gov, tz, meetings, stamp), PLATFORM)
+        try:
+            feed, bound = bind_feed(feed, gov)
+        except ValueError as e:              # BindError
+            raise FeedError(f"{gov['gov']}: {e}") from e
         errors = feed_errors(feed)
         if errors:
             raise FeedError(f"{gov['gov']}: feed does not match {UPCOMING_SCHEMA}:\n" + "\n".join(errors))
         feeds[gov["gov"]] = feed
         if counts is not None:
             counts[gov["gov"]] = n
+        if bind_counts is not None:
+            bind_counts[gov["gov"]] = bound
     return feeds
 
 

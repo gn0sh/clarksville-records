@@ -8,7 +8,10 @@ Security findings 4 (`national/url-scheme-untrusted`) and 12 (`national/untruste
 - `checked_id` / `checked_meeting_id`: an id that becomes a path or a tag matches the id regex first.
 - `clean_text`: control characters and bidi overrides stripped (and counted), whitespace joined.
 - `clean_feed`: the above on every field of a `daylight-upcoming/1` feed, plus the caps: item text cut at 2,000
-  characters (`"cut": true`), 150 items per meeting, 60 meetings per government.
+  characters (`"cut": true`), 150 items per meeting, 60 meetings per government. It cleans and never decides.
+- `is_shown` / `bind_feed` (section 11.2, `privacy-withhold/national-prefix`): the one predicate every consumer calls
+  before reading or publishing item text, and the last gate before any feed is written (BindError on a feed that is
+  not the entry's; items stripped and counted unless the entry is shown under the feed's `review`).
 
 Imports only `sitegen.config` (which imports no other sitegen module) and the standard library, so `sitegen.national`
 and the collector (`collector/national/`, M2) both import it without a cycle.
@@ -225,4 +228,66 @@ def clean_feed(feed: dict, platform: str = "daylight", client: str | None = None
                 continue
             kept.append(_clean_meeting(m, platform, client, counts))
         out["meetings"] = kept
+    return out, counts
+
+
+# --- the shown gate (architecture 11.2; invariant privacy-withhold/national-prefix) -----------------------------
+
+REVIEW_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+class BindError(ValueError):
+    """A feed is not the directory entry's: another body id or platform. Nothing of it may be written."""
+
+
+def is_shown(entry) -> bool:
+    """The one predicate every consumer calls (11.1 row 13): item text may be read and published for this loaded
+    directory entry. True only for `items: shown` with a `review` digest (load_directory sets it only after the
+    entry's whole-entry digest matched its SHOWN_REVIEWED row)."""
+    return (isinstance(entry, dict) and entry.get("items") == "shown" and isinstance(entry.get("review"), str)
+            and bool(REVIEW_RE.fullmatch(entry["review"])))
+
+
+@dataclass
+class BindCounts:
+    """What bind_feed stripped, for the run log (counts only, never text). Each counts meetings that carried item
+    content (items or an item_count) and were emptied."""
+    withheld_stripped: int = 0   # the entry is not shown: a bug upstream (D2 fails the deploy on > 0)
+    review_mismatch: int = 0     # the entry is shown, the feed was read under another review (expected once after a
+                                 # reviewed change; logged)
+
+    def summary(self) -> str:
+        return ", ".join(f"{f.name}={getattr(self, f.name)}" for f in fields(self))
+
+
+def bind_feed(feed: dict, entry: dict) -> tuple[dict, BindCounts]:
+    """The last gate before any write of a `daylight-upcoming/1` feed (11.2). Returns a copy and what was stripped.
+
+    Raises BindError when `feed` is not an object with a `body`, or `body.id` is not the entry's `gov`, or
+    `body.platform` is not the entry's `platform`. Items are kept only when `is_shown(entry)` and the feed's `review`
+    equals the entry's; otherwise every meeting is emptied (`items: []`, `item_count: null`, `items_withheld: true`)
+    and `review` set to null. So a written `review` is non-null only when the entry is shown under that review."""
+    body = feed.get("body") if isinstance(feed, dict) else None
+    if not isinstance(body, dict) or not isinstance(entry, dict):
+        raise BindError("not a feed with a body")
+    if body.get("id") != entry.get("gov"):
+        raise BindError(f"feed body.id {body.get('id')!r} is not the entry's gov {entry.get('gov')!r}")
+    if body.get("platform") != entry.get("platform"):
+        raise BindError(f"{entry.get('gov')}: feed platform {body.get('platform')!r} is not the entry's "
+                        f"{entry.get('platform')!r}")
+    out = copy.deepcopy(feed)
+    counts = BindCounts()
+    if is_shown(entry) and out.get("review") == entry["review"]:
+        return out, counts
+    shown = is_shown(entry)
+    for m in out.get("meetings") or []:
+        if not isinstance(m, dict):
+            continue
+        if m.get("items") or m.get("item_count") is not None:
+            if shown:
+                counts.review_mismatch += 1
+            else:
+                counts.withheld_stripped += 1
+        m["items"], m["item_count"], m["items_withheld"] = [], None, True
+    out["review"] = None
     return out, counts

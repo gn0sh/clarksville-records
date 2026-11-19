@@ -130,7 +130,7 @@ def test_schema_fields_are_exactly_the_contract():
     """3.5's field list and nothing else: no vote, outcome, tally, attendance, motion or person's name (AC4.4)."""
     Draft202012Validator.check_schema(SCHEMA)
     assert _property_names(SCHEMA) == {
-        "schema", "body", "checked_at", "last_ok_at", "meetings", "id", "name", "tz", "official_url", "platform",
+        "schema", "review", "body", "checked_at", "last_ok_at", "meetings", "id", "name", "tz", "official_url", "platform",
         "full_url", "date", "time", "title", "title_ours", "meeting_url", "agenda", "state", "url",
         "status_as_posted", "may_be_incomplete", "items_withheld", "item_count", "items", "seq", "number", "text",
         "cut", "source", "page"}
@@ -441,3 +441,59 @@ def test_bad_feed_stops_the_build(directory, monkeypatch):
                                                  "meetings": [], "extra": 1})
     with pytest.raises(nc.FeedError):
         run(directory)
+
+
+# --- section 11.3 item 5: the county route and the review stamp (privacy-withhold/national-prefix) --------------
+
+def test_11_3_5_county_key_other_than_county_stops_the_build(directory, monkeypatch):
+    monkeypatch.setitem(config.SITE, "county_key", "city")
+    with pytest.raises(nc.FeedError, match="county_key"):
+        run(directory, agendas=agendas_with("SENTINEL-ITEM-TEXT"))
+
+
+def test_11_3_5_council_body_key_county_stops_the_build(directory, monkeypatch):
+    monkeypatch.setattr(config, "COUNCILS", [*config.COUNCILS, {**nc.council_cfg("city"), "body_key": "county"}])
+    with pytest.raises(nc.FeedError, match="body_key is 'county'"):
+        run(directory, agendas=agendas_with("SENTINEL-ITEM-TEXT"))
+
+
+def test_11_3_5_feeds_carry_review(directory):
+    feeds = run(directory, agendas=agendas_with("SENTINEL-ITEM-TEXT"))
+    rows = {r.gov: r.digest for r in nat.SHOWN_REVIEWED}
+    assert feeds[COUNTY_ID]["review"] == rows[COUNTY_ID] and feeds[COUNCIL_ID]["review"] == rows[COUNCIL_ID]
+    withheld = nat.Directory(govs=tuple(entry(directory, i, items="withheld", review=None)
+                                        for i in (COUNCIL_ID, COUNTY_ID)))
+    feeds = run(withheld, agendas=agendas_with("SENTINEL-ITEM-TEXT"))
+    assert feeds[COUNTY_ID]["review"] is None and feeds[COUNCIL_ID]["review"] is None
+    assert "SENTINEL-ITEM-TEXT" not in json.dumps(feeds)
+
+
+def test_11_3_5_shown_without_a_review_reads_no_items(directory):
+    """items: shown but no review digest (an entry not from load_directory): not shown, nothing read."""
+    d = nat.Directory(govs=(entry(directory, COUNTY_ID, review=None),))
+    feed = run(d, agendas=agendas_with("SENTINEL-ITEM-TEXT"))[COUNTY_ID]
+    assert feed["review"] is None and "SENTINEL-ITEM-TEXT" not in json.dumps(feed)
+    assert all(m["items_withheld"] and m["item_count"] is None for m in feed["meetings"])
+
+
+def test_11_3_5_schema_refuses_review_null_with_items(directory):
+    feed = run(directory, agendas=agendas_with("SENTINEL-ITEM-TEXT"))[COUNTY_ID]
+    assert nc.feed_errors(feed) == []
+    bad = copy.deepcopy(feed)
+    bad["review"] = None
+    assert nc.feed_errors(bad)                              # items present, review null
+    bad["meetings"][0].update(items=[], item_count=None)
+    assert nc.feed_errors(bad)                              # items_withheld still false
+    bad["meetings"][0]["items_withheld"] = True
+    assert nc.feed_errors(bad) == []
+    for review in ("x" * 64, "ABC", 1):
+        assert nc.feed_errors(dict(feed, review=review))
+    assert nc.feed_errors({k: v for k, v in feed.items() if k != "review"})
+
+
+def test_11_3_5_bind_counts_reported(directory):
+    bind = {}
+    nc.clarksville_feeds(directory, {"city": (facts_with(), [])}, agendas_with("SENTINEL-ITEM-TEXT"),
+                         date(2026, 11, 19), checked_at=CHECKED, bind_counts=bind)
+    assert set(bind) == {COUNCIL_ID, COUNTY_ID}
+    assert all(b.withheld_stripped == 0 and b.review_mismatch == 0 for b in bind.values())

@@ -2,12 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "clarksville-records/daylight-upcoming/1",
   "title": "digest/<st>/<body id>.json: one government's coming-up meetings",
-  "description": "docs/architecture/daylight-national.md 3.5. Read by the coming-up page, the M4 ICS and Atom, the future app and the weekly email. No vote, outcome, tally, attendance, motion or person's name field exists here (AC4.4): every object is closed (additionalProperties false). Items appear only when the agenda is final and the government's directory entry says items: shown (items_withheld false; invariant privacy-withhold/national-prefix, section 11). Caps from task B14: 60 meetings, 150 items per meeting, 2,000 characters per text. format uri is the site's link rule (config.is_https_uri).",
+  "description": "docs/architecture/daylight-national.md 3.5. Read by the coming-up page, the M4 ICS and Atom, the future app and the weekly email. No vote, outcome, tally, attendance, motion or person's name field exists here (AC4.4): every object is closed (additionalProperties false). Items appear only when the agenda is final and the government's directory entry is shown under the file's review digest (review non-null, items_withheld false; review null forces every meeting withheld; invariant privacy-withhold/national-prefix, section 11 v3). Caps from task B14: 60 meetings, 150 items per meeting, 2,000 characters per text. format uri is the site's link rule (config.is_https_uri).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "body", "checked_at", "last_ok_at", "meetings"],
+  "required": ["schema", "review", "body", "checked_at", "last_ok_at", "meetings"],
   "properties": {
     "schema": { "const": "daylight-upcoming/1" },
+    "review": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
     "body": {
       "type": "object",
       "additionalProperties": false,
@@ -25,6 +26,13 @@
     "last_ok_at": { "anyOf": [{ "$ref": "#/$defs/instant" }, { "type": "null" }] },
     "meetings": { "type": "array", "maxItems": 60, "items": { "$ref": "#/$defs/meeting" } }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "review": { "type": "null" } } },
+      "then": { "properties": { "meetings": { "items": { "properties": {
+        "items_withheld": { "const": true }, "items": { "maxItems": 0 }, "item_count": { "type": "null" } } } } } }
+    }
+  ],
   "$defs": {
     "instant": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
     "meeting": {
