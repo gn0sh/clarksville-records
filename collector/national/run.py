@@ -10,6 +10,11 @@ one body's failure, then the feeds, `health.json` and `proposals.json` of `data/
   `limit_hosts`, and at most TENANT_BUDGET requests per tenant to `limit_tenant`. Order: bodies with a meeting in the
   next SOON_DAYS days whose agenda was not final at the last read, then bodies not read longest (never read first). A
   body the budget does not reach, or whose read runs into a cap, records `budget-skipped`.
+- **Deadline** (`national-budget/no-wall-deadline`): a request count alone does not bound the run's time (a robots.txt
+  Crawl-delay above the 10 s floor stretches every wait), and a run killed by the job's timeout writes nothing. With
+  `deadline` set, a body whose read would start at or after it, and a fetcher wait that would end after it
+  (`DeadlineReached`, a RequestCapReached, raised before the request is sent), stop the run like a cap: that body
+  and every body after it record `budget-skipped`, and the outputs are still written.
 - **Stops** (4.4.1): a `TenantBlocked` (caught before `HostBlocked`, `national/tenant-caller-order`) stops that body's
   tenant only; the host's other tenants go on. It also denies the city's own Legistar host (`<client>.legistar.com`)
   for the rest of the run (manager decision, C1 fresh review). A host stop (any other `HostBlocked`, or robots.txt
@@ -74,6 +79,20 @@ class HostNotApproved(ValueError):
     def __init__(self, message: str, gov: str | None = None):
         super().__init__(message)
         self.gov = gov if id_layer(gov) else None
+
+
+class DeadlineReached(RequestCapReached):
+    """The run's wall-clock deadline: a wait that would end past it is not slept and its request is never sent. A
+    RequestCapReached, so the reader, robots() and `_classify` treat it as a cap (`budget-skipped`)."""
+
+
+def _deadline_sleep(sleep, deadline: datetime, clock: Callable[[], datetime]):
+    """The fetcher's `sleep`, refusing (DeadlineReached) any wait that would end after `deadline`."""
+    def guarded(seconds):
+        if clock() + timedelta(seconds=max(0.0, float(seconds))) > deadline:
+            raise DeadlineReached("the run's deadline comes before this wait ends; the request was not sent")
+        return sleep(seconds)
+    return guarded
 
 
 class RunResult(NamedTuple):
@@ -280,7 +299,8 @@ class _Stops:
         self.capped: set[str] = set()
 
 
-def _read_one(entry: dict, fetcher, stamp_of, cache_root, stops: _Stops, tenant_budget: int):
+def _read_one(entry: dict, fetcher, stamp_of, cache_root, stops: _Stops, tenant_budget: int,
+              deadline: datetime | None = None):
     """One body: -> (outcome, stamp or None when it was not read, BodyRead or None)."""
     url = _tenant_url(entry)
     tenant = tenant_key(url)                           # TenantPathRefused: the caller records collector-error
@@ -296,6 +316,9 @@ def _read_one(entry: dict, fetcher, stamp_of, cache_root, stops: _Stops, tenant_
     if fetcher.remaining(HOST) == 0 or fetcher.remaining_tenant(url) == 0:
         return "budget-skipped", None, None
     when = stamp_of()
+    if deadline is not None and when >= deadline:      # national-budget/no-wall-deadline: not read, like a cap
+        stops.host = "budget-skipped"
+        return "budget-skipped", None, None
     stamp = _instant(when)
     try:
         return OK, stamp, lu.read_body(entry, fetcher, when, cache_root)
@@ -350,7 +373,8 @@ def _record(entry: dict, outcome: str, stamp: str | None, read, now: datetime, p
 
 def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_feeds: dict | None = None,
         previous_health: dict | None = None, previous_proposals: list | None = None, cache_root: Path | None = None,
-        clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
+        clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET,
+        deadline: datetime | None = None) -> RunResult:
     """One national collection run over every covered Legistar entry of `directory`. Never raises for one body: any
     exception in a body's read or its bookkeeping is that body's `collector-error` (`national-run/raise-outside-try`).
     Raises HostNotApproved, before any fetcher call, for an entry with no valid `host_ok` (`check_host_ok`).
@@ -359,10 +383,15 @@ def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_f
     remaining_tenant, robots_unreadable, log, extra_denied). `budget` is the run's request budget on
     webapi.legistar.com. `now` (aware) orders the run; `clock()` stamps each body as its read starts (default: `now`
     for every body). `previous_*` are the last run's outputs (`read_previous`). `cache_root` is
-    `data/national/cache`: pruned first (11.1 row 19); a prune failure raises (nothing is read or written)."""
+    `data/national/cache`: pruned first (11.1 row 19); a prune failure raises (nothing is read or written).
+    `deadline` (aware, or None for none) is checked against `clock()`: a body that would start at or after it is not
+    read, and for the run the fetcher's `sleep` refuses a wait that would end after it (DeadlineReached); either way
+    that body and the rest record `budget-skipped`. The fetcher's own `sleep` is put back before run() returns."""
     check_host_ok(directory, _run_day(now))            # R5: before the fetcher, the cache or any file is touched
     stamp_of = clock or (lambda: now)
     _instant(now)
+    if deadline is not None and (not isinstance(deadline, datetime) or deadline.tzinfo is None):
+        raise ValueError("deadline must be an aware datetime")
     previous_feeds = previous_feeds if isinstance(previous_feeds, dict) else {}
     previous_health = previous_health if isinstance(previous_health, dict) else {}
 
@@ -383,28 +412,33 @@ def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_f
         ordered = sorted(entries, key=lambda e: e["gov"])
     stops = _Stops()
     feeds, health, new_proposals, read_ok, outcomes = {}, {}, [], set(), {}
-
-    for entry in ordered:
-        gov = checked_id(entry["gov"])
-        stamp = None
-        try:
-            outcome, stamp, read = _read_one(entry, fetcher, stamp_of, cache_root, stops, tenant_budget)
-            feed, record, props = _record(entry, outcome, stamp, read, now, previous_feeds, previous_health)
-        except Exception:
-            outcome, feed, props = "collector-error", None, []
-            record = {"last_attempt_at": stamp if isinstance(stamp, str) else None, "last_ok_at": None,
-                      "consecutive_failures": 1, "last_error": outcome, "failure_streak": None}
+    own_sleep = fetcher.sleep
+    if deadline is not None:
+        fetcher.sleep = _deadline_sleep(own_sleep, deadline, stamp_of)
+    try:
+        for entry in ordered:
+            gov = checked_id(entry["gov"])
+            stamp = None
             try:
-                _f, record, _p = _record(entry, outcome, stamp, None, now, previous_feeds, previous_health)
+                outcome, stamp, read = _read_one(entry, fetcher, stamp_of, cache_root, stops, tenant_budget, deadline)
+                feed, record, props = _record(entry, outcome, stamp, read, now, previous_feeds, previous_health)
             except Exception:
-                pass                                   # the bare record above: nothing of the last run is trusted
-        outcomes[gov] = outcome
-        health[gov] = record
-        new_proposals.extend(props)
-        if feed is not None:
-            feeds[gov] = feed
-        if outcome == OK:
-            read_ok.add(gov)
+                outcome, feed, props = "collector-error", None, []
+                record = {"last_attempt_at": stamp if isinstance(stamp, str) else None, "last_ok_at": None,
+                          "consecutive_failures": 1, "last_error": outcome, "failure_streak": None}
+                try:
+                    _f, record, _p = _record(entry, outcome, stamp, None, now, previous_feeds, previous_health)
+                except Exception:
+                    pass                                   # the bare record above: nothing of the last run is trusted
+            outcomes[gov] = outcome
+            health[gov] = record
+            new_proposals.extend(props)
+            if feed is not None:
+                feeds[gov] = feed
+            if outcome == OK:
+                read_ok.add(gov)
+    finally:
+        fetcher.sleep = own_sleep
 
     proposals = merge_proposals(previous_proposals or [], new_proposals, read_ok, clients)
     return RunResult(feeds=feeds, health=health, proposals=proposals, outcomes=outcomes)
@@ -498,13 +532,15 @@ def write_outputs(data_root: Path, result: RunResult) -> None:
 
 
 def collect(data_root: Path, directory: Directory, fetcher, budget: int, now: datetime, *,
-            clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET) -> RunResult:
+            clock: Callable[[], datetime] | None = None, tenant_budget: int = TENANT_BUDGET,
+            deadline: datetime | None = None) -> RunResult:
     """check_data_root -> read_previous -> run (cache `data_root/cache`, pruned first) -> write_outputs. The directory
     is never written. A directory `check_host_ok` refuses raises before anything is read or written."""
     check_host_ok(directory, _run_day(now))   # on purpose: run() checks again; this one runs before data_root is read
     root = check_data_root(data_root)
     feeds, health, proposals = read_previous(root)
     result = run(directory, fetcher, budget, now, previous_feeds=feeds, previous_health=health,
-                 previous_proposals=proposals, cache_root=root / "cache", clock=clock, tenant_budget=tenant_budget)
+                 previous_proposals=proposals, cache_root=root / "cache", clock=clock, tenant_budget=tenant_budget,
+                 deadline=deadline)
     write_outputs(root, result)
     return result

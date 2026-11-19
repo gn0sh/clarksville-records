@@ -690,3 +690,79 @@ def test_a_symlinked_cache_root_fails_the_run(tmp_path, monkeypatch):
     with pytest.raises(ValueError):
         nr.run(d, fetcher(net), 100, NOW, cache_root=link)
     assert net.calls == []
+
+
+# --- the wall-clock deadline (national-budget/no-wall-deadline) ----------------------------------------------------
+
+class Wall:
+    """A fake wall clock that only the fetcher's sleeps move: the fetcher's monotonic clock and the run's clock read
+    the same seconds, so waiting is the only thing that takes time."""
+
+    def __init__(self):
+        self.s, self.slept = 0.0, []
+
+    def sleep(self, seconds):
+        self.slept.append(seconds)
+        self.s += seconds
+
+    def mono(self):
+        return self.s
+
+    def now(self):
+        return NOW + timedelta(seconds=self.s)
+
+
+def walled(net, wall):
+    return PoliteFetcher(opener=net, sleep=wall.sleep, clock=wall.mono, proxy_failures=lambda: [],
+                         allowed_hosts=("webapi.legistar.com",))
+
+
+def test_past_the_deadline_the_rest_is_budget_skipped_and_the_outputs_are_written(tmp_path, monkeypatch):
+    govs = [body(i, f"c{i:02d}") for i in range(1, 6)]                  # 5 tenants, one events request each
+    d, _ = load(tmp_path, monkeypatch, *govs)
+    net, wall = Net(), Wall()
+    f = walled(net, wall)
+    root = tmp_path / "data" / "national"
+    r = nr.collect(root, d, f, 100, NOW, clock=wall.now, deadline=NOW + timedelta(seconds=35))
+    # robots.txt at 0 s, events at 10, 20, 30 s; the 4th body starts at 30 s, but its wait would end at 40 s
+    assert len(net.calls) == 4 and wall.s == 30.0
+    out = [r.outcomes[g["gov"]] for g in govs]
+    assert out == ["ok", "ok", "ok", "budget-skipped", "budget-skipped"]
+    assert r.health[govs[3]["gov"]]["last_attempt_at"] == nr._instant(NOW + timedelta(seconds=30))  # it started
+    assert r.health[govs[4]["gov"]]["last_attempt_at"] is None                                   # never started
+    assert all(r.health[g["gov"]]["consecutive_failures"] == 0 for g in govs)                 # not a failure
+    health = json.loads((root / "health.json").read_text())
+    assert [health[g["gov"]]["last_error"] for g in govs] == [None, None, None, "budget-skipped", "budget-skipped"]
+    assert sorted(p.name for p in (root / "bodies").iterdir()) == [f"{g['gov']}.json" for g in govs[:3]]
+    assert f.sleep == wall.sleep                                         # the fetcher's own sleep is back
+
+
+def test_a_long_robots_crawl_delay_is_never_slept_past_the_deadline(tmp_path, monkeypatch):
+    """A Crawl-delay of an hour would stretch even a small budget past the job's timeout (and a killed run writes
+    nothing); with the deadline the wait is refused before the request and the run ends at once."""
+    govs = [body(1, "aa"), body(2, "bb")]
+    d, _ = load(tmp_path, monkeypatch, *govs)
+    net, wall = Net(robots="User-agent: *\nCrawl-delay: 3600\n"), Wall()
+    r = nr.run(d, walled(net, wall), 100, NOW, clock=wall.now, deadline=NOW + timedelta(minutes=50))
+    assert len(net.calls) == 1 and wall.slept == []                     # robots.txt only; no hour-long wait
+    assert set(r.outcomes.values()) == {"budget-skipped"}
+
+
+def test_a_deadline_already_past_sends_nothing_and_still_writes(tmp_path, monkeypatch):
+    govs = [body(1, "aa"), body(2, "bb")]
+    d, _ = load(tmp_path, monkeypatch, *govs)
+    net, root = Net(), tmp_path / "data" / "national"
+    r = nr.collect(root, d, fetcher(net), 100, NOW, deadline=NOW)
+    assert net.calls == []
+    assert r.outcomes == {g["gov"]: "budget-skipped" for g in govs}
+    assert set(json.loads((root / "health.json").read_text())) == {g["gov"] for g in govs}
+
+
+def test_no_deadline_keeps_todays_behaviour_and_a_naive_one_is_refused(tmp_path, monkeypatch):
+    govs = [body(1, "aa"), body(2, "bb")]
+    d, _ = load(tmp_path, monkeypatch, *govs)
+    net, wall = Net(robots="User-agent: *\nCrawl-delay: 3600\n"), Wall()
+    r = nr.run(d, walled(net, wall), 100, NOW, clock=wall.now)
+    assert set(r.outcomes.values()) == {"ok"} and wall.slept == [3600.0, 3600.0]   # an hour a request
+    with pytest.raises(ValueError):
+        nr.run(d, fetcher(Net()), 100, NOW, deadline=datetime(2026, 12, 1, 19, 0))
