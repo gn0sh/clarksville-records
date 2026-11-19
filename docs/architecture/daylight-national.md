@@ -311,8 +311,14 @@ lines.
 
 ### 4.3 National builder (`sitegen/national.py`)
 - `load_directory(path) -> Directory` (raises `NationalConfigError` naming the entry and key).
-- `clarksville_feeds(facts_city, listing_city, county_agendas, today) -> dict[body_id, UpcomingFeed]`: council
-  meetings with `agenda.state = not-read` (or `not-posted`), county agenda-only meetings with items as stored.
+- `clarksville_feeds(directory, facts_city, listing_city, county_agendas, today, *, checked_at, counts=None)
+  -> dict[body_id, UpcomingFeed]` (B3: `sitegen/national_clarksville.py`): council meetings with `agenda.state =
+  not-read` (or `not-posted`), county agenda-only meetings with items as stored. `directory` supplies each feed's body
+  and its `items` field (section 11); an entry gets the county or council feed by its `daylight.body` key, not its id.
+  `checked_at` (aware) is when the inputs were collected (both `checked_at` and `last_ok_at`); `counts` receives the
+  guards' counts per body for the run log. The inputs are loaded by the caller with the build's loaders; each feed is
+  checked against `schema/daylight-upcoming.schema.json` (`FeedError`). `meeting_url` is null for both bodies (no
+  per-meeting source page; the page uses `official_url`).
 - `build_national(out_dir, directory, feeds, labels, share, counter_on) -> list[path]`: writes `digest/index.html`,
   `digest/covered.html` ("What we cover": covered and can't-cover entries by state, then name; share sentence only if
   `share` is given), `digest/requested.html`, and per covered government `digest/<st>/<body id>.html` and `.json`.
@@ -482,8 +488,8 @@ Legistar client, stays withheld even though its id is a `place-` id: its directo
 call, and the Salem entry's PR names how it was checked). Consumers, each of which must read the directory field and
 none of which may infer withholding from an id prefix:
 1. `collector/national/legistar_upcoming.py`: makes no items request unless `shown` (M2, C2).
-2. `sitegen/national.py clarksville_feeds` and the M2 copy step: set `items_withheld` and drop `items` and `item_count`
-   from the JSON when not shown.
+2. `sitegen/national_clarksville.py clarksville_feeds` and the M2 copy step: set `items_withheld` and, when not
+   shown, write `items: []` and `item_count: null` (the keys stay, empty; the schema refuses anything else).
 3. The coming-up page template: prints items only from the JSON's `items`; a withheld government shows the fixed
    "official agenda is the full record" label (UX withheld state).
 4. The M4 ICS and Atom writers and the weekly email plan: read only the JSON, so they inherit it (a test builds all

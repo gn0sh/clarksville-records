@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarksville-records/daylight-upcoming/1",
+  "title": "digest/<st>/<body id>.json: one government's coming-up meetings",
+  "description": "docs/architecture/daylight-national.md 3.5. Read by the coming-up page, the M4 ICS and Atom, the future app and the weekly email. No vote, outcome, tally, attendance, motion or person's name field exists here (AC4.4): every object is closed (additionalProperties false). Items appear only when the agenda is final and the government's directory entry says items: shown (items_withheld false; invariant privacy-withhold/national-prefix, section 11). Caps from task B14: 60 meetings, 150 items per meeting, 2,000 characters per text. format uri is the site's link rule (config.is_https_uri).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "body", "checked_at", "last_ok_at", "meetings"],
+  "properties": {
+    "schema": { "const": "daylight-upcoming/1" },
+    "body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "tz", "official_url", "platform", "full_url"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "tz": { "type": "string", "minLength": 1 },
+        "official_url": { "type": ["string", "null"], "format": "uri" },
+        "platform": { "enum": ["daylight", "legistar"] },
+        "full_url": { "type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9/_.-]*$" }
+      }
+    },
+    "checked_at": { "$ref": "#/$defs/instant" },
+    "last_ok_at": { "anyOf": [{ "$ref": "#/$defs/instant" }, { "type": "null" }] },
+    "meetings": { "type": "array", "maxItems": 60, "items": { "$ref": "#/$defs/meeting" } }
+  },
+  "$defs": {
+    "instant": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
+    "meeting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "date", "time", "title", "title_ours", "meeting_url", "agenda", "may_be_incomplete",
+                   "items_withheld", "item_count", "items"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,79}$" },
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "time": { "type": ["string", "null"], "maxLength": 2000 },
+        "title": { "type": "string", "maxLength": 2000 },
+        "title_ours": { "type": "boolean" },
+        "meeting_url": { "type": ["string", "null"], "format": "uri" },
+        "agenda": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "url", "status_as_posted"],
+          "properties": {
+            "state": { "enum": ["final", "not-final", "not-read", "not-posted"] },
+            "url": { "type": ["string", "null"], "format": "uri" },
+            "status_as_posted": { "type": ["string", "null"], "maxLength": 2000 }
+          }
+        },
+        "may_be_incomplete": { "type": "boolean" },
+        "items_withheld": { "type": "boolean" },
+        "item_count": { "type": ["integer", "null"], "minimum": 0 },
+        "items": { "type": "array", "maxItems": 150, "items": { "$ref": "#/$defs/item" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "items_withheld": { "const": true } } },
+          "then": { "properties": { "items": { "maxItems": 0 }, "item_count": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "agenda": { "properties": { "state": { "not": { "const": "final" } } } } } },
+          "then": { "properties": { "items": { "maxItems": 0 } } }
+        }
+      ]
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seq", "number", "text", "source"],
+      "properties": {
+        "seq": { "type": "integer", "minimum": 1 },
+        "number": { "type": ["string", "null"], "maxLength": 2000 },
+        "text": { "type": "string", "maxLength": 2000 },
+        "cut": { "const": true },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "page"],
+          "properties": {
+            "url": { "type": ["string", "null"], "format": "uri" },
+            "page": { "type": ["integer", "null"], "minimum": 1 }
+          }
+        }
+      }
+    }
+  }
+}
