@@ -44,7 +44,7 @@ existing pages changes (see 7a for what "byte-identical" means with the switch o
 | Lookup script | `site/static/national.js` (+ the `address.js` message checks) | Drives the frame, classify, render list, picker, in-card request form, device list | M1 |
 | Counter script | `site/static/us-count.js` (digest pages only) | The anonymous "Just count me" event; exposes `window.DaylightCount` | M1 |
 | Header variant | `site/templates/_header.html.j2` (one switch) + `qa/site_checks.py` (two checks) | The digest plate and date line; scoped checks (7a) | M1 |
-| Request report | `scripts/request_report.py` | Counts `req-<id>` tags from Buttondown's API; runs on Brian's PC with his key, never in Actions | M1 |
+| Request report | `tools/national/request_report.py` | Counts `req-<id>` tags from Buttondown's API; runs on Brian's PC with his key, never in Actions | M1 |
 | Clarksville adapter | inside `sitegen/national.py` | Clarksville council and county commission meetings -> the feed shape | M1 |
 | Tenant rule | `collector/fetch.py` | Per-tenant block state on shared hosts | M2 |
 | National collector | `collector/national/` (`run.py`, `legistar_upcoming.py`) | Read covered Legistar bodies within a budget; write feeds, health, proposals | M2 |
@@ -578,7 +578,7 @@ from a digest page names it). The golden test removes (b) and (c) by their exact
   default if not possible: the label goes in the confirmation email or the page says nothing more than the design's
   "Check your email" text.
 - Security note (finding 11): Q2 also confirms Buttondown's firewall and IP filtering are on (free), and
-  `scripts/request_report.py` ignores `req-` ids not in the directory.
+  `tools/national/request_report.py` ignores `req-` ids not in the directory.
 
 ## 11. Invariant: item text is published only for governments we have said so for (`privacy-withhold/national-prefix`)
 v3, software-architect, 2026-11-19: loop-limit re-plan after the fourth hit in family `privacy-withhold` (id prefix;

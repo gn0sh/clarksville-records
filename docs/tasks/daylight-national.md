@@ -23,7 +23,7 @@ H1 (first Legistar request) waits for findings 3, 6, 7 (tasks C4, D1, B1/D3). Lo
 | B13 Header variant and the two site checks (scoped to `digest/`), plus the `digest/csp` check | backend-engineer | B4 (page set) | yes (with F2) | no |
 | B5 Byte-identical golden test (switch off: all files; on: only the allowed fragments) | backend-engineer | B4, B13 | no | no |
 | B7 Morning note ignores `req-` tags (test only) | backend-engineer | none | yes | no |
-| B12 `scripts/request_report.py`: `req-` counts by government from Buttondown's API, ignores ids not in the directory | backend-engineer | B1 | yes | **Brian runs it on his PC with his key** (no key given to the team) |
+| B12 `tools/national/request_report.py`: `req-` counts by government from Buttondown's API, ignores ids not in the directory | backend-engineer | B1 | yes | **Brian runs it on his PC with his key** (no key given to the team) |
 | F1 `national.js` pure part: jsonpUrl, classify, governments, notes, device-list functions, hardening | frontend-engineer | B1 (pagedir shape), B2 | yes (with B3) | no |
 | F5 `digest/geo-frame.html` and the postMessage protocol (4.0) | frontend-engineer | B1 | yes (with F1) | no |
 | F4 `us-count.js` and `window.DaylightCount` (3.9) | frontend-engineer | none | yes | no |
