@@ -13,6 +13,9 @@ import sitegen.national as national
 from test_morning_sender_buttondown import FakeHTTP, Resp
 from tools.national import request_report as rr
 
+KEY_STEP = ("$env:BUTTONDOWN_API_KEY = [Net.NetworkCredential]::new('', "
+            '(Read-Host -AsSecureString "Buttondown key")).Password')
+
 KEY = "bd_secretkey_0123456789abcdef"
 KNOWN = {"place-4748000": "place-4748000", "county-47125": "county-47125", "place-1": "place-1",
          "place-1old": "place-1"}
@@ -161,15 +164,15 @@ def test_help_says_brians_pc_and_the_powershell_steps(capsys):
         rr.main(["--help"])
     out = " ".join(capsys.readouterr().out.split())
     assert "Brian's PC" in out and rr.KEY_ENV in out and "anyone can tag" in out
-    assert 'Read-Host -MaskInput "Buttondown key"' in out and "Remove-Item Env:BUTTONDOWN_API_KEY" in out
+    assert KEY_STEP in out and "Remove-Item Env:BUTTONDOWN_API_KEY" in out
     assert "python -I tools\\national\\request_report.py" in out and "pip install -r requirements.txt" in out
-    assert "BUTTONDOWN_API_KEY=" not in out
+    assert "BUTTONDOWN_API_KEY=" not in out and "MaskInput" not in out
 
 
 def test_docstring_steps_never_put_the_key_on_a_command_line():
     doc = rr.__doc__
     assert "BUTTONDOWN_API_KEY=" not in doc and "Standard library only" not in doc
-    for step in ('$env:BUTTONDOWN_API_KEY = Read-Host -MaskInput "Buttondown key"',
+    for step in (KEY_STEP,
                  "python -I tools\\national\\request_report.py", "Remove-Item Env:BUTTONDOWN_API_KEY",
                  "python -m pip install -r requirements.txt"):
         assert step in doc

@@ -1,10 +1,10 @@
 """Count "Request it" taps per government from Buttondown (architecture daylight-national section 6; task B12).
 
 Run on Brian's PC, never in Actions: it needs his Buttondown key in the environment variable BUTTONDOWN_API_KEY.
-Steps in Windows PowerShell 7 (`pwsh`), from the repository folder; the key is typed hidden and never on a command line,
+Steps in PowerShell, from the repository folder; the key is typed hidden and never on a command line,
 so it is not in the shell history:
     python -m pip install -r requirements.txt          (once; into the Python itself, not --user: -I skips the user folder)
-    $env:BUTTONDOWN_API_KEY = Read-Host -MaskInput "Buttondown key"
+    $env:BUTTONDOWN_API_KEY = [Net.NetworkCredential]::new('', (Read-Host -AsSecureString "Buttondown key")).Password
     python -I tools\\national\\request_report.py
     Remove-Item Env:BUTTONDOWN_API_KEY
 
@@ -34,8 +34,10 @@ from sender.deliver import ProviderError, RateLimited  # noqa: E402
 PREFIX = "req-"
 HEADER = "advisory: anyone can tag a known email"
 _KEY = re.compile(r"[!-~]{16,256}")
-STEPS = ("Steps (PowerShell 7): python -m pip install -r requirements.txt (once); "
-         f'$env:{KEY_ENV} = Read-Host -MaskInput "Buttondown key"; python -I tools\\national\\request_report.py; '
+# works in Windows PowerShell 5.1 and in PowerShell 7, and the typed key is not recorded by a transcript
+KEY_STEP = f"$env:{KEY_ENV} = [Net.NetworkCredential]::new('', (Read-Host -AsSecureString \"Buttondown key\")).Password"
+RUN_STEP = "python -I tools\\national\\request_report.py"
+STEPS = (f"Steps (PowerShell): python -m pip install -r requirements.txt (once); {KEY_STEP}; {RUN_STEP}; "
          f"Remove-Item Env:{KEY_ENV}")
 
 
