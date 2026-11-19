@@ -61,15 +61,17 @@
 # --rollback refuses at entry while the repository variable MORNING_NOTE_SEND or MAIN_PR_BASELINE exists (finding
 # F4: R2 on reopens the bot path; a refused or failed read counts as set). It picks its path by where the cutover
 # merge is, never by whether main tracks data/:
-#   - --cutover-merge <sha> on main (the sha step 5 printed): it refuses unless that merge's parent tracks data/ and
+#   - --cutover-merge <sha> on main's first-parent line (the sha step 5 printed): it refuses unless that merge's parent tracks data/ and
 #     holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE, then disables daily-update and opens PR R from a new
 #     branch: data/ from records-data's head, the workflow and .github/CODEOWNERS as they were before the cutover
 #     merge, data/ out of .gitignore; every config/ input and reader stays as the cutover PR left them. The cutover
 #     merge must itself track no data/ and hold no CODEOWNERS. S1-3: the data/ source must pass the gate's I-prov
 #     check (its listing attested by daily-update.yml on main) or be the seed the merge's workflow pins; else it
 #     refuses, and --data-from <sha> picks an ancestor of records-data's head that does.
-#   - --merge <R> --sha <R's reviewed head>: it refuses unless R's data/ listing is attested or the pinned seed
-#     (S1-3) and R's head tracks data/ and holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE, disables
+#   - --merge <R> --sha <R's reviewed head>: it refuses unless R's data/ listing is attested or the seed pinned on
+#     main (S1-3; the pin is read from main, never from R or its parent: N1), R's head is one commit whose parent is
+#     on main's first-parent line (N1), and R's head tracks data/ and holds .github/CODEOWNERS and one empty
+#     MAIN_PR_BASELINE, disables
 #     daily-update, merges R with merge-reviewed (a bypass, under R1''),
 #     then stops with R2 still off unless main is that merge, tracks data/, and its workflow, CODEOWNERS and data/
 #     are R's, byte for byte, with one empty MAIN_PR_BASELINE (ADR 0011 Amendment (c) item 7). Only then R1' back, R2
@@ -221,6 +223,12 @@ fetch_rd() {   # records-data's head on origin, "" when there is none; 1 when it
   git rev-parse --verify -q "refs/cutover/records-data^{commit}"
 }
 tracks_data() { [ -n "$(git ls-tree --name-only "$1" -- data)" ]; }
+on_main_line() {   # $1 rev, $2 main (fetched): $1 is a commit on main's first-parent line (the gate's own test);
+  # every trust root the rollback reads comes from such a commit (docs/architecture/data-off-main-trust-roots.md)
+  local c
+  c=$(git rev-parse --verify -q "$1^{commit}") || return 1
+  [ "$(git rev-list --first-parent "$2" | grep -cxF -- "$c")" = 1 ]   # -c reads it all (no SIGPIPE under pipefail)
+}
 parents() { git cat-file commit "$1" | sed '/^$/q' | grep -c '^parent ' || true; }
 listing_of() { git ls-tree -r -z "$1" -- data; }
 
@@ -487,13 +495,18 @@ if [ "$mode" = rollback ]; then
     [ "$(git rev-parse --verify -q "refs/cutover/rollback^{commit}")" = "$sha" ] || refuse "origin's pull/$rpr/head is not $sha"
     restore_ok "$sha" || refuse "the restore PR #$rpr at $sha does not give R2 what it needs: $why (F4)"
     # S1-3 data-off-main/rollback-unverified-data: R's data/ must be a verified records-data tree (its listing
-    # attested by J2, or the seed pinned in the workflow R was cut from)
-    seedpin=$(pinned_seed_digest "$sha^1") || seedpin=""
+    # attested by J2, or the seed pinned on main). N1 data-off-main/rollback-seedpin-untrusted: the pin is read from
+    # main $m (fetched above), never from R or its parent, which R's author controls
+    seedpin=$(pinned_seed_digest "$m") || seedpin=""
     listing_of "$sha" > "$work/r-listing" || refuse "could not read the restore PR's data/ listing"
     src_ok=$(data_verified "$work/r-listing" "$seedpin") \
       || refuse "the restore PR #$rpr's data/ (listing sha256 $(sha256 < "$work/r-listing")) is neither attested by daily-update.yml on main nor the pinned seed (S1-3): open a new one with --data-from <an attested records-data sha>"
+    # N1: R is one commit on main's first-parent line, so the squash merges exactly the reviewed head's diff
+    rp=$(git rev-parse --verify -q "$sha^1") || refuse "could not read the restore PR's parent"
+    [ "$(parents "$sha")" = 1 ] && on_main_line "$rp" "$m" \
+      || refuse "the restore PR #$rpr's parent $rp is not on main's first-parent line (N1: R must be one commit on main, as --rollback --cutover-merge opens it)"
     echo "Restore PR #$rpr at $sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE; its data/ is $src_ok."
-  elif [[ "$cmerge" =~ ^[0-9a-f]{40}$ ]] && git merge-base --is-ancestor "$cmerge" "$m" 2>/dev/null; then
+  elif [[ "$cmerge" =~ ^[0-9a-f]{40}$ ]] && on_main_line "$cmerge" "$m"; then
     path=open
     # main-protect/rollback-cutover-merge-unverified: the sha must look like the cutover merge itself
     tracks_data "$cmerge" && refuse "$cmerge tracks data/: that is not the cutover merge (run $me --rollback --cutover-merge <sha> with the merge sha step 5 printed)"

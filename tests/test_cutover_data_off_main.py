@@ -988,6 +988,61 @@ def test_s1_3_merge_refuses_a_restore_pr_whose_data_is_not_verified(tmp_path):
     assert _writes(fx.calls()) == [] and fx.state["r2"] is False
 
 
+def _listing_digest(fx, rev):
+    out = subprocess.run(["git", "--git-dir", str(fx.origin), "ls-tree", "-r", "-z", rev, "--", "data"],
+                         capture_output=True, check=True).stdout
+    return hashlib.sha256(out).hexdigest()
+
+
+def test_n1_merge_refuses_when_rs_parent_re_pins_the_seed_digest(tmp_path):
+    """data-off-main/rollback-seedpin-untrusted (N1): R is opened as X1 (forged data/), X2 (the workflow pins X1's
+    listing as RECORDS_DATA_SEED_DIGEST), then a head that restores R's workflow. The pin is read from main, never
+    from R's parent, so the forged data/ is neither the pinned seed nor attested."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    x1 = _commit_on(fx, c, {"data/facts.json": '{"meetings": ["forged"]}\n'}, "x1", "refs/heads/x1")
+    forged = _listing_digest(fx, x1)
+    wf = OLD_WF + '      RECORDS_DATA_SEED_DIGEST: "%s"   # re-pinned\n' % forged
+    x2 = _commit_on(fx, x1, {".github/workflows/daily-update.yml": wf}, "x2", "refs/heads/x2")
+    h = _commit_on(fx, x2, {".github/workflows/daily-update.yml": OLD_WF}, "head", "refs/pull/99/head")
+    assert fx.og("rev-parse", h + ":.github/workflows/daily-update.yml") == fx.og("rev-parse", c + ":.github/workflows/daily-update.yml")
+    r = fx.run(["--rollback", "--merge", "99", "--sha", h, "--report", "x"])
+    assert r.returncode == 1 and f"(listing sha256 {forged}) is neither attested" in r.stdout, r.stdout + r.stderr
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False and "REFUSED: " in r.stdout
+
+
+def test_n1_merge_refuses_a_restore_pr_whose_parent_is_not_on_main(tmp_path):
+    """N1: R's head must be one commit on main's first-parent line, so the squash hides no other commit. Here R's data/
+    is the verified tree and its workflow is right, but its parent is a side commit."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    y = _commit_on(fx, c, {"notes.txt": "side\n"}, "side", "refs/heads/side")
+    h = _commit_on(fx, y, {"notes2.txt": "head\n"}, "head", "refs/pull/99/head")
+    r = fx.run(["--rollback", "--merge", "99", "--sha", h, "--report", "x"])
+    assert r.returncode == 1 and f"the restore PR #99's parent {y} is not on main's first-parent line" in r.stdout, \
+        r.stdout + r.stderr
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False and "REFUSED: " in r.stdout
+
+
+def test_n1_merge_accepts_the_seed_pinned_on_main(tmp_path):
+    """The happy path with the seed as R's data/: the pin comes from main's workflow (the cutover merge's)."""
+    fx = Fx(tmp_path)
+    fx.state["deploy"] = "skipped"
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 7" in r.stdout
+    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    fx.state["r2"] = False
+    r = fx.run(["--rollback", "--cutover-merge", merge])
+    assert r.returncode == 0, r.stdout + r.stderr
+    c = re.search(r"pushed branch \S+ at ([0-9a-f]{40})", r.stdout).group(1)
+    assert "RECORDS_DATA_SEED_DIGEST" not in fx.og("show", c + ":.github/workflows/daily-update.yml")
+    open(tmp_path / "calls", "w").close()
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--report", "x"])
+    assert r.returncode == 0 and f"its data/ is the pinned seed (RECORDS_DATA_SEED_DIGEST {fx.digest})" in r.stdout, \
+        r.stdout + r.stderr
+    assert "ROLLBACK DONE" in r.stdout and fx.state["r2"] is True
+
+
 def test_s1_5_step5_stops_when_records_data_moved_after_the_seed(tmp_path):
     """data-off-main/seed-window: records-data is read again right before the merge; nothing is merged."""
     fx = Fx(tmp_path)
@@ -1006,7 +1061,7 @@ def test_ps1_checks_return_only_the_exit_code():
     assert "& $py[0] @pre -B @PyArgs | Out-Host" in ps1
     assert "--deny-self-hosted-runners | Out-Host" in ps1
     for s in ("[string]$DataFrom = ''", "-DataFrom", "function DataVerified", "PinnedSeedDigest $CutoverMerge",
-              "PinnedSeedDigest \"$Sha^1\"", "records-data is still the seed", "'.github/CODEOWNERS', 'data')"):
+              "PinnedSeedDigest $m\n", "OnMainLine $rp $m", "OnMainLine $CutoverMerge $m", "records-data is still the seed", "'.github/CODEOWNERS', 'data')"):
         assert s in ps1, s
 
 
