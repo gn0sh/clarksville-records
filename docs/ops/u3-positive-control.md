@@ -22,6 +22,8 @@ Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and 
 1. **Preflight**, read-only. It refuses if any of these is true:
    - the UTC time is 07:30-10:30 (a run lasts at most 30 minutes, so it can't reach 08:00-10:30);
    - `scripts/main-ruleset.json` isn't R1' with only decision 5's three `pull_request` changes;
+   - `scripts/main-ruleset-r1p.json` or `scripts/main-ruleset.json` isn't `main`'s copy byte for byte, or `main`'s
+     can't be read (GitHub contents API, `ref=main`; `--restore` without a backup file checks R1' the same way);
    - a `daily-update` run is queued or in progress;
    - the live ruleset 27502319 doesn't match R1' (`scripts/main-ruleset-r1p.json`) on every field `protect-main`
      checks;

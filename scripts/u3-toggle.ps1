@@ -200,6 +200,16 @@ function PinOk {
     return ((Canon $q.required_approving_review_count) -ceq '10' -and (Canon $q.require_last_push_approval) -ceq 'true' -and
             (Canon $q.require_code_owner_review) -ceq 'false')
 }
+# L2 data-off-main/rollback-checkout-unpinned (I-root C19): a ruleset file of this checkout is used only when it is
+# main's byte for byte (GitHub API, ref=main), so a stale or edited checkout can't write its own ruleset
+function MainCopyOk([string]$name) {   # a file name in scripts\
+    $b64 = (gh api "repos/$repo/contents/scripts/${name}?ref=main" --jq '.content' 2> $null) -join ''
+    if ($LASTEXITCODE -ne 0 -or -not $b64) { return $false }
+    try { $want = [Convert]::FromBase64String($b64) } catch { return $false }
+    try { $have = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $name)) } catch { return $false }
+    return ([Convert]::ToBase64String($want) -ceq [Convert]::ToBase64String($have))
+}
+$notMain = "is not main's byte for byte, or main's could not be read (run this from a clean origin/main)"
 
 if ($ShowBody) {
     $o = ReadJsonFile $ShowBody
@@ -217,6 +227,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "Not signed in: run gh auth login (as $own
 if ($Restore) {
     $srcPath = if ($From) { $From } else { $r1p }
     if (-not (Test-Path -LiteralPath $srcPath)) { Write-Host "No such file: $srcPath. Nothing was changed."; exit 1 }
+    if (-not $From -and -not (MainCopyOk 'main-ruleset-r1p.json')) { Write-Host "scripts/main-ruleset-r1p.json $notMain. Nothing was changed."; exit 1 }
     RestoreFrom (ReadJsonFile $srcPath) (Split-Path -Leaf $srcPath)
     if ($script:restored) { exit 0 } else { exit 3 }
 }
@@ -245,6 +256,7 @@ if ($hm -ge 730 -and $hm -le 1030) {
     Refuse ('it is ' + $now.ToString('HH:mm') + " UTC: a run started from 07:30 to 10:30 could reach the daily run's window (08:00-10:30); run it later")
 }
 if (-not (PinOk)) { Refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (10 approvals: S1-1, the API maximum; last-push approval, no code-owner review)" }
+foreach ($f in @('main-ruleset-r1p.json', 'main-ruleset.json')) { if (-not (MainCopyOk $f)) { Refuse "scripts/$f $notMain" } }
 $runs = @(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?per_page=30" --jq '.workflow_runs[].status')
 if ($LASTEXITCODE -ne 0) { Refuse 'could not read the daily-update runs' }
 $busy = @($runs | Where-Object { $_ -and $_ -cne 'completed' })

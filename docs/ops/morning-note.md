@@ -505,6 +505,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
   delete the scheduled emails: in Buttondown, Emails > Scheduled > open today's emails (their metadata `note_date`
   is today) > **Delete**. Deleting the variable first means no later run can recreate them.
 - **In code:** a PR setting `morning_note.sender.enabled: false` makes every `--live` a dry run.
+- **Rolling back ADR 0011's cutover** (`scripts/cutover-data-off-main.ps1 -Rollback`): run the rollback from the
+  cutover's reviewed head or a clean `origin/main` (`git status` shows nothing). R1' is read from `main`, but the
+  script itself and the scripts it calls come from the checkout (trust roots residual X1).
 - **Key leak or rotation:** Brian deletes the key in Buttondown (Settings > API), then replaces the
   `BUTTONDOWN_API_KEY` environment secret. Never rotate between a day's first run and 7:00 (the scheduled stamp
   emails would match nobody).

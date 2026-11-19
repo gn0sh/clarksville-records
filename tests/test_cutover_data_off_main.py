@@ -1091,6 +1091,164 @@ def test_t_r3_merge_needs_the_cutover_merge_on_main(tmp_path, which, text):
     assert _writes(fx.calls()) == [] and fx.state["r2"] is False
 
 
+# ---------------------------------------------------------------------------------------------- security review e4bae340
+
+
+def test_m1_rollback_refuses_when_the_fetch_of_main_fails(tmp_path):
+    """data-off-main/ps-fetchmain-stale (M1): a failed fetch never falls back to a stale refs/cutover/main (here one
+    left by the cutover run, at the commit before a later main)."""
+    fx = Fx(tmp_path)
+    fx.cut(STUB_PM="notok")
+    stale = fx.og("rev-parse", "refs/heads/main")
+    assert _git(fx.work, "rev-parse", "refs/cutover/main", env=fx.genv).decode().strip() == stale
+    before = dict(fx.state)
+    open(tmp_path / "calls", "w").close()
+    gone = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "url.%s.insteadOf" % (tmp_path / "gone.git"),
+            "GIT_CONFIG_VALUE_0": str(fx.origin)}   # origin's url now points nowhere: the fetch fails
+    r = fx.run(["--rollback"], **gone)
+    assert r.returncode == 1 and "REFUSED: could not fetch main from origin. Nothing was changed." in r.stdout, \
+        r.stdout + r.stderr
+    assert _writes(fx.calls()) == [] and fx.state == before
+
+
+def test_m1_ps1_fetchmain_returns_null_on_a_failed_fetch_and_no_git_exit_code_is_dropped():
+    """pwsh is not installed here, so the .ps1 is pinned by text: FetchMain checks the fetch's exit code (the .sh's
+    `git fetch ... && git rev-parse`), every caller refuses on $null, and no GitRun result goes to Out-Null."""
+    ps1 = PS1.read_text(encoding="utf-8")
+    fm = ps1[ps1.index("function FetchMain"):ps1.index("function FetchRd")]
+    assert "if ((GitRun @('fetch', '--quiet', '--no-tags', 'origin', '+refs/heads/main:refs/cutover/main')).Code -ne 0) " \
+        "{ return $null }" in fm and "Out-Null" not in fm
+    calls = [m.start() for m in re.finditer(r"= FetchMain\n", ps1)]
+    assert len(calls) == 9
+    for at in calls:
+        nxt = ps1[at:at + 300].split("\n")
+        assert re.search(r"if \(-not \$(m|m0|now)\) \{ (Refuse|Fail) |if \(\$now -and ", "\n".join(nxt[:3])), nxt[:3]
+    for line in ps1.splitlines():
+        assert not ("GitRun" in line and "Out-Null" in line), line
+    gi = ps1[ps1.index("function GitignoreEdit"):]
+    gi = gi[:gi.index("\n}\n")]
+    assert "if ($r.Code -ne 0) { return $null }" in gi and "$hr.Code -ne 0" in gi
+
+
+def _open_restore_over(fx, files):
+    """R amended with <files> (same parent, verified data/ unchanged), pushed as pull/99/head."""
+    merge, br, c = _opened_restore(fx)
+    return merge, c, _amend(fx, c, files, "refs/pull/99/head")
+
+
+@pytest.mark.parametrize("files,text", [
+    ({"scripts/evil.sh": "echo hi\n"}, "changes files beyond data/, the workflow, .github/CODEOWNERS and .gitignore: "
+                                        "scripts/evil.sh (L1)"),
+    ({"README": None}, "changes files beyond data/, the workflow, .github/CODEOWNERS and .gitignore: README (L1)"),
+    ({".github/workflows/other.yml": "on: push\n"}, ".gitignore: .github/workflows/other.yml (L1)"),
+    ({".gitignore": "build/\nsecret/\n"}, "is not its parent's without the data/ lines"),
+    ({".gitignore": None}, ".gitignore (blob 'none') is not its parent's without the data/ lines"),
+], ids=["added-file", "deleted-file", "other-workflow", "other-gitignore", "no-gitignore"])
+def test_l1_merge_refuses_a_restore_pr_that_changes_more_than_the_restore(tmp_path, files, text):
+    """data-off-main/rollback-r-scope-unchecked (L1): R's parent is on main, its data/ is verified, its workflow and
+    CODEOWNERS are the pre-cutover ones, but it also changes another file or its own .gitignore."""
+    fx = Fx(tmp_path)
+    merge, c, h = _open_restore_over(fx, files)
+    r = fx.run(["--rollback", "--merge", "99", "--sha", h, "--cutover-merge", merge, "--report", "x"])
+    assert r.returncode == 1 and "the restore PR #99" in r.stdout and text in r.stdout, r.stdout + r.stderr
+    assert "REFUSED: " in r.stdout and _writes(fx.calls()) == [] and fx.state["r2"] is False
+
+
+def test_l1_the_open_path_and_the_merge_check_share_one_gitignore_edit(tmp_path):
+    """The open path's R passes the merge path's check (both use gitignore_edit), also for a .gitignore of only data/
+    lines and one without a final newline."""
+    for gi in ("data/\n/data\ndata/**\n", "build/\ndata/"):
+        t = tmp_path / str(len(gi))
+        t.mkdir()
+        fx = Fx(t, pr_extra={".gitignore": gi})
+        merge, br, c = _opened_restore(fx)
+        want = "" if gi.startswith("data/") else "build/"
+        assert fx.og("show", c + ":.gitignore") == want
+        r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "x"])
+        assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout, r.stdout + r.stderr
+    sh = SH.read_text(encoding="utf-8")
+    assert sh.count("gitignore_edit \"$") == 2 and "git diff-tree -r --no-renames --name-only -z \"$rp\" \"$sha\"" in sh
+    ps1 = PS1.read_text(encoding="utf-8")
+    assert ps1.count("GitignoreEdit $") == 2
+    assert "@('diff-tree', '-r', '--no-renames', '--name-only', '-z', $rp, $Sha)" in ps1
+    assert "(L1)" in ps1 and "not its parent's without the data/ lines" in ps1
+
+
+def test_l2_rollback_puts_mains_r1_prime_not_the_checkouts(tmp_path):
+    """data-off-main/rollback-checkout-unpinned (L2): R1' comes from main $m, so an edited or stale checkout copy is
+    never written; main without a readable copy refuses before any change."""
+    fx = Fx(tmp_path)
+    fx.cut(STUB_PM="notok")
+    fx.state["r2"] = False
+    bad = json.loads(json.dumps(R1P))
+    bad["bypass_actors"].append({"actor_id": 1, "actor_type": "OrganizationAdmin", "bypass_mode": "always"})
+    (fx.work / "scripts" / "main-ruleset-r1p.json").write_text(json.dumps(bad))
+    open(tmp_path / "calls", "w").close()
+    r = fx.run(["--rollback"])
+    assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout, r.stdout + r.stderr
+    assert fx.state["ruleset"]["bypass_actors"] == R1P["bypass_actors"]
+    assert fx.state["ruleset"]["rules"] == sorted(R1P["rules"], key=lambda x: x["type"])
+    for text in ("not json\n", None):
+        _commit_on(fx, "refs/heads/main", {"scripts/main-ruleset-r1p.json": text}, f"r1p {text}", "refs/heads/main")
+        open(tmp_path / "calls", "w").close()
+        r = fx.run(["--rollback"])
+        assert r.returncode == 1 and "holds no readable scripts/main-ruleset-r1p.json (R1' is read from main)" in r.stdout
+        assert _writes(fx.calls()) == [], r.stdout
+    ps1 = PS1.read_text(encoding="utf-8")
+    assert "@('cat-file', 'blob', \"${m}:scripts/main-ruleset-r1p.json\")" in ps1
+    assert "$want = $script:r1pWant" in ps1 and "ReadAllText($r1p" not in ps1
+
+
+def _true_merge(fx, side, msg):
+    """main becomes a true merge of itself (first parent, tree kept) and <side> (second parent). Its sha."""
+    d = fx.tmp / ("m-" + hashlib.sha1((side + msg).encode()).hexdigest()[:8])
+    _git(fx.tmp, "clone", "-q", str(fx.origin), str(d), env=fx.genv)
+    _git(d, "fetch", "-q", "origin", side, env=fx.genv)
+    _git(d, "checkout", "-q", "--detach", "origin/main", env=fx.genv)
+    _git(d, "merge", "-q", "--no-ff", "-s", "ours", "-m", msg, side, env=fx.genv)
+    c = _git(d, "rev-parse", "HEAD", env=fx.genv).decode().strip()
+    _git(d, "push", "-q", "origin", "HEAD:refs/heads/main", env=fx.genv)
+    return c
+
+
+def test_l3_a_second_parent_commit_is_never_on_main(tmp_path):
+    """data-off-main/first-parent-untested (L3): main holds true merges whose second parents are an ancestor of main
+    but not on its first-parent line: X (looks like a cutover merge) and Y (R's parent). Both are refused; with
+    --is-ancestor both would pass."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    x = _commit_on(fx, fx.main, {"data": None, ".github/CODEOWNERS": None}, "cutover-like", "refs/heads/side-x")
+    y = _commit_on(fx, merge, {"notes.txt": "side\n"}, "side", "refs/heads/side-y")
+    _true_merge(fx, x, "merge x")
+    _true_merge(fx, y, "merge y")
+    for rev in (x, y):
+        assert subprocess.run(["git", "--git-dir", str(fx.origin), "merge-base", "--is-ancestor", rev, "refs/heads/main"]
+                              ).returncode == 0
+        assert rev not in fx.og("rev-list", "--first-parent", "refs/heads/main").split()
+    # X as --cutover-merge: the open path is not taken (the early path refuses: main has no CODEOWNERS) ...
+    r = fx.run(["--rollback", "--cutover-merge", x])
+    assert r.returncode == 1 and f"--cutover-merge {x} is not on main " in r.stdout and "REFUSED: " in r.stdout, r.stdout
+    assert _writes(fx.calls()) == []
+    # ... and the merge path refuses it
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", x, "--report", "x"])
+    assert r.returncode == 1 and f"--cutover-merge {x} is not on main's first-parent line" in r.stdout, r.stdout
+    assert _writes(fx.calls()) == []
+    # Y as R's parent: R is the restore's tree plus notes.txt (so only the parent differs), one commit on Y
+    d = fx.tmp / "rp"
+    _git(fx.tmp, "clone", "-q", str(fx.origin), str(d), env=fx.genv)
+    _git(d, "fetch", "-q", "origin", c, env=fx.genv)
+    _git(d, "checkout", "-q", "--detach", c, env=fx.genv)
+    (d / "notes.txt").write_text("side\n")
+    _git(d, "add", "notes.txt", env=fx.genv)
+    t = _git(d, "write-tree", env=fx.genv).decode().strip()
+    h = _git(d, "commit-tree", t, "-p", y, "-m", "R on Y", env=fx.genv).decode().strip()
+    _git(d, "push", "-q", "-f", "origin", f"{h}:refs/pull/99/head", env=fx.genv)
+    r = fx.run(["--rollback", "--merge", "99", "--sha", h, "--cutover-merge", merge, "--report", "x"])
+    assert r.returncode == 1 and f"the restore PR #99's parent {y} is not on main's first-parent line" in r.stdout, \
+        r.stdout + r.stderr
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False
+
+
 def test_s1_5_step5_stops_when_records_data_moved_after_the_seed(tmp_path):
     """data-off-main/seed-window: records-data is read again right before the merge; nothing is merged."""
     fx = Fx(tmp_path)

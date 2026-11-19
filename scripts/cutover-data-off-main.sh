@@ -233,6 +233,12 @@ on_main_line() {   # $1 rev, $2 main (fetched): $1 is a commit on main's first-p
 }
 parents() { git cat-file commit "$1" | sed '/^$/q' | grep -c '^parent ' || true; }
 listing_of() { git ls-tree -r -z "$1" -- data; }
+gitignore_edit() {   # the rollback's one .gitignore edit: $1's .gitignore without its data/ lines, as a written blob
+  # sha; "" when $1 has none; 1 on a failed read. The open path writes it into R, the merge path checks R holds it (L1)
+  local gi
+  gi=$(git rev-parse --verify -q "$1:.gitignore") || return 0
+  git cat-file blob "$gi" | { grep -vE '^/?data/?(\*\*?)?[[:space:]]*$' || [ "$?" = 1 ]; } | git hash-object -w --stdin
+}
 
 build_seed() {   # $1 main rev, $2 cutover head: sets seed_tree, seed_digest, n_seed, n_left; writes $work/listing
   local rec meta path blob cb LC_ALL=C
@@ -336,7 +342,7 @@ step8_wait() {   # minutes step 8 may wait: at most 360, and the wait ends befor
   [ "$left" -lt 360 ] && echo "$left" || echo 360
 }
 job_conclusion() { CO_JOB=$2 gh api "repos/$repo/actions/runs/$1/jobs?per_page=100" --jq '.jobs[] | select(.name == $ENV.CO_JOB) | .conclusion'; }
-put_r1p() {   # PUT scripts/main-ruleset-r1p.json (whitelisted) into main's ruleset, read it back
+put_r1p() {   # PUT main's scripts/main-ruleset-r1p.json (read at rollback step 1; whitelisted), read it back
   local ids
   ids=$(gh api --paginate "repos/$repo/rulesets?per_page=100" --jq '.[] | select(.name == $ENV.CO_RULESET) | .id') || { echo "Could not list the rulesets."; return 1; }
   [[ "$ids" =~ ^[0-9]+$ ]] || { echo "Expected exactly one ruleset named '$CO_RULESET', got: $(printf '%s' "$ids" | paste -sd, -)"; return 1; }
@@ -484,12 +490,15 @@ fi
 # ---------------------------------------------------------------------------------------------- --rollback
 if [ "$mode" = rollback ]; then
   need_gh
-  [ -f "$r1p" ] || refuse "scripts/main-ruleset-r1p.json is missing"
   step=1
   echo "Rollback step 1 ($(utc)): refusals."
   var_set MORNING_NOTE_SEND && refuse "MORNING_NOTE_SEND is set, or the variables could not be read (counts as set): Brian deletes it first (Settings > Secrets and variables > Actions > Variables), because R2 on reopens the bot path (F4)"
   var_set MAIN_PR_BASELINE && refuse "the variable MAIN_PR_BASELINE is set, or the variables could not be read (counts as set): Brian deletes it first (F4)"
   m=$(fetch_main) || refuse "could not fetch main from origin"
+  # L2 data-off-main/rollback-checkout-unpinned: R1' is main $m's scripts/main-ruleset-r1p.json, never this checkout's
+  r1p="$work/main-ruleset-r1p.json"
+  git cat-file blob "$m:scripts/main-ruleset-r1p.json" > "$r1p" 2>/dev/null && jq -e 'type == "object" and (.rules | type) == "array"' "$r1p" >/dev/null 2>&1 \
+    || refuse "main $m holds no readable scripts/main-ruleset-r1p.json (R1' is read from main)"
   if [ -n "$rpr" ]; then
     path=merge
     [[ "$rpr" =~ ^[0-9]+$ ]] && [[ "$sha" =~ ^[0-9a-f]{40}$ ]] && [[ "$cmerge" =~ ^[0-9a-f]{40}$ ]] && [ "${#reports[@]}" -ge 1 ] \
@@ -520,6 +529,18 @@ if [ "$mode" = rollback ]; then
     rp=$(git rev-parse --verify -q "$sha^1") || refuse "could not read the restore PR's parent"
     [ "$(parents "$sha")" = 1 ] && on_main_line "$rp" "$m" \
       || refuse "the restore PR #$rpr's parent $rp is not on main's first-parent line (N1: R must be one commit on main, as --rollback --cutover-merge opens it)"
+    # L1 data-off-main/rollback-r-scope-unchecked: against its parent, R changes only data/, the workflow, CODEOWNERS
+    # and .gitignore (plumbing, no rename detection, NUL-separated), and its .gitignore is the open path's edit
+    git diff-tree -r --no-renames --name-only -z "$rp" "$sha" > "$work/r-scope" || refuse "could not list the restore PR's changes"
+    beyond=""
+    while IFS= read -r -d '' f; do
+      case "$f" in data/*|".github/workflows/$wfname"|.github/CODEOWNERS|.gitignore) ;; *) beyond="$beyond $f" ;; esac
+    done < "$work/r-scope"
+    [ -z "$beyond" ] || refuse "the restore PR #$rpr changes files beyond data/, the workflow, .github/CODEOWNERS and .gitignore:$beyond (L1)"
+    want_gi=$(gitignore_edit "$rp") || refuse "could not read the .gitignore of the restore PR's parent $rp"
+    have_gi=$(git rev-parse --verify -q "$sha:.gitignore") || have_gi=""
+    [ "$want_gi" = "$have_gi" ] \
+      || refuse "the restore PR #$rpr's .gitignore (blob '${have_gi:-none}') is not its parent's without the data/ lines (blob '${want_gi:-none}'; L1)"
     echo "Restore PR #$rpr at $sha tracks data/, holds .github/CODEOWNERS and one empty MAIN_PR_BASELINE; its data/ is $src_ok."
     echo "Its workflow and .github/CODEOWNERS are those before the cutover merge $cmerge; its parent $rp is on main."
   elif [[ "$cmerge" =~ ^[0-9a-f]{40}$ ]] && on_main_line "$cmerge" "$m"; then
@@ -580,9 +601,9 @@ if [ "$mode" = rollback ]; then
       b=$(git rev-parse --verify -q "$before:$f") && git update-index --add --cacheinfo "100644,$b,$f" \
         || { unset GIT_INDEX_FILE; fail "could not restore $f"; }
     done
-    if gi=$(git rev-parse --verify -q "$m:.gitignore"); then
-      b=$(git cat-file blob "$gi" | grep -vE '^/?data/?(\*\*?)?[[:space:]]*$' | git hash-object -w --stdin) \
-        && git update-index --cacheinfo "100644,$b,.gitignore" || { unset GIT_INDEX_FILE; fail "could not edit .gitignore"; }
+    b=$(gitignore_edit "$m") || { unset GIT_INDEX_FILE; fail "could not edit .gitignore"; }
+    if [ -n "$b" ]; then
+      git update-index --cacheinfo "100644,$b,.gitignore" || { unset GIT_INDEX_FILE; fail "could not edit .gitignore"; }
     fi
     t=$(git write-tree); rc=$?; unset GIT_INDEX_FILE
     [ "$rc" = 0 ] || fail "could not write the restore tree"

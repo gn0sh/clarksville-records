@@ -126,11 +126,21 @@ pin_ok() {
   [ "$(jq -S -c "$wl | $strip" "$r1pp" 2>/dev/null)" = "$(jq -S -c "$wl | $strip" "$r1p" 2>/dev/null)" ] || return 1
   [ "$(jq -c '[.rules[] | select(.type == "pull_request") | .parameters | .required_approving_review_count, .require_last_push_approval, .require_code_owner_review]' "$r1pp" 2>/dev/null)" = '[10,true,false]' ]
 }
+# L2 data-off-main/rollback-checkout-unpinned (I-root C19): a ruleset file of this checkout is used only when it is
+# main's byte for byte (GitHub API, ref=main), so a stale or edited checkout can't write its own ruleset
+main_copy_ok() {   # $1 a file name in scripts/
+  gh api "repos/$repo/contents/scripts/$1?ref=main" --jq '.content' > "$work/main-$1.b64" 2>/dev/null \
+    && base64 -d < "$work/main-$1.b64" > "$work/main-$1" 2>/dev/null && cmp -s "$work/main-$1" "$here/$1"
+}
+not_main="is not main's byte for byte, or main's could not be read (run this from a clean origin/main)"
 
 if [ "$mode" = restore ]; then
   trap 'rm -rf "$work"' EXIT
   src="${src:-$r1p}"
   [ -f "$src" ] || { echo "No such file: $src. Nothing was changed."; exit 1; }
+  if [ "$src" = "$r1p" ]; then
+    main_copy_ok main-ruleset-r1p.json || { echo "scripts/main-ruleset-r1p.json $not_main. Nothing was changed."; exit 1; }
+  fi
   restore "$src" "$(basename "$src")" && exit 0
   exit 3
 fi
@@ -161,6 +171,7 @@ if [ $((10#$hm)) -ge 730 ] && [ $((10#$hm)) -le 1030 ]; then
   refuse "it is ${hm:0:2}:${hm:2:2} UTC: a run started from 07:30 to 10:30 could reach the daily run's window (08:00-10:30); run it later"
 fi
 pin_ok || refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (10 approvals: S1-1, the API maximum; last-push approval, no code-owner review)"
+for f in main-ruleset-r1p.json main-ruleset.json; do main_copy_ok "$f" || refuse "scripts/$f $not_main"; done
 runs=$(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?per_page=30" --jq '.workflow_runs[].status') \
   || refuse "could not read the daily-update runs"
 busy=$(printf '%s\n' "$runs" | grep -cv -e '^completed$' -e '^$')
