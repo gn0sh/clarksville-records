@@ -32,9 +32,9 @@
 #   token: HTTP 403 for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and
 #   passes the Apps that can write this repository (or none). Without -Apps that check is NOT OK, never a silent pass.
 #   Only the Claude App ($allowedApp, through which the team pushes branches) may be listed. With R2 off it is then
-#   the only approver besides gn0sh, so any 2 approvals include gn0sh's (invariant I-person, ADR 0011 Amendment
-#   2026-11-18 (b): at most one non-gn0sh approver counts; two Apps, or R2 on plus one, would make 2 without gn0sh).
-#   No App may hold Administration write (it could edit the rulesets) or bypass, and only J2 on main stores
+#   the only approver besides gn0sh, so R1'''s required approvals (the ruleset maximum, 10, S1-1) can't be met
+#   without gn0sh (invariant I-person, ADR 0011 Amendment 2026-11-18 (b): at most one non-gn0sh approver counts; two
+#   Apps, or R2 on plus one, would make 2 without gn0sh). No App may hold Administration write (it could edit the rulesets) or bypass, and only J2 on main stores
 #   attestations. Nor may it hold Variables, Secrets or Environments write (S1-2: it could set MORNING_NOTE_SEND or
 #   RECORDS_DEPLOY_ENABLED, or change an environment's policy); -Apps claude is Brian's answer that all four are not
 #   Read and write, and any other answer is NOT OK. That no App can bypass R1'', R-D or R-T is read, not confirmed:

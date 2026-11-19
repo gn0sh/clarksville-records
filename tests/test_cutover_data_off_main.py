@@ -889,10 +889,11 @@ def test_rollback_merge_refuses_a_restore_head_that_sets_the_baseline(tmp_path):
     fx = Fx(tmp_path)
     merge, br, c = _opened_restore(fx)
     c2 = _commit_on(fx, c, {".github/workflows/daily-update.yml": SET_WF}, "set", "refs/pull/99/head")
-    r = fx.run(["--rollback", "--merge", "99", "--sha", c2, "--report", "x"])
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c2, "--cutover-merge", merge, "--report", "x"])
     assert r.returncode == 1 and "the restore PR #99 at " + c2 in r.stdout and "MAIN_PR_BASELINE" in r.stdout
     assert _writes(fx.calls()) == [] and fx.state["r2"] is False
-    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--report", "x"])          # pull/99/head is c2 now
+    # pull/99/head is c2 now
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "x"])
     assert r.returncode == 1 and "origin's pull/99/head is not " + c in r.stdout and _writes(fx.calls()) == []
 
 
@@ -907,7 +908,7 @@ def test_rollback_merge_keeps_r2_off_unless_main_holds_rs_files(tmp_path, files,
     fx = Fx(tmp_path)
     merge, br, c = _opened_restore(fx)
     other = _commit_on(fx, c, files, "drift", "refs/heads/other")
-    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--report", "x"], STUB_MR_TREE=other)
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "x"], STUB_MR_TREE=other)
     assert r.returncode == 2 and "STOPPED at step 4" in r.stdout and text in r.stdout and "R2 stays off" in r.stdout
     seq = [x["path"].rsplit("/", 1)[-1] for x in _writes(fx.calls())]
     assert seq == ["disable", "merge-reviewed"], seq
@@ -946,7 +947,7 @@ def test_s1_3_data_from_an_attested_ancestor_opens_r_with_that_tree_and_merges(t
     c = re.search(r"pushed branch \S+ at ([0-9a-f]{40})", r.stdout).group(1)
     assert fx.og("rev-parse", c + ":data") == fx.og("rev-parse", good + ":data") != fx.og("rev-parse", bad + ":data")
     open(tmp_path / "calls", "w").close()
-    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--report", "x"])
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "x"])
     assert r.returncode == 0 and "its data/ is attested by daily-update.yml on main." in r.stdout, r.stdout + r.stderr
     assert "holds R's workflow, .github/CODEOWNERS and data/ byte for byte" in r.stdout and fx.state["r2"] is True
 
@@ -982,9 +983,111 @@ def test_s1_3_merge_refuses_a_restore_pr_whose_data_is_not_verified(tmp_path):
     fx = Fx(tmp_path)
     merge, br, c = _opened_restore(fx)
     c2 = _commit_on(fx, c, {"data/facts.json": '{"meetings": ["forged"]}\n'}, "forged", "refs/pull/99/head")
-    r = fx.run(["--rollback", "--merge", "99", "--sha", c2, "--report", "x"])
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c2, "--cutover-merge", merge, "--report", "x"])
     assert r.returncode == 1 and "the restore PR #99's data/ (listing sha256 " in r.stdout
     assert "is neither attested by daily-update.yml on main nor the pinned seed (S1-3)" in r.stdout
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False
+
+
+def _listing_digest(fx, rev):
+    out = subprocess.run(["git", "--git-dir", str(fx.origin), "ls-tree", "-r", "-z", rev, "--", "data"],
+                         capture_output=True, check=True).stdout
+    return hashlib.sha256(out).hexdigest()
+
+
+def test_n1_merge_refuses_when_rs_parent_re_pins_the_seed_digest(tmp_path):
+    """data-off-main/rollback-seedpin-untrusted (N1): R is opened as X1 (forged data/), X2 (the workflow pins X1's
+    listing as RECORDS_DATA_SEED_DIGEST), then a head that restores R's workflow. The pin is read from main, never
+    from R's parent, so the forged data/ is neither the pinned seed nor attested."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    x1 = _commit_on(fx, c, {"data/facts.json": '{"meetings": ["forged"]}\n'}, "x1", "refs/heads/x1")
+    forged = _listing_digest(fx, x1)
+    wf = OLD_WF + '      RECORDS_DATA_SEED_DIGEST: "%s"   # re-pinned\n' % forged
+    x2 = _commit_on(fx, x1, {".github/workflows/daily-update.yml": wf}, "x2", "refs/heads/x2")
+    h = _commit_on(fx, x2, {".github/workflows/daily-update.yml": OLD_WF}, "head", "refs/pull/99/head")
+    wfp = ":.github/workflows/daily-update.yml"
+    assert fx.og("rev-parse", h + wfp) == fx.og("rev-parse", c + wfp)
+    r = fx.run(["--rollback", "--merge", "99", "--sha", h, "--cutover-merge", merge, "--report", "x"])
+    assert r.returncode == 1 and f"(listing sha256 {forged}) is neither attested" in r.stdout, r.stdout + r.stderr
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False and "REFUSED: " in r.stdout
+
+
+def test_n1_merge_refuses_a_restore_pr_whose_parent_is_not_on_main(tmp_path):
+    """N1: R's head must be one commit on main's first-parent line, so the squash hides no other commit. Here R's data/
+    is the verified tree and its workflow is right, but its parent is a side commit."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    y = _commit_on(fx, c, {"notes.txt": "side\n"}, "side", "refs/heads/side")
+    h = _commit_on(fx, y, {"notes2.txt": "head\n"}, "head", "refs/pull/99/head")
+    r = fx.run(["--rollback", "--merge", "99", "--sha", h, "--cutover-merge", merge, "--report", "x"])
+    assert r.returncode == 1 and f"the restore PR #99's parent {y} is not on main's first-parent line" in r.stdout, \
+        r.stdout + r.stderr
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False and "REFUSED: " in r.stdout
+
+
+def test_n1_merge_accepts_the_seed_pinned_on_main(tmp_path):
+    """The happy path with the seed as R's data/: the pin comes from main's workflow (the cutover merge's)."""
+    fx = Fx(tmp_path)
+    fx.state["deploy"] = "skipped"
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 7" in r.stdout
+    merge = re.search(r"--rollback --cutover-merge ([0-9a-f]{40})", r.stdout).group(1)
+    fx.state["r2"] = False
+    r = fx.run(["--rollback", "--cutover-merge", merge])
+    assert r.returncode == 0, r.stdout + r.stderr
+    c = re.search(r"pushed branch \S+ at ([0-9a-f]{40})", r.stdout).group(1)
+    assert "RECORDS_DATA_SEED_DIGEST" not in fx.og("show", c + ":.github/workflows/daily-update.yml")
+    open(tmp_path / "calls", "w").close()
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "x"])
+    assert r.returncode == 0 and f"its data/ is the pinned seed (RECORDS_DATA_SEED_DIGEST {fx.digest})" in r.stdout, \
+        r.stdout + r.stderr
+    assert "ROLLBACK DONE" in r.stdout and fx.state["r2"] is True
+
+
+def _amend(fx, rev, files, push_to):
+    """<rev> amended with <files> written (same parent): its sha, pushed to <push_to>."""
+    d = fx.tmp / ("a-" + hashlib.sha1((rev + push_to).encode()).hexdigest()[:8])
+    _git(fx.tmp, "clone", "-q", str(fx.origin), str(d), env=fx.genv)
+    _git(d, "fetch", "-q", "origin", rev, env=fx.genv)
+    _git(d, "checkout", "-q", "--detach", rev, env=fx.genv)
+    _write(d, files)
+    _git(d, "add", "-A", "-f", "--", *files, env=fx.genv)
+    _git(d, "commit", "-q", "--amend", "--no-edit", env=fx.genv)
+    c = _git(d, "rev-parse", "HEAD", env=fx.genv).decode().strip()
+    _git(d, "push", "-q", "-f", "origin", f"HEAD:{push_to}", env=fx.genv)
+    return c
+
+
+@pytest.mark.parametrize("files,what", [
+    ({".github/workflows/daily-update.yml": OLD_WF + "      EXTRA: \"1\"\n"}, ".github/workflows/daily-update.yml"),
+    ({".github/CODEOWNERS": "* @someone-else\n"}, ".github/CODEOWNERS"),
+], ids=["workflow", "codeowners"])
+def test_t_r3_merge_refuses_a_workflow_or_codeowners_not_from_before_the_cutover(tmp_path, files, what):
+    """Trust roots T-R3: R's parent is on main and its data/ is verified, but its workflow (one empty baseline, so
+    restore_ok passes) or CODEOWNERS is not the pre-cutover one. The expected blobs come from main, never from R."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    h = _amend(fx, c, files, "refs/pull/99/head")
+    assert fx.og("rev-parse", h + "^1") == fx.og("rev-parse", c + "^1")
+    r = fx.run(["--rollback", "--merge", "99", "--sha", h, "--cutover-merge", merge, "--report", "x"])
+    assert r.returncode == 1 and f"the restore PR #99's {what} (blob " in r.stdout, r.stdout + r.stderr
+    assert f"is not the one before the cutover merge {merge}" in r.stdout
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False
+
+
+@pytest.mark.parametrize("which,text", [
+    ("none", "--merge needs <R> --sha <reviewed head> --cutover-merge <sha> --report <review>"),
+    ("off", "is not on main's first-parent line"),
+    ("parent", "tracks data/: that is not the cutover merge"),
+], ids=["missing", "not-on-main", "not-the-cutover-merge"])
+def test_t_r3_merge_needs_the_cutover_merge_on_main(tmp_path, which, text):
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    extra = {"none": [], "off": ["--cutover-merge", fx.head],
+             "parent": ["--cutover-merge", fx.og("rev-parse", merge + "^1")]}
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, *extra[which], "--report", "x"])
+    assert r.returncode == 1 and text in r.stdout, r.stdout + r.stderr
     assert _writes(fx.calls()) == [] and fx.state["r2"] is False
 
 
@@ -1006,7 +1109,8 @@ def test_ps1_checks_return_only_the_exit_code():
     assert "& $py[0] @pre -B @PyArgs | Out-Host" in ps1
     assert "--deny-self-hosted-runners | Out-Host" in ps1
     for s in ("[string]$DataFrom = ''", "-DataFrom", "function DataVerified", "PinnedSeedDigest $CutoverMerge",
-              "PinnedSeedDigest \"$Sha^1\"", "records-data is still the seed", "'.github/CODEOWNERS', 'data')"):
+              "PinnedSeedDigest $m\n", "OnMainLine $rp $m", "OnMainLine $CutoverMerge $m",
+              "records-data is still the seed", "'.github/CODEOWNERS', 'data')"):
         assert s in ps1, s
 
 
@@ -1046,10 +1150,10 @@ def test_rollback_after_the_merge_opens_a_restore_pr_then_merges_it(tmp_path):
     assert fx.og("show", c + ":.gitignore") == "build/"
     assert fx.og("rev-parse", c + ":config") == fx.og("rev-parse", merge + ":config")
     assert fx.og("rev-parse", c + "^") == merge
-    assert f"--rollback --merge 99 --sha {c} --report <review>" in r.stdout
+    assert f"--rollback --merge 99 --sha {c} --cutover-merge {merge} --report <review>" in r.stdout
     # phase 2: merge (bypass), then R1', then R2 on, then the workflow
     open(tmp_path / "calls", "w").close()
-    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--report", "docs/reviews/rb.md"])
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "docs/reviews/rb.md"])
     assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout, r.stdout + r.stderr
     seq = [c2["path"].rsplit("/", 1)[-1] for c2 in _writes(fx.calls())]
     assert seq == ["disable", "merge-reviewed", "27502319", "workflow", "enable"], seq
