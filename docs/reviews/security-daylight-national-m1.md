@@ -44,3 +44,14 @@ Withhold v3: 1, 2, 4, 5, 6, 7 closed in code; 3 accepted M2 item; delta low carr
 | 4 free-text-outside-items | yes: M2 copy-step task | M2 | backend-engineer |
 
 Recommend: no panel needed.
+
+## Delta re-review of 4729372 (merged 547fe9c), 2026-11-19: OK
+- Finding 1 CLOSED: `how.device-after` (page-labels.yml:146) names opening a coming-up page and points to Visits; device, host and GoatCounter claims agree.
+- Finding 2 CLOSED: guard in `mount()` runs before anything is wired; form starts hidden. Bypasses checked: top access throwing (treated as framed), sandboxed outer frame (still framed / no script), opener (popup is top-level; cannot reach nested geo frame, and `frame-src 'self'` blocks it), `top` not overridable. Chromium switch-on build: framed (plain and `sandbox="allow-scripts"`) keeps form hidden; top-level shows it.
+- New label/link safe: textContent; fixed relative `index.html` href with `target="_top"`; `index_csp` comment says `frame-src 'self'` must never widen.
+- Nit (no key): `win.top !== win` is slightly sturdier than `win.self`; not exploitable today.
+- Tests: national_page.test.js 41/41; browser/js/pages pytest 65 passed.
+- Findings 3 and 4 and the Q2 gates stay open. Verdict still OK WITH FOLLOW-UPS.
+
+## B13 code review (manager note)
+B13 @12af5ed1: REQUEST CHANGES (must-fix national/silent-skip, should-fix national/frame-form-unchecked); fixed 8b4da5d3; delta APPROVE (55 tests). Pre-existing test_watch failure (SHOWN_REVIEWED literal URL) fixed d1094d2.
