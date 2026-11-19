@@ -162,8 +162,8 @@ and the invariant behind it are restated here.
 the gate. A gn0sh action is one by Brian, or by the team's session using gn0sh's access under the playbook. A
 compromised gn0sh is out of scope, because gn0sh is admin. Take every credential except gn0sh's together: every
 `GITHUB_TOKEN`, every App installation, every deploy key and every outside account. Then:
-1. **At most one of them can give an approval that counts toward R1'''s 2.** So any 2 counted approvals include
-   gn0sh's.
+1. **At most one of them can give an approval that counts toward R1'''s required count** (the ruleset maximum, 10,
+   since Amendment (d) S1-1; it was 2). So the count can't be met without gn0sh.
 2. **None of them is on a bypass list** of R1'', R-D or R-T, and none can write a ruleset or R2 (no Administration
    write).
 3. **None of them can store an attestation the gate accepts.** Only J2, running `main`'s `daily-update.yml` at
@@ -173,10 +173,11 @@ Team rule that goes with it: gn0sh posts COMMENT reviews only, never APPROVE (`m
 A gn0sh APPROVE on a PR that gn0sh didn't author is the one act that lets a second identity merge without a bypass.
 
 **Checked against each setting** (judgment, high confidence; that App approvals count is assumed, the worst case):
-- **R1''** (2 approvals, the author can't approve, last-push approval, stale approvals dismissed, admin-role bypass in
-  `pull_request` mode). With R2 off, the identities that can approve are gn0sh and at most the `claude` App. A PR
-  authored or last pushed by gn0sh gets at most 1 (the App), so only a bypass merges it, and only gn0sh holds the
-  admin role. Any other PR (an outside fork, the App's own, a Dependabot PR) reaches 2 only with gn0sh's approval.
+- **R1''** (the ruleset maximum, 10 approvals, was 2 before Amendment (d); the author can't approve, last-push
+  approval, stale approvals dismissed, admin-role bypass in `pull_request` mode). With R2 off, the identities that can
+  approve are gn0sh and at most the `claude` App. A PR authored or last pushed by gn0sh gets at most 1 (the App), so
+  only a bypass merges it, and only gn0sh holds the admin role. Any other PR (an outside fork, the App's own, a
+  Dependabot PR) gets at most 2 (gn0sh's and the App's), short of 10, so it too merges only by a gn0sh bypass.
   `pull_request` bypass mode means even gn0sh moves `main` only by merging a PR.
 - **R2 off** takes github-actions[bot] out of the approvers. R2 on plus one App gives two non-gn0sh approvers, so
   rule 1 breaks; R2 on stays NOT OK. Two Apps break rule 1 the same way, even with R2 off. Example: Apps A and B
@@ -191,9 +192,9 @@ A gn0sh APPROVE on a PR that gn0sh didn't author is the one act that lets a seco
   `daily-update`.
 
 **The Claude GitHub App under each setting.**
-- R1'': it can push branches, open PRs, give one approval if it holds pull-requests write, and merge a PR that
-  already has gn0sh's approval plus its own. It can't reach 2 approvals without gn0sh, approve its own last push,
-  bypass (it isn't on the list and holds no role), or push to `main`.
+- R1'': it can push branches, open PRs and give one approval if it holds pull-requests write. It can't reach the
+  ruleset maximum (10) approvals (with gn0sh's it has 2; before Amendment (d) those 2 let it merge), approve its own
+  last push, bypass (it isn't on the list and holds no role), or push to `main`.
 - R2 governs `GITHUB_TOKEN` only, not the App. That is why the App takes the one approver place in rule 1.
 - R-D: it can fast-forward `records-data`, but it can't force-push, delete the branch, or get a new tree accepted.
   **Leftover risk:** it can push an unattested tree, which the gate refuses: the deploy is held until a person
@@ -218,7 +219,7 @@ App, or widening one's access, is a settings change, so `protect-main` is re-run
 **Consumers of I-person.**
 | Consumer | Relies on | Change |
 |---|---|---|
-| `protect-main` checks (S1) | Rules 1-2: approvals 2, last-push approval, dismiss stale; R2 off; collaborators and invitations with write: gn0sh only; no deploy key with write; Apps `none` or `claude` (by hand), no Administration write; each bypass list equals its file; R-D, R-T, environment policies of type `branch` | Logic of 01dc4d13 stands. The comments in both scripts carry the wrong reason and need the wording "any 2 approvals include gn0sh's". |
+| `protect-main` checks (S1) | Rules 1-2: approvals the ruleset maximum (10; Amendment (d)), last-push approval, dismiss stale; R2 off; collaborators and invitations with write: gn0sh only; no deploy key with write; Apps `none` or `claude` (by hand), no Administration write; each bypass list equals its file; R-D, R-T, environment policies of type `branch` | Logic of 01dc4d13 stands. The comments in both scripts carry the wrong reason and need the wording "the ruleset maximum (10) approvals can't be met without gn0sh" (Amendment (d)). |
 | `merge-reviewed` (S2) | A gn0sh-authored PR has at most 1 approval, so every merge is a bypass, and `pass` is an alarm (exit 2). It refuses other authors and heads in other repositories, which are exactly the PRs that could reach 2. It posts COMMENT, never APPROVE. | None. |
 | `u3-toggle` | Nothing: I-person isn't in force before the cutover (R2 on), and the window only tightens live (0 approvals to 2). U3 PASS is recorded; a re-run is the same. | None. |
 | `fetch-data` | Nothing for publishing. It reads `records-data` unverified, for local tests and builds, and data is only read as data (I-run''). Leftover: the App or a branch workflow can put an unattested tree into a local preflight. | None. |
@@ -311,7 +312,7 @@ With 2, I-person rule 1 rested on the unenforced comment-only rule for gn0sh and
 session acting as gn0sh) plus `claude[bot]` could meet the count, and `claude[bot]` could then merge with no bypass.
 With the maximum, rule 1 rests on neither. Only a bypass merge by gn0sh can meet it, and every legitimate merge is
 already a gn0sh bypass, so nothing real is lost. Wherever this ADR and amendments (b) and (c) say "approvals 2" or
-"any 2 approvals include gn0sh's", read "the ruleset maximum"; `protect-main` (both twins) and its tests check
+"any 2 approvals include gn0sh's", read "the ruleset maximum" (reworded in place on 2026-11-19, N2); `protect-main` (both twins) and its tests check
 that value. Margin hardening, not a break of I-person today.
 
 **S1-2 (`golive-switch/app-scope-hand-check`): the App's own identity is used, and it has Actions write.**

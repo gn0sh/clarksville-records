@@ -32,8 +32,9 @@
 #      reads it back, prints "RESTORED <utc>", then one line:
 #      "U3 VERDICT <PASS|FAIL-U3|FAIL-RULE|INCONCLUSIVE> rule-suite <id|none>: <detail>".
 # PASS: the suite's result is bypass and its one pull_request evaluation (ruleset 27502319, enforcement active) is
-# fail. FAIL-RULE: that evaluation is pass (suite bypass or pass): 2 approvals did not bind. FAIL-U3: the merge was
-# refused with HTTP 405 naming reviews or approvals, P unmerged at the same head. Anything else: INCONCLUSIVE.
+# fail. FAIL-RULE: that evaluation is pass (suite bypass or pass): R1'''s required approvals (the ruleset maximum,
+# 10) did not bind. FAIL-U3: the merge was refused with HTTP 405 naming reviews or approvals, P unmerged at the
+# same head. Anything else: INCONCLUSIVE.
 # Every PUT body comes from one function (Wl below): only name, target, enforcement, conditions, bypass_actors
 # (actor_id, actor_type, bypass_mode) and rules (type, parameters); never id, _links, source or
 # current_user_can_bypass. Bodies are written as BOM-less UTF-8 files and passed with --input (never piped: Windows
