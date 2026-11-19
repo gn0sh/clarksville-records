@@ -709,6 +709,9 @@ def test_live_comes_from_status_and_alerts_site_url_from_domain(tmp_path):
     ("place_name: Testville", "place_name: \"Testville\\n\"", "place_name must be a plain name"),   # regex-dollar-newline
     ("key: council", "key: \"council\\n\"", "primary.key must be a lowercase word"),
     ("titles: [Mayor, Vice Mayor]", "titles: [\"Mayor\\n\"]", "primary.titles is a list of plain words"),
+    ("titles: [Mayor, Vice Mayor]", "titles: [Mayor, Vice Mayor, Vice-Mayor]",       # review nit 4: one seat
+     "primary.titles 'Vice Mayor' and 'Vice-Mayor' are one seat \\(title-vice-mayor\\)"),
+    ("titles: [Mayor, Vice Mayor]", "titles: [Mayor, mayor]", "primary.titles 'Mayor' and 'mayor' are one seat"),
     ("place_name: Testville", "place_name: \"O'Fallon<\"", "place_name must be a plain name"),
 ])
 def test_a_bad_site_file_names_the_key(tmp_path, old, new, match):
@@ -716,6 +719,13 @@ def test_a_bad_site_file_names_the_key(tmp_path, old, new, match):
     edit_site(root, old, new)
     with pytest.raises(CityError, match=match):
         registry.load_city("testville-or", root)
+
+
+def test_the_registry_title_slug_is_the_seat_slug():
+    """registry.title_slug (the duplicate-title check) must give the seat sitegen.seats.title_slug gives."""
+    from sitegen import seats
+    for t in ("Mayor", "Vice Mayor", "Vice-Mayor", "vice  mayor", "Mayor Pro Tem", "Council President", "x"):
+        assert registry.title_slug(t) == seats.title_slug(t), t
 
 
 @pytest.mark.parametrize("line,match", [

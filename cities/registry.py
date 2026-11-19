@@ -71,6 +71,12 @@ PLACE_NAME_MAX = 40
 TITLE_RE = re.compile(r"[A-Za-z][A-Za-z -]*")
 
 
+def title_slug(title: str) -> str:
+    """The seat slug of a printed title: the rule of sitegen.seats.title_slug ('Vice Mayor' -> 'vice-mayor'), kept
+    here because sitegen.config imports this module (a test holds the two equal)."""
+    return re.sub(r"[^a-z0-9]+", "-", title.casefold()).strip("-")
+
+
 def is_unverified(value) -> bool:
     return isinstance(value, str) and value.strip().upper().startswith(UNVERIFIED)
 
@@ -450,6 +456,12 @@ def _check_primary(p, where: str) -> None:
         if not (isinstance(t, list) and all(isinstance(x, str) and TITLE_RE.fullmatch(x) for x in t)):
             raise CityError(f"{w}.titles is a list of plain words (the printed titles, e.g. Mayor), never who holds "
                             "them")
+        seen: dict[str, str] = {}
+        for x in t:     # two titles with one slug would share seat title-<slug> (review nit 4)
+            if title_slug(x) in seen:
+                raise CityError(f"{w}.titles {seen[title_slug(x)]!r} and {x!r} are one seat "
+                                f"(title-{title_slug(x)}); list each printed title once")
+            seen[title_slug(x)] = x
 
 
 def _sources(city: dict, root: Path, where: str) -> list[dict]:
