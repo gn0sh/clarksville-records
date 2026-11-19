@@ -39,16 +39,24 @@
 # Also read (S1-6, S1-7): GitHub Pages must build from a workflow (build_type workflow, so nothing publishes outside
 #   daily-update's gate), and .github/workflows/ on main must hold daily-update.yml and nothing else.
 # Needs: gh signed in as gn0sh (gh auth login) and jq.
-# Run: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <names>|none]
+# --main <sha>: main's commit as the caller just merged it (cutover step 5): main's ref is read until it is <sha>
+#   (read-after-write row 10), and main's .github/workflows/ files are read at <sha>, never at a lagging ?ref=main (a
+#   failed read there is "not yet": up to 10 reads, 3 s apart; a sha never changes, so the first read that works holds).
+# After this run's own writes, each read that confirms one (the rulesets, main's rules, R2 if this run turned it off)
+#   is read until it shows what was written (up to 10 reads, 3 s apart: docs/architecture/read-after-write-invariant.md);
+#   with --check every read is read once.
+# Run: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <names>|none] [--main <sha>]
 set -uo pipefail
 check=0; pre=0
-apps=""; apps_given=0
-usage="Usage: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <App names>|none]"
+apps=""; apps_given=0; main_pin=""
+usage="Usage: bash scripts/protect-main.sh [--check] [--pre-cutover] [--apps <App names>|none] [--main <sha>]"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --check) check=1; shift ;;
     --pre-cutover) pre=1; shift ;;
     --apps) [ "$#" -ge 2 ] || { echo "$usage"; exit 1; }; apps=$2; apps_given=1; shift 2 ;;
+    --main) [ "$#" -ge 2 ] || { echo "$usage"; exit 1; }; main_pin=$2; shift 2
+      [[ "$main_pin" =~ ^[0-9a-f]{40}$ ]] || { echo "--main takes main's full 40-hex commit sha ('$main_pin' is not one). Nothing was changed."; exit 1; } ;;
     *) echo "$usage"; exit 1 ;;
   esac
 done
@@ -85,6 +93,25 @@ ids_of() {   # $1 ruleset file: the ids of the rulesets with its name (any targe
   PM_NAME=$(jq -r '.name' "$1") gh api --paginate "repos/$repo/rulesets?per_page=100" \
     --jq '.[] | select(.name == $ENV.PM_NAME) | .id'
 }
+ids_line() { local x; x=$(ids_of "$1") || return 1; printf '%s\n' "$x" | { grep . || true; } | sort | paste -sd, -; }   # one string (rule 5)
+# read-after-write (docs/architecture/read-after-write-invariant.md): after a write to GitHub, its confirming read may
+# lag. read_until <what> <expected> <cmd...> runs <cmd> up to 10 times, 3 s apart (never after the last), and returns 0
+# on the first read that exits 0 and prints exactly <expected>; a failed read or any other value is "not yet". Else it
+# says what it read last and returns 1. The write is never retried. Sets rlast (the last read) and rrc (its exit code).
+# The same text in every script that uses it (tests pin that).
+read_until() {
+  local what=$1 want=$2 i
+  shift 2
+  rlast=""; rrc=1
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if rlast=$("$@"); then rrc=0; else rrc=$?; fi
+    [ "$rrc" = 0 ] && [ "$rlast" = "$want" ] && return 0
+    [ "$i" = 10 ] || sleep 3
+  done
+  if [ "$rrc" = 0 ]; then echo "$what reads '$rlast', not '$want', after 10 reads."
+  else echo "$what: could not read the state, not '$want', after 10 reads."; fi
+  return 1
+}
 
 # ---------------------------------------------------------------------------------------------- writes
 if [ "$check" = 1 ]; then
@@ -94,19 +121,24 @@ else
   main_sha=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') || main_sha=""
   [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Could not read main's commit. Nothing was changed. Run this again; send this output to the team if it repeats."; exit 1; }
   echo "Main before the rulesets: $main_sha"
+  wrote=()   # per ruleset, in the order of $sets: the ids this run wrote, as ids_line prints them
   for s in $sets; do
     label=${s%%|*}; file=${s#*|}
     ids=$(ids_of "$here/$file") || stop "Could not list the rulesets (signed in as $owner?). $label was not written."
     if [ -z "$ids" ]; then
       echo "$label: no ruleset yet, creating it from scripts/$file."
-      gh api -X POST "repos/$repo/rulesets" --input "$here/$file" --silent \
+      # a 2xx write is its own read (read-after-write rule 6): the new id comes from the answer, not from a list
+      id=$(gh api -X POST "repos/$repo/rulesets" --input "$here/$file" --jq '.id') \
         || stop "Creating $label failed (see the message above)."
+      [[ "$id" =~ ^[0-9]+$ ]] || stop "Creating $label: GitHub's answer names no ruleset id ('$id'); check Settings > Rules > Rulesets."
+      wrote+=("$id")
     else
       for id in $ids; do
         echo "$label: ruleset $id exists, updating it from scripts/$file."
         gh api -X PUT "repos/$repo/rulesets/$id" --input "$here/$file" --silent \
           || stop "Updating $label (ruleset $id) failed (see the message above); it may be unchanged."
       done
+      wrote+=("$(printf '%s\n' "$ids" | grep . | sort | paste -sd, -)")
     fi
   done
   r2=$(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') || r2=""
@@ -115,6 +147,7 @@ else
   elif [ "$r2" = true ]; then
     gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
       || stop "Turning off 'Allow GitHub Actions to create and approve pull requests' (R2) failed (see above); the rulesets are written."
+    r2_put=1
     echo "R2 was on: turned off"
   else
     stop "Could not read 'Allow GitHub Actions to create and approve pull requests' (R2) ('$r2'); it was not changed (the rulesets are written)."
@@ -125,6 +158,10 @@ fi
 problems=0
 problem() { echo "  NOT OK: $1"; problems=$((problems + 1)); }
 unread() { problem "could not read $1 (a refused or failed read counts as NOT OK)"; }
+once() { if rlast=$("$@"); then rrc=0; else rrc=$?; fi; }   # one read; sets rlast and rrc as read_until does
+settled() {   # <what> <expected> <cmd...>: a read that confirms this run's writes waits for them; --check reads once
+  if [ "$check" = 1 ]; then once "${@:3}"; else read_until "$@" || true; fi
+}
 
 same_as() {   # $1 live json, $2 expected json: exact equality on every whitelisted field, no unknown nested fields
   local x
@@ -135,33 +172,57 @@ same_as() {   # $1 live json, $2 expected json: exact equality on every whitelis
   diff <(jq -S "$wl" "$2") <(jq -S "$wl" "$1") | grep '^[<>]' | sed 's/^</    -/; s/^>/    +/'
   return 1
 }
+live_wl() {   # $1 id: the live ruleset into $work/live.json, printed whitelisted
+  gh api "repos/$repo/rulesets/$1" > "$work/live.json" 2>/dev/null && jq -e '.id' "$work/live.json" >/dev/null 2>&1 \
+    && jq -S -c "$wl" "$work/live.json"
+}
+k=0
 for s in $sets; do
   label=${s%%|*}; file=${s#*|}
-  if ! ids=$(ids_of "$here/$file"); then unread "the rulesets"; continue; fi
-  n=$(printf '%s' "$ids" | grep -c . || true)
-  if [ "$n" != 1 ]; then problem "$label: $n rulesets named '$(jq -r .name "$here/$file")', expected exactly 1"; continue; fi
-  if ! gh api "repos/$repo/rulesets/$ids" > "$work/live.json" 2>/dev/null || ! jq -e '.id' "$work/live.json" >/dev/null 2>&1; then
-    unread "ruleset $ids ($label)"; continue
+  want=${wrote[$k]:-}; k=$((k + 1))
+  name=$(jq -r .name "$here/$file")
+  # read-after-write row 4: after a POST a lagging list shows no id, after a PUT a lagging GET the old body
+  settled "$label: the rulesets named '$name'" "$want" ids_line "$here/$file"
+  if [ "$rrc" != 0 ]; then unread "the rulesets"; continue; fi
+  ids=$rlast
+  if [ "$check" = 0 ] && [ "$ids" != "$want" ]; then
+    problem "$label: the rulesets named '$name' read '$ids', not the ruleset this run wrote ($want)"; continue
   fi
+  n=$(printf '%s' "$ids" | tr , '\n' | grep -c . || true)
+  if [ "$n" != 1 ]; then problem "$label: $n rulesets named '$name', expected exactly 1"; continue; fi
+  settled "$label: ruleset $ids" "$(jq -S -c "$wl" "$here/$file")" live_wl "$ids"
+  if [ "$rrc" != 0 ]; then unread "ruleset $ids ($label)"; continue; fi
   if same_as "$work/live.json" "$here/$file"; then echo "$label: ruleset $ids matches scripts/$file"
   else problem "$label: ruleset $ids does not match scripts/$file"; fi
 done
 
-if rules=$(gh api "repos/$repo/rules/branches/main" --jq '.[].type'); then
-  rules=$(printf '%s\n' "$rules" | sort -u | paste -sd, -)
+main_types() { local t; t=$(gh api "repos/$repo/rules/branches/main" --jq '.[].type') || return 1; printf '%s\n' "$t" | sort -u | paste -sd, -; }
+main_prr() {
+  gh api "repos/$repo/rules/branches/main" \
+    --jq '.[] | select(.type == $ENV.PM_PR) | [(.parameters.required_approving_review_count|tostring), (.parameters.require_code_owner_review|tostring)] | @tsv'
+}
+# read-after-write row 5: main's rules come from every active ruleset, so each listing must equal the whole expected
+# string (a view while the rulesets propagate never matches)
+settled "Rules on main" "deletion,non_fast_forward,pull_request" main_types
+if [ "$rrc" = 0 ]; then
+  rules=$rlast
   echo "Rules on main: $rules"
   [ "$rules" = "deletion,non_fast_forward,pull_request" ] || problem "main's rules must be deletion,non_fast_forward,pull_request"
 else unread "the rules on main"; fi
 # every pull_request rule on main, from any ruleset: exactly one, 10 approvals (the ruleset API maximum,
 # S1-1 main-protect/approval-margin: GitHub's schema repository-rule-pull-request caps it at 10), no code-owner review
 # (CODEOWNERS is gone)
-if prr=$(gh api "repos/$repo/rules/branches/main" \
-         --jq '.[] | select(.type == $ENV.PM_PR) | [(.parameters.required_approving_review_count|tostring), (.parameters.require_code_owner_review|tostring)] | @tsv'); then
+settled "Pull request rules on main" $'10\tfalse' main_prr
+if [ "$rrc" = 0 ]; then
+  prr=$rlast
   echo "Pull request rules on main (approvals, code-owner review): $(printf '%s' "$prr" | tr '\t\n' ' ;')"
   [ "$prr" = $'10\tfalse' ] || problem "main needs exactly one pull_request rule, with 10 approvals (the ruleset API maximum) and no code-owner review"
 else unread "main's pull_request rules"; fi
 
-r2=$(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') || r2="unread"
+r2_read() { gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews'; }
+# read-after-write row 2: the PUT ran only after a read of true, so a lagging read says true and is never accepted
+if [ "${r2_put:-0}" = 1 ]; then read_until R2 false r2_read || true; else once r2_read; fi
+r2=$rlast; [ "$rrc" = 0 ] || r2="unread"
 echo "GitHub Actions may create and approve pull requests (R2): $r2"
 case "$r2" in
   false) ;;
@@ -229,9 +290,27 @@ if pages=$(gh api "repos/$repo/pages" --jq '.build_type // empty'); then
   echo "GitHub Pages build type: ${pages:-none}"
   [ "$pages" = workflow ] || problem "GitHub Pages must build from a workflow (build_type workflow, Settings > Pages > Source: GitHub Actions), not '${pages:-none}'"
 else unread "the GitHub Pages settings (repos/$repo/pages)"; fi
+# read-after-write row 10 (--main <sha>, cutover step 5): main's ref read until it is <sha>, and main's workflow files
+# read at <sha>, never at a lagging ?ref=main
+wref=main; tries=1
+if [ -n "$main_pin" ]; then
+  main_ref() { gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha'; }
+  if read_until main "$main_pin" main_ref; then echo "Main: $main_pin (--main); its workflow files are read at that commit."
+  elif [ "$rrc" = 0 ]; then problem "main is at '$rlast', not $main_pin (--main)"
+  else unread "main's commit (git/ref/heads/main)"; fi
+  wref=$main_pin; tries=10
+fi
+read_at() {   # <cmd...>: one read, or with --main up to 10, 3 s apart, until one works (a sha never changes)
+  local i o
+  for i in $(seq 1 "$tries"); do
+    if o=$("$@"); then printf '%s' "$o"; return 0; fi
+    [ "$i" = "$tries" ] || sleep 3
+  done
+  return 1
+}
 # S1-7 main-protect/wf-shape-heuristic: daily-update.yml is the only workflow on main (any other file there runs with
 # the environments and never meets daily-update's gate)
-if wfs=$(gh api "repos/$repo/contents/.github/workflows?ref=main" --jq '.[] | [.name, .type] | @tsv'); then
+if wfs=$(read_at gh api "repos/$repo/contents/.github/workflows?ref=$wref" --jq '.[] | [.name, .type] | @tsv'); then
   echo "Main's .github/workflows/: $(printf '%s\n' "$wfs" | grep . | tr '\t' ':' | paste -sd, -)"
   [ "$wfs" = $'daily-update.yml\tfile' ] || problem "main's .github/workflows/ must hold daily-update.yml and nothing else"
 else unread "main's .github/workflows/ folder"; fi
@@ -256,7 +335,7 @@ wf_awk='{ sub(/\r$/, "") }
 job == "push" && /^    needs:/ { pn = $0; sub(/^    needs:[ \t]*/, "", pn) }
 END { printf "top=%s\ngate=%s\nattw=%s\ncontw=%s\nprw=%s\ninl=%s\noldpr=%s\npn=%s\n", top, substr(gate, 2),
   substr(attw, 2), substr(contw, 2), substr(prw, 2), substr(inl, 2), substr(oldpr, 2), pn }'
-if wf=$(gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" -H 'Accept: application/vnd.github.raw') \
+if wf=$(read_at gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=$wref" -H 'Accept: application/vnd.github.raw') \
    && [ -n "$wf" ] && shape=$(awk -v gs="$gate_step" -v os="$old_step" "$wf_awk" <<< "$wf"); then
   wfget() { sed -n "s/^$1=//p" <<< "$shape"; }
   top=$(wfget top); g=$(wfget gate); aw=$(wfget attw); cw=$(wfget contw); pw=$(wfget prw); ip=$(wfget inl)

@@ -117,7 +117,7 @@ def twin(request):
 
 _NOT_A_SCRIPT_RUN = {"test_a_calls_log_that_is_gone_is_an_error_never_no_calls",
                      "test_a_second_session_with_the_same_basetemp_stops"}
-PS_FLAGS = {"--check": "-Check", "--pre-cutover": "-PreCutover", "--apps": "-Apps"}
+PS_FLAGS = {"--check": "-Check", "--pre-cutover": "-PreCutover", "--apps": "-Apps", "--main": "-Main"}
 
 
 def _cmd(sh, args):
@@ -139,12 +139,14 @@ def _as_sh(r):
 
 # ---------------------------------------------------------------------------------------------- the stub gh
 _GH = r'''#!/usr/bin/env python3
-import json, os, subprocess, sys
+import copy, io, json, os, subprocess, sys
 a = sys.argv[1:]
 statef = os.environ["GH_STATE"]
 st = json.load(open(statef))
+FROZEN = [False]   # a stale view (below) never saves
 def save():
-    json.dump(st, open(statef, "w"))
+    if not FROZEN[0]:
+        json.dump(st, open(statef, "w"))
 def log(entry):
     with open(os.environ["GH_CALLS"], "a") as f:
         f.write(json.dumps(entry) + "\n")
@@ -175,73 +177,127 @@ if f == "all" or (isinstance(f, list) and n in f):
 def ruleset_view(rs):
     return {**rs, "source_type": "Repository", "source": "gn0sh/clarksville-records", "node_id": "RRS_x",
             "_links": {"self": {"href": "https://api.github.com/x"}}, "current_user_can_bypass": "pull_requests_only"}
-if path == R + "/git/ref/heads/main":
-    out({"object": {"sha": st["main"]}})
-if path == R + "/contents/.github/workflows/daily-update.yml?ref=main":
-    assert "Accept: application/vnd.github.raw" in a, a
-    save(); sys.stdout.write(st["wf"]); sys.exit(0)
-if path == R + "/rulesets?per_page=100":
-    if method == "POST":
+# read-after-write (docs/architecture/read-after-write-invariant.md): lag_each {read path: N} makes the first write
+# that arms that path take a snapshot of the state before it; the next N reads that would show something else show
+# the snapshot instead (a read the write did not change is not counted). serve {path: {"body": B, "n": N}}: B for N
+# reads (-1: every read).
+def arms(path):
+    if path == R + "/rulesets":
+        return [R + "/rulesets?per_page=100", R + "/rules/branches/main"]
+    if path.startswith(R + "/rulesets/"):
+        return [path, R + "/rules/branches/main"]
+    return [path]
+def render(state, frozen):
+    global st
+    keep, st = st, state
+    FROZEN[0] = frozen
+    o, e = io.StringIO(), io.StringIO()
+    so, se = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = o, e
+    code = 0
+    try:
+        handle()
+    except SystemExit as x:
+        code = x.code if isinstance(x.code, int) else (0 if x.code is None else 1)
+    finally:
+        sys.stdout, sys.stderr = so, se
+        st = keep
+        FROZEN[0] = False
+    return o.getvalue(), e.getvalue(), code
+def handle():
+    if path == R + "/git/ref/heads/main":
+        out({"object": {"sha": st["main"]}})
+    if path.startswith(R + "/contents/.github/workflows/daily-update.yml?ref="):   # ref=main, or --main's sha
+        assert "Accept: application/vnd.github.raw" in a, a
+        save(); sys.stdout.write(st["wf"]); sys.exit(0)
+    if path == R + "/rulesets?per_page=100":
+        if method == "POST":
+            body = json.load(open(args[args.index("--input") + 1]))
+            log({"post_body": body})
+            st["next_id"] = st.get("next_id", 100) + 1
+            st["rulesets"].append({"id": st["next_id"], **body}); save(); sys.exit(0)
+        out([{"id": x["id"], "name": x["name"], "target": x["target"], "enforcement": x["enforcement"]} for x in st["rulesets"]])
+    if path == R + "/rulesets":
+        assert method == "POST", a
         body = json.load(open(args[args.index("--input") + 1]))
         log({"post_body": body})
         st["next_id"] = st.get("next_id", 100) + 1
-        st["rulesets"].append({"id": st["next_id"], **body}); save(); sys.exit(0)
-    out([{"id": x["id"], "name": x["name"], "target": x["target"], "enforcement": x["enforcement"]} for x in st["rulesets"]])
-if path == R + "/rulesets":
-    assert method == "POST", a
-    body = json.load(open(args[args.index("--input") + 1]))
-    log({"post_body": body})
-    st["next_id"] = st.get("next_id", 100) + 1
-    st["rulesets"].append({"id": st["next_id"], **body}); save(); sys.exit(0)
-if path.startswith(R + "/rulesets/"):
-    rid = int(path.rsplit("/", 1)[1])
-    rs = [x for x in st["rulesets"] if x["id"] == rid]
-    assert len(rs) == 1, (rid, st["rulesets"])
-    if method == "PUT":
-        body = json.load(open(args[args.index("--input") + 1]))
-        log({"put_body": body, "id": rid})
-        rs[0].clear(); rs[0].update({"id": rid, **body})
-        save(); sys.exit(0)
-    view = json.loads(json.dumps(ruleset_view(rs[0])))
-    if st.get("mutate") == view["name"]:                 # GitHub stored something else than the body sent
-        view["rules"][-1].setdefault("parameters", {})["required_approving_review_count"] = 1
-    out(view)
-if path == R + "/rules/branches/main":
-    rules = [dict(r, ruleset_id=x["id"], ruleset_source="gn0sh/clarksville-records", ruleset_source_type="Repository")
-             for x in st["rulesets"] if x["target"] == "branch" and x["enforcement"] == "active"
-             and "~DEFAULT_BRANCH" in x["conditions"]["ref_name"]["include"] for r in x["rules"]]
-    out(rules + st.get("extra_main_rules", []))
-if path == R + "/actions/permissions/workflow":
-    if method == "PUT":
-        log({"r2_put": a})
-        if not st.get("r2_sticks"):
-            st["r2"] = "can_approve_pull_request_reviews=true" in a
-        save(); sys.exit(0)
-    out({"default_workflow_permissions": "read", "can_approve_pull_request_reviews": st["r2"]})
-if path == R:
-    out({"full_name": "gn0sh/clarksville-records", "allow_auto_merge": st["auto"]})
-if path == R + "/collaborators?affiliation=all&per_page=100":
-    out(st["collabs"])
-if path == R + "/invitations?per_page=100":
-    out(st["invites"])
-if path.startswith("user/installations"):              # as GitHub answers gh's OAuth token (2026-11-18)
-    save(); sys.stderr.write("gh: You must authenticate with an access token authorized to a GitHub App in order "
-                             "to list installations (HTTP 403)\n"); sys.exit(1)
-if path == R + "/keys?per_page=100":
-    out(st["keys"])
-if path == R + "/pages":                                 # S1-6
-    out({"url": "https://api.github.com/x", "build_type": st.get("pages", "workflow"), "cname": "x"})
-if path == R + "/contents/.github/workflows?ref=main":  # S1-7
-    out([{"name": n, "path": ".github/workflows/" + n, "type": k} for n, k in st.get("workflows", [["daily-update.yml", "file"]])])
-if path.startswith(R + "/environments/"):
-    rest = path[len(R + "/environments/"):]
-    if rest.endswith("/deployment-branch-policies?per_page=100"):
-        env = rest.split("/")[0]
-        pols = st["env_policies"][env]
-        out({"total_count": len(pols), "branch_policies": pols})
-    out({"name": rest, "deployment_branch_policy": st["envs"][rest]})
-sys.stderr.write("stub: unexpected call %r\n" % a); sys.exit(9)
+        st["rulesets"].append({"id": st["next_id"], **body})
+        out(ruleset_view(st["rulesets"][-1]))           # GitHub answers a POST with the new ruleset
+    if path.startswith(R + "/rulesets/"):
+        rid = int(path.rsplit("/", 1)[1])
+        rs = [x for x in st["rulesets"] if x["id"] == rid]
+        assert len(rs) == 1, (rid, st["rulesets"])
+        if method == "PUT":
+            body = json.load(open(args[args.index("--input") + 1]))
+            log({"put_body": body, "id": rid})
+            rs[0].clear(); rs[0].update({"id": rid, **body})
+            save(); sys.exit(0)
+        view = json.loads(json.dumps(ruleset_view(rs[0])))
+        if st.get("mutate") == view["name"]:                 # GitHub stored something else than the body sent
+            view["rules"][-1].setdefault("parameters", {})["required_approving_review_count"] = 1
+        out(view)
+    if path == R + "/rules/branches/main":
+        rules = [dict(r, ruleset_id=x["id"], ruleset_source="gn0sh/clarksville-records", ruleset_source_type="Repository")
+                 for x in st["rulesets"] if x["target"] == "branch" and x["enforcement"] == "active"
+                 and "~DEFAULT_BRANCH" in x["conditions"]["ref_name"]["include"] for r in x["rules"]]
+        out(rules + st.get("extra_main_rules", []))
+    if path == R + "/actions/permissions/workflow":
+        if method == "PUT":
+            log({"r2_put": a})
+            if not st.get("r2_sticks"):
+                st["r2"] = "can_approve_pull_request_reviews=true" in a
+            save(); sys.exit(0)
+        out({"default_workflow_permissions": "read", "can_approve_pull_request_reviews": st["r2"]})
+    if path == R:
+        out({"full_name": "gn0sh/clarksville-records", "allow_auto_merge": st["auto"]})
+    if path == R + "/collaborators?affiliation=all&per_page=100":
+        out(st["collabs"])
+    if path == R + "/invitations?per_page=100":
+        out(st["invites"])
+    if path.startswith("user/installations"):              # as GitHub answers gh's OAuth token (2026-11-18)
+        save(); sys.stderr.write("gh: You must authenticate with an access token authorized to a GitHub App in order "
+                                 "to list installations (HTTP 403)\n"); sys.exit(1)
+    if path == R + "/keys?per_page=100":
+        out(st["keys"])
+    if path == R + "/pages":                                 # S1-6
+        out({"url": "https://api.github.com/x", "build_type": st.get("pages", "workflow"), "cname": "x"})
+    if path.startswith(R + "/contents/.github/workflows?ref="):  # S1-7
+        out([{"name": n, "path": ".github/workflows/" + n, "type": k} for n, k in st.get("workflows", [["daily-update.yml", "file"]])])
+    if path.startswith(R + "/environments/"):
+        rest = path[len(R + "/environments/"):]
+        if rest.endswith("/deployment-branch-policies?per_page=100"):
+            env = rest.split("/")[0]
+            pols = st["env_policies"][env]
+            out({"total_count": len(pols), "branch_policies": pols})
+        out({"name": rest, "deployment_branch_policy": st["envs"][rest]})
+    sys.stderr.write("stub: unexpected call %r\n" % a); sys.exit(9)
+srv = st.get("serve", {}).get(path) if method == "GET" else None
+if srv and srv["n"] != 0:
+    srv["n"] -= 1
+    out(srv["body"])
+if method == "GET" and st.get("lag", {}).get(path):
+    real = render(st, False)
+    stale = render(st["snap"][path], True)
+    res = real
+    if stale != real:
+        st["lag"][path] -= 1; save(); res = stale
+    sys.stdout.write(res[0]); sys.stderr.write(res[1]); sys.exit(res[2])
+if method != "GET":
+    for rp in arms(path):
+        n = st.get("lag_each", {}).get(rp)
+        if n and rp not in st.get("snap", {}):
+            st.setdefault("snap", {})[rp] = copy.deepcopy({k: v for k, v in st.items() if k not in ("lag", "snap", "seen")})
+            st.setdefault("lag", {})[rp] = n
+handle()
 '''
+
+
+# the stub sleep logs each call (read-after-write tests count the 3 s waits); it never waits
+_SLEEP = """#!/bin/sh
+[ -z "${GH_CALLS:-}" ] || printf '{"method": "SLEEP", "path": "sleep", "argv": ["%s"]}\\n' "$1" >> "$GH_CALLS"
+exit 0
+"""
 
 
 def _perm(level):
@@ -263,7 +319,7 @@ def _pm_state(**over):
 def _env(tmp_path, st, stub=_GH):
     bindir = tmp_path / "bin"
     bindir.mkdir(exist_ok=True)
-    for name, text in (("gh", stub), ("sleep", "#!/bin/sh\nexit 0\n")):
+    for name, text in (("gh", stub), ("sleep", _SLEEP)):
         (bindir / name).write_text(text)
         (bindir / name).chmod(0o755)
     (tmp_path / "state.json").write_text(json.dumps(st))
@@ -470,9 +526,9 @@ def test_protect_main_a_403_on_any_check_read_is_not_ok(tmp_path, key):
     read is NOT OK, never skipped and never OK by default."""
     st = _pm_state()
     if key == "checks: rulesets list":                  # the writes list them three times; the 4th read is a check
-        st["fail"] = {f"GET {R}/rulesets?per_page=100": [4]}
+        st["fail"] = {f"GET {R}/rulesets?per_page=100": list(range(4, 14))}   # read-after-write: 10 failed reads
     elif key == "checks: R2":                           # the first read decides the write; the second is the check
-        st["fail"] = {f"GET {R}/actions/permissions/workflow": [2]}
+        st["fail"] = {f"GET {R}/actions/permissions/workflow": list(range(2, 12))}
     else:
         st["fail"] = {key: "all"}
     r, made = _pm(tmp_path, st)
@@ -525,6 +581,127 @@ def test_protect_main_check_only_writes_nothing(tmp_path):
     r, made = _pm_args(sub, ["--check"], _pm_state(rulesets=[{"id": 27502319, **json.loads(json.dumps(R1P))}]))
     _not_ok(r, "R1'': ruleset 27502319 does not match scripts/main-ruleset.json")   # today's R1', R2 on
     assert "R-D: 0 rulesets named" in r.stdout and "R2 is on" in r.stdout and not _writes(made)
+
+
+# ---------------------------------------------------------------------------------------------- read-after-write
+# docs/architecture/read-after-write-invariant.md (loop rule data-off-main/read-after-write, hit 2): a read that
+# confirms this run's own write waits up to 10 reads, 3 s apart, for exactly what was written; --check reads once.
+def _sleeps(made, seconds="3"):
+    return len([c for c in made if c.get("method") == "SLEEP" and c.get("argv") == [seconds]])
+
+
+def _n(made, method, path):
+    return len([c for c in made if c.get("method") == method and c.get("path") == path])
+
+
+_RAW_ROWS = {
+    # row: (lag path, state, the write, what the lag-10 run says)
+    "row2-r2": (f"{R}/actions/permissions/workflow", {}, ("PUT", f"{R}/actions/permissions/workflow"),
+                "R2 reads 'true', not 'false', after 10 reads."),
+    "row4-post-ids": (f"{R}/rulesets?per_page=100", {}, ("POST", f"{R}/rulesets"),
+                      "R1'': the rulesets named 'main: pull request required' reads '', not '101', after 10 reads."),
+    "row4-put-body": (f"{R}/rulesets/27502319",
+                      {"rulesets": [{"id": 27502319, **json.loads(json.dumps(R1P))}, _live("R-D", 5), _live("R-T", 6)]},
+                      ("PUT", f"{R}/rulesets/27502319"), "R1'': ruleset 27502319 does not match scripts/main-ruleset.json"),
+    "row5-rules-on-main": (f"{R}/rules/branches/main", {}, ("POST", f"{R}/rulesets"),
+                           "Rules on main reads '', not 'deletion,non_fast_forward,pull_request', after 10 reads."),
+}
+
+
+@pytest.mark.parametrize("lag", [9, 10])
+@pytest.mark.parametrize("row", sorted(_RAW_ROWS))
+def test_raw_a_lagging_read_after_a_write_waits_then_fails_closed(tmp_path, row, lag):
+    path, over, (wm, wp), says = _RAW_ROWS[row]
+    st = _pm_state(**json.loads(json.dumps(over)))
+    st["lag_each"] = {path: lag}
+    r, made = _pm(tmp_path, st)
+    writes = _n(made, wm, wp)
+    assert writes == (3 if wp == f"{R}/rulesets" else 1), writes        # each write is sent once (3 POSTs: 3 rulesets)
+    assert _sleeps(made) == 9, _sleeps(made)                              # lag 9: 9 waits; lag 10: no wait after the last
+    if lag == 9:
+        _ok(r)
+    else:
+        _not_ok(r, says)
+        assert "after 10 reads." in r.stdout
+
+
+def test_raw_a_failed_read_only_delays_and_a_third_value_never_passes(tmp_path):
+    st = _pm_state(fail={f"GET {R}/actions/permissions/workflow": [2]})      # the check read of R2, once
+    r, made = _pm(tmp_path, st)
+    _ok(r)
+    assert _sleeps(made) == 1
+    sub = tmp_path / "third"
+    sub.mkdir()
+    st = _pm_state(serve={f"{R}/rules/branches/main": {"body": [{"type": "deletion"}], "n": -1}})
+    r, made = _pm(sub, st)
+    _not_ok(r, "Rules on main reads 'deletion', not 'deletion,non_fast_forward,pull_request', after 10 reads.")
+    assert "Pull request rules on main reads '', not '10\tfalse', after 10 reads." in r.stdout
+    assert _sleeps(made) == 18 and _n(made, "POST", f"{R}/rulesets") == 3
+
+
+def test_raw_check_reads_once(tmp_path):
+    """A plain --check wrote nothing, so nothing waits: real drift is reported at once, never after 27 s."""
+    done = _pm_state(rulesets=[_live("R1''", 27502319), _live("R-D", 5), _live("R-T", 6)], r2=False,
+                     fail={f"GET {R}/rules/branches/main": [1]})
+    r, made = _pm_args(tmp_path, ["--check", "--apps", "none"], done)
+    _not_ok(r, "could not read the rules on main")
+    assert _sleeps(made) == 0 and not _writes(made)
+
+
+def test_raw_r2_already_off_is_read_once(tmp_path):
+    """R2 is read until false only if this run turned it off; already off, the check is one read."""
+    st = _pm_state(r2=False, fail={f"GET {R}/actions/permissions/workflow": [2]})
+    r, made = _pm(tmp_path, st)
+    _not_ok(r, "could not read R2")
+    assert _sleeps(made) == 0 and _n(made, "PUT", f"{R}/actions/permissions/workflow") == 0
+
+
+_PIN = "1" * 40
+
+
+@pytest.mark.parametrize("lag", [9, 10])
+def test_raw_row10_main_pins_the_ref_and_reads_the_workflow_at_that_sha(tmp_path, lag):
+    """Cutover step 5: --check --main <merge sha> reads main's ref until it is the merge, then main's workflow files at
+    that sha (never at a lagging ?ref=main)."""
+    done = _pm_state(rulesets=[_live("R1''", 27502319), _live("R-D", 5), _live("R-T", 6)], r2=False,
+                     serve={f"{R}/git/ref/heads/main": {"body": {"object": {"sha": "2" * 40}}, "n": lag}})
+    r, made = _pm_args(tmp_path, ["--check", "--apps", "none", "--main", _PIN], done)
+    assert _sleeps(made) == 9 and not _writes(made)
+    contents = [c["path"] for c in made if "/contents/" in c.get("path", "")]
+    assert contents == [f"{R}/contents/.github/workflows?ref={_PIN}",
+                        f"{R}/contents/.github/workflows/daily-update.yml?ref={_PIN}"], contents
+    if lag == 9:
+        _ok(r)
+        assert f"Main: {_PIN} (--main); its workflow files are read at that commit." in r.stdout
+    else:
+        _not_ok(r, f"main is at '{'2' * 40}', not {_PIN} (--main)")
+        assert f"main reads '{'2' * 40}', not '{_PIN}', after 10 reads." in r.stdout
+
+
+@pytest.mark.parametrize("fails", [9, 10])
+def test_raw_row10_a_failed_read_at_the_pinned_sha_is_not_yet(tmp_path, fails):
+    done = _pm_state(rulesets=[_live("R1''", 27502319), _live("R-D", 5), _live("R-T", 6)], r2=False,
+                     fail={f"GET {R}/contents/.github/workflows?ref={_PIN}": list(range(1, fails + 1))})
+    r, made = _pm_args(tmp_path, ["--check", "--apps", "none", "--main", _PIN], done)
+    assert _sleeps(made) == 9
+    if fails == 9:
+        _ok(r)
+    else:
+        _not_ok(r, "could not read main's .github/workflows/ folder")
+    # without --main a failed read is NOT OK at once (one read)
+    sub = tmp_path / "plain"
+    sub.mkdir()
+    done["fail"] = {f"GET {R}/contents/.github/workflows?ref=main": [1]}
+    r, made = _pm_args(sub, ["--check", "--apps", "none"], done)
+    _not_ok(r, "could not read main's .github/workflows/ folder")
+    assert _sleeps(made) == 0
+
+
+@pytest.mark.parametrize("value", ["main", "1" * 39, "G" * 40, ""])
+def test_raw_main_takes_a_full_sha_only(tmp_path, value):
+    r, made = _pm_args(tmp_path, ["--check", "--apps", "none", "--main", value], _pm_state())
+    assert r.returncode == 1 and "takes main's full 40-hex commit sha" in r.stdout, r.stdout + r.stderr
+    assert made == []
 
 
 def test_protect_main_refuses_an_unknown_argument(tmp_path):
@@ -599,7 +776,7 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
         assert ln in ps1.replace("${label}", "$label"), ln
     for var in CLOUD:
         assert var in sh and f"'{var}'" in ps1
-    assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '')" in ps1 and "if ($Check) {" in ps1
+    assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '', [string]$Main = '')" in ps1 and "if ($Check) {" in ps1
     assert 'if [ "$check" = 1 ]; then' in sh
     assert "CHECK ONLY: nothing is written; the checks below read the live settings." in sh and "CHECK ONLY" in ps1
     for want in ("$'false\\ttrue'", "$'main\\tbranch'", "$'10\\tfalse'"):
@@ -681,7 +858,7 @@ sys.stderr.write("stub: unexpected %r\n" % a); sys.exit(9)
 def _mr(tmp_path, args, st=None):
     env = _env(tmp_path, st or _mr_state(), stub=_MR_GH)
     r = subprocess.run(_cmd(MR_SH, args), env=env, capture_output=True, text=True, timeout=60)
-    return _as_sh(r), [c for c in _calls(tmp_path) if c[0] == "api"]
+    return _as_sh(r), [c for c in _calls(tmp_path) if isinstance(c, list) and c[0] == "api"]   # not the sleeps
 
 
 def test_merge_reviewed_reviews_merges_deletes_then_prints_the_bypass_rule_suite(tmp_path):
@@ -830,7 +1007,7 @@ def test_protect_main_an_app_in_a_bypass_list_is_not_ok(tmp_path):
 
 def test_protect_main_ps1_takes_apps_the_same_way():
     ps1 = PM_PS1.read_text(encoding="utf-8")
-    assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '')" in ps1
+    assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '', [string]$Main = '')" in ps1
     assert "$PSBoundParameters.ContainsKey('Apps')" in ps1
     assert "$allowedApp = 'claude'" in ps1 and "allowed_app=claude" in PM_SH.read_text(encoding="utf-8")
     assert "$Apps -cne 'none' -and $Apps -cne $allowedApp" in ps1 and "-Apps none" in ps1
@@ -939,9 +1116,10 @@ def test_protect_main_accepts_this_checkouts_workflow(tmp_path):
 
 def test_protect_main_ps1_reads_the_workflow_the_same_way():
     sh, ps1 = PM_SH.read_text(encoding="utf-8"), PM_PS1.read_text(encoding="utf-8")
-    call = ('gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" '
+    call = ('gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=$wref" '
             "-H 'Accept: application/vnd.github.raw'")
     assert call in sh and call in ps1
+    assert "wref=main; tries=1" in sh and "$wref = 'main'; $tries = 1" in ps1
     assert f'gate_step="{GATE_STEP}"' in sh and f'$gateStep = "{GATE_STEP}"' in ps1
     assert f'old_step="{OLD_STEP}"' in sh and f"$oldStep = '{OLD_STEP}'" in ps1
     for want in ("^[ \\t]+attestations:[ \\t]*write$", "^[ \\t]+contents:[ \\t]*write$",
@@ -1028,7 +1206,7 @@ def test_s1_6_and_s1_7_ok_lines(tmp_path):
     _ok(r)
     assert "GitHub Pages build type: workflow" in r.stdout and "Main's .github/workflows/: daily-update.yml:file" in r.stdout
     assert {c.get("path") for c in made} >= {R + "/pages", R + "/contents/.github/workflows?ref=main"}
-    for s in ("repos/$repo/pages", "repos/$repo/contents/.github/workflows?ref=main", "'.build_type // empty'",
+    for s in ("repos/$repo/pages", "repos/$repo/contents/.github/workflows?ref=$wref", "'.build_type // empty'",
               "'.[] | [.name, .type] | @tsv'", "GitHub Pages build type: ", "Main's .github/workflows/: ",
               "main's .github/workflows/ must hold daily-update.yml and nothing else"):
         assert s in PM_SH.read_text(encoding="utf-8") and s in PM_PS1.read_text(encoding="utf-8"), s

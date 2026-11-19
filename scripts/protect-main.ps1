@@ -22,6 +22,12 @@
 # Run (PowerShell, in the repository folder):
 #   powershell -NoProfile -File scripts\protect-main.ps1   (local scripts are allowed in Settings > For developers; never -ExecutionPolicy Bypass)
 #   -Check: no writes, only the checks (for a settings-drift re-check, or a dry look before the cutover).
+#   -Main <sha>: main's commit as the caller just merged it (cutover step 5): main's ref is read until it is <sha>
+#   (read-after-write row 10), and main's .github/workflows/ files are read at <sha>, never at a lagging ?ref=main (a
+#   failed read there is "not yet": up to 10 reads, 3 s apart; a sha never changes, so the first read that works holds).
+# After this run's own writes, each read that confirms one (the rulesets, main's rules, R2 if this run turned it off)
+#   is read until it shows what was written (up to 10 reads, 3 s apart: docs/architecture/read-after-write-invariant.md);
+#   with -Check every read is read once.
 # Main's .github/workflows/daily-update.yml is read too (ADR 0011 row J2, I-prov): after the cutover it must run the
 #   gate step ("Check main's history and the records-data head") in job gate and only there, push must need gate,
 #   push must be the only job with attestations: write (only J2 stores attestations) and with contents: write, no job
@@ -46,12 +52,16 @@
 # named parameters only: an unknown or .sh-style argument (--check) stops here, never binds to a parameter by position
 # (data-off-main/ps-unknown-args)
 [CmdletBinding(PositionalBinding = $false)]
-param([switch]$Check, [switch]$PreCutover, [string]$Apps = '')
+param([switch]$Check, [switch]$PreCutover, [string]$Apps = '', [string]$Main = '')
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
 $repo = 'gn0sh/clarksville-records'
 $owner = 'gn0sh'
 $allowedApp = 'claude'
 $appsGiven = $PSBoundParameters.ContainsKey('Apps')
+if ($PSBoundParameters.ContainsKey('Main') -and $Main -cnotmatch '^[0-9a-f]{40}$') {
+    Write-Host "-Main takes main's full 40-hex commit sha ('$Main' is not one). Nothing was changed."
+    exit 1
+}
 $env:PM_OWNER = $owner
 $env:PM_REPO = $repo
 $env:PM_PR = 'pull_request'
@@ -131,6 +141,28 @@ function IdsOf($file) {
     if ($LASTEXITCODE -ne 0) { return $null }
     return ,$ids
 }
+function IdsLine($file) {   # the ids as one string (sorted, joined by ','; rule 5), or $null if the list could not be read
+    $x = IdsOf $file
+    if ($null -eq $x) { return $null }
+    return ((@(@($x | ForEach-Object { [string]$_ }) | Sort-Object)) -join ',')
+}
+# read-after-write (docs/architecture/read-after-write-invariant.md): after a write to GitHub, its confirming read may
+# lag. ReadUntil runs $read up to 10 times, 3 s apart (never after the last), and returns $true on the first read that
+# returns exactly $want (-ceq); $null (a failed read) or any other value is "not yet". Else it says what it read last
+# and returns $false. The write is never retried. $read returns one [string] (multi-line output joined with "`n") or
+# $null, so $LASTEXITCODE is never trusted across the call; it must not use the names $what, $want, $read or $i (this
+# function's). Sets $script:readLast. The same text in every script that uses it (tests pin that).
+function ReadUntil([string]$what, [string]$want, [scriptblock]$read) {
+    $script:readLast = $null
+    for ($i = 1; $i -le 10; $i++) {
+        $script:readLast = & $read
+        if ($null -ne $script:readLast -and ([string]$script:readLast) -ceq $want) { return $true }
+        if ($i -lt 10) { Start-Sleep -Seconds 3 }
+    }
+    if ($null -eq $script:readLast) { Write-Host "${what}: could not read the state, not '$want', after 10 reads." }
+    else { Write-Host "$what reads '$($script:readLast)', not '$want', after 10 reads." }
+    return $false
+}
 
 # ---------------------------------------------------------------------------------------------- writes
 if ($Check) {
@@ -142,20 +174,25 @@ if ($Check) {
         Write-Host "Could not read main's commit. Nothing was changed. Run this again; send this output to the team if it repeats."; exit 1
     }
     Write-Host "Main before the rulesets: $mainSha"
+    $wrote = @()   # per ruleset, in the order of $sets: the ids this run wrote, as IdsLine returns them
     foreach ($s in $sets) {
         $label = $s[0]; $file = Join-Path $PSScriptRoot $s[1]
         $ids = IdsOf $file
         if ($null -eq $ids) { Stop-Run "Could not list the rulesets (signed in as ${owner}?). $label was not written." }
         if ($ids.Count -eq 0) {
             Write-Host "${label}: no ruleset yet, creating it from scripts\$($s[1])."
-            gh api -X POST "repos/$repo/rulesets" --input $file --silent
+            # a 2xx write is its own read (read-after-write rule 6): the new id comes from the answer, not from a list
+            $newId = (gh api -X POST "repos/$repo/rulesets" --input $file --jq '.id') -join "`n"
             if ($LASTEXITCODE -ne 0) { Stop-Run "Creating $label failed (see the message above)." }
+            if ($newId -cnotmatch '^[0-9]+$') { Stop-Run "Creating ${label}: GitHub's answer names no ruleset id ('$newId'); check Settings > Rules > Rulesets." }
+            $wrote += $newId
         } else {
             foreach ($id in $ids) {
                 Write-Host "${label}: ruleset $id exists, updating it from scripts\$($s[1])."
                 gh api -X PUT "repos/$repo/rulesets/$id" --input $file --silent
                 if ($LASTEXITCODE -ne 0) { Stop-Run "Updating $label (ruleset $id) failed (see the message above); it may be unchanged." }
             }
+            $wrote += ((@(@($ids | ForEach-Object { [string]$_ }) | Sort-Object)) -join ',')
         }
     }
     $r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
@@ -165,6 +202,7 @@ if ($Check) {
     } elseif ($r2 -ceq 'true') {
         gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent
         if ($LASTEXITCODE -ne 0) { Stop-Run "Turning off 'Allow GitHub Actions to create and approve pull requests' (R2) failed (see above); the rulesets are written." }
+        $r2Put = $true
         Write-Host 'R2 was on: turned off'
     } else {
         Stop-Run "Could not read 'Allow GitHub Actions to create and approve pull requests' (R2) ('$r2'); it was not changed (the rulesets are written)."
@@ -175,6 +213,16 @@ if ($Check) {
 $script:problems = 0
 function Problem($why) { Write-Host "  NOT OK: $why"; $script:problems++ }
 function Unread($what) { Problem "could not read $what (a refused or failed read counts as NOT OK)" }
+# a read that confirms this run's writes waits for them (ReadUntil); -Check reads once. Sets $script:readLast.
+function Settled([string]$what, [string]$want, [scriptblock]$read) {
+    if ($Check) { $script:readLast = & $read; return }
+    $null = ReadUntil $what $want $read
+}
+function MainRef {   # main's commit, or $null on a failed read
+    $v = (gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') -join "`n"
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return $v
+}
 # every line of a gh read, or $null if the read failed (a refused read is never an empty answer)
 function Lines([string]$path, [string]$jq, [switch]$Paginate) {
     if ($Paginate) { $out = @(gh api --paginate $path --jq $jq | Where-Object { $_ -ne '' }) }
@@ -193,37 +241,76 @@ function SameAs($live, $expected, $label) {
     Write-Host "    live:     $a"
     return $false
 }
+function LiveWl([string]$id) {   # the live ruleset into $script:liveRs, returned whitelisted; $null if unread
+    $script:liveRs = $null
+    $raw = (gh api "repos/$repo/rulesets/$id" 2> $null) -join "`n"
+    if ($LASTEXITCODE -ne 0) { return $null }
+    try { $o = $raw | ConvertFrom-Json } catch { return $null }
+    if ($null -eq $o -or $null -eq $o.id) { return $null }
+    $script:liveRs = $o
+    return (CanonRs $o)
+}
+$k = 0
 foreach ($s in $sets) {
     $label = $s[0]; $file = Join-Path $PSScriptRoot $s[1]
-    $ids = IdsOf $file
-    if ($null -eq $ids) { Unread 'the rulesets'; continue }
-    if ($ids.Count -ne 1) { Problem "${label}: $($ids.Count) rulesets named '$((ReadJsonFile $file).name)', expected exactly 1"; continue }
+    $wantIds = ''
+    if (-not $Check -and $k -lt @($wrote).Count) { $wantIds = [string]@($wrote)[$k] }
+    $k++
+    $name = [string](ReadJsonFile $file).name
+    # read-after-write row 4: after a POST a lagging list shows no id, after a PUT a lagging GET the old body
+    $script:rsFile = $file
+    Settled "${label}: the rulesets named '$name'" $wantIds { IdsLine $script:rsFile }
+    if ($null -eq $script:readLast) { Unread 'the rulesets'; continue }
+    $idsText = [string]$script:readLast
+    if (-not $Check -and $idsText -cne $wantIds) { Problem "${label}: the rulesets named '$name' read '$idsText', not the ruleset this run wrote ($wantIds)"; continue }
+    $ids = @($idsText -split ',' | Where-Object { $_ })
+    if ($ids.Count -ne 1) { Problem "${label}: $($ids.Count) rulesets named '$name', expected exactly 1"; continue }
     $id = $ids[0]
-    $raw = (gh api "repos/$repo/rulesets/$id" 2> $null) -join "`n"
-    $live = $null
-    if ($LASTEXITCODE -eq 0) { try { $live = $raw | ConvertFrom-Json } catch { $live = $null } }
-    if ($null -eq $live -or $null -eq $live.id) { Unread "ruleset $id ($label)"; continue }
+    $script:rsId = $id
+    Settled "${label}: ruleset $id" (CanonRs (ReadJsonFile $file)) { LiveWl $script:rsId }
+    $live = $script:liveRs
+    if ($null -eq $script:readLast -or $null -eq $live) { Unread "ruleset $id ($label)"; continue }
     if (SameAs $live (ReadJsonFile $file) $s[1]) { Write-Host "${label}: ruleset $id matches scripts\$($s[1])" }
     else { Problem "${label}: ruleset $id does not match scripts\$($s[1])" }
 }
 
-$rules = Lines "repos/$repo/rules/branches/main" '.[].type'
+function MainTypes {   # the rule types on main, sorted and joined by ','; $null if unread
+    $t = Lines "repos/$repo/rules/branches/main" '.[].type'
+    if ($null -eq $t) { return $null }
+    return ((@($t | Sort-Object -Unique)) -join ',')
+}
+function MainPrr {   # main's pull_request rules, one line each joined by "`n"; $null if unread
+    $t = Lines "repos/$repo/rules/branches/main" '.[] | select(.type == $ENV.PM_PR) | [(.parameters.required_approving_review_count|tostring), (.parameters.require_code_owner_review|tostring)] | @tsv'
+    if ($null -eq $t) { return $null }
+    return (@($t) -join "`n")
+}
+# read-after-write row 5: main's rules come from every active ruleset, so each listing must equal the whole expected
+# string (a view while the rulesets propagate never matches)
+Settled 'Rules on main' 'deletion,non_fast_forward,pull_request' { MainTypes }
+$rules = $script:readLast
 if ($null -eq $rules) { Unread 'the rules on main' } else {
-    $rules = (@($rules | Sort-Object -Unique)) -join ','
     Write-Host "Rules on main: $rules"
     if ($rules -cne 'deletion,non_fast_forward,pull_request') { Problem "main's rules must be deletion,non_fast_forward,pull_request" }
 }
 # every pull_request rule on main, from any ruleset: exactly one, 10 approvals (the ruleset API maximum,
 # S1-1 main-protect/approval-margin: GitHub's schema repository-rule-pull-request caps it at 10), no code-owner review
 # (CODEOWNERS is gone)
-$prr = Lines "repos/$repo/rules/branches/main" '.[] | select(.type == $ENV.PM_PR) | [(.parameters.required_approving_review_count|tostring), (.parameters.require_code_owner_review|tostring)] | @tsv'
+Settled 'Pull request rules on main' "10`tfalse" { MainPrr }
+$prr = $script:readLast
 if ($null -eq $prr) { Unread "main's pull_request rules" } else {
-    Write-Host ('Pull request rules on main (approvals, code-owner review): ' + ((@($prr | ForEach-Object { $_ -replace "`t", ' ' })) -join ';'))
-    if ($prr.Count -ne 1 -or $prr[0] -cne "10`tfalse") { Problem 'main needs exactly one pull_request rule, with 10 approvals (the ruleset API maximum) and no code-owner review' }
+    Write-Host ('Pull request rules on main (approvals, code-owner review): ' + (([string]$prr -replace "`t", ' ') -replace "`n", ';'))
+    if ([string]$prr -cne "10`tfalse") { Problem 'main needs exactly one pull_request rule, with 10 approvals (the ruleset API maximum) and no code-owner review' }
 }
 
-$r2 = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
-if ($LASTEXITCODE -ne 0) { $r2 = 'unread' }
+function R2Read {   # R2's value, or $null on a failed read
+    $v = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join "`n"
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return $v
+}
+# read-after-write row 2: the PUT ran only after a read of true, so a lagging read says true and is never accepted
+if ($r2Put) { $null = ReadUntil 'R2' 'false' { R2Read } } else { $script:readLast = R2Read }
+$r2 = $script:readLast
+if ($null -eq $r2) { $r2 = 'unread' }
 Write-Host "GitHub Actions may create and approve pull requests (R2): $r2"
 if ($r2 -ceq 'true') { Problem 'R2 is on: with R2 on, gn0sh plus the bot can approve a pull request (ADR 0011 decision 6)' }
 elseif ($r2 -cne 'false') { Unread 'R2 (actions/permissions/workflow)' }
@@ -290,9 +377,23 @@ if ($null -eq $pages) { Unread "the GitHub Pages settings (repos/$repo/pages)" }
     Write-Host ('GitHub Pages build type: ' + $(if ($pg) { $pg } else { 'none' }))
     if ($pg -cne 'workflow') { Problem ("GitHub Pages must build from a workflow (build_type workflow, Settings > Pages > Source: GitHub Actions), not '" + $(if ($pg) { $pg } else { 'none' }) + "'") }
 }
+# read-after-write row 10 (-Main <sha>, cutover step 5): main's ref read until it is <sha>, and main's workflow files
+# read at <sha>, never at a lagging ?ref=main
+$wref = 'main'; $tries = 1
+if ($Main) {
+    if (ReadUntil 'main' $Main { MainRef }) { Write-Host "Main: $Main (-Main); its workflow files are read at that commit." }
+    elseif ($null -ne $script:readLast) { Problem "main is at '$($script:readLast)', not $Main (-Main)" }
+    else { Unread "main's commit (git/ref/heads/main)" }
+    $wref = $Main; $tries = 10
+}
 # S1-7 main-protect/wf-shape-heuristic: daily-update.yml is the only workflow on main (any other file there runs with
 # the environments and never meets daily-update's gate)
-$wfs = Lines "repos/$repo/contents/.github/workflows?ref=main" '.[] | [.name, .type] | @tsv'
+$wfs = $null
+for ($i = 1; $i -le $tries; $i++) {   # one read, or with -Main up to 10, 3 s apart, until one works (a sha never changes)
+    $wfs = Lines "repos/$repo/contents/.github/workflows?ref=$wref" '.[] | [.name, .type] | @tsv'
+    if ($null -ne $wfs) { break }
+    if ($i -lt $tries) { Start-Sleep -Seconds 3 }
+}
 if ($null -eq $wfs) { Unread "main's .github/workflows/ folder" } else {
     Write-Host ("Main's .github/workflows/: " + ((@($wfs | ForEach-Object { $_ -replace "`t", ':' })) -join ','))
     if ($wfs.Count -ne 1 -or $wfs[0] -cne "daily-update.yml`tfile") { Problem "main's .github/workflows/ must hold daily-update.yml and nothing else" }
@@ -328,8 +429,14 @@ function WfShape($lines) {
     foreach ($k in @('gate', 'attw', 'contw', 'prw', 'inl', 'oldpr')) { $r[$k] = ($r[$k] -join ',') }
     return $r
 }
-$wf = @(gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=main" -H 'Accept: application/vnd.github.raw')
-if ($LASTEXITCODE -ne 0 -or $wf.Count -eq 0) { Unread "main's .github/workflows/daily-update.yml" } else {
+$wfOk = $false
+for ($i = 1; $i -le $tries; $i++) {
+    $wf = @(gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=$wref" -H 'Accept: application/vnd.github.raw')
+    $wfOk = ($LASTEXITCODE -eq 0 -and $wf.Count -gt 0)
+    if ($wfOk) { break }
+    if ($i -lt $tries) { Start-Sleep -Seconds 3 }
+}
+if (-not $wfOk) { Unread "main's .github/workflows/daily-update.yml" } else {
     $w = WfShape $wf
     $top = $w.top; $g = $w.gate; $aw = $w.attw; $cw = $w.contw; $pw = $w.prw; $ip = $w.inl; $op = $w.oldpr; $pn = $w.pn
     Write-Host "Main's daily-update.yml: workflow '$top'; gate step in '$g'; attestations: write in '$aw'; contents: write in '$cw'; pull-requests: write in '$pw'; inline job permissions in '$ip'; data pull request step in '$op'; push needs '$pn'"
