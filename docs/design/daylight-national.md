@@ -269,6 +269,8 @@ Status text is also visible text, never only announced. Timeouts never clear wha
 **Content, in priority order.**
 1. `h2` "Local governments for this address", the "Census matched" line, and the summary count line.
 2. Cards in fixed order: city or town, county, township or town, school districts (elementary, secondary, unified).
+   A New England town outside Connecticut goes in the city or town slot (spec AC2.11); the township or town slot
+   is for townships and towns that sit under a county-level general government (for example PA townships).
 3. Under the list: the line about bodies an address can't find (AC2.9), the election office line, "Forget this
    list", and "Look up another address".
 
