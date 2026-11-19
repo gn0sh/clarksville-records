@@ -1,0 +1,38 @@
+{% extends "base.html.j2" %}
+{# What we cover (docs/design/daylight-national.md section 4): static, no script, no storage (AC12.1). Built by
+   sitegen/national_pages.py from the directory; every fixed word is a page label (`L`) or a card label. #}
+{% block main %}
+<div class="digest digest-covered">
+  <h1>{{ L["covered.h1"] }}</h1>
+  <p class="lede">{% if n_covered == 1 %}{{ L["covered.count-one"] }}{% else %}{{ lt(L["covered.count"], n=n_covered) }}{% endif %}</p>
+  <p>{{ L["covered.how"] }}</p>
+  <p><a href="index.html">{{ L["covered.lookup"] }}</a></p>
+  <h2>{{ L["covered.h-covered"] }}</h2>
+  {% for grp in covered %}
+  <h3>{{ grp.state }}</h3>
+  <ul class="ruled digest-rows">
+    {% for r in grp.rows %}
+    <li><a href="{{ root }}{{ r.page }}">{{ r.board }}<span class="sr-only">, {{ L["covered.row-link"] }}</span></a>
+      <span class="eyebrow">{{ r.slot }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+  <h2>{{ L["covered.h-cant"] }}</h2>
+  {% if cant %}
+  {% for grp in cant %}
+  <h3>{{ grp.state }}</h3>
+  <ul class="ruled digest-rows">
+    {% for r in grp.rows %}
+    <li><span class="digest-board">{{ r.board }}</span>
+      <span class="digest-reason">{{ r.reason }}</span>
+      <span class="digest-checked">{{ lh(L["covered.checked"], r.source, ext=true, date=(r.checked | day_words)) }}</span>
+      <a href="{{ r.official }}" rel="noopener noreferrer">{{ L["covered.official"] }}</a></li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+  {% else %}
+  <p>{{ L["covered.empty-cant"] }}</p>
+  {% endif %}
+  <p>{{ L["covered.closing"] }}</p>
+</div>
+{% endblock %}

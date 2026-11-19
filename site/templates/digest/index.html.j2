@@ -1,0 +1,50 @@
+{% extends "base.html.j2" %}
+{# Daylight Digest entry page (docs/design/daylight-national.md section 1; architecture 1a, 3.4, 4.0, 6). Built by
+   sitegen/national_pages.py. Every fixed word is a page label (config/national/page-labels.yml, `L`).
+   Mount points for the page wiring (task F2, site/static/national.js), all empty or hidden until the script runs:
+   - #digest-form        the address form (hidden: it needs the script); its input has no `name`, the form no
+                         `action`, so a submit without the script sends nothing anywhere
+   - #digest-result      the one status line under the input (role="status")
+   - #digest-list        the lookup result: picker, list heading, cards (section 3)
+   - #digest-saved       "Your saved list" from this device (3.8)
+   - #digest-noscript    the no-script line; the script hides it
+   Data for the script, each a <script type="application/json"> written with |tojson escaping (finding 9):
+   - #digest-pagedir     the page directory (3.4; `root` is "../", this page's data-root)
+   - #digest-strings     the lookup.*, form.* and count.* labels
+   - #digest-config      the frame, page and email-service settings #}
+{% block main %}
+<div class="digest digest-entry" data-root="{{ root }}">
+  <h1>{{ L["index.h1"] }}</h1>
+  <p class="lede">{{ L["index.lede"] }}</p>
+  <p class="digest-who">{{ lh(L["index.who"], root ~ "who-runs-this.html") }}</p>
+  <p class="digest-cover-link"><a href="covered.html">{{ L["index.cover-link"] }}</a></p>
+  <section class="find digest-find" aria-label="{{ L['index.input-label'] }}">
+    <form class="addr-form" id="digest-form" hidden>
+      <label for="digest-q">{{ L["index.input-label"] }}</label>
+      <div class="search-row">
+        <input id="digest-q" type="text" autocomplete="street-address" maxlength="200" placeholder="{{ L['index.placeholder'] }}" aria-describedby="digest-privacy">
+        <button type="submit">{{ L["index.find"] }}</button>
+      </div>
+      <p class="addr-privacy" id="digest-privacy">{{ L["index.privacy"] }}</p>
+      <p class="addr-result" id="digest-result" role="status" aria-live="polite"></p>
+    </form>
+    <p class="digest-noscript" id="digest-noscript">{{ lh(L["index.noscript"], "covered.html") }}</p>
+  </section>
+  <p class="digest-privacy-detail">{{ lh(L["index.privacy-detail"], site.cfg.geocoder_privacy_url, ext=true) }}</p>
+  <details class="digest-how">
+    <summary>{{ L["index.toggle-summary"] }}</summary>
+    <p>{{ L["index.toggle-body"] }}</p>
+  </details>
+  <p class="digest-census-notice">{{ L["index.census-notice"] }}</p>
+  <div id="digest-list" class="digest-list" tabindex="-1" hidden></div>
+  <section id="digest-saved" class="digest-saved" hidden></section>
+  <script type="application/json" id="digest-pagedir">{{ pagedir_json }}</script>
+  <script type="application/json" id="digest-strings">{{ strings_json }}</script>
+  <script type="application/json" id="digest-config">{{ config_json }}</script>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if counter %}<script src="{{ root }}static/us-count.js" data-goatcounter="{{ counter.endpoint }}" defer></script>
+{% endif %}
+<script src="{{ root }}static/national.js" defer></script>
+{% endblock %}

@@ -36,9 +36,9 @@ existing pages changes (see 7a for what "byte-identical" means with the switch o
 |---|---|---|---|
 | Directory | `config/national/directory.yml` (curated, reviewed) | Government id -> board, state, status, reason, sources, reader keys | M1 |
 | Gov flags | `config/national/gov-flags.yml` (curated) | Show or hide a returned unit regardless of FUNCSTAT; the fixed lines (consolidated, independent city) | M1 |
-| Labels | `config/national/labels.yml` | Every fixed string on digest pages (AC4.5, AC4.8), in "government" words | M1 |
+| Labels | `config/national/labels.yml` (card labels, embedded in the pagedir) and `config/national/page-labels.yml` (every other fixed string; B4) | Every fixed string on digest pages (AC4.5, AC4.8), in "government" words | M1 |
 | Coverage share | `config/national/share.yml` (optional) | `{pct, k, date}` for the What we cover sentence; absent = sentence omitted | M1.5 |
-| National builder | `sitegen/national.py` (+ templates) | Writes `digest/` pages and per-government JSON from directory + data; the header variant, Menu group and front-page line | M1 |
+| National builder | `sitegen/national.py` (loaders, pagedir, frame) + `sitegen/national_pages.py` and `site/templates/digest/` (pages; B4) | Writes `digest/` pages and per-government JSON from directory + data; the header variant, Menu group and front-page line | M1 |
 | Shared guards | `sitegen/national_guards.py` (imports only `sitegen.config`; the builder and `collector/national/` both import it) | `allowed_url` (https_link + no credentials/port + platform host allowlist), `link_or_official`, `checked_id`/`checked_meeting_id`, `clean_text`, `clean_feed` (3.5 caps, stripping, URL nulling; returns counts for the run log) | M1 (B14) |
 | Geo frame | `digest/geo-frame.html` (static, built; own meta CSP) | The only page that may load the Census JSONP; sandboxed (`allow-scripts`, no `allow-same-origin`); gets the address by `postMessage`, answers by `postMessage` | M1 |
 | Lookup script | `site/static/national.js` (+ the `address.js` message checks) | Drives the frame, classify, render list, picker, in-card request form, device list | M1 |
@@ -379,6 +379,14 @@ lines.
   none beyond the header's and `count.js`.
 - `apply_site_fragments(pages) -> pages`: the two edits to existing pages, each a fixed string, each present only when
   `national.enabled`: the Menu group (footer list) and the front-page line. Anything else in an existing page is a bug.
+- As built (B4, 2026-11-19), in `sitegen/national_pages.py`: `run(...)` is the build's one call;
+  `build_national(out_dir, env, site, directory, flags, labels, page_labels, feeds, *, built_at, counter)`;
+  `apply_site_fragments(pages, labels)` (pure) with `menu_fragment(root, labels)` and `front_fragment(labels)` for
+  B5; the switch is `config/site.yml national: {enabled: false}`. Each feed's `checked_at` is the newest fetch of its
+  own inputs (`collected_at`: the manifest instant, else noon UTC of the stored UTC day; none: 1970, read as "could
+  not check"). `digest/index.html` embeds `#digest-pagedir`, `#digest-strings` (page labels `lookup.*`, `form.*`,
+  `count.*`) and `#digest-config` (`frame`, `covered`, `requested`, `form_action`, `privacy_url`, `morning`), and
+  has the mounts `#digest-form`, `#digest-result`, `#digest-list`, `#digest-saved`, `#digest-noscript` for F2.
 
 ### 4.4 Fetcher tenant rule (`collector/fetch.py`, M2)
 - `SHARED_HOSTS = {"webapi.legistar.com": re.compile(r"^/v1/([a-z0-9-]{2,40})/")}`.
@@ -426,7 +434,8 @@ lines.
   request holds exactly `p`, `e`, `rnd`. Outbound links use `rel="noopener noreferrer"`. The Method page's section
   "Daylight Digest" lists the three keys, the counter event and what GoatCounter sees (UX section 9).
 - **CSP on `digest/index.html`** (delta to ADR 0013 decision 2): `script-src 'self'` (the Census is not in it),
-  `frame-src 'self'`, `form-action https://buttondown.com`, `connect-src https://buttondown.com
+  `frame-src 'self'`, `form-action 'self' https://buttondown.com` ('self' for the Menu drawer's search form, as on
+  every page; Buttondown only while the morning note's form is enabled, its origin), `connect-src https://buttondown.com
   https://<code>.goatcounter.com` (the second only while analytics is on). `digest/geo-frame.html` carries the
   frame CSP of 4.0. Static digest pages carry the site's normal CSP (`connect-src 'none'` or GoatCounter only, as
   `count.js` needs). A site check (`digest/csp`) holds each of these per file.
@@ -477,8 +486,9 @@ B13's golden test proves it).
 **What "byte-identical" means.** `national.enabled: false`: every output file equals a build of `main` at the same data.
 `national.enabled: true`: the diff from the off build is exactly (a) new files under `digest/`, (b) the one front-page
 line, (c) the Menu group, which is in the footer list that `nav.js` copies into every page's drawer, so it changes the
-footer of every existing page by the same fixed fragment (decision N1), and (d) `site/static/` gains `national.js` and
-`us-count.js`. The golden test removes (b) and (c) by their exact strings and requires the rest to be equal.
+footer of every existing page by the same fixed fragment (decision N1), (d) `site/static/` gains `national.js` and
+`us-count.js` (off, the build does not copy them), and (e) `static/pages.js` also lists the digest pages (so a report
+from a digest page names it). The golden test removes (b) and (c) by their exact strings and requires the rest to be equal.
 
 ## 8. Risks
 | Risk | Likelihood | Mitigation |

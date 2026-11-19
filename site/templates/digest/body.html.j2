@@ -1,0 +1,58 @@
+{% extends "base.html.j2" %}
+{# A covered government's coming-up page (docs/design/daylight-national.md section 5; architecture 3.5, 11). Built by
+   sitegen/national_pages.py, which passes `meetings` made from the government's JSON only (meeting_view): item text
+   is printed only from the JSON's `items`, and a withheld government's meetings print the fixed withheld label
+   (privacy-withhold/national-prefix, consumer 3). Every fixed word is a page label (`L`); every other word is the
+   feed's own text. #}
+{% set official = body.official_url %}
+{% block main %}
+<div class="digest digest-body">
+  <p class="eyebrow">{{ lt(L["body.eyebrow"], state=state_name, slot=slot) }}</p>
+  <h1>{{ body.name }}</h1>
+  <p class="digest-subject">{{ L["body.coming-up"] }}</p>
+  {% if official %}<p class="official-record">{{ lh(L["body.official-record"], official, ext=true, host=host) }}</p>{% endif %}
+  {% if stale.state == "fresh" %}
+  <p class="digest-checked">{{ lt(L["body.last-checked"], date=(stale.day | day_words)) }}</p>
+  {% elif stale.state == "stale" %}
+  <p class="digest-stale">{{ lh(L["body.stale"], official, ext=true, date=(stale.day | day_words), n=stale.n) }}</p>
+  {% else %}
+  <p class="digest-stale">{{ lh(L["body.stale-week"], official, ext=true) }}</p>
+  {% endif %}
+  {% for m in meetings %}
+  <section class="digest-meeting" id="m-{{ m.id }}" aria-labelledby="m-{{ m.id }}-h">
+    <h2 id="m-{{ m.id }}-h"><time datetime="{{ m.date }}">{{ m.day }}</time>{% if m.time %}, {{ m.time }}{% endif %}</h2>
+    <p class="digest-meeting-title">{{ m.title }}{% if not m.title_ours %} {{ L["body.as-posted"] }}{% endif %}</p>
+    <p class="digest-time">{% if m.time %}{{ lt(L["body.tz"], tz=m.tz) }}{% else %}{{ L["body.no-time"] }}{% endif %}</p>
+    {% if m.posted %}
+    <p class="digest-agenda">{{ lh(L["body.agenda"], m.agenda_url, ext=true, sr=lt(L["body.agenda-for"], date=(m.date | day_words))) }}</p>
+    {% else %}
+    <p class="digest-not-posted">{{ lh(L["body.not-posted"], official, ext=true) }}</p>
+    {% endif %}
+    {% if m.withheld %}
+    <p class="digest-withheld">{{ lh(L["body.withheld"], m.agenda_url, ext=true) }}</p>
+    {% elif m.incomplete %}
+    <p class="digest-incomplete">{{ lh(L["body.incomplete"], m.agenda_url, ext=true) }}</p>
+    {% endif %}
+    {% if m.entries %}
+    <ol class="digest-items">
+      {% for it in m.entries %}
+      <li>
+        <h3>{% if it.number %}<span class="item-num">{{ it.number }}</span> {% endif %}{{ it.text }}</h3>
+        {% if it.cut %}<p class="digest-cut">{{ lh(L["body.cut"], m.agenda_url, ext=true) }}</p>{% endif %}
+        {% if it.page %}<p class="digest-item-src">{{ lh(L["body.item-page"], it.url, ext=true, page=it.page) }}</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+  </section>
+  {% else %}
+  <p class="digest-none">{{ lh(L["body.no-meetings"], official, ext=true) }}</p>
+  {% endfor %}
+  {% if full_href %}
+  <p class="digest-full">{{ lh(L["body.full"], root ~ full_href) }}</p>
+  {% endif %}
+  {% if morning %}
+  <p class="digest-morning">{{ lh(L["body.morning"], root ~ morning) }}</p>
+  {% endif %}
+</div>
+{% endblock %}

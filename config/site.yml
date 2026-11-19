@@ -4,6 +4,9 @@ locality: montgomery-tn
 site_name: "Daylight"               # quote: the deliver stage's reader takes one word or quoted text. Working product name (design/daylight, 2026-11-09); trademark check before go-live
 site_place: Clarksville-Montgomery County   # name plate line under the name, on every page
 site_timezone: America/Chicago   # the zone of the header's date line on every page (static/sky.js)
+# Daylight Digest, the national pages under digest/ (ADR 0013, docs/architecture/daylight-national.md): off until the
+# release task R1 (a production deploy: Brian's OK). Off, the build is byte-identical to one without the feature.
+national: {enabled: false}
 # The collectors' manifests (first_fetched_at by url and sha256). Every fetch day a page prints is the site_timezone
 # day of that instant; a source with no row shows its stored UTC day labelled "(UTC day)" (docs/architecture/local-dates.md).
 fetch_manifests:

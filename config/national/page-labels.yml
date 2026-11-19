@@ -1,0 +1,151 @@
+# Daylight Digest page labels (docs/architecture/daylight-national.md 1a, 4.3, 7a; copy from docs/design/daylight-national.md
+# v1.1 sections 1 to 5). Every fixed word on a digest page that is not a card label of labels.yml lives here, so a page
+# prints only these labels and source text (AC4.5, AC4.8; tests/test_national_pages.py lists them). labels.yml stays
+# the lookup's card labels (slot, reason, note), which the page directory embeds whole.
+#
+# sitegen/national_pages.py load_page_labels reads this file with yaml.safe_load and refuses an unknown or missing key,
+# empty text, or control and bidi characters.
+# - `[text]` marks the one link in a label; the builder makes it a link and escapes everything else.
+# - `{name}` is filled by the builder from data (a date in words, a count, a host); the value is escaped.
+# - lookup.*, form.* and count.* are for the lookup page's script (task F2): the builder embeds them in
+#   digest/index.html as JSON (`#digest-strings`), drawn with textContent; the same two rules apply there.
+# - state.<USPS> names a state folder's heading; a directory entry whose state has no label fails the build.
+# - tz.<zone> names a time zone; a feed whose zone has no label fails the build.
+# Open (ux-designer to confirm, B4 handoff): index.who is the design's DRAFT (Brian approves the facts, design Q2);
+# body.withheld, body.cut and body.item-page are engineer drafts in the design's words.
+schema: daylight-pagelabels/1
+labels:
+  digest.place: United States
+  digest.name: Daylight Digest
+
+  menu.group: Daylight Digest
+  menu.find: Find your local governments
+  menu.covered: What we cover
+  front.line: Not in Clarksville? Find your local governments anywhere in the US.
+
+  crumb.home: Daylight Digest
+  crumb.covered: What we cover
+
+  state.TN: Tennessee
+  tz.America/Chicago: Central Time
+
+  # Entry page (design section 1)
+  index.title: "Daylight Digest: Find your local governments"
+  index.h1: Find your local governments
+  index.lede: "See every local government for your address: city or town, county, township and school district. We show what we cover and say plainly what we don't."
+  index.who: Daylight Digest is run and paid for by gnoshcodes LLC, a small software company in Clarksville, Tennessee. It takes no ads and no political money. [Who runs this]
+  index.cover-link: See what we cover first, without typing anything
+  index.input-label: Your street address
+  index.placeholder: 100 Main St, City, State
+  index.find: Find
+  index.privacy: We never get your address and never sell anything.
+  index.privacy-detail: Your address goes from your browser straight to the US Census Bureau, which finds your area. Daylight Digest never sees or keeps it. [Census privacy policy]
+  index.toggle-summary: How this works, and what is saved
+  index.toggle-body: "The Census Bureau answers with the names of the city or town, county, township and school districts for that spot. Only that list of governments is kept (their names and IDs, and which ones you requested or counted from this device), and only on this device, so you don't have to look it up again. You can check this yourself: open your browser's network tools and look up an address. The only request that carries it goes to geocoding.geo.census.gov."
+  index.census-notice: This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.
+  index.noscript: The address lookup needs JavaScript. You can still browse [What we cover].
+
+  # Lookup states and the list (design sections 2 and 3), for national.js (F2)
+  lookup.empty: Type a street address with its city and state.
+  lookup.button-busy: Looking up...
+  lookup.looking: Looking up the address with the Census Bureau...
+  lookup.still: Still looking. The Census service can be slow.
+  lookup.down: The Census lookup is not answering. We can't find your area without it, and we won't guess. Try again in a few minutes.
+  lookup.retry: Try again
+  lookup.down-browse: Or browse [What we cover].
+  lookup.not-found: We couldn't find that address.
+  lookup.not-found-tip: Check the spelling, add the city, state and ZIP, and leave off the apartment number. The Census does not know PO boxes.
+  lookup.pick-h: Which one is yours?
+  lookup.pick-none: None of these
+  lookup.matched: "Census matched: {line}"
+  lookup.nothing-listable: The Census found this address, but we can't list a local government for it yet.
+  lookup.list-h: Local governments for this address
+  lookup.summary-found: We found {n} local governments.
+  lookup.summary-covered: "{n} covered"
+  lookup.summary-not-yet: "{n} not covered yet"
+  lookup.summary-cant: "{n} we can't cover"
+  lookup.summary-none: None are covered yet. Request the ones you want and we'll email you if one opens.
+  lookup.status-covered: Covered
+  lookup.status-not-yet: Not covered yet
+  lookup.status-cant: Can't cover
+  lookup.coming-up: See what's coming up
+  lookup.full: Full Daylight pages (votes and past meetings)
+  lookup.morning: Get the morning note
+  lookup.not-yet-line: We don't read this government's agendas yet.
+  lookup.official: Official agenda page (opens the government's own site)
+  lookup.no-official: We don't have a link to its official agenda page yet.
+  lookup.checked: Checked {date}. [Source]
+  lookup.request: Request it
+  lookup.request-hint: We'll email you if it opens.
+  lookup.under-list: Some governments, such as water or transit boards, can't be found by address yet.
+  lookup.saved-h: Your saved list
+  lookup.device-line: This list is kept on this device only, with a note of which governments you requested or counted here. "Forget this list" removes all of it.
+  lookup.forget: Forget this list
+  lookup.another: Look up another address
+
+  # The in-card request form (design section 3, architecture 4.2)
+  form.h: Email me when it opens
+  form.honest-not-yet: We'll email you once if we open it. We add a government only after real requests, one at a time. We may never reach this one, and we promise no date.
+  form.honest-cant: We can't cover this government unless the way it posts its records changes. If that happens and we open it, we'll email you once. Your request also tells us people want it.
+  form.email-label: Your email
+  form.also: Also request (optional)
+  form.privacy-1: We keep only your email address and the governments you request, to email you if one opens. We never get your street address, but the governments you request show roughly where you are. Both are held by Buttondown, our email service. [Buttondown's privacy policy]
+  form.privacy-2: You get one email to confirm now and one if a government opens, nothing else. We never sell or share your information. No ads, no sponsors.
+  form.send: Send me the confirmation email
+  form.cancel: Cancel
+  form.sending: Sending...
+  form.sent: Check your email and tap the link in it to confirm. Your request counts only after you confirm.
+  form.different: Use a different email
+  form.failed: We couldn't reach our email service. Nothing was saved. Try again in a few minutes.
+  form.bad-email: That doesn't look like an email address.
+  form.returning: Request sent from this device. If you haven't confirmed, check your email.
+  form.again: Request again
+
+  # The counter button (design section 3, architecture 3.9 and 4.2a)
+  count.button: No email? Just count me.
+  count.done: Counted. The count names only this government. No email or street address was sent. We can't tell you if it opens.
+  count.failed: We couldn't count that. An ad blocker or a dropped connection can stop the count. Try again, or use the email form.
+
+  # What we cover (design section 4)
+  covered.title: "Daylight Digest: What we cover"
+  covered.h1: What we cover
+  covered.count: Daylight Digest covers {n} local governments today.
+  covered.count-one: Daylight Digest covers 1 local government today.
+  covered.how: We add a government only after people request it and our owner approves the new source. We add them one at a time and promise no dates.
+  covered.lookup: Find the governments for your address
+  covered.h-covered: Covered
+  covered.h-cant: Can't cover
+  covered.row-link: coming up
+  covered.checked: Checked {date}. [Source]
+  covered.official: Official agenda page (opens the government's own site)
+  covered.empty-cant: None right now.
+  covered.closing: Every other local government in the US is not covered yet. Look up your address to request yours.
+
+  # Request confirmed (design section 3, AC5.2)
+  requested.title: "Daylight Digest: Request confirmed"
+  requested.h1: Thanks. Your request is confirmed.
+  requested.body: We'll email you once if we open a government you requested. We add a government only after real requests, one at a time. We may never reach yours, and we promise no date.
+  requested.cant: If it is marked "Can't cover", we can't cover it unless the way it posts its records changes.
+  requested.back: "[Back to Daylight Digest]"
+
+  # Coming-up page (design section 5)
+  body.title: "Daylight Digest: {name}, coming up"
+  body.eyebrow: "{state} · {slot}"
+  body.coming-up: Coming up
+  body.official-record: "Unofficial copy. Official record: [{host}]."
+  body.last-checked: Last checked {date}.
+  body.stale: We last checked this government's site on {date}, {n} days ago. Newer meetings or agendas may be missing. [Official meetings page]
+  body.stale-week: We couldn't check this government this week. [Official meetings page]
+  body.no-time: Time not listed here.
+  body.tz: "{tz}, as the government posts it."
+  body.as-posted: (as posted)
+  body.agenda: "[Official agenda]"
+  body.agenda-for: ", {date} meeting"
+  body.not-posted: Agenda not posted yet. [Official meetings page]
+  body.incomplete: This list may be incomplete. The official agenda is the full record. [Official agenda]
+  body.withheld: Agenda items are not listed here. The official agenda is the full record. [Official agenda]
+  body.cut: The rest of this item is in the official agenda. [Official agenda]
+  body.item-page: "[Agenda page {page}]"
+  body.no-meetings: No upcoming meetings are posted. [Official meetings page]
+  body.full: Votes and past meetings are on the [full Daylight pages].
+  body.morning: "[Get the morning note]"

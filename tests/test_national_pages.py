@@ -1,0 +1,561 @@
+"""Daylight Digest page builder (sitegen/national_pages.py; docs/architecture/daylight-national.md 1a, 3.4, 3.5, 4.0,
+4.3, 6, 7a, 11; task B4). Problem keys: privacy-withhold/national-prefix (consumer 3: the coming-up page prints items
+only from the JSON, a withheld government the fixed label), national/csp-jsonp-gadget (the Census in no CSP but the
+frame's), national-switch/byte-identical (off: nothing changes; on: only the two fixed fragments and new files).
+
+The switch tests build the fixture site (about a second) for the pages target; the real-data tests make the feeds
+from data/ through the build's loaders and skip only as tests/test_national_clarksville.py does."""
+import html as html_mod
+import json
+import os
+import re
+from datetime import date, datetime, timedelta, timezone
+from html.parser import HTMLParser
+from pathlib import Path
+
+import pytest
+
+from sitegen import build as build_mod, config, county_agendas
+from sitegen import national as nat
+from sitegen import national_clarksville as ncl
+from sitegen import national_pages as npg
+
+ROOT = Path(__file__).resolve().parent.parent
+FIXTURE = ROOT / "site" / "fixtures" / "facts.sample.json"
+FIXTURE_SEATS = ROOT / "site" / "fixtures" / "seats.sample.yml"
+FIXTURE_DISTRICTS = ROOT / "site" / "fixtures" / "districts.sample.json"
+COUNCIL_ID, COUNTY_ID = "place-4715160", "county-47125"
+CENSUS = "geocoding.geo.census.gov"
+BUILT_AT = datetime(2026, 11, 19, 18, 0, tzinfo=timezone.utc)
+DIGEST_HTML = {"digest/index.html", "digest/covered.html", "digest/requested.html", "digest/geo-frame.html",
+               f"digest/tn/{COUNCIL_ID}.html", f"digest/tn/{COUNTY_ID}.html"}
+DIGEST_JSON = {f"digest/tn/{COUNCIL_ID}.json", f"digest/tn/{COUNTY_ID}.json"}
+
+
+def _build(out: Path, national) -> Path:
+    saved = config.SITE.get("national", "absent")
+    try:
+        if national == "absent":
+            config.SITE.pop("national", None)
+        else:
+            config.SITE["national"] = {"enabled": national}
+        build_mod.build(FIXTURE, out, internal=True, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
+                        target="pages", today=date(2026, 11, 19))
+    finally:
+        if saved == "absent":
+            config.SITE.pop("national", None)
+        else:
+            config.SITE["national"] = saved
+    return out
+
+
+def _tree(out: Path) -> dict[str, bytes]:
+    return {p.relative_to(out).as_posix(): p.read_bytes() for p in sorted(out.rglob("*")) if p.is_file()}
+
+
+@pytest.fixture(scope="module")
+def sites(tmp_path_factory):
+    base = tmp_path_factory.mktemp("national")
+    return {k: _tree(_build(base / k / "site", v)) for k, v in (("absent", "absent"), ("off", False), ("on", True))}
+
+
+@pytest.fixture(scope="module")
+def page_labels():
+    return npg.load_page_labels()
+
+
+@pytest.fixture(scope="module")
+def loaded():
+    return nat.load_all()
+
+
+# --- the switch ----------------------------------------------------------------------------------------------------
+
+def test_shipped_switch_is_off():
+    assert config.SITE["national"] == {"enabled": False}
+    assert npg.enabled() is False
+
+
+@pytest.mark.parametrize("block", [{"enabled": "yes"}, {"enabled": 1}, {"enable": True}, {"enabled": True, "x": 1},
+                                   "on", []])
+def test_switch_refuses_anything_but_true_or_false(block):
+    with pytest.raises(npg.NationalBuildError):
+        npg.enabled({"national": block})
+
+
+def test_switch_off_writes_no_digest_file_and_changes_no_page(sites):
+    """national-switch/byte-identical: off is byte for byte the build without the block, writes nothing under digest/,
+    copies neither digest script, and leaves the Menu and the front page alone (B5 proves it against main)."""
+    off = sites["off"]
+    assert off == sites["absent"]
+    assert not [p for p in off if p.startswith("digest/")]
+    assert "static/national.js" not in off and "static/us-count.js" not in off
+    assert not any(b"digest/" in body for p, body in off.items() if p.endswith(".html"))
+    assert b'class="digest-line"' not in off["index.html"]
+
+
+def test_switch_on_writes_the_page_set_and_no_feeds(sites):
+    on = sites["on"]
+    digest = {p for p in on if p.startswith("digest/")}
+    assert digest == DIGEST_HTML | DIGEST_JSON
+    assert not [p for p in on if p.endswith((".ics", ".xml")) and p.startswith("digest/")]      # M4
+    assert "static/national.js" in on and "static/us-count.js" in on
+
+
+def test_switch_on_changes_existing_pages_only_by_the_two_fragments(sites, page_labels):
+    """7a: removing the Menu group (once per page) and the front-page line (once) leaves every existing file equal;
+    static/pages.js gains only the digest pages."""
+    off, on = sites["off"], sites["on"]
+    front = npg.front_fragment(page_labels)
+    for rel, before in off.items():
+        after = on[rel]
+        if rel == "static/pages.js":
+            listed = set(json.loads(after.decode()[len("window.BUILT_PAGES = "):-2]))
+            assert listed - set(json.loads(before.decode()[len("window.BUILT_PAGES = "):-2])) == DIGEST_HTML - {
+                "digest/geo-frame.html"}
+            continue
+        if not rel.endswith(".html") or after == before:
+            assert after == before, rel
+            continue
+        text = after.decode()
+        root = "../" * rel.count("/")
+        menu = npg.menu_fragment(root, page_labels)
+        assert text.count(menu) == 1, rel
+        text = text.replace(menu, "", 1)
+        if rel == "index.html":
+            assert text.count(front) == 1
+            text = text.replace(front, "", 1)
+        assert text == before.decode(), rel
+    changed = [r for r in off if r.endswith(".html") and on[r] != off[r]]
+    assert "index.html" in changed and "about.html" in changed
+
+
+def test_front_line_sits_right_after_the_address_card(sites, page_labels):
+    html = sites["on"]["index.html"].decode()
+    assert '</section>\n  <p class="digest-line"><a href="digest/index.html">' + page_labels["front.line"] in html
+
+
+def test_fragment_insertion_fails_closed():
+    labels = npg.load_page_labels()
+    with pytest.raises(npg.NationalBuildError):
+        npg.apply_site_fragments({"index.html": "<html>no card</html>"}, labels)
+    page = '<nav id="site-nav" class="site-nav" aria-label="All pages" data-root="../">' + npg.MENU_ANCHOR * 2
+    with pytest.raises(npg.NationalBuildError):
+        npg.apply_site_fragments({"a/b.html": page}, labels)
+    assert npg.apply_site_fragments({"x.html": "<p>no footer</p>"}, labels) == {"x.html": "<p>no footer</p>"}
+    with pytest.raises(npg.NationalBuildError):
+        npg.menu_fragment("/", labels)
+
+
+# --- CSP per file (section 6, 4.0) ---------------------------------------------------------------------------------
+
+def _csp(html: str) -> str:
+    m = re.findall(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">', html)
+    assert len(m) == 1
+    return html_mod.unescape(m[0])
+
+
+def test_csp_per_file(sites):
+    on = {k: v.decode() for k, v in sites["on"].items() if k in DIGEST_HTML}
+    site_csp = _csp(sites["on"]["about.html"].decode())
+    index = _csp(on["digest/index.html"])
+    origin = "https://buttondown.com"       # the shipped morning note's form (morning_page.form_origin)
+    assert index == npg.index_csp(None, origin)
+    assert "script-src 'self';" in index and "frame-src 'self'" in index
+    assert f"form-action 'self' {origin}" in index and f"connect-src {origin}" in index
+    for rel in ("digest/covered.html", "digest/requested.html", f"digest/tn/{COUNCIL_ID}.html",
+                f"digest/tn/{COUNTY_ID}.html"):
+        assert _csp(on[rel]) == site_csp, rel
+    frame = on["digest/geo-frame.html"]
+    assert frame == nat.geo_frame_html()
+    for rel, html in on.items():
+        assert (CENSUS in _csp(html)) == (rel == "digest/geo-frame.html"), rel
+
+
+def test_index_csp_names_the_counter_only_while_on():
+    gc = "https://daylight-gnosh.goatcounter.com"
+    assert "connect-src https://buttondown.com " + gc in npg.index_csp(gc, "https://buttondown.com")
+    assert "connect-src 'none'" in npg.index_csp(None, None)
+    assert "form-action 'self';" in npg.index_csp(None, None)
+
+
+# --- the pages ------------------------------------------------------------------------------------------------------
+
+def test_scripts_only_on_the_entry_page(sites):
+    on = {k: v.decode() for k, v in sites["on"].items() if k in DIGEST_HTML}
+    for rel, html in on.items():
+        if rel == "digest/geo-frame.html":
+            continue
+        has = "static/national.js" in html
+        assert has == (rel == "digest/index.html"), rel
+        assert 'id="body-switch"' not in html, rel            # 7a: no "Show records from" on digest pages
+    assert "static/us-count.js" not in on["digest/index.html"]   # fixture build: analytics off
+
+
+def test_header_variant_on_digest_pages(sites, page_labels):
+    clark = sites["on"]["about.html"].decode()
+    assert 'id="sky-moon"' in clark and 'class="sky-in"' in clark
+    for rel in DIGEST_HTML - {"digest/geo-frame.html"}:
+        html = sites["on"][rel].decode()
+        assert f'<span class="plate-place">{page_labels["digest.place"]}</span>' in html, rel
+        assert 'id="sky-moon"' not in html and 'class="sky-in"' not in html, rel
+
+
+def test_report_an_error_on_fact_pages(sites):
+    for rel in ("digest/index.html", "digest/covered.html", f"digest/tn/{COUNCIL_ID}.html",
+                f"digest/tn/{COUNTY_ID}.html"):
+        assert "Report an error on this page" in sites["on"][rel].decode(), rel
+
+
+def test_entry_page_embeds_the_page_directory_and_strings(sites, loaded, page_labels):
+    html = sites["on"]["digest/index.html"].decode()
+    blobs = dict(re.findall(r'<script type="application/json" id="(digest-[a-z]+)">(.*?)</script>', html, re.S))
+    assert set(blobs) == {"digest-pagedir", "digest-strings", "digest-config"}
+    pagedir = json.loads(blobs["digest-pagedir"])
+    assert pagedir["schema"] == nat.PAGEDIR_SCHEMA and pagedir["root"] == "../"
+    assert set(pagedir["govs"]) == {g["gov"] for g in loaded[0].govs}
+    assert pagedir["govs"][COUNTY_ID]["page"] == f"digest/tn/{COUNTY_ID}.html"
+    assert json.loads(blobs["digest-strings"]) == {k: v for k, v in page_labels.items()
+                                                   if k.startswith(npg.SCRIPT_GROUPS)}
+    cfg = json.loads(blobs["digest-config"])
+    assert cfg["frame"] == "geo-frame.html" and cfg["form_action"].startswith("https://buttondown.com/")
+    form = re.search(r'<form class="addr-form" id="digest-form" hidden>(.*?)</form>', html, re.S).group(1)
+    assert " name=" not in form and "action=" not in form
+
+
+def test_feed_json_validates_with_no_extra_key(sites):
+    for rel in DIGEST_JSON:
+        feed = json.loads(sites["on"][rel])
+        assert ncl.feed_errors(feed) == [], rel
+        assert feed["body"]["id"] == Path(rel).stem
+
+
+# --- every visible string is a label or source text (AC4.5, AC4.8) ---------------------------------------------------
+
+BLOCKS = {"p", "h1", "h2", "h3", "h4", "li", "ul", "ol", "section", "div", "nav", "summary", "details", "label",
+          "form", "button", "dt", "dd", "main", "table", "tr", "td", "th"}
+
+
+class _Main(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.depth, self.skip, self.out = 0, 0, []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "main":
+            self.depth += 1
+        if tag in ("script", "style"):
+            self.skip += 1
+        if tag in BLOCKS:
+            self.out.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag == "main":
+            self.depth -= 1
+        if tag in ("script", "style"):
+            self.skip -= 1
+        if tag in BLOCKS:
+            self.out.append("\n")
+
+    def handle_data(self, data):
+        if self.depth and not self.skip:
+            self.out.append(data)
+
+
+def main_text(html: str) -> str:
+    p = _Main()
+    p.feed(html)
+    return "\n".join(" ".join(line.split()) for line in "".join(p.out).split("\n") if line.strip())
+
+
+# Words base.html.j2 prints in every page's <main> (the shared frame, UX section 0), not digest labels.
+FRAME_WORDS = ("Report an error on this page",)
+
+
+def leftover(text: str, labels, sources) -> str:
+    for s in sorted({s for s in sources if s}, key=len, reverse=True):
+        text = text.replace(s, "\x00")         # a placeholder may stand where a source value was
+    for lab in sorted(labels, key=len, reverse=True):
+        plain = npg.LINK_RE.sub(lambda m: m.group(1), lab)
+        pattern = re.sub(r"\\\{[a-z]+\\\}", ".{0,160}?", re.escape(plain))
+        text = re.sub(pattern, "\n", text)
+    return text.replace("\x00", "\n")
+
+
+def _sources(directory, feeds) -> set[str]:
+    out = {g["body_name"] for g in directory.govs} | {npg._host(g.get("official_url")) for g in directory.govs}
+    for f in feeds:
+        out.add(f["body"]["name"])
+        for m in f["meetings"]:
+            out |= {m["title"], npg.long_day(m["date"])}
+            for it in m["items"]:
+                out |= {it["text"], it["number"] or "", str((it.get("source") or {}).get("page") or "")}
+    return out
+
+
+def test_every_visible_string_is_a_label_or_source_text(sites, loaded, page_labels):
+    directory, _flags, labels = loaded
+    feeds = [json.loads(sites["on"][r]) for r in DIGEST_JSON]
+    allowed = [*page_labels.values(), *labels.values(), *FRAME_WORDS]
+    for rel in DIGEST_HTML - {"digest/geo-frame.html"}:
+        rest = leftover(main_text(sites["on"][rel].decode()), allowed, _sources(directory, feeds))
+        assert re.fullmatch(r"[\s.,·:/]*", rest), (rel, rest.strip()[:300])
+
+
+def test_the_strings_check_catches_an_unlabelled_word(loaded, page_labels):
+    text = main_text("<main><p>Coming up</p><p>Breaking news</p></main>")
+    assert "Breaking news" in leftover(text, list(page_labels.values()), set())
+
+
+# --- labels and their links ---------------------------------------------------------------------------------------
+
+def test_label_html_escapes_values_and_makes_one_link():
+    out = npg.label_html("Checked {date}. [Source]", "https://e.gov/?a=1&b=<2>", ext=True, date="<b>x</b>")
+    assert str(out) == ('Checked &lt;b&gt;x&lt;/b&gt;. <a href="https://e.gov/?a=1&amp;b=&lt;2&gt;" '
+                        'rel="noopener noreferrer">Source</a>')
+    assert str(npg.label_html("See [it]", None)) == "See it"
+    assert npg.label_text("A [b] {n}", n=3) == "A b 3"
+    with pytest.raises(npg.NationalBuildError):
+        npg.label_text("{n} days")
+
+
+def _labels_file(tmp_path, extra: str) -> Path:
+    text = npg.PAGE_LABELS_PATH.read_text(encoding="utf-8") + extra
+    p = tmp_path / "page-labels.yml"
+    p.write_text(text, encoding="utf-8")
+    return p
+
+
+@pytest.mark.parametrize("extra", ["  Bad.key: x\n", "  body.two: '[a] and [b]'\n", "  body.ctl: \"a\\u202eb\"\n",
+                                   "  body.empty: ' '\n", "  body.open: 'a [b'\n"])
+def test_page_labels_refuse_bad_entries(tmp_path, extra):
+    with pytest.raises(npg.NationalBuildError):
+        npg.load_page_labels(_labels_file(tmp_path, extra))
+
+
+def test_page_labels_refuse_a_missing_key(tmp_path):
+    text = npg.PAGE_LABELS_PATH.read_text(encoding="utf-8").replace("  body.withheld:", "  body.unused:")
+    p = tmp_path / "page-labels.yml"
+    p.write_text(text, encoding="utf-8")
+    with pytest.raises(npg.NationalBuildError, match="body.withheld"):
+        npg.load_page_labels(p)
+
+
+# --- staleness and the collection instant ----------------------------------------------------------------------------
+
+def test_staleness_rules():
+    at = BUILT_AT
+    iso = lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
+    assert npg.staleness(iso(at - timedelta(days=2)), at)["state"] == "fresh"
+    s = npg.staleness(iso(at - timedelta(days=4)), at)
+    assert s == {"state": "stale", "day": "2026-11-15", "n": 4}
+    assert npg.staleness(iso(at - timedelta(days=9)), at)["state"] == "week"
+    assert npg.staleness(None, at)["state"] == "week"
+    assert npg.staleness("1970-01-01T00:00:00Z", at)["state"] == "week"
+
+
+def test_collected_at_is_the_newest_fetch_never_invented():
+    srcs = [{"fetched_at": "2026-11-08"}, {"fetched_at": "2026-11-10"}, {"fetched_at": None}, "x"]
+    assert npg.collected_at(srcs) == datetime(2026, 11, 10, 12, tzinfo=timezone.utc)
+    assert npg.collected_at([]) == npg.EPOCH
+
+
+# --- consumer 3 of section 11: items only from the JSON; withheld shows the fixed label ------------------------------
+
+SENTINEL = "Approve the contract SENTINEL-ITEM-TEXT"
+
+
+def _agendas(*titles):
+    return {"index_url": "https://montgomerytn.gov/commission/agenda",
+            "sources": [{"id": "src-1", "url": "https://mcgtn.org/a.pdf", "pages": 3, "fetched_at": "2026-11-18"}],
+            "meetings": [{"id": "2026-12-14-formal", "date": "2026-12-14", "kind": "formal", "source_id": "src-1",
+                          "items": [{"number": f"26-12-{n}", "title": t, "page": 1}
+                                    for n, t in enumerate(titles, 1)]}]}
+
+
+def _entry(directory, gov_id, **changes):
+    e = dict(directory.get(COUNTY_ID))
+    e.update(gov=gov_id, also=[], review=None, **changes)
+    return e
+
+
+def test_shown_county_prints_its_items_from_the_json(tmp_path, loaded, page_labels, monkeypatch):
+    directory, flags, labels = loaded
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas(SENTINEL, "Second item"),
+                                  date(2026, 11, 19), checked_at=BUILT_AT)
+    feeds[COUNTY_ID]["meetings"][0]["items"][1]["text"] = "Edited in the JSON only"
+    html = _render_one(tmp_path, directory, flags, labels, page_labels, feeds, COUNTY_ID)
+    assert SENTINEL in html and "Edited in the JSON only" in html and "Second item" not in html
+
+
+def _render_one(tmp_path, directory, flags, labels, page_labels, feeds, gov_id):
+    out = tmp_path / "site"
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds)
+    st = directory.get(gov_id)["state"].lower()
+    return (out / "digest" / st / f"{gov_id}.html").read_text(encoding="utf-8")
+
+
+def _build_pages_into(out, directory, flags, labels, page_labels, feeds):
+    env = build_mod.make_env()
+    npg.build_national(out, env, _SITE_CTX(), directory, flags, labels, page_labels, feeds, built_at=BUILT_AT,
+                       counter=None)
+
+
+def _SITE_CTX():  # noqa: N802
+    """A site context from the fixture facts, as build() makes it (views.site_context)."""
+    from sitegen import views
+    facts = build_mod.load_facts(FIXTURE)
+    ix = views.Index(facts, [])
+    site = views.site_context(ix)
+    site.update(internal=False, analytics=None, morning_note=None, data_as_of="2026-11-18")
+    return site
+
+
+@pytest.mark.parametrize("gov_id,name", [("place-4799999", "Clarksville Youth Council"),
+                                          ("sdu-4799999", "Example County School Board")])
+def test_withheld_government_prints_the_label_and_no_item_text(tmp_path, loaded, page_labels, gov_id, name):
+    directory, flags, labels = loaded
+    withheld = _entry(directory, gov_id, body_name=name, items="withheld")
+    d = nat.Directory(govs=(*directory.govs, withheld), alias={})
+    feeds = ncl.clarksville_feeds(d, {"city": ({}, [])}, _agendas(SENTINEL), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    assert feeds[gov_id]["meetings"][0]["items_withheld"] is True
+    html = _render_one(tmp_path, d, flags, labels, page_labels, feeds, gov_id)
+    assert SENTINEL not in html
+    assert npg.label_text(page_labels["body.withheld"]) in " ".join(main_text(html).split())
+    assert npg.label_text(page_labels["body.withheld"]) not in _render_one(
+        tmp_path / "c", d, flags, labels, page_labels, feeds, COUNTY_ID)
+
+
+def test_page_prints_no_items_the_json_marks_withheld_or_not_final(loaded, page_labels):
+    body = {"official_url": "https://montgomerytn.gov/commission/agenda", "tz": "America/Chicago"}
+    m = {"id": "2026-12-14-formal", "date": "2026-12-14", "time": None, "title": "Formal", "title_ours": True,
+         "agenda": {"state": "final", "url": None, "status_as_posted": None}, "may_be_incomplete": False,
+         "items_withheld": True, "item_count": None,
+         "items": [{"seq": 1, "number": None, "text": SENTINEL, "source": {"url": None, "page": None}}]}
+    assert npg.meeting_view(m, body, page_labels)["entries"] == []
+    assert npg.meeting_view(m, body, page_labels)["withheld"] is True
+    m2 = dict(m, items_withheld=False, agenda=dict(m["agenda"], state="not-final"))
+    assert npg.meeting_view(m2, body, page_labels)["entries"] == []
+    m3 = dict(m, items_withheld=False)
+    v = npg.meeting_view(m3, body, page_labels)
+    assert [e["text"] for e in v["entries"]] == [SENTINEL] and v["agenda_url"] == body["official_url"]
+
+
+# --- real data ------------------------------------------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def real():
+    cfg = ncl.council_cfg("city")
+    if cfg is None or not cfg["facts_path"].is_file() or not config.COUNTY_AGENDAS.is_file():
+        why = "the Clarksville data is not in this checkout; set CR_ALLOW_NO_DATA=1 to skip locally"
+        if os.environ.get("CR_ALLOW_NO_DATA") == "1" and not os.environ.get("CI"):
+            pytest.skip(why)
+        pytest.fail(why)
+    agendas = county_agendas.load(config.COUNTY_AGENDAS)
+    paged = {s["id"] for s in agendas["sources"] if s.get("pages")}
+    today = min(date.fromisoformat(m["date"]) for m in agendas["meetings"] if m["source_id"] in paged)
+    councils = {"city": (build_mod.load_facts(cfg["facts_path"]), ncl.load_listing(cfg))}
+    return {"councils": councils, "agendas": agendas, "today": today}
+
+
+def test_real_coming_up_pages_print_exactly_the_json_items(tmp_path, loaded, page_labels, real):
+    directory, flags, labels = loaded
+    feeds = npg.build_feeds(directory, real["councils"], real["agendas"], real["today"])
+    assert set(feeds) == {COUNCIL_ID, COUNTY_ID}
+    assert feeds[COUNTY_ID]["checked_at"] == npg.collected_at(real["agendas"]["sources"]).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+    out = tmp_path / "site"
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds)
+    for gid, feed in feeds.items():
+        html = (out / "digest" / "tn" / f"{gid}.html").read_text(encoding="utf-8")
+        printed = [main_text("<main>" + h + "</main>") for h in re.findall(r"<h3>(.*?)</h3>", html, re.S)]
+        want = [" ".join(f"{it['number'] or ''} {it['text']}".split())
+                for m in feed["meetings"] for it in m["items"]]
+        assert printed == want, gid
+        rest = leftover(main_text(html), [*page_labels.values(), *labels.values(), *FRAME_WORDS],
+                        _sources(directory, [feed]))
+        assert re.fullmatch(r"[\s.,·:/]*", rest), (gid, rest.strip()[:300])
+    assert any(m["items"] for m in feeds[COUNTY_ID]["meetings"])          # the county page has items to check
+    assert not any(m["items"] for m in feeds[COUNCIL_ID]["meetings"])     # the council's are not stored (7)
+
+
+def test_a_covered_entry_without_a_feed_stops_the_build(loaded):
+    directory, _f, _l = loaded
+    with pytest.raises(npg.NationalBuildError):
+        npg.build_feeds(nat.Directory(govs=tuple(g for g in directory.govs if g["gov"] != COUNTY_ID)
+                                      + (dict(directory.get(COUNTY_ID), platform="legistar"),), alias={}),
+                        {"city": ({}, [])}, None, date(2026, 11, 19))
+
+
+# --- 11.3 item 7: the builder sweep ------------------------------------------------------------------------------------
+
+def _sweep(out: Path) -> set[str]:
+    return {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()
+            and SENTINEL in p.read_text(encoding="utf-8")}
+
+
+def test_builder_sweep_sentinel_only_in_the_bound_shown_government(tmp_path, loaded, page_labels):
+    """privacy-withhold/national-prefix 11.3 item 7: from fixtures holding SENTINEL-ITEM-TEXT in every source, the text
+    reaches only the shown county's .json and .html. A withheld "Youth Council" under a place id and a school district
+    get the county's own items handed to them as copied M2 files (the shown review stamped on): bind_feed strips them.
+    The page's items equal its JSON's."""
+    directory, flags, labels = loaded
+    youth = _entry(directory, "place-4799999", body_name="Clarksville Youth Council", items="withheld")
+    school = _entry(directory, "sdu-4799999", body_name="Example County School Board", items="withheld")
+    d = nat.Directory(govs=(*directory.govs, youth, school), alias={})
+    agendas = _agendas(SENTINEL)
+    facts = {"meetings": [{"id": "2026-12-03-regular", "date": "2026-12-03", "kind": "regular",
+                           "title": SENTINEL}], "sources": []}
+    feeds = ncl.clarksville_feeds(directory, {"city": (facts, [])}, agendas, date(2026, 11, 19), checked_at=BUILT_AT)
+    county = feeds[COUNTY_ID]
+    assert county["review"] and any(SENTINEL in it["text"] for m in county["meetings"] for it in m["items"])
+    for e in (youth, school):                       # a copied M2 file for a withheld entry, carrying items
+        copied = json.loads(json.dumps(county))
+        copied["body"].update(id=e["gov"], name=e["body_name"])
+        feeds[e["gov"]] = copied
+    out = tmp_path / "site"
+    binds = {}
+    npg.build_national(out, build_mod.make_env(), _SITE_CTX(), d, flags, labels, page_labels, feeds,
+                       built_at=BUILT_AT, counter=None, bind_counts=binds)
+    assert _sweep(out) == {f"digest/tn/{COUNTY_ID}.json", f"digest/tn/{COUNTY_ID}.html"}
+    assert binds["place-4799999"].withheld_stripped == 1 and binds["sdu-4799999"].withheld_stripped == 1
+    for e in (youth, school):
+        written = json.loads((out / "digest" / "tn" / f"{e['gov']}.json").read_text(encoding="utf-8"))
+        assert written["review"] is None and all(m["items"] == [] and m["items_withheld"] for m in
+                                                 written["meetings"])
+    html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
+    printed = [main_text("<main>" + h + "</main>") for h in re.findall(r"<h3>(.*?)</h3>", html, re.S)]
+    data = json.loads((out / "digest" / "tn" / f"{COUNTY_ID}.json").read_text(encoding="utf-8"))
+    assert printed == [" ".join(f"{it['number'] or ''} {it['text']}".split())
+                       for m in data["meetings"] for it in m["items"]]
+
+
+def test_builder_sweep_a_stale_review_publishes_no_item(tmp_path, loaded, page_labels):
+    """A copied M2 file for the shown county read under another review: stripped, counted, no sentinel anywhere."""
+    directory, flags, labels = loaded
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas(SENTINEL), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    feeds[COUNTY_ID]["review"] = "0" * 64
+    out = tmp_path / "site"
+    binds = {}
+    npg.build_national(out, build_mod.make_env(), _SITE_CTX(), directory, flags, labels, page_labels, feeds,
+                       built_at=BUILT_AT, counter=None, bind_counts=binds)
+    assert _sweep(out) == set()
+    assert binds[COUNTY_ID].review_mismatch == 1
+
+
+def test_a_feed_for_another_body_stops_the_build(tmp_path, loaded, page_labels):
+    directory, flags, labels = loaded
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas(SENTINEL), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    feeds[COUNCIL_ID] = feeds[COUNTY_ID]
+    with pytest.raises(npg.NationalBuildError):
+        npg.build_national(tmp_path, build_mod.make_env(), _SITE_CTX(), directory, flags, labels, page_labels,
+                           feeds, built_at=BUILT_AT, counter=None)
+
+
+def test_only_sitegen_national_reads_the_directory_file():
+    """11.3 item 10, for this module: the page builder reads the directory only through sitegen.national."""
+    src = (ROOT / "sitegen" / "national_pages.py").read_text(encoding="utf-8")
+    assert "directory.yml" not in src and "DIRECTORY_PATH" not in src
