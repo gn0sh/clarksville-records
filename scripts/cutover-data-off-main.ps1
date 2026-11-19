@@ -52,7 +52,7 @@
 #      still the seed, read again just before: S1-5); its last line
 #      must be "Rule suite <id> for <merge sha>: bypass", the squash's one parent must be the pinned baseline (this
 #      merge sets it), and main must then track no data/. Then a plain scripts\protect-main.ps1 -Check -Apps
-#      <answer> (no writes, main's new workflow) must print OK too.
+#      <answer> -Main <merge sha> (no writes, main's new workflow read at the merge) must print OK too.
 #   6. Re-enables daily-update and reads it back.
 #   7. Dispatches collect=false; the gate job must log its history line for exactly 1 commit after the baseline
 #      (verified), the deploy job must succeed and build-info.json must name the seed as data_sha.
@@ -158,6 +158,10 @@ function UndoLine {
     if ($script:mergeFrom -and $script:undo -ceq "$me -Rollback") {
         $now = FetchMain
         if ($now -and $now -cne $script:mergeFrom) { $script:undo = "$me -Rollback -CutoverMerge $now" }
+        else {
+            # read-after-write row 11: no value to wait for, and the read may lag the merge, so both undo lines
+            $script:undo = "$me -Rollback`nIf main has moved off $($script:mergeFrom) (the merge went through), undo instead with: $me -Rollback -CutoverMerge <main's sha now>"
+        }
     }
     return $script:undo
 }
@@ -255,8 +259,8 @@ function RunProtectMain([string]$a) {    # D1, before the merge: last line "OK: 
     $out = @(& powershell -NoProfile -File (Join-Path $here 'protect-main.ps1') -PreCutover -Apps $a 2>&1 | ForEach-Object { "$_" })
     return New-Object PSObject -Property @{ Code = $LASTEXITCODE; Lines = $out }
 }
-function RunProtectCheck([string]$a) {   # D1, after the merge: no writes, same OK line
-    $out = @(& powershell -NoProfile -File (Join-Path $here 'protect-main.ps1') -Check -Apps $a 2>&1 | ForEach-Object { "$_" })
+function RunProtectCheck([string]$a, [string]$m) {   # D1, after the merge $m: no writes, same OK line
+    $out = @(& powershell -NoProfile -File (Join-Path $here 'protect-main.ps1') -Check -Apps $a -Main $m 2>&1 | ForEach-Object { "$_" })
     return New-Object PSObject -Property @{ Code = $LASTEXITCODE; Lines = $out }
 }
 function IsOkLine($lines) {
@@ -447,17 +451,32 @@ function RunsBusy {   # the count of daily-update runs not completed; -1 on a fa
     if ($LASTEXITCODE -ne 0) { return -1 }
     return @($st | Where-Object { $_ -and $_ -cne 'completed' }).Count
 }
-function WfSet([string]$what, [string]$want) {
-    gh api -X PUT "repos/$repo/actions/workflows/$wfname/$what" --silent
-    if ($LASTEXITCODE -ne 0) { return $false }
-    # GitHub's read-back can lag the PUT by a few seconds (cutover run 4, 2026-11-19): read up to 10 times, 3 s apart
+# read-after-write (docs/architecture/read-after-write-invariant.md): after a write to GitHub, its confirming read may
+# lag. ReadUntil runs $read up to 10 times, 3 s apart (never after the last), and returns $true on the first read that
+# returns exactly $want (-ceq); $null (a failed read) or any other value is "not yet". Else it says what it read last
+# and returns $false. The write is never retried. $read returns one [string] (multi-line output joined with "`n") or
+# $null, so $LASTEXITCODE is never trusted across the call; it must not use the names $what, $want, $read or $i (this
+# function's). Sets $script:readLast. The same text in every script that uses it (tests pin that).
+function ReadUntil([string]$what, [string]$want, [scriptblock]$read) {
+    $script:readLast = $null
     for ($i = 1; $i -le 10; $i++) {
-        $s = (gh api "repos/$repo/actions/workflows/$wfname" --jq '.state') -join ''
-        if ($LASTEXITCODE -eq 0 -and $s -ceq $want) { return $true }
+        $script:readLast = & $read
+        if ($null -ne $script:readLast -and ([string]$script:readLast) -ceq $want) { return $true }
         if ($i -lt 10) { Start-Sleep -Seconds 3 }
     }
-    Write-Host "daily-update reads '$s', not $want, after 10 reads."
+    if ($null -eq $script:readLast) { Write-Host "${what}: could not read the state, not '$want', after 10 reads." }
+    else { Write-Host "$what reads '$($script:readLast)', not '$want', after 10 reads." }
     return $false
+}
+function WfState {   # the workflow's state, or $null on a failed read
+    $s = (gh api "repos/$repo/actions/workflows/$wfname" --jq '.state') -join "`n"
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return $s
+}
+function WfSet([string]$verb, [string]$state) {   # the PUT once, then its read-back (row 1; cutover run 4, 2026-11-19)
+    gh api -X PUT "repos/$repo/actions/workflows/$wfname/$verb" --silent
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return (ReadUntil 'daily-update' $state { WfState })
 }
 function DispatchRun([string]$collect) {   # dispatches on main; the new run's id, or ''
     $before = (gh api "repos/$repo/actions/workflows/$wfname/runs?event=workflow_dispatch&per_page=20" --jq '[.workflow_runs[].id] | max // 0') -join ''
@@ -540,18 +559,28 @@ function PutR1p {   # PUT main's scripts/main-ruleset-r1p.json (read at rollback
     [IO.File]::WriteAllText($path, $json, $utf8)
     gh api -X PUT "repos/$repo/rulesets/$id" --input $path --silent
     if ($LASTEXITCODE -ne 0) { return $false }
-    $raw = (gh api "repos/$repo/rulesets/$id") -join "`n"
-    if ($LASTEXITCODE -ne 0) { return $false }
-    try { $live = $raw | ConvertFrom-Json } catch { return $false }
-    if ((Canon (Wl $live)) -cne (Canon (Wl $want))) { Write-Host "Ruleset $id did not read back as R1'."; return $false }
+    # row 6: the read-back may lag the PUT; an old body equal to R1' means the PUT changed nothing
+    $script:rsId = $id
+    if (-not (ReadUntil "Ruleset $id" (Canon (Wl $want)) { RulesetWl $script:rsId })) { Write-Host "Ruleset $id did not read back as R1'."; return $false }
     Write-Host "R1' back: ruleset $id reads back equal to scripts/main-ruleset-r1p.json."
     return $true
 }
-function R2On {
+function RulesetWl([string]$id) {   # the whitelisted ruleset, or $null on a failed read
+    $raw = (gh api "repos/$repo/rulesets/$id") -join "`n"
+    if ($LASTEXITCODE -ne 0) { return $null }
+    try { $live = $raw | ConvertFrom-Json } catch { return $null }
+    if ($null -eq $live) { return $null }
+    return (Canon (Wl $live))
+}
+function R2Read {   # R2's value, or $null on a failed read
+    $v = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join "`n"
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return $v
+}
+function R2On {   # row 3: called only while R2 is off, so a lagging read says false and is never accepted
     gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true --silent
     if ($LASTEXITCODE -ne 0) { return $false }
-    $v = (gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') -join ''
-    if ($LASTEXITCODE -ne 0 -or $v -cne 'true') { Write-Host "R2 reads '$v', not true."; return $false }
+    if (-not (ReadUntil 'R2' 'true' { R2Read })) { return $false }
     Write-Host 'R2 on: GitHub Actions may create and approve pull requests (reads back true).'
     return $true
 }
@@ -841,8 +870,30 @@ if ($Rollback) {
         $br = 'rollback/data-on-main-' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')
         if ((GitRun @('push', '--quiet', 'origin', "${c}:refs/heads/$br")).Code -ne 0) { Fail "could not push $br (a workflow-file push needs: gh auth refresh -s workflow)" }
         Write-Host "Rollback step 3: pushed branch $br at $c (data/ from records-data $src)."
-        $n = (gh api -X POST "repos/$repo/pulls" -f base=main -f head=$br -f 'title=Roll back the data cutover: data/ on main from records-data' -f "body=Restores data/ on main from records-data $src ($srcOk), and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $CutoverMerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.ps1 -Rollback." --jq '.number') -join ''
-        if ($LASTEXITCODE -ne 0 -or $n -notmatch '^[0-9]+$') { Fail "could not open the pull request for $br" }
+        # read-after-write rule 6 (row 12): a 422 means GitHub can't see the new branch yet and nothing was created, so
+        # only a 422 is sent again (10 tries, 3 s apart); a 2xx is never sent again and must name the pushed commit;
+        # any other failure may have opened a pull request anyway
+        $n = ''
+        for ($i = 1; $i -le 10; $i++) {
+            $res = @(gh api -X POST "repos/$repo/pulls" -f base=main -f head=$br -f 'title=Roll back the data cutover: data/ on main from records-data' -f "body=Restores data/ on main from records-data $src ($srcOk), and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $CutoverMerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.ps1 -Rollback." --jq '[(.number|tostring), (.head.sha|tostring)] | @tsv' 2>&1 | ForEach-Object { "$_" })
+            $code = $LASTEXITCODE
+            if ($code -eq 0) {
+                $line = @($res | Where-Object { $_ -cmatch "^[0-9]+`t" })
+                $h = ''
+                if ($line.Count -eq 1) { $n, $h = $line[0] -split "`t", 2 }
+                if ($n -cnotmatch '^[0-9]+$' -or $h -cne $c) { Fail "the pull request opened for $br (#$n) has head.sha '$h', not the pushed ${c}: close it and check the branch before running this again" }
+                break
+            }
+            if (@($res | Where-Object { $_ -match '[(]HTTP 422[)]' }).Count -eq 0) {
+                $res | ForEach-Object { Write-Host ('  ' + (Shown $_)) }
+                Fail "could not open the pull request for $br, and one may be open anyway: check https://github.com/$repo/pulls for a pull request from $br before running this again"
+            }
+            if ($i -eq 10) {
+                $res | ForEach-Object { Write-Host ('  ' + (Shown $_)) }
+                Fail "could not open the pull request for ${br}: GitHub answered 422 (the branch not visible yet) 10 times, 3 s apart"
+            }
+            Start-Sleep -Seconds 3
+        }
         Write-Host "ROLLBACK PR #$n opened for $br at $c. daily-update stays off; R2 stays off; the site stays as last deployed."
         Write-Host "Next, once PR #$n is reviewed at ${c}: $me -Rollback -Merge $n -Sha $c -CutoverMerge $CutoverMerge -Report <review>"
         $script:done = $true; exit 0
@@ -852,9 +903,13 @@ if ($Rollback) {
     $res.Lines | ForEach-Object { Write-Host $_ }
     $ms = MergedLineOk $res.Lines
     if ($res.Code -ne 0 -or -not $ms) { Fail "merge-reviewed did not end with a bypass rule suite for PR #$Merge" }
-    $m = FetchMain
-    if (-not $m) { Fail 'could not fetch main after the merge' }
-    if ($m -cne $ms -or -not (TracksData $m)) { Fail "main is at $m (merge $ms) and must track data/ after the restore" }
+    # read-after-write row 9: the fetch may lag the merge (the stale value is the old main, never $ms)
+    if (-not (ReadUntil 'main' $ms { FetchMain })) {
+        if ($null -eq $script:readLast) { Fail 'could not fetch main after the merge' }
+        Fail "main is at $($script:readLast) (merge $ms) and must track data/ after the restore"
+    }
+    $m = $ms
+    if (-not (TracksData $m)) { Fail "main is at $m (merge $ms) and must track data/ after the restore" }
     Write-Host "Rollback step 3: PR #$Merge merged as $ms; main tracks data/ again."
     $script:step = 4
     # ADR 0011 Amendment (c) item 7 and main-protect/rollback-r2-unchecked-codeowners: before R2 goes on, main must
@@ -939,6 +994,12 @@ if (-not (WfSet 'disable' 'disabled_manually')) { Fail 'could not disable daily-
 $busy = RunsBusy
 if ($busy -lt 0) { Fail 'could not read the daily-update runs (daily-update is disabled)' }
 if ($busy -ne 0) { Fail 'a daily-update run started before the disable; wait for it, then undo and start again' }
+# read-after-write row 17: a run queued just before the disable may be missing from a lagged list, and a retry can't
+# prove an absence, so the list is read once more 30 s later, and both reads must show none
+Start-Sleep -Seconds 30
+$busy = RunsBusy
+if ($busy -lt 0) { Fail 'could not read the daily-update runs (daily-update is disabled)' }
+if ($busy -ne 0) { Fail 'a daily-update run started before the disable; wait for it, then undo and start again' }
 Write-Host 'Step 2 OK: daily-update disabled (reads back disabled_manually); no run active.'
 
 $script:step = 3
@@ -952,10 +1013,13 @@ else {
     if (-not $seed) { Fail 'could not commit the seed' }
     if ((GitRun @('push', '--quiet', 'origin', "${seed}:refs/heads/records-data")).Code -ne 0) { Fail 'could not push the seed to records-data' }
 }
-$got = FetchRd
-if ($null -eq $got) { Fail 'could not read records-data back' }
-$gl = $null
-if ($got) { $gl = ListingOf $got }
+# read-after-write row 7: the read may lag the push (the stale value is no branch, '')
+if (-not (ReadUntil 'records-data' $seed { FetchRd })) {
+    if ($null -eq $script:readLast) { Fail 'could not read records-data back' }
+    Fail "records-data reads $(if ($script:readLast) { $script:readLast } else { 'nothing' }), not the parentless seed $seed"
+}
+$got = $seed
+$gl = ListingOf $got
 if ($got -cne $seed -or (Parents $got) -ne 0 -or $null -eq $gl -or (Sha256Hex $gl) -cne $pinned) { Fail "records-data reads $got, not the parentless seed $seed" }
 Write-Host "Step 3 OK: records-data = seed $seed (parentless, $($script:nSeed) files, listing sha256 $pinned), from main $m."
 
@@ -983,14 +1047,17 @@ $res.Lines | ForEach-Object { Write-Host $_ }
 $ms = MergedLineOk $res.Lines
 if ($res.Code -ne 0 -or -not $ms) { Fail 'merge-reviewed did not end with a bypass rule suite' }
 $script:undo = "$me -Rollback -CutoverMerge $ms"
-$m = FetchMain
-if (-not $m) { Fail 'could not fetch main after the merge' }
-if ($m -cne $ms) { Fail "main is at $m, not the merge $ms" }
+# read-after-write row 8: the fetch may lag the merge (the stale value is $base, never $ms)
+if (-not (ReadUntil 'main' $ms { FetchMain })) {
+    if ($null -eq $script:readLast) { Fail 'could not fetch main after the merge' }
+    Fail "main is at $($script:readLast), not the merge $ms"
+}
+$m = $ms
 $p1 = GitText @('rev-parse', '--verify', '-q', "$ms^1")
 if ((Parents $ms) -ne 1 -or $p1 -cne $base) { Fail "the squash $ms has parent $p1, not the pinned MAIN_PR_BASELINE $base (the gate would check more than the cutover commit)" }
 if (TracksData $m) { Fail "main $m still tracks data/ after the merge" }
-Write-Host "Step 5: scripts\protect-main.ps1 -Check -Apps $Apps (main's new workflow, no writes; the .sh: --check)."
-$res = RunProtectCheck $Apps
+Write-Host "Step 5: scripts\protect-main.ps1 -Check -Apps $Apps -Main $ms (main's new workflow at the merge, no writes; the .sh: --check)."
+$res = RunProtectCheck $Apps $ms
 $res.Lines | ForEach-Object { Write-Host $_ }
 if ($res.Code -ne 0 -or -not (IsOkLine $res.Lines)) { Fail 'protect-main --check did not print OK after the merge' }
 Write-Host "Step 5 OK: PR #$Pr merged as $ms (rule suite bypass), parent = MAIN_PR_BASELINE $base; main tracks no data/; protect-main --check printed OK."

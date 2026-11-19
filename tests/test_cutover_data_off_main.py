@@ -52,13 +52,15 @@ PS_FLAGS = {"--plan": "-Plan", "--prepare": "-Prepare", "--rollback": "-Rollback
 
 # ---------------------------------------------------------------------------------------------- stubs
 _GH = r'''#!/usr/bin/env python3
-import hashlib, json, os, re, subprocess, sys
+import copy, hashlib, io, json, os, re, subprocess, sys
 a = sys.argv[1:]
 statef = os.environ["GH_STATE"]
 st = json.load(open(statef))
 origin = os.environ["STUB_ORIGIN"]
+FROZEN = [False]   # a stale view (below) never saves
 def save():
-    json.dump(st, open(statef, "w"))
+    if not FROZEN[0]:
+        json.dump(st, open(statef, "w"))
 def log(entry):
     with open(os.environ["GH_CALLS"], "a") as f:
         f.write(json.dumps(entry) + "\n")
@@ -92,102 +94,144 @@ log({"method": method, "path": path, "argv": a, "records_data": rd_head()})
 refuse(path)
 R = "repos/gn0sh/clarksville-records"
 W = R + "/actions/workflows/daily-update.yml"
-if path == R + "/actions/variables?per_page=100":
-    out({"variables": [{"name": n, "value": "x"} for n in st["vars"]]})
-if path.startswith(W + "/runs?"):
-    runs = st["runs"]
-    if "event=workflow_dispatch" in path:
-        runs = [r for r in runs if r.get("event") == "workflow_dispatch"]
-    out({"workflow_runs": sorted(runs, key=lambda r: -r["id"])})
-if path == W and method == "GET":
-    if st.get("wf_lag"):   # GitHub's read-back lags a PUT (cutover run 4, 2026-11-19): the old state for N reads
-        st["wf_lag"] -= 1; save()
-        out({"state": st["wf_prev"]})
-    out({"state": st["wf_state"]})
-if path in (W + "/disable", W + "/enable") and method == "PUT":
-    st["wf_prev"] = st["wf_state"]
-    st["wf_lag"] = st.get("wf_lag_each", 0)
-    if path.endswith("/disable"):
-        st["wf_state"] = "disabled_manually"
-        for cmd in st.get("on_disable", []):          # a late change to main, between steps 1 and 3
-            subprocess.run(cmd, shell=True, check=True)
-        if st.get("run_starts_on_disable"):
-            st["runs"].append({"id": 5, "status": "in_progress", "event": "schedule"})
-    else:
-        st["wf_state"] = "active"
-    save(); sys.exit(0)
-if path == W + "/dispatches" and method == "POST":
-    collect = [x for x in a if x.startswith("inputs[collect]=")][0].split("=", 1)[1]
-    rid = max([r["id"] for r in st["runs"]] + [100]) + 1
-    st["runs"].append({"id": rid, "status": "completed", "conclusion": "success", "event": "workflow_dispatch",
-                       "collect": collect})
-    st.setdefault("jobs", {})[str(rid)] = [{"name": "gate", "id": rid * 10, "conclusion": st.get("gate", "success")},
-                                           {"name": "deploy", "conclusion": st.get("deploy", "success")}]
-    # B2's gate on main: with a pinned baseline, it logs the count of first-parent commits after it
-    wf = git("show", "refs/heads/main:.github/workflows/daily-update.yml")
-    mb = re.search(r'MAIN_PR_BASELINE:\s*"([0-9a-f]{40})"', wf)
-    if mb:
-        n = st.get("gate_n") or len(git("rev-list", "--first-parent", mb.group(1) + "..refs/heads/main").split())
-        log_text = ("2026-11-19T00:00:01.0Z Every commit on main after %s was merged by a person, reviewed at its "
-                    "head: %d commit(s).\n" % (mb.group(1), n))
-    else:
-        log_text = "2026-11-19T00:00:01.0Z ::warning::MAIN_PR_BASELINE is not set\n"
-    st.setdefault("logs", {})[str(rid * 10)] = st.get("gate_log", log_text)
-    if collect == "true" and st.get("collect_moves", True):
-        head = rd_head()
-        idx = os.environ["GH_STATE"] + ".idx"
-        env = {**os.environ, "GIT_INDEX_FILE": idx}
-        subprocess.run(["git", "--git-dir", origin, "read-tree", head], env=env, check=True)
-        blob = git("hash-object", "-w", "--stdin", input='{"new": 1}\n')
-        subprocess.run(["git", "--git-dir", origin, "update-index", "--add", "--cacheinfo", "100644,%s,data/new.json" % blob],
-                       env=env, check=True)
-        tree = subprocess.run(["git", "--git-dir", origin, "write-tree"], env=env, capture_output=True, text=True,
-                              check=True).stdout.strip()
-        c = git("-c", "user.name=bot", "-c", "user.email=bot@x", "commit-tree", tree, "-p", head, "-m", "data")
-        git("update-ref", "refs/heads/records-data", c)
-        listing = subprocess.run(["git", "--git-dir", origin, "ls-tree", "-r", "-z", c, "--", "data"],
-                                 capture_output=True, check=True).stdout
-        if st.get("attest", True):
-            st.setdefault("attested", []).append(hashlib.sha256(listing).hexdigest())
-    st["build_info"] = rd_head() if st.get("deploy", "success") == "success" else st.get("build_info", "")
-    save(); sys.exit(0)
-if path.startswith(R + "/actions/jobs/") and path.endswith("/logs"):
-    sys.stdout.write(st["logs"][path.split("/")[-2]]); sys.exit(0)
-if path.startswith(R + "/commits/") and path.endswith("/pulls"):    # the 4.7.1 window: one merged PR per commit
-    c = path.split("/")[-2]
-    if c in st.get("no_pr", []):
-        out([])
-    n = st.setdefault("pr_map", {}).get(c) or str(1000 + len(st["pr_map"]))
-    st["pr_map"][c] = n; save()
-    out([{"number": int(n), "merged_at": "2026-11-18T00:00:00Z", "base": {"ref": "main"}, "merge_commit_sha": c},
-         {"number": 7, "merged_at": None, "base": {"ref": "main"}, "merge_commit_sha": c}])
-if path.startswith(R + "/pulls/") and path[len(R + "/pulls/"):] in st.get("pr_map", {}).values():
-    c = [k for k, v in st["pr_map"].items() if v == path[len(R + "/pulls/"):]][0]
-    out({"number": int(path.rsplit("/", 1)[-1]), "merged_by": {"type": "Bot" if c in st.get("bot", []) else "User"}})
-if path.startswith(R + "/actions/runs/"):
-    rest = path[len(R + "/actions/runs/"):]
-    rid = rest.split("/")[0]
-    if rest.endswith("/jobs?per_page=100"):
-        out({"jobs": st["jobs"][rid]})
-    out([r for r in st["runs"] if str(r["id"]) == rid][0])
-if path == R + "/pulls/%s" % st["pr"]["number"]:
-    out(st["pr"])
-if path == R + "/pulls" and method == "POST":
-    st["opened"] = [x for x in a if x.startswith(("head=", "base="))]; save()
-    head = [x for x in a if x.startswith("head=")][0].split("=", 1)[1]
-    git("update-ref", "refs/pull/99/head", git("rev-parse", "refs/heads/" + head))
-    out({"number": 99})
-if path == R + "/rulesets?per_page=100":
-    out([{"id": 27502319, "name": "main: pull request required"}])
-if path == R + "/rulesets/27502319":
-    if method == "PUT":
-        st["ruleset"] = json.load(open(args[args.index("--input") + 1])); save(); sys.exit(0)
-    out({**st.get("ruleset", {}), "id": 27502319, "_links": {}})
-if path == R + "/actions/permissions/workflow":
-    if method == "PUT":
-        st["r2"] = "can_approve_pull_request_reviews=true" in a; save(); sys.exit(0)
-    out({"can_approve_pull_request_reviews": st.get("r2", False)})
-sys.stderr.write("stub: unexpected call %r\n" % a); sys.exit(9)
+# read-after-write (docs/architecture/read-after-write-invariant.md): lag_each {read path: N} makes each write that
+# ARMS that path take a snapshot of the state before it; the next N reads that would show something else show the
+# snapshot instead (a read that the write did not change is not counted). fail_reads {path: N}: N failed reads.
+# serve {path: body}: that body on every read (a third value).
+ARMS = {W + "/disable": [W, W + "/runs?per_page=30"], W + "/enable": [W]}
+def render(state, frozen):
+    global st
+    keep, st = st, state
+    FROZEN[0] = frozen
+    o, e = io.StringIO(), io.StringIO()
+    so, se = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = o, e
+    code = 0
+    try:
+        handle()
+    except SystemExit as x:
+        code = x.code if isinstance(x.code, int) else (0 if x.code is None else 1)
+    finally:
+        sys.stdout, sys.stderr = so, se
+        st = keep
+        FROZEN[0] = False
+    return o.getvalue(), e.getvalue(), code
+def handle():
+    if path == R + "/actions/variables?per_page=100":
+        out({"variables": [{"name": n, "value": "x"} for n in st["vars"]]})
+    if path.startswith(W + "/runs?"):
+        runs = st["runs"]
+        if "event=workflow_dispatch" in path:
+            runs = [r for r in runs if r.get("event") == "workflow_dispatch"]
+        out({"workflow_runs": sorted(runs, key=lambda r: -r["id"])})
+    if path == W and method == "GET":
+        out({"state": st["wf_state"]})
+    if path in (W + "/disable", W + "/enable") and method == "PUT":
+        if path.endswith("/disable"):
+            st["wf_state"] = "disabled_manually"
+            for cmd in st.get("on_disable", []):          # a late change to main, between steps 1 and 3
+                subprocess.run(cmd, shell=True, check=True)
+            if st.get("run_starts_on_disable"):
+                st["runs"].append({"id": 5, "status": "in_progress", "event": "schedule"})
+        else:
+            st["wf_state"] = "active"
+        save(); sys.exit(0)
+    if path == W + "/dispatches" and method == "POST":
+        collect = [x for x in a if x.startswith("inputs[collect]=")][0].split("=", 1)[1]
+        rid = max([r["id"] for r in st["runs"]] + [100]) + 1
+        st["runs"].append({"id": rid, "status": "completed", "conclusion": "success", "event": "workflow_dispatch",
+                           "collect": collect})
+        st.setdefault("jobs", {})[str(rid)] = [{"name": "gate", "id": rid * 10, "conclusion": st.get("gate", "success")},
+                                               {"name": "deploy", "conclusion": st.get("deploy", "success")}]
+        # B2's gate on main: with a pinned baseline, it logs the count of first-parent commits after it
+        wf = git("show", "refs/heads/main:.github/workflows/daily-update.yml")
+        mb = re.search(r'MAIN_PR_BASELINE:\s*"([0-9a-f]{40})"', wf)
+        if mb:
+            n = st.get("gate_n") or len(git("rev-list", "--first-parent", mb.group(1) + "..refs/heads/main").split())
+            log_text = ("2026-11-19T00:00:01.0Z Every commit on main after %s was merged by a person, reviewed at its "
+                        "head: %d commit(s).\n" % (mb.group(1), n))
+        else:
+            log_text = "2026-11-19T00:00:01.0Z ::warning::MAIN_PR_BASELINE is not set\n"
+        st.setdefault("logs", {})[str(rid * 10)] = st.get("gate_log", log_text)
+        if collect == "true" and st.get("collect_moves", True):
+            head = rd_head()
+            idx = os.environ["GH_STATE"] + ".idx"
+            env = {**os.environ, "GIT_INDEX_FILE": idx}
+            subprocess.run(["git", "--git-dir", origin, "read-tree", head], env=env, check=True)
+            blob = git("hash-object", "-w", "--stdin", input='{"new": 1}\n')
+            subprocess.run(["git", "--git-dir", origin, "update-index", "--add", "--cacheinfo", "100644,%s,data/new.json" % blob],
+                           env=env, check=True)
+            tree = subprocess.run(["git", "--git-dir", origin, "write-tree"], env=env, capture_output=True, text=True,
+                                  check=True).stdout.strip()
+            c = git("-c", "user.name=bot", "-c", "user.email=bot@x", "commit-tree", tree, "-p", head, "-m", "data")
+            git("update-ref", "refs/heads/records-data", c)
+            listing = subprocess.run(["git", "--git-dir", origin, "ls-tree", "-r", "-z", c, "--", "data"],
+                                     capture_output=True, check=True).stdout
+            if st.get("attest", True):
+                st.setdefault("attested", []).append(hashlib.sha256(listing).hexdigest())
+        st["build_info"] = rd_head() if st.get("deploy", "success") == "success" else st.get("build_info", "")
+        save(); sys.exit(0)
+    if path.startswith(R + "/actions/jobs/") and path.endswith("/logs"):
+        sys.stdout.write(st["logs"][path.split("/")[-2]]); sys.exit(0)
+    if path.startswith(R + "/commits/") and path.endswith("/pulls"):    # the 4.7.1 window: one merged PR per commit
+        c = path.split("/")[-2]
+        if c in st.get("no_pr", []):
+            out([])
+        n = st.setdefault("pr_map", {}).get(c) or str(1000 + len(st["pr_map"]))
+        st["pr_map"][c] = n; save()
+        out([{"number": int(n), "merged_at": "2026-11-18T00:00:00Z", "base": {"ref": "main"}, "merge_commit_sha": c},
+             {"number": 7, "merged_at": None, "base": {"ref": "main"}, "merge_commit_sha": c}])
+    if path.startswith(R + "/pulls/") and path[len(R + "/pulls/"):] in st.get("pr_map", {}).values():
+        c = [k for k, v in st["pr_map"].items() if v == path[len(R + "/pulls/"):]][0]
+        out({"number": int(path.rsplit("/", 1)[-1]), "merged_by": {"type": "Bot" if c in st.get("bot", []) else "User"}})
+    if path.startswith(R + "/actions/runs/"):
+        rest = path[len(R + "/actions/runs/"):]
+        rid = rest.split("/")[0]
+        if rest.endswith("/jobs?per_page=100"):
+            out({"jobs": st["jobs"][rid]})
+        out([r for r in st["runs"] if str(r["id"]) == rid][0])
+    if path == R + "/pulls/%s" % st["pr"]["number"]:
+        out(st["pr"])
+    if path == R + "/pulls" and method == "POST":
+        if st.get("pulls_post"):          # read-after-write row 12: answers before the 2xx (422: the branch not seen yet)
+            code = st["pulls_post"].pop(0); save()
+            sys.stderr.write("gh: Validation Failed (HTTP 422)\n" if code == 422 else "gh: HTTP %d\n" % code); sys.exit(1)
+        st["opened"] = [x for x in a if x.startswith(("head=", "base="))]
+        st["prs_created"] = st.get("prs_created", 0) + 1; save()
+        head = [x for x in a if x.startswith("head=")][0].split("=", 1)[1]
+        sha = git("rev-parse", "refs/heads/" + head)
+        git("update-ref", "refs/pull/99/head", sha)
+        out({"number": 99, "head": {"sha": st.get("pull_head_sha") or sha}})
+    if path == R + "/rulesets?per_page=100":
+        out([{"id": 27502319, "name": "main: pull request required"}])
+    if path == R + "/rulesets/27502319":
+        if method == "PUT":
+            st["ruleset"] = json.load(open(args[args.index("--input") + 1])); save(); sys.exit(0)
+        out({**st.get("ruleset", {}), "id": 27502319, "_links": {}})
+    if path == R + "/actions/permissions/workflow":
+        if method == "PUT":
+            st["r2"] = "can_approve_pull_request_reviews=true" in a; save(); sys.exit(0)
+        out({"can_approve_pull_request_reviews": st.get("r2", False)})
+    sys.stderr.write("stub: unexpected call %r\n" % a); sys.exit(9)
+if method == "GET" and st.get("fail_reads", {}).get(path):
+    st["fail_reads"][path] -= 1; save()
+    sys.stderr.write("gh: HTTP 502\n"); sys.exit(1)
+if method == "GET" and path in st.get("serve", {}):
+    out(st["serve"][path])
+if method == "GET" and st.get("lag", {}).get(path):
+    real = render(st, False)
+    stale = render(st["snap"][path], True)
+    res = real
+    if stale != real:
+        st["lag"][path] -= 1; save(); res = stale
+    sys.stdout.write(res[0]); sys.stderr.write(res[1]); sys.exit(res[2])
+if method != "GET":
+    for rp in ARMS.get(path, [path]):
+        n = st.get("lag_each", {}).get(rp)
+        if n and not st.get("lag", {}).get(rp):
+            st.setdefault("snap", {})[rp] = copy.deepcopy({k: v for k, v in st.items() if k not in ("lag", "snap")})
+            st.setdefault("lag", {})[rp] = n
+handle()
 '''
 
 _CURL = r'''#!/usr/bin/env python3
@@ -239,6 +283,7 @@ $a = @()
 if ($PreCutover) { $a += '--pre-cutover' }
 if ($Check) { $a += '--check' }
 if ($PSBoundParameters.ContainsKey('Apps')) { $a += @('--apps', $Apps) }
+if ($PSBoundParameters.ContainsKey('Main')) { $a += @('--main', $Main) }
 & bash (Join-Path $PSScriptRoot 'protect-main.sh') @a
 exit $LASTEXITCODE
 '''
@@ -246,6 +291,60 @@ _MERGE_PS1 = pwsh_twin.param_block(ROOT / "scripts" / "merge-reviewed.ps1") + r'
 & bash (Join-Path $PSScriptRoot 'merge-reviewed.sh') $Pr $Sha @Reports
 exit $LASTEXITCODE
 '''
+
+# read-after-write rows 7-9: with STUB_GIT_LAG (a JSON file {"each": {ref: N}}), each write to that ref on origin (a
+# push, or a stub's update-ref) arms it, and the next N reads by ls-remote or fetch that would show the new value show
+# the old one instead (no branch: nothing). Without it, git runs as is.
+_GIT = r'''#!/bin/sh
+[ -n "${STUB_GIT_LAG:-}" ] || exec "@REAL@" "$@"
+exec python3 "$(dirname "$0")/git-lag.py" "$@"
+'''
+_GIT_LAG = r'''import json, os, subprocess, sys
+REAL = "@REAL@"
+a = sys.argv[1:]
+statef = os.environ["STUB_GIT_LAG"]
+st = json.load(open(statef))
+st.setdefault("lag", {}); st.setdefault("old", {})
+origin = os.environ["STUB_ORIGIN"]
+def save():
+    json.dump(st, open(statef, "w"))
+def log(entry):
+    with open(os.environ["GH_CALLS"], "a") as f:
+        f.write(json.dumps(entry) + "\n")
+def cur(ref):
+    r = subprocess.run([REAL, "--git-dir", origin, "rev-parse", "--verify", "-q", ref], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else ""
+def arm(ref):   # the first write to <ref> in this run only
+    if st["each"].get(ref) and ref not in st["old"]:
+        st["old"][ref] = cur(ref); st["lag"][ref] = st["each"][ref]; save()
+def stale(ref):
+    if st["lag"].get(ref) and st["old"][ref] != cur(ref):
+        st["lag"][ref] -= 1; save()
+        return True
+    return False
+if "push" in a:
+    for x in a[a.index("push") + 1:]:
+        if ":" in x:
+            arm(x.split(":", 1)[1]); log({"method": "GIT", "path": "push", "argv": a})
+elif a[:2] == ["--git-dir", origin] and a[2:3] == ["update-ref"]:
+    arm(a[3]); log({"method": "GIT", "path": "update-ref", "argv": a})
+elif a[:1] == ["ls-remote"] and stale(a[-1]):
+    if st["old"][a[-1]]:
+        print(st["old"][a[-1]] + "\t" + a[-1])
+    sys.exit(0)
+elif a[:1] == ["fetch"] and ":" in a[-1]:
+    src, dst = a[-1].lstrip("+").split(":", 1)
+    if stale(src):
+        if not st["old"][src]:
+            sys.stderr.write("fatal: couldn't find remote ref %s\n" % src); sys.exit(128)
+        sys.exit(subprocess.run([REAL, "update-ref", dst, st["old"][src]]).returncode)
+sys.exit(subprocess.run([REAL, *a]).returncode)
+'''
+# the stub sleep logs each call (read-after-write tests count the 3 s waits); it never waits
+_SLEEP = """#!/bin/sh
+[ -z "${GH_CALLS:-}" ] || printf '{"method": "SLEEP", "path": "sleep", "argv": ["%s"]}\\n' "$1" >> "$GH_CALLS"
+exit 0
+"""
 
 _DATE = r'''#!/bin/sh
 for x in "$@"; do [ "$x" = "+%H%M" ] && { echo "$FAKE_HM"; exit 0; }; done
@@ -359,7 +458,9 @@ class Fx:
         g("checkout", "-q", "--detach", self.head)
         self.bindir = tmp_path / "bin"
         self.bindir.mkdir()
-        for name, text in (("gh", _GH), ("curl", _CURL), ("date", _DATE), ("sleep", "#!/bin/sh\nexit 0\n")):
+        real_git = shutil.which("git")
+        for name, text in (("gh", _GH), ("curl", _CURL), ("date", _DATE), ("sleep", _SLEEP),
+                           ("git", _GIT.replace("@REAL@", real_git)), ("git-lag.py", _GIT_LAG.replace("@REAL@", real_git))):
             (self.bindir / name).write_text(text)
             (self.bindir / name).chmod(0o755)
         if self.twin == "ps1":
@@ -432,6 +533,17 @@ class Fx:
         p = self.tmp / "calls"
         return [json.loads(x) for x in p.read_text().splitlines()] if p.exists() else []
 
+    def git_lag(self, ref, n):
+        """read-after-write rows 7-9: the next write to <ref> on origin is seen late by N reads (the stub git)."""
+        f = self.tmp / "git-lag.json"
+        st = json.loads(f.read_text()) if f.exists() else {"each": {}}
+        st["each"][ref] = n
+        f.write_text(json.dumps(st))
+        return {"STUB_GIT_LAG": str(f)}
+
+    def sleeps(self, seconds="3"):
+        return len([c for c in self.calls() if c["method"] == "SLEEP" and c["argv"] == [seconds]])
+
     def cut_args(self, apps="none"):
         return ["--pr", "60", "--sha", self.head, "--apps", apps, "--report", "docs/reviews/x.md"]
 
@@ -445,6 +557,7 @@ class Fx:
 
 
 WRITES = ("PUT", "POST", "DELETE", "PATCH", "SCRIPT")
+W = R + "/actions/workflows/daily-update.yml"
 
 
 def _writes(calls):
@@ -472,7 +585,11 @@ def test_dry_run_walks_every_step_in_the_operators_order(tmp_path):
     assert seq == [("PUT", "disable"), ("SCRIPT", "protect-main"), ("SCRIPT", "merge-reviewed"),
                    ("SCRIPT", "protect-main"), ("PUT", "enable"), ("POST", "dispatches"), ("POST", "dispatches")], seq
     pm = [c for c in fx.calls() if c["path"] == "protect-main"]
-    assert [c["argv"] for c in pm] == [["--pre-cutover", "--apps", "none"], ["--check", "--apps", "none"]]
+    ms = re.search(r"merged as ([0-9a-f]{40}) \(rule suite bypass\)", out).group(1)
+    assert [c["argv"] for c in pm] == [["--pre-cutover", "--apps", "none"], ["--check", "--apps", "none", "--main", ms]]
+    # read-after-write: no read had to wait (no 3 s sleep), and step 2 read the runs again 30 s after the disable
+    assert fx.sleeps("3") == 0
+    assert _runs_reads_after_disable(fx) == ["runs", "sleep 30", "runs"]
     # the pre-cutover run comes before the merge, the plain --check after it and before the workflow is on again
     names = [c["path"] for c in _writes(fx.calls())]
     assert names.index("protect-main") < names.index("merge-reviewed") < len(names) - 1 - names[::-1].index("protect-main")
@@ -655,7 +772,7 @@ def test_step5_stops_when_the_plain_check_after_the_merge_is_not_ok(tmp_path):
     fx = Fx(tmp_path)
     r = fx.cut(STUB_PM_CHECK="notok")
     assert r.returncode == 2 and "STOPPED at step 5" in r.stdout and "protect-main --check did not print OK" in r.stdout
-    assert [c["argv"] for c in fx.calls() if c["path"] == "protect-main"][-1] == ["--check", "--apps", "none"]
+    assert [c["argv"] for c in fx.calls() if c["path"] == "protect-main"][-1][:3] == ["--check", "--apps", "none"]
     assert fx.state["wf_state"] == "disabled_manually"           # step 6 never ran
     assert fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge ") in r.stdout
 
@@ -805,7 +922,7 @@ def test_a_lagging_workflow_state_read_is_retried(tmp_path):
     """Cutover run 4 (2026-11-19) stopped at step 2: the disable worked, but GitHub's read in the same second still
     said 'active'. Each disable and enable now reads the state up to 10 times; here every read-back lags by 3."""
     fx = Fx(tmp_path)
-    fx.state["wf_lag_each"] = 3
+    fx.state["lag_each"] = {W: 3}
     r = fx.cut()
     assert r.returncode == 0 and "CUTOVER DONE" in r.stdout, r.stdout + r.stderr
     assert fx.state["wf_state"] == "active"
@@ -813,9 +930,10 @@ def test_a_lagging_workflow_state_read_is_retried(tmp_path):
 
 def test_step2_stops_when_the_workflow_state_never_reads_disabled(tmp_path):
     fx = Fx(tmp_path)
-    fx.state["wf_lag_each"] = 10
+    fx.state["lag_each"] = {W: 10}
     r = fx.cut()
-    assert r.returncode == 2 and "STOPPED at step 2" in r.stdout and "not disabled_manually, after 10 reads" in r.stdout
+    assert r.returncode == 2 and "STOPPED at step 2" in r.stdout
+    assert "daily-update reads 'active', not 'disabled_manually', after 10 reads." in r.stdout
     assert fx.rd() == ""
 
 
@@ -824,6 +942,251 @@ def test_step2_stops_when_a_run_started_before_the_disable(tmp_path):
     fx.state["run_starts_on_disable"] = True
     r = fx.cut()
     assert r.returncode == 2 and "STOPPED at step 2" in r.stdout and fx.cmd("--rollback") in r.stdout and fx.rd() == ""
+
+
+# ---------------------------------------------------------------------------------------------- read-after-write
+# docs/architecture/read-after-write-invariant.md (loop rule data-off-main/read-after-write, hit 2): after a write, its
+# confirming read waits up to 10 reads, 3 s apart, for exactly the value written. For each row: a lag of 9 passes, a
+# lag of 10 stops after 10 reads, the write is sent once, and the 3 s sleeps are exactly the reads that waited.
+def _n(fx, method, path):
+    return len([c for c in fx.calls() if c["method"] == method and c["path"] == path])
+
+
+def _runs_reads_after_disable(fx):
+    """The runs reads and sleeps from the disable to the next write (read-after-write row 17)."""
+    calls = fx.calls()
+    d = next(i for i, c in enumerate(calls) if c["method"] == "PUT" and c["path"] == W + "/disable")
+    seq = []
+    for c in calls[d + 1:]:
+        if c["method"] in WRITES:
+            break
+        if c["method"] == "GET" and c["path"] == W + "/runs?per_page=30":
+            seq.append("runs")
+        elif c["method"] == "SLEEP":
+            seq.append("sleep " + c["argv"][0])
+    return seq
+
+
+@pytest.mark.parametrize("lag", [9, 10])
+def test_raw_row1_the_workflow_state_waits_for_the_disable_and_the_enable(tmp_path, lag):
+    fx = Fx(tmp_path)
+    fx.state["lag_each"] = {W: lag}
+    r = fx.cut()
+    assert _n(fx, "PUT", W + "/disable") == 1
+    if lag == 9:
+        assert r.returncode == 0 and "CUTOVER DONE" in r.stdout, r.stdout + r.stderr
+        assert _n(fx, "PUT", W + "/enable") == 1 and fx.sleeps() == 18     # 9 for the disable, 9 for the enable
+    else:
+        assert r.returncode == 2 and "STOPPED at step 2" in r.stdout, r.stdout + r.stderr
+        assert "daily-update reads 'active', not 'disabled_manually', after 10 reads." in r.stdout
+        assert fx.sleeps() == 9 and _n(fx, "PUT", W + "/enable") == 0 and fx.rd() == ""
+
+
+def test_raw_a_third_value_never_passes_and_a_failed_read_only_delays(tmp_path):
+    fx = Fx(tmp_path)
+    fx.state["serve"] = {W: {"state": "disabled_inactivity"}}
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 2" in r.stdout
+    assert "daily-update reads 'disabled_inactivity', not 'disabled_manually', after 10 reads." in r.stdout
+    assert fx.sleeps() == 9 and _n(fx, "PUT", W + "/disable") == 1
+    sub = tmp_path / "failed"
+    sub.mkdir()
+    fx = Fx(sub)
+    fx.state["fail_reads"] = {W: 1}
+    r = fx.cut()
+    assert r.returncode == 0 and "CUTOVER DONE" in r.stdout and fx.sleeps() == 1, r.stdout + r.stderr
+    sub = tmp_path / "unread"
+    sub.mkdir()
+    fx = Fx(sub)
+    fx.state["fail_reads"] = {W: 10}
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 2" in r.stdout and fx.sleeps() == 9
+    assert "daily-update: could not read the state, not 'disabled_manually', after 10 reads." in r.stdout
+
+
+def _rollback_early(fx, **env):
+    """The cutover stopped at step 4 (before the merge), then --rollback (the early path: R1' back, R2 on)."""
+    fx.cut(STUB_PM="notok")
+    fx.state["r2"] = False
+    open(fx.tmp / "calls", "w").close()
+    return fx.run(["--rollback"], **env)
+
+
+@pytest.mark.parametrize("lag", [9, 10])
+def test_raw_row3_r2_on_waits_for_true(tmp_path, lag):
+    fx = Fx(tmp_path)
+    fx.state["lag_each"] = {R + "/actions/permissions/workflow": lag}
+    r = _rollback_early(fx)
+    assert _n(fx, "PUT", R + "/actions/permissions/workflow") == 1
+    if lag == 9:
+        assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout and fx.sleeps() == 9, r.stdout + r.stderr
+    else:
+        assert r.returncode == 2 and "STOPPED at step 3" in r.stdout and "could not turn R2 on" in r.stdout
+        assert "R2 reads 'false', not 'true', after 10 reads." in r.stdout
+        assert fx.sleeps() == 9 and _n(fx, "PUT", W + "/enable") == 0
+
+
+@pytest.mark.parametrize("lag", [9, 10])
+def test_raw_row6_r1_prime_waits_for_its_body(tmp_path, lag):
+    fx = Fx(tmp_path)
+    fx.state["lag_each"] = {R + "/rulesets/27502319": lag}
+    r = _rollback_early(fx)
+    assert _n(fx, "PUT", R + "/rulesets/27502319") == 1
+    if lag == 9:
+        assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout and fx.sleeps() == 9, r.stdout + r.stderr
+    else:
+        assert r.returncode == 2 and "STOPPED at step 3" in r.stdout and "could not put R1' back" in r.stdout
+        assert "Ruleset 27502319 reads '" in r.stdout and "', after 10 reads." in r.stdout
+        assert fx.sleeps() == 9 and _n(fx, "PUT", R + "/actions/permissions/workflow") == 0
+
+
+@pytest.mark.parametrize("lag", [9, 10])
+def test_raw_row7_the_seed_push_is_read_until_it_shows(tmp_path, lag):
+    fx = Fx(tmp_path)
+    r = fx.cut(**fx.git_lag("refs/heads/records-data", lag))
+    assert _n(fx, "GIT", "push") == 1
+    if lag == 9:
+        assert r.returncode == 0 and "CUTOVER DONE" in r.stdout and fx.sleeps() == 9, r.stdout + r.stderr
+    else:
+        assert r.returncode == 2 and "STOPPED at step 3" in r.stdout, r.stdout + r.stderr
+        assert "records-data reads '', not '%s', after 10 reads." % fx.rd() in r.stdout
+        assert fx.sleeps() == 9 and not [c for c in fx.calls() if c["path"] == "protect-main"]
+
+
+@pytest.mark.parametrize("lag", [9, 10])
+def test_raw_row8_main_is_read_until_it_is_the_merge(tmp_path, lag):
+    fx = Fx(tmp_path)
+    r = fx.cut(**fx.git_lag("refs/heads/main", lag))
+    assert len([c for c in fx.calls() if c["path"] == "merge-reviewed"]) == 1
+    ms = fx.og("rev-parse", "refs/heads/main")
+    if lag == 9:
+        assert r.returncode == 0 and "CUTOVER DONE" in r.stdout and fx.sleeps() == 9, r.stdout + r.stderr
+    else:
+        assert r.returncode == 2 and "STOPPED at step 5" in r.stdout, r.stdout + r.stderr
+        assert f"main reads '{fx.main}', not '{ms}', after 10 reads." in r.stdout
+        assert f"main is at {fx.main}, not the merge {ms}" in r.stdout
+        assert fx.cmd(f"Undo with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge {ms}\n") in r.stdout
+        assert fx.sleeps() == 9 and len([c for c in fx.calls() if c["path"] == "protect-main"]) == 1
+
+
+@pytest.mark.parametrize("lag", [9, 10])
+def test_raw_row9_the_rollback_reads_main_until_it_is_the_restore_merge(tmp_path, lag):
+    fx = Fx(tmp_path)
+    r = fx.cut()
+    merge = re.search(fx.cmd("--rollback --cutover-merge ") + "([0-9a-f]{40})", r.stdout).group(1)
+    fx.state["r2"] = False
+    r = fx.run(["--rollback", "--cutover-merge", merge])
+    c = re.search(r"pushed branch \S+ at ([0-9a-f]{40})", r.stdout).group(1)
+    open(tmp_path / "calls", "w").close()
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "docs/reviews/rb.md"],
+               **fx.git_lag("refs/heads/main", lag))
+    assert len([x for x in fx.calls() if x["path"] == "merge-reviewed"]) == 1
+    ms = fx.og("rev-parse", "refs/heads/main")
+    if lag == 9:
+        assert r.returncode == 0 and "ROLLBACK DONE" in r.stdout and fx.sleeps() == 9, r.stdout + r.stderr
+    else:
+        assert r.returncode == 2 and "STOPPED at step 3" in r.stdout, r.stdout + r.stderr
+        assert f"main reads '{merge}', not '{ms}', after 10 reads." in r.stdout
+        assert f"main is at {merge} (merge {ms}) and must track data/ after the restore" in r.stdout
+        assert fx.sleeps() == 9 and fx.state["r2"] is False and _n(fx, "PUT", R + "/rulesets/27502319") == 0
+
+
+def test_raw_row11_a_lagging_main_after_a_garbled_merge_prints_both_undo_lines(tmp_path):
+    """No value to wait for (the merge output was not understood): when main still reads as before the merge call, the
+    stop prints both undo lines."""
+    fx = Fx(tmp_path)
+    r = fx.cut(STUB_MR="garbled", **fx.git_lag("refs/heads/main", 1))
+    assert r.returncode == 2 and "STOPPED at step 5" in r.stdout, r.stdout + r.stderr
+    want = fx.cmd("Undo with: bash scripts/cutover-data-off-main.sh --rollback\nIf main has moved off %s (the merge went "
+                  "through), undo instead with: bash scripts/cutover-data-off-main.sh --rollback --cutover-merge <main's "
+                  "sha now>\n" % fx.main)
+    assert want in r.stdout, r.stdout
+    assert fx.sleeps() == 0
+
+
+def _open_rollback(fx, **state):
+    r = fx.cut()
+    merge = re.search(fx.cmd("--rollback --cutover-merge ") + "([0-9a-f]{40})", r.stdout).group(1)
+    fx.state["r2"] = False
+    fx.state.update(state)
+    open(fx.tmp / "calls", "w").close()
+    return fx.run(["--rollback", "--cutover-merge", merge])
+
+
+@pytest.mark.parametrize("case", ["422x9", "422x10", "502", "wrong-head"])
+def test_raw_row12_the_rollback_pr_post_is_sent_again_on_422_only(tmp_path, case):
+    """Rule 6: a 422 (GitHub can't see the new branch yet) created nothing, so only it is sent again; a 2xx must name
+    the pushed commit; any other failure may have opened a pull request, so it stops and says to check."""
+    over = {"422x9": {"pulls_post": [422] * 9}, "422x10": {"pulls_post": [422] * 10}, "502": {"pulls_post": [502]},
+            "wrong-head": {"pull_head_sha": "0" * 40}}[case]
+    fx = Fx(tmp_path)
+    r = _open_rollback(fx, **over)
+    posts = _n(fx, "POST", R + "/pulls")
+    made = fx.state.get("prs_created", 0)
+    if case == "422x9":
+        assert r.returncode == 0 and "ROLLBACK PR #99 opened" in r.stdout, r.stdout + r.stderr
+        assert posts == 10 and made == 1 and fx.sleeps() == 9
+        return
+    assert r.returncode == 2 and "STOPPED at step 3" in r.stdout, r.stdout + r.stderr
+    if case == "422x10":
+        assert posts == 10 and made == 0 and fx.sleeps() == 9
+        assert "GitHub answered 422 (the branch not visible yet) 10 times, 3 s apart" in r.stdout
+    elif case == "502":
+        assert posts == 1 and made == 0 and fx.sleeps() == 0
+        assert "and one may be open anyway: check https://github.com/gn0sh/clarksville-records/pulls" in r.stdout
+    else:
+        c = re.search(r"pushed branch \S+ at ([0-9a-f]{40})", r.stdout).group(1)
+        assert posts == 1 and made == 1 and fx.sleeps() == 0
+        assert "has head.sha '%s', not the pushed %s" % ("0" * 40, c) in r.stdout
+
+
+def test_raw_row17_the_runs_are_read_again_30_s_after_the_disable(tmp_path):
+    """A run queued just before the disable may be missing from a lagged list (retry can't prove an absence): the
+    second read, 30 s later, sees it and stops."""
+    fx = Fx(tmp_path)
+    fx.state["run_starts_on_disable"] = True
+    fx.state["lag_each"] = {W + "/runs?per_page=30": 1}
+    r = fx.cut()
+    assert r.returncode == 2 and "STOPPED at step 2" in r.stdout, r.stdout + r.stderr
+    assert "a daily-update run started before the disable" in r.stdout and fx.rd() == ""
+    assert _runs_reads_after_disable(fx) == ["runs", "sleep 30", "runs"]
+
+
+def test_raw_one_helper_text_in_every_script_that_uses_it():
+    """read_until / ReadUntil: the same definition, byte for byte, in each twin that uses it (as the whitelist)."""
+    def block(text, start):
+        i = text.index("# read-after-write (docs/architecture/read-after-write-invariant.md)")
+        assert text.index(start, i) - i < 800, start
+        return text[i:text.index("\n}\n", i) + 3]
+    pm_sh = (ROOT / "scripts" / "protect-main.sh").read_text(encoding="utf-8")
+    pm_ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
+    sh, ps1 = SH.read_text(encoding="utf-8"), PS1.read_text(encoding="utf-8")
+    assert block(sh, "read_until() {") == block(pm_sh, "read_until() {")
+    assert block(ps1, "function ReadUntil(") == block(pm_ps1, "function ReadUntil(")
+    b = block(sh, "read_until() {")
+    assert "for i in 1 2 3 4 5 6 7 8 9 10; do" in b and '[ "$i" = 10 ] || sleep 3' in b
+    assert "after 10 reads." in b and '[ "$rlast" = "$want" ]' in b
+    b = block(ps1, "function ReadUntil(")
+    assert "for ($i = 1; $i -le 10; $i++)" in b and "if ($i -lt 10) { Start-Sleep -Seconds 3 }" in b
+    assert "-ceq $want" in b and "after 10 reads." in b
+    # each read a ReadUntil waits on joins multi-line output with a newline, never runs lines together (-join '')
+    for text, fns in ((ps1, ("WfState", "RulesetWl", "R2Read")), (pm_ps1, ("MainRef", "MainPrr", "R2Read", "LiveWl"))):
+        for fn in fns:
+            body = text[text.index("function " + fn):]
+            body = body[:body.index("\n}\n")]
+            assert "-join ''" not in body and '-join "`n"' in body, fn
+    # every write the rows name is followed by the helper, in both twins
+    for s in ("read_until daily-update", "read_until R2 true r2_read", 'read_until "Ruleset $ids"',
+              'read_until records-data "$seed" fetch_rd', 'read_until main "$ms" fetch_main'):
+        assert s in sh, s
+    for s in ("ReadUntil 'daily-update' $state { WfState }", "ReadUntil 'R2' 'true' { R2Read }",
+              "ReadUntil \"Ruleset $id\"", "ReadUntil 'records-data' $seed { FetchRd }",
+              "ReadUntil 'main' $ms { FetchMain }"):
+        assert s in ps1, s
+    assert sh.count('read_until main "$ms" fetch_main') == 2
+    assert '--jq \'[(.number|tostring), (.head.sha|tostring)] | @tsv\'' in sh and "'(HTTP 422)'" in sh
+    assert "'[(]HTTP 422[)]'" in ps1 and "-Check -Apps $a -Main $m" in ps1
+    assert sh.count("sleep 30\nbusy=$(runs_busy)") == 1 and ps1.count("Start-Sleep -Seconds 30\n$busy = RunsBusy") == 1
 
 
 def test_step4_stops_unless_protect_main_prints_ok(tmp_path):
@@ -1277,7 +1640,12 @@ def test_m1_ps1_fetchmain_returns_null_on_a_failed_fetch_and_no_git_exit_code_is
     assert "if ((GitRun @('fetch', '--quiet', '--no-tags', 'origin', '+refs/heads/main:refs/cutover/main')).Code -ne 0) " \
         "{ return $null }" in fm and "Out-Null" not in fm
     calls = [m.start() for m in re.finditer(r"= FetchMain\n", ps1)]
-    assert len(calls) == 9
+    assert len(calls) == 7
+    # read-after-write rows 8 and 9: the reads after a merge go through ReadUntil, and a failed last read stops too
+    waits = [m.start() for m in re.finditer(r"ReadUntil 'main' \$ms \{ FetchMain \}", ps1)]
+    assert len(waits) == 2
+    for at in waits:
+        assert "if ($null -eq $script:readLast) { Fail 'could not fetch main after the merge' }" in ps1[at:at + 200]
     for at in calls:
         nxt = ps1[at:at + 300].split("\n")
         assert re.search(r"if \(-not \$(m|m0|now)\) \{ (Refuse|Fail) |if \(\$now -and ", "\n".join(nxt[:3])), nxt[:3]

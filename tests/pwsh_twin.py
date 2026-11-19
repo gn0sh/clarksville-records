@@ -34,7 +34,10 @@ function global:Get-Date {
     }
     Microsoft.PowerShell.Utility\Get-Date @args
 }
-function global:Start-Sleep {   # as the .sh's stub sleep: STUB_SLEEP seconds (a Ctrl+C test), else none
+function global:Start-Sleep {   # as the .sh's stub sleep: logs the call to GH_CALLS; STUB_SLEEP seconds (a Ctrl+C test), else none
+    $s = [string]$args[0]
+    if ($args.Count -ge 2 -and [string]$args[0] -eq '-Seconds') { $s = [string]$args[1] }
+    if ($env:GH_CALLS) { [IO.File]::AppendAllText($env:GH_CALLS, '{"method": "SLEEP", "path": "Start-Sleep", "argv": ["' + $s + '"]}' + "`n") }
     if ($env:STUB_SLEEP) { Microsoft.PowerShell.Utility\Start-Sleep -Milliseconds ([int]([double]$env:STUB_SLEEP * 1000)) }
 }
 function global:Invoke-RestMethod {
@@ -114,6 +117,11 @@ PS51_ONLY = (
     "the exit code of `powershell -File` on a parameter binding failure: pwsh 7 exits 1 (protect-main.ps1, an "
     "advanced script, relies on it); cutover-data-off-main.ps1 catches the failure of its binding block and exits 1 "
     "itself, but what 5.1's host returns for an advanced script is unproved",
+    "the cutover rollback's POST pulls tells a 422 from any other failure by gh's stderr line '(HTTP 422)' read "
+    "through 2>&1 as strings (read-after-write rule 6): on 5.1 each stderr line is a NativeCommandError record whose "
+    "text should be the line, but that it matches is unproved here",
+    "ReadUntil's scriptblocks see the caller's variables by PowerShell's dynamic scoping (they avoid the helper's own "
+    "names $what, $want, $read, $i); pwsh 7 and 5.1 scope the same way, but no 5.1 run proves it",
     "PositionalBinding=$false with -File on 5.1: pwsh 7 refuses a positional argument, and passes each '-Name' "
     "argument of `-File` into a non-advanced script's $args so that `. { [CmdletBinding(PositionalBinding = $false)] "
     "param(...) } @args` binds it by name (cutover-data-off-main.ps1); that 5.1 does both is unproved",

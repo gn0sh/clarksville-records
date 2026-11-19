@@ -52,7 +52,7 @@
 #      still the seed, read again just before: S1-5); its last line
 #      must be "Rule suite <id> for <merge sha>: bypass", the squash's one parent must be the pinned baseline (this
 #      merge sets it), and main must then track no data/. Then a plain scripts/protect-main.sh --check --apps
-#      <answer> (no writes, main's new workflow) must print OK too.
+#      <answer> --main <merge sha> (no writes, main's new workflow read at the merge) must print OK too.
 #   6. Re-enables daily-update and reads it back.
 #   7. Dispatches collect=false; the run's gate job must log the history line for exactly 1 commit after the
 #      baseline (verified), its deploy job must succeed, and the site's build-info.json must name the seed as data_sha.
@@ -147,7 +147,12 @@ refresh_undo() {
   # After the merge call, main may have moved even when the call's output was not understood: the undo then needs
   # the merge sha (data-off-main/undo-line-after-merge).
   if [ -n "$merge_from" ] && [ "$undo" = "$me --rollback" ]; then
-    if now=$(fetch_main 2>/dev/null) && [ "$now" != "$merge_from" ]; then undo="$me --rollback --cutover-merge $now"; fi
+    if now=$(fetch_main 2>/dev/null) && [ "$now" != "$merge_from" ]; then undo="$me --rollback --cutover-merge $now"
+    else
+      # read-after-write row 11: no value to wait for, and the read may lag the merge, so both undo lines
+      undo="$me --rollback
+If main has moved off $merge_from (the merge went through), undo instead with: $me --rollback --cutover-merge <main's sha now>"
+    fi
   fi
 }
 fail() {
@@ -191,7 +196,7 @@ done
 # ---------------------------------------------------------------------------------------------- named calls
 # Each call to another script or another branch's contract is one function, so a change there is one edit here.
 run_protect_main() { bash "$here/protect-main.sh" --pre-cutover --apps "$1"; }   # D1, before the merge: last line "OK: main is protected..."
-run_protect_check() { bash "$here/protect-main.sh" --check --apps "$1"; }      # D1, after the merge: no writes, same OK line
+run_protect_check() { bash "$here/protect-main.sh" --check --apps "$1" --main "$2"; }   # D1, after the merge $2: no writes, same OK line
 run_merge_reviewed() { bash "$here/merge-reviewed.sh" "$@"; }                 # D1: last line "Rule suite <id> for <sha>: bypass"
 run_data_shape() { "$py" -B -m collector.data_shape "$1"; }                   # B1/B1b: exit 0 = the listing passes
 run_scrub_check() { "$py" -B -m tools.scrub_rpc_phones --check --path "$1"; } # B1b: read-only, exit 1 on a phone
@@ -315,17 +320,28 @@ runs_busy() {   # prints the count of daily-update runs not completed; 1 on a fa
   st=$(gh api "repos/$repo/actions/workflows/$wfname/runs?per_page=30" --jq '.workflow_runs[].status') || return 1
   printf '%s\n' "$st" | grep -cv -e '^completed$' -e '^$' || true
 }
-wf_state() { gh api "repos/$repo/actions/workflows/$wfname" --jq '.state'; }
-wf_set() {   # $1 disable|enable, $2 expected state
-  local s i
-  gh api -X PUT "repos/$repo/actions/workflows/$wfname/$1" --silent || return 1
-  # GitHub's read-back can lag the PUT by a few seconds (cutover run 4, 2026-11-19): read up to 10 times, 3 s apart
+# read-after-write (docs/architecture/read-after-write-invariant.md): after a write to GitHub, its confirming read may
+# lag. read_until <what> <expected> <cmd...> runs <cmd> up to 10 times, 3 s apart (never after the last), and returns 0
+# on the first read that exits 0 and prints exactly <expected>; a failed read or any other value is "not yet". Else it
+# says what it read last and returns 1. The write is never retried. Sets rlast (the last read) and rrc (its exit code).
+# The same text in every script that uses it (tests pin that).
+read_until() {
+  local what=$1 want=$2 i
+  shift 2
+  rlast=""; rrc=1
   for i in 1 2 3 4 5 6 7 8 9 10; do
-    if s=$(wf_state) && [ "$s" = "$2" ]; then return 0; fi
+    if rlast=$("$@"); then rrc=0; else rrc=$?; fi
+    [ "$rrc" = 0 ] && [ "$rlast" = "$want" ] && return 0
     [ "$i" = 10 ] || sleep 3
   done
-  echo "daily-update reads '$s', not $2, after 10 reads."
+  if [ "$rrc" = 0 ]; then echo "$what reads '$rlast', not '$want', after 10 reads."
+  else echo "$what: could not read the state, not '$want', after 10 reads."; fi
   return 1
+}
+wf_state() { gh api "repos/$repo/actions/workflows/$wfname" --jq '.state'; }
+wf_set() {   # $1 disable|enable, $2 expected state: the PUT once, then its read-back (row 1; cutover run 4, 2026-11-19)
+  gh api -X PUT "repos/$repo/actions/workflows/$wfname/$1" --silent || return 1
+  read_until daily-update "$2" wf_state
 }
 dispatch_run() {   # $1 collect value: dispatches on main, prints the new run's id
   local before id i
@@ -366,20 +382,20 @@ step8_wait() {   # minutes step 8 may wait: at most 360, and the wait ends befor
 }
 job_conclusion() { CO_JOB=$2 gh api "repos/$repo/actions/runs/$1/jobs?per_page=100" --jq '.jobs[] | select(.name == $ENV.CO_JOB) | .conclusion'; }
 put_r1p() {   # PUT main's scripts/main-ruleset-r1p.json (read at rollback step 1; whitelisted), read it back
-  local ids
+  local ids want
   ids=$(gh api --paginate "repos/$repo/rulesets?per_page=100" --jq '.[] | select(.name == $ENV.CO_RULESET) | .id') || { echo "Could not list the rulesets."; return 1; }
   [[ "$ids" =~ ^[0-9]+$ ]] || { echo "Expected exactly one ruleset named '$CO_RULESET', got: $(printf '%s' "$ids" | paste -sd, -)"; return 1; }
-  jq -c "$wl" "$r1p" > "$work/r1p.json" || { echo "Could not read scripts/main-ruleset-r1p.json."; return 1; }
+  jq -c "$wl" "$r1p" > "$work/r1p.json" && want=$(jq -S -c "$wl" "$r1p") || { echo "Could not read scripts/main-ruleset-r1p.json."; return 1; }
   gh api -X PUT "repos/$repo/rulesets/$ids" --input "$work/r1p.json" --silent || return 1
-  gh api "repos/$repo/rulesets/$ids" > "$work/live.json" || return 1
-  [ "$(jq -S -c "$wl" "$work/live.json")" = "$(jq -S -c "$wl" "$r1p")" ] || { echo "Ruleset $ids did not read back as R1'."; return 1; }
+  # row 6: the read-back may lag the PUT; an old body equal to R1' means the PUT changed nothing
+  read_until "Ruleset $ids" "$want" ruleset_wl "$ids" || { echo "Ruleset $ids did not read back as R1'."; return 1; }
   echo "R1' back: ruleset $ids reads back equal to scripts/main-ruleset-r1p.json."
 }
-r2_on() {
-  local v
+ruleset_wl() { gh api "repos/$repo/rulesets/$1" > "$work/live.json" && jq -S -c "$wl" "$work/live.json"; }   # $1 id: whitelisted
+r2_read() { gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews'; }
+r2_on() {   # row 3: called only while R2 is off, so a lagging read says false and is never accepted
   gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=true --silent || return 1
-  v=$(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews') || return 1
-  [ "$v" = true ] || { echo "R2 reads '$v', not true."; return 1; }
+  read_until R2 true r2_read || return 1
   echo "R2 on: GitHub Actions may create and approve pull requests (reads back true)."
 }
 need_gh() {
@@ -638,9 +654,30 @@ data/ out of .gitignore. Every config/ input and its readers stay as the cutover
     br="rollback/data-on-main-$(date -u +%Y%m%d-%H%M%S)"
     git push --quiet origin "$c:refs/heads/$br" || fail "could not push $br (a workflow-file push needs: gh auth refresh -s workflow)"
     echo "Rollback step 3: pushed branch $br at $c (data/ from records-data $src)."
-    n=$(gh api -X POST "repos/$repo/pulls" -f base=main -f head="$br" -f title="Roll back the data cutover: data/ on main from records-data" \
-        -f body="Restores data/ on main from records-data $src ($src_ok), and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $cmerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.sh --rollback." \
-        --jq '.number') || fail "could not open the pull request for $br"
+    # read-after-write rule 6 (row 12): a 422 means GitHub can't see the new branch yet and nothing was created, so
+    # only a 422 is sent again (10 tries, 3 s apart); a 2xx is never sent again and must name the pushed commit; any
+    # other failure may have opened a pull request anyway
+    n=""; i=0
+    while :; do
+      i=$((i + 1))
+      if pr_out=$(gh api -X POST "repos/$repo/pulls" -f base=main -f head="$br" -f title="Roll back the data cutover: data/ on main from records-data" \
+          -f body="Restores data/ on main from records-data $src ($src_ok), and .github/workflows/$wfname and .github/CODEOWNERS as before the cutover merge $cmerge (ADR 0011 rollback). config/ inputs stay. Opened by scripts/cutover-data-off-main.sh --rollback." \
+          --jq '[(.number|tostring), (.head.sha|tostring)] | @tsv' 2>"$work/pr.err"); then
+        IFS=$'\t' read -r n h <<< "$pr_out" || true
+        [[ "${n:-}" =~ ^[0-9]+$ ]] && [ "${h:-}" = "$c" ] \
+          || fail "the pull request opened for $br (#${n:-unread}) has head.sha '${h:-}', not the pushed $c: close it and check the branch before running this again"
+        break
+      fi
+      if ! grep -q '(HTTP 422)' "$work/pr.err" 2>/dev/null; then
+        sed 's/^/  /' "$work/pr.err" 2>/dev/null | shown
+        fail "could not open the pull request for $br, and one may be open anyway: check https://github.com/$repo/pulls for a pull request from $br before running this again"
+      fi
+      if [ "$i" = 10 ]; then
+        sed 's/^/  /' "$work/pr.err" 2>/dev/null | shown
+        fail "could not open the pull request for $br: GitHub answered 422 (the branch not visible yet) 10 times, 3 s apart"
+      fi
+      sleep 3
+    done
     echo "ROLLBACK PR #$n opened for $br at $c. daily-update stays off; R2 stays off; the site stays as last deployed."
     echo "Next, once PR #$n is reviewed at $c: $me --rollback --merge $n --sha $c --cutover-merge $cmerge --report <review>"
     exit 0
@@ -649,8 +686,13 @@ data/ out of .gitignore. Every config/ input and its readers stay as the cutover
   out=$(run_merge_reviewed "$rpr" "$sha" "${reports[@]}" 2>&1); mrc=$?
   printf '%s\n' "$out"
   ms=$(merged_line_ok "$out") && [ "$mrc" = 0 ] || fail "merge-reviewed did not end with a bypass rule suite for PR #$rpr"
-  m=$(fetch_main) || fail "could not fetch main after the merge"
-  [ "$m" = "$ms" ] && tracks_data "$m" || fail "main is at $m (merge $ms) and must track data/ after the restore"
+  # read-after-write row 9: the fetch may lag the merge (the stale value is the old main, never $ms)
+  if ! read_until main "$ms" fetch_main; then
+    [ "$rrc" = 0 ] || fail "could not fetch main after the merge"
+    fail "main is at $rlast (merge $ms) and must track data/ after the restore"
+  fi
+  m=$ms
+  tracks_data "$m" || fail "main is at $m (merge $ms) and must track data/ after the restore"
   echo "Rollback step 3: PR #$rpr merged as $ms; main tracks data/ again."
   step=4
   # ADR 0011 Amendment (c) item 7 and main-protect/rollback-r2-unchecked-codeowners: before R2 goes on, main must
@@ -728,6 +770,11 @@ step=2
 wf_set disable disabled_manually || fail "could not disable daily-update"
 busy=$(runs_busy) || fail "could not read the daily-update runs (daily-update is disabled)"
 [ "$busy" = 0 ] || fail "a daily-update run started before the disable; wait for it, then undo and start again"
+# read-after-write row 17: a run queued just before the disable may be missing from a lagged list, and a retry can't
+# prove an absence, so the list is read once more 30 s later, and both reads must show none
+sleep 30
+busy=$(runs_busy) || fail "could not read the daily-update runs (daily-update is disabled)"
+[ "$busy" = 0 ] || fail "a daily-update run started before the disable; wait for it, then undo and start again"
 echo "Step 2 OK: daily-update disabled (reads back disabled_manually); no run active."
 
 step=3
@@ -740,7 +787,12 @@ else
   seed=$(git commit-tree "$seed_tree" -m "records-data seed: data/ of main $m minus the moved inputs (ADR 0011)") || fail "could not commit the seed"
   git push --quiet origin "$seed:refs/heads/records-data" || fail "could not push the seed to records-data"
 fi
-got=$(fetch_rd) || fail "could not read records-data back"
+# read-after-write row 7: the read may lag the push (the stale value is no branch, "")
+if ! read_until records-data "$seed" fetch_rd; then
+  [ "$rrc" = 0 ] || fail "could not read records-data back"
+  fail "records-data reads ${rlast:-nothing}, not the parentless seed $seed"
+fi
+got=$seed
 [ "$got" = "$seed" ] && [ "$(parents "$got")" = 0 ] && [ "$(listing_of "$got" | sha256)" = "$pinned" ] \
   || fail "records-data reads $got, not the parentless seed $seed"
 echo "Step 3 OK: records-data = seed $seed (parentless, $n_seed files, listing sha256 $pinned), from main $m."
@@ -768,14 +820,18 @@ out=$(run_merge_reviewed "$pr" "$sha" "${reports[@]}" 2>&1); mrc=$?
 printf '%s\n' "$out"
 ms=$(merged_line_ok "$out") && [ "$mrc" = 0 ] || fail "merge-reviewed did not end with a bypass rule suite"
 undo="$me --rollback --cutover-merge $ms"
-m=$(fetch_main) || fail "could not fetch main after the merge"
-[ "$m" = "$ms" ] || fail "main is at $m, not the merge $ms"
+# read-after-write row 8: the fetch may lag the merge (the stale value is $base, never $ms)
+if ! read_until main "$ms" fetch_main; then
+  [ "$rrc" = 0 ] || fail "could not fetch main after the merge"
+  fail "main is at $rlast, not the merge $ms"
+fi
+m=$ms
 p1=$(git rev-parse --verify -q "$ms^1") || p1=""
 [ "$(parents "$ms")" = 1 ] && [ "$p1" = "$base" ] \
   || fail "the squash $ms has parent ${p1:-none}, not the pinned MAIN_PR_BASELINE $base (the gate would check more than the cutover commit)"
 tracks_data "$m" && fail "main $m still tracks data/ after the merge"
-echo "Step 5: scripts/protect-main.sh --check --apps $apps (main's new workflow, no writes)."
-out=$(run_protect_check "$apps" 2>&1); prc=$?
+echo "Step 5: scripts/protect-main.sh --check --apps $apps --main $ms (main's new workflow at the merge, no writes)."
+out=$(run_protect_check "$apps" "$ms" 2>&1); prc=$?
 printf '%s\n' "$out"
 last=$(printf '%s\n' "$out" | grep . | tail -n 1)
 [ "$prc" = 0 ] && [ "${last#OK: main is protected}" != "$last" ] || fail "protect-main --check did not print OK after the merge"
