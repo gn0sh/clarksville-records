@@ -71,6 +71,7 @@ _KEY = re.compile(r"[!-~]{16,256}")
 _EMAIL = re.compile(r"[A-Za-z0-9._+'-]{1,64}@[A-Za-z0-9-]{1,63}(\.[A-Za-z0-9-]{1,63}){1,8}")
 _NAME = re.compile(r"[a-z0-9-]{1,100}")            # a tag name printed as is (and usable in --restore-tags)
 _SAFE_PATH = re.compile(r"/[A-Za-z0-9/._-]{0,200}")
+_SEGMENT = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9._-]{0,39}")
 KEY_STEP = f"$env:{KEY_ENV} = [Net.NetworkCredential]::new('', (Read-Host -AsSecureString \"Buttondown key\")).Password"
 RUN_STEP = "python -I tools\\national\\tag_probe.py"
 STEPS = (f"Steps (PowerShell): python -m pip install -r requirements.txt (once); {KEY_STEP}; {RUN_STEP} --dry-run; "
@@ -83,7 +84,8 @@ VERDICTS = {
     "UNCLEAR": "UNCLEAR (the tags changed in another way)",
 }
 METADATA_FIX = ("metadata fix: nothing to type; the next morning-note run stamps note_edition again before it sends "
-                "(sender/deliver.py, stamp mode); the sender reads no other metadata key")
+                "(sender/deliver.py, stamp mode); the sender reads no other metadata key. Run this probe only when no "
+                "morning note is scheduled: a note already scheduled reaches only subscribers that still hold its stamp")
 TYPE_FIX = ("type fix: in Buttondown > Subscribers, open this subscriber and change its type back to Regular (or "
             "confirm again from Buttondown's confirmation email); until then it gets no morning note")
 
@@ -155,15 +157,20 @@ def post_form(opener, address: str) -> tuple[int, str]:
 
 
 def location_path(loc) -> str:
+    """The first path segment of a clean Location ("/daylight"), else "(other path)"; "(none)" without one
+    (national/tag-probe-location-token: a later segment could be a per-subscriber token)."""
     if not loc:
         return "(none)"
     if not isinstance(loc, str) or "@" in loc or "%40" in loc.lower() or "?" in loc or "#" in loc:
-        return "(not shown)"
+        return "(other path)"
     try:
         path = urlsplit(loc).path
     except ValueError:
-        return "(not shown)"
-    return path if _SAFE_PATH.fullmatch(path) else "(not shown)"
+        return "(other path)"
+    if not _SAFE_PATH.fullmatch(path):
+        return "(other path)"
+    first = path.split("/")[1]
+    return f"/{first}" if _SEGMENT.fullmatch(first) else "(other path)"
 
 
 def verdict(old: list[str], new: list[str]) -> str:
@@ -439,6 +446,7 @@ def main(argv: list[str] | None = None, env=None, opener=None, ask=None, confirm
                     print(f"{metadata_line(meta0, echo.get('metadata'))} (in the restore's echo)")
             except (Exception, KeyboardInterrupt) as e:      # noqa: BLE001  fixed text only
                 failed = _api_error(e, "write the tags")
+            sleep(READ_GAP)          # let the write settle before the fresh read that judges it
         try:
             check = _read(bd, sub_id, sleep)
         except (Exception, KeyboardInterrupt) as e:      # noqa: BLE001

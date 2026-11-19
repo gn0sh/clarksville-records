@@ -139,7 +139,7 @@ def test_adds_restores_and_posts_exactly_the_page_fields(capsys):
     assert headers["content-type"].startswith("application/x-www-form-urlencoded") and "authorization" not in headers
     assert headers["origin"] == "https://daylight.gnoshcodes.com" and "referer" not in headers
     assert timeout == tp.TIMEOUT
-    assert "form post (server-side): HTTP 302, Location /daylight/subscribed" in out
+    assert "form post (server-side): HTTP 302, Location /daylight\n" in out and "subscribed" not in out
     patch, = http.calls("PATCH")
     assert patch[3] == {"tags": TAGS} and "x-idempotency-key" in patch[2]
     assert "after:  4 tags (note-ward-3, note-zoning, req-county-47125, req-probe; req-probe: present)" in out
@@ -221,6 +221,27 @@ def test_metadata_dropped_by_the_restore_patch_is_reported_and_exits_3(capsys):
     assert "RESTORE INCOMPLETE" in out and tp.METADATA_FIX in out and "RESTORED" not in out
 
 
+def test_the_metadata_fix_says_run_when_no_note_is_scheduled():
+    assert "Run this probe only when no morning note is scheduled" in tp.METADATA_FIX
+
+
+def test_the_fresh_read_after_a_restore_waits_first(capsys):
+    events = []
+
+    class Logged(FakeButtondown):
+        def open(self, req, timeout=None):
+            events.append(req.get_method())
+            return super().open(req, timeout)
+    http = Logged([person()], form="replaces")
+    code = tp.main([], env={tp.KEY_ENV: KEY}, opener=http, ask=lambda _p: ADDR, confirm=lambda _t: "yes",
+                   sleep=lambda s: events.append(s), monotonic=lambda: 1000.0)
+    capsys.readouterr()
+    assert code == 0
+    i = events.index("PATCH")
+    tail = events[i + 1:]                    # the adapter's own 0.2 s pacing may sit between them
+    assert tail[0] == tp.READ_GAP and tail[-1] == "GET" and tail.count("GET") == 1
+
+
 def test_a_type_change_prints_the_fix_and_exits_3(capsys):
     http = FakeButtondown([person()], form="adds", post_type="unactivated")
     code, out, _err, _s, _a = run(http, capsys)
@@ -287,12 +308,16 @@ def test_a_refused_form_post_is_reported(capsys):
 
 
 @pytest.mark.parametrize("loc, shown", [
-    ("https://buttondown.com/daylight?email=" + ADDR, "(not shown)"),
-    ("https://buttondown.com/daylight/" + ADDR, "(not shown)"),
-    ("https://buttondown.com/daylight/probe.person%40example.com", "(not shown)"),
-    ("https://buttondown.com/daylight/x#frag", "(not shown)"),
-    ("https://buttondown.com/da ylight", "(not shown)"),
-    ("/daylight/confirmed", "/daylight/confirmed"),
+    ("https://buttondown.com/daylight?email=" + ADDR, "(other path)"),
+    ("https://buttondown.com/daylight/" + ADDR, "(other path)"),
+    ("https://buttondown.com/daylight/probe.person%40example.com", "(other path)"),
+    ("https://buttondown.com/daylight/x#frag", "(other path)"),
+    ("https://buttondown.com/da ylight", "(other path)"),
+    ("https://buttondown.com/", "(other path)"),
+    ("https://buttondown.com/../x", "(other path)"),
+    ("https://buttondown.com/daylight/subscribed/tok_9f8e7d6c5b4a", "/daylight"),
+    ("/daylight/confirmed", "/daylight"),
+    ("https://buttondown.com/daylight", "/daylight"),
 ])
 def test_the_location_is_a_path_or_not_shown(loc, shown):
     assert tp.location_path(loc) == shown
@@ -448,7 +473,7 @@ def test_the_form_post_follows_no_redirect_and_uses_the_adapter_opener():
     assert not any(isinstance(h, (urllib.request.HTTPRedirectHandler, urllib.request.ProxyHandler))
                    for h in od.handlers)
     http = FakeButtondown([person()])
-    assert tp.post_form(http, ADDR) == (302, "/daylight/subscribed")    # the 302 comes back as is
+    assert tp.post_form(http, ADDR) == (302, "/daylight")    # the 302 comes back as is; first segment only
     assert http.requests == [] and len(http.form_posts) == 1
 
 
