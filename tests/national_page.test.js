@@ -85,6 +85,15 @@ const buttonNamed = (n, t) => {
   return got;
 };
 const tick = () => new Promise((r) => setImmediate(r));
+// Fake nodes hold cyclic references, so they are compared by identity with short messages (never a deep diff).
+const desc = (x) => (x && x.tagName ? x.tagName + (x.id ? '#' + x.id : '') + ' "' + String(x.textContent).slice(0, 60) + '"' : String(x));
+function focusedOnce(p, n, want) {
+  const got = p.focusesSince(n);
+  assert.ok(got.length === 1 && got[0] === want, 'focus moves: [' + got.map(desc).join(', ') + '], want [' + desc(want) + ']');
+}
+function none(arr, msg) {
+  assert.ok(Array.isArray(arr) && arr.length === 0, (msg ? msg + ': ' : '') + 'expected none, got ' + (Array.isArray(arr) ? arr.length + ': ' + arr.slice(0, 3).map((x) => (x && x.tagName ? desc(x) : JSON.stringify(x))).join(', ') : String(arr)));
+}
 
 class FakeStorage {
   constructor(init, o) { this.m = new Map(Object.entries(init || {})); this.o = o || {}; this.writes = []; }
@@ -199,7 +208,7 @@ test('mount: the form shows and the no-script line hides; the input has no name 
   assert.strictEqual(p.input.hasAttribute('name'), false);
   assert.strictEqual(p.form.hasAttribute('action'), false);
   assert.strictEqual(p.form.hasAttribute('method'), false);
-  assert.deepStrictEqual(p.frames(), []);
+  none(p.frames());
   assert.strictEqual(p.saved.hidden, true);       // nothing saved yet
 });
 
@@ -207,8 +216,8 @@ test('submit only on press: typing, keys, change and blur start nothing; a submi
   const p = makePage();
   p.input.value = ADDRESS;
   for (const t of ['input', 'keydown', 'keyup', 'keypress', 'change', 'blur', 'focus', 'paste']) { fire(p.input, t); }
-  assert.deepStrictEqual(p.frames(), []);
-  assert.deepStrictEqual([...p.input.listeners.keys()], []);  // no listener on the input at all
+  none(p.frames());
+  none([...p.input.listeners.keys()]);  // no listener on the input at all
   const e = p.submit();
   assert.strictEqual(e.defaultPrevented, true);                // the form itself never navigates
   assert.strictEqual(p.frames().length, 1);
@@ -227,8 +236,8 @@ test('empty submit: the inline line, focus in the input, nothing sent', () => {
   const n = p.doc.focusLog.length;
   p.submit('   ');
   assert.strictEqual(p.result.textContent, STR['lookup.empty']);
-  assert.deepStrictEqual(p.frames(), []);
-  assert.deepStrictEqual(p.focusesSince(n), [p.input]);
+  none(p.frames());
+  focusedOnce(p, n, p.input);
 });
 
 test('15 s timeout: "not answering" with Try again (focused once) and the browse link; Try again resends the box text', () => {
@@ -240,7 +249,7 @@ test('15 s timeout: "not answering" with Try again (focused once) and the browse
   const t15 = p.timers.find((t) => t.ms === 15000);
   assert.ok(t15, 'the lookup timer is 15 s');
   p.runTimers(15000);
-  assert.deepStrictEqual(p.frames(), []);                      // the frame is removed
+  none(p.frames());                      // the frame is removed
   const retry = buttonNamed(p.result, STR['lookup.retry']);
   assert.strictEqual(retry.length, 1);
   assert.ok(p.result.textContent.startsWith(STR['lookup.down']));
@@ -248,7 +257,7 @@ test('15 s timeout: "not answering" with Try again (focused once) and the browse
   assert.strictEqual(a.length, 1);
   assert.strictEqual(a[0].getAttribute('href'), 'covered.html');
   assert.strictEqual(a[0].textContent, 'What we cover');
-  assert.deepStrictEqual(p.focusesSince(n), [retry[0]]);
+  focusedOnce(p, n, retry[0]);
   assert.strictEqual(p.find.textContent, BLOCKS.find);
   assert.strictEqual(p.find.hasAttribute('aria-disabled'), false);
   assert.strictEqual(p.input.value, ADDRESS);                  // a timeout never clears what was typed
@@ -278,7 +287,7 @@ test('not found: the tips, focus back in the input with the text kept; more than
     const n = p.doc.focusLog.length;
     p.answer(ans);
     assert.strictEqual(p.result.textContent, STR['lookup.not-found'] + ' ' + STR['lookup.not-found-tip']);
-    assert.deepStrictEqual(p.focusesSince(n), [p.input]);
+    focusedOnce(p, n, p.input);
     assert.strictEqual(p.input.value, ADDRESS);
   }
 });
@@ -292,16 +301,16 @@ test('several matches: "Which one is yours?" focused once, one button per match,
   const h = tags(p.list, 'h2')[0];
   assert.strictEqual(h.textContent, STR['lookup.pick-h']);
   assert.strictEqual(h.getAttribute('tabindex'), '-1');
-  assert.deepStrictEqual(p.focusesSince(n), [h]);
+  focusedOnce(p, n, h);
   const picks = cls(p.list, 'digest-pick-btn').map((b) => b.textContent);
   assert.deepStrictEqual(picks, ['100 MAIN ST, SALEM, OR, 97301', '100 MAIN ST, SALEM, MA, 01970']);
   // choosing one draws its list (no second Census request) and moves focus once, to the list heading
   const m = p.doc.focusLog.length;
   fire(cls(p.list, 'digest-pick-btn')[1], 'click');
-  assert.deepStrictEqual(p.frames(), []);
+  none(p.frames());
   const h2 = tags(p.list, 'h2')[0];
   assert.strictEqual(h2.textContent, STR['lookup.list-h']);
-  assert.deepStrictEqual(p.focusesSince(m), [h2]);
+  focusedOnce(p, m, h2);
   assert.ok(p.list.textContent.includes('Census matched: 100 MAIN ST, SALEM, MA, 01970'));
   // and "None of these" from a fresh picker
   const q = makePage();
@@ -310,7 +319,7 @@ test('several matches: "Which one is yours?" focused once, one button per match,
   const k = q.doc.focusLog.length;
   fire(buttonNamed(q.list, STR['lookup.pick-none'])[0], 'click');
   assert.strictEqual(q.list.hidden, true);
-  assert.deepStrictEqual(q.focusesSince(k), [q.input]);
+  focusedOnce(q, k, q.input);
 });
 
 // --- the list ---------------------------------------------------------------------------------------------------------
@@ -323,9 +332,9 @@ test('found (1 Public Sq): drawn on this page, URL and title never written, the 
   assert.strictEqual(p.list.hidden, false);
   const h = tags(p.list, 'h2')[0];
   assert.strictEqual(h.textContent, STR['lookup.list-h']);
-  assert.deepStrictEqual(p.focusesSince(n), [h]);                       // exactly one focus move
-  assert.deepStrictEqual(p.doc.titleWrites, []);
-  assert.deepStrictEqual(p.locationWrites, []);
+  focusedOnce(p, n, h);                       // exactly one focus move
+  none(p.doc.titleWrites);
+  none(p.locationWrites);
   assert.strictEqual(p.doc.title, 'Daylight Digest: Find your local governments');
   for (const [, v] of p.storage.writes) { assert.ok(!/public sq/i.test(v), v); assert.ok(!v.includes('37040'), v); }
   assert.deepStrictEqual([...p.storage.m.keys()], [LIST]);
@@ -352,7 +361,7 @@ test('cards: slot, Census name (h3), board, pill text, and each status\'s action
   const hrefs = tags(city, 'a').map((a) => [a.textContent, a.getAttribute('href')]);
   assert.deepStrictEqual(hrefs, [[STR['lookup.coming-up'], '../digest/tn/place-4715160.html'],
     [STR['lookup.full'], '../city/'], [STR['lookup.morning'], '../alerts.html#note']]);
-  assert.deepStrictEqual(buttonNamed(city, STR['lookup.request']), []);   // no Request it on a covered card
+  none(buttonNamed(city, STR['lookup.request']));   // no Request it on a covered card
   const school = cards[2];
   assert.ok(cls(school, 'digest-pill')[0].textContent.endsWith(STR['lookup.status-cant']));
   assert.strictEqual(cls(school, 'digest-reason')[0].textContent, 'Its records site blocks automated readers.');
@@ -380,7 +389,7 @@ test('nothing covered: the "None are covered yet" summary; not covered yet cards
     assert.strictEqual(c.getAttribute('data-status'), 'not-covered-yet');
     assert.ok(c.textContent.includes(STR['lookup.not-yet-line']));
     assert.ok(c.textContent.includes(STR['lookup.no-official']));
-    assert.deepStrictEqual(tags(c, 'a'), []);
+    none(tags(c, 'a'));
   }
 });
 
@@ -403,8 +412,8 @@ test('Census text reaches the page as text only: markup in a name is a text node
   const p = makePage();
   p.submit(ADDRESS);
   p.answer(answer(match('<img src=x onerror=alert(1)>', unit('place', '4164900', '<b>Salem</b> city', 'A'))));
-  assert.deepStrictEqual(tags(p.list, 'img'), []);
-  assert.deepStrictEqual(tags(p.list, 'b'), []);
+  none(tags(p.list, 'img'));
+  none(tags(p.list, 'b'));
   assert.strictEqual(tags(p.list, 'h3')[0].textContent, '<b>Salem</b> city');
 });
 
@@ -424,7 +433,7 @@ test('Request it opens one form in that card: heading focused once, email field,
   const { p, card, f, n } = openSalem();
   const h4 = tags(f, 'h4')[0];
   assert.strictEqual(h4.textContent, STR['form.h']);
-  assert.deepStrictEqual(p.focusesSince(n), [h4]);
+  focusedOnce(p, n, h4);
   assert.strictEqual(buttonNamed(card, STR['lookup.request'])[0].getAttribute('aria-expanded'), 'true');
   assert.strictEqual(f.getAttribute('method'), 'post');
   assert.strictEqual(f.getAttribute('action'), ACTION);
@@ -453,9 +462,9 @@ test('Cancel closes the form and returns focus to Request it', () => {
   const { p, card, f } = openSalem();
   const n = p.doc.focusLog.length;
   fire(buttonNamed(f, STR['form.cancel'])[0], 'click');
-  assert.deepStrictEqual(tags(card, 'form'), []);
+  none(tags(card, 'form'));
   const req = buttonNamed(card, STR['lookup.request'])[0];
-  assert.deepStrictEqual(p.focusesSince(n), [req]);
+  focusedOnce(p, n, req);
   assert.strictEqual(req.getAttribute('aria-expanded'), 'false');
 });
 
@@ -471,10 +480,10 @@ test('bad email: the line next to the field, aria-invalid, focus on the field, n
     assert.strictEqual(err.textContent, STR['form.bad-email']);
     assert.strictEqual(err.hidden, false);
     assert.strictEqual(email.getAttribute('aria-invalid'), 'true');
-    assert.deepStrictEqual(p.focusesSince(n), [email]);
+    focusedOnce(p, n, email);
   }
   await tick();
-  assert.deepStrictEqual(p.posts, []);
+  none(p.posts);
 });
 
 test('send: one no-cors POST of exactly email + one tag per ticked government (own always); ticked cards flip to Sent', async () => {
@@ -508,8 +517,8 @@ test('send: one no-cors POST of exactly email + one tag per ticked government (o
   assert.strictEqual(sent(p.card('Salem-Keizer School District 24J')), '✓ ' + STR['form.sent']);
   assert.strictEqual(sent(p.card('Salem city')), '');
   assert.strictEqual(buttonNamed(card, STR['form.different']).length, 1);
-  assert.deepStrictEqual(tags(p.list, 'form'), []);
-  assert.deepStrictEqual(p.focusesSince(n), [cls(card, 'digest-msg')[0]]);
+  none(tags(p.list, 'form'));
+  focusedOnce(p, n, cls(card, 'digest-msg')[0]);
   // the ids are stored; the email is never stored anywhere
   assert.deepStrictEqual(JSON.parse(p.storage.m.get(REQ)), { v: 1, ids: ['county-41047', 'sdu-4110040'] });
   for (const [k, v] of p.storage.writes) { assert.ok(!v.includes('@') && !v.includes('team'), k + ' ' + v); }
@@ -530,8 +539,8 @@ test('send failed: the form stays with its text, the Failed message is focused, 
   await tick();
   const msg = cls(card, 'digest-msg')[0];
   assert.strictEqual(msg.textContent, STR['form.failed']);
-  assert.deepStrictEqual(p.focusesSince(n), [msg]);
-  assert.strictEqual(tags(card, 'form')[0], f);
+  focusedOnce(p, n, msg);
+  assert.ok(tags(card, 'form')[0] === f, 'the same form stays');
   assert.strictEqual(email.value, 'team@example.com');
   const send = cls(f, 'digest-send')[0];
   assert.strictEqual(send.textContent, STR['form.send']);
@@ -568,7 +577,7 @@ test('Can\'t cover card: its own honest line in the form, and no "Also request" 
   fire(buttonNamed(school, STR['lookup.request'])[0], 'click');
   const f = tags(school, 'form')[0];
   assert.ok(f.textContent.includes(STR['form.honest-cant']));
-  assert.deepStrictEqual(tags(f, 'fieldset'), []);
+  none(tags(f, 'fieldset'));
   assert.deepStrictEqual(tags(f, 'input').map((i) => i.getAttribute('name')), ['email', 'tag']);
 });
 
@@ -587,12 +596,12 @@ test('no email service in the config: no Request it button (nothing to post to)'
   const p = makePage({ config: { form_action: null, privacy_url: null } });
   p.submit('x');
   p.answer(SALEM);
-  assert.deepStrictEqual(tags(p.list, 'form'), []);
-  assert.deepStrictEqual(cls(p.list, 'digest-request-btn'), []);
+  none(tags(p.list, 'form'));
+  none(cls(p.list, 'digest-request-btn'));
   const q = makePage({ config: { form_action: 'javascript:alert(1)' } });
   q.submit('x');
   q.answer(SALEM);
-  assert.deepStrictEqual(cls(q.list, 'digest-request-btn'), []);
+  none(cls(q.list, 'digest-request-btn'));
 });
 
 // --- the counter button (4.2a) ---------------------------------------------------------------------------------------
@@ -611,10 +620,10 @@ test('"Just count me": shown only when DaylightCount.available; one event per ta
   await tick();
   const msg = cls(cls(card, 'digest-count')[0], 'digest-msg')[0];
   assert.strictEqual(msg.textContent, STR['count.done']);
-  assert.deepStrictEqual(p.focusesSince(n), [msg]);
-  assert.deepStrictEqual(buttonNamed(card, STR['count.button']), []);
+  focusedOnce(p, n, msg);
+  none(buttonNamed(card, STR['count.button']));
   assert.deepStrictEqual(JSON.parse(p.storage.m.get(CNT)), { v: 1, ids: ['county-41047'] });
-  assert.deepStrictEqual(p.posts, []);                       // the tap sends no email
+  none(p.posts);                       // the tap sends no email
   // coming back: the Done text, no button
   const q = makePage({ storage: p.storage });
   q.submit('x');
@@ -636,7 +645,7 @@ test('"Just count me" failed: the Failed text, the button stays and can be tappe
   await tick();
   const msg = cls(cls(card, 'digest-count')[0], 'digest-msg')[0];
   assert.strictEqual(msg.textContent, STR['count.failed']);
-  assert.deepStrictEqual(p.focusesSince(n), [msg]);
+  focusedOnce(p, n, msg);
   assert.strictEqual(b.connected(), true);
   assert.strictEqual(b.hasAttribute('aria-disabled'), false);
   assert.strictEqual(p.storage.m.has(CNT), false);
@@ -652,8 +661,8 @@ test('analytics off (DaylightCount missing or not available): no counter button,
     const p = makePage({ count });
     p.submit('x');
     p.answer(SALEM);
-    assert.deepStrictEqual(cls(p.list, 'digest-count-btn'), [], JSON.stringify(count));
-    assert.deepStrictEqual(cls(p.list, 'digest-count'), []);
+    none(cls(p.list, 'digest-count-btn'), JSON.stringify(count));
+    none(cls(p.list, 'digest-count'));
     const card = p.card('Marion County');
     fire(buttonNamed(card, STR['lookup.request'])[0], 'click');
     const f = tags(card, 'form')[0];
@@ -702,7 +711,7 @@ test('saved list: bad or oversized stored values and a throwing storage show not
   const q = makePage({ storage: new FakeStorage({}, { set: true }) });
   q.submit(ADDRESS);
   q.answer(PUBLIC_SQ);
-  assert.deepStrictEqual(cls(q.list, 'your-seats-note'), []);
+  none(cls(q.list, 'your-seats-note'));
 });
 
 test('Forget this list removes all three keys and redraws (saved list gone, focus to the input)', () => {
@@ -717,8 +726,8 @@ test('Forget this list removes all three keys and redraws (saved list gone, focu
   fire(buttonNamed(p.saved, STR['lookup.forget'])[0], 'click');
   assert.deepStrictEqual([...storage.m.keys()], ['other']);
   assert.strictEqual(p.saved.hidden, true);
-  assert.deepStrictEqual(p.saved.children, []);
-  assert.deepStrictEqual(p.focusesSince(n), [p.input]);
+  none(p.saved.children);
+  focusedOnce(p, n, p.input);
   // from a fresh lookup's list too
   const q = makePage();
   q.submit(ADDRESS);
@@ -739,7 +748,7 @@ test('a new lookup replaces the saved list view; "Look up another address" clear
   const n = p.doc.focusLog.length;
   fire(buttonNamed(p.list, STR['lookup.another'])[0], 'click');
   assert.strictEqual(p.list.hidden, true);
-  assert.deepStrictEqual(p.focusesSince(n), [p.input]);
+  focusedOnce(p, n, p.input);
 });
 
 // --- focus: exactly one move after each result -----------------------------------------------------------------------

@@ -344,6 +344,13 @@ lines.
   settings in Brian's Buttondown dashboard, not code.
 - Unverified before M1 goes live (Q2): that an existing confirmed subscriber's re-submit adds the new `req-` tags
   (platform-facts says a re-submit changes metadata, tags unrecorded); the no-cors post is accepted; the redirect.
+- As built (F2, 2026-11-19; additive): the wiring is `national.js` `mount(env)` (no new static file), run on load
+  when the page has `#digest-form`. The body is built from the page's own card ids (`email`, then `tag` = own id, then
+  each ticked id), not from the form's DOM values, so a hand-edited checkbox value is not sent. "Request it" shows
+  only when `#digest-config` has an https `form_action` and `privacy_url` (else the card has no form; the counter can
+  still show). With no `fetch` the real form posts natively and its ids are marked requested before it leaves (the
+  device list then holds them on return). If Q2 says the no-cors post does not subscribe, the switch to native post
+  is one line in `mount` (`post = null`). Saved-list ids pass `layerOf` (the layer's exact GEOID length) before a card.
 
 ### 4.2a Counter button
 - `window.DaylightCount = {available: boolean, send(govId) -> Promise<void>}` from `us-count.js` (3.9). `national.js`
