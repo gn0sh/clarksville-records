@@ -239,14 +239,11 @@ AT_LARGE_EVIDENCE = "attendance lists"
 AT_LARGE_WORDING = {"evidence": AT_LARGE_EVIDENCE, "latest": "the latest minutes read",
                     "read_latest": "the latest minutes read"}
 TITLE_CONFLICT = "at-large/title-conflict"
-# A member missing from this many consecutive complete attendance lists has left: their record ends at the last print
-# before the gap, and a later print starts a new record (ADR 0012 decision 5, member gaps; must-fix at-large/member-gap).
-# One missing list never splits a record (holder_rows' one-list-drop rule). A module constant, not a setting.
-AT_LARGE_GAP_LISTS = 2
-# A list that resolves fewer officials than the latest complete list before it is short (cut off), unless this many
-# consecutive short lists confirm the smaller council (a vacancy). One more than AT_LARGE_GAP_LISTS, so the short
-# lists of one gap can never confirm themselves (_complete_lists; at-large/complete-list-truncated).
-AT_LARGE_SHORT_CONFIRM = AT_LARGE_GAP_LISTS + 1
+# A membership record splits between two consecutive prints of a member only when the complete lists between them hold
+# a stable run: this many complete lists in a row (lists not complete are skipped) that print exactly the same
+# officials (ADR 0012 decision 5, restated after at-large/short-confirm-blesses-cutoffs). Absence alone never splits
+# a record: a cut-off page prints fewer names exactly as a vacancy does. A module constant, not a setting.
+AT_LARGE_GAP_LISTS = 3
 # The end of the lists in the title-run loop: a private object, so no list key (a print's meeting_id may be null) can
 # ever be read as the end (review nit 5).
 _END = object()
@@ -263,56 +260,49 @@ def _lists(prints: list[dict]) -> list[tuple[str, str]]:
     return sorted({_list_key(p) for p in prints if not p.get("configured")})
 
 
-def _complete_lists(prints: list[dict], facts: dict) -> set[tuple[str, str]]:
-    """The lists that can show a member is missing. A list is complete when
-    1. every name it prints resolves to an official (no unresolved print, and no attendance entry of that date's
-       meetings without an official; attendance is matched by date, as in latest_list_incomplete), and
-    2. it is not short (at-large/complete-list-truncated): it resolves at least as many officials as the latest
-       complete list before it. A run of consecutive short lists is a cut-off page, not a departure, unless it lasts
-       AT_LARGE_SHORT_CONFIRM lists: then the smaller council is confirmed (a vacancy), the whole run counts as complete,
-       and its size is the new reference. A run that ends sooner (a list as large as the reference again) stays
-       incomplete, so a member missing only from it keeps one record.
-    Lists failing rule 1 are skipped: they neither join nor break a run of short lists. An incomplete list in a
-    member's gap neither counts toward AT_LARGE_GAP_LISTS nor breaks the streak. The cost of the rule: a vacancy
-    shorter than AT_LARGE_SHORT_CONFIRM lists, with the member back after it, reads as one record; and that many
-    consecutive cut-off lists missing the same member would still split (judged rare enough to accept)."""
+def _complete_lists(prints: list[dict], facts: dict) -> dict[tuple[str, str], frozenset]:
+    """{list key: its set} for the complete lists only. A list is complete when every name it prints resolves to an
+    official: no print whose official_id is not an official, and no attendance entry without an official in that
+    date's meetings (matched by date, as in latest_list_incomplete). Its set is the officials it prints, present or
+    absent. Size plays no part: a cut-off list whose names all resolve is complete, and only a stable run of equal
+    sets (_member_runs) can split a record."""
     officials = {o["id"] for o in facts["officials"]}
     unread_dates = {m.get("date") for m in facts.get("meetings", [])
                     for a in m.get("attendance") or [] if a.get("official_id") not in officials}
     unresolved = {_list_key(p) for p in prints if not p.get("configured") and p.get("official_id") not in officials}
-    size: dict[tuple[str, str], set] = defaultdict(set)
+    sets: dict[tuple[str, str], set] = defaultdict(set)
     for p in prints:
         if not p.get("configured") and p.get("official_id") in officials:
-            size[_list_key(p)].add(p["official_id"])
-    complete: set[tuple[str, str]] = set()
-    ref, short = None, []
-    for k in _lists(prints):
-        if k in unresolved or k[0] in unread_dates:
-            continue
-        n = len(size[k])
-        if ref is None or n >= ref:
-            complete.add(k)
-            ref, short = n, []          # an unconfirmed short run stays incomplete
-            continue
-        short.append(k)
-        if len(short) >= AT_LARGE_SHORT_CONFIRM:
-            complete.update(short)
-            ref, short = n, []
-    return complete
+            sets[_list_key(p)].add(p["official_id"])
+    return {k: frozenset(sets[k]) for k in _lists(prints) if k not in unresolved and k[0] not in unread_dates}
 
 
-def _member_runs(member_prints: list[dict], lists: list[tuple[str, str]], complete: set) -> list[list[dict]]:
-    """One member's prints (date order) split wherever AT_LARGE_GAP_LISTS or more complete lists between two
-    consecutive prints leave them out. Each piece is one membership record."""
+def _stable_run(between: list[tuple[str, str]], complete: dict[tuple[str, str], frozenset]) -> bool:
+    """True when the complete lists among `between` (in order; the others skipped) hold AT_LARGE_GAP_LISTS in a row
+    whose sets are exactly equal."""
+    run, last = 0, None
+    for k in between:
+        if k not in complete:
+            continue
+        run = run + 1 if complete[k] == last else 1
+        last = complete[k]
+        if run >= AT_LARGE_GAP_LISTS:
+            return True
+    return False
+
+
+def _member_runs(member_prints: list[dict], lists: list[tuple[str, str]],
+                 complete: dict[tuple[str, str], frozenset]) -> list[list[dict]]:
+    """One member's prints (date order) split between two consecutive prints only when the lists between them (each
+    of which leaves the member out) hold a stable run (_stable_run). Each piece is one membership record. After the
+    last print nothing splits (the tail: at_large_rows)."""
     pos = {k: i for i, k in enumerate(lists)}
     runs: list[list[dict]] = []
     for p in member_prints:
-        if runs:
-            between = lists[pos[_list_key(runs[-1][-1])] + 1:pos[_list_key(p)]]
-            if sum(1 for k in between if k in complete) < AT_LARGE_GAP_LISTS:
-                runs[-1].append(p)
-                continue
-        runs.append([p])
+        if runs and not _stable_run(lists[pos[_list_key(runs[-1][-1])] + 1:pos[_list_key(p)]], complete):
+            runs[-1].append(p)
+        else:
+            runs.append([p])
     return runs
 
 
@@ -403,16 +393,16 @@ def at_large_rows(prints: list[dict], facts: dict, primary: dict) -> tuple[list[
     """(records, L) for an at-large council, in the shape of holder_rows; read only from the attendance lists' prints
     (wards.json rows with `ward: null` and `title`), never from `officials[].title` or from config naming a holder.
 
-    1. Membership: per member, one `at-large` record per maximal run of their prints with fewer than
-       AT_LARGE_GAP_LISTS consecutive complete lists leaving them out (_member_runs; a list prints a member when it
-       names them present or absent). A member who leaves and returns gets two records, each from its own first to
-       its own last print, with those meetings' source pages. (One seat holds every member at once, so there is no
-       successor.)
+    1. Membership: per member, one `at-large` record per maximal run of their prints in which no two consecutive
+       prints have a stable run between them (AT_LARGE_GAP_LISTS complete lists in a row with equal sets;
+       _member_runs; a list prints a member when it names them present or absent). A member who leaves and returns
+       across a stable run gets two records, each from its own first to its own last print, with those meetings'
+       source pages. (One seat holds every member at once, so there is no successor.)
     2. Titles: title_runs, for each word in `primary.titles`.
     3. L is the latest list. A record seen at L has no end (current). The membership records follow holder_rows'
        one-list-drop rule (`held_over` when L's list is incomplete), which also covers the tail: after a member's
-       last print the record reads "seen to" that print, and a reprint at the next list rejoins it. A title record
-       closes at its last print.
+       last print the record reads "seen to" that print, and a later reprint rejoins it unless a stable run lies
+       between. A title record closes at its last print.
     Every record carries its first and last meeting's source page."""
     _check_prints(prints, facts)
     sources = {s["id"]: s for s in facts["sources"]}
