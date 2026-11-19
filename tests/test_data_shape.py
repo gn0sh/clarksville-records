@@ -197,7 +197,7 @@ def test_published_fact_changes_is_an_empty_valid_list(pfc_validator):
     assert reviewed_lists.load(reviewed_lists.PUBLISHED_FACT_CHANGES) == []
 
 
-# S2 (ADR 0011 B4 notes): an entry pins one exact change: path, fact_id, change and the new value's sha256
+# S2 (ADR 0011 B4 notes): an entry pins one exact transition (value_sha256: sha256 of the views before and after)
 GOOD = {"path": "data/facts.json", "fact_id": "rc-09962951-p101-0", "change": "changed", "value_sha256": "a" * 64,
         "listed_on": "2026-11-18", "reason": "The county corrected the vote in its amended minutes."}
 
