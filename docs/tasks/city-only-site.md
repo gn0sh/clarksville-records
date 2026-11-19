@@ -5,7 +5,15 @@ on its own branch from `origin/main`. It runs the preflight (`python -m pytest -
 sitegen tasks) in session and pastes the output in its PR. No task fetches anything, deploys, or writes under
 `data/`. Every PR goes to `code-reviewer`. PRs touching the fetcher allowlist (T1, C1) or the workflow, rulesets or
 deploy (D1-D3) also go to `security-engineer`. Problem families: `city-only/clarksville-identical`,
-`city-only/no-county-leak`, `at-large/title-from-record`, `city-only/import-layers`.
+`city-only/no-county-leak`, `at-large/title-from-record`, `city-only/import-layers`, and from ADR 0012 amendment A1
+(2026-11-19, Salem first): `at-large/*` (second hit: `at-large/member-gap`; invariant and consumers in decision 5),
+`stitch/*`, `escribe/*`. PRs touching `collector/fetch.py` (E1's `post_json`) also go to `security-engineer`.
+
+**ADR 0011 overlap (checked 2026-11-19 against `origin/claude/data-off-main-b1` and `-b1b`).** B1 and B1b edit
+`sitegen/views.py`, `sitegen/build.py`, `sitegen/config.py`, `qa/site_checks.py`, `qa/pii_scan.py`,
+`sitegen/transcripts.py`, and in `collector/`: `names.py`, `facts.py`, `verify.py`, `export.py`, `transcripts.py`,
+`fin_books.py`, new `data_shape.py`, `reviewed_lists.py`, plus `collector/tests/test_city_shrink_guard.py`. A task
+that must touch one of these starts only after B1 (and B1b) merge, from that `main`.
 
 **Clarksville byte-identical, every sitegen PR (T3-T9):** the T0 golden test passes. The PR also pastes
 `diff -r before/ after/` (empty) of `python -m sitegen --facts <F> --out <D> --target pages`, run at the base
@@ -13,10 +21,14 @@ commit and at the head commit on the same data tree. Before ADR 0011's cutover t
 `records-data` commit from `scripts/fetch-data`, named in the PR. The same check is repeated with
 `--city clarksville-tn`.
 
-## Milestone 1: thin end-to-end slice (fixture Murfreesboro builds locally; Clarksville unchanged)
-Done when `python -m sitegen --city murfreesboro-tn --facts tests/fixtures/cities/murfreesboro-tn/facts.json --out
-build/murfreesboro-tn/site` writes a site that passes `python -m qa.site_checks --city murfreesboro-tn`, the full
-suite passes, and the T0 digests are unchanged.
+## Milestone 1: thin end-to-end slice (fixture Salem-shaped city builds locally; Clarksville unchanged)
+**Re-pointed 2026-11-19 (ADR 0012 A1):** the slice is a fixture Salem-shaped city (wards, a Mayor, two sources across
+a cutover, made-up people), not Murfreesboro, whose host blocks us. Murfreesboro's fixture stays as the at-large
+test case for T5, T5b, T7 and T9 (built in a test, not the slice).
+Done when `python -m sitegen --city salem-or --facts tests/fixtures/cities/salem-or/facts.json --out
+build/salem-or/site` writes a site that passes `python -m qa.site_checks --city salem-or`, the same pair for
+`murfreesboro-tn` passes in `tests/test_city_only_build.py`, the full suite passes, and the T0 digests are
+unchanged. Salem stays `status: draft`; the fixture build never uses `--target pages`.
 
 | Task | Owner | Depends on | Parallel | Collides with ADR 0011 work? |
 |---|---|---|---|---|
@@ -26,10 +38,16 @@ suite passes, and the T0 digests are unchanged.
 | T3 sitegen `--city`, `config.CITY`, `config.PRIMARY` | backend-engineer | T0, T2 | no | no |
 | T4 Murfreesboro fixture data | backend-engineer | none | yes | no |
 | T5 At-large membership and title records | backend-engineer | T3, T4 | with T8 | no |
-| T6 Build shape: county pieces off, nav, landing context | backend-engineer | T3, T5, **B1 merged** | no | **yes: `sitegen/views.py`** |
-| T7 Templates: front-page card, Officials lede, guards | frontend-engineer | T6 | no | no |
+| T5b At-large member gaps, review nits 3-5, `title_runs` helper | backend-engineer (opus/high: state rule) | T5 | with T4b, E2 | no (`sitegen/council.py`, `sitegen/seats.py`, `cities/registry.py`) |
+| T4b Salem-shaped fixture data (wards, two sources) | backend-engineer | none | yes | no (`tests/fixtures/` only) |
+| E2 Salem config: `city.yml` sources and ranges, `site.yml`, `escribe.yml`, hosts | backend-engineer (manager runs the polite reads) | T2, E1 (the registry must know `portal: escribe`) | with T5b, T4b | no (`config/cities/salem-or/`, `cities/registry.py` source ranges, `tests/test_cities.py`) |
+| T6 Build shape: county pieces off, nav, landing context; wards primary | backend-engineer | T3, T5b, T4b, E2, **B1 and B1b merged** | no | **yes: `sitegen/views.py`, `sitegen/build.py`, `sitegen/config.py`** |
+| T7 Templates: front-page card (at-large and ward forms), Officials lede, guards | frontend-engineer | T6 | no | no |
 | T8 Named footer lines (brand) | backend-engineer | T3 | with T5 | no |
-| T9 Site checks `--city`, city-only end-to-end test | qa-engineer (checks) + backend-engineer (code) | T7, T8, **B1 merged** | no | **yes: `qa/site_checks.py`** |
+| T9 Site checks `--city`, city-only end-to-end test (Salem slice + Murfreesboro) | qa-engineer (checks) + backend-engineer (code) | T7, T8, **B1 and B1b merged** | no | **yes: `qa/site_checks.py`** |
+
+Done on the branch by 2026-11-19: T0-T5 and T8 (PR #62 work). Next order: T5b, T4b and E2 in parallel (and E1 from
+milestone 2, which E2's check needs), then T6 once B1/B1b merge, then T7, T9.
 
 Suggested order: T0, T1 and T4 in parallel, then T2, T3, then T5 and T8 in parallel, then T6, T7, T9. Send the
 milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
@@ -97,6 +115,36 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
   newcomer's starts at meeting 4. Every record has a first and last source URL.
 - Done when: the tests pass, `test_city_seats.py` passes unchanged, and T0 passes.
 
+### T5b: At-large member gaps, review nits 3-5 (must-fix `at-large/member-gap`)
+- Second hit in the `at-large/*` family: the invariant and every consumer of `at_large_rows` are in ADR 0012 decision
+  5. Run at opus/high (a state rule). The engineer reads that table first and checks each consumer.
+- Files: `sitegen/council.py` (`AT_LARGE_GAP_LISTS = 2`; the gap split in `at_large_rows`; `_END` sentinel in the
+  title loop; refuse `pro_tem` + `title` on one print; extract `title_runs(prints, facts, titles)`, used by
+  `at_large_rows` and later by a wards primary), `cities/registry.py` (`_check_primary` refuses duplicate
+  `title_slug`s), `tests/test_at_large_seats.py`, `tests/test_cities.py`. No `views.py` change here (the
+  `officials_page.seat_key` fix is T6's).
+- Tests (made-up prints on the T4 fixture people): a member missing from 2 consecutive complete lists gets two
+  records, each with its own first and last source; missing from 1 complete list, one record; missing from 2 lists of
+  which one is incomplete (an unresolved name), one record; `Seats.on` inside the gap is None; a tail gap of one
+  list followed by a reprint gives one record; a print with `pro_tem: true` and a `title` raises SeatsError naming the
+  meeting; `primary.titles: [Vice Mayor, Vice-Mayor]` fails naming both; a print with `meeting_id: null` does not end
+  a title run; every T5 test still passes.
+- Done when: the tests pass, T0 passes, and the reviewer confirms each row of the consumer table.
+
+### T4b: Salem-shaped fixture data (the milestone 1 slice)
+- Files: new `tests/fixtures/cities/salem-or/facts.json` (`fixture: true`, schema-valid) and `wards.json` (ward
+  prints: `ward: <n>`, `pro_tem: false`, optional `title`).
+- Content: made-up people with obviously fictional names (none matches a real official in any committed facts file;
+  test against the pinned snapshot); 4 wards plus a Mayor printed at every meeting; 6 meetings, 3 before 2026-07-01
+  with sources at `https://example.org/salem-fixture/legistar/...` and 3 after with sources at
+  `https://example.org/salem-fixture/escribe/...` (never a real city document); meeting ids `legistar-<n>` and
+  `escribe-<guid>`. Ward 2 changes holder at meeting 4. One member is printed with a wrong ward once (dropped by
+  `min_ward_prints: 2`). One meeting's list prints an unresolved name (held-over case). A "Council President" title
+  printed for member X at meetings 1-3 and Y at 4-6. Two confirmed roll calls, one held roll call, and one roll call
+  marked as a portal vote not yet read in minutes (shows "Not confirmed").
+- Tests: schema validation; `check_references`; every meeting's documents carry one portal's prefix only.
+- Done when: the fixture loads and the name test passes.
+
 ### T6: Build shape for a city-only site
 - Files: `sitegen/build.py` (the decision 3 table: skip district pages and every county extra when its key is
   absent; build `ix` with `PRIMARY` and at-large rows; one-body export count; `confirmed_rate` for a council
@@ -107,9 +155,17 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
 - **Collision:** ADR 0011 task B1 (`claude/data-off-main-b1`) edits `sitegen/views.py` (`CORRECTIONS_LOG` at about
   line 1339) and moves the log to `config/`. Start T6 only after B1 is merged, branch from that `main`, and read the
   log path from settings, defaulting to B1's `config/corrections-log.json`. No other T6 file is touched by ADR 0011.
-- Tests: new `tests/test_city_only_build.py` (subprocess build of T4) asserts the pages written and not written per
-  decision 3, that no link points at an unwritten page, the CSP has no geocoder host or frame hash, and the export
-  has one body.
+- **Wards primary (ADR 0012 A1.1, added 2026-11-19):** for `seats: wards`, `ix` gets `holder_rows` rows built from
+  `primary.ward_records` (council.yml's keys) plus `title_runs` for `primary.titles`; the card gets one row per ward
+  with a current record, in ward order, then the Mayor, and the `district_lookup` link only when verified; no address
+  context. `officials_page.seat_key` never orders by a title seat: by surname for `at_large`, by ward then other
+  seats for `wards` (decision 5's consumer table).
+- **Collision (2026-11-19):** B1b also edits `sitegen/build.py` and `sitegen/config.py` (small hunks). Start after
+  B1 and B1b merge.
+- Tests: new `tests/test_city_only_build.py` (subprocess builds of T4b and T4) asserts the pages written and not
+  written per decision 3, that no link points at an unwritten page, the CSP has no geocoder host or frame hash, and
+  the export has one body. For Salem: the Officials page is in ward order and the Council President holder is not
+  moved up; each meeting page's source links all carry that meeting's portal prefix.
 - Done when: the tests pass, and T0 and the Clarksville diff are unchanged.
 
 ### T7: Templates
@@ -123,6 +179,9 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
   surname order; "Vice Mayor" appears on meeting pages 1-2 next to A and 4-5 next to B, each linked to that
   meeting's source page; the no-leak word list (decision 10) finds nothing in the Murfreesboro build;
   `test_site_neutrality` runs on that build too; the `design:accessibility-review` skill is run on the card.
+  The ward form of the card (A1.1) on the Salem fixture: one row per ward plus the Mayor, same row macro, no address
+  form, the A1.1 no-leak list for `wards` finds nothing, and the About and Method pages name both portals with their
+  date ranges from `city.yml`.
 - Done when: the tests pass, and the Clarksville diff is empty.
 
 ### T8: Named footer lines
@@ -140,8 +199,9 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
   when the settings lack them; add the at-large card checks), `tests/test_qa_tools.py`.
 - **Collision:** B1 edits `qa/site_checks.py` (`corrections_log_urls`, about line 1048). Start only after B1 is
   merged.
-- Tests: `python -m qa.site_checks --city murfreesboro-tn build/murfreesboro-tn/site` passes on the T4 build;
-  Clarksville's site checks give the same results as before.
+- Tests: `python -m qa.site_checks --city salem-or build/salem-or/site` passes on the T4b build (the slice) with the
+  ward card checks, and `--city murfreesboro-tn` on the T4 build with the at-large card checks; Clarksville's site
+  checks give the same results as before. B1b also edits `qa/site_checks.py`: start after B1 and B1b merge.
 - Done when: the M1 done-when at the top of this milestone holds, and `qa-engineer` verifies it against ADR 0012
   decisions 3-6, 9 and 10 at a commit SHA.
 
@@ -150,7 +210,11 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
 |---|---|---|---|---|
 | C1 `collector city --city`, READY refusal | backend-engineer | T1, T2 | yes | no (the workflow's command line is unchanged) |
 | C2 Printed titles from config in the minutes reader | backend-engineer | C1 | after C1 | **check:** B1 edits `collector/names.py`, `facts.py`, `verify.py`, `export.py`; C2 must not touch them (it touches `city_minutes.py`, `city_build.py`, `agenda_center.py`). If name resolution needs `names.py`, wait for B1. |
-| C3 Murfreesboro launch checklist (robots, terms, portal values) | backend-engineer (manager runs the polite reads) | C1 | yes | no |
+| C3 Murfreesboro launch checklist (robots, terms, portal values) | backend-engineer (manager runs the polite reads) | C1 | yes | no. **Parked 2026-11-19:** the host blocks us (no retry, no workaround); waits on the owner |
+| E0 Record sample answers (eScribe calendar POST, one FileStream document, one Legistar events and eventitems answer) | manager (polite reads), backend-engineer (fixtures) | none | yes (first) | no |
+| E1 eScribe reader, fetcher `post_json`, registry entry, fixtures | backend-engineer | E0, T1 | with T5b, T4b | no (`collector/escribe.py` new, `collector/fetch.py`, `cities/readers.py`; none is a B1/B1b file) |
+| E3 Date-stitch of two sources; both readers wired into `collector city fetch` | backend-engineer | E1, E2, C1 | after C1 | **check:** must not touch `collector/facts.py`, `export.py`, `names.py`, `verify.py` or `test_city_shrink_guard.py` (B1/B1b); it touches new `collector/stitch.py`, `city_run.py`, `city_build.py` (row intake only) |
+| E4 Salem minutes reader (attendance with wards, votes), from recorded minutes samples | backend-engineer (opus/high) | E0 (plus 2-3 recorded minutes, one per portal and era), C2 | after C2 | **check:** name resolution may need `collector/names.py` (B1/B1b): if so, start after they merge |
 
 - **C1.** Files: `collector/city_run.py` (`--city`, with `--locality` as an alias; registry sources and hosts; exit 2
   when not READY for `fetch`/`run`), `collector/__main__.py` (`run --city <other>` refused), tests with a stub
@@ -164,6 +228,62 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
   record them in `platform-facts.md` and `city.yml`, and fill `agenda_center.yml`, `site.yml` `primary` and
   `seat_basis`. Done when `cities check murfreesboro-tn` lists only the items that need the owner (none expected) or
   real collection. Launch-year collection is a separate step after READY, and comes before any go-live ask.
+  **Parked** (ADR 0012 A1): one request on 2026-11-19 got a Cloudflare block; nothing more is sent.
+
+### Salem tasks (ADR 0012 amendment A1, 2026-11-19)
+No task below opens a socket in its tests (sockets refused, as everywhere). Fixtures are recorded public answers,
+trimmed to the fields used, with any personal data that is not an official's name removed; a fixture's file name
+carries its date of capture.
+- **E0. Record sample answers.** The manager makes, at our 10 s pace and only on hosts whose robots.txt was read
+  2026-11-19: one `POST /MeetingsCalendarView.aspx/GetCalendarMeetings` on `pub-salem.escribemeetings.com` for
+  2026-07-01..2026-08-31; one `FileStream.ashx?DocumentId=` GET for one council PostMinutes; one Legistar
+  `events?$filter=EventBodyId eq 138` page for June 2026 and one `eventitems` answer. Before the minutes PDF on
+  `salem.legistar1.com` is asked, its robots.txt is read and recorded. Each answer is saved under
+  `collector/tests/fixtures/escribe/` or `.../legistar/` with the request in a sibling `.request.txt`, and the
+  field names seen are written into `config/cities/salem-or/platform-facts.md` ("Portal"). Stop on any block. Done
+  when the files are committed and platform-facts.md names the POST body keys and answer fields.
+- **E1. eScribe reader.** Files: new `collector/escribe.py` (`load_config`, `calendar_request(cfg, window)`,
+  `listing_rows(cfg, answer)`, `POST_PATHS`, `allowed_hosts`; field names exactly as in the E0 sample),
+  `collector/fetch.py` (`post_json` and a `post_paths` constructor argument, default empty), `cities/readers.py`
+  (the `escribe` Reader of A1.4), new `collector/tests/test_escribe.py`, `collector/tests/test_fetch.py` additions.
+  Tests: on the E0 answer, only the configured body names become rows; agenda and minutes URLs resolve against the
+  config host only, a document URL on another host is dropped and logged; video is a link only; meeting ids are
+  `escribe-<guid lowercase>`; kinds come from `kind_rules`; a meeting without PostMinutes has `minutes_url: None`. The
+  fetcher refuses a POST to an undeclared path or host with no request, refuses one when robots disallows it,
+  treats a 3xx as a failure, caps the answer at 5 MB and waits `MIN_DELAY`; `get` behaviour is unchanged (existing
+  fetch tests pass). Security review: yes (`collector/fetch.py`). Done when the tests pass and `python -m cities`
+  exits 0.
+- **E2. Salem config.** Files: `config/cities/salem-or/city.yml` (`sources` legistar `until: "2026-07-01"` and escribe
+  `from: "2026-07-01"`; `site_file`; `allowed_hosts`: `webapi.legistar.com`, `salem.legistar.com`,
+  `pub-salem.escribemeetings.com`, each with `robots: "404, no robots.txt (2026-11-19, team cloud session)"` and
+  `terms: UNVERIFIED`; `salem.legistar1.com` with `robots: UNVERIFIED` until E0 reads it; `www.cityofsalem.net` is not
+  listed, because nothing is fetched from it; `district_lookup: UNVERIFIED`), new `config/cities/salem-or/site.yml`
+  (`place_name: Salem`; `primary:` `key: council`, `name: Salem City Council` UNVERIFIED, `label: City Council`,
+  `record` = the eScribe portal, `seats: wards`, `ward_records` (council.yml's keys, `min_ward_prints: 2`,
+  `title_seats: {Mayor: city-mayor}`), `titles: [Council President]` UNVERIFIED, `member_title: Councilor`
+  UNVERIFIED, `seat_basis` UNVERIFIED), new `config/cities/salem-or/escribe.yml` (host, `body_names`,
+  `agenda_types`, `minutes_types`, `kind_rules`, `video_hosts`, each UNVERIFIED until E0's sample confirms it), new
+  `config/cities/salem-or/corrections-log.json` (`[]`); `cities/registry.py` (source `from`/`until`: dates, half-open,
+  abutting, no overlap, no gap; `primary.ward_records` validated as `config.load_council`; `seat_basis` required for
+  `wards`), `cities/check.py`, `tests/test_cities.py`. Tests: overlapping ranges, a gap, or two open-ended sources
+  fail naming the sources; Salem loads; `cities check salem-or` is NOT READY and lists terms, `salem.legistar1.com`
+  robots, `seat_basis`, `district_lookup` and the UNVERIFIED portal values. The manager reads each host's terms page
+  once, if one exists, and records it (open question 9 of ADR 0012). Done when the tests pass and no network is used
+  in them.
+- **E3. Date-stitch.** Files: new `collector/stitch.py` (`stitch(rows_by_source, ranges)`, A1.3), `collector/city_run.py`
+  (`fetch` runs each source's reader for the windows inside its range; `build` stitches before facts),
+  `collector/city_build.py` (accepts stitched rows; no change to how rows become facts), new
+  `collector/tests/test_stitch.py`, a stub-fetcher run test. Tests: rows on both sides of 2026-07-01 are kept from their
+  owners; a same-date, same-kind pair where only one has minutes keeps that one and logs `stitch/seam-duplicate` with
+  both URLs; a pair where both have minutes keeps the range owner; different start times keep both; a row outside
+  its range with no match is kept and logged `stitch/out-of-range`; no kept row carries a URL of the other portal;
+  the run is deterministic (same input, same bytes). `fetch` for Salem exits 2 while it is not READY (C1), with no
+  socket opened. Done when the tests pass and Clarksville's collector fixtures give byte-identical output.
+- **E4. Salem minutes reader.** Reads the attendance list (names, wards, present or absent, printed titles) and roll
+  calls from Salem's minutes in both eras, writing `wards.json` prints in the A1 Interfaces shape and votes that go
+  through the existing verifier. Shaped only by recorded minutes samples (E0 plus one minutes file per era), never
+  by guesses about the format. Its own design note comes first (the minutes format is unknown today). Not needed
+  for milestone 1, which runs on T4b.
 
 ## Milestone 3: per-city deploy (after ADR 0011's cutover C1 and the V1'' probe pass)
 | Task | Owner | Depends on | Parallel | Collides with ADR 0011 work? |
@@ -174,7 +294,7 @@ milestone to review in two PRs, at about 1,000 lines each: (T0-T4) and (T5-T9).
 | D2 `protect-main`: ruleset R-S for `site/*` | devops-engineer | ADR 0011 D1 merged | with D1 | **yes: `scripts/protect-main.*`**, after ADR 0011's D1 |
 | D3 City deploy repo template | devops-engineer | D0 | yes | no (lives in `cities/templates/deploy-repo/`, never `deploy/`) |
 | D4 Tripwire covers each live city's published facts | backend-engineer | ADR 0011 B4 merged | after B4 | **yes: B4's tripwire code**, extended after it lands |
-| D5 Owner steps (decision 8, hard stops 1-4) | Brian, prepared by the manager | D1-D4, C3, launch year | no | no |
+| D5 Owner steps (decision 8, hard stops 1-4; for Salem: repo `gn0sh/daylight-salem`, `salem.daylight` CNAME) | Brian, prepared by the manager | D1-D4, E2 READY, E4, launch year | no | no |
 | D6 Uptime monitor and Better Stack entries | devops-engineer | D5 | no | no |
 
 Security review for D1-D4 is in session (CI, deploy and hard-stop area), with a fresh review for the milestone.
@@ -185,5 +305,8 @@ Security review for D1-D4 is in session (CI, deploy and hard-stop area), with a 
 - There are two file overlaps, each sequenced after B1 merges: `sitegen/views.py` (T6) and `qa/site_checks.py` (T9).
   B1's hunks are one-line path changes. T6 reads the moved log path from settings rather than moving it again.
 - C2 stays out of the four collector files B1 edits.
+- Salem tasks (2026-11-19): T5b, T4b, E0, E1 and E2 touch no B1/B1b file and can start now. T6 also waits for B1b
+  (`sitegen/build.py`, `sitegen/config.py`), T9 for B1b (`qa/site_checks.py`). E3 avoids `facts.py`, `export.py`,
+  `names.py`, `verify.py` and the shrink-guard test; E4 waits for B1/B1b if it needs `names.py`.
 - Deploy work (D1, D2, D4) starts only after the cutover, and rides on its pieces (J2, the attestation, R-D's
   pattern, the tripwire) rather than adding a writer or an attester.
