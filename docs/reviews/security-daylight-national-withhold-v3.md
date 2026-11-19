@@ -19,3 +19,9 @@ Findings:
 6. Low `privacy-withhold/source-unique-covered-only`: a cant-cover entry can carry `body: county`.
 7. Low `privacy-withhold/error-echo`: BindError echoes untrusted ids without a length cap.
 Accepted residual (agreed): the public digest is not a signature; D1/D2 attestation is the integrity control in M2.
+
+## Delta (837bd4c2, with B4 a10cc2eb): OK
+Findings 1, 2, 4-7 closed; B4 builds .html and .json only from the bound feed, schema-checked before any write.
+Open low, M2: for withheld entries null `meeting_url` and keep `agenda.url` only on the source host
+(`privacy-withhold/free-text-outside-items`); files copied from national-data must pass clean_feed before bind_feed
+(C2/B4 copy step). Finding 3 accepted as an M2 plan item.
