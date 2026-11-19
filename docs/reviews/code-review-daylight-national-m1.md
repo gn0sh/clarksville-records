@@ -108,3 +108,8 @@
   REQUIRE_BROWSER is set, and assert the node summary shows failed 0 with checks run.
 - nits: STOP list drops "main"/"street"; CSP violations also seen via console text only.
 - F3 fix (cherry-picked as HEAD after 6f3de179): manager verified pass with Playwright and fail (not skip) with REQUIRE_BROWSER=1 and no node.
+
+## digest.css + links.yml (a76cf74b), code-reviewer sonnet/medium: APPROVE
+- digest.css only on digest pages and only copied when on; style.css untouched; links.yml strict (https, known keys,
+  null allowed); URLs reach #digest-config via allowed_url; CSS matches design 0a; no outside hosts; CSP unaffected.
+- nit (open, low): the contrast figures live in a CSS comment; a token-pair contrast test would catch future changes.
