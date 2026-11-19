@@ -2,6 +2,7 @@
 
 The .sh runs here against a stub gh (no GitHub call is ever made); the .ps1 (no PowerShell here) is pinned to the
 same filters, lines and refusals text by text."""
+import base64
 import json
 import os
 import re
@@ -113,6 +114,12 @@ if path.startswith(R + "/rulesets/rule-suites?"):
     out(st.get("suites", []))
 if path.startswith(R + "/rulesets/rule-suites/"):
     out(st["suite"])
+if path.startswith(R + "/contents/scripts/"):
+    name, _, q = path[len(R + "/contents/scripts/"):].partition("?")
+    assert q == "ref=main", path
+    if name not in st.get("main_files", {}):
+        sys.stderr.write("gh: Not Found (HTTP 404)\n"); sys.exit(1)
+    out({"type": "file", "encoding": "base64", "content": st["main_files"][name]})
 sys.stderr.write("stub: unexpected call %r\n" % a); sys.exit(9)
 '''
 
@@ -128,13 +135,22 @@ exec /bin/date "$@"
 '''
 
 
+def _b64(raw):
+    """GitHub's contents API body: base64 in 60-character lines."""
+    t = base64.b64encode(raw).decode()
+    return "".join(t[i:i + 60] + "\n" for i in range(0, len(t), 60))
+
+
+MAIN_FILES = {n: _b64((ROOT / "scripts" / n).read_bytes()) for n in ("main-ruleset-r1p.json", "main-ruleset.json")}
+
+
 def _state(**over):
     pr = {"number": 60, "state": "open", "base": {"ref": "main"}, "user": {"login": "gn0sh"}, "draft": False,
           "mergeable": True, "changed_files": 1, "merged": False, "merged_by": None, "merge_commit_sha": None,
           "head": {"sha": HEAD, "ref": "claude/u3-pr-p", "repo": {"full_name": REPO}}}
     st = {"ruleset": json.loads(json.dumps(R1P)), "read_only": dict(READ_ONLY), "runs": ["completed"] * 3,
           "main": MAIN0, "pr_number": 60, "pr": pr, "files": [{"filename": "docs/platform-facts.md"}],
-          "merge_sha": MERGE, "suites": [{"id": 777, "after_sha": MERGE, "result": "bypass"}],
+          "merge_sha": MERGE, "main_files": dict(MAIN_FILES), "suites": [{"id": 777, "after_sha": MERGE, "result": "bypass"}],
           "suite": {"id": 777, "result": "bypass", "rule_evaluations": [
               {"rule_source": {"type": "ruleset", "id": RID, "name": "main: pull request required"},
                "enforcement": "active", "result": "fail", "rule_type": "pull_request"},
@@ -543,6 +559,54 @@ def test_refused_unless_pr_p_is_a_docs_only_pr_of_gn0sh(tmp_path, over, text):
 def test_usage_errors_change_nothing(tmp_path, args):
     r, made = _run(tmp_path, args)
     assert r.returncode == 1 and not _puts(made)
+
+
+def _edited(name, change):
+    o = json.loads((ROOT / "scripts" / name).read_text(encoding="utf-8"))
+    change(o)
+    return _b64(json.dumps(o, indent=2).encode() + b"\n")
+
+
+@pytest.mark.parametrize("name", ["main-ruleset-r1p.json", "main-ruleset.json"])
+@pytest.mark.parametrize("how", ["differs", "unread"])
+def test_refused_unless_both_ruleset_files_are_mains(tmp_path, name, how):
+    """data-off-main/rollback-checkout-unpinned (L2, I-root C19): a stale or edited checkout's ruleset file is never
+    written; it must equal main's byte for byte (contents API, ref=main), and a failed read refuses."""
+    files = dict(MAIN_FILES)
+    if how == "unread":
+        del files[name]
+    else:
+        files[name] = _edited(name, lambda o: o["bypass_actors"].append(
+            {"actor_id": 1, "actor_type": "OrganizationAdmin", "bypass_mode": "always"}))
+    for args in (["--pr", "60"], ["--pr", "60", "--rehearse"]):
+        r, made = _run(tmp_path, args, _state(main_files=files))
+        _refused(r, made, f"scripts/{name} is not main's byte for byte, or main's could not be read")
+        assert any(c.get("path", "").endswith(f"/contents/scripts/{name}?ref=main") for c in made)
+        (tmp_path / "calls").unlink()
+
+
+def test_restore_refuses_unless_r1_prime_is_mains_and_a_backup_file_skips_the_check(tmp_path):
+    files = {**MAIN_FILES, "main-ruleset-r1p.json": _edited("main-ruleset-r1p.json", lambda o: o.update(name="x"))}
+    r, made = _run(tmp_path, ["--restore"], _state(main_files=files, ruleset=json.loads(json.dumps(R1PP))))
+    assert r.returncode == 1 and "scripts/main-ruleset-r1p.json is not main's byte for byte" in r.stdout, r.stdout
+    assert "Nothing was changed." in r.stdout and not _puts(made)
+    (tmp_path / "calls").unlink()
+    (tmp_path / "b.json").write_text(json.dumps(_wl(R1P)))   # the operator's own backup: not a checkout file
+    r, made = _run(tmp_path, ["--restore", str(tmp_path / "b.json")], _state(main_files={}))
+    assert r.returncode == 0 and "RESTORED " in r.stdout and _puts(made) == [_wl(R1P)], r.stdout
+    assert not any("/contents/" in c.get("path", "") for c in made)
+
+
+def test_ps1_reads_both_ruleset_files_against_main():
+    ps1 = PS1.read_text(encoding="utf-8")
+    sh = SH.read_text(encoding="utf-8")
+    assert "\"repos/$repo/contents/scripts/${name}?ref=main\" --jq '.content'" in ps1
+    assert "\"repos/$repo/contents/scripts/$1?ref=main\" --jq '.content'" in sh
+    assert "[Convert]::FromBase64String($b64)" in ps1 and "[IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $name))" in ps1
+    assert "foreach ($f in @('main-ruleset-r1p.json', 'main-ruleset.json')) { if (-not (MainCopyOk $f))" in ps1
+    assert "for f in main-ruleset-r1p.json main-ruleset.json; do main_copy_ok \"$f\"" in sh
+    assert "if (-not $From -and -not (MainCopyOk 'main-ruleset-r1p.json'))" in ps1
+    assert ps1.index("MainCopyOk $f") > ps1.index("if (-not (PinOk))") and sh.index('main_copy_ok "$f"') > sh.index("pin_ok ||")
 
 
 # ---------------------------------------------------------------------------------------------- --restore, --noop
