@@ -216,7 +216,8 @@ def handle():
             log({"post_body": body})
             st["next_id"] = st.get("next_id", 100) + 1
             st["rulesets"].append({"id": st["next_id"], **body}); save(); sys.exit(0)
-        out([{"id": x["id"], "name": x["name"], "target": x["target"], "enforcement": x["enforcement"]} for x in st["rulesets"]])
+        out([{"id": x["id"], "name": x["name"], "target": x["target"], "enforcement": x["enforcement"]}
+             for x in st["rulesets"]])
     if path == R + "/rulesets":
         assert method == "POST", a
         body = json.load(open(args[args.index("--input") + 1]))
@@ -263,7 +264,8 @@ def handle():
     if path == R + "/pages":                                 # S1-6
         out({"url": "https://api.github.com/x", "build_type": st.get("pages", "workflow"), "cname": "x"})
     if path.startswith(R + "/contents/.github/workflows?ref="):  # S1-7
-        out([{"name": n, "path": ".github/workflows/" + n, "type": k} for n, k in st.get("workflows", [["daily-update.yml", "file"]])])
+        out([{"name": n, "path": ".github/workflows/" + n, "type": k}
+             for n, k in st.get("workflows", [["daily-update.yml", "file"]])])
     if path.startswith(R + "/environments/"):
         rest = path[len(R + "/environments/"):]
         if rest.endswith("/deployment-branch-policies?per_page=100"):
@@ -776,7 +778,8 @@ def test_protect_main_ps1_has_the_same_filters_writes_and_lines():
         assert ln in ps1.replace("${label}", "$label"), ln
     for var in CLOUD:
         assert var in sh and f"'{var}'" in ps1
-    assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '', [string]$Main = '')" in ps1 and "if ($Check) {" in ps1
+    assert "param([switch]$Check, [switch]$PreCutover, [string]$Apps = '', [string]$Main = '')" in ps1
+    assert "if ($Check) {" in ps1
     assert 'if [ "$check" = 1 ]; then' in sh
     assert "CHECK ONLY: nothing is written; the checks below read the live settings." in sh and "CHECK ONLY" in ps1
     for want in ("$'false\\ttrue'", "$'main\\tbranch'", "$'10\\tfalse'"):

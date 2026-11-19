@@ -34,10 +34,12 @@ function global:Get-Date {
     }
     Microsoft.PowerShell.Utility\Get-Date @args
 }
-function global:Start-Sleep {   # as the .sh's stub sleep: logs the call to GH_CALLS; STUB_SLEEP seconds (a Ctrl+C test), else none
+# as the .sh's stub sleep: logs the call to GH_CALLS; STUB_SLEEP seconds (a Ctrl+C test), else none
+function global:Start-Sleep {
     $s = [string]$args[0]
     if ($args.Count -ge 2 -and [string]$args[0] -eq '-Seconds') { $s = [string]$args[1] }
-    if ($env:GH_CALLS) { [IO.File]::AppendAllText($env:GH_CALLS, '{"method": "SLEEP", "path": "Start-Sleep", "argv": ["' + $s + '"]}' + "`n") }
+    $line = '{"method": "SLEEP", "path": "Start-Sleep", "argv": ["' + $s + '"]}' + "`n"
+    if ($env:GH_CALLS) { [IO.File]::AppendAllText($env:GH_CALLS, $line) }
     if ($env:STUB_SLEEP) { Microsoft.PowerShell.Utility\Start-Sleep -Milliseconds ([int]([double]$env:STUB_SLEEP * 1000)) }
 }
 function global:Invoke-RestMethod {
