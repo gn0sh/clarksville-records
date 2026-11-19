@@ -198,21 +198,21 @@ run_scrub_check() { "$py" -B -m tools.scrub_rpc_phones --check --path "$1"; } # 
 pinned_seed_digest() {   # $1 rev: B2's gate env line RECORDS_DATA_SEED_DIGEST: "<64 hex>", exactly one, in its workflow
   local wf n v
   wf=$(git show "$1:.github/workflows/$wfname" 2>/dev/null) || return 1
-  n=$(printf '%s\n' "$wf" | grep -cE '^[[:space:]]*RECORDS_DATA_SEED_DIGEST:' || true)
+  n=$(printf '%s\n' "$wf" | sed 's/\${RECORDS_DATA_SEED_DIGEST:-}//g' | grep -cE "RECORDS_DATA_SEED_DIGEST[\"']?[[:space:]]*:" || true)
   v=$(printf '%s\n' "$wf" | sed -nE 's/^[[:space:]]*RECORDS_DATA_SEED_DIGEST:[[:space:]]*"([0-9a-f]{64})".*$/\1/p')
   [ "$n" = 1 ] && [[ "$v" =~ ^[0-9a-f]{64}$ ]] && echo "$v"
 }
 pinned_baseline() {   # $1 rev: the gate env line MAIN_PR_BASELINE: "<40 hex>", exactly one (ADR 0011 Amendment (c))
   local wf n v
   wf=$(git show "$1:.github/workflows/$wfname" 2>/dev/null) || return 1
-  n=$(printf '%s\n' "$wf" | grep -cE '^[[:space:]]*MAIN_PR_BASELINE:' || true)
+  n=$(printf '%s\n' "$wf" | sed 's/\${MAIN_PR_BASELINE:-}//g' | grep -cE "MAIN_PR_BASELINE[\"']?[[:space:]]*:" || true)
   v=$(printf '%s\n' "$wf" | sed -nE 's/^[[:space:]]*MAIN_PR_BASELINE:[[:space:]]*"([0-9a-f]{40})".*$/\1/p')
   [ "$n" = 1 ] && [[ "$v" =~ ^[0-9a-f]{40}$ ]] && echo "$v"
 }
 baseline_empty() {    # $1 rev: its workflow holds exactly one MAIN_PR_BASELINE line, and its value is "" (F4)
   local wf
   wf=$(git show "$1:.github/workflows/$wfname" 2>/dev/null) || return 1
-  [ "$(printf '%s\n' "$wf" | grep -cE '^[[:space:]]*MAIN_PR_BASELINE:' || true)" = 1 ] \
+  [ "$(printf '%s\n' "$wf" | sed 's/\${MAIN_PR_BASELINE:-}//g' | grep -cE "MAIN_PR_BASELINE[\"']?[[:space:]]*:" || true)" = 1 ] \
     && [ "$(printf '%s\n' "$wf" | grep -cE '^[[:space:]]*MAIN_PR_BASELINE:[[:space:]]*""([[:space:]]|$)' || true)" = 1 ]
 }
 gate_verified() {     # $1 run id, $2 baseline: B2's gate job succeeded and logged its history line for exactly 1 commit

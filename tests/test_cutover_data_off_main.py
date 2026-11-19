@@ -296,7 +296,7 @@ class Fx:
     twin_default = "sh"
 
     def __init__(self, tmp_path, main_extra=None, pr_extra=None, pin=None, skip_config=(), baseline=None,
-                 window=None, pr_off_main=False):
+                 window=None, pr_off_main=False, wf_extra=""):
         self.twin = Fx.twin_default
         self.script = SH if self.twin == "sh" else PS1
         self.tmp = tmp_path
@@ -341,7 +341,8 @@ class Fx:
         shutil.rmtree(w / "data")
         self.baseline = self.main if baseline is None else baseline
         new_wf = (OLD_WF.replace('MAIN_PR_BASELINE: ""', 'MAIN_PR_BASELINE: "%s"' % self.baseline)
-                  + '      RECORDS_DATA_SEED_DIGEST: "%s"   # ADR 0011\n' % (pin or self.digest))
+                  + '      RECORDS_DATA_SEED_DIGEST: "%s"   # ADR 0011\n' % (pin or self.digest)
+                  + wf_extra)
         _write(w, {**cfg, ".github/workflows/daily-update.yml": new_wf, ".github/CODEOWNERS": None,
                    ".gitignore": "build/\ndata/\n", **(pr_extra or {})})
         g("add", "-A"); g("commit", "-q", "-m", "cutover PR")
@@ -707,6 +708,27 @@ def test_step1_refuses_unless_main_equals_the_pinned_baseline(tmp_path, baseline
     _refused(fx.cut(), fx, text)
 
 
+# A second definition of a key anywhere (another env, a flow mapping, a quoted key, 'KEY :') is refused, as before
+# the anchoring fix: only the bash "${KEY:-}" reads are not definitions (pin-reader-single-untested, -flow-mapping).
+SECOND_DEFS = {
+    "job-env": '  other:\n    env:\n      {k}: "{v}"\n',
+    "flow-mapping": '  other:\n    env: {{ {k}: "{v}" }}\n',
+    "quoted-key": '      "{k}": "{v}"\n',
+    "space-colon": '  other:\n    env:\n      {k} : "{v}"\n',
+}
+
+
+@pytest.mark.parametrize("form", sorted(SECOND_DEFS))
+@pytest.mark.parametrize("key,text", [
+    ("RECORDS_DATA_SEED_DIGEST", "pins no single 64-hex RECORDS_DATA_SEED_DIGEST"),
+    ("MAIN_PR_BASELINE", "pins no single 40-hex MAIN_PR_BASELINE"),
+], ids=["seed", "baseline"])
+def test_step1_refuses_a_second_definition_of_a_pin(tmp_path, form, key, text):
+    v = "b" * (64 if key == "RECORDS_DATA_SEED_DIGEST" else 40)
+    fx = Fx(tmp_path, wf_extra=SECOND_DEFS[form].format(k=key, v=v))
+    _refused(fx.cut(), fx, text)
+
+
 def test_step1_refuses_a_pr_head_that_does_not_contain_main(tmp_path):
     """main-protect/r2-on-without-codeowners fix (a): the squash must not leave a later main's data/ tracked."""
     fx = Fx(tmp_path, pr_off_main=True)
@@ -995,6 +1017,18 @@ def test_rollback_merge_refuses_a_restore_head_that_sets_the_baseline(tmp_path):
     # pull/99/head is c2 now
     r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "x"])
     assert r.returncode == 1 and "origin's pull/99/head is not " + c in r.stdout and _writes(fx.calls()) == []
+
+
+@pytest.mark.parametrize("form", sorted(SECOND_DEFS))
+def test_rollback_merge_refuses_a_restore_head_with_a_second_baseline(tmp_path, form):
+    """BaselineEmpty: one empty block-form MAIN_PR_BASELINE plus a second definition is not one empty value."""
+    fx = Fx(tmp_path)
+    merge, br, c = _opened_restore(fx)
+    wf = OLD_WF + SECOND_DEFS[form].format(k="MAIN_PR_BASELINE", v="1" * 40)
+    c2 = _commit_on(fx, c, {".github/workflows/daily-update.yml": wf}, "set", "refs/pull/99/head")
+    r = fx.run(["--rollback", "--merge", "99", "--sha", c2, "--cutover-merge", merge, "--report", "x"])
+    assert r.returncode == 1 and "the restore PR #99 at " + c2 in r.stdout and "MAIN_PR_BASELINE" in r.stdout
+    assert _writes(fx.calls()) == [] and fx.state["r2"] is False
 
 
 @pytest.mark.parametrize("files,text", [
@@ -1564,12 +1598,17 @@ def test_the_pin_readers_count_only_env_key_lines_of_the_real_workflow():
     for key in ("MAIN_PR_BASELINE", "RECORDS_DATA_SEED_DIGEST"):
         assert len(re.findall(r"(?m)^\s*%s:" % key, wf)) == 1, key
         assert "${%s:-}" % key in wf, key   # the trap the anchoring is for is really there
+        assert len(re.findall(r"%s[\"']?\s*:" % key, wf.replace("${%s:-}" % key, ""))) == 1, key  # the count rule
     ps1 = PS1.read_text(encoding="utf-8")
     sh = SH.read_text(encoding="utf-8")
     for key in ("MAIN_PR_BASELINE", "RECORDS_DATA_SEED_DIGEST"):
+        n = 2 if key == "MAIN_PR_BASELINE" else 1
         assert f"-match '{key}:'" not in ps1 and f"grep -c '{key}:'" not in sh, key
-        assert ps1.count(f"Where-Object {{ $_ -cmatch '^\\s*{key}:' }}") == (2 if key == "MAIN_PR_BASELINE" else 1)
-        assert sh.count(f"grep -cE '^[[:space:]]*{key}:'") == (2 if key == "MAIN_PR_BASELINE" else 1)
+        assert ps1.count(f"Where-Object {{ ($_ -creplace '\\$\\{{{key}:-\\}}', '') -cmatch '{key}[\"'']?\\s*:' }}") == n
+        assert sh.count(f"sed 's/\\${{{key}:-}}//g' | grep -cE \"{key}[\\\"']?[[:space:]]*:\"") == n
+    # and each reader still requires exactly one (pin-reader-single-untested)
+    assert ps1.count("if ($lines.Count -ne 1) { return $null }") == 2 and "$keyLines.Count -eq 1 -and" in ps1
+    assert sh.count('[ "$n" = 1 ] && [[ "$v" =~') == 2
 
 
 def test_ps1_has_the_same_steps_refusals_and_calls():
