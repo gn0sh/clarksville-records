@@ -526,6 +526,9 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
             why = shown_refusal(gov, body_name, canonical)
             if why:
                 _fail(path, where, "items", why)
+        if status == "covered" and "official_label" in e:     # the pagedir carries it only for cant-cover entries
+            _fail(path, where, "official_label", "only a cant-cover entry has an official_label "
+                  "(national/official-label-scope)")
         g = dict(e, also=list(also), items=items, checked=checked, review=digest if items == "shown" else None)
         out.append(g)
         alias.update({a: gov for a in also})

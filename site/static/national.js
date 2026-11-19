@@ -261,7 +261,7 @@
     var govs = kept.map(function (r) { return cardOf(r, idx.govs.get(r.id), r.slot); });
     var notes = lineNotes.slice();
     if (!notes.length) {
-      if (!kept.some(function (r) { return r.slot === "place" || r.slot === "cousub" || r.layer === "cousub"; })) {
+      if (!kept.some(function (r) { return r.slot === "place" || r.layer === "cousub"; })) {
         notes.push("note.no-city");
       }
       if (hadCounty && !kept.some(function (r) { return r.layer === "county"; })) { notes.push("note.no-county"); }

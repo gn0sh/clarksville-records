@@ -166,6 +166,10 @@ BAD = [
     ("other-port-url", [changed(COVERED, official_url="https://www.clarksvilletn.gov:8443/")], "official_url"),
     ("unknown-reason", [changed(CANT, reason="too-hard")], "reason: unknown reason"),
     ("unknown-official-label", [changed(CANT, official_label="nope")], "official_label: must name a label"),
+    ("official-label-on-covered", [changed(COVERED, items="withheld", official_label="county-site")],
+     "official_label: only a cant-cover"),
+    # privacy-withhold/official-label-review-test: a shown entry is pinned whole, so adding a label breaks its review
+    ("official-label-on-shown-covered", [changed(COVERED, official_label="county-site")], "SHOWN_REVIEWED"),
     ("reason-on-covered", [changed(COVERED, reason="terms")], "reason: only a cant-cover"),
     ("bad-status", [changed(COVERED, status="soon")], "status: must be"),
     ("bad-checked-date", [changed(COVERED, checked="2026-13-01")], "checked: must be a date"),
