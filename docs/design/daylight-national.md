@@ -276,7 +276,7 @@ types the email once and gets one confirmation email.
 | Honest line, Can't cover (proposed spec change P2) | We can't cover this government unless the way it posts its records changes. If that happens and we open it, we'll email you once. Your request also tells us people want it. |
 | Privacy (AC9.2, AC5.3) | We keep only your email and the governments you request. We never get your address. You get one email to confirm now and one if a government opens, nothing else. Your email is held by Buttondown, our email service. [Buttondown's privacy policy] |
 | After the person taps the link in the email (AC5.2; a plain page, `digest/requested.html`, or the confirmation email itself if the provider can't send people back to us) | Thanks. Your request is confirmed. We'll email you once if we open it. We add a government only after real requests, one at a time, and we may never reach yours. [Back to Daylight Digest] |
-| Optional counter (AC5.6, only if the architect builds it) | Link-style button: "No email? Just count me." Done: "Counted, with nothing about you. We won't be able to tell you if it opens." Failed: "We couldn't count that. Try again." |
+| Optional counter (AC5.6, only if the architect builds it) | Link-style button: "No email? Just count me." Done: "Counted. Only the name of the government was sent. We won't be able to tell you if it opens." Failed: "We couldn't count that. Try again." |
 
 Rules: the success text is the same whether or not that email already asked (the page never reveals who is on a
 list). A repeat request adds no second count (AC5.5). No count is shown to the public (AC5.4). The email is never

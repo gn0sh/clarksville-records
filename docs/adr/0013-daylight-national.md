@@ -214,3 +214,12 @@ by POST, so it uses PR #62's narrow `post_json` (an allowlist of host and path p
 - City Council items stay off the national page until task B9 ships; the page says so plainly.
 - Reversible: `national.enabled: false` removes every national page in one build; the directory and feeds are
   additive files.
+
+## Amendment A (2026-11-19, after the design security review and UX reconcile)
+Recorded by the manager from docs/architecture/daylight-national.md v2 and docs/reviews/security-daylight-national-design.md.
+- Decision 2: the Census lookup runs in a static `digest/geo-frame.html` with its own meta CSP; the parent page keeps
+  `script-src 'self'`; `connect-src` adds buttondown.com for the request form.
+- Decision 5: the anonymous counter is in M1 as a GoatCounter event `count-<gov id>` from a separate `us-count.js`.
+- Decision 9: item withholding is a directory field `items: shown|withheld` (default withheld), not an `sd*` id rule.
+- Accepted: N1 (one fixed Menu fragment in the shared footer, enforced by an exact-string test) and N2 (device storage
+  keeps government ids plus Census names).
