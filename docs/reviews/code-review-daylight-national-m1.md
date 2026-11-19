@@ -107,3 +107,4 @@
 - should-fix `tests/browser-silent-skip`: the hook skips silently without node/Playwright; fail when CI or
   REQUIRE_BROWSER is set, and assert the node summary shows failed 0 with checks run.
 - nits: STOP list drops "main"/"street"; CSP violations also seen via console text only.
+- F3 fix (cherry-picked as HEAD after 6f3de179): manager verified pass with Playwright and fail (not skip) with REQUIRE_BROWSER=1 and no node.
