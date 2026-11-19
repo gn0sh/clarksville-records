@@ -162,6 +162,8 @@ DIGEST_INDEX = DIGEST + "index.html"        # the lookup page, the one parent of
 DIGEST_PAGE_LABELS = ROOT / "config" / "national" / "page-labels.yml"
 # Restated from sitegen/national.py CENSUS_GEOGRAPHIES (4.0): the one source the frame's script-src adds.
 CENSUS_GEOGRAPHIES = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
+# Elements the geo frame's raw HTML may never hold (digest/csp), whatever the parser makes of them.
+FRAME_EMBED = re.compile(r"<(form|iframe|object|embed)", re.IGNORECASE)
 
 
 def site_pages(pages: dict) -> dict:
@@ -2641,18 +2643,26 @@ def check_digest_csp(site: Path, pages: dict[str, "Page"], cfg: dict | None = No
     - every other digest page: the site's base policy, connect-src the counter's origin while it counts.
     - no CSP but the frame's names the Census on a digest page; none names the geographies path on any page; a page
       outside `digest/` names the Census only beside the landing address box (addr-config, task F7 moves it); no page
-      but digest/index.html names the frame."""
+      but digest/index.html names the frame.
+    Fires off config national.enabled (read here, not from the build): off, any `digest/` file fails (a leak into the
+    Clarksville build) and none passes silently; on, digest/index.html and the frame must each be built."""
     cfg = _site_cfg() if cfg is None else cfg
+    on = (cfg.get("national") or {}).get("enabled") is True
     digest = sorted(rel for rel in pages if rel.startswith(DIGEST))
-    if not digest:
+    if not on:
+        if digest:
+            return [f"{DIGEST}: national.enabled is off but {len(digest)} {DIGEST} pages are built "
+                    f"({digest[:3]!r})"], ""
         return [], f"no {DIGEST} pages (national.enabled off)"
+    if not digest:
+        return [f"{DIGEST}: national.enabled but no {DIGEST} pages built"], ""
     problems = []
     code = (cfg.get("analytics") or {}).get("code") or ""
     counter = f"https://{code}.goatcounter.com" if code and GOATCOUNTER_CODE.fullmatch(code) else None
     form = note_form_origin(cfg)
     # the frame
     if DIGEST_FRAME not in pages:
-        problems.append(f"{DIGEST_FRAME}: not built beside {DIGEST_INDEX}")
+        problems.append(f"{DIGEST_FRAME}: not built (national.enabled on)")
     else:
         raw, pg = (site / DIGEST_FRAME).read_text(encoding="utf-8"), pages[DIGEST_FRAME]
         scripts = INLINE_SCRIPT.findall(raw)
@@ -2667,6 +2677,10 @@ def check_digest_csp(site: Path, pages: dict[str, "Page"], cfg: dict | None = No
                 problems.append(f"{DIGEST_FRAME}: CSP is not sitegen.national.geo_frame_csp of its script")
         if pg.resources or pg.hrefs:
             problems.append(f"{DIGEST_FRAME}: loads or links {[*pg.resources, *pg.hrefs][:3]!r} (want nothing)")
+        embeds = sorted({t.lower() for t in FRAME_EMBED.findall(raw)})
+        if embeds:
+            problems.append(f"{DIGEST_FRAME}: has {', '.join('<' + t for t in embeds)} (want no form, iframe, object "
+                            "or embed)")
         if '<meta name="referrer" content="no-referrer">' not in raw:
             problems.append(f"{DIGEST_FRAME}: no referrer meta \"no-referrer\"")
     # the Census and the frame, every page
@@ -2711,7 +2725,7 @@ def check_digest_csp(site: Path, pages: dict[str, "Page"], cfg: dict | None = No
         if not isinstance(frame, str) or resolve(DIGEST_INDEX, frame) != DIGEST_FRAME:
             problems.append(f"{DIGEST_INDEX}: its settings name the frame {frame!r}, not geo-frame.html")
     else:
-        problems.append(f"{DIGEST_INDEX}: not built, but other {DIGEST} pages are")
+        problems.append(f"{DIGEST_INDEX}: not built (national.enabled on)")
     return problems, (f"{DIGEST_FRAME} holds the frame CSP of 4.0; {n} other {DIGEST} pages hold their policies; "
                       "the Census in no other digest CSP")
 

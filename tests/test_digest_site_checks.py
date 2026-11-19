@@ -188,8 +188,13 @@ def test_switch_an_option_to_a_digest_page_fails(site):
 
 # --- digest/csp -------------------------------------------------------------------------------------------------------
 
-def _csp(site):
-    return SC.check_digest_csp(site, _pages(site))
+def _cfg(on: bool) -> dict:
+    """config/site.yml as committed, with national.enabled set as the build under test had it."""
+    return {**SC._site_cfg(), "national": {"enabled": on}}
+
+
+def _csp(site, on: bool = True):
+    return SC.check_digest_csp(site, _pages(site), _cfg(on))
 
 
 def test_digest_csp_passes_the_build(built_on):
@@ -205,7 +210,40 @@ def test_digest_csp_passes_the_build(built_on):
 
 
 def test_digest_csp_is_silent_without_digest_pages(built_off):
-    assert _csp(built_off) == ([], "no digest/ pages (national.enabled off)")
+    assert _csp(built_off, on=False) == ([], "no digest/ pages (national.enabled off)")
+    # config/site.yml as committed (off): the Clarksville build passes unchanged
+    assert SC.check_digest_csp(built_off, _pages(built_off)) == ([], "no digest/ pages (national.enabled off)")
+
+
+def test_digest_csp_flag_on_without_digest_pages_fails(built_off):
+    assert _csp(built_off, on=True) == (["digest/: national.enabled but no digest/ pages built"], "")
+
+
+def test_digest_csp_flag_off_with_digest_pages_fails(built_on):
+    problems, _ = _csp(built_on, on=False)
+    assert len(problems) == 1 and problems[0].startswith("digest/: national.enabled is off but "), problems
+
+
+def test_digest_csp_flag_absent_with_digest_pages_fails(built_on):
+    cfg = {k: v for k, v in SC._site_cfg().items() if k != "national"}
+    problems, _ = SC.check_digest_csp(built_on, _pages(built_on), cfg)
+    assert len(problems) == 1 and problems[0].startswith("digest/: national.enabled is off but "), problems
+
+
+def test_digest_csp_only_the_lookup_page_fails(site):
+    for p in sorted((site / "digest").rglob("*.html")):
+        if p.relative_to(site).as_posix() != SC.DIGEST_INDEX:
+            p.unlink()
+    problems, _ = _csp(site)
+    assert "digest/geo-frame.html: not built (national.enabled on)" in problems, problems
+
+
+def test_digest_csp_only_the_frame_fails(site):
+    for p in sorted((site / "digest").rglob("*.html")):
+        if p.relative_to(site).as_posix() != SC.DIGEST_FRAME:
+            p.unlink()
+    problems, _ = _csp(site)
+    assert "digest/index.html: not built (national.enabled on)" in problems, problems
 
 
 def _with_csp(site, rel, fn):
@@ -268,10 +306,19 @@ def test_digest_csp_a_frame_that_loads_anything_fails(site):
     assert any(p.startswith("digest/geo-frame.html: loads or links ") for p in problems), problems
 
 
+@pytest.mark.parametrize("tag", ['<form action="https://example.com">', "<IFRAME src=x>", "<Object data=x>",
+                                 "<embed src=x>"])
+def test_digest_csp_a_frame_with_a_form_or_embedded_content_fails(site, tag):
+    _edit(site, SC.DIGEST_FRAME, lambda h: h.replace("</body>", tag + "</body>"))
+    problems, _ = _csp(site)
+    word = tag[1:].split()[0].split(">")[0].lower()
+    assert any(p.startswith("digest/geo-frame.html: has ") and "<" + word in p for p in problems), problems
+
+
 def test_digest_csp_a_missing_frame_fails(site):
     (site / SC.DIGEST_FRAME).unlink()
     problems, _ = _csp(site)
-    assert "digest/geo-frame.html: not built beside digest/index.html" in problems
+    assert "digest/geo-frame.html: not built (national.enabled on)" in problems
 
 
 def test_digest_csp_the_frame_on_another_page_fails(site):
@@ -378,11 +425,14 @@ def test_sources_a_directory_link_outside_digest_is_still_unknown(site):
     assert "about.html: external link 'https://www.cmcss.net/' is not a known source document" in _sources(site, pages)
 
 
-def test_run_checks_wires_digest_csp_and_the_exemptions(built_on, built_off):
+def test_run_checks_wires_digest_csp_and_the_exemptions(built_on, built_off, monkeypatch):
     facts = json.loads(FIXTURE.read_text(encoding="utf-8"))
     names = ("sources", "footer", "external", "digest/csp", "unofficial/notice-on-every-page", "switch/on-every-page",
              "header/same-on-every-page")
-    for site in (built_on, built_off):
+    site_cfg = SC._site_cfg
+    for site, on in ((built_on, True), (built_off, False)):
+        # run_checks reads config/site.yml; each build is checked with the national.enabled it was built with
+        monkeypatch.setattr(SC, "_site_cfg", lambda on=on: {**site_cfg(), "national": {"enabled": on}})
         rep = SC.run_checks(site, facts, browser=False, no_export=True, target="pages")
         got = {name: (ok, problems) for name, ok, problems, _ in rep.results}
         assert {n: got[n] for n in names} == {n: (True, []) for n in names}, site
