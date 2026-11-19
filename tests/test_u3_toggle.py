@@ -150,7 +150,8 @@ def _state(**over):
           "head": {"sha": HEAD, "ref": "claude/u3-pr-p", "repo": {"full_name": REPO}}}
     st = {"ruleset": json.loads(json.dumps(R1P)), "read_only": dict(READ_ONLY), "runs": ["completed"] * 3,
           "main": MAIN0, "pr_number": 60, "pr": pr, "files": [{"filename": "docs/platform-facts.md"}],
-          "merge_sha": MERGE, "main_files": dict(MAIN_FILES), "suites": [{"id": 777, "after_sha": MERGE, "result": "bypass"}],
+          "merge_sha": MERGE, "main_files": dict(MAIN_FILES),
+          "suites": [{"id": 777, "after_sha": MERGE, "result": "bypass"}],
           "suite": {"id": 777, "result": "bypass", "rule_evaluations": [
               {"rule_source": {"type": "ruleset", "id": RID, "name": "main: pull request required"},
                "enforcement": "active", "result": "fail", "rule_type": "pull_request"},
@@ -606,7 +607,8 @@ def test_ps1_reads_both_ruleset_files_against_main():
     assert "foreach ($f in @('main-ruleset-r1p.json', 'main-ruleset.json')) { if (-not (MainCopyOk $f))" in ps1
     assert "for f in main-ruleset-r1p.json main-ruleset.json; do main_copy_ok \"$f\"" in sh
     assert "if (-not $From -and -not (MainCopyOk 'main-ruleset-r1p.json'))" in ps1
-    assert ps1.index("MainCopyOk $f") > ps1.index("if (-not (PinOk))") and sh.index('main_copy_ok "$f"') > sh.index("pin_ok ||")
+    assert ps1.index("MainCopyOk $f") > ps1.index("if (-not (PinOk))")
+    assert sh.index('main_copy_ok "$f"') > sh.index("pin_ok ||")
 
 
 # ---------------------------------------------------------------------------------------------- --restore, --noop

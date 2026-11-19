@@ -1150,7 +1150,7 @@ def test_l1_merge_refuses_a_restore_pr_that_changes_more_than_the_restore(tmp_pa
     fx = Fx(tmp_path)
     merge, c, h = _open_restore_over(fx, files)
     r = fx.run(["--rollback", "--merge", "99", "--sha", h, "--cutover-merge", merge, "--report", "x"])
-    assert r.returncode == 1 and f"the restore PR #99" in r.stdout and text in r.stdout, r.stdout + r.stderr
+    assert r.returncode == 1 and "the restore PR #99" in r.stdout and text in r.stdout, r.stdout + r.stderr
     assert "REFUSED: " in r.stdout and _writes(fx.calls()) == [] and fx.state["r2"] is False
 
 
@@ -1169,7 +1169,8 @@ def test_l1_the_open_path_and_the_merge_check_share_one_gitignore_edit(tmp_path)
     sh = SH.read_text(encoding="utf-8")
     assert sh.count("gitignore_edit \"$") == 2 and "git diff-tree -r --no-renames --name-only -z \"$rp\" \"$sha\"" in sh
     ps1 = PS1.read_text(encoding="utf-8")
-    assert ps1.count("GitignoreEdit $") == 2 and "@('diff-tree', '-r', '--no-renames', '--name-only', '-z', $rp, $Sha)" in ps1
+    assert ps1.count("GitignoreEdit $") == 2
+    assert "@('diff-tree', '-r', '--no-renames', '--name-only', '-z', $rp, $Sha)" in ps1
     assert "(L1)" in ps1 and "not its parent's without the data/ lines" in ps1
 
 
