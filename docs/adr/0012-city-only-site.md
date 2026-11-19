@@ -1,6 +1,9 @@
 # ADR 0012: A city-only Daylight site (no county, at-large council)
 
 Status: proposed (software-architect, 2026-11-18), feature `city-only-site`, Daylight template milestone 2.
+Amended 2026-11-19: Salem, OR replaces Murfreesboro as the first city (the owner's switch, after Murfreesboro's host
+blocked our fetcher); see "Amendment A1: Salem first" below. Decision 5 gains the member-gap rule and its invariant.
+Murfreesboro stays a draft city and the at-large test case.
 Builds on ADR 0007 ("Milestone 2"). Must fit ADR 0011 (data off `main`), which is being built now. Design only:
 nothing here collects, deploys or changes product code. Tasks: `docs/tasks/city-only-site.md`.
 
@@ -160,6 +163,42 @@ Search. No door names a body this build does not make. The overview of hub cards
   the title record covering the date ("Vice Mayor"), or else the membership label. A meeting whose list prints no
   title for anyone shows only the membership label: nothing is carried across an unprinted gap, except inside one
   run, which is the existing rule for wards.
+- **Member gaps (task T5b; must-fix `at-large/member-gap` from the PR #62 T5 code review).** A membership record is
+  not simply "first to last print": a member who leaves and returns years later must not show one unbroken record
+  across the gap. Rule: walk the member's prints in date order against the *complete* attendance lists between them.
+  A list is complete when every name it prints resolves to an official (no unresolved row in the prints, no
+  attendance entry without an `official_id`) and it is not a configured seating. A list "prints" a member when it
+  names them present or absent (wards.json holds both). When a member is missing from **N = 2** consecutive
+  complete lists, the record ends at their last print before the gap, and their next print starts a new record with
+  its own first source page. Incomplete lists inside a gap neither count toward N nor break the streak. One missing
+  complete list never splits a record. This mirrors holder_rows' one-list-drop rule (one list is not enough to
+  close a record). N is a module constant (`AT_LARGE_GAP_LISTS = 2`), not a setting. The tail (after a member's last
+  print, up to L) keeps the existing rule: the record reads "seen to" its last print, or is `held_over` when L's
+  list is incomplete. A reprint after a one-list tail gap rejoins the same record on the next build.
+- **Review nits 3-5 (T5b).** (3) A print with `pro_tem: true` never carries a `title`. The collector never writes
+  both, and `at_large_rows` refuses a prints file that has both (SeatsError naming the meeting), so "Mayor Pro Tem"
+  can never become a Mayor title record. (4) `registry._check_primary` refuses two `primary.titles` with the same
+  `title_slug` (e.g. "Vice Mayor" and "Vice-Mayor"), naming both, because they would share seat `title-vice-mayor`.
+  (5) The title-run loop ends on a private sentinel (`_END = object()`), not `None`, so a print whose `meeting_id`
+  is null is never read as the end of the lists.
+- **Invariant (family `at-large/*`).** This is stated before the next fix because the member gap is the family's
+  second hit (loop rule). Every at-large record is a maximal run of attendance-list prints. A membership record is
+  one member's prints, with no N consecutive complete lists inside it that omit them. A title record is the lists
+  that print that title beside exactly that one member, with no read list inside it that prints the title for
+  nobody or for two. Its `start`, `seen_to`, `source` and `last_source` all come from prints inside the run.
+  Nothing comes from `officials[].title`, roll calls, config naming a holder, or term dates. A title is a label in
+  a member's own records, never an order between members.
+- **Every consumer of `at_large_rows`** (each must hold the invariant; T5b checks each one):
+
+  | Consumer | Reads | Check |
+  |---|---|---|
+  | `sitegen/council.py` `at_large_rows`, `printings()` | rows, prints | each split record keeps its own `printings` |
+  | `sitegen/council.py` `title_conflicts` (run log in the T6 build) | prints | the sentinel fix covers its loop too |
+  | `sitegen/seats.py` `Seats` (`dates_text`, `held_over_text`, `on`, `seat_text`, `header_text`, `of`, `for_seat`, `current_of_seat`, `is_current`, `is_held_over`, `covers_to`) with `AT_LARGE_WORDING` | rows, L | two records for one member: `on(date)` inside the gap is None (no label); `seat_text` reads the current record only |
+  | `sitegen/seats.py` `at_large_seats`, `seat_label`, `seat_order` | PRIMARY | labels and one member's own record order only |
+  | `sitegen/views.py` `Index.person` (meeting pages, ~line 300), `current_basis_lines` and `_card` (~574-595), `base` (~833), `roster_official` (~953), `body_records`, `_seat_on`, `search_index` (~1929-1998) | Seats | a meeting inside a gap shows no seat label; the search label comes from the current record |
+  | `sitegen/views.py` `officials_page.seat_key` (~649) | `seat_order` of current records | **must change in T6**: for `at_large` it sorts by surname only. Today the title seats' order (-1, ...) would list the Mayor and Vice Mayor first, which breaks "titles never move a member up the list" |
+  | `sitegen/build.py` (T6 builds `ix` from these rows), `qa/site_checks.py` at-large card checks (T9), `tests/test_at_large_seats.py` | rows | T6 and T9 are written against the gap rule |
 
 ### 6. "Who represents you" for an at-large council: no address box
 Every member is elected by the whole city, so an address cannot narrow the answer. The card has:
@@ -268,6 +307,136 @@ brand key. A city still can't change the wording or the coffee link.
 - No place leaks: the Murfreesboro fixture build contains no "Clarksville", "Montgomery", "County Commission",
   "district" or "ward" on any page (family `city-only/no-county-leak`).
 
+## Amendment A1: Salem first (2026-11-19)
+**Why.** `www.murfreesborotn.gov` answered our one robots.txt request with a Cloudflare block (2026-11-19,
+`config/cities/murfreesboro-tn/platform-facts.md`). We don't work around a block, so the owner switched the first
+city to Salem, OR. Records availability was one of the reasons Murfreesboro was picked, and Salem's records are
+reachable: the 2026-11-19 check (`config/cities/salem-or/platform-facts.md`) found Salem's Legistar Web API with
+350 City Council events from 2016-01-01 to 2026-06-22, nearly all with minutes, and Salem's eScribe portal
+(`pub-salem.escribemeetings.com`) with council meetings from 2026-07-13 on, each with Agenda, PostMinutes and Video.
+The city's main site (`www.cityofsalem.net`) blocks us (Akamai 403). It is not needed for collection, and nothing is
+fetched from it. Murfreesboro stays a draft city: its at-large design (decisions 5 and 6) is kept and tested on its
+fixture, and it waits on the owner (permission from the city, or another source).
+
+Facts for Salem (nothing here is verified unless it says so; each unverified one is a `cities check` item):
+
+| Fact | State |
+|---|---|
+| Legistar `salem`: body 138 "City Council", events 2016-01-01..2026-06-22, minutes files | **verified** 2026-11-19 (team check, platform-facts.md) |
+| eScribe `pub-salem.escribemeetings.com`: calendar POST answers; council meetings from 2026-07-13 with Agenda, PostMinutes, Video | **verified** 2026-11-19 (same check). The JSON field names are **not recorded** yet (task E0) |
+| robots.txt: 404 on `webapi.legistar.com`, `salem.legistar.com`, `pub-salem.escribemeetings.com` | **verified** 2026-11-19. Terms of use: **not read** on any host |
+| Legistar minutes files are on `salem.legistar1.com` | **unverified** (robots not checked) |
+| The council is elected by ward: 8 wards, one councilor each, plus a mayor elected citywide | **UNVERIFIED** (the ward count and the mayor's seat; no minutes read) |
+| Printed titles ("Mayor", "Councilor", a rotating "Council President") | **UNVERIFIED** |
+| Last Legistar meeting 2026-06-22, first eScribe meeting 2026-07-13, so the cutover date is 2026-07-01 | the dates are verified; the cutover is our choice between them |
+| Salem's "find my ward" page (city of Salem or Marion County, which with Polk County covers the city) | **UNVERIFIED**; the city's own page is on the blocked host, so it is only ever linked, never fetched |
+| Timezone `America/Los_Angeles` | **UNVERIFIED** in `city.yml` (expected) |
+
+**A1.1 Seat basis: wards, reusing Clarksville's ward machinery.** Salem's `primary:` block says `seats: wards`. Every
+seat record comes from the same code Clarksville's council pages use (`sitegen/council.py` `holder_rows`, i.e.
+`ward_rows`, `title_rows`, `extend_by_listings`, the one-list-drop rule, `unplaced_names`), called from the
+top-level primary path of decision 2 instead of the council folder. The settings the council reads from
+`council.yml` (`seat_word: ward`, `min_ward_prints: 2`, `title_seats: {Mayor: city-mayor}`, `evidence`,
+`latest_words`) go in a `primary.ward_records:` sub-block with the same keys and the same validation
+(`config.load_council`'s rule); seat ids stay `ward-<n>`. A rotating printed title (e.g. "Council President", if the
+minutes print one) uses decision 5's title-run reader, which T5b extracts as a shared helper
+(`council.title_runs(prints, facts, titles)`) so ward and at-large cities read titles the same way. The ward count is
+never configured: the wards are the ones the attendance lists print. The Mayor is the `city-mayor` seat from
+`title_seats`, as in Clarksville. The prints file is `wards.json` with `ward: <n>`, written by the Salem minutes
+reader (task E4).
+- Officials page order for a wards primary: ward number, then the Mayor and other seats in the configured order, as
+  Clarksville's council does today (`seat_order`). Title seats never take part in that order (the `seat_key` change
+  in decision 5's consumer table covers wards too).
+- **"Who represents you" for wards (decision 6's ward form).** The heading; `seat_basis.sentence` with its source link
+  (a wards city needs `seat_basis` too: `cities check` adds it when `seats` is `wards`); one row per ward that has
+  a current record, in ward-number order, then the Mayor row, every row the same macro; a "Find your ward" link to
+  `district_lookup` once it is verified; the Officials link. **No address box** in this milestone: it needs ward
+  shapes from an official source (Clarksville's are traced from the city's ward poster). A Salem ward map from an
+  official GIS host is a later task with its own host check. No geocoder CSP entries are added.
+- **No-leak words (decision 10) depend on the seat basis.** For `wards`: "Clarksville", "Montgomery", "County
+  Commission", "district" (the word "ward" is expected). For `at_large`: the list as written. For `districts`:
+  unchanged.
+- **seat_basis for Salem is UNVERIFIED.** The city charter or a city page that says councilors are elected by ward
+  is on the blocked host. Recommended: the owner opens one page in a browser and pastes its URL and the sentence it
+  supports. A `pages` build refuses an `UNVERIFIED` `seat_basis` (decision 2), so this cannot slip.
+
+**A1.2 No county.** Salem's site is city-only (decision 3, unchanged). There is no county body, switch, hub,
+district page, RPC, finance or committee data. Salem's `site.yml` sets only the keys in `registry.CITY_SITE_KEYS`.
+
+**A1.3 Two sources, stitched by date.** `city.yml` lists both sources, each with the date range it owns:
+```yaml
+sources:
+  - {portal: legistar, config: config/cities/salem-or/legistar.yml, until: "2026-07-01"}
+  - {portal: escribe,  config: config/cities/salem-or/escribe.yml,  from:  "2026-07-01"}
+```
+- The registry checks the ranges: the dates are YYYY-MM-DD, at most one source is open-ended at each end, and the
+  ranges abut with no gap and no overlap (`until` of one equals `from` of the next). A city with one source needs
+  neither key. The ranges are half-open: Legistar owns `[earliest, 2026-07-01)`, eScribe owns `[2026-07-01, ...)`.
+- Each reader returns listing rows in the shared row shape (`collector/legistar.py` `listing_rows`: date, title,
+  kind, agenda_id, agenda_url, minutes_url, video_url, source, event_id, official_page). A new pure module,
+  `collector/stitch.py`, joins them before `city_build` turns rows into facts:
+  `stitch(rows_by_source: dict[str, list[dict]], ranges: dict[str, tuple[date|None, date|None]]) -> (rows, log)`.
+- **Ids never collide.** Meeting and source ids carry their portal: `legistar-<EventId>`, `escribe-<meeting GUID,
+  lowercase>`. A document's source id is built from its own URL.
+- **Duplicates at the seam.** Two rows from different portals are the same meeting when they share the date and the
+  kind, and their start times match where both give one. Of a matched pair, the row with a minutes file is kept. If
+  both have minutes, or neither does, the row whose source owns that date is kept. The other row is dropped and the
+  log names it (`stitch/seam-duplicate`, with both URLs). A row outside its source's range with no match is kept
+  (a meeting only one portal lists must not vanish) and logged `stitch/out-of-range`.
+- **Each meeting cites its own source; fields are never merged.** A kept row's agenda, minutes, video and official
+  page all come from its own portal. We never take Legistar's minutes and eScribe's video for one meeting, so every
+  fact on a meeting page links a document of the source the meeting came from. The meeting page's "official record"
+  link is the row's own `official_page`. The About and Method pages name both portals with their date ranges, read
+  from `city.yml` (`primary.record` is the current portal, eScribe).
+- The stitch log goes in the collector run log (the existing build warnings path). `qa/site_checks.py` gets no stitch
+  check; the unit tests hold the rule (family `stitch/*`).
+
+**A1.4 The eScribe reader (`portal: escribe`, new `collector/escribe.py`).**
+- **Hosts it asks:** `pub-salem.escribemeetings.com` only (config `host`). Document links of the form
+  `FileStream.ashx?DocumentId=<n>` resolve against that host. An absolute document URL on any other host is dropped,
+  and the log names it, unless the host is in the config's `file_hosts` (empty for Salem). Video links are stored as
+  links only (`video_hosts`, the registry's `link_keys`) and never fetched. Every host goes in `city.yml`
+  `allowed_hosts` with its dated robots and terms lines, as for every portal.
+- **Public calls it uses, and nothing else:**
+  1. `POST https://<host>/MeetingsCalendarView.aspx/GetCalendarMeetings` with a JSON body holding only a start and an
+     end date: the call the public calendar page makes. One POST per window of at most 6 months (a 6-month window
+     answered 27 meetings on 2026-11-19), and each daily run asks again only the last 60 days, so minutes posted
+     late are picked up. The body's key names and the answer's field names (meeting GUID, name, start date and
+     time, document list with type, format and URL, video) are taken from a recorded answer (task E0), never guessed.
+  2. `GET https://<host>/FileStream.ashx?DocumentId=<n>` for the documents the calendar answer lists, only those of the
+     types the config names (`agenda_types: [Agenda]`, `minutes_types: [PostMinutes]`, UNVERIFIED until the
+     recorded answer is read). A PDF is preferred when the answer lists both PDF and HTML; the HTML minutes page
+     (`Meeting.aspx?Id=<guid>&Agenda=PostMinutes`, same host) is the fallback, read with GET. A document already
+     stored (by DocumentId and its validator) is not asked again.
+- **Body filter.** The calendar lists every board. A row is kept only when its meeting name matches one of the
+  config's `body_names` exactly (UNVERIFIED: "City Council", "City Council Work Session"); kinds come from
+  `kind_rules` as in `legistar.yml`. The answer is checked, never trusted, as `legistar.listing_rows` does.
+- **The fetcher gains one narrow POST.** `PoliteFetcher.post_json(url, payload)` sends JSON only to a (host, path)
+  pair the reader declares (`escribe.POST_PATHS = ("/MeetingsCalendarView.aspx/GetCalendarMeetings",)`, passed in
+  by `city_run`, never read from the city file). It uses the same allowlist, denied hosts, robots check (a 404
+  robots.txt allows all), per-host delay (`MIN_DELAY`, 10 s), request cap and user agent as `get`. Any 3xx answer
+  is a failure, never followed. The answer is capped at 5 MB, no cookies are kept, and nothing is sent but the date
+  window. This changes `collector/fetch.py`, so security-engineer reviews it.
+- **Votes.** The minutes stay the official record. Votes are read from the minutes document of each source
+  (Legistar's `EventMinutesFile`, eScribe's PostMinutes). A vote from a portal's structured data (Legistar's
+  `/votes`, or any vote table eScribe may expose) is shown "Not confirmed" until the verifier reads the same vote in
+  the minutes, the rule of decision 10, unchanged for both portals (`SHOW_UNCONFIRMED_VALUES = False`).
+- **Registry.** `cities/readers.py` gains `"escribe": Reader("eScribe meetings portal", "collector.escribe",
+  "load_config", ("city", "host", "body_names", "agenda_types", "minutes_types", "kind_rules", "launch_days"),
+  host_keys=("host",), link_keys=("video_hosts",))`.
+- **Alternatives considered.** (a) GET the calendar page's HTML: the list is drawn in the browser from the POST, so the
+  HTML holds no meetings. (b) Guess `Meeting.aspx?Id=` pages: the GUIDs come only from the POST. (c) Wait for a
+  municipal export or RSS feed: none was seen; we'd re-check in E0. (d) Leave July 2026 onward out of the launch
+  year: the site would stop five months before launch, which fails "the latest minutes read". Rejected.
+
+**A1.5 District lookup.** `district_lookup` for Salem is a page where a resident finds their ward (the city's own
+ward finder, or Marion County's or Polk County's elections lookup). It is **UNVERIFIED**. It is a link only, and the
+card leaves it out until a person has opened it in a browser and recorded the URL and date in `platform-facts.md`.
+
+**A1.6 What changes in the tasks.** Milestone 1's end-to-end slice uses a fixture Salem-shaped city (wards, two
+sources across a cutover, made-up people) instead of Murfreesboro. The at-large work (T5, T5b) stays, tested on the
+Murfreesboro fixture. New tasks E0-E4 and T4b are in `docs/tasks/city-only-site.md`.
+
 ## Interfaces (contract for the build tasks)
 - CLI: `python -m sitegen [--city SLUG] [--facts F] [--out D] [...existing flags]`; exit 2 on a city or env clash.
   `python -m collector city {fetch,build,run} [--city SLUG]`; `python -m qa.site_checks --city SLUG ...`.
@@ -280,6 +449,17 @@ brand key. A city still can't change the wording or the coffee link.
 - Prints row (at-large): `{official_id, raw_name, meeting_id, date, source_id, page, ward: null, title: str|null}`.
   A build refuses a prints file whose non-null `official_id`s are not all in the facts, which also stops a real
   file from sitting beside fixture facts.
+- Prints row (wards, Salem): `{official_id, raw_name, meeting_id, date, source_id, page, ward: int, pro_tem: false,
+  title: str|null}` (Clarksville's shape plus the optional `title`).
+- `sitegen.council.title_runs(prints, facts, titles) -> list[dict]` (T5b; shared by at-large and ward primaries).
+- `collector.escribe`: `load_config(path) -> dict`; `calendar_request(cfg, window) -> (url, payload)`;
+  `listing_rows(cfg, answer: dict) -> list[dict]` (the shared row shape, `source: "escribe"`); `POST_PATHS`;
+  `allowed_hosts(cfg) -> tuple[str, ...]`.
+- `collector.fetch.PoliteFetcher.post_json(url: str, payload: dict) -> tuple[int, bytes, dict]` (only to declared
+  POST paths; `post_paths` is a constructor argument, default empty, so every existing caller can't POST).
+- `collector.stitch.stitch(rows_by_source, ranges) -> tuple[list[dict], list[str]]`; log lines start
+  `stitch/seam-duplicate:` or `stitch/out-of-range:`.
+- `city.yml` `sources[]`: optional `from` and `until` (YYYY-MM-DD, half-open, abutting).
 
 ## Alternatives considered
 - **Make the county index optional and keep the council under `council/`:** every view that takes `ix` (site
@@ -332,3 +512,13 @@ brand key. A city still can't change the wording or the coffee link.
    with no account. The morning note stays Clarksville-only.
 5. **Visitor counter for a new city?** Recommended: **off**. A new GoatCounter site is a new account (hard stop 4),
    so it waits until Brian asks for it.
+6. **(A1) Salem's seat basis source, given that `www.cityofsalem.net` blocks us?** Recommended: the owner opens the
+   city's council or charter page in a browser once and pastes the URL and the sentence; we link it, never fetch it.
+   Until then Salem stays NOT READY (a `pages` build refuses it), and the fixture slice is unaffected.
+7. **(A1) Cutover date 2026-07-01?** Recommended: **yes**. It sits between the last Legistar meeting (2026-06-22)
+   and the first eScribe one (2026-07-13); the seam rule keeps any meeting one portal lists and the other lacks.
+8. **(A1) Launch year for Salem: 365 days back from launch, spanning both portals?** Recommended: **yes**, Legistar
+   for the months before July 2026 and eScribe after. Backfill (2016 onward) is Legistar only and runs as compute
+   allows.
+9. **(A1) Terms of use for the three hosts?** Not read yet. Recommended: the manager reads each host's terms page
+   once (if one exists) in task E2, and records "none published" with the date when there is none.
