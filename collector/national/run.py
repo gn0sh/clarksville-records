@@ -68,7 +68,12 @@ BODY_FILE_RE = re.compile(r"[a-z]+-[0-9]{5,10}\.json")
 
 
 class HostNotApproved(ValueError):
-    """An entry on a platform other than daylight has no valid `host_ok` (Brian's OK, R5): the run sends nothing."""
+    """An entry on a platform other than daylight has no valid `host_ok` (Brian's OK, R5): the run sends nothing.
+    `gov` is the entry's id when it is a well-formed id (the CLI prints it, never the message), else None."""
+
+    def __init__(self, message: str, gov: str | None = None):
+        super().__init__(message)
+        self.gov = gov if id_layer(gov) else None
 
 
 class RunResult(NamedTuple):
@@ -171,7 +176,7 @@ def check_host_ok(directory: Directory, today: date | None = None) -> None:
         if problem:
             gov = e.get("gov") if id_layer(e.get("gov")) else "(a bad id)"
             raise HostNotApproved(f"{gov}: platform {str(e.get('platform'))[:40]!r} has no valid host_ok (Brian's OK, "
-                                  f"R5): {problem[0]}: {problem[1]}; the run is refused and sends no request")
+                                  f"R5): {problem[0]}: {problem[1]}; the run is refused and sends no request", gov)
 
 
 def budget_order(entries: list[dict], previous_feeds: dict, previous_health: dict, now: datetime) -> list[dict]:
