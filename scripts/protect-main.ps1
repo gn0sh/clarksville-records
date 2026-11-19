@@ -43,6 +43,9 @@
 # Also read (S1-6, S1-7): GitHub Pages must build from a workflow (build_type workflow, so nothing publishes outside
 #   daily-update's gate), and .github/workflows/ on main must hold daily-update.yml and nothing else.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
+# named parameters only: an unknown or .sh-style argument (--check) stops here, never binds to a parameter by position
+# (data-off-main/ps-unknown-args)
+[CmdletBinding(PositionalBinding = $false)]
 param([switch]$Check, [switch]$PreCutover, [string]$Apps = '')
 $ErrorActionPreference = 'Continue'   # 'Stop' turns gh's stderr into errors in PowerShell 5.1; exit codes are checked
 $repo = 'gn0sh/clarksville-records'
