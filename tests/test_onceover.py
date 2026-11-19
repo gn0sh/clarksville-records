@@ -267,6 +267,7 @@ def test_the_wide_column_and_its_reading_measure():
     assert "main .hub-cards { grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); }" in wide
     assert CSS.count("--measure:") == 2                         # set once, widened once
 
+
 def test_one_heading_system():
     h1, h2 = rule("h1"), rule("h2")
     for r in (h1, h2):
