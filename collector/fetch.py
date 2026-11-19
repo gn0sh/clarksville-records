@@ -35,6 +35,11 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   robots.txt, redirects and retries. The request past it is never made (RequestCapReached); the RPC daily step
   uses it. A redirect from a capped host may only go to a host in the same cap group, where it counts against that
   cap; any other target is refused with no request (fetch/cap-redirect-escape).
+- post_json (ADR 0012 A1.4): one narrow JSON POST, only to a (host, path) pair in the constructor's `post_paths`
+  (empty by default, so no existing caller can POST); anything else is refused with no request. The same allowlist,
+  denied hosts, https rule, robots check, per-host delay, request cap, block rule and User-Agent as get(). A 3xx is a
+  failure, never followed; the answer is capped at MAX_POST_BYTES; no cookie is kept (the opener has no cookie
+  handler).
 """
 from __future__ import annotations
 
@@ -69,6 +74,7 @@ PROXY_REFUSALS_BEFORE_SKIP = 3
 MAX_REDIRECTS = 5
 RESET_RETRIES_PER_HOST = 3
 REDIRECT_CODES = (301, 302, 303, 307, 308)
+MAX_POST_BYTES = 5 * 1024 * 1024   # eScribe calendar answer: 133,302 B for 6 months (2026-11-19); 5 MB is ~40x
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -190,6 +196,7 @@ class PoliteFetcher:
     extra_denied: tuple = ()                         # hosts denied for this run, e.g. finance.yml bonfire_hosts
     max_bytes: int = MAX_BYTES
     reset_retries: int = RESET_RETRIES_PER_HOST     # per host per run
+    post_paths: tuple = ()                           # ((host, path), ...) post_json may ask; empty: no POST at all
     # Per-site state is keyed by site_key(host); robots.txt by the exact lowercase host.
     _last: dict = field(default_factory=dict)        # site -> clock() of last request
     _robots: dict = field(default_factory=dict)      # exact host -> RobotFileParser
@@ -298,7 +305,8 @@ class PoliteFetcher:
         return ProxyRefused(f"{host}: sandbox egress proxy refused ({detail}); the site did not see it")
 
     # ------------------------------------------------------------ requests
-    def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None) -> tuple[int, bytes, dict]:
+    def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None,
+                 _data: bytes | None = None) -> tuple[int, bytes, dict]:
         host = split_url(url).netloc
         key = site_key(host)
         self.check_host(host)
@@ -314,13 +322,16 @@ class PoliteFetcher:
         self._sent[key] = self.sent(host) + 1
         started = self.wall()
         try:
-            req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
+            req = urllib.request.Request(url, data=_data, headers={**(_headers or {}), "User-Agent": self.user_agent})
+            cap = self.max_bytes if _data is None else min(self.max_bytes, MAX_POST_BYTES)
             with self._open(req) as r:
-                body = r.read(self.max_bytes + 1)
-                if len(body) > self.max_bytes:
-                    limits.trip("fetch.MAX_BYTES", url, f"{len(body)}+ B", f"{self.max_bytes} B")
-                    raise FetchFailed(f"{url}: larger than {self.max_bytes} bytes")
-                self.log.append({"event": "get", "host": host, "url": url, "detail": str(r.status)})
+                body = r.read(cap + 1)
+                if len(body) > cap:
+                    limits.trip("fetch.MAX_BYTES" if _data is None else "fetch.MAX_POST_BYTES", url,
+                                f"{len(body)}+ B", f"{cap} B")
+                    raise FetchFailed(f"{url}: larger than {cap} bytes")
+                self.log.append({"event": "get" if _data is None else "post", "host": host, "url": url,
+                                 "detail": str(r.status)})
                 return r.status, body, dict(r.headers)
         except urllib.error.HTTPError as e:
             if e.code in (403, 429):
@@ -333,7 +344,7 @@ class PoliteFetcher:
                 raise HostBlocked(self._blocked[key]) from None
             if e.code >= 500 and _retry:
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"HTTP {e.code}"})
-                return self._raw_get(url, _retry=False, _headers=_headers)
+                return self._raw_get(url, _retry=False, _headers=_headers, _data=_data)
             if e.code == 304:   # a conditional GET's "unchanged": a request like any other, logged as one
                 self.log.append({"event": "get", "host": host, "url": url, "detail": "304"})
             return e.code, (e.read() or b""), dict(e.headers or {})
@@ -345,7 +356,7 @@ class PoliteFetcher:
                 # exchange): the site sent no refusal, so one retry after the host delay (_wait), like a server error
                 self._resets[key] = self._resets.get(key, 0) + 1
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"connection reset: {e}"})
-                return self._raw_get(url, _retry=False, _headers=_headers)
+                return self._raw_get(url, _retry=False, _headers=_headers, _data=_data)
             detail = str(e)
             if _is_reset(e) and _retry:
                 detail += f" (not retried: {self.reset_retries} resets already retried on {host} this run)"
@@ -450,3 +461,28 @@ class PoliteFetcher:
         if _header_value(last_modified):
             headers["If-Modified-Since"] = last_modified.strip()
         return self.get(url, _headers=headers or None)
+
+    def post_json(self, url: str, payload: dict) -> tuple[int, bytes, dict]:
+        """POST `payload` as JSON to a declared (host, path) and return (status, body, headers). Refused with no
+        request (HostRefused) when the URL is not https on an allowed host, has a query or fragment, or its exact
+        (host, path) is not in post_paths; RobotsDisallowed when robots.txt disallows the path. A 3xx answer is
+        FetchFailed (never followed); a body over MAX_POST_BYTES is FetchFailed. Retries as get() (one after a 5xx
+        or a connection reset), each after the host delay."""
+        parts = split_url(url)
+        self.check_host(parts.netloc)
+        self.check_url(url)
+        declared = {(str(h).lower(), p) for h, p in self.post_paths}
+        if parts.query or parts.fragment or (plain_hostname(parts.netloc), parts.path) not in declared:
+            self.log.append({"event": "refused", "host": parts.netloc, "url": url, "detail": "POST not declared"})
+            raise HostRefused(f"{url}: not a declared POST path; nothing was sent")
+        data = json.dumps(payload).encode("utf-8")     # a payload JSON can't encode fails here, before any request
+        rp = self.robots(parts.netloc, parts.scheme)
+        if not rp.can_fetch(self.user_agent, url):
+            self.log.append({"event": "robots_disallowed", "host": parts.netloc, "url": url, "detail": "POST"})
+            raise RobotsDisallowed(url)
+        status, body, headers = self._raw_get(url, _headers={"Content-Type": "application/json; charset=utf-8"},
+                                              _data=data)
+        if 300 <= status < 400:
+            self.log.append({"event": "error", "host": parts.netloc, "url": url, "detail": f"POST answered {status}"})
+            raise FetchFailed(f"{url}: POST answered {status}; a POST never follows a redirect")
+        return status, body, headers
