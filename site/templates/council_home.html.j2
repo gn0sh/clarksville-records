@@ -7,7 +7,7 @@
    year. The same layout for every council; every name links to its member page. #}
 {% block main %}
 {% set lede %}Votes and records of the {{ body }}, linked to the city's own minutes.{% endset %}
-{% call body_head(hub | default(none), body, lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch, invite=true) %}
+{% call body_head(hub | default(none), body, lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch, invite=true, cover_in_toggle=true) %}
 Meetings, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span class="nowrap">{{ coverage.to | day_words }}</span>. {{ fetched }}
 {% endcall %}
 {{ hub_cards(hub | default(none), root) }}

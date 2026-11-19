@@ -133,6 +133,55 @@ def test_county_hub_page(html):
     assert f'<a data-ext="committee" href="{link["url"]}" target="_blank" rel="noopener noreferrer">{link["label"]}' in bc
 
 
+def _body_head(cover: str, cover_in_toggle: bool, own: bool = True) -> str:
+    """body_head (_hub.html.j2) alone, with a line that has minutes and agendas (so the note on minutes behind
+    agendas applies) and the given coverage line."""
+    from sitegen.build import make_env
+    line = {"body": "Example Commission", "lagged": True, "parts": [
+        {"what": "minutes and votes", "iso": "2026-05-11", "text": "May 11, 2026", "href": "meetings/a.html"},
+        {"what": "agendas", "iso": "2026-11-09", "text": "November 9, 2026", "href": "meetings/b.html"}]}
+    if own:
+        line["own"] = True
+    tpl = make_env().from_string(
+        '{% from "_hub.html.j2" import body_head with context %}'
+        '{% call body_head(none, "Example", "A lede.", freshness=lines, freshness_note="LAG NOTE.", '
+        'cover_in_toggle=tuck) %}{{ cover }}{% endcall %}')
+    return tpl.render(lines=[line], cover=cover, tuck=cover_in_toggle, site={"morning_note": None}, root="")
+
+
+def _toggle(html: str) -> str:
+    m = re.search(r'<details class="fresh-about">.*?</details>', html, re.S)
+    return m.group(0) if m else ""
+
+
+def test_the_lag_note_is_in_the_toggle_and_a_date_range_may_join_it():
+    html = _body_head("Minutes, May 1, 2020 to May 11, 2026.", cover_in_toggle=True)
+    toggle = _toggle(html)
+    assert '<p class="muted fresh-note">LAG NOTE.</p>' in toggle and html.count("LAG NOTE.") == 1
+    assert '<p class="body-cover">Minutes, May 1, 2020 to May 11, 2026.</p>' in toggle
+    # the page's own body: its name is not repeated in the strip; a line not marked as the page's own keeps it
+    assert "Example Commission" not in html
+    assert "Example Commission: Minutes and votes through" in _body_head("x", True, own=False)
+
+
+def test_what_is_not_collected_stays_outside_the_toggle():
+    """disclosure/collapsed-limits: a coverage line that says what the site does not hold is never folded away."""
+    cover = ("Meetings, April 24, 2019 to October 27, 2026: 135 meetings, 236 documents collected, 1,200 case items "
+             "read from the agendas. 3 documents are linked on another host and were not collected.")
+    html = _body_head(cover, cover_in_toggle=False)
+    toggle = _toggle(html)
+    assert "were not collected" not in toggle and "case items read from the agendas" not in toggle
+    assert f'<p class="body-cover">{cover}</p>' in html.replace(_toggle(html), "")
+    assert "LAG NOTE." in toggle                                   # the note still goes in the toggle
+
+
+def test_the_rpc_coverage_line_is_in_sight(html):
+    rpc = html["rpc/index.html"]
+    head = rpc[rpc.index('<div class="body-head"'):rpc.index('<section class="hub"')]
+    cover = re.search(r'<p class="body-cover">(.*?)</p>', head, re.S).group(1)
+    assert "case items read from the agendas" in cover and cover not in _toggle(head)
+
+
 def test_every_body_page_has_the_one_header(site, html):
     """Owner, 2026-11-14: "the header is inconsistent across the entity pages (county, city, school board, RPC): make
     it one header." Each body's landing page opens with the same block (_hub.html.j2 body_head), its rows always in
@@ -162,9 +211,11 @@ def test_every_body_page_has_the_one_header(site, html):
         if lead:                                      # the invitation, then the wrapper closes
             after = re.sub(r'^<section class="note-invite".*?</section>\s*</div>', "", after, flags=re.S).lstrip()
         assert after.startswith('<section class="hub" aria-labelledby="hub-h"'), (rel, after[:80])
-        if "body-cover" in rows[key] and "freshness" in rows[key]:          # the coverage line is in the toggle
-            assert re.search(r'<details class="fresh-about"><summary>About these dates</summary>\s*<p class="body-cover">',
-                             head.group(2)), rel
+        # disclosure/collapsed-limits: only a coverage line that is a date range alone (the county's, the city's) goes
+        # in the toggle; the RPC's also counts what is collected and what is not, so it stays in sight
+        tucked = re.search(r'<details class="fresh-about"><summary>About these dates</summary>\s*<p class="body-cover">',
+                           head.group(2))
+        assert bool(tucked) == (key in ("county", "city")), rel
         header = page[page.index("<header"):page.index("</header>")]
         assert 'class="kicker"' not in header and '<p class="unofficial-tag">' in header, rel
     assert rows["county"] == rows["city"] == rows["rpc"] == order      # the three collected bodies: every row

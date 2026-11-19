@@ -255,6 +255,18 @@ def test_the_smallest_labels_share_one_size():
     assert not re.search(r"font-size: (?:\d|1[01])(?:\.\d+)?px", CSS)
 
 
+def test_the_wide_column_and_its_reading_measure():
+    """Owner, 2026-11-19 (the side margins looked too big): from 1440px the column grows to 80rem and on to 84rem;
+    laptops keep 64rem; on the wider column a paragraph with no cap of its own stops at 70ch, with no weight, so the
+    ledes' and notes' own caps still win."""
+    assert re.search(r"(?m)^  --measure: 64rem;", CSS)
+    wide = CSS[CSS.index("@media (min-width: 1440px) {"):]
+    wide = wide[:wide.index("\n}\n")]
+    assert ":root { --measure: clamp(80rem, calc(80rem + (100vw - 1440px) / 4), 84rem); }" in wide
+    assert ":where(main p:not(.official-record):not(.find p), main dd) { max-width: 70ch; }" in wide
+    assert "main .hub-cards { grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); }" in wide
+    assert CSS.count("--measure:") == 2                         # set once, widened once
+
 def test_one_heading_system():
     h1, h2 = rule("h1"), rule("h2")
     for r in (h1, h2):

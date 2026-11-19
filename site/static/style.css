@@ -1539,6 +1539,7 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .fresh-strip { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: 10px 22px; max-width: 34rem; }
 .fresh-strip .stat { border-top-width: 1px; padding-top: 6px; }
 .fresh-strip .stat-num { padding-top: 0; font-size: var(--t-lg); }
+@media (max-width: 480px) { .fresh-strip .stat-num { font-size: var(--t-md); } }   /* a long month still fits beside the other date */
 .fresh-about { margin: 4px 0 8px; font-size: var(--t-sm); }
 .fresh-about > summary { cursor: pointer; width: max-content; max-width: 100%; padding: 6px 0; color: var(--link); font-weight: 600; }
 .fresh-about > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
