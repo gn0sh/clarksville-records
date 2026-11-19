@@ -1,12 +1,15 @@
 /* Daylight Digest lookup, the pure part (docs/architecture/daylight-national.md 4.0, 4.1, 3.4, 3.8; tasks F1, F5).
-   Node-testable like address.js: under node it exports its functions (module.exports); in a browser it sets
-   window.DaylightNational and touches no page element (the page wiring is task F2).
+   Node-testable like address.js: under node it exports its functions (module.exports) and touches no page; in a
+   browser it sets window.DaylightNational and, on digest/index.html (the page with #digest-form), runs mount().
 
    - jsonpUrl(address): the Census geographies URL (ADR 0013 decision 2). The geo frame's own script
      (site/templates/_geo_frame.js) builds the same URL; tests/national.test.js holds the two to one shape.
    - classify(answer) and governments(units, pagedir): the Census answer, read as data, -> the cards and fixed lines.
    - loadList / saveList / forget / markRequested / markCounted (+ loadRequested, loadCounted): the three device keys
      of 3.8, each call wrapped so a blocked, full or throwing storage never breaks the page.
+   - mount(env): the page wiring (task F2; 4.1, 4.2, 4.2a): address form, states, picker, cards, in-card request
+     form, counter button, "Your saved list" and "Forget this list". Every page part comes in env, so node tests
+     drive it with a fake page, storage, fetch and counter.
    - frameMessage(e, frameWindow) and lookup(env, address, done): the parent side of the geo frame protocol (4.0).
      The frame is digest/geo-frame.html (sandbox="allow-scripts", no allow-same-origin, so its origin is "null"); it
      posts the JSON string "ready", is sent {address} by postMessage, and posts back the Census answer as JSON text
@@ -383,14 +386,541 @@
     return { cancel: function () { end(null); } };
   }
 
+  // --- page wiring (task F2; architecture 4.1, 4.2, 4.2a; UX sections 1 to 3) -------------------------------------
+  /* mount(env) draws the entry page: the address form (submit only on a press), the lookup states in #digest-result,
+     the picker and the cards in #digest-list, the in-card request form, the counter button and "Your saved list" in
+     #digest-saved. env = {document, window, storage (or null), fetch (or null: the request form then posts natively),
+     count (window.DaylightCount or undefined), setTimeout, clearTimeout}. Every word is a label from #digest-strings or
+     the page directory, or a Census or directory string, all drawn with textContent; links are built with
+     setAttribute("href") from checked paths and https URLs only. The address goes to the frame only (lookup); the
+     email lives in one page variable (to prefill a second card's form) and is posted only to the config's
+     form_action; storage gets ids and Census names only (3.8). Nothing here writes the page's URL or title. */
+  var CONFIG_SCHEMA = "daylight-digest-config/1";
+  var STILL_MS = 6000;                                   // "Still looking" after 6 s (UX section 2)
+  var FILE_RE = /^[a-z0-9][a-z0-9-]*\.html$/;            // config frame and covered: a page beside digest/index.html
+  var HREF_RE = /^[a-z0-9][a-z0-9\/_.-]*(#[a-z0-9-]+)?$/; // config morning, relative to the site root
+  var STRING_RE = /^(lookup|form|count)\.[a-z0-9][a-z0-9-]*$/;
+  var EMAIL_RE = /^[^\s@<>()\[\]",;:\\]+@[^\s@<>()\[\]",;:\\.]+(\.[^\s@<>()\[\]",;:\\.]+)+$/;
+  var MAX_EMAIL = 254;
+  var MAX_STRING = 600;
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+    "November", "December"];
+
+  /* "2026-11-07" -> "November 7, 2026" (the site's day_words); "" for anything else. */
+  function dayWords(iso) {
+    if (typeof iso !== "string" || !DATE_RE.test(iso)) { return ""; }
+    var p = iso.split("-").map(Number);
+    return p[1] >= 1 && p[1] <= 12 && p[2] >= 1 && p[2] <= 31 ? MONTHS[p[1] - 1] + " " + p[2] + ", " + p[0] : "";
+  }
+  function goodEmail(s) { return typeof s === "string" && s.length <= MAX_EMAIL && EMAIL_RE.test(s); }
+  /* `{name}` fields filled from `values` (own keys only); an unknown field stays as written. */
+  function fill(t, values) {
+    return String(t).replace(/\{([a-z]+)\}/g, function (m, k) { return values && own(values, k) ? String(values[k]) : m; });
+  }
+  /* #digest-strings -> Map of the lookup.*, form.* and count.* labels, cleaned (textContent only). */
+  function stringsOf(v) {
+    var m = new Map();
+    if (isObj(v)) {
+      Object.keys(v).forEach(function (k) {
+        if (STRING_RE.test(k) && typeof v[k] === "string") { m.set(k, clean(v[k], MAX_STRING)); }
+      });
+    }
+    return m;
+  }
+  /* #digest-config -> the checked settings. The request form shows only with an https form_action and privacy_url. */
+  function configOf(v) {
+    var c = { frame: "geo-frame.html", covered: "covered.html", formAction: null, privacyUrl: null, morning: null };
+    if (!isObj(v) || v.schema !== CONFIG_SCHEMA) { return c; }
+    if (typeof v.frame === "string" && FILE_RE.test(v.frame)) { c.frame = v.frame; }
+    if (typeof v.covered === "string" && FILE_RE.test(v.covered)) { c.covered = v.covered; }
+    if (httpsUrl(v.form_action) && httpsUrl(v.privacy_url)) { c.formAction = v.form_action; c.privacyUrl = v.privacy_url; }
+    if (typeof v.morning === "string" && HREF_RE.test(v.morning) && v.morning.indexOf("..") < 0 &&
+        v.morning.indexOf("//") < 0) { c.morning = v.morning; }
+    return c;
+  }
+  function readBlock(doc, id) {
+    var el = doc.getElementById(id);
+    if (!el) { return null; }
+    try { return JSON.parse(el.textContent); } catch (e) { return null; }
+  }
+  function findButton(node) {
+    var kids = node && node.children ? node.children : [];
+    for (var i = 0; i < kids.length; i++) {
+      if (String(kids[i].tagName).toUpperCase() === "BUTTON") { return kids[i]; }
+      var got = findButton(kids[i]);
+      if (got) { return got; }
+    }
+    return null;
+  }
+
+  function mount(env) {
+    var doc = env.document, win = env.window, storage = env.storage || null;
+    var setT = env.setTimeout || setTimeout, clearT = env.clearTimeout || clearTimeout;
+    var form = doc.getElementById("digest-form"), input = doc.getElementById("digest-q");
+    var result = doc.getElementById("digest-result"), list = doc.getElementById("digest-list");
+    var saved = doc.getElementById("digest-saved"), noscript = doc.getElementById("digest-noscript");
+    var find = form ? findButton(form) : null;
+    if (!form || !input || !result || !list || !saved || !find) { return null; }
+    var idx = asIndex(readBlock(doc, "digest-pagedir"));
+    var STR = stringsOf(readBlock(doc, "digest-strings"));
+    var cfg = configOf(readBlock(doc, "digest-config"));
+    var post = typeof env.fetch === "function" ? env.fetch : null;
+    var count = env.count && env.count.available === true && typeof env.count.send === "function" ? env.count : null;
+    var findText = find.textContent;
+    var busy = false, stillTimer = null, seq = 0;
+    var email = "";                 // page memory only: prefills the next card's form; never stored
+    var openCard = null;            // the card whose request form is open (one at a time)
+
+    function S(k) { var v = STR.get(k); return typeof v === "string" ? v : ""; }
+    function text(s) { return doc.createTextNode(String(s)); }
+    function el(tag, cls, words) {
+      var e = doc.createElement(tag);
+      if (cls) { e.setAttribute("class", cls); }
+      if (words) { e.textContent = words; }
+      return e;
+    }
+    function button(words, cls) {
+      var b = el("button", cls, words);
+      b.setAttribute("type", "button");
+      return b;
+    }
+    function named(b, name) { b.appendChild(el("span", "sr-only", ": " + name)); return b; }
+    function heading(tag, words) { var h = el(tag, null, words); h.setAttribute("tabindex", "-1"); return h; }
+    function status(cls) {
+      var p = el("p", cls);
+      p.setAttribute("role", "status");
+      p.setAttribute("tabindex", "-1");
+      return p;
+    }
+    function focus(node) { if (node && typeof node.focus === "function") { node.focus(); } }
+    function anchor(words, href, ext) {
+      var a = el("a", null, words);
+      a.setAttribute("href", href);
+      if (ext) { a.setAttribute("rel", "noopener noreferrer"); }
+      return a;
+    }
+    function linkLine(words, href, ext) {
+      var p = el("p");
+      p.appendChild(anchor(words, href, ext));
+      return p;
+    }
+    /* A label with one `[text]` link mark: the parts before and after as text, the mark a link to `href`; with no
+       href the mark and its words are left out. Fields are filled in each part after the mark is found, so a value
+       holding brackets never becomes a link. */
+    function put(parent, key, href, values, ext) {
+      var t = S(key), m = /\[([^\[\]]+)\]/.exec(t);
+      if (!m) { parent.appendChild(text(fill(t, values))); return parent; }
+      var before = fill(t.slice(0, m.index), values), after = fill(t.slice(m.index + m[0].length), values);
+      if (!href) {
+        parent.appendChild(text((before + after).replace(/\s+/g, " ").replace(/\s+([.,])/g, "$1").trim()));
+        return parent;
+      }
+      parent.appendChild(text(before));
+      parent.appendChild(anchor(fill(m[1], values), href, ext));
+      if (after) { parent.appendChild(text(after)); }
+      return parent;
+    }
+    function say(parts) {
+      result.textContent = "";
+      (parts || []).forEach(function (x) { result.appendChild(typeof x === "string" ? text(x) : x); });
+    }
+    function setBusy(on) {
+      busy = on;
+      find.textContent = on ? S("lookup.button-busy") : findText;
+      if (on) { find.setAttribute("aria-disabled", "true"); } else { find.removeAttribute("aria-disabled"); }
+    }
+    function clearList() { list.textContent = ""; list.hidden = true; openCard = null; }
+    function clearSaved() { saved.textContent = ""; saved.hidden = true; }
+
+    // -- the address form: a lookup starts only on a press of Find or Enter (no input, key or change listener) --
+    function run() {
+      if (busy) { return; }
+      var address = input.value;
+      if (typeof address !== "string" || !address.trim()) { say([S("lookup.empty")]); focus(input); return; }
+      setBusy(true);
+      clearList();
+      say([S("lookup.looking")]);
+      stillTimer = setT(function () { if (busy) { result.appendChild(text(" " + S("lookup.still"))); } }, STILL_MS);
+      lookup({ document: doc, window: win, setTimeout: setT, clearTimeout: clearT, frameSrc: cfg.frame,
+               timeoutMs: TIMEOUT_MS }, address, finish);
+    }
+    function finish(r) {
+      clearT(stillTimer);
+      setBusy(false);
+      r = r || { kind: "error" };
+      if (r.kind === "empty") { say([S("lookup.empty")]); focus(input); return; }
+      if (r.kind === "nomatch") { say([S("lookup.not-found") + " " + S("lookup.not-found-tip")]); focus(input); return; }
+      if (r.kind === "pick") { showPick(r.matches); return; }
+      if (r.kind === "one") { showList(r.matched, r.units); return; }
+      // error, timeout or a blocked frame: never a guessed place; Try again resends the text still in the box
+      var retry = button(S("lookup.retry"), "more-btn digest-retry");
+      retry.addEventListener("click", function () { focus(input); run(); });
+      say([S("lookup.down") + " ", retry, " "]);
+      put(result, "lookup.down-browse", cfg.covered);
+      focus(retry);
+    }
+    form.addEventListener("submit", function (e) { e.preventDefault(); run(); });
+
+    // -- the picker (more than one match) --
+    function showPick(matches) {
+      say([]);
+      clearSaved();
+      clearList();
+      list.hidden = false;
+      var h = heading("h2", S("lookup.pick-h"));
+      list.appendChild(h);
+      var ul = el("ul", "digest-pick");
+      matches.forEach(function (m) {
+        if (!m.label) { return; }
+        var b = button(m.label, "more-btn digest-pick-btn");
+        b.addEventListener("click", function () { showList(m.label, m.units); });
+        var li = el("li");
+        li.appendChild(b);
+        ul.appendChild(li);
+      });
+      list.appendChild(ul);
+      var none = button(S("lookup.pick-none"), "more-btn");
+      none.addEventListener("click", function () { clearList(); focus(input); });
+      list.appendChild(none);
+      focus(h);
+    }
+
+    // -- the list for this spot --
+    function summary(govs) {
+      var a = 0, b = 0, c = 0;
+      govs.forEach(function (g) {
+        if (g.status === "covered") { a += 1; } else if (g.status === "cant-cover") { c += 1; } else { b += 1; }
+      });
+      var head = fill(S("lookup.summary-found"), { n: govs.length });
+      if (!a) { return head + " " + S("lookup.summary-none"); }
+      var parts = [fill(S("lookup.summary-covered"), { n: a })];
+      if (b) { parts.push(fill(S("lookup.summary-not-yet"), { n: b })); }
+      if (c) { parts.push(fill(S("lookup.summary-cant"), { n: c })); }
+      return head + " " + parts.join(", ") + ".";
+    }
+    function showList(matched, units) {
+      var r = governments(units, idx);
+      say([]);
+      clearSaved();
+      clearList();
+      list.hidden = false;
+      var h = heading("h2", S("lookup.list-h"));
+      list.appendChild(h);
+      if (matched) { list.appendChild(el("p", "addr-matched", fill(S("lookup.matched"), { line: matched }))); }
+      if (!r.govs.length) {
+        list.appendChild(el("p", null, S("lookup.nothing-listable")));
+        list.appendChild(el("p", "muted", S("lookup.under-list")));
+      } else {
+        list.appendChild(el("p", "coverage", summary(r.govs)));
+        r.notes.forEach(function (k) { var t = label(idx, k); if (t) { list.appendChild(el("p", "note", t)); } });
+        var kept = saveList(storage, r.govs);
+        drawCards(list, r.govs);
+        list.appendChild(el("p", "muted", S("lookup.under-list")));
+        if (kept) { deviceLine(list); }
+      }
+      var again = button(S("lookup.another"), "more-btn");
+      again.addEventListener("click", function () { clearList(); say([]); focus(input); });
+      list.appendChild(again);
+      focus(h);
+    }
+
+    // -- "Your saved list" (3.8): ids re-checked with layerOf (the layer's exact GEOID length) before a card --
+    function showSaved() {
+      clearSaved();
+      var govs = loadList(storage).filter(function (g) { return !!layerOf(g.id); }).map(function (g) {
+        return cardOf({ id: g.id, name: g.name, layer: layerOf(g.id) }, idx.govs.get(g.id));
+      });
+      if (!govs.length) { return; }
+      saved.hidden = false;
+      saved.appendChild(heading("h2", S("lookup.saved-h")));
+      drawCards(saved, govs);
+      deviceLine(saved);
+    }
+    function deviceLine(parent) {
+      var box = el("div", "your-seats digest-device");
+      box.appendChild(el("p", "your-seats-note", S("lookup.device-line")));
+      var b = button(S("lookup.forget"), "your-seats-forget");
+      b.addEventListener("click", function () {
+        forget(storage);
+        clearList();
+        clearSaved();
+        say([]);
+        focus(input);
+      });
+      box.appendChild(b);
+      parent.appendChild(box);
+    }
+
+    // -- cards (UX section 3: slot, Census name, board, pill, then the status's actions) --
+    function drawCards(parent, govs) {
+      var view = new Map();      // the uncovered cards of this list: "Also request" and the Sent flip
+      var requested = new Set(loadRequested(storage)), counted = new Set(loadCounted(storage));
+      var ul = el("ul", "bodies-list digest-cards");
+      govs.forEach(function (g) { ul.appendChild(card(g, view, requested.has(g.id), counted.has(g.id))); });
+      parent.appendChild(ul);
+    }
+    function pill(st) {
+      var key = st === "covered" ? "lookup.status-covered" : st === "cant-cover" ? "lookup.status-cant" : "lookup.status-not-yet";
+      var mark = st === "covered" ? "✓" : st === "cant-cover" ? "⊘" : "○";
+      var p = el("p", "digest-status");
+      var chip = el("span", "chip digest-pill digest-pill-" + st);
+      var icon = el("span", null, mark);
+      icon.setAttribute("aria-hidden", "true");
+      chip.appendChild(icon);
+      chip.appendChild(text(S(key)));
+      p.appendChild(chip);
+      return p;
+    }
+    function card(g, view, wasRequested, wasCounted) {
+      var li = el("li", "bodies-card digest-card");
+      li.setAttribute("data-status", g.status);
+      li.appendChild(el("p", "eyebrow", label(idx, "slot." + g.slot)));
+      li.appendChild(el("h3", null, g.name));
+      if (g.board) { li.appendChild(el("p", "digest-board", g.board)); }
+      li.appendChild(pill(g.status));
+      if (g.status === "covered") {
+        if (g.page) { li.appendChild(linkLine(S("lookup.coming-up"), idx.root + g.page)); }
+        if (g.full) {
+          li.appendChild(linkLine(S("lookup.full"), idx.root + g.full));
+          if (cfg.morning) { li.appendChild(linkLine(S("lookup.morning"), idx.root + cfg.morning)); }
+        }
+        return li;
+      }
+      if (g.status === "cant-cover") {
+        var why = g.reason ? label(idx, "reason." + g.reason) : "";
+        if (why) { li.appendChild(el("p", "digest-reason", why)); }
+        if (dayWords(g.checked)) {
+          li.appendChild(put(el("p", "digest-checked"), "lookup.checked", g.reason_url || null,
+                             { date: dayWords(g.checked) }, true));
+        }
+      } else {
+        li.appendChild(el("p", null, S("lookup.not-yet-line")));
+      }
+      if (g.official_url) {
+        li.appendChild(linkLine(S("lookup.official"), g.official_url, true));
+      } else if (g.status === "not-covered-yet") {
+        li.appendChild(el("p", null, S("lookup.no-official")));
+      }
+      var c = { id: g.id, name: g.name, status: g.status, view: view };
+      view.set(g.id, c);
+      if (cfg.formAction) {
+        c.req = el("div", "digest-request");
+        c.msg = status("digest-msg");
+        c.body = el("div");
+        c.req.appendChild(c.msg);
+        c.req.appendChild(c.body);
+        li.appendChild(c.req);
+        drawRequest(c, wasRequested ? "returning" : "ready");
+      }
+      if (count) {
+        c.cnt = el("div", "digest-count");
+        li.appendChild(c.cnt);
+        drawCount(c, wasCounted);
+      }
+      return li;
+    }
+
+    // -- "Request it" and the in-card form (4.2) --
+    function drawRequest(c, state) {
+      if (openCard === c) { openCard = null; }
+      c.body.textContent = "";
+      c.form = null;
+      c.msg.textContent = "";
+      var words = "lookup.request";
+      if (state === "returning") {
+        c.msg.textContent = S("form.returning");
+        words = "form.again";
+      } else if (state === "sent") {
+        var mark = el("span", null, "✓ ");
+        mark.setAttribute("aria-hidden", "true");
+        c.msg.appendChild(mark);
+        c.msg.appendChild(text(S("form.sent")));
+        words = "form.different";
+      }
+      var b = named(button(S(words), "more-btn digest-request-btn"), c.name);
+      b.setAttribute("aria-expanded", "false");
+      b.addEventListener("click", function () { if (c.form) { closeForm(c); } else { openForm(c); } });
+      c.body.appendChild(b);
+      c.btn = b;
+      if (state === "ready") { c.body.appendChild(el("p", "hint", S("lookup.request-hint"))); }
+    }
+    function closeForm(c) {
+      if (c.form && c.form.parentNode) { c.form.parentNode.removeChild(c.form); }
+      c.form = null;
+      c.btn.setAttribute("aria-expanded", "false");
+      if (openCard === c) { openCard = null; }
+    }
+    function openForm(c) {
+      if (openCard && openCard !== c && openCard.form) { closeForm(openCard); }
+      seq += 1;
+      var n = "dr-" + seq;
+      var f = el("form", "digest-req-form");
+      f.setAttribute("method", "post");
+      f.setAttribute("action", cfg.formAction);
+      f.setAttribute("novalidate", "");
+      var h = heading("h4", S("form.h"));
+      f.appendChild(h);
+      f.appendChild(el("p", null, S(c.status === "cant-cover" ? "form.honest-cant" : "form.honest-not-yet")));
+      var lab = el("label", null, S("form.email-label"));
+      lab.setAttribute("for", n + "-email");
+      var box = el("input");
+      box.setAttribute("id", n + "-email");
+      box.setAttribute("type", "email");
+      box.setAttribute("name", "email");
+      box.setAttribute("autocomplete", "email");
+      box.setAttribute("maxlength", String(MAX_EMAIL));
+      box.setAttribute("required", "");
+      box.setAttribute("aria-describedby", n + "-err");
+      box.value = email;
+      var err = el("p", "digest-err");
+      err.setAttribute("id", n + "-err");
+      err.hidden = true;
+      var mine = el("input");
+      mine.setAttribute("type", "hidden");
+      mine.setAttribute("name", "tag");
+      mine.setAttribute("value", "req-" + c.id);
+      f.appendChild(lab);
+      f.appendChild(box);
+      f.appendChild(err);
+      f.appendChild(mine);
+      var ticks = [];
+      c.view.forEach(function (o) {
+        if (o === c || !layerOf(o.id)) { return; }
+        var l = el("label", "mn-check");
+        var t = el("input");
+        t.setAttribute("type", "checkbox");
+        t.setAttribute("name", "tag");
+        t.setAttribute("value", "req-" + o.id);
+        t.checked = false;
+        l.appendChild(t);
+        l.appendChild(el("span", null, o.name));
+        ticks.push({ box: t, id: o.id, label: l });
+      });
+      if (ticks.length) {
+        var fs = el("fieldset", "mn-picker digest-also");
+        fs.appendChild(el("legend", null, S("form.also")));
+        ticks.forEach(function (t) { fs.appendChild(t.label); });
+        f.appendChild(fs);
+      }
+      f.appendChild(put(el("p", "hint"), "form.privacy-1", cfg.privacyUrl, null, true));
+      f.appendChild(el("p", "hint", S("form.privacy-2")));
+      var send = el("button", "more-btn digest-send", S("form.send"));
+      send.setAttribute("type", "submit");
+      var cancel = button(S("form.cancel"), "more-btn");
+      cancel.addEventListener("click", function () { closeForm(c); focus(c.btn); });
+      f.appendChild(send);
+      f.appendChild(cancel);
+      var sending = false;
+      f.addEventListener("submit", function (e) {
+        if (sending) { e.preventDefault(); return; }
+        var addr = typeof box.value === "string" ? box.value.trim() : "";
+        if (!goodEmail(addr)) {
+          e.preventDefault();
+          err.textContent = S("form.bad-email");
+          err.hidden = false;
+          box.setAttribute("aria-invalid", "true");
+          focus(box);
+          return;
+        }
+        err.textContent = "";
+        err.hidden = true;
+        box.removeAttribute("aria-invalid");
+        // this card's id always; the others only when ticked (ids from this page's own cards, not the DOM values)
+        var ids = [c.id];
+        ticks.forEach(function (t) { if (t.box.checked === true && ids.indexOf(t.id) < 0) { ids.push(t.id); } });
+        if (!post) {
+          // no fetch: the browser posts this real form itself (method=post, action=form_action; fields email, tag)
+          markRequested(storage, ids);
+          return;
+        }
+        e.preventDefault();
+        var body = new URLSearchParams();
+        body.append("email", addr);
+        ids.forEach(function (i) { body.append("tag", "req-" + i); });
+        sending = true;
+        send.textContent = S("form.sending");
+        send.setAttribute("aria-disabled", "true");
+        var p;
+        try {
+          p = Promise.resolve(post(cfg.formAction, { method: "POST", mode: "no-cors", credentials: "omit",
+                                                     referrerPolicy: "no-referrer", body: body }));
+        } catch (x) { p = Promise.reject(x); }
+        p.then(function () {
+          sending = false;
+          email = addr;
+          markRequested(storage, ids);
+          ids.forEach(function (i) { var o = c.view.get(i); if (o && o.req) { drawRequest(o, "sent"); } });
+          focus(c.msg);
+        }, function () {
+          sending = false;
+          send.textContent = S("form.send");
+          send.removeAttribute("aria-disabled");
+          c.msg.textContent = S("form.failed");
+          focus(c.msg);
+        });
+      });
+      c.msg.textContent = "";
+      c.body.appendChild(f);
+      c.form = f;
+      c.btn.setAttribute("aria-expanded", "true");
+      openCard = c;
+      focus(h);
+    }
+
+    // -- "No email? Just count me." (4.2a): only while DaylightCount.available --
+    function drawCount(c, done) {
+      c.cnt.textContent = "";
+      var msg = status("digest-msg");
+      if (done) {
+        msg.textContent = S("count.done");
+        c.cnt.appendChild(msg);
+        return msg;
+      }
+      var b = named(button(S("count.button"), "more-btn digest-count-btn"), c.name);
+      var counting = false;
+      b.addEventListener("click", function () {
+        if (counting) { return; }
+        counting = true;
+        b.setAttribute("aria-disabled", "true");
+        var p;
+        try { p = Promise.resolve(count.send(c.id)); } catch (x) { p = Promise.reject(x); }
+        p.then(function () {
+          markCounted(storage, c.id);
+          focus(drawCount(c, true));
+        }, function () {
+          counting = false;
+          b.removeAttribute("aria-disabled");
+          msg.textContent = S("count.failed");
+          focus(msg);
+        });
+      });
+      c.cnt.appendChild(b);
+      c.cnt.appendChild(msg);
+      return msg;
+    }
+
+    if (noscript) { noscript.hidden = true; }
+    form.hidden = false;
+    showSaved();
+    return { run: run };
+  }
+
   var api = {
     jsonpUrl: jsonpUrl, classify: classify, governments: governments, indexPagedir: indexPagedir, label: label,
     loadList: loadList, saveList: saveList, forget: forget, markRequested: markRequested, markCounted: markCounted,
     loadRequested: loadRequested, loadCounted: loadCounted, storageOf: storageOf,
     frameMessage: frameMessage, resultOf: resultOf, cleanAddress: cleanAddress, lookup: lookup,
+    mount: mount, dayWords: dayWords, goodEmail: goodEmail,
     KEYS: KEYS, CENSUS: CENSUS, CALLBACK: CALLBACK, TIMEOUT_MS: TIMEOUT_MS, MAX_ANSWER: MAX_ANSWER,
     MAX_ADDRESS: MAX_ADDRESS, MAX_MATCHES: MAX_MATCHES, LAYER_NAMES: LAYERS.map(function (l) { return l.name; })
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   root.DaylightNational = api;
+  // The entry page (digest/index.html) loads this with defer, after us-count.js, so the page and DaylightCount exist.
+  if (root.document && root.document.getElementById("digest-form")) {
+    mount({ document: root.document, window: root, storage: storageOf(root),
+            fetch: typeof root.fetch === "function" ? function (u, o) { return root.fetch(u, o); } : null,
+            count: root.DaylightCount, setTimeout: function (f, ms) { return root.setTimeout(f, ms); },
+            clearTimeout: function (t) { root.clearTimeout(t); } });
+  }
 })(typeof window !== "undefined" ? window : this);

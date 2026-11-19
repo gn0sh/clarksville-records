@@ -24,6 +24,33 @@ def test_national_node_tests_pass():
     assert res.returncode == 0, res.stdout + res.stderr
 
 
+@pytest.mark.skipif(not shutil.which("node"), reason="node not available")
+def test_national_page_wiring_node_tests_pass():
+    """F2: mount() on a fake digest/index.html (tests/national_page.test.js)."""
+    res = subprocess.run(["node", str(ROOT / "tests" / "national_page.test.js")], capture_output=True, text=True,
+                         timeout=120, cwd=ROOT, env={**os.environ, "PYTHON": sys.executable})
+    assert res.returncode == 0, res.stdout + res.stderr
+
+
+def test_page_wiring_uses_the_builder_mount_points_and_label_groups():
+    """The ids national.js mounts on are the ones site/templates/digest/index.html.j2 writes, and the string groups
+    it reads are the builder's SCRIPT_GROUPS (so a renamed id or group fails here, not silently in a browser)."""
+    from sitegen import national_pages as npg
+    tpl = (ROOT / "site" / "templates" / "digest" / "index.html.j2").read_text(encoding="utf-8")
+    for i in ("digest-form", "digest-q", "digest-result", "digest-list", "digest-saved", "digest-noscript",
+              "digest-pagedir", "digest-strings", "digest-config"):
+        assert f'id="{i}"' in tpl and f'"{i}"' in JS, i
+    assert re.search(r'var STRING_RE = /\^\(lookup\|form\|count\)', JS)
+    assert set(npg.SCRIPT_GROUPS) == {"lookup.", "form.", "count."}
+    assert 'var CONFIG_SCHEMA = "daylight-digest-config/1";' in JS
+    assert '"schema": "daylight-digest-config/1"' in (ROOT / "sitegen" / "national_pages.py").read_text(encoding="utf-8")
+    labels = npg.load_page_labels()
+    used = set(re.findall(r'S\("((?:lookup|form|count)\.[a-z0-9-]+)"\)', JS))
+    used |= set(re.findall(r'"((?:lookup|form|count)\.[a-z0-9-]+)"', JS))
+    missing = sorted(k for k in used if k not in labels)
+    assert not missing, missing
+
+
 def js_number(name: str) -> int:
     m = re.search(rf"^\s*var {name} = (\d+);", JS, re.MULTILINE)
     assert m, f"national.js has no `var {name} = <number>;`"
