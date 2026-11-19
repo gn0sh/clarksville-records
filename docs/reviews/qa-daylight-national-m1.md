@@ -31,3 +31,10 @@ Setup: builds off, on (today 2026-11-19) and on with RECORDS_TODAY=2026-11-01; P
 5. `national/new-england-town-slot` minor: spec puts New England towns in the city-or-town slot; UX doc puts them in township-or-town (Plymouth, MA).
 
 Not tested: real Census answers; real Buttondown (no-cors post can't tell refusal from success, Q2); real screen reader; item text vs PDFs (compared to agendas.json).
+
+## Re-confirm at 83a1a97 (Nov 19, qa-engineer sonnet/medium)
+PASS on both minor re-test bugs, no regressions, no new findings.
+- `national/official-link-label-wrong-site`: PASS. CMCSS entry carries `official_label: county-site` (config/national/directory.yml); covered entries refuse `official_label` (sitegen/national.py:529-531, unknown key :490-493); tests/test_national_directory.py cases unknown-official-label, official-label-on-covered, official-label-on-shown-covered pass; tests/test_national_pages.py:890 passes. Lookup card (site/static/national.js:781) rendered in a scratch DOM test: label names the county site it links to.
+- `national/no-city-note-with-town`: PASS. national.js:264; tests/national.test.js:237 (NY town, PA township: no note; dropped class-N subdivision only: note shows) and the CT town case pass.
+- Runs: node tests/national.test.js 50/50; node tests/national_page.test.js 44/44; pytest national_directory + national_js + digest_site_checks + national_guards 383 passed; test_national_pages -k "official or covered" 2 passed.
+- Observation: the lookup-card label path (national.js:781) has no permanent DOM test (follow-up: add one).
