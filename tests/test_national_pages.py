@@ -399,10 +399,29 @@ def test_how_page_exists_only_with_the_switch_on_and_lists_the_three_keys(sites)
     html = sites["on"]["digest/how.html"].decode()
     for key in ("daylight.us.list", "daylight.us.requested", "daylight.us.counted"):
         assert f"<code>{key}</code>" in html
-    assert "count-" in html and "IP address" in html and "show roughly where you are" in html
-    assert "Visits to Daylight Digest pages" not in html            # fixture build: the visit counter is off
+    assert "IP address" in html and "show roughly where you are" in html        # the request paragraph: always
+    assert "GoatCounter" not in html and "count-" not in html       # fixture build: no counter, so no counting text
+    assert "Visits to Daylight Digest pages" not in html
     for rel in ("digest/index.html", "digest/covered.html"):
         assert 'href="how.html"' in sites["on"][rel].decode(), rel
+
+
+def test_how_page_describes_the_counter_only_while_it_is_on(loaded, page_labels, tmp_path):
+    """national/privacy-claims: the "Just count me" and page-visit paragraphs print exactly when `counter` is set."""
+    directory, flags, labels = loaded
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("Item"), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    gc = "https://daylight-gnosh.goatcounter.com"
+    text = {}
+    for k, counter in (("off", None), ("on", {"origin": gc, "endpoint": gc + "/count"})):
+        out = tmp_path / k
+        npg.build_national(out, build_mod.make_env(), _SITE_CTX(), directory, flags, labels, page_labels, feeds,
+                           built_at=BUILT_AT, counter=counter)
+        text[k] = (out / npg.HOW).read_text(encoding="utf-8")
+    assert "GoatCounter" not in text["off"] and "count-" not in text["off"]
+    assert "Visits to Daylight Digest" not in text["off"] and "IP address" in text["off"]
+    assert "GoatCounter" in text["on"] and "count-" in text["on"]
+    assert "page address" in text["on"] and "screen size" in text["on"]
 
 
 # --- labels and their links ---------------------------------------------------------------------------------------

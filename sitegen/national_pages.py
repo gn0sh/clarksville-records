@@ -552,7 +552,7 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
 
     # How Daylight Digest works: the method text for the digest pages (the Clarksville Method page is not touched)
     written[HOW] = pages.html("digest/how.html.j2", HOW, label_text(L["how.title"]), crumbs=pages.crumbs("crumb.home"),
-                              buttondown_privacy=settings["privacy_url"])
+                              buttondown_privacy=settings["privacy_url"], counter=counter)
 
     # one coming-up page and its JSON per covered government
     for g in covered:
