@@ -35,6 +35,14 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   robots.txt, redirects and retries. The request past it is never made (RequestCapReached); the RPC daily step
   uses it. A redirect from a capped host may only go to a host in the same cap group, where it counts against that
   cap; any other target is refused with no request (fetch/cap-redirect-escape).
+- shared hosts (architecture daylight-national 4.4): a host in SHARED_HOSTS serves many governments ("tenants"), each
+  under its own path (webapi.legistar.com/v1/<client>/...). tenant_key(url) names the tenant; the client segment is
+  lowercased first, so /v1/Salem/ and /v1/salem/ are one tenant (national/tenant-key-normalize). A 403 on a tenant
+  path whose body is a JSON object is that one government saying no: only that tenant is stopped for the run
+  (TenantBlocked, a HostBlocked). Anything else stops the whole host: a 403 on robots.txt, on a path that is no
+  tenant's, with a body that is not a JSON object, or from a second distinct tenant on the same host; and every 429.
+  The delay, robots.txt and limit_hosts stay per host; limit_tenant(url, n) adds a per-tenant cap inside the host
+  cap, and a redirect from a tenant-capped URL may only go to the same tenant (counted against its cap).
 """
 from __future__ import annotations
 
@@ -70,6 +78,10 @@ PROXY_REFUSALS_BEFORE_SKIP = 3
 MAX_REDIRECTS = 5
 RESET_RETRIES_PER_HOST = 3
 REDIRECT_CODES = (301, 302, 303, 307, 308)
+# Hosts shared by many governments, each under its own path: site_key(host) -> the pattern whose group 1 is the tenant
+# (matched after the client segment is lowercased). Architecture daylight-national 4.4.
+SHARED_HOSTS = {"webapi.legistar.com": re.compile(r"^/v1/([a-z0-9-]{2,40})/")}
+BLOCK_BODY_BYTES = 64 * 1024     # how much of a 403 body is read to decide tenant or host block
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -84,6 +96,11 @@ _OPENER = urllib.request.build_opener(_NoRedirect())
 
 class HostBlocked(Exception):
     """The site answered 403/429 (or the host is already marked blocked). Do not retry it this run."""
+
+
+class TenantBlocked(HostBlocked):
+    """One tenant of a shared host answered 403 (or is already marked blocked): that tenant only, for the rest of the
+    run. A HostBlocked, so every existing `except HostBlocked` caller still stops."""
 
 
 class RobotsDisallowed(Exception):
@@ -168,6 +185,34 @@ def site_key(host: str) -> str:
     return h[4:] if h.startswith("www.") else h
 
 
+def tenant_key(url: str) -> str | None:
+    """The tenant of a shared host that `url` asks for, as "<site>/<client>" (e.g. "webapi.legistar.com/salem"), or
+    None when the host is not shared, the path is no tenant's (robots.txt included) or the URL is malformed. The
+    client segment is lowercased before it is matched (national/tenant-key-normalize). The "/" keeps a tenant key
+    apart from every site key."""
+    try:
+        p = urllib.parse.urlsplit(url)
+        host = p.hostname or ""
+    except ValueError:
+        return None
+    site = site_key(host)
+    pattern = SHARED_HOSTS.get(site)
+    if pattern is None:
+        return None
+    parts = p.path.split("/", 3)            # ["", "v1", "<client>", "rest"]
+    if len(parts) >= 3:
+        parts[2] = parts[2].lower()
+    m = pattern.match("/".join(parts))
+    return f"{site}/{m.group(1)}" if m else None
+
+
+def _json_object(body: bytes) -> bool:
+    try:
+        return isinstance(json.loads(body.decode("utf-8")), dict)
+    except (UnicodeDecodeError, ValueError):
+        return False
+
+
 def _header_value(v) -> bool:
     """A stored validator we may send back: non-empty printable ASCII (no line break or control character)."""
     return isinstance(v, str) and bool(v.strip()) and len(v) <= 512 and all(32 <= ord(c) < 127 for c in v)
@@ -220,6 +265,9 @@ class PoliteFetcher:
     _resets: dict = field(default_factory=dict)      # site -> resets retried this run
     _sent: dict = field(default_factory=dict)        # site -> requests sent this run (every one, retries included)
     _caps: list = field(default_factory=list)        # [(frozenset of sites, request limit)] (limit_hosts)
+    _tenant_blocked: dict = field(default_factory=dict)  # tenant_key -> reason (that tenant said 403)
+    _tenant_sent: dict = field(default_factory=dict)  # tenant_key -> requests sent this run (retries included)
+    _tenant_caps: dict = field(default_factory=dict)  # tenant_key -> request limit (limit_tenant; only ever lowered)
     log: list = field(default_factory=list)          # [{event, host, url, detail}]
 
     # ------------------------------------------------------------ policy
@@ -272,6 +320,24 @@ class PoliteFetcher:
         left = [limit - sum(self.sent(x) for x in group) for group, limit in self._caps if h in group]
         return max(0, min(left)) if left else None
 
+    def limit_tenant(self, url: str, n: int) -> None:
+        """Allow at most n more requests to url's tenant for the rest of this run, inside any host cap (both hold). A
+        cap only ever adds a limit: an earlier, lower tenant cap still holds. A URL that is no tenant's is a
+        ValueError (use limit_hosts for a whole host)."""
+        t = tenant_key(url)
+        if t is None:
+            raise ValueError(f"{url}: not a tenant path of a shared host")
+        limit = self._tenant_sent.get(t, 0) + max(0, int(n))
+        self._tenant_caps[t] = min(limit, self._tenant_caps.get(t, limit))
+
+    def remaining_tenant(self, url: str) -> int | None:
+        """Requests url's tenant may still get under its own cap, or None when it has none (the host cap, see
+        remaining(), still applies on top)."""
+        t = tenant_key(url)
+        if t is None or t not in self._tenant_caps:
+            return None
+        return max(0, self._tenant_caps[t] - self._tenant_sent.get(t, 0))
+
     def check_redirect(self, origin: str, target: str) -> None:
         """fetch/cap-redirect-escape: a redirect from a capped host must stay inside every cap group the origin is in,
         so the request it leads to counts against the origin's cap. Raises HostRefused, with no request, otherwise."""
@@ -280,6 +346,15 @@ class PoliteFetcher:
             if o in group and t not in group:
                 self.log.append({"event": "refused", "host": target, "detail": f"redirect from capped {origin}"})
                 raise HostRefused(f"{target}: a redirect from {origin} leaves its capped hosts; not followed")
+
+    def check_tenant_redirect(self, origin_url: str, target_url: str) -> None:
+        """A redirect from a tenant-capped URL must stay in that tenant, so it counts against the tenant's cap.
+        Raises HostRefused, with no request, otherwise."""
+        t = tenant_key(origin_url)
+        if t in self._tenant_caps and tenant_key(target_url) != t:
+            self.log.append({"event": "refused", "host": split_url(target_url).netloc, "url": target_url,
+                             "detail": f"redirect from capped tenant {t}"})
+            raise HostRefused(f"{target_url}: a redirect from capped tenant {t} leaves it; not followed")
 
     def delay_for(self, host: str) -> float:
         floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if host_matches(host, (k,))])
@@ -322,15 +397,24 @@ class PoliteFetcher:
         key = site_key(host)
         self.check_host(host)
         self.check_url(url)
+        tenant = tenant_key(url)
         if key in self._blocked:
             raise HostBlocked(f"{host}: {self._blocked[key]}")
+        if tenant in self._tenant_blocked:
+            raise TenantBlocked(f"{tenant}: {self._tenant_blocked[tenant]}")
         if self._proxy_refused.get(key, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
             raise ProxyRefused(f"{host}: skipped after {PROXY_REFUSALS_BEFORE_SKIP} proxy refusals this run")
         if self.remaining(host) == 0:
             self.log.append({"event": "cap", "host": host, "url": url, "detail": "request cap used up"})
             raise RequestCapReached(f"{host}: the run's request cap is used up; {url} was not requested")
+        if tenant is not None and self.remaining_tenant(url) == 0:
+            self.log.append({"event": "cap", "host": host, "url": url, "tenant": tenant,
+                             "detail": "tenant request cap used up"})
+            raise RequestCapReached(f"{tenant}: the run's tenant request cap is used up; {url} was not requested")
         self._wait(host)
         self._sent[key] = self.sent(host) + 1
+        if tenant is not None:
+            self._tenant_sent[tenant] = self._tenant_sent.get(tenant, 0) + 1
         started = self.wall()
         try:
             req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
@@ -345,11 +429,18 @@ class PoliteFetcher:
             if e.code in (403, 429):
                 if e.code == 403 and self._proxy_said_403(host, started):
                     raise self._note_proxy_refusal(host, url, "HTTP 403 recorded by the proxy") from None
-                snippet = (e.read() or b"")[:200].decode("utf-8", "replace")
-                self._blocked[key] = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
-                                      f"body={snippet!r}")
-                self.log.append({"event": "blocked", "host": host, "url": url, "detail": self._blocked[key]})
-                raise HostBlocked(self._blocked[key]) from None
+                body = e.read(BLOCK_BODY_BYTES) or b""
+                snippet = body[:200].decode("utf-8", "replace")
+                reason = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
+                          f"body={snippet!r}")
+                if self._tenant_only_block(e.code, key, tenant, body):
+                    self._tenant_blocked[tenant] = reason
+                    self.log.append({"event": "blocked", "host": host, "url": url, "tenant": tenant,
+                                     "detail": reason})
+                    raise TenantBlocked(f"{tenant}: {reason}") from None
+                self._blocked[key] = reason
+                self.log.append({"event": "blocked", "host": host, "url": url, "detail": reason})
+                raise HostBlocked(reason) from None
             if e.code >= 500 and _retry:
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"HTTP {e.code}"})
                 return self._raw_get(url, _retry=False, _headers=_headers)
@@ -377,6 +468,14 @@ class PoliteFetcher:
             detail = f"invalid URL or response: {type(e).__name__}: {e}"
             self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
             raise FetchFailed(f"{url!r}: {detail}") from None
+
+    def _tenant_only_block(self, code: int, site: str, tenant: str | None, body: bytes) -> bool:
+        """True when a site's 403/429 stops only `tenant`: a 403 on a tenant path (robots.txt never is one) with a JSON
+        object body, while no other tenant of the same site is already blocked. Anything else stops the host."""
+        if code != 403 or tenant is None or not _json_object(body):
+            return False
+        prefix = site + "/"
+        return not any(t.startswith(prefix) and t != tenant for t in self._tenant_blocked)
 
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
         # robots.txt is per exact host (RFC 9309); delay, block, cap per site. The cache key is the plain host name:
@@ -453,7 +552,9 @@ class PoliteFetcher:
             if _hops >= MAX_REDIRECTS:
                 raise FetchFailed(f"{url}: more than {MAX_REDIRECTS} redirects")
             # the validators belong to the URL they were stored for: a redirect's target gets the plain GET
-            return self.get(self._location(url, headers), _hops + 1)
+            nxt = self._location(url, headers)
+            self.check_tenant_redirect(url, nxt)
+            return self.get(nxt, _hops + 1)
         return status, body, headers
 
     def get_if_changed(self, url: str, etag: str | None = None,
