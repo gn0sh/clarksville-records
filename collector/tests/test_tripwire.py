@@ -753,6 +753,27 @@ def test_the_report_is_replayed_with_workflow_commands_stopped(tmp_path):
     assert tokens[0] != tokens[1]
 
 
+def test_the_resume_line_is_its_own_line_after_a_report_with_no_final_newline(tmp_path):
+    """I1: a report without a final newline still gets ::<token>:: on a line of its own (and a report with one gets
+    no extra blank line)."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    (bindir / "python").write_text("#!/bin/sh\nprintf '::set-output name=held::no'\nexit 1\n")
+    (bindir / "python").chmod(0o755)
+    (tmp_path / "out").write_text("")
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GITHUB_OUTPUT": str(tmp_path / "out"),
+           "SEED": "no", "RUNNER_TEMP": str(tmp_path)}
+    r = subprocess.run(["bash", "-e", "-c", UPDATE[TRIPWIRE_STEP]["run"]], env=env, capture_output=True, text=True,
+                       cwd=tmp_path)
+    lines = r.stdout.splitlines()
+    start = next(i for i, ln in enumerate(lines) if ln.startswith("::stop-commands::"))
+    token = lines[start].split("::stop-commands::", 1)[1]
+    end = lines.index(f"::{token}::")
+    assert lines[start + 1:end] == ["::set-output name=held::no"]
+    assert any(ln.startswith("::warning::") for ln in lines[end + 1:])
+    assert "held=yes" in (tmp_path / "out").read_text()
+
+
 def test_the_city_books_issue_names_the_accepted_list_and_asks_for_no_data_commit(tmp_path):
     """Row FB (ADR 0011 decision 2a): a person reproduces the reading locally (fetch-data, fin-books fetch and build),
     then fixes the reader or lists the reading in config/fin-books-accepted.yml, both by PR. data/ is never

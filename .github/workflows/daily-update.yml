@@ -560,7 +560,8 @@ jobs:
           if [[ "$token" =~ ^[0-9a-f]{32}$ ]] && ! grep -qF -- "$token" "$RUNNER_TEMP/tripwire.txt"; then
             echo "::stop-commands::$token"
             cat "$RUNNER_TEMP/tripwire.txt"
-            printf '\n'   # the resume line starts its own line, even after a report with no final newline
+            # the resume line starts its own line, even after a report with no final newline
+            if [ -s "$RUNNER_TEMP/tripwire.txt" ] && [ -n "$(tail -c1 "$RUNNER_TEMP/tripwire.txt")" ]; then printf '\n'; fi
             echo "::$token::"
           else
             echo "The check's report is not shown here (no token to replay it safely); the issue below carries it."
