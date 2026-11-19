@@ -231,7 +231,9 @@ attendance, motion or person's name field exists in this schema (AC4.4); a test 
 ### 3.7 Collector output on `national-data` (M2)
 `data/national/bodies/<body id>.json` (3.5 minus `full_url`), `data/national/health.json`
 (`{"<body id>": {"last_attempt_at", "last_ok_at", "consecutive_failures", "last_error": "tenant-blocked |
-host-stopped | rate-limited | robots | budget-skipped | server-error | not-enabled-suspected | token-suspected"}}`),
+host-stopped | rate-limited | robots | budget-skipped | server-error | not-enabled-suspected | token-suspected |
+collector-error"}}`; `last_error` null after a good read; `collector-error` (C3): the reader refused its own output or
+cache, e.g. `cache-confine/put-error-kind`),
 `data/national/proposals.json` (`[{"body", "kind": "status" | "agenda-status-name", "observed", "evidence_url",
 "first_seen", "count"}]`). Cache: `data/national/cache/<body id>/<event id>.json` (items keyed by
 `EventAgendaLastPublishedUTC`). Body files and cache files carry `review`; rules in section 11.1 rows 16, 18-19 (M2).
@@ -487,6 +489,17 @@ for a non-canonical shared path (None must only ever mean "host-level and allowe
   final nor `Draft`. Meeting id `<date>-e<EventId>`; `title` is `EventComment` or the fixed `Meeting`. Cache file
   `{schema: daylight-legistar-cache/1, review, body, event_id, last_published, items}`, written only from the bound
   feed.
+- As built (C3, 2026-11-19): `collector/national/run.py`. `run(directory, fetcher, budget, now, *, previous_feeds,
+  previous_health, previous_proposals, cache_root, clock, tenant_budget=12) -> RunResult(feeds, health, proposals,
+  outcomes)` (`outcomes`: body id -> `ok` or its `last_error`, the run log); `collect(data_root, ...)` reads the last
+  outputs, runs and writes `bodies/`, `health.json`, `proposals.json`. `prune_cache` runs first. Each read is stamped
+  by `clock()` as it starts (default `now`): `checked_at`, and on success `last_ok_at`; a failed read keeps its last
+  good feed rebound to the current entry with the new `checked_at`; a body not read keeps its feed unchanged. A
+  `TenantBlocked` (tested before `HostBlocked`) stops its tenant and denies `<client>.legistar.com` for the run;
+  another `HostBlocked`, or robots.txt that could not be read (`robots_refused` in the log), marks the rest
+  `host-stopped`; a cap marks them `budget-skipped` (not counted in `consecutive_failures`). After 3 failures in a row
+  of `not-enabled-suspected` / `token-suspected` / `robots`, a `status` proposal names the `cant-cover` reason it
+  suggests; a good read clears it. The directory is never written.
 
 ## 5. Key flows
 1. **Lookup (M1):** `/digest/` loads (directory embedded; a page-view count if counting is on, path only; the saved
