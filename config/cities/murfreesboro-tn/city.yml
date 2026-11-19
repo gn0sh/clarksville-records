@@ -16,8 +16,8 @@ sources:
 # platform-facts.md"); an unchecked one is marked. Never list a host that blocks automated tools.
 allowed_hosts:
   - host: www.murfreesborotn.gov   # the Agenda Center's host (https://www.murfreesborotn.gov/agendacenter, CEO 2026-11-16)
-    robots: UNVERIFIED
-    terms: UNVERIFIED
+    robots: UNVERIFIED (BLOCKED: Cloudflare "Sorry, you have been blocked" 403 on /robots.txt, 2026-11-19; platform-facts.md. No collection.)
+    terms: UNVERIFIED (not read; site blocks our fetcher)
 denied_hosts: []                   # hosts of this city that must never be asked (a block seen, terms forbid)
 launch:
   launch_days: 365                 # launch with the last year
