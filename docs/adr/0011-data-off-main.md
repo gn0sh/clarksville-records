@@ -116,7 +116,10 @@ reviewer.
 ## Consequences
 - I-main becomes simpler (no data exception). I-run gains `D`, read once by the gate and attested.
 - New residuals: (a) attested but wrong new facts from `main`'s own pipeline (a hostile PDF, T5) when they don't
-  touch published facts. (b) Every merge is a bypass, so the bypass log stops being a signal; the gate's
+  touch published facts. Under T5 proper (a parser RCE in the update job) I-pub gives no protection, because the
+  tripwire, `build-info.json` and the Pages artifact are all made in the job that parses the untrusted PDFs. This
+  is no regression (the same job did all of it before). Follow-up: a verify job on a fresh runner (see Amendment
+  2026-11-19 (d)). (b) Every merge is a bypass, so the bypass log stops being a signal; the gate's
   person-merge check and the rule-suite read in `merge-reviewed` replace it. (c) Brian is the sole admin, so `main`
   freezes if the team's bypass stops working. (d) Replay (finding 7): a write-token workflow on any branch can
   push an earlier attested tree to `records-data`. The gate accepts it, because a person's rollback needs exactly
@@ -201,7 +204,7 @@ A gn0sh APPROVE on a PR that gn0sh didn't author is the one act that lets a seco
   and it can't sign as `main`.
 - Inference: the team's PRs are authored and merged as gn0sh (`merge-reviewed` refuses other authors, and U3 read
   `merged_by` gn0sh), so the session most likely uses the App with gn0sh's user token, and the App's own installation
-  identity is unused. The rules above still plan for it to act.
+  identity is unused. The rules above still plan for it to act. *(The inference "unused" is corrected by Amendment 2026-11-19 (d).)*
 
 **Unverified: Brian's hand checks, at every `protect-main` run.** (i) The App's slug is `claude`
 (github.com/apps/claude). (ii) Its permissions on this repository include no Administration read and write. Both
@@ -296,3 +299,39 @@ pinned baseline all stop the run before anything changes (D3 step 1) or refuse t
 day, after the day's run, as for the seed digest). The window start (`R2 first on`, or the first `Main before the
 ruleset` sha) isn't recorded in `docs/platform-facts.md` yet. The manager supplies it from the ledger before the
 cutover PR's review. If it's unknown, the architect picks the window (runbook 4.7.1). Until then, D3 step 1 refuses.
+
+## Amendment 2026-11-19 (d): S1
+
+Source: security review S1 of the data-off-main milestone (`reviews/s1-security-data-off-main-5fb948f2.md`, OK with
+follow-ups, no critical or high findings). Four findings change this ADR.
+
+**S1-1 (`main-protect/approval-margin`): R1'' requires the ruleset maximum number of approvals.** R1'' now sets
+`required_approving_review_count` to the ruleset maximum (10, or the highest value the API accepts). It was 2.
+With 2, I-person rule 1 rested on the unenforced comment-only rule for gn0sh and on R2 being off: gn0sh (or the
+session acting as gn0sh) plus `claude[bot]` could meet the count, and `claude[bot]` could then merge with no bypass.
+With the maximum, rule 1 rests on neither. Only a bypass merge by gn0sh can meet it, and every legitimate merge is
+already a gn0sh bypass, so nothing real is lost. Wherever this ADR and amendments (b) and (c) say "approvals 2" or
+"any 2 approvals include gn0sh's", read "the ruleset maximum"; `protect-main` (both twins) and its tests check
+that value. Margin hardening, not a break of I-person today.
+
+**S1-2 (`golive-switch/app-scope-hand-check`): the App's own identity is used, and it has Actions write.**
+Amendment (b)'s inference that "the App's own installation identity is unused" is wrong. Claude Tag authors its PRs
+as `claude[bot]`. The App's Actions write is a new residual: it can dispatch, re-run, enable and disable workflows
+and delete runs, logs and artifacts. Consequences: denial of service, deleted logs, and re-runs of older
+post-baseline runs. It does not break I-person (it can't mint accepted data outside J2 on `main`, can't merge, and
+can't edit R1'' or R2 without Administration). Accepted. The hand check (ii) now also covers Variables, Secrets and
+Environments: each must be none or Read, never Read and write, and any other answer is NOT OK. Variables write
+would let it set `MORNING_NOTE_SEND` or `RECORDS_DEPLOY_ENABLED`, which are hard-stop switches.
+
+**S1-3 (`data-off-main/rollback-unverified-data`): the rollback verifies I-prov on the restore source.** The open
+path no longer builds PR R from `records-data`'s head unchecked. It refuses unless that head passes the attestation
+check or is the pinned seed; otherwise the operator gives `--data-from <sha>`, an attested ancestor on
+`records-data`. `--merge` requires R's `data/` listing to equal that verified tree.
+
+**S1-4 (`i-pub/t5-same-job`): accepted for the cutover; follow-up recorded.** See the reworded consequence (a). Follow-up
+for `backend-engineer`: a verify job on a fresh runner that downloads only the data artifact, rechecks its shape,
+rebuilds with sitegen, runs the tripwire, writes `build-info.json` and uploads the Pages artifact; deploy needs
+only that job. Check first that sitegen builds without `data/store`.
+
+Findings S1-5 to S1-8 (seed recheck before the merge, Pages `build_type`, listing the workflows folder, seed data
+from pre-cutover bot merges) are script hardening or accepted and need no change to this ADR's decisions.
