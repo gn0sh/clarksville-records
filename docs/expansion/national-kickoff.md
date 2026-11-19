@@ -10,3 +10,4 @@
   same way, polite collection (never work around a block), no spend, no deploy, no new-city collection without Brian
   typing it in-thread. Salem (PR #62) stays paused; its Legistar and eScribe readers are reused.
 - Memo: docs/expansion/national-digest-memo.md (copy of the project-files memo).
+- Spec: docs/specs/daylight-national.md.
