@@ -407,7 +407,9 @@ def run(directory: Directory, fetcher, budget: int, now: datetime, *, previous_f
 
     if deadline is not None:                           # 4.4.4: one time source, the run's own clock
         own_hook = getattr(fetcher, "past_deadline", None)
-        fetcher.past_deadline = lambda pause: stamp_of() + timedelta(seconds=pause) >= deadline
+        # in seconds, not timedelta(seconds=pause): a huge robots Crawl-delay would overflow timedelta
+        # (national-budget/hook-overflow) instead of being refused as past the deadline
+        fetcher.past_deadline = lambda pause: pause >= (deadline - stamp_of()).total_seconds()
     try:
         return _run_body(entries, clients, fetcher, budget, now, previous_feeds, previous_health, previous_proposals,
                          cache_root, stamp_of, tenant_budget, deadline)
@@ -429,7 +431,10 @@ def _check_deadline(deadline, clock) -> None:
 
 def _fallback_record(gov: str, stamp, previous_feeds: dict, previous_health: dict) -> dict:
     """The bare `collector-error` health record when `_record` itself failed: the last run's valid stamps are kept
-    (4.4.5 consumer 5), each read in its own guard; `last_attempt_at` is this read's stamp only when it sent."""
+    (4.4.5 consumer 5), each read in its own guard; `last_attempt_at` is this read's stamp only when it sent.
+    `consecutive_failures` is 1 and `failure_streak` None: the last run's count is not trusted here (reading it may be
+    what failed), so a body whose `_record` keeps failing shows one failure each run, never a growing streak. The
+    caller keeps the last good feed beside it (`_kept_feed`)."""
     def guarded(read):
         try:
             return _old_instant(read())
@@ -458,7 +463,13 @@ def _run_body(entries, clients, fetcher, budget, now, previous_feeds, previous_h
             outcome, stamp, read = _read_one(entry, fetcher, stamp_of, cache_root, stops, tenant_budget, deadline)
             feed, record, props = _record(entry, outcome, stamp, read, now, previous_feeds, previous_health)
         except Exception:
-            outcome, feed, props = "collector-error", None, []
+            # the last good feed is kept (its checked_at untouched: nothing here says the body was read), so
+            # write_outputs keeps its bodies/<id>.json (national-freshness/fallback-drops-kept-feed)
+            outcome, props = "collector-error", []
+            try:
+                feed = _kept_feed(previous_feeds.get(gov), entry, None)
+            except Exception:                          # this branch never raises (national-run/raise-outside-try)
+                feed = None
             record = _fallback_record(gov, stamp, previous_feeds, previous_health)
             try:
                 _f, record, _p = _record(entry, outcome, stamp, None, now, previous_feeds, previous_health)

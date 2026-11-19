@@ -918,6 +918,38 @@ def test_the_fallback_record_keeps_the_previous_valid_stamps(tmp_path, monkeypat
     assert (hb["last_attempt_at"], hb["last_ok_at"]) == (None, good.health[b["gov"]]["last_ok_at"])
 
 
+def test_a_failing_read_keeps_the_last_good_feed(tmp_path, monkeypatch):
+    """national-freshness/fallback-drops-kept-feed: `_read_one` raising before any request is collector-error with
+    the fallback record (consecutive_failures 1), and the last good feed is kept as it was, so its body file stays."""
+    g = body(1, "aa")
+    d, _ = load(tmp_path, monkeypatch, g)
+    at = NOW - timedelta(days=1)
+    good = nr.run(d, fetcher(Net()), 100, at, clock=lambda: at)
+    assert g["gov"] in good.feeds
+
+    def boom(*a, **k):
+        raise RuntimeError("before any request")
+    monkeypatch.setattr(nr, "_read_one", boom)
+    net = Net()
+    r = nr.run(d, fetcher(net), 100, NOW, clock=lambda: NOW, previous_feeds=good.feeds, previous_health=good.health)
+    assert net.calls == [] and r.outcomes == {g["gov"]: "collector-error"}
+    assert r.feeds[g["gov"]]["checked_at"] == good.feeds[g["gov"]]["checked_at"]
+    assert r.feeds[g["gov"]]["last_ok_at"] == good.feeds[g["gov"]]["last_ok_at"]
+    assert r.health[g["gov"]]["last_error"] == "collector-error"
+
+
+def test_a_huge_crawl_delay_with_a_deadline_is_budget_skipped(tmp_path, monkeypatch):
+    """national-budget/hook-overflow: a robots Crawl-delay too large for timedelta is a wait past the deadline
+    (budget-skipped, nothing slept), not an OverflowError turned collector-error."""
+    a, b = body(1, "aa"), body(2, "bb")
+    d, _ = load(tmp_path, monkeypatch, a, b)
+    wall = Wall()
+    net = Net(robots="User-agent: *\nCrawl-delay: 100000000000000000\n")
+    r = nr.run(d, walled(net, wall), 100, NOW, clock=wall.now, deadline=NOW + timedelta(minutes=60))
+    assert r.outcomes == {a["gov"]: "budget-skipped", b["gov"]: "budget-skipped"}
+    assert wall.slept == [] and len(net.calls) == 1                    # robots.txt only
+
+
 class Untouched:
     """A fetcher stand-in that fails on any use: proves nothing was called."""
 
