@@ -196,7 +196,8 @@ H1 gates (security review): finding 3 (C4), finding 6 (D1), finding 7 (B1, D3).
   agenda PDFs are linked, never requested; B14 caps and URL rules apply to every field read.
 - **C3** Done when: a run with a synthetic budget of 10 records `budget-skipped` for the rest; a host stop marks the
   remaining bodies stale, never cant-cover; no curated status is written; ids matched against the id regex before they
-  become paths.
+  become paths; each run stamps when it checked each body, and that stamp (not a document's first fetch) is the
+  feed's `checked_at` and, on success, `last_ok_at` (B4 review, `national-freshness/checked-at-is-first-fetch`).
 - **C4** Done when (finding 3, `national/feed-ics-injection`): a title or item text holding `\r\nBEGIN:VEVENT`, a
   semicolon, a comma and a backslash comes out as one escaped, folded (75 octets) line of one VEVENT; a parser test reads
   the file back as exactly the expected events; control characters are stripped through `feeds.clean`; UIDs are stable.

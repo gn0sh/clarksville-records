@@ -110,9 +110,12 @@ def test_the_header_is_one_partial_that_no_page_template_can_change():
         rest = rest.replace(v, "")
     assert "{% block" not in partial and "{% if" not in rest
     assert rest.count("default(false)") == 1 and "if digest_header | default(false) else site.cfg.site_place }}" in rest
-    used = set(re.findall(r"\{\{\s*([a-z_.]+)", partial))
-    assert used == {"root", "site.site_name", "digest_place", "site.unofficial.tag", "site.cfg.site_timezone",
-                    "site.cfg.today_place", "sp.lat", "sp.lon"}, used
+    # every name read inside {{ ... }} (not only the first), the filter and the keywords left out
+    words = {"if", "else", "not", "and", "or", "default", "false", "true", "none"}
+    used = {n for expr in re.findall(r"\{\{(.*?)\}\}", partial, re.S)
+            for n in re.findall(r"[a-z_][a-z_.]*", expr) if n not in words}
+    assert used == {"root", "site.site_name", "digest_place", "digest_header", "site.cfg.site_place",
+                    "site.unofficial.tag", "site.cfg.site_timezone", "site.cfg.today_place", "sp.lat", "sp.lon"}, used
     for word in ("page_name", "body_current", "crumbs", "sky_full"):
         assert word not in partial, word
     assert "sky_full" not in base and "{% block sky %}" not in base

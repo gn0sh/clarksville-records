@@ -9,7 +9,7 @@ import html as html_mod
 import json
 import os
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -343,21 +343,38 @@ def test_page_labels_refuse_a_missing_key(tmp_path):
 
 # --- staleness and the collection instant ----------------------------------------------------------------------------
 
-def test_staleness_rules():
-    at = BUILT_AT
-    iso = lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
-    assert npg.staleness(iso(at - timedelta(days=2)), at)["state"] == "fresh"
-    s = npg.staleness(iso(at - timedelta(days=4)), at)
-    assert s == {"state": "stale", "day": "2026-11-15", "n": 4}
-    assert npg.staleness(iso(at - timedelta(days=9)), at)["state"] == "week"
-    assert npg.staleness(None, at)["state"] == "week"
-    assert npg.staleness("1970-01-01T00:00:00Z", at)["state"] == "week"
-
-
-def test_collected_at_is_the_newest_fetch_never_invented():
+def test_newest_record_is_the_newest_fetch_never_invented():
     srcs = [{"fetched_at": "2026-11-08"}, {"fetched_at": "2026-11-10"}, {"fetched_at": None}, "x"]
-    assert npg.collected_at(srcs) == datetime(2026, 11, 10, 12, tzinfo=timezone.utc)
-    assert npg.collected_at([]) == npg.EPOCH
+    assert npg.newest_record_at(srcs) == datetime(2026, 11, 10, 12, tzinfo=timezone.utc)
+    assert npg.newest_record_at([]) == npg.EPOCH
+    assert npg.newest_day("2026-11-10T12:00:00Z") == "2026-11-10"
+    assert npg.newest_day("1970-01-01T00:00:00Z") is None and npg.newest_day(None) is None
+
+
+def test_feeds_claim_no_check_time(loaded):
+    """national-freshness/checked-at-is-first-fetch: M1 records no check run, so every feed has last_ok_at null and
+    checked_at the newest record's first fetch; the pagedir marks no daylight government stale; the page says
+    "Newest record we have" (or "no records yet"), never "Last checked" or a stale line."""
+    directory, _f, _l = loaded
+    feeds = npg.build_feeds(directory, {"city": ({}, [])}, _agendas("x"), date(2026, 11, 19))
+    assert {f["last_ok_at"] for f in feeds.values()} == {None}
+    assert feeds[COUNTY_ID]["checked_at"] == "2026-11-18T12:00:00Z"
+    assert feeds[COUNCIL_ID]["checked_at"] == "1970-01-01T00:00:00Z"
+
+
+def test_pages_say_newest_record_and_mark_nothing_stale(sites, page_labels):
+    on = sites["on"]
+    pagedir = json.loads(re.search(r'id="digest-pagedir">(.*?)</script>', on["digest/index.html"].decode(),
+                                   re.S).group(1))
+    assert pagedir["govs"][COUNCIL_ID]["stale"] is False and pagedir["govs"][COUNTY_ID]["stale"] is False
+    council = main_text(on[f"digest/tn/{COUNCIL_ID}.html"].decode())       # a fixture build: no council records
+    assert page_labels["body.no-records"] in council
+    county = json.loads(on[f"digest/tn/{COUNTY_ID}.json"])
+    text = main_text(on[f"digest/tn/{COUNTY_ID}.html"].decode())
+    if county["checked_at"] != "1970-01-01T00:00:00Z":
+        assert "Newest record we have: " in text
+    for rel in DIGEST_HTML:
+        assert "Last checked" not in on[rel].decode() and "couldn't check" not in on[rel].decode(), rel
 
 
 # --- consumer 3 of section 11: items only from the JSON; withheld shows the fixed label ------------------------------
@@ -428,18 +445,67 @@ def test_withheld_government_prints_the_label_and_no_item_text(tmp_path, loaded,
 
 
 def test_page_prints_no_items_the_json_marks_withheld_or_not_final(loaded, page_labels):
-    body = {"official_url": "https://montgomerytn.gov/commission/agenda", "tz": "America/Chicago"}
+    body = {"gov": COUNTY_ID, "official_url": "https://montgomerytn.gov/commission/agenda", "platform": "daylight"}
     m = {"id": "2026-12-14-formal", "date": "2026-12-14", "time": None, "title": "Formal", "title_ours": True,
          "agenda": {"state": "final", "url": None, "status_as_posted": None}, "may_be_incomplete": False,
          "items_withheld": True, "item_count": None,
          "items": [{"seq": 1, "number": None, "text": SENTINEL, "source": {"url": None, "page": None}}]}
-    assert npg.meeting_view(m, body, page_labels)["entries"] == []
-    assert npg.meeting_view(m, body, page_labels)["withheld"] is True
+    assert npg.meeting_view(m, body, "America/Chicago", page_labels)["entries"] == []
+    assert npg.meeting_view(m, body, "America/Chicago", page_labels)["withheld"] is True
     m2 = dict(m, items_withheld=False, agenda=dict(m["agenda"], state="not-final"))
-    assert npg.meeting_view(m2, body, page_labels)["entries"] == []
+    assert npg.meeting_view(m2, body, "America/Chicago", page_labels)["entries"] == []
     m3 = dict(m, items_withheld=False)
-    v = npg.meeting_view(m3, body, page_labels)
+    v = npg.meeting_view(m3, body, "America/Chicago", page_labels)
     assert [e["text"] for e in v["entries"]] == [SENTINEL] and v["agenda_url"] == body["official_url"]
+
+
+def test_links_come_from_the_entry_and_are_rechecked(loaded, page_labels):
+    """national-pages/body-from-feed-not-directory: a meeting link is kept only on the entry's platform hosts, else
+    the entry's official link; with no usable link at all the words print with no link (never href="")."""
+    m = {"id": "2026-12-14-formal", "date": "2026-12-14", "time": None, "title": "Formal", "title_ours": True,
+         "agenda": {"state": "final", "url": "https://evil.example/a.pdf", "status_as_posted": None},
+         "may_be_incomplete": False, "items_withheld": False, "item_count": 1,
+         "items": [{"seq": 1, "number": None, "text": "t", "source": {"url": "https://evil.example/a.pdf#page=1",
+                                                                      "page": 1}}]}
+    legistar = {"gov": "place-4799999", "platform": "legistar", "legistar": {"client": "salem"},
+                "official_url": "https://salem.legistar.com/Calendar.aspx"}
+    v = npg.meeting_view(m, legistar, "America/Chicago", page_labels)
+    assert v["agenda_url"] == legistar["official_url"] and v["entries"][0]["url"] == legistar["official_url"]
+    bad = dict(legistar, official_url="https://evil.example/")
+    assert npg.official_of(bad) is None
+    v = npg.meeting_view(m, bad, "America/Chicago", page_labels)
+    assert v["agenda_url"] is None and v["entries"][0]["url"] is None
+    assert str(npg.label_html("[Official agenda]", v["agenda_url"])) == "Official agenda"
+    assert str(npg.label_html("[Official agenda]", "")) == "Official agenda"
+
+
+def test_morning_note_and_full_pages_only_on_clarksville_bodies(tmp_path, loaded, page_labels):
+    """national-pages/morning-gate: "Get the morning note" and the full Daylight link are per entry (daylight only)."""
+    directory, flags, labels = loaded
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("x"), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    site = _SITE_CTX()
+    site["morning_note"] = {"signup_href": "alerts.html#note"}
+    out = tmp_path / "site"
+    npg.build_national(out, build_mod.make_env(), site, directory, flags, labels, page_labels, feeds,
+                       built_at=BUILT_AT, counter=None)
+    html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
+    assert 'href="../../alerts.html#note"' in html and 'href="../../meetings/agendas.html"' in html
+    # a covered Legistar government (M2's shape) in the same build: neither link
+    other = {"gov": "place-4799999", "also": [], "body_name": "Example City Council", "state": "TN",
+             "status": "covered", "official_url": "https://example.legistar.com/Calendar.aspx",
+             "checked": date(2026, 11, 19), "items": "withheld", "review": None, "platform": "legistar",
+             "legistar": {"client": "example", "body_id": 1, "tz": "America/Chicago"},
+             "host_ok": {"date": date(2026, 11, 19), "link": "https://example.org/ok"}}
+    feed = json.loads(json.dumps(feeds[COUNTY_ID]))
+    feed["body"].update(id=other["gov"], platform="legistar", full_url=None)
+    d = nat.Directory(govs=(*directory.govs, other), alias={})
+    out2 = tmp_path / "site2"
+    npg.build_national(out2, build_mod.make_env(), site, d, flags, labels, page_labels,
+                       {**feeds, other["gov"]: feed}, built_at=BUILT_AT, counter=None)
+    html = (out2 / "digest" / "tn" / f"{other['gov']}.html").read_text(encoding="utf-8")
+    assert "alerts.html#note" not in html.split("<main", 1)[1].split("</main>")[0]
+    assert "meetings/agendas.html" not in html and 'href=""' not in html
 
 
 # --- real data ------------------------------------------------------------------------------------------------------
@@ -463,7 +529,7 @@ def test_real_coming_up_pages_print_exactly_the_json_items(tmp_path, loaded, pag
     directory, flags, labels = loaded
     feeds = npg.build_feeds(directory, real["councils"], real["agendas"], real["today"])
     assert set(feeds) == {COUNCIL_ID, COUNTY_ID}
-    assert feeds[COUNTY_ID]["checked_at"] == npg.collected_at(real["agendas"]["sources"]).strftime(
+    assert feeds[COUNTY_ID]["checked_at"] == npg.newest_record_at(real["agendas"]["sources"]).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
     out = tmp_path / "site"
     _build_pages_into(out, directory, flags, labels, page_labels, feeds)

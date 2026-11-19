@@ -35,7 +35,7 @@ from markupsafe import Markup, escape
 from . import config, localdates, morning_page
 from . import national as nat
 from . import national_clarksville as ncl
-from .national_guards import BAD_TEXT_RE, BindCounts, BindError, GuardCounts, bind_feed, link_or_official
+from .national_guards import BAD_TEXT_RE, BindCounts, BindError, GuardCounts, allowed_url, bind_feed, link_or_official
 from .views import CSP_BASE
 
 FOLDER = "digest"
@@ -49,7 +49,6 @@ FRAME = nat.GEO_FRAME_PAGE                         # digest/geo-frame.html
 # site/static files only the digest pages use: copied into the build only while the switch is on (7a (d))
 STATIC_ONLY = ("national.js", "us-count.js")
 
-STALE_WEEK_DAYS = 7          # past this the coming-up page says "We couldn't check this government this week."
 
 # Page label keys: a group and a name, or a state's USPS code, or a time zone name.
 PAGE_LABEL_KEY_RE = re.compile(
@@ -66,8 +65,8 @@ REQUIRED_PAGE_LABELS = (
     "covered.h-covered", "covered.h-cant", "covered.row-link", "covered.checked", "covered.official",
     "covered.empty-cant", "covered.closing",
     "requested.title", "requested.h1", "requested.body", "requested.cant", "requested.back",
-    "body.title", "body.eyebrow", "body.coming-up", "body.official-record", "body.last-checked", "body.stale",
-    "body.stale-week", "body.no-time", "body.tz", "body.as-posted", "body.agenda", "body.agenda-for",
+    "body.title", "body.eyebrow", "body.coming-up", "body.official-record", "body.newest", "body.no-records",
+    "body.no-time", "body.tz", "body.as-posted", "body.agenda", "body.agenda-for",
     "body.not-posted", "body.incomplete", "body.withheld", "body.cut", "body.item-page", "body.no-meetings",
     "body.full", "body.morning")
 
@@ -159,7 +158,7 @@ def label_html(text: str, href: str | None = None, *, ext: bool = False, sr: str
     if m is None:
         return escape(_fill(text, values))
     before, inner, after = text[:m.start()], m.group(1), text[m.end():]
-    if href is None:
+    if not href:                    # no link to give: the words, never href=""
         return escape(_fill(before + inner + after, values))
     rel = ' rel="noopener noreferrer"' if ext else ""
     tail = Markup('<span class="sr-only">{}</span>').format(sr) if sr else ""
@@ -258,11 +257,13 @@ def index_csp(counter: str | None, form_origin: str | None) -> str:
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
-def collected_at(sources) -> datetime:
-    """When a feed's inputs were collected: the newest fetch of its source records, the recorded instant when the
-    manifests have it (localdates.instant), else noon UTC of the stored UTC day (so the site_timezone day printed is
-    the stored day, as other pages print it, and the age is off by at most half a day). No fetch day at all: EPOCH,
-    so the page says it could not check (never a made-up fresh date)."""
+def newest_record_at(sources) -> datetime:
+    """The newest record we hold for a feed (national-freshness/checked-at-is-first-fetch): the latest first fetch
+    among its source records, the recorded instant when the manifests have it (localdates.instant), else noon UTC of
+    the stored UTC day (so the site_timezone day printed is the stored day, as other pages print it). This is when the
+    newest document was first collected, not when the source was last checked: M1 records no check run, so nothing
+    here or on the page claims one (a true check time comes from the M2 collector's run stamp, task C3). No fetch day
+    at all: EPOCH, which the page reads as "no records yet" (never a made-up date)."""
     best = EPOCH
     for s in sources or ():
         day = s.get("fetched_at") if isinstance(s, dict) else None
@@ -292,8 +293,9 @@ def council_inputs(councils, fixture: bool) -> dict[str, tuple[dict, list]]:
 
 def build_feeds(directory: nat.Directory, councils: Mapping[str, tuple[dict, list]], county_agendas: dict | None,
                 today: date, counts: dict[str, GuardCounts] | None = None) -> dict[str, dict]:
-    """{body id: feed} for every covered entry, each with its own `checked_at`: the council's from its facts file's
-    sources, the county's from the agendas file's sources (collected_at). `councils`: council_inputs(). The adapter
+    """{body id: feed} for every covered entry, each with its own `checked_at` (the newest record, see
+    newest_record_at) and `last_ok_at` null (M1 records no successful check run): the council's from its facts file's
+    sources, the county's from the agendas file's sources (newest_record_at). `councils`: council_inputs(). The adapter
     (national_clarksville.clarksville_feeds) is called once per entry so each gets its own instant; a covered entry
     with no feed stops the build (its page would link nowhere)."""
     feeds: dict[str, dict] = {}
@@ -302,11 +304,13 @@ def build_feeds(directory: nat.Directory, councils: Mapping[str, tuple[dict, lis
             continue
         key = (gov.get("daylight") or {}).get("body")
         if key == ncl.COUNTY_BODY_KEY:
-            at = collected_at((county_agendas or {}).get("sources"))
+            at = newest_record_at((county_agendas or {}).get("sources"))
         else:
-            at = collected_at((councils.get(key, ({}, []))[0] or {}).get("sources"))
+            at = newest_record_at((councils.get(key, ({}, []))[0] or {}).get("sources"))
         one = nat.Directory(govs=(gov,), alias={})
         feeds.update(ncl.clarksville_feeds(one, councils, county_agendas, today, checked_at=at, counts=counts))
+        if gov["gov"] in feeds:
+            feeds[gov["gov"]]["last_ok_at"] = None      # schema: instant or null; no check time is recorded in M1
         if gov["gov"] not in feeds:
             raise NationalBuildError(f"{gov['gov']}: covered, but no feed is built for it (platform "
                                      f"{gov.get('platform')!r})")
@@ -338,16 +342,12 @@ def _local_date(t: datetime) -> date:
     return t.astimezone(ZoneInfo(config.SITE["site_timezone"])).date()
 
 
-def staleness(last_ok_at: str | None, built_at: datetime) -> dict:
-    """{"state": "fresh" | "stale" | "week", "day": ISO local day of the last check or None, "n": whole days}:
-    stale past national.STALE_AFTER (the page directory's own rule, 3.4), "week" past 7 days or with no check."""
-    last = nat._parse_instant(last_ok_at)
-    if last is None or last <= EPOCH:
-        return {"state": "week", "day": None, "n": None}
-    n = (_local_date(built_at) - _local_date(last)).days
-    age = built_at - last
-    state = "fresh" if age <= nat.STALE_AFTER else ("stale" if n <= STALE_WEEK_DAYS else "week")
-    return {"state": state, "day": _local_date(last).isoformat(), "n": n}
+def newest_day(checked_at: str | None) -> str | None:
+    """The site_timezone day of a feed's newest record (`checked_at`, see newest_record_at), or None for no record."""
+    when = nat._parse_instant(checked_at)
+    if when is None or when <= EPOCH:
+        return None
+    return _local_date(when).isoformat()
 
 
 def long_day(iso: str) -> str:
@@ -376,24 +376,35 @@ def _tz_label(page_labels, tz: str) -> str:
     return page_labels[key]
 
 
-def meeting_view(m: dict, body: dict, page_labels) -> dict:
-    """What the coming-up template prints for one meeting, from the JSON only (section 11 consumer 3): items only
-    when the agenda is final and the feed says they are not withheld."""
-    official = body.get("official_url")
-    agenda_url = link_or_official(m["agenda"].get("url"), official or "")
+def official_of(gov: Mapping) -> str | None:
+    """The directory entry's official link, checked again at build against its platform's host allowlist
+    (national_guards.allowed_url); None when it fails (no link is printed, never href="")."""
+    return allowed_url(gov.get("official_url"), gov.get("platform") or "daylight",
+                       (gov.get("legistar") or {}).get("client")) or None
+
+
+def meeting_view(m: dict, gov: Mapping, tz: str, page_labels) -> dict:
+    """What the coming-up template prints for one meeting of the bound feed (section 11 consumer 3): items only when
+    the agenda is final and the feed says they are not withheld. Links come from the meeting through the directory
+    entry `gov`'s platform and client (re-checked here), falling back to the entry's official link; an empty link
+    becomes None, so the page prints the words without a link."""
+    platform, client = gov.get("platform") or "daylight", (gov.get("legistar") or {}).get("client")
+    official = official_of(gov) or ""
+    agenda_url = link_or_official(m["agenda"].get("url"), official, platform, client) or None
     state = m["agenda"]["state"]
     withheld = m["items_withheld"] is not False
     items = m["items"] if state == ncl.FINAL and not withheld else []
     return {"id": m["id"], "date": m["date"], "day": long_day(m["date"]), "time": m["time"],
-            "tz": _tz_label(page_labels, body["tz"]) if m["time"] else None,
+            "tz": _tz_label(page_labels, tz) if m["time"] else None,
             "title": m["title"], "title_ours": m["title_ours"], "state": state,
             "posted": state in (ncl.FINAL, ncl.NOT_READ), "agenda_url": agenda_url,
             "withheld": state == ncl.FINAL and withheld,
             "incomplete": state == ncl.FINAL and not withheld and m["may_be_incomplete"],
             "entries": [{"number": it.get("number"), "text": it["text"], "cut": it.get("cut", False),
-                       "page": (it.get("source") or {}).get("page"),
-                       "url": link_or_official((it.get("source") or {}).get("url"), agenda_url)}
-                      for it in items]}
+                         "page": (it.get("source") or {}).get("page"),
+                         "url": link_or_official((it.get("source") or {}).get("url"), agenda_url or "", platform,
+                                                 client) or None}
+                        for it in items]}
 
 
 class Pages:
@@ -452,6 +463,12 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
 
     # the entry page: the page directory relative to digest/ (its own data-root), the script strings and settings
     pagedir = nat.page_directory(directory, flags, labels, built_at=built_at, last_ok_at=last_ok, root="../")
+    # M1 records no check run (national-freshness/checked-at-is-first-fetch): a daylight-platform government is never
+    # marked stale, because nothing says when its source was last checked. The M2 collector's run stamp (task C3)
+    # brings `last_ok_at`, and with it the stale flag, for the Legistar governments.
+    for g in covered:
+        if g.get("platform") == ncl.PLATFORM:
+            pagedir["govs"][g["gov"]]["stale"] = False
     form_origin = morning_page.form_origin()
     note = morning_page.settings() or {}
     settings = {"schema": "daylight-digest-config/1", "frame": "geo-frame.html", "covered": "covered.html",
@@ -479,7 +496,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
                 "board": g["body_name"], "slot": labels[f"slot.{nat.id_layer(g['gov'])}"],
                 "page": nat.gov_page(g) if status == "covered" else None,
                 "reason": labels.get(f"reason.{g.get('reason')}"), "checked": g["checked"].isoformat(),
-                "source": g.get("reason_url") or g.get("checked_url"), "official": g.get("official_url")})
+                "source": allowed_url(g.get("reason_url") or g.get("checked_url")) or None,
+                "official": official_of(g)})
         return groups
     n_cov = len(covered)
     written[COVERED] = pages.html(
@@ -493,15 +511,16 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     for g in covered:
         feed = feeds[g["gov"]]               # bound above: body.id and platform are this entry's
         rel = nat.gov_page(g)
-        body = feed["body"]
-        full = body.get("full_url")
+        daylight = g.get("platform") == ncl.PLATFORM          # Clarksville's own bodies (AC4.5, AC8.3)
+        official = official_of(g)
         written[rel] = pages.html(
-            "digest/body.html.j2", rel, label_text(L["body.title"], name=body["name"]),
+            "digest/body.html.j2", rel, label_text(L["body.title"], name=g["body_name"]),
             crumbs=pages.crumbs("crumb.home", "crumb.covered"),
-            body=body, state_name=_state_label(L, g["state"]), slot=labels[f"slot.{nat.id_layer(g['gov'])}"],
-            host=_host(body.get("official_url")), stale=staleness(feed.get("last_ok_at"), built_at),
-            meetings=[meeting_view(m, body, L) for m in feed["meetings"]],
-            full_href=full, morning=morning)
+            name=g["body_name"], official=official, state_name=_state_label(L, g["state"]),
+            slot=labels[f"slot.{nat.id_layer(g['gov'])}"], host=_host(official),
+            newest=newest_day(feed.get("checked_at")),
+            meetings=[meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"]],
+            full_href=g["daylight"]["full_url"] if daylight else None, morning=morning if daylight else None)
         files[rel[:-len(".html")] + ".json"] = feed_json(feed)
 
     files[FRAME] = nat.geo_frame_html()

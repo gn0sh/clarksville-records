@@ -1,22 +1,22 @@
 {% extends "base.html.j2" %}
-{# A covered government's coming-up page (docs/design/daylight-national.md section 5; architecture 3.5, 11). Built by
+{# `name` and `official` come from the directory entry (official re-checked against its platform's hosts; None
+   when it fails, and then no link is printed). A covered government's coming-up page (docs/design/daylight-national.md section 5; architecture 3.5, 11). Built by
    sitegen/national_pages.py, which passes `meetings` made from the government's JSON only (meeting_view): item text
    is printed only from the JSON's `items`, and a withheld government's meetings print the fixed withheld label
    (privacy-withhold/national-prefix, consumer 3). Every fixed word is a page label (`L`); every other word is the
    feed's own text. #}
-{% set official = body.official_url %}
 {% block main %}
 <div class="digest digest-body">
   <p class="eyebrow">{{ lt(L["body.eyebrow"], state=state_name, slot=slot) }}</p>
-  <h1>{{ body.name }}</h1>
+  <h1>{{ name }}</h1>
   <p class="digest-subject">{{ L["body.coming-up"] }}</p>
   {% if official %}<p class="official-record">{{ lh(L["body.official-record"], official, ext=true, host=host) }}</p>{% endif %}
-  {% if stale.state == "fresh" %}
-  <p class="digest-checked">{{ lt(L["body.last-checked"], date=(stale.day | day_words)) }}</p>
-  {% elif stale.state == "stale" %}
-  <p class="digest-stale">{{ lh(L["body.stale"], official, ext=true, date=(stale.day | day_words), n=stale.n) }}</p>
+  {# M1 records no check run, so the page says only how new our newest record is (national-freshness/
+     checked-at-is-first-fetch); `newest` is the feed's checked_at day, None when we hold no record #}
+  {% if newest %}
+  <p class="digest-checked">{{ lt(L["body.newest"], date=(newest | day_words)) }}</p>
   {% else %}
-  <p class="digest-stale">{{ lh(L["body.stale-week"], official, ext=true) }}</p>
+  <p class="digest-checked">{{ L["body.no-records"] }}</p>
   {% endif %}
   {% for m in meetings %}
   <section class="digest-meeting" id="m-{{ m.id }}" aria-labelledby="m-{{ m.id }}-h">

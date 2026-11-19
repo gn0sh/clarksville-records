@@ -1045,14 +1045,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     # Daylight Digest (sitegen/national_pages.py, ADR 0013): only with config/site.yml national.enabled; off, nothing
     # here runs and the digest-only scripts stay out of static/, so the build is byte-identical (architecture 7a)
-    national_on = national_pages.enabled()
-    if national_on:
-        try:
+    try:
+        national_on = national_pages.enabled()
+        if national_on:
             written += national_pages.run(out, env, site, councils=cixs, county_agendas=ax.data if ax else None,
                                           built_day=built_day, counter=counter, fixture=fixture)
             national_pages.apply_to_tree(out, national_pages.fragment_labels())
-        except national_pages.NationalBuildError as exc:
-            raise BuildError(f"national: {exc}") from exc
+    except national_pages.NationalBuildError as exc:
+        raise BuildError(f"national: {exc}") from exc
     shutil.copytree(config.STATIC_DIR, out / "static", ignore=national_pages.static_ignore(national_on))
     # A script, not a JSON file, so search also works when the site is opened from files or a zip (no fetch).
     index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx, cixs, rpx, cmx, cms),

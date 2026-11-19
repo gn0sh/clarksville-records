@@ -182,6 +182,11 @@ ICS and Atom writers are M4 (spec v2.1).
     "items": [{"seq": 1, "number": "CZ-12-2026", "text": "Application of Chris Blackwell from AG to E-1",
                "source": {"url": "https://mcgtn.org/...pdf#page=1", "page": 1}}]}]}
 ```
+**M1 (Clarksville, B4 review `national-freshness/checked-at-is-first-fetch`):** no check run is recorded, so
+`checked_at` is the newest source record's first fetch (manifest instant, else noon UTC of its stored day; 1970 when
+there is none) and `last_ok_at` is null; the page prints "Newest record we have: {date}." (or "We have no records for
+this government yet."), no stale line, and the pagedir marks daylight entries `stale: false`. A true `checked_at`
+comes from the M2 collector's run stamp (task C3).
 Field rules: `meetings` from today (body's time zone) on, soonest first. `agenda.state`: `final` (items may be
 shown), `not-final` (Legistar status not final: no items), `not-read` (posted, items not read by us: Clarksville City
 Council in M1), `not-posted`. `items` is empty unless `state == final` and `items_withheld == false`.
@@ -391,9 +396,10 @@ lines.
 - As built (B4, 2026-11-19), in `sitegen/national_pages.py`: `run(...)` is the build's one call;
   `build_national(out_dir, env, site, directory, flags, labels, page_labels, feeds, *, built_at, counter)`;
   `apply_site_fragments(pages, labels)` (pure) with `menu_fragment(root, labels)` and `front_fragment(labels)` for
-  B5; the switch is `config/site.yml national: {enabled: false}`. Each feed's `checked_at` is the newest fetch of its
-  own inputs (`collected_at`: the manifest instant, else noon UTC of the stored UTC day; none: 1970, read as "could
-  not check"). `digest/index.html` embeds `#digest-pagedir`, `#digest-strings` (page labels `lookup.*`, `form.*`,
+  B5; the switch is `config/site.yml national: {enabled: false}`. Each feed's `checked_at` is its newest record
+  (`newest_record_at`, see the M1 note in 3.5) and `last_ok_at` null; coming-up pages take the name and links from
+  the directory entry (links re-checked on its platform's hosts; none usable: words with no link), and the full
+  Daylight and morning-note links only for daylight-platform entries. `digest/index.html` embeds `#digest-pagedir`, `#digest-strings` (page labels `lookup.*`, `form.*`,
   `count.*`) and `#digest-config` (`frame`, `covered`, `requested`, `form_action`, `privacy_url`, `morning`), and
   has the mounts `#digest-form`, `#digest-result`, `#digest-list`, `#digest-saved`, `#digest-noscript` for F2.
 

@@ -12,7 +12,9 @@
 # - state.<USPS> names a state folder's heading; a directory entry whose state has no label fails the build.
 # - tz.<zone> names a time zone; a feed whose zone has no label fails the build.
 # Open (ux-designer to confirm, B4 handoff): index.who is the design's DRAFT (Brian approves the facts, design Q2);
-# body.withheld, body.cut and body.item-page are engineer drafts in the design's words.
+# body.withheld, body.cut, body.item-page and body.no-time are engineer drafts in the design's words. body.newest and
+# body.no-records are the manager's M1 wording (B4 review, national-freshness/checked-at-is-first-fetch): M1 records no
+# check run, so the page says how new our newest record is; the design's "Last checked" and stale lines return in M2.
 schema: daylight-pagelabels/1
 labels:
   digest.place: United States
@@ -133,9 +135,8 @@ labels:
   body.eyebrow: "{state} · {slot}"
   body.coming-up: Coming up
   body.official-record: "Unofficial copy. Official record: [{host}]."
-  body.last-checked: Last checked {date}.
-  body.stale: We last checked this government's site on {date}, {n} days ago. Newer meetings or agendas may be missing. [Official meetings page]
-  body.stale-week: We couldn't check this government this week. [Official meetings page]
+  body.newest: "Newest record we have: {date}."
+  body.no-records: We have no records for this government yet.
   body.no-time: Time not listed here.
   body.tz: "{tz}, as the government posts it."
   body.as-posted: (as posted)
