@@ -235,7 +235,8 @@ host-stopped | rate-limited | robots | budget-skipped | server-error | not-enabl
 collector-error", "failure_streak": {"kind", "count"} | null}}`; `last_error` and `failure_streak` null after a good
 read; `collector-error` (C3): the reader refused its own output or cache, e.g. `cache-confine/put-error-kind`;
 `budget-skipped`, `host-stopped` and `rate-limited` are not the body's failure: `consecutive_failures` and the streak
-of runs failing with one kind stay as they were),
+of runs failing with one kind stay as they were; `last_attempt_at`, `last_ok_at` and the body file's `checked_at`
+move only per 4.4.5),
 `data/national/proposals.json` (`[{"body", "kind": "status" | "agenda-status-name", "observed", "evidence_url",
 "first_seen", "count"}]`). Cache: `data/national/cache/<body id>/<event id>.json` (items keyed by
 `EventAgendaLastPublishedUTC`). Body files and cache files carry `review`; rules in section 11.1 rows 16, 18-19 (M2).
@@ -566,6 +567,137 @@ than 32 levels (an iterative check; our deepest real document is about 6), so la
 Tests: a nested document (`[` * 60000 and `{"a":` * 500) at each of sites 2-6 gives that site's unreadable outcome,
 and `collect()` completes and writes its outputs.
 
+#### 4.4.4 Invariant: nothing is sent at or after the run deadline (`national-budget/*`, stated after the 2nd hit)
+Family hits: `max-no-margin`, `no-wall-deadline`, `post-deadline-request` (docs/reviews/code-review-daylight-national-cli.md).
+**Invariant.** With a deadline `D`, no request (an answer request, robots.txt, a 5xx or reset retry, a redirect hop)
+is sent at or after `D`, and no wait is slept that would end at or after `D`. At most one request is in flight at
+`D` (the fetcher is single-threaded), so the overrun past `D` is that one request's duration, bounded by
+**X = max(T_open, A) + T = 360 s**: `T` = 120 s, the fetcher's per-operation socket `timeout`; `T_open` (connect, TLS,
+status line and headers) is at most 2T = 240 s for a server that sends each within one socket timeout; `A` = 120 s,
+the new total-answer cap below, checked between body chunks, so one more blocking read of at most T can follow it.
+Retries and redirect hops are new requests, so they do not add to X: each goes back through `_raw_get` and is refused.
+
+**Why today's guard breaks it.** `_deadline_sleep` wraps `sleep`, which `_wait` calls only when `gap < delay`. When
+an answer takes 10 s or more, the gap is already past the delay, nothing sleeps and nothing checks: the body in
+flight goes on sending up to its tenant cap (12 x up to 120 s), past the 15 min margin. The reviewer's probe shows 5
+requests sent at 30-90 s against a 20 s deadline. The check also uses `>`, so a wait ending exactly at `D` is sent.
+
+**Decision: a default-off hook on PoliteFetcher, not a run-scoped wrapper.**
+- `PoliteFetcher.past_deadline: Callable[[float], bool] | None = None`: "would a request sent `pause` seconds from
+  now be at or after the deadline?" `_wait` (the one function every request goes through: `_raw_get` calls it after
+  the block and cap checks, and robots.txt, retries and redirect hops all go through `_raw_get`) becomes: compute
+  `pause` (0, or `delay - gap`) exactly as today; if the hook is set and `past_deadline(pause)` -> log
+  `{"event": "deadline", "host", "url"}` and raise `DeadlineReached` (moved to `fetch.py`, still a
+  `RequestCapReached`; `run.py` re-exports it) before sleeping and before `_last`, `_sent` or `_tenant_sent` change;
+  sleep; if the hook is set and `past_deadline(0)` (a sleep that overshot) -> the same raise; then set `_last`. With
+  the hook `None` the calls to `clock()` and `sleep` are exactly today's, so Clarksville is byte-identical.
+- `run()` installs `fetcher.past_deadline = lambda pause: clock() + timedelta(seconds=pause) >= deadline` (one time
+  source: the run's own `clock`, the same one `_read_one` checks the body start against) and restores the previous
+  value in `finally`. `_deadline_sleep` and the `fetcher.sleep` swap are deleted. `deadline` without `clock` raises
+  `ValueError` before any fetcher call or file access (`frozen-clock-deadline`); so does a naive `deadline` (today).
+- Why not the wrapper: a run-scoped wrapper has to patch two public methods on the instance (`remaining` to read 0
+  past `D` and `sleep` to refuse a crossing wait) and relies on `_raw_get` calling `remaining()` before `_wait` and
+  never sending between the two. A later fetch.py edit can break that silently, which is how this hit happened. The
+  hook sits in the one place a request is sent, and costs one `is not None` test on the Clarksville path.
+- **Total-answer cap** (`PoliteFetcher.max_answer_seconds: float | None = None`; the national CLI passes 120.0 and the
+  4.6 fetcher-kwargs test is updated). Without it a server that drips its body one segment just under `T` apart keeps
+  one request open far past `D` (5 MiB at that pace would take days), and urllib's `timeout` is per operation, not per
+  request. When set, every body read in `_raw_get` (the 200 answer, the error answer, and `_refusal_decision`'s 64 KiB
+  block read, which fails closed to a host block) reads in 64 KiB chunks and raises `FetchFailed` ("answer slower
+  than A s", the body's `server-error`) once `clock()` minus the request's start passes `A`. `None` keeps today's
+  single `read(max_bytes + 1)`.
+- Residual (accepted, recorded in 8): a server that drips its TLS handshake or headers can stretch `T_open` beyond
+  2T; the job timeout is the backstop (nothing written, the pages show stale). Legistar is an approved API, not a
+  hostile one; the D1 job flags a run killed by its timeout so a repeat is seen.
+
+**Margin check (the 15 of 75 min).** The deadline is `start + RUN_SECONDS` where `start` is taken inside the CLI, so
+the margin covers: job setup before the CLI starts (checkout of `national-data`, Python, install: at most 3 min, D1
+step timeouts), X = 6 min, the writes (about 100 small files, under 1 min), and commit, attest and push after (at
+most 3 min, D1 step timeouts). 3 + 6 + 1 + 3 = 13 <= 15, so **`MARGIN_MINUTES = 15`, `RUN_SECONDS = 3600` and
+`MAX_BUDGET = 360` hold**. The deadline, not the budget, now bounds time; `MAX_BUDGET` only keeps a full-spend run at
+the 10 s floor from always ending on the deadline. D1 requirement: those step timeouts are set (setup <= 3 min, after
+<= 3 min); if D1 cannot keep them, the CLI's margin grows by the difference, never the other way.
+
+**Consumers (11).** `fetch.py`: `_wait` (the check), `_raw_get` (calls `_wait` after the cap checks, so a capped or
+blocked host never consults the hook; the three body reads take the cap), `robots()` (a `DeadlineReached` on
+robots.txt is a `RequestCapReached`: robots cached as capped for the run, later `get()`s raise the cap), `get()`
+(redirect hops), the reset and 5xx retries. `run.py`: `run()` (installs and restores the hook; `clock` required),
+`_read_one` (body-start check `when >= deadline`; `_classify` maps `DeadlineReached` to `budget-skipped` and stops
+the host for the rest of the run), `collect()` (passes both through). `__main__.py`: `_main` (passes `clock=_wall`
+and `deadline=start + RUN_SECONDS`), `build_fetcher` (adds `max_answer_seconds=120.0`), and the module docstring
+(margin items as above, "the body in flight" bounded by X).
+
+#### 4.4.5 Invariant: freshness stamps move only when a request for that body was sent (`national-freshness/*`)
+Family hits: `checked-at-is-first-fetch` (M1), `deadline-stamp-without-request` (CLI delta review).
+**Meanings.** Each is the run stamp `s` of one body's read: `clock()` when that read starts (before its first wait).
+- `last_attempt_at` (health): `s` of the last read in which at least one request to the body's **tenant** was sent
+  (any outcome, including a reset, a 5xx, a 403, or a retry refused by the deadline). robots.txt is a host request,
+  not one for the body, so it does not count.
+- `checked_at` (feed): the same condition and the same value as `last_attempt_at` ("when we last asked this
+  government's source"). The page's "last checked" line (AC4.6) shows it.
+- `last_ok_at` (feed and health): `s` of the last read whose outcome is `ok` (every answer the read needed came back
+  and the feed bound). Always `<= checked_at`. The stale flag (`STALE_AFTER`, 3 days) is computed from it: data age,
+  not check age.
+**Rule.** A read sent a tenant request iff `fetcher.remaining_tenant(url)` after the read is lower than before it
+(public API; `run()` always caps every tenant first, so neither is None). `_read_one` returns stamp `s` only then,
+and `None` otherwise, on every path: the cap pre-check, the deadline before the read, a first wait refused by the
+deadline, `RobotsDisallowed`, `HostRefused`/`ProxyRefused` before sending, `TenantBlocked` raised before sending, a
+reader refusal before its first `get` (`host_ok`, cache), and `collector-error`. With stamp `None` all three values
+stay byte-equal to the last run's (health carried over, kept feed's `checked_at` untouched); outcome, failure count
+and streak still follow 3.7 (so `robots` counts as a failure while its stamps do not move: the stale line then
+tells the truth that the source was not asked). An `ok` outcome with no tenant request is a bug: recorded
+`collector-error`. A previous stamp that is not a valid instant is dropped (`_old_instant`), which is not a change.
+
+**Consumers (17), file:function.**
+Writers: (1) `collector/national/legistar_upcoming.py:read_body` writes `checked_at = last_ok_at = s` on `ok` only;
+(2) `run.py:_read_one` decides `s` or `None` (the rule above; today it stamps before the read, the bug);
+(3) `run.py:_record` `ok` branch (both health stamps = `s`) and failure branch (`last_attempt_at = s or previous`,
+`last_ok_at` previous, else the previous feed's); (4) `run.py:_kept_feed` sets `checked_at` only when `s` is not
+None; (5) `run.py:run` bare `collector-error` fallback record: must carry each previous valid stamp (`_old_instant`,
+each in its own guard) instead of `None`, which today erases a good `last_ok_at` without a request;
+(6) `run.py:write_outputs`/`body_file` (pass-through); (7) `sitegen/national_clarksville.py:clarksville_feeds` and
+`sitegen/national_pages.py:build_feeds` (M1 Clarksville: `checked_at` is the newest record, `last_ok_at` null; 3.5,
+unchanged).
+Readers: (8) `run.py:read_previous`; (9) `run.py:budget_order` (health `last_ok_at`: never read or oldest first, so a
+body the deadline cut keeps its place at the front); (10) `run.py:_record` / `merge_proposals` (`first_seen = s or
+now`, earliest kept); (11) D2 copy step (4.6, not built): copies `checked_at`/`last_ok_at` through `clean_feed`,
+`bind_feed` and the schema, never restamps; (12) `sitegen/national_guards.py:bind_feed` and
+`schema/daylight-upcoming.schema.json` (instant format, `last_ok_at` nullable); (13) `sitegen/national_pages.py:
+build_national` (`last_ok` map -> page directory; forces `stale: false` for daylight only); (14)
+`sitegen/national.py:page_directory` (`stale` from `last_ok_at`); (15) `site/static/national.js` card loader
+(`g.stale`); (16) `sitegen/national_pages.py:newest_day` + `site/templates/digest/body.html.j2` (`body.newest` from
+`checked_at`): **gap for M2**: on a Legistar page `checked_at` is a check time, not the newest record, so D2's page
+work (owner frontend-engineer, label from ux-designer) shows "last checked {date}" from `checked_at` and the AC4.6
+stale line from `last_ok_at` for non-daylight bodies; Clarksville keeps `body.newest`; (17)
+`sitegen/national_feeds.py:render_ics` (DTSTAMP), `atom_entries` (fallback `updated`) and `render_atom` (feed
+`updated`), all from `checked_at`, which now moves only when the source was asked.
+
+#### 4.4.6 Tests the fix must add (owner backend-engineer, opus/high: data integrity)
+1. Slow answers, one body, several requests: a fake net where each answer advances the wall 15 s and a 20 s deadline
+   (the reviewer's probe as a test; the fetcher built with `wall`/`clock` from the same fake): every request starts
+   before `D`, at most one ends after it, the body records `budget-skipped`, later bodies too, outputs written.
+   Parametrised so the deadline falls before robots.txt, between a 5xx and its retry, between a reset and its retry,
+   and between a 3xx and its hop: none of those is sent.
+2. A wait that would end exactly at `D` (`>=`) and one that would cross it (Crawl-delay 30 s): `sleep` never called,
+   no request, `_sent` and `_tenant_sent` unchanged.
+3. Refused first wait keeps stamps: a body with previous health and feed whose first wait is refused: health
+   `last_attempt_at`/`last_ok_at`, failures and streak, and the kept feed (`checked_at` included) equal the last
+   run's. Same for the cap pre-check, `robots` (failure count +1, stamps unchanged) and a `collector-error` raised
+   before any `get`.
+4. First tenant request sent, its retry refused by the deadline: `last_attempt_at` and `checked_at` = the read's start,
+   `last_ok_at` unchanged, outcome `budget-skipped`.
+5. `ok` read: all three equal the read's start stamp, not the run's `now`.
+6. `_record` raising: the fallback record keeps the previous valid `last_ok_at` and `last_attempt_at`.
+7. `run()` and `collect()` with `deadline` and no `clock` raise `ValueError` before any fetcher call or file access;
+   the hook is restored after `run()` returns and after it raises.
+8. Slow body: with `max_answer_seconds` set, a fake answer whose chunks each advance the clock 50 s raises
+   `FetchFailed` (body `server-error`); with it `None` the same answer is read whole.
+9. Clarksville unchanged: every non-national test that uses the fetcher (`grep -l "collector.fetch\|PoliteFetcher"
+   tests/`, e.g. test_cities, test_days, test_rpc_daily, test_rpc_backfill, test_county_committees, test_daylight,
+   test_round2_polish) passes with no edits; a spy test shows that with both new fields `None`, `_wait` makes the
+   same `clock()` and `sleep` calls as before and the body is read with one `read(max_bytes + 1)`; the full suite
+   passes; the reviewer's probe (`probe2.py`) shows no request at or after 20 s.
+
 ### 4.5 Legistar upcoming reader (`collector/national/legistar_upcoming.py`, M2)
 - `events_url(client, body_id, start, end) -> str` (`$filter=EventBodyId eq N and EventDate ge ... lt ...`).
 - `agenda_state(event, final_statuses) -> "final" | "not-final" | "not-posted"`.
@@ -587,12 +719,13 @@ and `collect()` completes and writes its outputs.
   previous_health, previous_proposals, cache_root, clock, tenant_budget=12) -> RunResult(feeds, health, proposals,
   outcomes)` (`outcomes`: body id -> `ok` or its `last_error`, the run log); `collect(data_root, ...)` reads the last
   outputs, runs and writes `bodies/`, `health.json`, `proposals.json`. `prune_cache` runs first. Each read is stamped
-  by `clock()` as it starts (default `now`): `checked_at`, and on success `last_ok_at`; a failed read keeps its last
-  good feed rebound to the current entry with the new `checked_at`; a body not read keeps its feed unchanged. A
+  by `clock()` as it starts (default `now`): `checked_at`, and on success `last_ok_at`, but only when the read sent a
+  request to the body's tenant (4.4.5); a failed read keeps its last good feed rebound to the current entry with the
+  new `checked_at`; a body not read, or read without a tenant request, keeps its stamps and feed unchanged. A
   `TenantBlocked` (tested before `HostBlocked`) stops its tenant and denies `<client>.legistar.com` for the run;
   another `HostBlocked`, or robots.txt that could not be read (`robots_refused` in the log), marks the rest
   `host-stopped`, as does robots.txt answering a server error (fetcher `robots_unreadable(host)`); a cap marks them
-  `budget-skipped`, as does the run's wall-clock `deadline` (4.6). After 3 failures in a row of the same one of
+  `budget-skipped`, as does the run's wall-clock `deadline` (4.6, invariant 4.4.4). After 3 failures in a row of the same one of
   `not-enabled-suspected` / `token-suspected` / `robots` (`failure_streak`), a `status` proposal names the `cant-cover` reason it suggests; a good read clears it. Proposals
   read back are re-checked (status name pattern, `allowed_url` for the body's client). `collect` refuses a symlinked
   data root, `bodies/` or `cache/` before reading anything; body files drop `body.full_url`. The directory is never
@@ -616,7 +749,9 @@ requirements, and S2's D1/D2 review checks each.
   60 min after it starts by the wall clock, whatever the request count (a robots.txt Crawl-delay above 10 s
   stretches every wait): `run`/`collect(..., deadline=)` record the bodies not read, and a body whose fetcher wait
   would end past it (`DeadlineReached`, a `RequestCapReached`, raised before the request is sent), `budget-skipped`,
-  and the outputs are still written. stdout: `body <id> <kind>` per body and one `counts ...` line; a failed run
+  and the outputs are still written. **Superseded in part by 4.4.4** (`post-deadline-request`): the check moves from
+  a `sleep` wrapper into the fetcher's `_wait` (hook `past_deadline`, every request), `>=` not `>`, `clock` required
+  with `deadline`, and `max_answer_seconds=120` bounds the request in flight; margin and 360 cap re-checked there. stdout: `body <id> <kind>` per body and one `counts ...` line; a failed run
   prints `failed: <type name>` (plus `body <id>` for `HostNotApproved`, which carries a checked `gov`) to stderr and
   exits 1. Exit 0 a completed run with a body read `ok` (or none to read); **3** a completed run, outputs written,
   with any `collector-error` or no body `ok` (`cli-exit/silent-all-failed`: D1 commits the outputs and flags the
@@ -732,6 +867,7 @@ from a digest page names it). The golden test removes (b) and (c) by their exact
 | Shared `national-data` provenance doubles ADR 0011 surface | medium | security review of D1 and D2 |
 | Metadata clobber between morning and weekly senders | high if built separately | one sender package, merged object, shared concurrency (ADR 0013 decision 8) |
 | City Council shows no items in M1 | certain | plain label and agenda link; B9 later |
+| A server drips its TLS handshake or headers, stretching the request in flight past X = 360 s (4.4.4) | low (Legistar is an approved API) | job timeout is the backstop (nothing written, pages go stale); D1 flags a run killed by its timeout so a repeat is seen; then the margin grows or the reader gets a per-host total cap |
 
 ## 9. Assumptions
 - AS1. Spec v2's M1 scope is as the manager's brief states (lookup, statuses, Request it, What we cover, Clarksville and
