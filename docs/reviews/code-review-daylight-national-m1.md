@@ -113,3 +113,10 @@
 - digest.css only on digest pages and only copied when on; style.css untouched; links.yml strict (https, known keys,
   null allowed); URLs reach #digest-config via allowed_url; CSS matches design 0a; no outside hosts; CSP unaffected.
 - nit (open, low): the contrast figures live in a CSS comment; a token-pair contrast test would catch future changes.
+
+## T1 (1a5655ce), code-reviewer sonnet/medium: REQUEST CHANGES
+- must-fix `national/privacy-claims`: the counter paragraphs print with analytics off, describing a button and a send
+  that don't exist. should-fix: "A request does not sign you up for the morning note" reworded to what the sender
+  guarantees. nit: page-visit paragraph should say what count.js sends.
+- Holds: three keys and shapes, address only in page memory and the Census frame, post fields, count event, page built
+  only when on, same CSP/header/digest.css as other digest pages.
