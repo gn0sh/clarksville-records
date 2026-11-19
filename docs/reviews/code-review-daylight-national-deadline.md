@@ -25,3 +25,13 @@ Family count: only finding 1 counts as a national-budget hit (2 and 3 predate th
 - `ok` with no tenant request -> collector-error is right (4.4.5; unreachable with the real reader; exit 3 surfaces it).
 - 4.6 D1 logs: new text carries only host and URL and goes only to `fetcher.log`/exception text, never printed by the CLI.
 - Observation: a sandbox ProxyRefused counts as "sent" (`_tenant_sent` bumped before `_open`); Actions has no agent proxy.
+
+## Delta re-review (50e8215..6729e88; f3280cf, 6729e88), 2026-11-19
+Verdict: **APPROVE WITH NITS.** Targeted suite: 1109 passed. Clarksville fetcher users: 888 passed, 1 skipped. ruff clean.
+- Finding 1, `national-budget/chunked-framing-drip`: closed. The clock is checked after the last read, so a dripped chunked answer fails the fetch (real-socket test, both modes). Comments corrected. Residual recorded in 4.4.4 and section 8; enforcing `A` below http.client is on the backlog.
+- Finding 2, `national-budget/hook-overflow`: closed. The hook compares seconds and gives the same answer at `D`.
+- Finding 3, `national-freshness/fallback-drops-kept-feed`: closed (test); count-of-1 rule documented.
+- Finding 4, `fetch/clarksville-spy-200-only`: closed (404 and 403 reads pinned).
+- Finding 5: closed. "answer too slow" logged once, in `_read_answer`.
+- Clarksville with both fields None: unchanged (`r.read(limit)` returns before any new code).
+- New nit, `national-freshness/fallback-checked-at-lags-attempt` (run.py:470): if `_record` raises after a read that sent requests, health `last_attempt_at` moves while the kept feed's `checked_at` stays old. Fix: `_kept_feed(..., stamp)` instead of `None`.
