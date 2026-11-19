@@ -9,7 +9,9 @@ tenant rule of task C1 lives inside the fetcher, not here):
 - an event's agenda items (`items_url`) only when all hold: the entry is shown (`national_guards.is_shown`: `items:
   shown` and a review digest, which `load_directory` sets only after the whole entry matched its SHOWN_REVIEWED row),
   the agenda is final (`agenda_state`), the event's `EventBodyId` is the entry's `body_id`, and the cache has no copy
-  read under this review for this `EventAgendaLastPublishedUTC`.
+  read under this review for this `EventAgendaLastPublishedUTC`. Every row of the items answer must say it is that
+  event's (`EventItemEventId`); one that does not makes the answer unreadable: no items for that meeting
+  (`privacy-withhold/items-event-unbound`).
 - Never anything else: agenda PDFs (`EventAgendaFile`) and the client's own pages (`EventInSiteURL`) are linked,
   never requested.
 
@@ -83,6 +85,8 @@ class ReadCounts:
     bad_dropped: int = 0            # rows that are not objects or have no usable EventId or EventDate
     rows_over_cap: int = 0          # rows past MAX_ROWS
     items_requests: int = 0         # items requests made
+    other_event_items: int = 0      # item rows whose EventItemEventId is not the requested event (dropped)
+    items_unreadable: int = 0       # meetings whose items answer held any such row: no items published
     cache_hits: int = 0
     cache_deleted: int = 0          # cache files deleted (another review, unreadable, or the body is not shown)
     unknown_status: int = 0         # events whose status name is not one we know
@@ -161,13 +165,24 @@ def _text(value) -> str | None:
     return text or None
 
 
-def build_items(rows: list, agenda_url: str | None) -> list[dict]:
+def other_event_rows(rows: list, event_id: int) -> int:
+    """How many item rows (objects) of an items answer say they belong to another event than `event_id` (their
+    `EventItemEventId` is missing, not a whole number, or another id): privacy-withhold/items-event-unbound (S2a
+    finding 4). The read binds an items answer to the event it asked for; any such row makes the answer unreadable."""
+    return sum(1 for r in rows if isinstance(r, dict) and _whole(r.get("EventItemEventId")) != event_id)
+
+
+def build_items(rows: list, agenda_url: str | None, event_id: int | None = None) -> list[dict]:
     """Legistar eventitems -> 3.5 items, agenda order. Read: `EventItemAgendaSequence`, `EventItemAgendaNumber` and
     `EventItemTitle` only (never mover, seconder, votes, notes or attachments). A row without a positive agenda
-    sequence or a title is not an agenda item and is left out. Text is cleaned and capped later by clean_feed."""
+    sequence or a title is not an agenda item and is left out; with `event_id`, so is a row whose `EventItemEventId`
+    is not that event (privacy-withhold/items-event-unbound; read_body already treats an answer holding any such row as
+    unreadable). Text is cleaned and capped later by clean_feed."""
     good = []
     for r in rows[:MAX_ROWS]:
         if not isinstance(r, dict):
+            continue
+        if event_id is not None and _whole(r.get("EventItemEventId")) != event_id:
             continue
         seq = _whole(r.get("EventItemAgendaSequence"))
         title = r.get("EventItemTitle")
@@ -445,10 +460,18 @@ def read_body(entry: dict, fetcher, now: datetime, cache_root: Path | None = Non
             else:
                 agenda_url = allowed_url(ev.get("EventAgendaFile"), PLATFORM, client) or None
                 counts.items_requests += 1
-                items = build_items(_get_json(fetcher, items_url(client, event_id), gov, f"event {event_id} items"),
-                                    agenda_url)
-                if published is not None:
-                    published_of[meeting_id(day, event_id)] = (event_id, published)
+                rows = _get_json(fetcher, items_url(client, event_id), gov, f"event {event_id} items")
+                foreign = other_event_rows(rows, event_id)
+                if foreign:
+                    # privacy-withhold/items-event-unbound (S2a finding 4): a row of another event (a Legistar bug,
+                    # or a redirect to a withheld event's items) makes this answer unreadable: no items published,
+                    # nothing cached, the meeting shows its agenda link only (item_count null)
+                    counts.other_event_items += foreign
+                    counts.items_unreadable += 1
+                else:
+                    items = build_items(rows, agenda_url, event_id)
+                    if published is not None:
+                        published_of[meeting_id(day, event_id)] = (event_id, published)
         meetings.append(meeting(ev, items, tz, client=client, withheld=not shown, final_statuses=finals,
                                 item_count=item_count))
 

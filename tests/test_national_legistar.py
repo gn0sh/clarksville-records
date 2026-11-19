@@ -359,7 +359,9 @@ def test_b14_caps_on_items_text_and_meetings(loaded):
                        EventItemTitle=("SENTINEL-ITEM-TEXT " + "w" * 2500) if n == 0 else f"Item {n}")
                   for n in range(160)]
     answers = {"events": (200, json.dumps(events).encode(), {})}
-    answers.update({str(3000 + n): (200, json.dumps(long_items).encode(), {}) for n in range(70)})
+    # each event's items answer is bound to that event (privacy-withhold/items-event-unbound)
+    answers.update({str(3000 + n): (200, json.dumps([dict(i, EventItemEventId=3000 + n) for i in long_items]).encode(),
+                                    {}) for n in range(70)})
     r = lu.read_body(govs["place-4164900"], Recorded("salem", answers=answers), NOW)
     feed = r.feed
     assert feed_errors(feed) == []
@@ -661,3 +663,39 @@ def test_cache_get_alone_deletes_a_nested_file(loaded, tmp_path):
     counts = lu.ReadCounts()
     assert lu._cache_get(folder, govs["place-4164900"], 1001, "2026-11-26T19:04:12.4", counts) is None
     assert not (folder / "1001.json").exists() and counts.cache_deleted == 1
+
+
+# --- privacy-withhold/items-event-unbound (security S2a finding 4) -------------------------------------------------
+
+@pytest.mark.parametrize("inject", ["withheld-event-row", "no-event-id", "string-event-id"])
+def test_an_items_answer_with_a_row_of_another_event_publishes_no_items(loaded, tmp_path, inject):
+    """privacy-withhold/items-event-unbound: event 1001's items answer carries a row of the withheld youth council's
+    event 2501 (a Legistar bug, or a same-tenant redirect to its items). The whole answer is unreadable: the meeting
+    publishes no items (item_count null), nothing is cached, and the row is counted; the other meetings are read."""
+    govs, _ = loaded
+    fx = fixture("salem")
+    rows = list(fx["eventitems"]["1001"])
+    if inject == "withheld-event-row":
+        rows.insert(1, dict(fx["eventitems"]["2501"][0], EventItemTitle="SENTINEL-WITHHELD-EVENT-ROW"))
+    elif inject == "no-event-id":
+        rows.append({k: v for k, v in dict(rows[0], EventItemTitle="SENTINEL-WITHHELD-EVENT-ROW").items()
+                     if k != "EventItemEventId"})
+    else:
+        rows.append(dict(rows[0], EventItemEventId="1001", EventItemTitle="SENTINEL-WITHHELD-EVENT-ROW"))
+    cache = tmp_path / "cache"
+    r = lu.read_body(govs["place-4164900"], Recorded("salem", answers={"1001": (200, json.dumps(rows).encode(), {})}),
+                     NOW, cache_root=cache)
+    m = by_id(r.feed)["2026-12-03-e1001"]
+    assert m["items"] == [] and m["item_count"] is None and m["agenda"]["state"] == "final"
+    assert r.counts.other_event_items == 1 and r.counts.items_unreadable == 1
+    assert "SENTINEL-WITHHELD-EVENT-ROW" not in json.dumps(r.feed) and "SENTINEL-ITEM-TEXT 1001" not in json.dumps(r.feed)
+    assert not (cache / "place-4164900" / "1001.json").exists()
+    assert by_id(r.feed)["2026-12-08-e1002"]["items"]                      # other meetings read as before
+
+
+def test_build_items_drops_rows_of_another_event():
+    fx = fixture("salem")
+    rows = fx["eventitems"]["1001"] + fx["eventitems"]["2501"]
+    assert lu.build_items(rows, None, 1001) == lu.build_items(fx["eventitems"]["1001"], None)
+    assert lu.other_event_rows(rows, 1001) == len(fx["eventitems"]["2501"])
+    assert lu.other_event_rows(fx["eventitems"]["1001"] + ["not a row"], 1001) == 0
