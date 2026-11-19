@@ -609,6 +609,11 @@ requirements, and S2's D1/D2 review checks each.
   characters of a 403 body and the Server and Location headers (4.4.2's block reason). The job prints only
   `RunResult.outcomes` (body ids and 3.7 kinds) and counts; its entry point catches `Exception` and prints only the
   exception's type name and the body id.
+- **As built (D1 entry point, 2026-11-19):** `python -m collector.national DATA_ROOT [--budget N] [--directory
+  PATH]` (`collector/national/__main__.py`). Budget default 300, 1 to 450 (75 min at the 10 s floor). stdout:
+  `body <id> <kind>` per body and one `counts ...` line; a failed run prints `failed: <type name>` (plus `body
+  <id>` for `HostNotApproved`, which now carries a checked `gov`) to stderr and exits 1; 130 interrupted, 2
+  bad arguments; 0 a completed run whatever its per-body outcomes.
 - **D1 data path.** The job checks `national-data` out at a path it creates itself (a fresh `actions/checkout` with
   `path:` into a new directory), never through an existing `data/` tree, because `check_data_root` checks the data
   root, `bodies/` and `cache/` but not their parent `data/`.
