@@ -18,3 +18,7 @@ Most serious: metadata never checked after the form post or the restore PATCH; a
 Holding: lookup URL encoding and host pin; wrong-subscriber guard; form post pinned, no key sent, no redirects; PATCH body only `{"tags": ...}`; failure paths restore; key and address never output or written.
 
 Manager decision: fix all; for code 4 do (a), (b) and send the page's Origin header. Problem family `national/tag-probe` (hit 1).
+
+## Deltas at 8e48e89
+- Code: APPROVE with nits; all 9 closed. Nits: sleep(READ_GAP) before the post-restore fresh read (L443); `national/tag-probe/metadata-fix-caveat` (L85): say run it when no morning note is scheduled. Safe to hand to Brian; unverified API shapes fail safe.
+- Security: OK with follow-ups; all 4 closed. New low `national/tag-probe-location-token` (L157-166): print only the first path segment (fixing). New low `national/tag-probe-tags-in-history`: accepted by the manager (team address tags, not secret).
