@@ -261,7 +261,10 @@ MAIN_DATA = {
     "data/corrections-log.json": "[]\n",
 }
 MOVED = [p for p in MAIN_DATA if "/transcripts/" in p or p.startswith("data/maps/") or p.endswith((".yml", "log.json"))]
-OLD_WF = 'jobs:\n  gate:\n    env:\n      MAIN_PR_BASELINE: ""   # T4.10.8\n'
+# The real workflow's bash also names both keys followed by ':' (base="${MAIN_PR_BASELINE:-}" and the seed's
+# twin), so the fixture does too: only the env key lines may count (third cutover run, 2026-11-19).
+OLD_WF = ('jobs:\n  gate:\n    steps:\n      - run: |\n          base="${MAIN_PR_BASELINE:-}"\n'
+          '          seed="${RECORDS_DATA_SEED_DIGEST:-}"\n    env:\n      MAIN_PR_BASELINE: ""   # T4.10.8\n')
 CODEOWNERS = "* @gn0sh\n/data/\n"
 
 
@@ -1134,7 +1137,7 @@ def test_n1_merge_accepts_the_seed_pinned_on_main(tmp_path):
     r = fx.run(["--rollback", "--cutover-merge", merge])
     assert r.returncode == 0, r.stdout + r.stderr
     c = re.search(r"pushed branch \S+ at ([0-9a-f]{40})", r.stdout).group(1)
-    assert "RECORDS_DATA_SEED_DIGEST" not in fx.og("show", c + ":.github/workflows/daily-update.yml")
+    assert not re.search(r"(?m)^\s*RECORDS_DATA_SEED_DIGEST:", fx.og("show", c + ":.github/workflows/daily-update.yml"))
     open(tmp_path / "calls", "w").close()
     r = fx.run(["--rollback", "--merge", "99", "--sha", c, "--cutover-merge", merge, "--report", "x"])
     assert r.returncode == 0 and f"its data/ is the pinned seed (RECORDS_DATA_SEED_DIGEST {fx.digest})" in r.stdout, \
@@ -1551,6 +1554,22 @@ def test_no_ps1_pipes_text_into_a_native_command_and_only_gitrun_starts_a_proces
 
 def test_ps1_uses_the_same_gh_filters_as_the_sh():
     assert _jq_filters(PS1.read_text(encoding="utf-8")) == _jq_filters(SH.read_text(encoding="utf-8"))
+
+
+def test_the_pin_readers_count_only_env_key_lines_of_the_real_workflow():
+    """Third cutover run (2026-11-19) refused: an unanchored 'KEY:' also matched the bash "${KEY:-}" lines, so each
+    reader saw 2 lines and returned nothing. Each twin selects key lines anchored at the line start, and the real
+    workflow holds exactly one such line per key."""
+    wf = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
+    for key in ("MAIN_PR_BASELINE", "RECORDS_DATA_SEED_DIGEST"):
+        assert len(re.findall(r"(?m)^\s*%s:" % key, wf)) == 1, key
+        assert "${%s:-}" % key in wf, key   # the trap the anchoring is for is really there
+    ps1 = PS1.read_text(encoding="utf-8")
+    sh = SH.read_text(encoding="utf-8")
+    for key in ("MAIN_PR_BASELINE", "RECORDS_DATA_SEED_DIGEST"):
+        assert f"-match '{key}:'" not in ps1 and f"grep -c '{key}:'" not in sh, key
+        assert ps1.count(f"Where-Object {{ $_ -cmatch '^\\s*{key}:' }}") == (2 if key == "MAIN_PR_BASELINE" else 1)
+        assert sh.count(f"grep -cE '^[[:space:]]*{key}:'") == (2 if key == "MAIN_PR_BASELINE" else 1)
 
 
 def test_ps1_has_the_same_steps_refusals_and_calls():

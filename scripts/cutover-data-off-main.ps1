@@ -272,7 +272,7 @@ function RunScrubCheck([string]$f) { return (PyRun @('-m', 'tools.scrub_rpc_phon
 function PinnedSeedDigest([string]$rev) {   # B2's gate env line RECORDS_DATA_SEED_DIGEST: "<64 hex>", exactly one
     $wf = GitText @('show', "${rev}:.github/workflows/$wfname")
     if ($null -eq $wf) { return $null }
-    $lines = @($wf -split "`n" | Where-Object { $_ -match 'RECORDS_DATA_SEED_DIGEST:' })
+    $lines = @($wf -split "`n" | Where-Object { $_ -cmatch '^\s*RECORDS_DATA_SEED_DIGEST:' })
     if ($lines.Count -ne 1) { return $null }
     if ($lines[0] -cmatch '^\s*RECORDS_DATA_SEED_DIGEST:\s*"([0-9a-f]{64})"') { return $Matches[1] }
     return $null
@@ -280,7 +280,7 @@ function PinnedSeedDigest([string]$rev) {   # B2's gate env line RECORDS_DATA_SE
 function PinnedBaseline([string]$rev) {   # the gate env line MAIN_PR_BASELINE: "<40 hex>", exactly one (Amendment (c))
     $wf = GitText @('show', "${rev}:.github/workflows/$wfname")
     if ($null -eq $wf) { return $null }
-    $lines = @($wf -split "`n" | Where-Object { $_ -match 'MAIN_PR_BASELINE:' })
+    $lines = @($wf -split "`n" | Where-Object { $_ -cmatch '^\s*MAIN_PR_BASELINE:' })
     if ($lines.Count -ne 1) { return $null }
     if ($lines[0] -cmatch '^\s*MAIN_PR_BASELINE:\s*"([0-9a-f]{40})"') { return $Matches[1] }
     return $null
@@ -288,7 +288,7 @@ function PinnedBaseline([string]$rev) {   # the gate env line MAIN_PR_BASELINE: 
 function BaselineEmpty([string]$rev) {    # its workflow holds exactly one MAIN_PR_BASELINE line, and its value is "" (F4)
     $wf = GitText @('show', "${rev}:.github/workflows/$wfname")
     if ($null -eq $wf) { return $false }
-    $keyLines = @($wf -split "`n" | Where-Object { $_ -match 'MAIN_PR_BASELINE:' })
+    $keyLines = @($wf -split "`n" | Where-Object { $_ -cmatch '^\s*MAIN_PR_BASELINE:' })
     $emptyLines = @($wf -split "`n" | Where-Object { $_ -cmatch '^\s*MAIN_PR_BASELINE:\s*""(\s|$)' })
     return ($keyLines.Count -eq 1 -and $emptyLines.Count -eq 1)
 }
