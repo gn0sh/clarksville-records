@@ -78,6 +78,7 @@ class ReadCounts:
     events: int = 0                 # event rows in the answer
     other_body_dropped: int = 0     # rows whose EventBodyId is not the entry's body_id (11.1 row 18)
     past_dropped: int = 0           # rows dated before today in the body's time zone
+    future_dropped: int = 0         # rows dated after today plus DAYS_AFTER (the API ignored the window)
     bad_dropped: int = 0            # rows that are not objects or have no usable EventId or EventDate
     rows_over_cap: int = 0          # rows past MAX_ROWS
     items_requests: int = 0         # items requests made
@@ -179,7 +180,7 @@ def build_items(rows: list, agenda_url: str | None) -> list[dict]:
 
 
 def meeting(event: dict, items: list[dict] | None, tz: str, *, client: str, withheld: bool,
-            final_statuses=LEGISTAR_FINAL_STATUSES) -> dict:
+            final_statuses=LEGISTAR_FINAL_STATUSES, item_count: int | None = None) -> dict:
     """One event -> a 3.5 meeting. `items` is the list read for a shown body's final agenda, else None (no request
     was made: `items: []`, `item_count: null`). `time` and `status_as_posted` are as posted; `title` is the event's
     comment as posted, else FALLBACK_TITLE. URLs pass `allowed_url` for the client (else null). `tz` names the zone
@@ -195,13 +196,37 @@ def meeting(event: dict, items: list[dict] | None, tz: str, *, client: str, with
             "meeting_url": allowed_url(event.get("EventInSiteURL"), PLATFORM, client) or None,
             "agenda": {"state": state, "url": agenda_url, "status_as_posted": _text(_status(event))},
             "may_be_incomplete": True, "items_withheld": withheld,
-            "item_count": len(items) if read else None, "items": list(items) if read else []}
+            "item_count": (len(items) if item_count is None else item_count) if read else None,
+            "items": list(items) if read else []}
 
 
 # --- the cache (3.7; 11.1 row 19) ---------------------------------------------------------------------------------
 
-def _cache_dir(cache_root: Path | None, gov: str) -> Path | None:
-    return Path(cache_root) / checked_id(gov) if cache_root is not None else None
+def _cache_root(cache_root) -> Path | None:
+    """`cache_root` resolved once (`cache-confine/root-symlink`): a root that is itself a symlink is refused, so no
+    delete or write ever goes through a link to somewhere else."""
+    if cache_root is None:
+        return None
+    root = Path(cache_root)
+    if root.is_symlink():
+        raise ValueError("the cache root is a symlink: refused (cache-confine/root-symlink)")
+    return root.resolve()
+
+
+def _inside(root: Path, path: Path) -> bool:
+    """`path` is a real (not symlinked) folder directly in `root` (`cache-confine/symlinked-body-folder`)."""
+    return not path.is_symlink() and path.is_dir() and path.resolve().parent == root
+
+
+def _cache_dir(root: Path | None, gov: str, counts: "ReadCounts") -> Path | None:
+    """`root/<gov>`, confined: a symlink there (or anything that resolves outside `root`, or a file) is unlinked,
+    never followed, and the folder starts fresh."""
+    if root is None:
+        return None
+    folder = root / checked_id(gov)
+    if (folder.is_symlink() or folder.exists()) and not _inside(root, folder):
+        counts.cache_deleted += _remove(folder)
+    return folder
 
 
 def _remove(path: Path) -> int:
@@ -219,7 +244,7 @@ def _remove(path: Path) -> int:
 def prune_cache(directory: Directory, cache_root: Path) -> list[str]:
     """Delete every `cache_root/<name>` that is not the folder of a covered, shown Legistar entry (11.1 row 19: run
     first, so a body that became withheld keeps no item text). -> the names removed, sorted."""
-    root = Path(cache_root)
+    root = _cache_root(cache_root)
     if not root.is_dir():
         return []
     keep = {g["gov"] for g in directory.govs
@@ -249,9 +274,10 @@ def _sweep(folder: Path, entry: dict, counts: ReadCounts) -> None:
 
 
 def _cache_get(folder: Path | None, entry: dict, event_id: int, published: str | None,
-               counts: ReadCounts) -> list[dict] | None:
-    """The items cached for this event under this review and this LastPublished, else None (a file that does not
-    match is deleted)."""
+               counts: ReadCounts) -> tuple[list[dict], int] | None:
+    """(items, item_count) cached for this event under this review and this LastPublished, else None (a file that
+    does not match is deleted). `item_count` is the uncapped count read with them (`legistar-cache/item-count-drift`),
+    so a hit gives the same meeting as a fresh read."""
     if folder is None or published is None:
         return None
     path = folder / f"{int(event_id)}.json"
@@ -265,23 +291,35 @@ def _cache_get(folder: Path | None, entry: dict, event_id: int, published: str |
         doc = None
     ok = (isinstance(doc, dict) and doc.get("schema") == CACHE_SCHEMA and doc.get("review") == entry["review"]
           and doc.get("body") == entry["gov"] and doc.get("event_id") == int(event_id)
-          and isinstance(doc.get("items"), list) and all(isinstance(i, dict) for i in doc["items"]))
+          and isinstance(doc.get("items"), list) and all(isinstance(i, dict) for i in doc["items"])
+          and _whole(doc.get("item_count")) is not None and doc["item_count"] >= len(doc["items"]))
     if not ok:
         counts.cache_deleted += _remove(path)
         return None
     if doc.get("last_published") != published:
         return None             # the agenda was published again: re-read, the new copy replaces this file
     counts.cache_hits += 1
-    return doc["items"]
+    return doc["items"], doc["item_count"]
 
 
-def _cache_put(folder: Path, entry: dict, event_id: int, published: str, items: list[dict]) -> None:
-    folder.mkdir(parents=True, exist_ok=True)
+def _cache_put(root: Path, folder: Path, entry: dict, event_id: int, published: str, items: list[dict],
+               item_count: int) -> None:
+    """Write one cache file inside `root/<gov>` only: a symlinked or outside folder is refused, the temporary file is
+    created new with O_NOFOLLOW, and the rename replaces a link at the target, never what it points to."""
+    root.mkdir(parents=True, exist_ok=True)
+    folder.mkdir(exist_ok=True)
+    if not _inside(root, folder):
+        raise ValueError(f"{entry['gov']}: cache folder is not a real folder in the cache root (cache-confine)")
     path = folder / f"{int(event_id)}.json"
     tmp = folder / f".{int(event_id)}.json.tmp"
-    tmp.write_text(json.dumps({"schema": CACHE_SCHEMA, "review": entry["review"], "body": entry["gov"],
-                               "event_id": int(event_id), "last_published": published, "items": items},
-                              ensure_ascii=False, sort_keys=True, indent=1) + "\n", encoding="utf-8")
+    if tmp.is_symlink() or tmp.exists():
+        tmp.unlink()
+    text = json.dumps({"schema": CACHE_SCHEMA, "review": entry["review"], "body": entry["gov"],
+                       "event_id": int(event_id), "last_published": published, "item_count": int(item_count),
+                       "items": items}, ensure_ascii=False, sort_keys=True, indent=1) + "\n"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o644)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
     os.replace(tmp, path)
 
 
@@ -348,7 +386,8 @@ def read_body(entry: dict, fetcher, now: datetime, cache_root: Path | None = Non
     shown = is_shown(entry)
     stamp = _instant(now)
     counts = ReadCounts()
-    folder = _cache_dir(cache_root, gov)
+    root = _cache_root(cache_root)
+    folder = _cache_dir(root, gov, counts)
     if not shown and folder is not None and (folder.exists() or folder.is_symlink()):
         counts.cache_deleted += _remove(folder)         # 11.1 row 19: a withheld body keeps no cache
         folder = None
@@ -380,6 +419,9 @@ def read_body(entry: dict, fetcher, now: datetime, cache_root: Path | None = Non
         if day < today:
             counts.past_dropped += 1
             continue
+        if day > today + timedelta(days=DAYS_AFTER):     # the query's upper bound, checked, never trusted
+            counts.future_dropped += 1
+            continue
         events.append((day, event_id, ev))
     events.sort(key=lambda e: (e[0], e[1]))
 
@@ -392,18 +434,21 @@ def read_body(entry: dict, fetcher, now: datetime, cache_root: Path | None = Non
             evidence = allowed_url(ev.get("EventInSiteURL"), PLATFORM, client) or url
             p = proposals.setdefault(name, _proposal(gov, name, evidence, stamp))
             p["count"] += 1
-        items = None
+        items, item_count = None, None
         if shown and agenda_state(ev, finals) == FINAL:
             published = _published(ev)
-            items = _cache_get(folder, entry, event_id, published, counts)
-            if items is None:
+            hit = _cache_get(folder, entry, event_id, published, counts)
+            if hit is not None:
+                items, item_count = hit
+            else:
                 agenda_url = allowed_url(ev.get("EventAgendaFile"), PLATFORM, client) or None
                 counts.items_requests += 1
                 items = build_items(_get_json(fetcher, items_url(client, event_id), gov, f"event {event_id} items"),
                                     agenda_url)
                 if published is not None:
                     published_of[meeting_id(day, event_id)] = (event_id, published)
-        meetings.append(meeting(ev, items, tz, client=client, withheld=not shown, final_statuses=finals))
+        meetings.append(meeting(ev, items, tz, client=client, withheld=not shown, final_statuses=finals,
+                                item_count=item_count))
 
     feed = {"schema": UPCOMING_SCHEMA, "review": entry["review"] if shown else None,
             "body": {"id": gov, "name": entry["body_name"], "tz": tz, "official_url": entry.get("official_url"),
@@ -422,6 +467,6 @@ def read_body(entry: dict, fetcher, now: datetime, cache_root: Path | None = Non
         for m in feed["meetings"]:
             if m["id"] in published_of:
                 event_id, published = published_of[m["id"]]
-                _cache_put(folder, entry, event_id, published, m["items"])
+                _cache_put(root, folder, entry, event_id, published, m["items"], m["item_count"])
     return BodyRead(feed=feed, proposals=sorted(proposals.values(), key=lambda p: str(p["observed"])),
                     counts=counts)

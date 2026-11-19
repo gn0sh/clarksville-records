@@ -223,3 +223,8 @@ Recorded by the manager from docs/architecture/daylight-national.md v2 and docs/
 - Decision 9: item withholding is a directory field `items: shown|withheld` (default withheld), not an `sd*` id rule.
 - Accepted: N1 (one fixed Menu fragment in the shared footer, enforced by an exact-string test) and N2 (device storage
   keeps government ids plus Census names).
+
+## Amendment B (2026-11-19, task C2 code review)
+- Decision 6: a Legistar agenda is final only when `EventAgendaStatusName` exactly equals one of the entry's
+  `final_statuses` (default every name in `LEGISTAR_FINAL_STATUSES`), not the `^final\b` regex, so an unexpected
+  spelling fails closed to "not final" (architecture 4.5 "As built").

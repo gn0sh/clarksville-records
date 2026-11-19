@@ -491,3 +491,108 @@ def test_a_tampered_cache_file_is_a_miss(loaded, tmp_path):
 def test_fixtures_are_marked_hand_made():
     for p in FIXTURES.glob("*.json"):
         assert json.loads(p.read_text(encoding="utf-8"))["_comment"].startswith("HAND-MADE, NOT RECORDED"), p.name
+
+
+# --- cache confinement (code review C2: cache-confine/symlinked-body-folder, cache-confine/root-symlink) ------------
+
+def outside_state(folder: Path) -> dict:
+    return {p.name: p.read_text(encoding="utf-8") for p in sorted(folder.iterdir())}
+
+
+def test_a_symlinked_shown_body_folder_is_unlinked_never_followed(loaded, tmp_path):
+    govs, _ = loaded
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "precious.txt").write_text("keep me", encoding="utf-8")
+    (outside / "1001.json").write_text("{}", encoding="utf-8")
+    before = outside_state(outside)
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "place-4164900").symlink_to(outside, target_is_directory=True)
+    r = lu.read_body(govs["place-4164900"], Recorded("salem"), NOW, cache_root=cache)
+    assert outside_state(outside) == before                       # nothing deleted or written outside
+    folder = cache / "place-4164900"
+    assert not folder.is_symlink() and folder.is_dir()
+    assert sorted(p.name for p in folder.iterdir()) == ["1001.json", "1002.json"]
+    assert r.counts.cache_deleted == 1
+
+
+@pytest.mark.parametrize("gov", ["place-4199999", "sdu-4199998"])
+def test_a_symlinked_withheld_body_folder_is_unlinked_never_followed(loaded, tmp_path, gov):
+    govs, _ = loaded
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "precious.txt").write_text("keep me", encoding="utf-8")
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / gov).symlink_to(outside, target_is_directory=True)
+    lu.read_body(govs[gov], Recorded("salem", "exampleschools"), NOW, cache_root=cache)
+    assert outside_state(outside) == {"precious.txt": "keep me"} and list(cache.iterdir()) == []
+
+
+def test_a_symlinked_cache_file_is_unlinked_and_its_target_untouched(loaded, tmp_path):
+    govs, _ = loaded
+    cache = tmp_path / "cache"
+    (cache / "place-4164900").mkdir(parents=True)
+    secret = tmp_path / "secret.json"
+    secret.write_text("{}", encoding="utf-8")
+    (cache / "place-4164900" / "1001.json").symlink_to(secret)
+    (cache / "place-4164900" / ".1002.json.tmp").symlink_to(secret)       # a planted temporary-file link
+    lu.read_body(govs["place-4164900"], Recorded("salem"), NOW, cache_root=cache)
+    assert secret.read_text(encoding="utf-8") == "{}"
+    assert not any(p.is_symlink() for p in (cache / "place-4164900").iterdir())
+
+
+def test_cache_put_refuses_a_folder_that_is_not_a_real_folder_in_the_root(loaded, tmp_path):
+    govs, _ = loaded
+    root = (tmp_path / "cache").resolve()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    root.mkdir()
+    (root / "place-4164900").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="cache-confine"):
+        lu._cache_put(root, root / "place-4164900", govs["place-4164900"], 1001, "2026-11-26T19:04:12.4", [], 0)
+    assert list(outside.iterdir()) == []
+
+
+def test_a_symlinked_cache_root_is_refused(loaded, tmp_path):
+    govs, d = loaded
+    real = tmp_path / "real"
+    (real / "junk").mkdir(parents=True)
+    link = tmp_path / "cache"
+    link.symlink_to(real, target_is_directory=True)
+    with pytest.raises(ValueError, match="root-symlink"):
+        lu.prune_cache(d, link)
+    with pytest.raises(ValueError, match="root-symlink"):
+        lu.read_body(govs["place-4164900"], Recorded("salem"), NOW, cache_root=link)
+    assert [p.name for p in real.iterdir()] == ["junk"]
+
+
+# --- code review C2: legistar-cache/item-count-drift, legistar-window/no-upper-bound --------------------------------
+
+def test_a_cache_hit_gives_the_same_item_count_as_a_fresh_read(loaded, tmp_path):
+    govs, _ = loaded
+    fx = fixture("salem")
+    ev = next(e for e in fx["events"]["138"] if e["EventId"] == 1001)
+    item = fx["eventitems"]["1001"][0]
+    rows = [dict(item, EventItemId=9000 + n, EventItemAgendaSequence=n + 1, EventItemTitle=f"Item {n}")
+            for n in range(160)]
+    answers = {"events": (200, json.dumps([ev]).encode(), {}), "1001": (200, json.dumps(rows).encode(), {})}
+    cache = tmp_path / "cache"
+    fresh = lu.read_body(govs["place-4164900"], Recorded("salem", answers=answers), NOW, cache_root=cache)
+    f = Recorded("salem", answers=answers)
+    hit = lu.read_body(govs["place-4164900"], f, NOW, cache_root=cache)
+    assert f.items_calls() == [] and hit.counts.cache_hits == 1
+    assert hit.feed == fresh.feed and hit.feed["meetings"][0]["item_count"] == 160
+    assert len(hit.feed["meetings"][0]["items"]) == 150
+
+
+def test_an_event_past_the_window_is_dropped_and_counted(loaded):
+    govs, _ = loaded
+    base = fixture("salem")["events"]["138"][3]                  # Draft: no items request either way
+    last, over = copy.deepcopy(base), copy.deepcopy(base)
+    last["EventId"], last["EventDate"] = 4001, "2026-12-29T00:00:00"     # today + 28: kept
+    over["EventId"], over["EventDate"] = 4002, "2026-12-30T00:00:00"     # today + 29: the API ignored the filter
+    r = lu.read_body(govs["place-4164900"], Recorded("salem", answers={
+        "events": (200, json.dumps([last, over]).encode(), {})}), NOW)
+    assert [m["id"] for m in r.feed["meetings"]] == ["2026-12-29-e4001"] and r.counts.future_dropped == 1
