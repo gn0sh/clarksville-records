@@ -90,8 +90,9 @@ Build checks (refuse to build): unknown key; bad id; duplicate id across `gov` a
 `cant-cover` without `reason`, `reason_url`, `checked`; `covered` without `platform` keys; any URL not https; a
 `reason` with no label in `labels.yml`. Added by security review (findings 5, 7), all by `yaml.safe_load` and strict
 regex, each with a test:
-- `items: shown` on any `sd*` id, or on any entry whose `body_name` the build cannot tie to a general-purpose
-  government (see section 11), is refused; a missing `items` means `withheld`.
+- `items: shown` is refused unless the exact (`gov`, `body_name`) pair is in the reviewed table `SHOWN_REVIEWED` in
+  `sitegen/national.py` (each pair commented with its source link and review date; adding one is a code change that
+  goes through code review). See section 11. A missing `items` means `withheld`.
 - a non-`daylight` platform without `host_ok: {date, link}` is refused (build and collector both).
 - `daylight.full_url` and the pagedir `page` match `^[a-z0-9][a-z0-9/_.-]*$` (no scheme, no `..`, no leading slash);
   `legistar.client` matches `^[a-z0-9-]{2,40}$`; `tz` is a name in `zoneinfo.available_timezones()`;
@@ -101,12 +102,10 @@ regex, each with a test:
   `reason`/`reason_url` on a covered entry; both `checked_url` and `checked_doc` (the doc must be an existing
   `docs/*.md` file); a URL with a user name, password or a port other than 443; a body name with control or bidi
   characters; an unknown `platform` (boarddocs, escribe, civicclerk join with their own key checks). Legistar's hosts
-  are `webapi.legistar.com` and `<client>.legistar.com`. `items: shown` also needs a `place`, `county` or `cousub` id
-  and a `body_name` that ENDS in a governing-body phrase ("<city|town|village|county|borough|township|parish|metro|
-  common> council|commission|board", or board of supervisors, county commissioners, board of aldermen, mayor and
-  aldermen, selectmen, select board, village board of trustees, fiscal court, quorum court, police jury, commissioners
-  court) and holds no school, youth, child, student, pension, civil service or similar stem anywhere
-  (`sitegen/national.py` `_general_purpose`, fail closed; `privacy-withhold/body-name-word-check`). An `also` id must
+  are `webapi.legistar.com` and `<client>.legistar.com`. A reviewed `shown` pair must also pass a fail-closed
+  guard (`shown_refusal`): no `sd*` id, a `place`, `county` or `cousub` id, an ASCII-only `body_name`, and no school,
+  youth, child, mock, model, shadow, pension or similar stem unless the pair says `denylist_ok=True` (a place-name hit
+  such as College Station; `privacy-withhold/body-name-word-check`, `privacy-withhold/body-name-false-refusal`). An `also` id must
   be in the same layer as `gov` (a re-coded GEOID; `privacy-withhold/also-cross-layer`). A list or mapping where a
   word belongs is refused. `load_all` refuses a directory `gov` or `also` id that gov-flags hides.
 - Architect to confirm (code review, `contract/legistar-official-url`): a Legistar entry's `official_url`,
@@ -514,10 +513,12 @@ footer of every existing page by the same fixed fragment (decision N1), and (d) 
 ## 11. Invariant: item text is published only for governments we have said so for (`privacy-withhold/national-prefix`)
 Problem family `privacy-withhold` (hit three times). Invariant: **a person's or child's name can reach a public page,
 feed or email only through item text, and item text is read, stored or published only for a government whose directory
-entry says `items: shown`.** The default is withheld; the build refuses `shown` for any `sd*` id and for any entry
-the reviewer cannot tie to a general-purpose government (a school or youth board listed under a city, or on a city's
-Legistar client, stays withheld even though its id is a `place-` id: its directory `body_name` is the source of that
-call, and the Salem entry's PR names how it was checked). Consumers, each of which must read the directory field and
+entry says `items: shown`.** The default is withheld. The rule is the reviewed table: the build accepts `shown` only
+for an exact (`gov`, `body_name`) pair in `sitegen/national.py` `SHOWN_REVIEWED`, added by a reviewed code change whose
+comment links the source showing the body is the government's own council or commission (a school or youth board
+listed under a city, or on a city's Legistar client, stays withheld even though its id is a `place-` id). A name
+heuristic alone fails both ways (manager decision, 2026-11-19), so it runs only as a second, fail-closed guard (3.2);
+and `shown` stays refused for every `sd*` id whatever the table says. Consumers, each of which must read the directory field and
 none of which may infer withholding from an id prefix:
 1. `collector/national/legistar_upcoming.py`: makes no items request unless `shown` (M2, C2).
 2. `sitegen/national_clarksville.py clarksville_feeds` and the M2 copy step: set `items_withheld` and, when not

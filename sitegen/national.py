@@ -9,8 +9,8 @@ docs/platform-facts.md "Census TIGER/Line codes".
 Not wired into sitegen.build yet (B4 does that behind `national.enabled`), so nothing here changes a Clarksville page.
 
 Invariant `privacy-withhold/national-prefix` (architecture section 11): item text is published only for a government
-whose entry says `items: shown`. A missing `items` is `withheld`; `shown` is refused for every school district id and
-for any body name this module cannot tie to a general-purpose government (`_general_purpose`). Consumers read
+whose entry says `items: shown`. A missing `items` is `withheld`; `shown` is refused unless the exact (gov id,
+body_name) pair is in the reviewed table SHOWN_REVIEWED and passes the fail-closed guard (`shown_refusal`). Consumers read
 `gov["items"]` from the loaded directory, never an id prefix.
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ import zoneinfo
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, NamedTuple
 
 import yaml
 from jinja2.utils import htmlsafe_json_dumps
@@ -88,24 +88,38 @@ ROOT_RE = re.compile(r"^(\.\./)*$")
 MAX_NAME = 160
 MAX_LABEL = 300
 
-# `items: shown` needs a body name that names a general-purpose government's governing body and nothing that marks a
-# school, youth or other body whose items name children or students (security finding 5; architecture section 11).
-# Fail closed: a name this cannot place stays withheld, and the entry's PR says how the body was checked
-# (code review, `privacy-withhold/body-name-word-check`).
-# - The governing-body phrase must END the name: "<city|town|...> council|commission|board" or a phrase that names
-#   the body by itself. "Planning Commission", "Junior Council" or "Police Pension Board of Trustees" never match.
-# - The denylist is word stems with no closing boundary, so "Schoolboard", "Childcare", "Educational" all hit; the
-#   child-specific stems need no opening boundary either ("Preschool", "Afterschool"). A name that trips it by accident
-#   (a "Kidder County Commission") stays withheld: fail closed.
-GOVERNING_RE = re.compile(
-    r"(\b(city|town|village|county|borough|township|parish|metro(politan)?|common)\s+(council|commission|board)"
-    r"|\b(board\s+of\s+supervisors|county\s+commissioners|board\s+of\s+aldermen|mayor\s+and\s+aldermen|selectmen|"
-    r"select\s+board|village\s+board\s+of\s+trustees|fiscal\s+court|quorum\s+court|police\s+jury|"
-    r"commissioners\s+court))$", re.IGNORECASE)
-NOT_GENERAL_RE = re.compile(
-    r"(school|educat|youth|student|child|pupil|juvenil|infant|toddler|scholar|foster"
-    r"|\b(kid|teen|minor|junior|head\s+start|early\s+learning|college|universit|librar|hospital|pension|retire"
-    r"|civil\s+service))", re.IGNORECASE)
+# `items: shown` (invariant `privacy-withhold/national-prefix`, architecture 3.2 and section 11; security finding 5).
+# The rule is the reviewed table: an entry may say `shown` only when its exact (gov id, body_name) pair is in
+# SHOWN_REVIEWED. Adding a pair is a code change, so it goes through code review, and its comment names the source
+# that shows the body is the government's own council or commission and the review date (manager decision after the
+# B1/B2 delta review, 2026-11-19: a name heuristic alone both let "Mock City Council" through and refused "College
+# Station City Council"). A second, fail-closed guard still runs on every shown entry: no school district id, a place,
+# county or county subdivision id, ASCII letters only (a Cyrillic "о" in "Yоuth" hides the word), and no stem of
+# SHOWN_DENYLIST_RE unless the pair says `denylist_ok=True` (a place name such as College Station or Childress County).
+
+
+class ShownReview(NamedTuple):
+    gov: str
+    body_name: str
+    denylist_ok: bool = False      # True only for a place-name hit on SHOWN_DENYLIST_RE, said in the comment
+
+
+SHOWN_REVIEWED: tuple[ShownReview, ...] = (
+    # https://clarksvilletn.portal.civicclerk.com/ (the council's own agenda portal; facts in docs/platform-facts.md
+    # "CivicClerk, City Council 2024 on"); reviewed 2026-11-19, B1 code review
+    ShownReview("place-4715160", "Clarksville City Council"),
+    # https://montgomerytn.gov/commission/agenda (the commission's own agenda page; docs/platform-facts.md
+    # "Montgomery County, TN"); reviewed 2026-11-19, B1 code review
+    ShownReview("county-47125", "Montgomery County Commission"),
+)
+
+# Stems of bodies whose items may name children, students or pretend officials. Child-specific stems match anywhere
+# ("Preschool", "Schoolboard", "Childcare"); the shorter ones need a word start ("Kidder" still hits \bkid: a
+# reviewed pair with denylist_ok=True is the way through).
+SHOWN_DENYLIST_RE = re.compile(
+    r"(school|educat|youth|student|child|pupil|juvenil|infant|toddler|scholar|foster|adolescen|cadet|young"
+    r"|\b(kid|teen|minor|junior|mock|model|shadow|pre[\s-]?k(\b|inder)|head\s+start|early\s+learning|college"
+    r"|universit|librar|hospital|pension|retire|civil\s+service))", re.IGNORECASE)
 GENERAL_LAYERS = ("place", "county", "cousub")
 
 LINE_LABEL = "note.{}"                # a gov-flags `line` is drawn from this label (labels.yml)
@@ -229,12 +243,24 @@ def load_labels(path: Path = LABELS_PATH) -> dict[str, str]:
 
 # --- directory.yml ------------------------------------------------------------------------------------------------
 
-def _general_purpose(gov_id: str, body_name: str) -> bool:
-    """True only when the entry can be tied to a general-purpose government: a place, county or county subdivision id
-    and a body name that names a governing body (council, commission, ...) and nothing school or youth."""
-    name = " ".join(body_name.split())
-    return (id_layer(gov_id) in GENERAL_LAYERS and bool(GOVERNING_RE.search(name))
-            and not NOT_GENERAL_RE.search(name))
+def shown_refusal(gov_id: str, body_name: str) -> str | None:
+    """Why `items: shown` is refused for this entry, or None when it is allowed (the reviewed table, then the
+    fail-closed guard; see SHOWN_REVIEWED)."""
+    layer = id_layer(gov_id)
+    if layer in SCHOOL_LAYERS:
+        return "`shown` is never allowed for a school district (privacy-withhold)"
+    if layer not in GENERAL_LAYERS:
+        return "`shown` needs a place, county or county subdivision id (privacy-withhold)"
+    if not body_name.isascii():
+        return "`shown` needs a body_name in ASCII letters only (privacy-withhold/body-name-word-check)"
+    review = next((r for r in SHOWN_REVIEWED if (r.gov, r.body_name) == (gov_id, body_name)), None)
+    if review is None:
+        return ("`shown` needs this exact (gov, body_name) pair in sitegen/national.py SHOWN_REVIEWED, added through "
+                "code review (privacy-withhold); leave it withheld")
+    if SHOWN_DENYLIST_RE.search(body_name) and not review.denylist_ok:
+        return ("`shown` body_name holds a school, youth or special-purpose word; only a reviewed pair with "
+                "denylist_ok=True passes (privacy-withhold/body-name-word-check)")
+    return None
 
 
 def _check_platform(path: Path, where: str, e: dict) -> None:
@@ -371,11 +397,10 @@ def load_directory(path: Path = DIRECTORY_PATH, labels: Mapping[str, str] | None
         items = e.get("items", ITEMS_DEFAULT)
         if not isinstance(items, str) or items not in ITEMS:
             _fail(path, where, "items", "must be shown or withheld")
-        if items == "shown" and id_layer(gov) in SCHOOL_LAYERS:
-            _fail(path, where, "items", "`shown` is never allowed for a school district (privacy-withhold)")
-        if items == "shown" and not _general_purpose(gov, body_name):
-            _fail(path, where, "items", "`shown` needs a body_name naming a general-purpose government's "
-                  "council or commission (privacy-withhold); leave it withheld")
+        if items == "shown":
+            why = shown_refusal(gov, body_name)
+            if why:
+                _fail(path, where, "items", why)
         _check_platform(path, where, e)
         g = dict(e, also=list(also), items=items, checked=checked)
         out.append(g)

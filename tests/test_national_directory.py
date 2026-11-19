@@ -24,7 +24,7 @@ CANT = {"gov": "sdu-4703030", "body_name": "Clarksville-Montgomery County School
         "checked_doc": "docs/research/rpc-cmcss-sources.md"}
 LEGISTAR = {"gov": "place-4164900", "body_name": "Salem City Council", "state": "OR", "status": "covered",
             "official_url": "https://salem.legistar.com/Calendar.aspx", "checked": "2026-12-01",
-            "checked_url": "https://salem.legistar.com/Calendar.aspx", "items": "shown", "platform": "legistar",
+            "checked_url": "https://salem.legistar.com/Calendar.aspx", "items": "withheld", "platform": "legistar",
             "legistar": {"client": "salem", "body_id": 138, "tz": "America/Los_Angeles", "final_statuses": ["Final"]},
             "host_ok": {"date": "2026-12-01", "link": "https://github.com/gn0sh/clarksville-records/pull/1"}}
 
@@ -153,12 +153,12 @@ BAD = [
     ("items-shown-sdu", [changed(CANT, gov="sdu-4703030", items="shown")], "never allowed for a school"),
     ("items-shown-sds", [changed(CANT, gov="sds-4703030", items="shown")], "never allowed for a school"),
     ("items-shown-sde", [changed(CANT, gov="sde-4703030", items="shown")], "never allowed for a school"),
-    ("items-shown-youth-council", [changed(COVERED, body_name="Clarksville Youth Council")],
-     "general-purpose"),
+    ("items-shown-youth-council", [changed(COVERED, body_name="Clarksville Youth Council")], "SHOWN_REVIEWED"),
     ("items-shown-school-board-under-city", [changed(COVERED, body_name="City School Board of Trustees")],
-     "general-purpose"),
+     "SHOWN_REVIEWED"),
     ("items-shown-not-a-governing-body", [changed(COVERED, body_name="Clarksville Parks Department")],
-     "general-purpose"),
+     "SHOWN_REVIEWED"),
+    ("items-shown-reviewed-name-other-id", [changed(COVERED, gov="place-4799999")], "SHOWN_REVIEWED"),
     ("items-bad-value", [changed(COVERED, items="yes")], "items: must be shown or withheld"),
     # a YAML list or mapping where a word belongs is a config error, never a TypeError
     ("state-as-list", [changed(COVERED, state=["TN"])], "state: must be a USPS"),
@@ -202,35 +202,89 @@ def test_directory_refuses(tmp_path, govs, match):
         load(tmp_path, *govs)
 
 
-# privacy-withhold/body-name-word-check: the governing-body phrase must end the name; no school, youth, child,
-# pension or other special-purpose stem anywhere in it
-NOT_GENERAL = ["Early Childhood Council", "Childcare Commission", "Schoolboard Commission", "Head Start Policy Council",
-               "Junior Council", "Planning Commission", "Civil Service Commission", "Police Pension Board of Trustees",
-               "Preschool City Council", "City Council Youth Advisory Board", "Clarksville Parks Department"]
-GENERAL = ["Clarksville City Council", "Montgomery County Commission", "Town Board", "Arlington County Board",
-           "Board of County Commissioners", "Board of Mayor and Aldermen", "Metropolitan Council"]
+# items: shown is the reviewed table SHOWN_REVIEWED (exact gov id and body_name), then a fail-closed guard: ASCII only
+# and no school, youth or pretend-body stem unless the pair says denylist_ok (privacy-withhold/body-name-word-check,
+# privacy-withhold/body-name-false-refusal; manager decision 2026-11-19).
+FALSE_ACCEPTS = ["Mock City Council", "Model County Commission", "Young Leaders City Council", "Shadow City Council",
+                 "Adolescent Town Council", "Pre-K City Council", "Y\u043euth City Council",
+                 "Early Childhood Council", "Childcare Commission", "Schoolboard Commission",
+                 "Head Start Policy Council", "Junior Council", "Cadet City Council", "Preschool City Council",
+                 "City Council Youth Advisory Board"]
+PLACE_NAME_HITS = [("place-4815976", "College Station City Council"), ("place-2416875", "College Park City Council"),
+                   ("place-2975220", "University City Council"), ("place-0625338", "Foster City Council"),
+                   ("county-48075", "Childress County Commissioners Court"), ("county-38043", "Kidder County Commission"),
+                   ("county-26153", "Schoolcraft County Board of Commissioners")]
+STATE_OF_FIPS = {v: k for k, v in nat.USPS_FIPS.items()}
 
 
-@pytest.mark.parametrize("name", NOT_GENERAL)
-def test_items_shown_refused_for_body_name(tmp_path, name):
-    with pytest.raises(nat.NationalConfigError, match="items: `shown` needs a body_name"):
-        load(tmp_path, changed(COVERED, body_name=name))
+def entry_for(gov, name):
+    return changed(COVERED, gov=gov, body_name=name, state=STATE_OF_FIPS[gov.split("-")[1][:2]])
 
 
-@pytest.mark.parametrize("name", NOT_GENERAL)
+SHIPPED_REVIEWED = nat.SHOWN_REVIEWED
+
+
+def reviewed(monkeypatch, *pairs):
+    """The shipped table plus `pairs` (each call replaces the previous test additions)."""
+    monkeypatch.setattr(nat, "SHOWN_REVIEWED", SHIPPED_REVIEWED + tuple(nat.ShownReview(*p) for p in pairs))
+
+
+@pytest.mark.parametrize("name", FALSE_ACCEPTS)
+def test_shown_refused_for_a_name_not_in_the_table(tmp_path, name):
+    with pytest.raises(nat.NationalConfigError, match="items: `shown` needs"):
+        load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name))
+
+
+@pytest.mark.parametrize("name", FALSE_ACCEPTS)
+def test_shown_refused_for_a_bad_name_even_when_reviewed(tmp_path, monkeypatch, name):
+    # the guard holds even if a bad pair slips into the table without denylist_ok
+    reviewed(monkeypatch, ("place-4799999", name))
+    with pytest.raises(nat.NationalConfigError, match="body-name-word-check"):
+        load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name))
+
+
+def test_shown_refused_for_cyrillic_even_with_denylist_ok(tmp_path, monkeypatch):
+    name = "Clarksv\u0456lle City Council"              # Cyrillic i, no denylist stem at all
+    reviewed(monkeypatch, ("place-4799999", name, True))
+    with pytest.raises(nat.NationalConfigError, match="ASCII"):
+        load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name))
+
+
+@pytest.mark.parametrize("name", ["Town Board", "Arlington County Board", "Board of Commissioners", "Selectboard"])
+def test_shown_refused_for_an_ordinary_body_until_reviewed(tmp_path, monkeypatch, name):
+    with pytest.raises(nat.NationalConfigError, match="SHOWN_REVIEWED"):
+        load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name))
+    reviewed(monkeypatch, ("place-4799999", name))
+    assert load(tmp_path, changed(COVERED, gov="place-4799999", body_name=name)).govs[0]["items"] == "shown"
+
+
+@pytest.mark.parametrize("gov,name", PLACE_NAME_HITS)
+def test_place_name_hit_needs_denylist_ok(tmp_path, monkeypatch, gov, name):
+    reviewed(monkeypatch, (gov, name))
+    with pytest.raises(nat.NationalConfigError, match="denylist_ok"):
+        load(tmp_path, entry_for(gov, name))
+    reviewed(monkeypatch, (gov, name, True))
+    assert load(tmp_path, entry_for(gov, name)).govs[0]["items"] == "shown"
+
+
+@pytest.mark.parametrize("gov", ["sdu-4703030", "sds-4703030", "sde-4703030"])
+def test_school_district_refused_even_when_reviewed(tmp_path, monkeypatch, gov):
+    reviewed(monkeypatch, (gov, "Clarksville City Council", True))
+    with pytest.raises(nat.NationalConfigError, match="never allowed for a school"):
+        load(tmp_path, changed(COVERED, gov=gov))
+
+
+@pytest.mark.parametrize("name", FALSE_ACCEPTS[:6] + [n for _, n in PLACE_NAME_HITS])
 def test_withheld_body_name_still_loads(tmp_path, name):
     assert load(tmp_path, changed(COVERED, body_name=name, items="withheld")).govs[0]["items"] == "withheld"
 
 
-@pytest.mark.parametrize("name", GENERAL)
-def test_items_shown_accepted_for_body_name(tmp_path, name):
-    assert load(tmp_path, changed(COVERED, body_name=name)).govs[0]["items"] == "shown"
-
-
-def test_shipped_shown_names_pass_the_word_check():
+def test_shipped_shown_entries_are_the_reviewed_table():
     d = nat.load_directory()
-    assert {g["body_name"] for g in d.govs if g["items"] == "shown"} == {"Clarksville City Council",
-                                                                        "Montgomery County Commission"}
+    shown = {(g["gov"], g["body_name"]) for g in d.govs if g["items"] == "shown"}
+    assert shown == {("place-4715160", "Clarksville City Council"), ("county-47125", "Montgomery County Commission")}
+    assert shown == {(r.gov, r.body_name) for r in nat.SHOWN_REVIEWED}
+    assert not any(r.denylist_ok for r in nat.SHOWN_REVIEWED)
 
 
 def test_load_all_refuses_a_listed_government_in_hide(tmp_path):
