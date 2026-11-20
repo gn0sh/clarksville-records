@@ -5,8 +5,11 @@
    is printed only from the JSON's `items`, and a withheld government's meetings print the fixed withheld label
    (privacy-withhold/national-prefix, consumer 3). Every fixed word is a page label (`L`); every other word is the
    feed's own text, and each verbatim feed string (time, a title that is not ours, item number and text) is the sole
-   content of a bare <span data-feed> (architecture 12.1 row 6, B-ISO-8): qa/site_checks.py exempts that text, and only
-   that text, from the checks that judge our own words. #}
+   content of a bare <span data-feed> (architecture 12.1 row 6, B-ISO-8), printed only inside a
+   <section class="digest-meeting">, in the JSON's own order (row 6s, B-ISO-14): qa/site_checks.py exempts that text,
+   and only that text (plus the meeting's own ids, dates and links, inside that section only), from the checks that
+   judge our own words. A title with `title_ours` is printed unwrapped: the copy step admits only the platform's fixed
+   title (B-ISO-12). Everything outside the sections is read raw. #}
 {# the digest pages' own stylesheet (design 0a): linked here only, copied only while the switch is on #}
 {% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
 {% endblock %}

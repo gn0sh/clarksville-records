@@ -663,11 +663,16 @@ def test_feed_text_exemption_is_scoped_to_coming_up_pages():
     assert SC.digest_gov_page(PAGE) and not SC.digest_gov_page(INDEX) and not SC.digest_gov_page("about.html")
     assert not SC.digest_gov_page("city/digest/tn/x.html")
     assert SC.digest_gov_json(DATA) and not SC.digest_gov_json(PAGE) and not SC.digest_gov_json("data/facts.json")
-    page = ('<main id="main"><p>Ours 2026-01-05</p><span data-feed>Fetched 2026-01-05</span>'
-            '<span data-feed class="x">kept</span><span data-feed><b>kept</b></span></main>')
-    want = ('<main id="main"><p>Ours 2026-01-05</p><span data-feed></span>'
-            '<span data-feed class="x">kept</span><span data-feed><b>kept</b></span></main>')
-    assert SC.feed_text_removed(PAGE, page) == want      # only a bare span of text; any other markup stays checked
+    page = ('<main id="main"><p>Ours 2026-01-05</p><span data-feed>Outside 2026-01-05</span>'
+            '<section class="digest-meeting" id="m-e-1"><span data-feed>Fetched 2026-01-05</span>'
+            '<span data-feed class="x">kept</span><span data-feed><b>kept</b></span></section>'
+            '<section class="other"><span data-feed>Other 2026-01-05</span></section></main>')
+    want = ('<main id="main"><p>Ours 2026-01-05</p><span data-feed>Outside 2026-01-05</span>'
+            '<section class="digest-meeting" id="m-e-1"><span data-feed></span>'
+            '<span data-feed class="x">kept</span><span data-feed><b>kept</b></span></section>'
+            '<section class="other"><span data-feed>Other 2026-01-05</span></section></main>')
+    # only a bare span of text inside a digest-meeting section (B-ISO-14); any other markup or place stays checked
+    assert SC.feed_text_removed(PAGE, page) == want
     assert SC.feed_text_removed("about.html", page) == page
     assert SC.feed_text_removed(INDEX, page) == page
 
@@ -678,12 +683,15 @@ def test_feed_values_are_removed_only_where_they_equal_the_page_s_own_feed():
     feed = {"meetings": [{"id": "e-1", "date": "2022-08-30", "meeting_url": None,
                           "agenda": {"url": "https://x.legistar.com/a?b=1&c=2"},
                           "items": [{"source": {"url": "https://x.legistar.com/i"}}]}]}
-    page = ('<section id="m-e-1" aria-labelledby="m-e-1-h"><time datetime="2022-08-30">Tuesday, August 30, 2022'
-            '</time><a href="https://x.legistar.com/a?b=1&amp;c=2">a</a><a href="https://x.legistar.com/i">i</a>'
-            '<a href="../../about.html">ours</a><p id="m-e-2">x</p></section>')
-    assert SC.feed_text_removed(PAGE, page, feed) == (
-        '<section id="" aria-labelledby=""><time datetime="">Tuesday, </time><a href="">a</a><a href="">i</a>'
-        '<a href="../../about.html">ours</a><p id="m-e-2">x</p></section>')
+    ours = ('<p class="official-record"><a href="https://x.legistar.com/i">ours</a></p>'
+            '<p>Data as of <time class="data-as-of" datetime="2022-08-30">August 30, 2022</time></p>')
+    page = (ours + '<section class="digest-meeting" id="m-e-1" aria-labelledby="m-e-1-h"><time '
+            'datetime="2022-08-30">Tuesday, August 30, 2022</time><a href="https://x.legistar.com/a?b=1&amp;c=2">a</a>'
+            '<a href="https://x.legistar.com/i">i</a><a href="../../about.html">ours</a><p id="m-e-2">x</p></section>'
+            + ours)
+    assert SC.feed_text_removed(PAGE, page, feed) == (       # outside the section the same values stay (B-ISO-14)
+        ours + '<section class="digest-meeting" id="" aria-labelledby=""><time datetime="">Tuesday, </time>'
+        '<a href="">a</a><a href="">i</a><a href="../../about.html">ours</a><p id="m-e-2">x</p></section>' + ours)
     assert SC.feed_text_removed("about.html", page, feed) == page
     for odd in (None, [], {"meetings": 1}, {"meetings": [1, {"items": 2, "agenda": 3}]}):
         assert SC.feed_text_removed(PAGE, page, odd) == page
@@ -957,3 +965,224 @@ def test_no_degrade_path_prints_input_text(world, tmp_path, monkeypatch, capsys)
     one("tier-2", good, lambda mp: mp.setattr(nat, "page_directory", first))
     assert seen == {ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, ncopy.BAD_FILE, npg.ADAPTER_ERROR,
                     npg.RENDER_ERROR, npg.DEGRADED}
+
+
+# --- 12.3 #15: row 6s (v3; security S2d findings 1, 2 and nit a; B-ISO-12..14) ----------------------------------------
+# national-isolation/feed-value-outside-wrapper (finding 1), national-isolation/exemption-blanks-own-text (finding 2)
+
+def _warnings(capsys) -> list[str]:
+    return [ln for ln in assert_clean_lines(capsys.readouterr().out) if ln.startswith("::warning::")]
+
+
+@pytest.mark.parametrize("title", ["Paint color #2B4BA5", "gnoshcodes-mark-black", "a request to present the budget",
+                                   ""])
+def test_15a_a_title_ours_that_is_not_the_fixed_title_is_bad_file(world, _baseline_checks, tmp_path, monkeypatch,
+                                                                   capsys, title):
+    """(a) The file otherwise copies (`built`); with `title_ours: true` and a title that is not Legistar's fixed one
+    the page is stale, `bad-file`, one warning naming TitleNotOurs, and every site check passes."""
+    doc = body_file(world["review"], title=title)
+    doc["meetings"][0]["title_ours"] = True
+    out = tmp_path / "site"
+    result = build(out, root=national_root(tmp_path, doc))
+    assert result["national"] == npg.BUILT and result["national_states"] == {GOV: ncopy.BAD_FILE}
+    assert _warnings(capsys) == [f"::warning::National pages: {GOV}: bad-file (TitleNotOurs)"]
+    assert json.loads((out / DATA).read_text(encoding="utf-8")) == json.loads(world["baseline"][DATA])     # stale
+    got = _checks(out, monkeypatch)
+    assert got == _baseline_checks, {k: v for k, v in got.items() if v != _baseline_checks.get(k)}
+
+
+def test_15a_the_fixed_title_with_title_ours_is_built(world, _baseline_checks, tmp_path, monkeypatch, capsys):
+    doc = body_file(world["review"], title="Meeting")
+    doc["meetings"][0]["title_ours"] = True
+    out = tmp_path / "site"
+    result = build(out, root=national_root(tmp_path, doc))
+    assert result["national_states"] == {} and _warnings(capsys) == []
+    m = json.loads((out / DATA).read_text(encoding="utf-8"))["meetings"][0]
+    assert (m["title"], m["title_ours"]) == ("Meeting", True)
+    assert '<p class="digest-meeting-title">Meeting</p>' in (out / PAGE).read_text(encoding="utf-8")   # unwrapped
+    got = _checks(out, monkeypatch)
+    assert got == _baseline_checks, {k: v for k, v in got.items() if v != _baseline_checks.get(k)}
+
+
+@pytest.mark.parametrize("checked_at,state", [
+    ("2022-08-30T16:00:00Z", ncopy.BAD_INSTANT),          # S2d's probe: the lines_effective day, printed in words
+    ("2026-11-18T05:59:59Z", ncopy.BAD_INSTANT),          # the day before host_ok.date (2026-11-18) in Chicago
+    ("2026-11-18T06:00:00Z", None)])                      # on host_ok.date: built
+def test_15b_checked_at_is_held_on_or_after_host_ok_date(world, _baseline_checks, tmp_path, monkeypatch, capsys,
+                                                          checked_at, state):
+    out = tmp_path / "site"
+    doc = body_file(world["review"], checked_at=checked_at)
+    result = build(out, root=national_root(tmp_path, doc))
+    assert result["national_states"] == ({GOV: state} if state else {})
+    assert _warnings(capsys) == ([f"::warning::National pages: {GOV}: {state}"] if state else [])
+    feed = json.loads((out / DATA).read_text(encoding="utf-8"))
+    assert feed["checked_at"] == (ncopy.EPOCH_INSTANT if state else checked_at)
+    if state is None:
+        assert npg.newest_day(feed["checked_at"]) == HOST_OK["date"]
+        assert "November 18, 2026" in (out / PAGE).read_text(encoding="utf-8")
+    got = _checks(out, monkeypatch)
+    assert got == _baseline_checks, {k: v for k, v in got.items() if v != _baseline_checks.get(k)}
+
+
+@pytest.mark.parametrize("day", ["2022-08-30", "2022-08-29"])
+def test_15b_an_entry_whose_host_ok_is_on_or_before_lines_effective_is_refused_at_load(tmp_path, monkeypatch, day):
+    assert config.SITE["lines_effective"] == "2022-08-30"
+    folder = write_folder(tmp_path, dict(ENTRY, items="withheld", host_ok=dict(HOST_OK, date=day)))
+    out = tmp_path / "out"
+    out.mkdir()
+    with pytest.raises(npg.NationalBuildError, match="lines_effective"):
+        RUN(out, build_mod.make_env(), {}, councils=[], county_agendas=None, built_day=TODAY, counter=None,
+            fixture=True, folder=folder)
+    assert list(out.rglob("*")) == []
+    point_at(monkeypatch, folder, None)
+    with pytest.raises(build_mod.BuildError, match="national: .*lines_effective"):
+        build(tmp_path / "site")
+
+
+def test_15b_control_an_adapter_feed_s_checked_at_is_its_newest_source_fetch(world, tmp_path):
+    """The adapter's checked_at day is our own collector's fetch day (newest_record_at): no validator is needed."""
+    agendas = _county_agendas("Roads")
+    agendas["sources"].append(dict(agendas["sources"][0], id="s0", url="https://mcgtn.org/b.pdf",
+                                   fetched_at="2026-10-02"))
+    path = tmp_path / "agendas.json"
+    path.write_text(json.dumps(agendas), encoding="utf-8")
+    out = tmp_path / "site"
+    build(out, county_agendas=path)
+    feed = json.loads((out / f"digest/tn/{COUNTY_ID}.json").read_text(encoding="utf-8"))
+    assert feed["checked_at"] == npg.newest_record_at(agendas["sources"]).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert npg.newest_day(feed["checked_at"]) == "2026-11-18"
+
+
+AS_OF_RE = re.compile(r'Data as of <time class="data-as-of" datetime="([0-9-]{10})">([^<]*)</time>')
+
+
+def _as_of(page: str) -> str:
+    m = AS_OF_RE.search(page)
+    assert m, "no Data as of footer"
+    return m[1]
+
+
+def _patched_footer(out: Path, day: str) -> None:
+    """The coming-up page's footer patched to say "Data as of `day`" (attribute and words)."""
+    p = out / PAGE
+    d = date.fromisoformat(day)
+    text, n = AS_OF_RE.subn(f'Data as of <time class="data-as-of" datetime="{day}">'
+                            f'{d.strftime("%B")} {d.day}, {d.year}</time>', p.read_text(encoding="utf-8"))
+    assert n == 1
+    p.write_text(text, encoding="utf-8")
+
+
+def test_15c_a_meeting_on_the_footer_s_day_never_hides_the_footer(world, tmp_path, monkeypatch):
+    """(c) Control for finding 2: the footer's "Data as of" day is read raw whatever the meeting dates are. A meeting
+    dated the build's as-of day, footer right: passes; footer patched wrong: fails dates/no-raw-utc-day on the page.
+    Also the case finding 2 proved: a meeting dated the wrong day the footer is patched to (page-wide blanking
+    emptied that footer, so it passed)."""
+    as_of = _as_of(world["baseline"][PAGE].decode("utf-8"))
+    wrong = date.fromordinal(date.fromisoformat(as_of).toordinal() - 1).isoformat()
+
+    def checked(meeting_day: str, footer_day: str | None, name: str) -> tuple:
+        out = tmp_path / name
+        build(out, root=national_root(tmp_path / name, body_file(world["review"], date_=meeting_day)))
+        assert json.loads((out / DATA).read_text(encoding="utf-8"))["meetings"][0]["date"] == meeting_day  # copied
+        if footer_day:
+            _patched_footer(out, footer_day)
+        return _checks(out, monkeypatch)["dates/no-raw-utc-day"]
+    assert checked(as_of, None, "right") == (True, [])
+    for name, meeting_day in (("as-of-meeting", as_of), ("wrong-day-meeting", wrong)):
+        ok, problems = checked(meeting_day, wrong, name)
+        assert not ok and any(PAGE in pr for pr in problems), (name, problems)
+
+
+PROBE_OFFICIAL = "https://example.legistar.com/gnoshcodes-mark-black/Calendar.aspx"
+OFFICIAL_RE = re.compile(r'<p class="official-record">.*?</p>', re.S)
+
+
+def test_15d_our_official_link_stays_checked_when_a_feed_url_equals_it(world, tmp_path, monkeypatch):
+    """(d) A directory official_url equal to a feed meeting_url (common on Legistar): the official-record href
+    (body.html.j2, outside every section) stays in own_text, and a brand probe there fails its check."""
+    out = tmp_path / "site"
+    doc = body_file(world["review"])
+    doc["meetings"][0]["meeting_url"] = ENTRY["official_url"]
+    build(out, root=national_root(tmp_path, doc))
+    own = SC.own_text(out, PAGE, (out / PAGE).read_text(encoding="utf-8"))
+    assert f'href="{ENTRY["official_url"]}"' in OFFICIAL_RE.search(own)[0]
+    probe = tmp_path / "probe"
+    doc["meetings"][0]["meeting_url"] = PROBE_OFFICIAL
+    build(probe, root=national_root(tmp_path / "p", doc))
+    p = probe / PAGE
+    text = p.read_text(encoding="utf-8")
+    official = OFFICIAL_RE.search(text)[0]
+    p.write_text(text.replace(official, official.replace(ENTRY["official_url"], PROBE_OFFICIAL)), encoding="utf-8")
+    ok, problems = _checks(probe, monkeypatch)["brand/no-old-gnoshcodes"]
+    assert not ok and any(PAGE in pr for pr in problems), problems
+
+
+@pytest.mark.parametrize("page_no", [20220830, 2])
+def test_15e_an_item_source_page_number_passes_every_check(world, _baseline_checks, tmp_path, monkeypatch, page_no):
+    doc = body_file(world["review"])
+    doc["meetings"][0]["items"][0]["source"]["page"] = page_no
+    out = tmp_path / "site"
+    build(out, root=national_root(tmp_path, doc))
+    assert json.loads((out / DATA).read_text(encoding="utf-8"))["meetings"][0]["items"][0]["source"]["page"] == page_no
+    assert str(page_no) in (out / PAGE).read_text(encoding="utf-8")
+    got = _checks(out, monkeypatch)
+    assert got == _baseline_checks, {k: v for k, v in got.items() if v != _baseline_checks.get(k)}
+
+
+def test_15f_a_gov_json_review_and_instants_pass_both_brand_checks(world, tmp_path, monkeypatch):
+    """(f) The schema holds `review` to 64 lowercase hex and the instants to digits and -T:Z: no `#`, letter run or
+    `(`, so neither brand check can match, even for a review made of the old color's digits."""
+    out = tmp_path / "site"
+    build(out, root=national_root(tmp_path, body_file(world["review"])))
+    raw = json.loads((out / DATA).read_text(encoding="utf-8"))
+    assert raw["review"] == world["review"] and raw["checked_at"] == "2026-11-19T04:30:00Z"
+    doc = dict(raw, review=("2b4ba5" * 11)[:64], checked_at="2022-08-30T16:00:00Z", last_ok_at="2022-08-30T16:00:00Z")
+    assert npg.ncl.feed_errors(doc) == []
+    (out / DATA).write_text(json.dumps(doc), encoding="utf-8")
+    got = _checks(out, monkeypatch)
+    for check in ("brand/no-old-gnoshcodes", "brand/no-old-daylight-colors"):
+        assert got[check][0], (check, got[check])
+
+
+def test_15g_spans_match_the_feed_fields_exactly_and_in_order():
+    fields = ["6:00 PM", "City Council", "Final", "R-1", "Text  of\nthe item"]
+    assert SC.spans_not_in_order(["6:00 PM", "City Council", "R-1", "Text of the item"], fields) == []
+    assert SC.spans_not_in_order(["City Council", "R-1"], fields) == []                   # fields may go unprinted
+    assert SC.spans_not_in_order(["Tom &amp; Jerry"], ["Tom & Jerry"]) == []              # unescaped
+    assert SC.spans_not_in_order(["City Council", "6:00 PM"], fields) == [2]              # swapped
+    assert SC.spans_not_in_order(["6:00 PM", "", "R-1"], fields) == [2]                   # empty, no empty field
+    assert SC.spans_not_in_order(["6:00 PM", ""], ["6:00 PM", ""]) == []
+    assert SC.spans_not_in_order(["Text of"], fields) == [1]                              # a prefix of a field
+    assert SC.spans_not_in_order(["R-1", "R-1"], fields) == [2]                           # more spans than fields
+
+
+def test_15g_digest_feed_text_refuses_a_loose_or_misplaced_span(world, tmp_path, monkeypatch):
+    """(g) Two spans swapped, an extra empty span, a span equal to a prefix of a field, and a span outside every
+    digest-meeting section each fail digest/feed-text; the good build passes."""
+    out = tmp_path / "site"
+    build(out, root=national_root(tmp_path, body_file(world["review"])))
+    assert _checks(out, monkeypatch)["digest/feed-text"] == (True, [])
+    page = (out / PAGE).read_text(encoding="utf-8")
+    spans = ["<span data-feed>6:00 PM</span>", "<span data-feed>City Council</span>",
+             f"<span data-feed>{SENTINEL}</span>"]
+    assert all(page.count(s) == 1 for s in spans)
+    swapped = page.replace(spans[0], "\0").replace(spans[1], spans[0]).replace("\0", spans[1])
+    cases = {"swapped": swapped,
+             "extra-empty": page.replace(spans[2], spans[2] + "<span data-feed></span>"),
+             "prefix": page.replace(spans[2], f"<span data-feed>{SENTINEL[:8]}</span>"),
+             "outside-section": page.replace("</h1>", f"</h1>{spans[1]}", 1)}
+    for name, text in cases.items():
+        (out / PAGE).write_text(text, encoding="utf-8")
+        ok, problems = _checks(out, monkeypatch)["digest/feed-text"]
+        assert not ok and any(PAGE in pr for pr in problems), name
+        assert not any("City Council" in pr or SENTINEL[:8] in pr for pr in problems)       # never the text
+        if name == "outside-section":
+            assert any("outside every digest-meeting section" in pr for pr in problems)
+
+
+def test_15g_the_shipped_config_s_pages_pass_digest_feed_text(tmp_path, monkeypatch):
+    out = tmp_path / "site"
+    build(out)
+    assert any(out.glob("digest/tn/*.html"))
+    ok, problems = _checks(out, monkeypatch)["digest/feed-text"]
+    assert ok, problems

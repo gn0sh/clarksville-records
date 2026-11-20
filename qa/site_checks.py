@@ -108,8 +108,10 @@ Every exemption below names the `digest/` prefix (DIGEST); pages outside it are 
               any page, or the Census at all on a page without the landing address box; only digest/index.html names
               the frame
   digest/feed-text  no page but a coming-up page digest/<st>/<id>.html carries data-feed; there every data-feed
-              element is a bare <span data-feed> of text only, and its text is part of a feed-text field (time, a
-              title that is not ours, status_as_posted, item number or text) of the page's own JSON
+              element is a bare <span data-feed> of text only inside a <section class="digest-meeting">, and the
+              spans in page order are an in-order subsequence of the feed-text fields (time, a title that is not
+              ours, status_as_posted, item number or text) of the page's own JSON: each span equals the next unused
+              field exactly (unescaped, spaces normalised), so no extra, empty, cut or reordered span passes
   Scoped exemptions (each on `digest/` only): the geo frame (DIGEST_FRAME) is a framed document, not a site page, so
   footer, external, unofficial, switch and header skip it (digest/csp holds it); header: a digest page carries the
   usual header after the three substitutions of 7a (plate place, no moon, no sky-in span); switch: a digest page has
@@ -117,14 +119,15 @@ Every exemption below names the `digest/` prefix (DIGEST); pages outside it are 
   form-action are digest/csp's; sources: an unmarked outbound link on a digest page is https, rel "noopener
   noreferrer", and a directory entry's official, checked or reason URL, the geocoder's or (while its form is on) the
   morning note provider's privacy page, or a URL of the
-  coming-up page's own JSON. Feed text (architecture 12.1 row 6, B-ISO-8; the government's words, not ours):
-  name-links, brand/no-old-gnoshcodes, brand/no-old-daylight-colors, unverified (the token scan), provenance (the
-  banned words and days), digest/csp (the frame-name test) and dates/no-raw-utc-day read a coming-up page
-  digest/<st>/<id>.html without the text of its <span data-feed>s and without the href, id, aria-labelledby and
-  datetime values that are its own JSON's meeting links, "m-<meeting id>"s and dates (and those dates in words),
-  and the byte and token scans read its JSON digest/<st>/<id>.json with those feed strings blanked
-  (feed_text_removed, feed_json_without_text); everything else on those pages, our labels, header and footer
-  included, is checked as on every page, and the file-name and favicon tests read the raw file.
+  coming-up page's own JSON. Feed text (architecture 12.1 rows 6 and 6s, B-ISO-8, B-ISO-14; the government's
+  words, not ours): name-links, brand/no-old-gnoshcodes, brand/no-old-daylight-colors, unverified (the token scan),
+  provenance (the banned words and days), digest/csp (the frame-name test) and dates/no-raw-utc-day read a coming-up
+  page digest/<st>/<id>.html with each of its <section class="digest-meeting"> elements (opening tag included)
+  without the text of its <span data-feed>s and without the href, id, aria-labelledby and datetime values that are
+  its own JSON's meeting links, "m-<meeting id>"s and dates (and those dates in words), and the byte and token scans
+  read its JSON digest/<st>/<id>.json with those feed strings blanked (feed_text_removed, feed_json_without_text).
+  Everything outside those sections (eyebrow, h1, official-record link, newest-record line, no-meetings line, topic
+  note, header and footer) is read raw, as on every page, and the file-name and favicon tests read the raw file.
 
 Councils (config/site.yml `councils`, each config/localities/<locality>/council.yml): a real build also has each
 council's pages under its folder, built from the council's own facts file. links, sources, unverified, layout, totals,
@@ -189,6 +192,10 @@ FEED_SPAN = re.compile(r"<span data-feed>([^<]*)</span>")
 # Where a coming-up page prints a feed value as an attribute: the meeting id (id="m-<id>", "m-<id>-h"), its date
 # (datetime) and its links (href). Only a value equal to one of the page's own feed values is blanked.
 FEED_ATTR = re.compile(r'(\s(?:href|id|aria-labelledby|datetime)=")([^"]*)(")')
+# The only part of a coming-up page that blanking reaches (architecture 12.1 row 6s rule 2, B-ISO-14): one meeting,
+# its opening tag included. The template prints no nested <section>, and autoescaped feed text and MEETING_ID_RE ids
+# hold no "<" or ">", so the lazy match ends at the meeting's own </section>.
+FEED_SECTION = re.compile(r'<section class="digest-meeting"[^>]*>.*?</section>', re.S)
 
 
 def gov_json_of(site: Path, rel: str):
@@ -248,20 +255,26 @@ def _feed_values(feed) -> tuple[set[str], set[str]]:
 
 
 def feed_text_removed(rel: str, text: str, feed=None) -> str:
-    """A coming-up page (digest_gov_page) without the government's own text (architecture 12.1 row 6, B-ISO-8): every
+    """A coming-up page (digest_gov_page) without the government's own text (architecture 12.1 rows 6 and 6s, B-ISO-8,
+    B-ISO-14): inside each <section class="digest-meeting"> (FEED_SECTION, its opening tag included), every
     <span data-feed> emptied and, given its gov JSON `feed`, every href, id, aria-labelledby or datetime value equal
-    to one of that feed's links, "m-<meeting id>"s or dates, and those dates in words. Our own words on the page (its
-    labels, header, footer and our links) stay. Any other page is returned unchanged."""
+    to one of that feed's links, "m-<meeting id>"s or dates, and those dates in words. The rest of the page (our
+    labels, header, footer, "Data as of" day and official link) is returned as is, so a feed value equal to one of
+    them never blanks it. Any other page is returned unchanged."""
     if not digest_gov_page(rel):
         return text
-    text = FEED_SPAN.sub("<span data-feed></span>", text)
-    if feed is None:
-        return text
-    attrs, words = _feed_values(feed)
-    text = FEED_ATTR.sub(lambda m: m[1] + m[3] if html.unescape(m[2]) in attrs else m[0], text)
-    for w in sorted(words, key=len, reverse=True):
-        text = text.replace(w, "")
-    return text
+    attrs, words = _feed_values(feed) if feed is not None else (set(), set())
+    ordered = sorted(words, key=len, reverse=True)
+
+    def blank(section: re.Match) -> str:
+        part = FEED_SPAN.sub("<span data-feed></span>", section[0])
+        if feed is None:
+            return part
+        part = FEED_ATTR.sub(lambda m: m[1] + m[3] if html.unescape(m[2]) in attrs else m[0], part)
+        for w in ordered:
+            part = part.replace(w, "")
+        return part
+    return FEED_SECTION.sub(blank, text)
 
 
 def feed_json_without_text(rel: str, raw: bytes) -> bytes:
@@ -2801,12 +2814,35 @@ class FeedMarks(HTMLParser):
         self.n += any(name == "data-feed" for name, _ in attrs)
 
 
+def _norm(text: str) -> str:
+    return " ".join(text.split())
+
+
+def spans_not_in_order(spans: list[str], fields: list[str]) -> list[int]:
+    """The 1-based positions of the spans (raw page text) that do not match, in order, the feed-text fields: each
+    span, unescaped and spaces normalised, must equal the next unused field exactly (an in-order subsequence; fields
+    with no span, such as status_as_posted, are skipped). A span that matches none is reported and consumes none."""
+    bad, i = [], 0
+    norm = [_norm(f) for f in fields]
+    for k, s in enumerate(spans, 1):
+        t = _norm(html.unescape(s))
+        j = next((j for j in range(i, len(norm)) if norm[j] == t), None)
+        if j is None:
+            bad.append(k)
+        else:
+            i = j + 1
+    return bad
+
+
 def check_digest_feed_text(site: Path) -> tuple[list[str], str]:
-    """digest/feed-text (architecture 12.1 row 6, B-ISO-8) keeps the feed-text exemption honest: (i) no page but a
-    coming-up page (digest_gov_page) carries data-feed; (ii) on a coming-up page every data-feed element is a bare
-    <span data-feed> holding text only; (iii) each such span's text (unescaped, spaces normalised) is part of a
-    feed-text field of the page's own gov JSON (feed_texts; a part, so cut item text matches). So none of our own
-    words can hide in the wrapper. Problems name the page and counts, never the text."""
+    """digest/feed-text (architecture 12.1 rows 6 and 6s, B-ISO-8, B-ISO-14) keeps the feed-text exemption honest:
+    (i) no page but a coming-up page (digest_gov_page) carries data-feed; (ii) on a coming-up page every data-feed
+    element is a bare <span data-feed> holding text only; (iii) the spans in page order are an in-order subsequence
+    of the feed-text fields of the page's own gov JSON (spans_not_in_order: each equals the next unused field
+    exactly, so spans <= fields, no empty span without an empty field, no reordering; the printed item text is the
+    JSON's own, already cut); (iv) no data-feed element is outside every <section class="digest-meeting">, where
+    feed_text_removed does not blank. So none of our own words can hide in the wrapper. Problems name the page and
+    counts, never the text."""
     problems, spans, n = [], 0, 0
     for f in sorted(site.rglob("*.html")):
         rel, n = f.relative_to(site).as_posix(), n + 1
@@ -2825,11 +2861,14 @@ def check_digest_feed_text(site: Path) -> tuple[list[str], str]:
         if len(found) != p.n:
             problems.append(f"{rel}: {p.n - len(found)} data-feed element(s) that are not a bare <span data-feed> "
                             "holding text only")
-        fields = [" ".join(s.split()) for s in feed_texts(gov_json_of(site, rel))]
-        alien = [i for i, s in enumerate(found, 1)
-                 if not any(" ".join(html.unescape(s).split()) in fld for fld in fields)]
+        alien = spans_not_in_order(found, feed_texts(gov_json_of(site, rel)))
         if alien:
-            problems.append(f"{rel}: data-feed span(s) {alien[:5]} hold text in no feed field of its gov JSON")
+            problems.append(f"{rel}: data-feed span(s) {alien[:5]} do not match, in order, the feed-text fields of "
+                            "its gov JSON")
+        outside = FeedMarks()
+        outside.feed(FEED_SECTION.sub("", text))
+        if outside.n:
+            problems.append(f"{rel}: {outside.n} data-feed element(s) outside every digest-meeting section")
     return problems, f"{spans} data-feed spans on {n} pages"
 
 
