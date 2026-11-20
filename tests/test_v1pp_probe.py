@@ -125,7 +125,7 @@ class Run:
         calls = tmp / "calls"
         self.calls = [json.loads(x) for x in calls.read_text().splitlines()] if calls.exists() else []
         self.state = json.loads((tmp / "state.json").read_text())
-        found = sorted(tmp.glob("v1pp-probe-results-*.txt"))
+        found = sorted([*tmp.glob("v1pp-probe-results-*.txt"), *tmp.glob("Documents/v1pp-probe-results-*.txt")])
         self.results = found[0].read_text() if found else ""
 
     def marks(self, kind):
