@@ -49,3 +49,10 @@ D-ISO-17 `-z "$src"` branch off: every one caught by at least one test.
 tests/test_digest_site_checks.py`: 406 passed, 0 failed.
 
 Re-review: delta check on finding 1 is enough.
+
+## Delta re-review (d57de26..4a44508), 2026-11-20
+**Verdict: APPROVE WITH NITS.** Finding 1 `copy-step-raises-on-input` closed (national_copy.py:186-188 refuses any
+title_ours title that is not a str in OURS_TITLES; list/dict -> `bad-file (TitleNotOurs)`). Revert check: d57de26
+national_copy.py back -> 6 new cases fail ([] {} ["Meeting"] in both test files). Nit 3 fixed (architecture :1320).
+nit `national-isolation/doc-drift`: edited line ~150 chars vs ~118 wrap; re-wrap on next touch.
+Tests: test_national_copy + test_national_isolation 204 passed, 0 failed.

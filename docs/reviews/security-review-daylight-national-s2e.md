@@ -59,3 +59,11 @@ feeds) came from the partial local invocation without RPC/finance inputs, on pag
 ## Ledger keys
 `national-isolation/copy-step-raises-on-input` LOW (backend; nit-level hit). Closed: feed-value-outside-wrapper,
 exemption-blanks-own-text, S2d nits a-c. No new hit in national-budget or data-prov. Security delta re-review enough.
+
+## Delta re-confirm (d57de26..4a44508), 2026-11-20
+**Verdict: PASS.** `copy-step-raises-on-input` closed: title_problem checks `isinstance(title, str) and title in ours`
+before the frozenset lookup. Probes via copy_feed with title_ours true: lists (`["x"]`, `["Meeting"]`, nested, `[]`),
+dicts (`{"a":1}`, `{"Meeting":1}`, nested, `{}`), scalars (5, None, True) each give one warning
+`bad-file (TitleNotOurs)`, no raise; control "Meeting" copied. A str subclass with a raising `__hash__` can only be built
+in-process (json.loads and clean_feed return plain str): not a finding. Tests 204 passed. No workflow/template/qa change
+in range. Release: OK; carried gates unchanged.
