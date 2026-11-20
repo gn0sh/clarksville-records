@@ -1,0 +1,415 @@
+# National update: the Daylight Digest national collector (ADR 0013 decision 6; docs/architecture/daylight-national.md
+# 3.7, 4.4.4, 4.6; task D1). Its output lives on branch national-data (tree data/national/ only), never on main.
+#
+# gate job   : runs first. Reads the head N of national-data once and checks it: its tree holds only the collector's
+#              files (the national-data tree helper below), and it is either the pinned seed (no parents, listing
+#              sha256 = NATIONAL_DATA_SEED_DIGEST) or its listing carries an attestation by this workflow file at
+#              refs/heads/main (--cert-identity pinned: an attestation by daily-update.yml or from another branch
+#              is refused). No national-data yet (it is created with its ruleset, task U3-0): ready=no, and the run
+#              is a clean no-op. Read-only: contents: read, attestations: read.
+# collect job: main only. Runs `python -m collector.national` on a fresh checkout of N in a folder it creates
+#              itself (never through an existing data/ tree: 4.6 "D1 data path"), then uploads data/national/ as an
+#              artifact. contents: read and no token in any step (the checkouts do not persist one); it talks to
+#              webapi.legistar.com only, through the CLI's own fetcher (4.6 "D1 fetcher"). The log shows only the
+#              CLI's own lines (body ids, outcome kinds and counts), with workflow commands stopped around them; no
+#              fetcher log, exception text or traceback is printed, captured, summarised or uploaded (4.6 "D1 logs").
+#              Exit 3 (outputs written, but a collector-error or no body read ok) still uploads, and flags the run.
+# push job   : main only. Commits the artifact as data/national/ in one commit on N, checks it with the same tree
+#              helper, attests its listing (actions/attest-build-provenance), and only then pushes it to
+#              national-data, fast-forward only. The only job here with contents: write, id-token: write or
+#              attestations: write. It parses nothing and runs no file from the repository.
+# report job : main only. Opens or comments on one fixed-title issue when a job failed or was cancelled (a run
+#              killed by its timeout included) or the run was flagged (exit 3). Fixed text and job results only.
+#
+# The daily deploy (daily-update.yml) reads the newest national-data commit whose listing is attested by this file at
+# refs/heads/main, and copies its feeds into digest/ through the D2 copy step (sitegen/national_copy.py) only while
+# config/site.yml national.enabled is true. A national failure never holds a Clarksville deploy.
+#
+# Time (4.4.4, `national-budget/*`): the collect job's timeout is 75 minutes, collector/national/__main__.py's
+# JOB_MINUTES (a test keeps them equal). The CLI stops sending 60 minutes after it starts (RUN_SECONDS); its 15
+# minute margin holds the steps before it (step timeouts at most 3 minutes in all), the one request in flight at the
+# deadline (at most 6 minutes), the writes (under 1 minute) and the steps after it in this job (at most 3 minutes).
+#
+# Nothing here can collect yet: the directory (config/national/directory.yml) has no covered Legistar entry, every
+# such entry needs Brian's host_ok (R5) before the CLI sends anything, and national-data does not exist until U3-0.
+name: National update
+
+on:
+  schedule:
+    - cron: "23 4 * * *"       # 04:23 UTC, before the daily deploy (09:07 UTC) reads national-data
+    - cron: "23 16 * * *"      # 16:23 UTC: twice daily (ADR 0013 decision 6)
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "Requests on webapi.legistar.com for this run (1 to 360; default the NATIONAL_REQUEST_BUDGET variable, else 300)"
+        type: string
+        default: ""
+
+# ADR 0013 decision 6: one run at a time, never cancel a run in progress.
+concurrency:
+  group: national-collect
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      code: ${{ steps.check.outputs.code }}
+      sha: ${{ steps.check.outputs.sha }}
+      ready: ${{ steps.check.outputs.ready }}
+    permissions:
+      contents: read         # read national-data (the repository is public; the token is not on disk)
+      attestations: read     # read the attestations of national-data's listing
+    steps:
+      - name: Check out this run's commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Check the national-data head
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          # sha256 of the seed's listing: an orphan commit holding exactly data/national/health.json "{}\n" and
+          # data/national/proposals.json "[]\n", what the CLI writes for a directory with nothing to read. Empty = none.
+          NATIONAL_DATA_SEED_DIGEST: "daf2f7c6e65e95d605b37b567eb7084337b9a27c4651b2ded3fb70ab291dcdd8"
+        run: |
+          set -euo pipefail
+          N=""
+          verdict() { echo "code=$SHA" >> "$GITHUB_OUTPUT"; echo "sha=$N" >> "$GITHUB_OUTPUT"; echo "ready=$1" >> "$GITHUB_OUTPUT"; }
+          refuse() { echo "::error::$1 Nothing is collected, committed or pushed."; exit 2; }
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || [ "$(git rev-parse HEAD)" != "$SHA" ]; then
+            refuse "the checkout is not this run's commit."
+          fi
+          # ---- national-data tree helper: the same text in national-update.yml (gate, push) and daily-update.yml (a test keeps the copies equal) ----
+          # I-ndata (ADR 0013 decision 6, architecture 3.7): the tree is data/ only, and data/ holds only the national
+          # collector's files, each a regular file (mode 100644) at one of its paths: data/national/health.json,
+          # data/national/proposals.json, data/national/bodies/<body id>.json, data/national/cache/<body id>/<event
+          # id>.json; at least one. Passes only by counting entries that fit (matched == total >= 1), compared as bytes
+          # (LC_ALL=C, grep -a) over NUL-separated records, so a name holding a newline stays one record and fails.
+          # Tree objects only: works on a blob:none partial clone. national_listing writes the bytes the push job
+          # attests and the daily deploy verifies. national_check sets $why when it returns 1.
+          NPATHS=$'^100644 blob [0-9a-f]{40}\tdata/national/(health\\.json|proposals\\.json|bodies/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}\\.json|cache/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}/[0-9]{1,12}\\.json)$'
+          NTOP=$'^040000 tree [0-9a-f]{40}\tdata$'
+          national_listing() { git ls-tree -r -z "$1" -- data; }
+          national_check() {
+            local n_top top_ok total matched
+            why="could not read the tree of $1."
+            git ls-tree -z "$1" > "$2.top" || return 1
+            n_top=$(LC_ALL=C tr -cd '\000' < "$2.top" | wc -c) || return 1
+            top_ok=$(LC_ALL=C grep -zacE -- "$NTOP" "$2.top") || [ $? = 1 ] || return 1
+            why="data/ must be the only entry of the tree, and a folder: $n_top entries, $top_ok of them data/."
+            [ "$n_top" = 1 ] && [ "$top_ok" = 1 ] || return 1
+            why="could not read data/ in the tree of $1."
+            national_listing "$1" > "$2" || return 1
+            total=$(LC_ALL=C tr -cd '\000' < "$2" | wc -c) || return 1
+            why="could not check data/'s names."
+            matched=$(LC_ALL=C grep -zacE -- "$NPATHS" "$2") || [ $? = 1 ] || return 1
+            why="data/ must hold only the national collector's regular files (data/national/health.json, proposals.json, bodies/<id>.json, cache/<id>/<event id>.json): $matched of $total entries fit."
+            [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] && [ "$total" -ge 1 ] && [ "$matched" = "$total" ]; }
+          # ---- end of the national-data tree helper ----
+          # N: the national-data head, read once. No such branch (exit 2 of ls-remote) is the state before U3-0: a
+          # clean no-op. Any other failure to read it refuses.
+          rc=0
+          git ls-remote --exit-code origin refs/heads/national-data > /dev/null || rc=$?
+          if [ "$rc" = 2 ]; then
+            echo "national-data does not exist yet (created with its ruleset at U3-0): nothing to collect on, nothing changes."
+            verdict no; exit 0
+          fi
+          if [ "$rc" != 0 ]; then refuse "could not read national-data."; fi
+          if ! git fetch --no-tags --filter=blob:none --depth=1 origin "+refs/heads/national-data:refs/gate/national-data"; then
+            refuse "could not read national-data."
+          fi
+          N=$(git rev-parse --verify -q "refs/gate/national-data^{commit}") || refuse "could not read national-data's head commit."
+          if ! [[ "$N" =~ ^[0-9a-f]{40}$ ]]; then refuse "could not read national-data's head commit."; fi
+          listing="$RUNNER_TEMP/national-data-listing"
+          if ! national_check "$N" "$listing"; then refuse "national-data does not hold only the national collector's files at $N: $why"; fi
+          # The seed (no parent line in the raw header: a shallow fetch hides parents from rev-list, never from the
+          # commit object) or a listing attested by this workflow file on main.
+          raw=$(git cat-file commit "$N") || refuse "could not read national-data's head commit."
+          header="${raw%%$'\n\n'*}"
+          n_parents=$(grep -c '^parent ' <<< "$header" || true)
+          digest=$(sha256sum < "$listing") || refuse "could not read national-data's listing."
+          digest="${digest%% *}"
+          seed="${NATIONAL_DATA_SEED_DIGEST:-}"
+          if [ -n "$seed" ] && ! [[ "$seed" =~ ^[0-9a-f]{64}$ ]]; then refuse "NATIONAL_DATA_SEED_DIGEST is not a 64-hex sha256."; fi
+          if [ "$n_parents" = 0 ] && [ -n "$seed" ] && [ "$digest" = "$seed" ]; then
+            echo "national-data $N is the seed (no parents; listing sha256 $digest)."
+          elif gh attestation verify "$listing" --repo gn0sh/clarksville-records \
+                 --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/national-update.yml@refs/heads/main \
+                 --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners \
+                 --limit 1000; then
+            echo "national-data $N: its listing (sha256 $digest) is attested by national-update.yml on main."
+          else
+            refuse "national-data is not attested by national-update.yml on main, and is not the seed: head $N, $n_parents parent(s), listing sha256 $digest."
+          fi
+          verdict yes
+
+  collect:
+    needs: gate
+    # main only: a run on another branch never sends a request and never moves national-data
+    if: needs.gate.outputs.ready == 'yes' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75      # = collector/national/__main__.py JOB_MINUTES (a test keeps them equal)
+    outputs:
+      flagged: ${{ steps.collect.outputs.flagged }}
+    permissions:
+      contents: read         # check out the code; no token is persisted and no step is given one
+    steps:
+      # Steps before the CLI: at most 3 minutes in all (4.4.4 margin). No pip cache: no post step to wait for.
+      - name: Set up Python
+        timeout-minutes: 1
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Check out the gate's commit
+        timeout-minutes: 1
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.gate.outputs.code }}
+          path: code
+          persist-credentials: false
+
+      # 4.6 "D1 data path": N goes into a folder this step creates (national/, beside code/ in the fresh workspace),
+      # never through an existing data/ tree. Fetched by sha with no credentials (the repository is public), so it is
+      # exactly the tree the gate checked.
+      - name: Install packages and check out the gate's national-data head (N)
+        timeout-minutes: 1
+        working-directory: code
+        env:
+          N: ${{ needs.gate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet --disable-pip-version-check --require-hashes -r requirements.lock
+          if ! [[ "$N" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::the gate gave no national-data head. Nothing is collected."; exit 1; fi
+          root="$GITHUB_WORKSPACE/national"
+          if [ -e "$root" ] || [ -L "$root" ]; then echo "::error::the national folder already exists. Nothing is collected."; exit 1; fi
+          git init -q "$root"
+          git -C "$root" fetch -q --no-tags --depth=1 "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$N"
+          git -C "$root" checkout -q --detach FETCH_HEAD
+          if [ "$(git -C "$root" rev-parse HEAD)" != "$N" ]; then echo "::error::the national checkout is not the gate's N. Nothing is collected."; exit 1; fi
+          echo "national/ is national-data $N."
+
+      # The CLI's stdout and stderr go straight to the log (never into a file, a summary or an artifact), with
+      # workflow commands stopped around them (a random token), and the CLI runs without GITHUB_OUTPUT, GITHUB_ENV,
+      # GITHUB_PATH or GITHUB_STEP_SUMMARY, so nothing it prints or writes can set an output or a summary.
+      # Exit codes (collector/national/__main__.py): 0 ok; 3 outputs written but flagged (still uploaded, warning,
+      # flagged=yes); 1 failed (nothing past the failure written), 2 bad arguments, 130 interrupted: this step fails
+      # and nothing is uploaded or pushed.
+      - name: Collect (national, polite fetch)
+        id: collect
+        timeout-minutes: 69  # 75 less 3 before and 3 after; the CLI's deadline (60) + one request in flight (6) + writes (1) = 67
+        working-directory: code
+        env:
+          BUDGET: ${{ inputs.budget || vars.NATIONAL_REQUEST_BUDGET || '300' }}
+        run: |
+          set +e
+          if ! [[ "$BUDGET" =~ ^[1-9][0-9]{0,2}$ ]]; then echo "::error::the budget must be a whole number from 1 to 360. Nothing is collected."; exit 1; fi
+          token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+          if ! [[ "$token" =~ ^[0-9a-f]{32}$ ]]; then echo "::error::no token to stop workflow commands. Nothing is collected."; exit 1; fi
+          echo "::stop-commands::$token"
+          env -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STEP_SUMMARY \
+            python -m collector.national "$GITHUB_WORKSPACE/national/data/national" --budget "$BUDGET"
+          rc=$?
+          echo "::$token::"
+          case "$rc" in
+            0) flagged=no ;;
+            3) flagged=yes
+               echo "::warning::The national run wrote its outputs but is flagged (exit 3: a body ended collector-error, or none was read ok). The outputs are still pushed; see the national update issue." ;;
+            *) echo "::error::The national run failed (exit $rc). Nothing is uploaded or pushed; national-data is unchanged."; exit 1 ;;
+          esac
+          echo "flagged=$flagged" >> "$GITHUB_OUTPUT"
+
+      # Steps after the CLI: at most 3 minutes in all (4.4.4 margin). Hidden files (a temporary file) are left out.
+      - name: Upload the national data
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: national-data
+          path: national/data/national
+          retention-days: 2
+          if-no-files-found: error
+
+  push:
+    needs: [gate, collect]
+    # main only; collect is main only and needs a ready gate, so this never runs on another branch or before U3-0
+    if: needs.gate.outputs.ready == 'yes' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write        # push national-data: the only job in this workflow that can write to the repository
+      id-token: write        # sign the listing's attestation (Sigstore certificate for national-update.yml@refs/heads/main)
+      attestations: write    # store that attestation, which the daily deploy's national lookup verifies
+    steps:
+      # The gate's N, not whatever national-data is now: a concurrent push makes this push a non-fast-forward,
+      # refused by GitHub, so the job fails loudly instead of overwriting it.
+      - name: Check out the national-data head the gate checked
+        timeout-minutes: 2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+
+      - name: Download the national data
+        timeout-minutes: 2
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: national-data
+          path: ${{ runner.temp }}/national-data
+
+      # The artifact came from the job that reads outside answers: treat it as input. Only regular files at the
+      # collector's paths, none over 20 MB, health.json and proposals.json present. Committed only, never run or parsed.
+      - name: Validate the national data
+        timeout-minutes: 1
+        run: |
+          set -eu
+          dir="$RUNNER_TEMP/national-data"
+          id='(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}'
+          ok="^(health\\.json|proposals\\.json|bodies/$id\\.json|cache/$id/[0-9]{1,12}\\.json)\$"
+          bad=0
+          while IFS= read -r -d '' f; do
+            echo "::error::not a regular file or folder (symlink or special file) in the national data."; bad=1
+          done < <(find "$dir" ! -type f ! -type d -print0)
+          while IFS= read -r -d '' f; do
+            rel="${f#"$dir"/}"
+            if ! [[ "$rel" =~ $ok ]]; then
+              shown=$(printf '%s' "$rel" | LC_ALL=C tr -c '\040-\176' '?' | head -c 200)
+              echo "::error::not one of the national collector's files: $shown"; bad=1
+            fi
+          done < <(find "$dir" -type f -print0)
+          while IFS= read -r -d '' f; do
+            echo "::error::a national data file is over 20 MB."; bad=1
+          done < <(find "$dir" -type f -size +20M -print0)
+          for need in health.json proposals.json; do
+            if [ ! -f "$dir/$need" ] || [ -L "$dir/$need" ]; then echo "::error::the national data has no $need."; bad=1; fi
+          done
+          [ "$bad" = 0 ]
+
+      # One commit on N with the refreshed data/national/, checked with the gate's own tree helper. The listing it
+      # writes is the attestation's subject: the same bytes the daily deploy rebuilds from the pushed commit.
+      - name: Commit the national data on national-data
+        id: commit
+        timeout-minutes: 2
+        env:
+          N: ${{ needs.gate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # ---- national-data tree helper: the same text in national-update.yml (gate, push) and daily-update.yml (a test keeps the copies equal) ----
+          # I-ndata (ADR 0013 decision 6, architecture 3.7): the tree is data/ only, and data/ holds only the national
+          # collector's files, each a regular file (mode 100644) at one of its paths: data/national/health.json,
+          # data/national/proposals.json, data/national/bodies/<body id>.json, data/national/cache/<body id>/<event
+          # id>.json; at least one. Passes only by counting entries that fit (matched == total >= 1), compared as bytes
+          # (LC_ALL=C, grep -a) over NUL-separated records, so a name holding a newline stays one record and fails.
+          # Tree objects only: works on a blob:none partial clone. national_listing writes the bytes the push job
+          # attests and the daily deploy verifies. national_check sets $why when it returns 1.
+          NPATHS=$'^100644 blob [0-9a-f]{40}\tdata/national/(health\\.json|proposals\\.json|bodies/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}\\.json|cache/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}/[0-9]{1,12}\\.json)$'
+          NTOP=$'^040000 tree [0-9a-f]{40}\tdata$'
+          national_listing() { git ls-tree -r -z "$1" -- data; }
+          national_check() {
+            local n_top top_ok total matched
+            why="could not read the tree of $1."
+            git ls-tree -z "$1" > "$2.top" || return 1
+            n_top=$(LC_ALL=C tr -cd '\000' < "$2.top" | wc -c) || return 1
+            top_ok=$(LC_ALL=C grep -zacE -- "$NTOP" "$2.top") || [ $? = 1 ] || return 1
+            why="data/ must be the only entry of the tree, and a folder: $n_top entries, $top_ok of them data/."
+            [ "$n_top" = 1 ] && [ "$top_ok" = 1 ] || return 1
+            why="could not read data/ in the tree of $1."
+            national_listing "$1" > "$2" || return 1
+            total=$(LC_ALL=C tr -cd '\000' < "$2" | wc -c) || return 1
+            why="could not check data/'s names."
+            matched=$(LC_ALL=C grep -zacE -- "$NPATHS" "$2") || [ $? = 1 ] || return 1
+            why="data/ must hold only the national collector's regular files (data/national/health.json, proposals.json, bodies/<id>.json, cache/<id>/<event id>.json): $matched of $total entries fit."
+            [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] && [ "$total" -ge 1 ] && [ "$matched" = "$total" ]; }
+          # ---- end of the national-data tree helper ----
+          if ! [[ "$N" =~ ^[0-9a-f]{40}$ ]] || [ "$(git rev-parse HEAD)" != "$N" ]; then
+            echo "::error::the checkout is not the national-data head the gate checked. Nothing pushed."; exit 1
+          fi
+          # data/national/ is the whole of N's data/, so replacing it whole keeps deletions too. Only data/ is staged.
+          rm -rf data/national
+          mkdir -p data
+          cp -a "$RUNNER_TEMP/national-data" data/national
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- data
+          if git diff --cached --quiet; then
+            echo "No national data changes."
+            exit 0
+          fi
+          git commit -q -m "National update: refreshed national data ($(date -u +%F))"
+          if [ "$(git rev-parse HEAD^)" != "$N" ]; then
+            echo "::error::the data commit is not exactly one commit on the gate's national-data head. Nothing pushed."; exit 1
+          fi
+          listing="$RUNNER_TEMP/national-data-listing"
+          if ! national_check HEAD "$listing"; then echo "::error::$why Nothing pushed."; exit 1; fi
+          { echo "committed=yes"; echo "sha=$(git rev-parse HEAD)"; } >> "$GITHUB_OUTPUT"
+
+      # Before the push, so a failed attestation pushes nothing (an attested tree that never got pushed is harmless:
+      # the deploy verifies only listings of commits it reads from national-data).
+      - name: Attest the national-data listing
+        if: steps.commit.outputs.committed == 'yes'
+        timeout-minutes: 3
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-path: ${{ runner.temp }}/national-data-listing
+
+      - name: Push the data commit to national-data
+        if: steps.commit.outputs.committed == 'yes'
+        timeout-minutes: 2
+        env:
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || [ "$(git rev-parse HEAD)" != "$SHA" ]; then
+            echo "::error::HEAD is not the attested data commit. Nothing pushed."; exit 1
+          fi
+          git push origin "HEAD:refs/heads/national-data"
+
+  report:
+    needs: [gate, collect, push]
+    # main only; a failed or cancelled job (a run killed by its timeout included), or a flagged run (exit 3)
+    if: >-
+      always() && github.ref == 'refs/heads/main'
+      && (needs.gate.result == 'failure' || needs.gate.result == 'cancelled'
+      || needs.collect.result == 'failure' || needs.collect.result == 'cancelled'
+      || needs.push.result == 'failure' || needs.push.result == 'cancelled'
+      || needs.collect.outputs.flagged == 'yes')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write          # open or comment on one issue
+    steps:
+      # Fixed text, the job results (fixed words, checked) and the run's link only: never a log line. The lookup lists
+      # only issues opened by GitHub Actions, so an outsider's issue with the same title is never commented on.
+      - name: Open or update the national update issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIONAL_TITLE: "National update: run failed or flagged"
+          GATE: ${{ needs.gate.result }}
+          COLLECT: ${{ needs.collect.result }}
+          PUSH: ${{ needs.push.result }}
+          FLAGGED: ${{ needs.collect.outputs.flagged }}
+        run: |
+          set -eu
+          word() { case "$1" in success|failure|cancelled|skipped) echo "$1" ;; *) echo unknown ;; esac; }
+          flagged=no
+          if [ "${FLAGGED:-}" = yes ]; then flagged=yes; fi
+          body="$RUNNER_TEMP/national-issue.md"
+          {
+            echo "The national update needs a look: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo ""
+            echo "gate: $(word "$GATE"); collect: $(word "$COLLECT"); push: $(word "$PUSH"); flagged (exit 3): $flagged."
+            echo ""
+            echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its outputs. The"
+            echo "Clarksville site is not affected: the daily deploy shows national governments as stale until a good run."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$NATIONAL_TITLE\" in:title" --json number,title --jq "map(select(.title == \"$NATIONAL_TITLE\")) | .[0].number // empty")
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$NATIONAL_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
