@@ -678,7 +678,10 @@ def test_only_the_push_job_can_write_contents_or_pull_requests():
         for name, job in wf["jobs"].items():
             if _grants_write(job.get("permissions", wf.get("permissions"))):
                 writers.append((path.name, name))
-    assert writers == [("daily-update.yml", "push")], writers
+    # D1 (ADR 0013 decision 6, finding 6): national-update.yml's push job writes national-data only; its attestation
+    # names national-update.yml, which the records-data gate never accepts (and the reverse: tests/
+    # test_national_workflow.py)
+    assert writers == [("daily-update.yml", "push"), ("national-update.yml", "push")], writers
     assert _grants_write(None) and _grants_write("write-all") and _grants_write({"pull-requests": "write"})
     assert not _grants_write({}) and not _grants_write("read-all") and not _grants_write({"issues": "write"})
 
@@ -700,8 +703,9 @@ def test_only_the_push_job_holds_attestations_write_and_id_token_only_push_and_d
     """ADR 0011 decision 3, finding F3: the certificate names the workflow file and ref, not the job, so the property
     the gate relies on is that only the push job can store an attestation (attestations: write); id-token: write is
     held by it (to sign) and by deploy (deploy-pages) only, in any workflow."""
-    assert _holders("attestations") == [("daily-update.yml", "push")]
-    assert _holders("id-token") == [("daily-update.yml", "push"), ("daily-update.yml", "deploy")]
+    assert _holders("attestations") == [("daily-update.yml", "push"), ("national-update.yml", "push")]
+    assert _holders("id-token") == [("daily-update.yml", "push"), ("daily-update.yml", "deploy"),
+                                    ("national-update.yml", "push")]
     assert WF["jobs"]["deploy"]["permissions"] == {"pages": "write", "id-token": "write"}
 
 
@@ -1304,6 +1308,7 @@ def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
 
 # ------------------------------------------------------------------ main-protect: the gate job (T4.10.2, ADR 0009)
 GATE_STEP = "Check main's history and the records-data head"
+NATIONAL_LOOKUP_STEP = "Find the newest attested national-data"
 PR_STEP = GATE_STEP          # the one copy of the history check (it moved out of the note job)
 STALE_STEP = "Check this commit's sender and config are main's"
 PR_JQ = ('[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.COMMIT) | .number '
@@ -2450,9 +2455,12 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     assert gate["outputs"] == {"sha": "${{ steps.check.outputs.sha }}",
                                "data_sha": "${{ steps.check.outputs.data_sha }}",
                                "seed": "${{ steps.check.outputs.seed }}",
-                               "verified": "${{ steps.check.outputs.verified }}"}
+                               "verified": "${{ steps.check.outputs.verified }}",
+                               "national_sha": "${{ steps.national.outputs.sha }}"}
     steps = gate["steps"]
-    assert [s.get("name") for s in steps] == ["Check out this run's commit", GATE_STEP]
+    # the second step is D2's soft national-data lookup (tests/test_national_workflow.py): never a refusal
+    assert [s.get("name") for s in steps] == ["Check out this run's commit", GATE_STEP, NATIONAL_LOOKUP_STEP]
+    assert steps[2]["continue-on-error"] is True and steps[2]["id"] == "national"
     assert steps[0]["uses"].startswith("actions/checkout@")
     assert steps[0]["with"] == {"ref": "${{ github.sha }}", "persist-credentials": False}
     check = steps[1]
@@ -2469,8 +2477,11 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     assert jobs["update"]["needs"] == "gate"
     co = [s for s in jobs["update"]["steps"] if "actions/checkout@" in s.get("uses", "")]
     # S (the gate's commit), then D (the gate's records-data head) beside it, never `ref: main` (row J1)
-    assert len(co) == 2 and co[0]["with"]["ref"] == "${{ needs.gate.outputs.sha }}" and co[0]["id"] == "checkout"
+    assert len(co) == 3 and co[0]["with"]["ref"] == "${{ needs.gate.outputs.sha }}" and co[0]["id"] == "checkout"
     assert co[1]["with"] == {"ref": "${{ needs.gate.outputs.data_sha }}", "path": ".records-data",
+                             "persist-credentials": False}
+    # D2: the gate's attested national-data commit, in its own folder, never into data/
+    assert co[2]["with"] == {"ref": "${{ needs.gate.outputs.national_sha }}", "path": ".national-data",
                              "persist-credentials": False}
     assert "          ref: main\n" not in TEXT
     assert jobs["push"]["needs"] == ["gate", "update"]

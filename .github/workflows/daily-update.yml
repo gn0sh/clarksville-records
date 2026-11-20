@@ -4,10 +4,13 @@
 #              records-data, read once (ADR 0011). Refuses a tracked data/ on S, a D that fails I-data'' or I-prov
 #              (attested by this workflow's push job on main, or the pinned seed), and, after MAIN_PR_BASELINE, any
 #              commit on main that is not a reviewed pull request a person merged. Read-only.
-#              docs/architecture/v1-fail-2026-11-18.md, ADR 0011.
+#              docs/architecture/v1-fail-2026-11-18.md, ADR 0011. Its second step (D2, soft: never refuses) finds
+#              the newest national-data commit attested by national-update.yml on main for the national pages.
 # update job : builds the gate's commit S on the gate's data D (D's data/ checked out into data/): collect politely,
 #              rebuild, check, run the I-pub tripwire against the live build-info.json (held=yes holds the deploy),
-#              write build-info.json, upload the refreshed data/ and the site as artifacts. It parses
+#              write build-info.json, upload the refreshed data/ and the site as artifacts. The gate's national-data
+#              commit (D2) is checked out beside the build, outside data/, and read by the site build only while
+#              config/site.yml national.enabled is true (sitegen/national_copy.py). It parses
 #              untrusted downloaded PDFs, so it has read-only repo access and no persisted token. It never publishes.
 # push job   : commits the refreshed data/ (from the update job's artifact) as one commit on the gate's D, checks
 #              it against I-data'' with the gate's own helper, attests its tree listing (actions/attest-build-provenance), and only
@@ -102,6 +105,7 @@ jobs:
       data_sha: ${{ steps.check.outputs.data_sha }}
       seed: ${{ steps.check.outputs.seed }}
       verified: ${{ steps.check.outputs.verified }}
+      national_sha: ${{ steps.national.outputs.sha }}   # the newest attested national-data commit, or empty (D2)
     permissions:
       contents: read         # read the history and records-data (the repository is public; the token is not on disk)
       pull-requests: read    # read each commit's pull request and its reviews
@@ -251,6 +255,87 @@ jobs:
           echo "Every commit on main after $base was merged by a person, reviewed at its head: $(echo "$shas" | wc -l) commit(s)."
           verdict true
 
+      # D2 (ADR 0013 decision 6, architecture 4.6; task D2): the national pages' data. The newest commit on
+      # national-data's first-parent line (at most NATIONAL_LOOKBACK of them) whose tree holds only the national
+      # collector's files (the national-data tree helper, shared with national-update.yml) and whose listing is
+      # attested by national-update.yml at refs/heads/main (--cert-identity pinned per workflow and branch: an
+      # attestation by this file, or from another branch, is refused; the seed is never attested, so it is never
+      # read). Soft by design: a national failure never holds a Clarksville run (ADR 0013 decision 6), so this step
+      # always exits 0 and is continue-on-error, and writes `sha` once, at its end (empty: no national data; the
+      # national pages then show their governments as stale). The data is read only while config/site.yml
+      # national.enabled is true (sitegen/national_copy.py); off, the build is byte-identical (B5).
+      - name: Find the newest attested national-data
+        id: national
+        if: success()
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIONAL_LOOKBACK: "10"
+        run: |
+          set -uo pipefail
+          found() { echo "sha=$1" >> "$GITHUB_OUTPUT"; exit 0; }
+          none() { echo "::warning::National pages: $1 No national data is read this run (the national pages show their governments as stale); nothing else changes."; found ""; }
+          # ---- national-data tree helper: the same text in national-update.yml (gate, push) and daily-update.yml (a test keeps the copies equal) ----
+          # I-ndata (ADR 0013 decision 6, architecture 3.7): the tree is data/ only, and data/ holds only the national
+          # collector's files, each a regular file (mode 100644) at one of its paths: data/national/health.json,
+          # data/national/proposals.json, data/national/bodies/<body id>.json, data/national/cache/<body id>/<event
+          # id>.json; at least one. Passes only by counting entries that fit (matched == total >= 1), compared as bytes
+          # (LC_ALL=C, grep -a) over NUL-separated records, so a name holding a newline stays one record and fails.
+          # Tree objects only: works on a blob:none partial clone. national_listing writes the bytes the push job
+          # attests and the daily deploy verifies. national_check sets $why when it returns 1.
+          NPATHS=$'^100644 blob [0-9a-f]{40}\tdata/national/(health\\.json|proposals\\.json|bodies/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}\\.json|cache/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}/[0-9]{1,12}\\.json)$'
+          NTOP=$'^040000 tree [0-9a-f]{40}\tdata$'
+          national_listing() { git ls-tree -r -z "$1" -- data; }
+          national_check() {
+            local n_top top_ok total matched
+            why="could not read the tree of $1."
+            git ls-tree -z "$1" > "$2.top" || return 1
+            n_top=$(LC_ALL=C tr -cd '\000' < "$2.top" | wc -c) || return 1
+            top_ok=$(LC_ALL=C grep -zacE -- "$NTOP" "$2.top") || [ $? = 1 ] || return 1
+            why="data/ must be the only entry of the tree, and a folder: $n_top entries, $top_ok of them data/."
+            [ "$n_top" = 1 ] && [ "$top_ok" = 1 ] || return 1
+            why="could not read data/ in the tree of $1."
+            national_listing "$1" > "$2" || return 1
+            total=$(LC_ALL=C tr -cd '\000' < "$2" | wc -c) || return 1
+            why="could not check data/'s names."
+            matched=$(LC_ALL=C grep -zacE -- "$NPATHS" "$2") || [ $? = 1 ] || return 1
+            why="data/ must hold only the national collector's regular files (data/national/health.json, proposals.json, bodies/<id>.json, cache/<id>/<event id>.json): $matched of $total entries fit."
+            [[ "$total" =~ ^[0-9]+$ && "$matched" =~ ^[0-9]+$ ]] && [ "$total" -ge 1 ] && [ "$matched" = "$total" ]; }
+          # ---- end of the national-data tree helper ----
+          rc=0
+          git ls-remote --exit-code origin refs/heads/national-data > /dev/null || rc=$?
+          if [ "$rc" = 2 ]; then echo "national-data does not exist yet: no national data this run."; found ""; fi
+          if [ "$rc" != 0 ]; then none "could not read national-data."; fi
+          if ! git fetch --no-tags --filter=blob:none --depth="$NATIONAL_LOOKBACK" origin "+refs/heads/national-data:refs/gate/national-data"; then
+            none "could not read national-data."
+          fi
+          if ! commits=$(git rev-list --first-parent --max-count="$NATIONAL_LOOKBACK" "refs/gate/national-data"); then
+            none "could not read national-data's history."
+          fi
+          head=""
+          for c in $commits; do
+            if ! [[ "$c" =~ ^[0-9a-f]{40}$ ]]; then none "unexpected git output."; fi
+            [ -n "$head" ] || head="$c"
+            listing="$RUNNER_TEMP/national-listing-$c"
+            if ! national_check "$c" "$listing"; then
+              echo "::warning::national-data $c is not read: $why"; continue
+            fi
+            if gh attestation verify "$listing" --repo gn0sh/clarksville-records \
+                 --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/national-update.yml@refs/heads/main \
+                 --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners \
+                 --limit 1000; then
+              if [ "$c" != "$head" ]; then
+                echo "::warning::national-data's head $head is not attested by national-update.yml on main; the newest attested commit $c is read instead."
+              fi
+              echo "national-data $c: its listing is attested by national-update.yml on main."
+              found "$c"
+            fi
+          done
+          if [ -z "$head" ]; then none "national-data has no commit."; fi
+          echo "No national-data commit among the newest $NATIONAL_LOOKBACK is attested by national-update.yml on main (the seed never is): no national data this run."
+          found ""
+
   update:
     needs: gate
     runs-on: ubuntu-24.04
@@ -300,6 +385,45 @@ jobs:
           mv .records-data/data data
           rm -rf .records-data
           echo "data/ is records-data $D."
+
+      # D2 (task D2): the gate's newest attested national-data commit N (empty: none, these steps are skipped), checked
+      # out into its own new folder and its data/national/ moved outside the checkout (never into data/, which is
+      # records-data's tree and is uploaded and pushed). Soft: a failure here leaves RECORDS_NATIONAL_DATA empty, the
+      # national pages show their governments as stale, and nothing else changes. Read by the site build only while
+      # config/site.yml national.enabled is true (sitegen/national_copy.py: parse, clean_feed, bind_feed, schema).
+      - name: Check out the gate's national-data commit (N)
+        id: national_checkout
+        if: success() && needs.gate.outputs.national_sha != ''
+        continue-on-error: true
+        timeout-minutes: 3
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.gate.outputs.national_sha }}
+          path: .national-data
+          persist-credentials: false
+
+      - name: Put N's data/national beside the build
+        id: national
+        if: success() && needs.gate.outputs.national_sha != ''
+        continue-on-error: true
+        env:
+          N: ${{ needs.gate.outputs.national_sha }}
+          CHECKOUT: ${{ steps.national_checkout.outcome }}
+        run: |
+          set -euo pipefail
+          trap 'rm -rf .national-data' EXIT
+          dest="$RUNNER_TEMP/national"
+          if [ "$CHECKOUT" != success ]; then echo "::warning::National pages: national-data was not checked out; no national data this run."; exit 0; fi
+          if ! [[ "$N" =~ ^[0-9a-f]{40}$ ]] || [ "$(git -C .national-data rev-parse HEAD)" != "$N" ]; then
+            echo "::warning::National pages: the national-data checkout is not the gate's N; no national data this run."; exit 0
+          fi
+          if [ -e "$dest" ] || [ -L "$dest" ]; then echo "::warning::National pages: $dest already exists; no national data this run."; exit 0; fi
+          if [ -L .national-data/data ] || [ -L .national-data/data/national ] || [ ! -d .national-data/data/national ]; then
+            echo "::warning::National pages: N holds no data/national folder; no national data this run."; exit 0
+          fi
+          mv .national-data/data/national "$dest"
+          echo "root=$dest" >> "$GITHUB_OUTPUT"
+          echo "National pages read national-data $N."
 
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -385,6 +509,7 @@ jobs:
         env:
           RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
           RECORDS_BUILD_TARGET: pages
+          RECORDS_NATIONAL_DATA: ${{ steps.national.outputs.root }}   # D2: empty = no national data
           ALLOW_SHRINK: ${{ inputs.allow_shrink }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}   # data-prov/dispatch-actor: who started or re-ran it
           DISPATCH_ACTOR: ${{ github.actor }}   # who dispatched it first (a re-run keeps it): both must be gn0sh
@@ -510,6 +635,7 @@ jobs:
         env:
           RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
           RECORDS_BUILD_TARGET: pages
+          RECORDS_NATIONAL_DATA: ${{ steps.national.outputs.root }}   # D2: empty = no national data
         run: |
           python -m sitegen --facts data/facts.json --out build/site
           python -m collector export
