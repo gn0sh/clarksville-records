@@ -576,7 +576,12 @@ def test_the_twins_agree():
                      "MAIN_PR_BASELINE past it", "HTTP 404", "HTTP 422", "probe/v1pp-w-bot", "probe/v1pp-d0",
                      "probe/v1pp-env", "probe/v1pp-runner", "v1pp-probe-results-", "OK: main is protected",
                      "CLAUDE_CODE_REMOTE", "GITHUB_ACTIONS", "'CI'" if s is ps1 else " CI;", "NOT-TRIED",
-                     "PASS (V1'')", "FAIL (V1'')", "INCONCLUSIVE (V1'')", "BEGIN-REFUSAL-LOCK", "END-REFUSAL-LOCK"):
+                     "PASS (V1'')", "FAIL (V1'')", "INCONCLUSIVE (V1'')", "BEGIN-REFUSAL-LOCK", "END-REFUSAL-LOCK",
+                     # the review fixes (v1pp-probe/*): the same rule text in both twins
+                     "'not allowed|approving review|rule violation'", "V1PP-RESULT PAGES api exit=[0-9]+( .*)?$",
+                     "'not allowed to deploy|protection rule'", "refused only for the made-up artifact",
+                     "Reference does not exist", "/actions/runs/$", "/cancel", "not completed after 12 minutes",
+                     "nothing was seen to go through", "unlock expired after", "pushed, but no run seen yet"):
             assert part in s, part
         for f in FILES:
             assert f in s, f

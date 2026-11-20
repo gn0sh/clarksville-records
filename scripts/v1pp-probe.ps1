@@ -14,13 +14,19 @@
 #      probe/v1pp-n-bot, probe/v1pp-d0-bot): the runner's GITHUB_TOKEN tries to open them, and must be refused;
 #   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2);
 #   3. pushes probe/v1pp-env (.github/workflows/v1pp-env.yml: one job per environment, github-pages and morning-note,
-#      each only an echo), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments;
+#      each only an echo, and a pages-api job with no environment that calls POST pages/deployments with a made-up
+#      artifact), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments, and the
+#      Pages API on branch or environment grounds (refused only for the artifact = the path is open = FAIL);
 #   4. pushes probe/v1pp-runner (.github/workflows/v1pp-probe.yml): its GITHUB_TOKEN run tries steps 1-3 of section 4
 #      (bot pull requests, then per pull request a bot APPROVE, REST squash, merge, rebase, GraphQL squash, then a
 #      direct push to main by the REST ref update and by git push); a merge or push that goes through ends the run;
 #   5. reads every answer, every probe pull request's merged flag, each probe file on main and on records-data, the
-#      tag main and main's sha; then cleans up (closes every probe pull request, deletes every probe branch and tag)
-#      and reads each one again after cleanup.
+#      tag main and main's sha; then cancels any probe run not completed, cleans up (closes every probe pull request,
+#      deletes every probe branch and tag, and the tag main) and reads each one again. A cleanup step is PASS only
+#      when its write answered (a close: closed and unmerged; a delete: done, or "Reference does not exist") and the
+#      read after it agrees; else INCONCLUSIVE with the command to run.
+# Waits are bounded: 3 minutes for a run to start, 12 minutes for it to finish (then it is cancelled, INCONCLUSIVE).
+# Run it again after an INCONCLUSIVE: it deletes the probe branches and tag of an earlier try first.
 # Every step prints one line: PASS (the expected refusal), FAIL (it went through), NOT-TRIED (skipped because an
 # earlier merge or push ended the run) or INCONCLUSIVE (a read failed, or a refusal for another reason). Verdict: FAIL
 # if any line is FAIL (a probe pull request merged, a probe file on main or records-data, a push to main, a tag main,
@@ -33,7 +39,9 @@
 # first scheduled run after the cutover (D3 step 8).
 # Expected refusal wordings (read from GitHub's docs and the U3 control, not yet seen live for every step; any other
 # wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash "approving
-# review", direct push "rule violation", tag main "rule violation", environments "not allowed to deploy to <env>".
+# review", merge and rebase "not allowed", "approving review" or "rule violation", direct push "rule violation", tag
+# main "rule violation", environments "not allowed to deploy to <env>", the Pages API "not allowed to deploy" or
+# "protection rule".
 # Writes the result to Documents\v1pp-probe-results-<time>.txt. Nothing is sent to anyone. Takes about 5 minutes.
 #
 # Run (PowerShell, in the repository folder):  powershell -NoProfile -File scripts\v1pp-probe.ps1 -Apps claude
@@ -41,14 +49,20 @@
 # 5.1 mangles them), nothing is piped into a native command, and every comparison is case-sensitive unless it says so.
 [CmdletBinding(PositionalBinding = $false)]
 param([string]$Apps = '')
-# BEGIN-REFUSAL-LOCK (v1pp-probe/run-once): the probe pushes workflows and tries merges, so it runs once, by a reviewed
-# PR. To enable that one run, the PR changes exactly one line in each twin:
-#   scripts/v1pp-probe.sh:   v1pp_locked=yes   ->   v1pp_locked=no
-#   scripts/v1pp-probe.ps1:  $v1ppLocked = $true   ->   $v1ppLocked = $false
-# and the PR that records the result changes it back. Nothing below runs while it is locked.
-$v1ppLocked = $true
-if ($v1ppLocked) {
+# BEGIN-REFUSAL-LOCK (v1pp-probe/run-once, v1pp-probe/lock-window): the probe pushes workflows and tries merges, so it
+# runs once, by a reviewed PR. To enable that run, the PR changes exactly one line in each twin to the last UTC day it
+# may run (a few days after the merge), and the PR that records the result changes it back:
+#   scripts/v1pp-probe.sh:   v1pp_unlocked_until=none   ->   v1pp_unlocked_until=YYYY-MM-DD
+#   scripts/v1pp-probe.ps1:  $v1ppUnlockedUntil = 'none'   ->   $v1ppUnlockedUntil = 'YYYY-MM-DD'
+# Nothing below runs while it is locked, or after that day (an unlock left in place expires by itself).
+$v1ppUnlockedUntil = 'none'
+if ($v1ppUnlockedUntil -cnotmatch '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') {
     Write-Host "REFUSED: the V1'' probe is locked (v1pp-probe/run-once). The team enables it for one run by a reviewed PR. Nothing was changed."
+    exit 1
+}
+$today = [DateTime]::UtcNow.ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+if ([string]::CompareOrdinal($today, $v1ppUnlockedUntil) -gt 0) {
+    Write-Host "REFUSED: the V1'' probe's unlock expired after $v1ppUnlockedUntil (UTC) (v1pp-probe/lock-window). Ask the team for a new one. Nothing was changed."
     exit 1
 }
 # END-REFUSAL-LOCK
@@ -170,9 +184,15 @@ $envs = @('github-pages', 'morning-note')
 $probeRefs = @()
 foreach ($b in ($gBranches + $bBranches + @($runner, $envBranch))) { $probeRefs += "heads/$b" }
 $probeRefs += "tags/$ptag"
-$script:nums = @()            # every probe pull request into main: yours, and any the bot opened
-$script:tagMainMade = $false  # set when a tag named main exists after this run's try (only then is it deleted)
+$cleanRefs = $probeRefs + @('tags/main')   # v1pp-probe/tag-main-cleanup: the guard read tags/main absent, so always
+$script:nums = @()          # every probe pull request into main: yours, and any the bot opened
+$script:mergedRead = @()    # the pull requests whose merged flag has been read (and marked)
 $script:r2Done = $false
+# the three probe runs: name, pushed head, run id, looked up (v1pp-probe/inflight-run-at-cleanup)
+$script:rNames = @($runner, $envBranch, $ptag)
+$script:rHeads = @('', '', '')
+$script:rIds = @('', '', '')
+$script:rLooked = @($false, $false, $false)
 
 function R2Read {
     $x = @(gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews' 2>$null)
@@ -198,10 +218,28 @@ function RefState([string]$r) {
     if ($s -ceq 'absent') { return 'absent' }
     return 'present'
 }
-function Cleanup {   # every probe pull request closed (a merged one stays merged), every probe branch and tag deleted
+function CleanupQuiet {   # an early stop: cancel known runs, close, delete; nothing recorded
+    foreach ($rid in $script:rIds) { if ($rid) { Quiet -X POST "repos/$repo/actions/runs/$rid/cancel" } }
     foreach ($n in $script:nums) { Quiet -X PATCH "repos/$repo/pulls/$n" -f state=closed }
-    foreach ($r in $probeRefs) { Quiet -X DELETE "repos/$repo/git/refs/$r" }
-    if ($script:tagMainMade) { Quiet -X DELETE "repos/$repo/git/refs/tags/main" }
+    foreach ($r in $cleanRefs) { Quiet -X DELETE "repos/$repo/git/refs/$r" }
+}
+$script:closeRes = @()
+$script:delRes = @()
+function Cleanup {   # v1pp-probe/cleanup-absence-read: each write's own answer is kept (read-after-write rule 6)
+    $script:closeRes = @()
+    $script:delRes = @()
+    foreach ($n in $script:nums) {   # a merged one stays merged: its answer says so
+        $o = @(gh api -X PATCH "repos/$repo/pulls/$n" -f state=closed --jq '[.state, (.merged|tostring)] | @tsv' 2>&1 | ForEach-Object { "$_" })
+        if ($LASTEXITCODE -eq 0) { $script:closeRes += ($o -join "`n") }
+        else { $script:closeRes += ('failed: ' + (Flat ($o -join ' '))) }
+    }
+    foreach ($r in $cleanRefs) {
+        $o = (@(gh api -X DELETE "repos/$repo/git/refs/$r" 2>&1 | ForEach-Object { "$_" })) -join ' '
+        $rc = $LASTEXITCODE
+        if ($rc -eq 0 -or $o -cmatch 'Reference does not exist') { $script:delRes += 'done' }
+        elseif ($r -ceq 'tags/main' -and $o -match 'rule violation') { $script:delRes += 'done' }   # R-T refusing it
+        else { $script:delRes += ('failed: ' + (Flat $o)) }
+    }
 }
 function AddNum($list) {
     foreach ($n in @($list)) {
@@ -213,37 +251,85 @@ function ListPrs([string]$b) {   # the numbers of every pull request from $b int
     if ($LASTEXITCODE -ne 0) { return $null }
     return , @($x | Where-Object { $_ } | ForEach-Object { [string]$_ })
 }
-function Finish {   # cleanup, the reads after it, the verdict; never returns
+function ReadMerged([string]$n) {   # its merged flag, read and marked once
+    if ($script:mergedRead -contains $n) { return }
+    $script:mergedRead += $n
+    $m = (@(gh api "repos/$repo/pulls/$n" --jq '.merged' 2>$null)) -join ''
+    if ($LASTEXITCODE -ne 0) { $m = '' }
+    if ($m -ceq 'false') { Mark 'PASS' "pull request #$n" 'unmerged' }
+    elseif ($m -ceq 'true') { Mark 'FAIL' "pull request #$n" 'merged into main' }
+    else { Mark 'INCONCLUSIVE' "pull request #$n" 'could not read whether it merged' }
+}
+function RunOnce([string]$name, [string]$head) {   # one read of the push run's id: '' none yet, $null unread
+    $env:H = $head
+    $id = (@(gh run list --repo $repo --branch $name --event push --json 'databaseId,headSha' `
+             --jq '[.[] | select(.headSha == $ENV.H)][0].databaseId // empty' 2>$null)) -join ''
+    if ($LASTEXITCODE -ne 0) { return $null }
+    if ($id -cmatch '^[0-9]+$') { return $id }
+    return ''
+}
+function RunState([string]$id) {   # the run's status, or $null when unread
+    $x = (@(gh run view $id --repo $repo --json status --jq '.status' 2>$null)) -join "`n"
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return $x
+}
+function SettleRuns {   # v1pp-probe/inflight-run-at-cleanup: no probe run may still be running when cleanup starts
+    for ($k = 0; $k -lt 3; $k++) {
+        if (-not $script:rIds[$k] -and $script:rHeads[$k] -and -not $script:rLooked[$k]) {
+            $found = RunOnce $script:rNames[$k] $script:rHeads[$k]
+            $script:rIds[$k] = [string]$found
+            $script:rLooked[$k] = $true
+            if (-not $found) {
+                Mark 'INCONCLUSIVE' "run $($script:rNames[$k])" "pushed, but no run seen yet: if one starts, cancel it at https://github.com/$repo/actions"
+            }
+        }
+        $rid = $script:rIds[$k]
+        if (-not $rid) { continue }
+        $s = RunState $rid
+        if ($s -ceq 'completed') { continue }
+        $shown = if ($s) { $s } else { 'unread' }
+        Log "Run $rid ($($script:rNames[$k])) reads '$shown': cancelling it before cleanup."
+        $o = (@(gh api -X POST "repos/$repo/actions/runs/$rid/cancel" 2>&1 | ForEach-Object { "$_" })) -join ' '
+        if ($LASTEXITCODE -ne 0) { Log "  The cancel answered: $(Flat $o)" }
+        if (-not (ReadUntil "Run $rid" 'completed' { RunState $rid })) {
+            $shown = if ($null -ne $script:readLast) { $script:readLast } else { 'unread' }
+            Mark 'INCONCLUSIVE' "run $rid" "still '$shown' after the cancel: cancel it at https://github.com/$repo/actions/runs/$rid"
+        }
+    }
+}
+function Finish {   # cancel, cleanup, the reads after it, the verdict; never returns
     $script:started = $false
     $script:finished = $true
     foreach ($b in ($gBranches + $bBranches)) {   # pull requests whose number this run did not learn
         $x = ListPrs $b
         if ($null -eq $x) { Mark 'INCONCLUSIVE' "cleanup $b" 'could not list its pull requests' } else { AddNum $x }
     }
-    Log "Cleanup: closing $($script:nums.Count) probe pull request(s), deleting $($probeRefs.Count) probe ref(s)."
+    foreach ($n in $script:nums) { ReadMerged $n }   # before cleanup closes them (v1pp-probe/r2-after-cleanup)
+    SettleRuns
+    Log "Cleanup: closing $($script:nums.Count) probe pull request(s), deleting $($cleanRefs.Count) ref(s)."
     Cleanup
-    foreach ($n in $script:nums) {
-        if (ReadUntil "Pull request #$n" "closed`tfalse" { PrState $n }) {
-            Mark 'PASS' "after cleanup #$n" 'closed, unmerged'
-        } elseif ($null -ne $script:readLast -and ([string]$script:readLast).EndsWith("`ttrue", [StringComparison]::Ordinal)) {
+    for ($k = 0; $k -lt $script:nums.Count; $k++) {
+        $n = $script:nums[$k]
+        $c = [string]$script:closeRes[$k]
+        $ok = ReadUntil "Pull request #$n" "closed`tfalse" { PrState $n }
+        $last = if ($null -ne $script:readLast) { [string]$script:readLast } else { '' }
+        if (($c -split "`t", 2)[1] -ceq 'true' -or ($last -split "`t", 2)[1] -ceq 'true') {
             Mark 'FAIL' "after cleanup #$n" 'merged into main'
+        } elseif ($c -ceq "closed`tfalse" -and $ok) {
+            Mark 'PASS' "after cleanup #$n" 'closed, unmerged'
         } else {
-            $shown = if ($null -ne $script:readLast) { $script:readLast } else { 'unread' }
-            Mark 'INCONCLUSIVE' "after cleanup #$n" "reads '$shown', not closed and unmerged: close it at https://github.com/$repo/pull/$n"
+            $shown = if ($last) { $last } else { 'unread' }
+            Mark 'INCONCLUSIVE' "after cleanup #$n" "the close answered '$c', it reads '$shown': close it with gh pr close $n --repo $repo"
         }
     }
-    foreach ($r in $probeRefs) {
-        if (ReadUntil $r 'absent' { RefState $r }) { Mark 'PASS' "after cleanup $r" 'deleted' }
+    for ($k = 0; $k -lt $cleanRefs.Count; $k++) {
+        $r = $cleanRefs[$k]
+        $d = [string]$script:delRes[$k]
+        $ok = ReadUntil $r 'absent' { RefState $r }
+        if ($d -ceq 'done' -and $ok) { Mark 'PASS' "after cleanup $r" 'deleted' }
         else {
             $shown = if ($null -ne $script:readLast) { $script:readLast } else { 'unread' }
-            Mark 'INCONCLUSIVE' "after cleanup $r" "reads '$shown': delete it with gh api -X DELETE repos/$repo/git/refs/$r"
-        }
-    }
-    if ($script:tagMainMade) {
-        if (ReadUntil 'tags/main' 'absent' { RefState 'tags/main' }) { Mark 'PASS' 'after cleanup tags/main' 'deleted' }
-        else {
-            $shown = if ($null -ne $script:readLast) { $script:readLast } else { 'unread' }
-            Mark 'INCONCLUSIVE' 'after cleanup tags/main' "reads '$shown': delete it with gh api -X DELETE repos/$repo/git/refs/tags/main"
+            Mark 'INCONCLUSIVE' "after cleanup $r" "the delete answered '$d', it reads '$shown': delete it with gh api -X DELETE repos/$repo/git/refs/$r"
         }
     }
     if ($script:fails -ne 0) {
@@ -253,10 +339,10 @@ function Finish {   # cleanup, the reads after it, the verdict; never returns
         GiveBackScope; exit 2
     }
     if ($script:others -ne 0) {
-        Log "INCONCLUSIVE (V1''): $($script:others) step(s) above are not PASS (a read failed, a refusal for another reason, or a step not tried); nothing went through. MORNING_NOTE_SEND stays unset. Send this output to the team. Saved to $results"
+        Log "INCONCLUSIVE (V1''): $($script:others) step(s) above are not PASS (a read failed, a refusal for another reason, or a step not tried); nothing was seen to go through. MORNING_NOTE_SEND stays unset. Send this output to the team. Saved to $results"
         GiveBackScope; exit 1
     }
-    Log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. Send this output to the team. Saved to $results"
+    Log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment or Pages deployment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. Send this output to the team. Saved to $results"
     GiveBackScope; exit 0
 }
 
@@ -330,7 +416,6 @@ Log "Probe pull requests (yours): W #$($gNums[0]), N #$($gNums[1]), D0 #$($gNums
 # F2 (R-T): a tag named main must not be creatable, by anyone
 $out = Flat ((@(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha=$mainBefore --jq '.ref' 2>&1 | ForEach-Object { "$_" })) -join ' ')
 if ($LASTEXITCODE -eq 0) {
-    $script:tagMainMade = $true
     Mark 'FAIL' 'tag main' "GitHub created it: $out"
 } elseif ($out -match 'rule violation') {
     Mark 'PASS' 'tag main' "refused ($out)"
@@ -339,43 +424,51 @@ if ($LASTEXITCODE -eq 0) {
 }
 if (-not (PushFile $envBranch $fileEnv $envWf 'V1pp probe: environment refusal')) { SetupFailed "could not push $envBranch" }
 $envHead = $script:pushed
+$script:rHeads[1] = $envHead
 gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/$ptag -f sha=$envHead --silent
 if ($LASTEXITCODE -ne 0) { SetupFailed "could not create the tag $ptag" }
+$script:rHeads[2] = $envHead
 if (-not (PushFile $runner $fileRunner $runWf 'V1pp probe: runner workflow')) { SetupFailed "could not push $runner" }
 $runHead = $script:pushed
+$script:rHeads[0] = $runHead
 
 # ---------------------------------------------------------------------------------------------- the runs (reads)
 function RunOf([string]$name, [string]$head) {   # the push run's id, or '' after 3 minutes
-    $env:H = $head
     for ($k = 1; $k -le 18; $k++) {
-        $id = (@(gh run list --repo $repo --branch $name --event push --json 'databaseId,headSha' `
-                 --jq '[.[] | select(.headSha == $ENV.H)][0].databaseId // empty' 2>$null)) -join ''
-        if ($LASTEXITCODE -eq 0 -and $id -cmatch '^[0-9]+$') { return $id }
+        $id = RunOnce $name $head
+        if ($id) { return $id }
         if ($k -lt 18) { Start-Sleep -Seconds 10 }
     }
     return ''
 }
-function RunStatus([string]$id) {   # waits for the run, then its status ('' when unread)
-    gh run watch $id --repo $repo *> $null
-    $s = (@(gh run view $id --repo $repo --json status --jq '.status' 2>$null)) -join ''
-    if ($LASTEXITCODE -ne 0) { return '' }
+function WaitRun([string]$id) {   # v1pp-probe/unbounded-watch: up to 12 minutes (72 reads, 10 s apart); the last status
+    $s = $null
+    for ($k = 1; $k -le 72; $k++) {
+        $s = RunState $id
+        if ($s -ceq 'completed') { break }
+        if ($k -lt 72) { Start-Sleep -Seconds 10 }
+    }
     return $s
 }
+function RunLog([string]$id) {   # the run's log; untrusted text, so ANSI colour codes, then control characters, are dropped
+    return @(gh run view $id --repo $repo --log 2>$null | ForEach-Object {
+        ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
+}
 $runId = RunOf $runner $runHead
+$script:rIds[0] = [string]$runId
+$script:rLooked[0] = $true
 $script:lines = @()
 if (-not $runId) {
     Mark 'INCONCLUSIVE' 'runner' 'the probe run did not start within 3 minutes'
 } else {
     Log "Probe run: https://github.com/$repo/actions/runs/$runId"
-    $st = RunStatus $runId
+    $st = WaitRun $runId
     if ($st -ceq 'completed') { Mark 'PASS' 'runner' 'the run completed' }
     else {
         $shown = if ($st) { $st } else { 'unread' }
-        Mark 'INCONCLUSIVE' 'runner' "the run reads '$shown', not completed, so its answers are not final"
+        Mark 'INCONCLUSIVE' 'runner' "the run reads '$shown', not completed after 12 minutes, so its answers are not final (it is cancelled before cleanup)"
     }
-    # the run's log is untrusted text: ANSI colour codes, then control characters, dropped before any of it is used
-    $logText = @(gh run view $runId --repo $repo --log 2>$null | ForEach-Object {
-        ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
+    $logText = @(RunLog $runId)
     $script:lines = @($logText | ForEach-Object {
         if ($_ -cmatch 'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH)( .*)?$') { $Matches[0] } })
     foreach ($l in $script:lines) { Log "  $l" }
@@ -400,8 +493,8 @@ function Judge([string]$t, [string]$s, [string]$want) {   # what the refusal mus
 function JudgePr([string]$t) {   # the bot approval and every merge try on its pull request
     Judge $t 'approve' 'not permitted to (create or )?approve pull requests'
     Judge $t 'squash' 'approving review'
-    Judge $t 'merge' ''
-    Judge $t 'rebase' ''
+    Judge $t 'merge' 'not allowed|approving review|rule violation'    # v1pp-probe/unobserved-refusal-pass
+    Judge $t 'rebase' 'not allowed|approving review|rule violation'
     Judge $t 'graphql' 'approving review'
 }
 $bNames = @('WB', 'NB', 'D0B')
@@ -424,7 +517,7 @@ function EnvRefused([string]$label, [string]$id) {   # each environment's job re
         return
     }
     Log "Environment run (${label}): https://github.com/$repo/actions/runs/$id"
-    $null = RunStatus $id
+    $null = WaitRun $id
     $jobs = @(gh api "repos/$repo/actions/runs/$id/jobs" --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>$null)
     if ($LASTEXITCODE -ne 0) { $jobs = @() }
     foreach ($e in $envs) {
@@ -445,20 +538,31 @@ function EnvRefused([string]$label, [string]$id) {   # each environment's job re
         else { Mark 'INCONCLUSIVE' "$label $e" "the job failed without the environment refusal: $(Flat ($ann -join ' '))" }
     }
 }
+function PagesRefused([string]$label, [string]$id) {   # v1pp-probe/pages-api-coverage: the pages-api job's answer
+    if (-not $id) { Mark 'INCONCLUSIVE' "$label pages-api" 'the run did not start within 3 minutes'; return }
+    $l = @(RunLog $id | ForEach-Object { if ($_ -cmatch 'V1PP-RESULT PAGES api exit=[0-9]+( .*)?$') { $Matches[0] } }) | Select-Object -First 1
+    if (-not $l) { Mark 'INCONCLUSIVE' "$label pages-api" "no answer in the run's log"; return }
+    $rest = $l.Substring($l.IndexOf('exit=') + 5)
+    $code = ($rest -split ' ', 2)[0]
+    if ($code -ceq '0') { Mark 'FAIL' "$label pages-api" "GitHub accepted a Pages deployment: $rest" }
+    elseif ($rest -match 'not allowed to deploy|protection rule') { Mark 'PASS' "$label pages-api" "refused: $rest" }
+    elseif ($rest -match 'artifact') { Mark 'FAIL' "$label pages-api" "refused only for the made-up artifact, so the Pages API is open to ${label}: $rest" }
+    else { Mark 'INCONCLUSIVE' "$label pages-api" "refused, but not on branch or environment grounds: $rest" }
+}
 $envRun = RunOf $envBranch $envHead
+$script:rIds[1] = [string]$envRun
+$script:rLooked[1] = $true
 EnvRefused "branch $envBranch" $envRun
+PagesRefused "branch $envBranch" $envRun
 $tagRun = RunOf $ptag $envHead
+$script:rIds[2] = [string]$tagRun
+$script:rLooked[2] = $true
 EnvRefused "tag $ptag" $tagRun
+PagesRefused "tag $ptag" $tagRun
 
 # every probe pull request's merged flag (yours and any the bot opened)
 foreach ($b in $gBranches) { $x = ListPrs $b; if ($null -ne $x) { AddNum $x } }
-foreach ($n in $script:nums) {
-    $m = (@(gh api "repos/$repo/pulls/$n" --jq '.merged' 2>$null)) -join ''
-    if ($LASTEXITCODE -ne 0) { $m = '' }
-    if ($m -ceq 'false') { Mark 'PASS' "pull request #$n" 'unmerged' }
-    elseif ($m -ceq 'true') { Mark 'FAIL' "pull request #$n" 'merged into main' }
-    else { Mark 'INCONCLUSIVE' "pull request #$n" 'could not read whether it merged' }
-}
+foreach ($n in $script:nums) { ReadMerged $n }
 foreach ($f in @($fileW, $fileN, $fileD, $filePush, $fileRunner, $fileEnv)) {
     foreach ($ref in @('main', 'records-data')) {
         $out = (@(gh api "repos/$repo/contents/$($f)?ref=$ref" --jq '.sha' 2>&1 | ForEach-Object { "$_" })) -join "`n"
@@ -473,7 +577,7 @@ foreach ($f in @($fileW, $fileN, $fileD, $filePush, $fileRunner, $fileEnv)) {
 $tagAfter = ShaOf 'tags/main'
 if ($tagAfter -ceq 'absent') { Mark 'PASS' 'tag main after' 'absent' }
 elseif (-not $tagAfter) { Mark 'INCONCLUSIVE' 'tag main after' 'could not read it' }
-else { $script:tagMainMade = $true; Mark 'FAIL' 'tag main after' "a tag named main exists at $tagAfter" }
+else { Mark 'FAIL' 'tag main after' "a tag named main exists at $tagAfter" }
 $mainAfter = ShaOf 'heads/main'
 if ($mainAfter -ceq $mainBefore) { Mark 'PASS' 'main' "unchanged at $mainBefore" }
 elseif ($mainAfter -cmatch '^[0-9a-f]{40}$') { Mark 'INCONCLUSIVE' 'main' "moved during the probe: $mainBefore -> $mainAfter (the lines above say whether a probe change went in)" }
@@ -483,6 +587,6 @@ $rdShown = if ($rdAfter) { $rdAfter } else { 'unread' }
 Log "records-data after: $rdShown (the daily run may move it; only the probe files above count)."
 Finish
 } finally {
-    if ($script:started -and -not $script:finished) { $script:started = $false; Cleanup }   # an early stop (Ctrl+C)
+    if ($script:started -and -not $script:finished) { $script:started = $false; CleanupQuiet }   # an early stop (Ctrl+C)
     GiveBackScope
 }
