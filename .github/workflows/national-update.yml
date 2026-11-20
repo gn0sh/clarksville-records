@@ -5,8 +5,9 @@
 #              files (the national-data tree helper below), and it is either the pinned seed (no parents, listing
 #              sha256 = NATIONAL_DATA_SEED_DIGEST) or its listing carries an attestation by this workflow file at
 #              refs/heads/main (--cert-identity pinned: an attestation by daily-update.yml or from another branch
-#              is refused). No national-data yet (it is created with its ruleset, task U3-0): ready=no, and the run
-#              is a clean no-op. Read-only: contents: read, attestations: read.
+#              is refused), made by a run of a commit on this run's first-parent line (S2b finding 5). No
+#              national-data yet (it is created with its ruleset, task U3-0): ready=no, and the run is a clean
+#              no-op. Read-only: contents: read, attestations: read.
 # collect job: main only. Runs `python -m collector.national` on a fresh checkout of N in a folder it creates
 #              itself (never through an existing data/ tree: 4.6 "D1 data path"), then uploads data/national/ as an
 #              artifact. contents: read and no token in any step (the checkouts do not persist one); it talks to
@@ -140,11 +141,26 @@ jobs:
           if [ -n "$seed" ] && ! [[ "$seed" =~ ^[0-9a-f]{64}$ ]]; then refuse "NATIONAL_DATA_SEED_DIGEST is not a 64-hex sha256."; fi
           if [ "$n_parents" = 0 ] && [ -n "$seed" ] && [ "$digest" = "$seed" ]; then
             echo "national-data $N is the seed (no parents; listing sha256 $digest)."
-          elif gh attestation verify "$listing" --repo gn0sh/clarksville-records \
+          elif src=$(gh attestation verify "$listing" --repo gn0sh/clarksville-records \
                  --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/national-update.yml@refs/heads/main \
                  --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners \
-                 --limit 1000; then
-            echo "national-data $N: its listing (sha256 $digest) is attested by national-update.yml on main."
+                 --limit 1000 --format json --jq '.[].verificationResult.signature.certificate.sourceRepositoryDigest'); then
+            # S2b finding 5 (`data-prov/attest-source-commit-unchecked`): --cert-identity pins the workflow, ref and
+            # repository, not the commit the attesting run built. One of the matching attestations must come from a
+            # run of a commit on this commit's first-parent line, never from a main commit pushed after it.
+            deepen=()
+            if [ "$(git rev-parse --is-shallow-repository)" = true ]; then deepen=(--unshallow); fi
+            git fetch -q --no-tags --filter=blob:none "${deepen[@]}" origin main || refuse "could not read main's history."
+            [ "$(git rev-parse --is-shallow-repository)" = false ] || refuse "could not read main's full history."
+            git rev-list --first-parent HEAD > "$RUNNER_TEMP/national-mainline" || refuse "could not read main's history."
+            on_line=no
+            for s in $src; do
+              if [[ "$s" =~ ^[0-9a-f]{40}$ ]] && grep -Fxq -- "$s" "$RUNNER_TEMP/national-mainline"; then on_line=yes; break; fi
+            done
+            if [ "$on_line" != yes ]; then
+              refuse "national-data's listing is attested by national-update.yml on main, but by no run of a commit on this commit's first-parent line: head $N, listing sha256 $digest."
+            fi
+            echo "national-data $N: its listing (sha256 $digest) is attested by national-update.yml on main, from a commit on this commit's first-parent line."
           else
             refuse "national-data is not attested by national-update.yml on main, and is not the seed: head $N, $n_parents parent(s), listing sha256 $digest."
           fi

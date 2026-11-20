@@ -332,9 +332,12 @@ def test_an_executable_or_a_symlink_fails_the_helper(tmp_path):
 # ------------------------------------------------------------------------------------------------ attestation gates
 
 # `gh attestation verify FILE --flag value ...` as gh does it, against a store of attestations (ATTEST, a JSON list):
-# it passes only when one attestation matches the file's digest and every constraint the step passes.
+# it passes only when one attestation matches the file's digest and every constraint the step passes. With
+# `--format json --jq SOURCE_JQ` it prints, one per line, the source commit (sourceRepositoryDigest) of each matching
+# attestation: its "source", or the commit checked out here when that is None (S2b finding 5).
+SOURCE_JQ = ".[].verificationResult.signature.certificate.sourceRepositoryDigest"
 _GH = '''#!/usr/bin/env python3
-import hashlib, json, os, sys
+import hashlib, json, os, subprocess, sys
 a = sys.argv[1:]
 with open(os.environ["GH_CALLS"], "a") as f:
     f.write(" ".join(a) + "\\n")
@@ -349,17 +352,26 @@ while rest:
     else:
         opts[rest[0]], rest = rest[1], rest[2:]
 store = json.load(open(os.environ["ATTEST"]))
-ok = any(s["digest"] == digest and s["repo"] == opts.get("--repo") and s["identity"] == opts.get("--cert-identity")
-         and s["source_ref"] == opts.get("--source-ref") and s["predicate"] == opts.get("--predicate-type")
-         and (s["hosted"] or not opts.get("deny")) for s in store)
-print("Verification succeeded" if ok else "no attestation matched", file=sys.stdout if ok else sys.stderr)
-sys.exit(0 if ok else 1)
-'''
+hits = [s for s in store if s["digest"] == digest and s["repo"] == opts.get("--repo")
+        and s["identity"] == opts.get("--cert-identity") and s["source_ref"] == opts.get("--source-ref")
+        and s["predicate"] == opts.get("--predicate-type") and (s["hosted"] or not opts.get("deny"))]
+if not hits:
+    print("no attestation matched", file=sys.stderr)
+    sys.exit(1)
+if "--format" in opts:
+    assert opts["--format"] == "json" and opts["--jq"] == "%s", opts
+    head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    for s in hits:
+        print(head if s["source"] is None else s["source"])
+else:
+    print("Verification succeeded")
+sys.exit(0)
+''' % SOURCE_JQ
 
 
 def _attestation(digest, **over):
     return {"digest": digest, "repo": REPO, "identity": NAT_ID, "source_ref": "refs/heads/main", "predicate": SLSA,
-            "hosted": True, **over}
+            "hosted": True, "source": None, **over}
 
 
 ATTEST_OVERRIDES = {
@@ -497,6 +509,46 @@ def test_the_gate_refuses_a_checkout_that_is_not_the_run_s_commit(tmp_path):
     assert r.returncode == 2 and outputs == {}
 
 
+def _later_main_commit(tmp_path) -> str:
+    """A commit pushed to origin's main after the run's checkout (`_world`'s work clone): the ruleset-bypass race of
+    S2b finding 5, an attesting run of a main commit that is not on the run's first-parent line."""
+    src = tmp_path / "src"
+    (src / "README").write_text("later\n")
+    _git(src, "commit", "-qam", "later")
+    _git(src, "push", "-q", f"file://{tmp_path / 'origin.git'}", "main:refs/heads/main")
+    return _git(src, "rev-parse", "HEAD")
+
+
+def _gate_world(tmp_path, commits, sources):
+    """The national gate on N = commits[-1], attested once per entry of `sources` (a source commit, or "later" for
+    a main commit pushed after the checkout)."""
+    work, shas = _world(tmp_path, commits)
+    later = _later_main_commit(tmp_path)
+    digest = _listing_digest(shas["repo"], shas[len(commits) - 1])
+    store = [_attestation(digest, source=later if src == "later" else src) for src in sources]
+    step = _steps(NAT, "gate")[GATE_STEP]
+    sha = _git(work, "rev-parse", "HEAD")
+    r, outputs, calls = _run(tmp_path, work, step["run"],
+                             {"SHA": sha, "NATIONAL_DATA_SEED_DIGEST": step["env"]["NATIONAL_DATA_SEED_DIGEST"]}, store)
+    return r, outputs, calls, shas, sha
+
+
+@pytest.mark.parametrize("sources", [["later"], ["f" * 40], [""], ["not-a-sha"]],
+                         ids=["later-main-commit", "unknown-commit", "empty", "garbage"])
+def test_the_gate_refuses_an_attestation_from_a_commit_off_this_run_s_line(tmp_path, sources):
+    """12.2 D-ISO-4 (S2b finding 5): the attesting run's source commit must be on this commit's first-parent line."""
+    r, outputs, calls, _s, _sha = _gate_world(tmp_path, [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}],
+                                              sources)
+    assert r.returncode == 2 and outputs == {} and "first-parent line" in r.stdout, (r.stdout, r.stderr)
+    assert len(calls) == 1 and f"--format json --jq {SOURCE_JQ}" in calls[0]
+
+
+def test_the_gate_accepts_when_one_attestation_s_source_is_on_this_run_s_line(tmp_path):
+    r, outputs, _c, shas, sha = _gate_world(tmp_path, [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}],
+                                            ["later", None])
+    assert r.returncode == 0 and outputs == {"code": sha, "sha": shas[1], "ready": "yes"}, (r.stdout, r.stderr)
+
+
 # ------------------------------------------------------------------------------------------------ D2 lookup
 
 def _lookup(tmp_path, commits, attest=(), gh_fail=False):
@@ -567,6 +619,27 @@ def test_the_lookup_with_no_branch_or_no_github_is_no_national_data(tmp_path):
     outputs, _c, _s, out = _lookup(tmp_path / "b", [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}],
                                    attest=[(1, {})], gh_fail=True)
     assert outputs == {"sha": ""}
+
+
+def test_the_lookup_skips_an_attestation_from_a_commit_off_this_run_s_line(tmp_path):
+    """12.2 D-ISO-4 (S2b finding 5): the head's attestation comes from a main commit pushed after S, so it is not
+    read; the older commit attested from S's own line is, with a warning."""
+    commits = [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}, {"data/national/health.json": '{"a": 2}\n'}]
+    work, shas = _world(tmp_path, commits)
+    later = _later_main_commit(tmp_path)
+    store = [_attestation(_listing_digest(shas["repo"], shas[2]), source=later),
+             _attestation(_listing_digest(shas["repo"], shas[1]))]
+    step = _steps(DAILY, "gate")[LOOKUP_STEP]
+    r, outputs, calls = _run(tmp_path, work, step["run"], {"NATIONAL_LOOKBACK": step["env"]["NATIONAL_LOOKBACK"]},
+                             store)
+    assert r.returncode == 0 and outputs == {"sha": shas[1]}, (r.stdout, r.stderr)
+    assert len(calls) == 2 and all(f"--format json --jq {SOURCE_JQ}" in c for c in calls)
+    assert f"national-data {shas[2]} is attested, but by no run of a commit on this commit's first-parent line" \
+        in r.stdout
+    store = [_attestation(_listing_digest(shas["repo"], shas[2]), source=later)]
+    (tmp_path / "b").mkdir()
+    r, outputs, _c = _run(tmp_path / "b", work, step["run"], {"NATIONAL_LOOKBACK": "10"}, store)
+    assert r.returncode == 0 and outputs == {"sha": ""}
 
 
 def test_the_lookup_looks_back_at_most_the_configured_commits(tmp_path):

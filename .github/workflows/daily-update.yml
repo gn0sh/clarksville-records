@@ -319,6 +319,11 @@ jobs:
           if ! commits=$(git rev-list --first-parent --max-count="$NATIONAL_LOOKBACK" "refs/gate/national-data"); then
             none "could not read national-data's history."
           fi
+          # S2b finding 5 (`data-prov/attest-source-commit-unchecked`): an attestation counts only when the run that made
+          # it built a commit on this run's first-parent line, never a main commit pushed after S. The history check
+          # above has read main's full history on main; anywhere else the line is S alone, so nothing is read.
+          mainline="$RUNNER_TEMP/national-mainline"
+          if ! git rev-list --first-parent HEAD > "$mainline"; then none "could not read this commit's history."; fi
           head=""
           for c in $commits; do
             if ! [[ "$c" =~ ^[0-9a-f]{40}$ ]]; then none "unexpected git output."; fi
@@ -327,10 +332,17 @@ jobs:
             if ! national_check "$c" "$listing"; then
               echo "::warning::national-data $c is not read: $why"; continue
             fi
-            if gh attestation verify "$listing" --repo gn0sh/clarksville-records \
+            if src=$(gh attestation verify "$listing" --repo gn0sh/clarksville-records \
                  --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/national-update.yml@refs/heads/main \
                  --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners \
-                 --limit 1000; then
+                 --limit 1000 --format json --jq '.[].verificationResult.signature.certificate.sourceRepositoryDigest'); then
+              on_line=no
+              for s in $src; do
+                if [[ "$s" =~ ^[0-9a-f]{40}$ ]] && grep -Fxq -- "$s" "$mainline"; then on_line=yes; break; fi
+              done
+              if [ "$on_line" != yes ]; then
+                echo "::warning::national-data $c is attested, but by no run of a commit on this commit's first-parent line: not read."; continue
+              fi
               if [ "$c" != "$head" ]; then
                 echo "::warning::national-data's head $head is not attested by national-update.yml on main; the newest attested commit $c is read instead."
               fi
