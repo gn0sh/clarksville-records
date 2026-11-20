@@ -163,13 +163,13 @@ def test_no_log_leakage_in_any_step():
     collect = _steps(NAT, "collect")[COLLECT_STEP]["run"]
     cmd = [ln for ln in collect.splitlines() if "python -m collector.national" in ln]
     assert len(cmd) == 1 and not re.search(r"[>|]|\$\(", cmd[0]), cmd
-    assert "env -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STEP_SUMMARY \\" in collect
+    assert "env -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STATE -u GITHUB_STEP_SUMMARY \\" in collect
     assert "2>" not in collect and "&>" not in collect
 
 
 def _run_collect(tmp_path, rc, budget="300", prints=""):
-    """The collect step with `python` replaced by a stub that prints `prints`, tries to set an output and a summary,
-    and exits `rc`."""
+    """The collect step with `python` replaced by a stub that prints `prints`, tries to set an output and a summary
+    and to write every other file command (env, path, state: S2b nit a), and exits `rc`."""
     bindir = tmp_path / "bin"
     bindir.mkdir(exist_ok=True)
     stub = bindir / "python"
@@ -178,16 +178,21 @@ def _run_collect(tmp_path, rc, budget="300", prints=""):
                     'echo "$@" > "$ARGS_FILE"\n'
                     '[ -n "${GITHUB_OUTPUT:-}" ] && echo "flagged=no" >> "$GITHUB_OUTPUT"\n'
                     '[ -n "${GITHUB_STEP_SUMMARY:-}" ] && echo leak >> "$GITHUB_STEP_SUMMARY"\n'
+                    'for f in "${GITHUB_ENV:-}" "${GITHUB_PATH:-}" "${GITHUB_STATE:-}"; do [ -n "$f" ] && echo leak=1 >> "$f"; done\n'
                     f"exit {rc}\n")
     stub.chmod(0o755)
     out, summary, args = tmp_path / "out", tmp_path / "summary", tmp_path / "args"
     out.write_text("")
     summary.write_text("")
+    files = {k: tmp_path / k.lower() for k in ("GITHUB_ENV", "GITHUB_PATH", "GITHUB_STATE")}
+    for f in files.values():
+        f.write_text("")
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GITHUB_OUTPUT": str(out),
-           "GITHUB_STEP_SUMMARY": str(summary), "GITHUB_ENV": str(tmp_path / "envf"), "GITHUB_WORKSPACE": "/ws",
-           "BUDGET": budget, "ARGS_FILE": str(args)}
+           "GITHUB_STEP_SUMMARY": str(summary), "GITHUB_WORKSPACE": "/ws",
+           "BUDGET": budget, "ARGS_FILE": str(args), **{k: str(f) for k, f in files.items()}}
     r = subprocess.run(["bash", "-c", _steps(NAT, "collect")[COLLECT_STEP]["run"]], env=env, capture_output=True,
                        text=True)
+    assert all(f.read_text() == "" for f in files.values())     # the CLI can write no env, path or state
     return r, out.read_text(), summary.read_text(), args.read_text() if args.exists() else ""
 
 

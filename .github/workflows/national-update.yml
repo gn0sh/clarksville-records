@@ -203,7 +203,8 @@ jobs:
 
       # The CLI's stdout and stderr go straight to the log (never into a file, a summary or an artifact), with
       # workflow commands stopped around them (a random token), and the CLI runs without GITHUB_OUTPUT, GITHUB_ENV,
-      # GITHUB_PATH or GITHUB_STEP_SUMMARY, so nothing it prints or writes can set an output or a summary.
+      # GITHUB_PATH, GITHUB_STATE or GITHUB_STEP_SUMMARY, so nothing it prints or writes can set an output, an
+      # environment variable, a path, a post-step state or a summary (S2b nit a: GITHUB_STATE too).
       # Exit codes (collector/national/__main__.py): 0 ok; 3 outputs written but flagged (still uploaded, warning,
       # flagged=yes); 1 failed (nothing past the failure written), 2 bad arguments, 130 interrupted: this step fails
       # and nothing is uploaded or pushed.
@@ -219,7 +220,7 @@ jobs:
           token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
           if ! [[ "$token" =~ ^[0-9a-f]{32}$ ]]; then echo "::error::no token to stop workflow commands. Nothing is collected."; exit 1; fi
           echo "::stop-commands::$token"
-          env -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STEP_SUMMARY \
+          env -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STATE -u GITHUB_STEP_SUMMARY \
             python -m collector.national "$GITHUB_WORKSPACE/national/data/national" --budget "$BUDGET"
           rc=$?
           echo "::$token::"
