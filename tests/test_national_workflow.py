@@ -607,6 +607,38 @@ def test_every_continue_on_error_step_has_its_own_timeout():
     assert _steps(DAILY, "update")[PUT_STEP]["timeout-minutes"] == 2
 
 
+def test_the_two_workflows_are_not_coupled():
+    """Architecture 12.3 #10, 12.1 rows 21-23: nothing national-update.yml does or fails to do reaches a daily job.
+    No daily job needs a job outside its own chain or a national-only step's outcome; neither workflow triggers the
+    other; they share no concurrency group; national-update.yml saves or restores no cache and pushes only
+    national-data."""
+    daily_jobs = DAILY["jobs"]
+    for name, job in daily_jobs.items():
+        needs = job.get("needs") or []
+        needs = [needs] if isinstance(needs, str) else needs
+        assert set(needs) <= set(daily_jobs) and "national" not in " ".join(needs), (name, needs)
+        cond = str(job.get("if", ""))
+        assert "steps.national" not in cond and "national_sha" not in cond, name     # no job is gated on D2
+    # the only daily steps that read D2's outcome are the soft ones that bring N beside the build
+    readers = sorted(s["name"] for j in daily_jobs.values() for s in j["steps"]
+                     if "national_sha" in str(s.get("if", "")) or "steps.national" in str(s.get("if", ""))
+                     or "national_checkout" in str(s.get("env", "")))
+    assert readers == sorted(["Check out the gate's national-data commit (N)", PUT_STEP])
+    assert all(_steps(DAILY, "update")[n]["continue-on-error"] is True for n in readers)
+    assert set(_on(NAT)) == {"schedule", "workflow_dispatch"} and "workflow_run" not in _on(DAILY)
+    assert "workflow_call" not in _on(NAT) and "workflow_call" not in _on(DAILY)
+    assert NAT["concurrency"]["group"] != DAILY["concurrency"]["group"]
+    assert "concurrency" not in yaml.safe_dump(NAT["jobs"])
+    for job in NAT["jobs"].values():
+        for s in job["steps"]:
+            assert "actions/cache" not in s.get("uses", ""), s.get("name")
+            assert "cache" not in (s.get("with") or {}), s.get("name")
+            assert "gh workflow run" not in s.get("run", "") and "dispatches" not in s.get("run", "")
+    pushes = [ln.strip() for j in NAT["jobs"].values() for s in j["steps"] for ln in s.get("run", "").splitlines()
+              if "git push" in ln]
+    assert pushes == ['git push origin "HEAD:refs/heads/national-data"']
+
+
 def _put(tmp_path, checkout="success", n=None, data=True, dest_exists=False):
     work = tmp_path / "ws"
     work.mkdir()
