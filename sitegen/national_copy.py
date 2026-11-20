@@ -180,9 +180,11 @@ class TitleNotOurs(BadFile):
 
 def title_problem(feed: Mapping, platform: str) -> bool:
     """True when a meeting of the bound feed says `title_ours` but its `title` is not one of the platform's fixed
-    titles (B-ISO-12; architecture 12.1 row 6s): it would print outside every <span data-feed>, unchecked."""
+    titles (B-ISO-12; architecture 12.1 row 6s): it would print outside every <span data-feed>, unchecked. A non-string
+    title (list, dict) is refused the same way rather than raising TypeError on the frozenset lookup."""
     ours = OURS_TITLES.get(platform, frozenset())
-    return any(isinstance(m, dict) and m.get("title_ours") is True and m.get("title") not in ours
+    return any(isinstance(m, dict) and m.get("title_ours") is True
+               and not (isinstance(m.get("title"), str) and m.get("title") in ours)
                for m in feed.get("meetings") or ())
 
 

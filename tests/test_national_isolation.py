@@ -975,7 +975,7 @@ def _warnings(capsys) -> list[str]:
 
 
 @pytest.mark.parametrize("title", ["Paint color #2B4BA5", "gnoshcodes-mark-black", "a request to present the budget",
-                                   ""])
+                                   "", [], {}, ["Meeting"]])
 def test_15a_a_title_ours_that_is_not_the_fixed_title_is_bad_file(world, _baseline_checks, tmp_path, monkeypatch,
                                                                    capsys, title):
     """(a) The file otherwise copies (`built`); with `title_ours: true` and a title that is not Legistar's fixed one

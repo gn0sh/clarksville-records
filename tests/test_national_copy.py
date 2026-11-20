@@ -374,7 +374,7 @@ def test_legistar_s_ours_titles_are_the_collector_s_fallback_and_the_withheld_ti
 
 
 @pytest.mark.parametrize("title", ["Paint color #2B4BA5", "gnoshcodes-mark-black", "a request to present the budget",
-                                   "", "meeting", "Meeting #2B4BA5", None])
+                                   "", "meeting", "Meeting #2B4BA5", None, [], {}, ["Meeting"]])
 def test_a_title_ours_that_is_not_the_platform_s_fixed_title_is_bad_file(tmp_path, monkeypatch, capsys, title):
     """B-ISO-12: such a title prints outside every <span data-feed> (body.html.j2), so only the fixed one passes."""
     entry = _load(tmp_path, monkeypatch, dict(ENTRY, items="shown"), reviewed=True)
