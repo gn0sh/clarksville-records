@@ -14,7 +14,7 @@
       "additionalProperties": false,
       "required": ["id", "name", "tz", "official_url", "platform", "full_url"],
       "properties": {
-        "id": { "type": "string", "pattern": "^(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}$" },
+        "id": { "type": "string", "pattern": "^(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})$" },
         "name": { "type": "string", "minLength": 1, "maxLength": 2000 },
         "tz": { "type": "string", "minLength": 1 },
         "official_url": { "type": ["string", "null"], "format": "uri" },

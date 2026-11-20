@@ -101,7 +101,7 @@ jobs:
           # (LC_ALL=C, grep -a) over NUL-separated records, so a name holding a newline stays one record and fails.
           # Tree objects only: works on a blob:none partial clone. national_listing writes the bytes the push job
           # attests and the daily deploy verifies. national_check sets $why when it returns 1.
-          NPATHS=$'^100644 blob [0-9a-f]{40}\tdata/national/(health\\.json|proposals\\.json|bodies/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}\\.json|cache/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}/[0-9]{1,12}\\.json)$'
+          NPATHS=$'^100644 blob [0-9a-f]{40}\tdata/national/(health\\.json|proposals\\.json|bodies/(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})\\.json|cache/(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})/[0-9]{1,12}\\.json)$'
           NTOP=$'^040000 tree [0-9a-f]{40}\tdata$'
           national_listing() { git ls-tree -r -z "$1" -- data; }
           national_check() {
@@ -316,7 +316,7 @@ jobs:
         run: |
           set -eu
           dir="$RUNNER_TEMP/national-data"
-          id='(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}'
+          id='(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})'
           ok="^(health\\.json|proposals\\.json|bodies/$id\\.json|cache/$id/[0-9]{1,12}\\.json)\$"
           bad=0
           while IFS= read -r -d '' f; do
@@ -354,7 +354,7 @@ jobs:
           # (LC_ALL=C, grep -a) over NUL-separated records, so a name holding a newline stays one record and fails.
           # Tree objects only: works on a blob:none partial clone. national_listing writes the bytes the push job
           # attests and the daily deploy verifies. national_check sets $why when it returns 1.
-          NPATHS=$'^100644 blob [0-9a-f]{40}\tdata/national/(health\\.json|proposals\\.json|bodies/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}\\.json|cache/(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}/[0-9]{1,12}\\.json)$'
+          NPATHS=$'^100644 blob [0-9a-f]{40}\tdata/national/(health\\.json|proposals\\.json|bodies/(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})\\.json|cache/(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})/[0-9]{1,12}\\.json)$'
           NTOP=$'^040000 tree [0-9a-f]{40}\tdata$'
           national_listing() { git ls-tree -r -z "$1" -- data; }
           national_check() {

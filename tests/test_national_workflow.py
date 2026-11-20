@@ -1102,6 +1102,62 @@ def test_the_degraded_step_s_id_rule_is_id_layer():
     assert sum(id_layer(c) is not None for c in cands) == 2 * len(GEOID_DIGITS)     # each layer's length, 0s and 9s
 
 
+EXACT_ID = r"(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})"
+
+
+def test_every_body_id_rule_is_the_one_exact_rule():
+    """D-ISO-16: every copy of the body-id rule, read from its file, equals the string built from GEOID_DIGITS and
+    accepts each id_layer shape, refusing place-12345 and county-1234567 (no loose {5,10} range survives)."""
+    from sitegen.national_guards import GEOID_DIGITS, id_layer
+    sds = [k for k, v in GEOID_DIGITS.items() if k.startswith("sd")]
+    parts = [f"{k}-[0-9]{{{v}}}" for k, v in GEOID_DIGITS.items() if k not in sds]
+    parts.append(f"({'|'.join(sds)})-[0-9]{{{GEOID_DIGITS[sds[0]]}}}")
+    assert len({GEOID_DIGITS[k] for k in sds}) == 1
+    built = "(" + "|".join(parts) + ")"
+    assert built == EXACT_ID
+    daily, nat = DAILY_PATH.read_text(encoding="utf-8"), NAT_TEXT
+    schema = json.loads((ROOT / "schema" / "daylight-upcoming.schema.json").read_text(encoding="utf-8"))
+    schema_text = json.dumps(schema)
+    runpy = (ROOT / "collector" / "national" / "run.py").read_text(encoding="utf-8")
+    copies = {
+        "daily NPATHS": (daily.count(f"bodies/{built}\\\\.json|cache/{built}/"), 1),
+        "nat NPATHS": (nat.count(f"bodies/{built}\\\\.json|cache/{built}/"), 2),
+        "nat validate id": (nat.count(f"id='{built}'"), 1),
+        "schema body.id": (schema_text.count(f'"^{built}$"'.replace("\\", "\\\\")), 1),
+        "run.py BODY_FILE_RE": (runpy.count(f'BODY_FILE_RE = re.compile(r"{built}\\.json")'), 1),
+    }
+    bad = {k: v for k, v in copies.items() if v[0] != v[1]}
+    assert bad == {}, bad
+    for text in (daily, nat, schema_text, runpy):
+        assert "{5,10}" not in text
+    rx = re.compile(built)
+    for layer, n in GEOID_DIGITS.items():
+        assert rx.fullmatch(f"{layer}-{'7' * n}") and id_layer(f"{layer}-{'7' * n}") is not None
+    for bad_id in ("place-12345", "county-1234567", "cousub-12345", "sdu-12345"):
+        assert not rx.fullmatch(bad_id) and id_layer(bad_id) is None
+    from collector.national.run import BODY_FILE_RE
+    assert not BODY_FILE_RE.fullmatch("place-12345.json") and BODY_FILE_RE.fullmatch("county-47125.json")
+
+
+NO_ATTEST = "no attestation by national-update.yml on main for this commit: not read."
+OFF_LINE = "is attested, but by no run of a commit on this commit's first-parent line: not read."
+
+
+def test_the_lookup_warning_says_no_attestation_when_the_filter_keeps_none(tmp_path):
+    """D-ISO-17: an empty jq result prints the no-attestation text; a digest off the first-parent line keeps the
+    old text. Both strings are pinned."""
+    run = _steps(DAILY, "gate")[LOOKUP_STEP]["run"]
+    assert run.count(NO_ATTEST) == 1 and run.count(OFF_LINE) == 1
+    commits = [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}]
+    work, shas = _world(tmp_path, commits)
+    step = _steps(DAILY, "gate")[LOOKUP_STEP]
+    digest = _listing_digest(shas["repo"], shas[1])
+    store = [_attestation(digest, **LEAKS["no-signer"])]
+    r, outputs, _c = _run(tmp_path, work, step["run"], {"NATIONAL_LOOKBACK": step["env"]["NATIONAL_LOOKBACK"]}, store)
+    assert f"national-data {shas[1]}: {NO_ATTEST}" in r.stdout and OFF_LINE not in r.stdout, (r.stdout, r.stderr)
+    assert outputs == {"sha": ""}
+
+
 # ------------------------------------------------------------------------------------------------ push job
 
 def _push_world(tmp_path, artifact: dict):
