@@ -43,6 +43,12 @@ def _line(body: str, parts: list) -> dict | None:
             "lagged": "agendas" in whats and any(w.startswith("minutes") for w in whats)}
 
 
+def own(line: dict | None) -> dict | None:
+    """A body's own page (_freshness.html.j2 fresh_strip) marks the line about that body: its strip leaves out the
+    body's name, which the page's h1 already gives (freshness/body-name-omitted). Any other line keeps its name."""
+    return {**line, "own": True} if line else None
+
+
 def county(ix, agendas=None) -> dict | None:
     """Every county meeting in the facts is read from its minutes; agendas come from the agendas file (only those
     with a page count, as the agenda pages show them). The latest agenda links to its section on the agendas page

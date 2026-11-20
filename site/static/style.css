@@ -46,13 +46,13 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --gutter: 16px;
   --measure: 64rem;
-  /* Three radii (onceover/cards/radius-and-accent-families): 6px for inputs, notes and toggles; 12px for every
-     content card (officials, doors, hub cards, filter boxes, phone table cards); 18px for the two feature cards only,
-     the day card and the morning note. Pills are 999px. */
-  --radius: 6px;
+  /* Three radii (onceover/cards/radius-and-accent-families), on the gnoshcodes radius steps 8 / 12 / 20: 8px for
+     inputs, notes and toggles; 12px for every content card (officials, doors, hub cards, filter boxes, phone table
+     cards); 20px for the two feature cards only, the day card and the morning note. Pills are 999px. */
+  --radius: 8px;
   --radius-lg: 12px;
-  --radius-xl: 18px;
-  --t-eyebrow: .72rem;        /* the smallest type on the site: mono uppercase labels (weekday, month, column heads) */
+  --radius-xl: 20px;
+  --t-eyebrow: .75rem;        /* the smallest type on the site (the 12px floor): mono uppercase labels (weekday, month, column heads, the place line) */
   --t-xs: 0.8rem;
   --t-sm: 0.9rem;
   --t-md: 1rem;
@@ -138,7 +138,7 @@ a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
 .site-name a:hover .plate-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .plate-sun { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 0 4px var(--halo); }
 .plate { display: grid; }
-.plate-place { font-family: var(--font-mono); font-size: .62rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); line-height: 1.5; }
+.plate-place { font-family: var(--font-mono); font-size: var(--t-eyebrow); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); line-height: 1.5; }
 .site-header nav > ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 18px; }
 .site-header nav a, .site-header nav a:visited {
   display: inline-block; padding: 8px 0 6px; color: var(--fg); text-decoration: none; font-size: var(--t-sm);
@@ -150,6 +150,16 @@ a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
 
 main, .site-footer { max-width: var(--measure); margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
 main { padding-top: 20px; padding-bottom: 40px; }
+/* Wide screens (owner, 2026-11-19: the side margins looked too big): from 1440px the page column grows from 64rem
+   to 80rem, and on to 84rem by 1696px, so cards, grids, tables and charts use the room. Laptops (up to 1439px) keep
+   64rem. Running text keeps its own caps (44-52rem on ledes and notes), and on the wider column any other paragraph
+   stops at 70ch (no weight, so a class cap still wins), so lines stay readable. The source line under a page keeps its
+   full-width rule, and the address card's lines run its width. */
+@media (min-width: 1440px) {
+  :root { --measure: clamp(80rem, calc(80rem + (100vw - 1440px) / 4), 84rem); }
+  :where(main p:not(.official-record):not(.find p), main dd) { max-width: 70ch; }
+  main .hub-cards { grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); }   /* 4 across, not 5 + a lone card */
+}
 
 /* ---- Type -------------------------------------------------------------------------------------------------- */
 h1, h2, h3, .stat-num, .site-name, .card-name, .badge { font-family: var(--font-head); }
@@ -637,6 +647,16 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
    both themes); hover adds an underline, so it never rests on the color change alone. */
 .note-invite { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 0 0; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--sun); border-radius: var(--radius-lg); max-width: 44rem; }
 .note-invite p { flex: 1 1 16rem; margin: 0; }
+/* From 1100px the invitation is a card in the free column beside the address card (front page) or the body's header
+   (a body's page), its sentence over its button. */
+@media (min-width: 1100px) {
+  .landing { display: grid; grid-template-columns: minmax(0, 44rem) minmax(15rem, 20rem) minmax(0, 1fr); column-gap: 24px; }
+  .landing > * { grid-column: 1 / -1; min-width: 0; }
+  .landing > .find { grid-column: 1; }
+  .landing > .note-invite { grid-column: 2; align-self: start; margin-top: 20px; }
+  .landing > .note-invite, .body-top > .note-invite { flex-direction: column; align-items: stretch; gap: 12px; max-width: none; padding: 16px; }
+  .landing > .note-invite p, .body-top > .note-invite p { flex: none; }
+}
 .note-invite-btn, .note-invite-btn:visited {
   flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 44px; padding: 8px 16px;
   color: var(--on-blue); background: var(--blue); border: 1px solid var(--blue); border-radius: var(--radius-lg);
@@ -1137,7 +1157,7 @@ details.dollar-list li { margin: 4px 0; }
 .fin .sol-filters select { border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters button, .fin .more-btn, .fin .empty-note button { font-family: var(--font-head); font-weight: 700; font-size: var(--t-md); border-radius: var(--radius-lg); }
 .fin .sol-filters button[type="submit"]:hover { background: var(--blue-hover); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
-.fin table.budget thead th.num { font-size: .74rem; letter-spacing: .02em; text-transform: none; color: var(--fg); }  /* the header as printed */
+.fin table.budget thead th.num { font-size: var(--t-eyebrow); letter-spacing: .02em; text-transform: none; color: var(--fg); }  /* the header as printed */
 .fin table.budget thead th .kind { font-family: var(--font-body); letter-spacing: 0; }
 .fin table.fin-stack .num, .fin table.fin-stack .date, .fin table.fin-stack td.c-fundno, .fin table.budget td.c-acct {
   font-family: var(--font-mono); font-size: .8rem; font-variant-numeric: tabular-nums;
@@ -1513,7 +1533,25 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .body-head > h1 { max-width: none; }
 .body-head > .lede { margin: 0 0 8px; }
 .body-head > .body-cover { margin: 0 0 8px; color: var(--muted); font-size: var(--t-sm); }
-.body-head > .freshness { margin: 0 0 8px; }
+.body-head > .freshness { margin: 12px 0 4px; }
+/* the newest dates as a date strip (_freshness.html.j2 fresh_strip; wall of text, 2026-11-19): the site's figure
+   style, a rule over each, the label over its date; side by side, and one under the other on a narrow phone */
+.fresh-strip { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: 10px 22px; max-width: 34rem; }
+.fresh-strip .stat { border-top-width: 1px; padding-top: 6px; }
+.fresh-strip .stat-num { padding-top: 0; font-size: var(--t-lg); }
+@media (max-width: 480px) { .fresh-strip .stat-num { font-size: var(--t-md); } }   /* a long month still fits beside the other date */
+.fresh-about { margin: 4px 0 8px; font-size: var(--t-sm); }
+.fresh-about > summary { cursor: pointer; width: max-content; max-width: 100%; padding: 6px 0; color: var(--link); font-weight: 600; }
+.fresh-about > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
+.fresh-about > p { margin: 2px 0 6px; color: var(--muted); }
+@media (pointer: coarse) { .fresh-about > summary { display: flex; align-items: center; min-height: 44px; } }
+/* the morning note's invitation beside a body's header (_hub.html.j2 body_head `invite`): under it on a phone and a
+   laptop, a card in the free column beside it from 1100px */
+.body-top > .note-invite { margin: 4px 0 8px; }
+@media (min-width: 1100px) {
+  .body-top { display: grid; grid-template-columns: minmax(0, 44rem) minmax(15rem, 20rem); column-gap: 24px; align-items: start; }
+  .body-top > .note-invite { margin: 30px 0 0; }
+}
 .body-head > .watch-line { margin: 0; }
 .body-notes { max-width: 44rem; font-size: var(--t-sm); }
 .hub { margin: 20px 0 24px; }

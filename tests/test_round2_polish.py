@@ -118,7 +118,7 @@ def test_before_launch_the_alerts_card_is_small_with_its_feeds_in_one_closed_tog
 # ---- 10 onceover/cards/radius-and-accent-families -------------------------------------------------------------------
 
 def test_three_radii_and_the_cards_share_one_top_accent():
-    for token, px in (("--radius", "6px"), ("--radius-lg", "12px"), ("--radius-xl", "18px")):
+    for token, px in (("--radius", "8px"), ("--radius-lg", "12px"), ("--radius-xl", "20px")):   # gnoshcodes steps 8/12/20
         assert re.search(rf"(?m)^  {token}: {px};", CSS), token
     values = set(re.findall(r"border-radius: ([^;}]+)[;}]", CSS))
     allowed = {"0", "0 !important", "1px", "3px", "4px", "50%", "999px", "var(--radius)", "var(--radius-lg)",
