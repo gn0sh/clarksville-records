@@ -2,7 +2,9 @@
    base.html.j2 includes it on every page, and nothing in it depends on the page but `root` (the way back to the
    site's top folder): the sky (sun or moon), the Menu button, the name plate, the unofficial tag and today's date.
    qa/site_checks.py `header/same-on-every-page` and tests/test_header.py hold every built page to it. A page's own
-   words (its body, dates, kicker, h1) go in its <main>, never here. #}
+   words (its body, dates, kicker, h1) go in its <main>, never here.
+   One variant (docs/architecture/daylight-national.md 7a): `digest_header` (set only by sitegen/national_pages.py)
+   prints `digest_place` as the plate place, no moon and no " in <place>" date span; unset, nothing here changes. #}
 <header class="site-header has-sky">
   {# Daylight name plate (docs/design/daylight) and the sky. static/sky.js draws the sun while it is above the horizon
      of the site's place, and the moon only while the sun is down; never both. Without the script the sun stays at
@@ -11,13 +13,13 @@
   {# The moon, where it really is over the site's place right now (config sky_place; static/sky.js works out its
      height, direction, phase and tilt, and draws its lit part into this span). Decoration only, and hidden until the
      script draws it. #}
-  {% set sp = site.cfg.sky_place | default(none) %}{% if sp %}<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="{{ sp.lat }}" data-lon="{{ sp.lon }}" hidden></span></div>{% endif %}
+  {% set sp = site.cfg.sky_place | default(none) %}{% if sp and not digest_header | default(false) %}<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="{{ sp.lat }}" data-lon="{{ sp.lon }}" hidden></span></div>{% endif %}
   <div class="masthead">
     {# Design 2.1: without JS this is a link to the full list in the footer; static/nav.js swaps it for a button that
        opens the drawer (a native <dialog> built from that same list, so the footer list is the single source). #}
     <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
     <div class="brand">
-      <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
+      <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ digest_place if digest_header | default(false) else site.cfg.site_place }}</span></span></a></p>
       <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
       {# no coverage line in the masthead (onceover/header/county-kicker-everywhere): it printed the County
          Commission's minutes dates over Search, About and Alerts. Each page states its body and its dates in its own
@@ -27,6 +29,6 @@
   {# Today's weekday and date in the site's zone, linked to the day page. Filled by static/sky.js; hidden without the
      script (static/js-flag.js, in every page's head, keeps its space so nothing jumps when it is filled). #}
   <div class="sky-hero" id="sky-hero" data-tz="{{ site.cfg.site_timezone }}" hidden>
-    <p class="sky-day"><span class="sky-dow"><span id="sky-weekday"></span><span class="sky-in"> in {{ site.cfg.today_place }}</span></span> <a class="sky-link" href="{{ root }}today.html"><time class="sky-date" id="sky-date"></time><span class="sky-go" aria-hidden="true">&rsaquo;</span><span class="sr-only">: meetings day by day</span></a></p>
+    <p class="sky-day"><span class="sky-dow"><span id="sky-weekday"></span>{% if not digest_header | default(false) %}<span class="sky-in"> in {{ site.cfg.today_place }}</span>{% endif %}</span> <a class="sky-link" href="{{ root }}today.html"><time class="sky-date" id="sky-date"></time><span class="sky-go" aria-hidden="true">&rsaquo;</span><span class="sr-only">: meetings day by day</span></a></p>
   </div>
 </header>

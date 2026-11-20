@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarksville-records/daylight-upcoming/1",
+  "title": "digest/<st>/<body id>.json: one government's coming-up meetings",
+  "description": "docs/architecture/daylight-national.md 3.5. Read by the coming-up page, the M4 ICS and Atom, the future app and the weekly email. No vote, outcome, tally, attendance, motion or person's name field exists here (AC4.4): every object is closed (additionalProperties false). Items appear only when the agenda is final and the government's directory entry is shown under the file's review digest (review non-null, items_withheld false; review null forces every meeting withheld; invariant privacy-withhold/national-prefix, section 11 v3). Caps from task B14: 60 meetings, 150 items per meeting, 2,000 characters per text. format uri is the site's link rule (config.is_https_uri). Dates and instants take ASCII digits only ([0-9], never \\d (any Unicode digit): security S2b finding 2); the copy step also checks each is a calendar day or a real instant (architecture 12).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "review", "body", "checked_at", "last_ok_at", "meetings"],
+  "properties": {
+    "schema": { "const": "daylight-upcoming/1" },
+    "review": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "tz", "official_url", "platform", "full_url"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "tz": { "type": "string", "minLength": 1 },
+        "official_url": { "type": ["string", "null"], "format": "uri" },
+        "platform": { "enum": ["daylight", "legistar"] },
+        "full_url": { "type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9/_.-]*$" }
+      }
+    },
+    "checked_at": { "$ref": "#/$defs/instant" },
+    "last_ok_at": { "anyOf": [{ "$ref": "#/$defs/instant" }, { "type": "null" }] },
+    "meetings": { "type": "array", "maxItems": 60, "items": { "$ref": "#/$defs/meeting" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "review": { "type": "null" } } },
+      "then": { "properties": { "meetings": { "items": { "properties": {
+        "items_withheld": { "const": true }, "items": { "maxItems": 0 }, "item_count": { "type": "null" } } } } } }
+    }
+  ],
+  "$defs": {
+    "instant": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "meeting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "date", "time", "title", "title_ours", "meeting_url", "agenda", "may_be_incomplete",
+                   "items_withheld", "item_count", "items"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,79}$" },
+        "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "time": { "type": ["string", "null"], "maxLength": 2000 },
+        "title": { "type": "string", "maxLength": 2000 },
+        "title_ours": { "type": "boolean" },
+        "meeting_url": { "type": ["string", "null"], "format": "uri" },
+        "agenda": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "url", "status_as_posted"],
+          "properties": {
+            "state": { "enum": ["final", "not-final", "not-read", "not-posted"] },
+            "url": { "type": ["string", "null"], "format": "uri" },
+            "status_as_posted": { "type": ["string", "null"], "maxLength": 2000 }
+          }
+        },
+        "may_be_incomplete": { "type": "boolean" },
+        "items_withheld": { "type": "boolean" },
+        "item_count": { "type": ["integer", "null"], "minimum": 0 },
+        "items": { "type": "array", "maxItems": 150, "items": { "$ref": "#/$defs/item" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "items_withheld": { "const": true } } },
+          "then": { "properties": { "items": { "maxItems": 0 }, "item_count": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "agenda": { "properties": { "state": { "not": { "const": "final" } } } } } },
+          "then": { "properties": { "items": { "maxItems": 0 } } }
+        }
+      ]
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seq", "number", "text", "source"],
+      "properties": {
+        "seq": { "type": "integer", "minimum": 1 },
+        "number": { "type": ["string", "null"], "maxLength": 2000 },
+        "text": { "type": "string", "maxLength": 2000 },
+        "cut": { "const": true },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "page"],
+          "properties": {
+            "url": { "type": ["string", "null"], "format": "uri" },
+            "page": { "type": ["integer", "null"], "minimum": 1 }
+          }
+        }
+      }
+    }
+  }
+}

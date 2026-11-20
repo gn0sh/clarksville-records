@@ -245,7 +245,8 @@
   EL-3, presenters' surnames). No school board item text is stored, only the count of lines
   (docs/architecture/agenda-withhold-invariant.md).
 - No minutes and no votes for any of these bodies on montgomerytn.gov. CMCSS minutes: cmcss.net (Cloudflare challenge,
-  not collected). 2025 agendas: d6.mcgtn.org (blocked by this environment's network policy; not fetched).
+  not collected). Evidence for the block: the 2026-11-10 test in docs/research/rpc-cmcss-sources.md (not rechecked
+  since; the Daylight Digest CMCSS card cites this section, reason `blocks-readers-cmcss`). 2025 agendas: d6.mcgtn.org (blocked by this environment's network policy; not fetched).
 - CMCSS board videos (Brian 2026-11-18: link, never copy): the district's channel "CMCSS Focus"
   (https://www.youtube.com/@CMCSSFocus, channel id UC7te1VFbkqSPY48oUiQB7mQ), titles like "CMCSS School Board Meeting
   11-17-2026". Linked by `config/localities/montgomery-tn/school-board-videos.yml`: 31 (date, id) pairs read from the
@@ -397,3 +398,125 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   (`main`), R-D `27685092` (`records-data`), R-T `27685093` (tag named `main`). R2 ("Allow GitHub Actions to create
   and approve pull requests") is off. Source: the manager's W1 brief after the cutover; no `protect-main` read of
   these ids is recorded here yet.
+
+## Census geocoder, geographies (verified 2026-11-19 by the software-architect for daylight-national)
+How: the Census API documentation page (`https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html`) and
+ONE geographies query, `.../geocoder/geographies/onelineaddress?address=1 Public Sq, Clarksville, TN&benchmark=4&
+vintage=4&layers=all&format=json`, both read through the WebFetch tool, whose small model returned the fields (a
+relayed reading, not raw bytes; re-check the raw JSON in a browser before relying on a field not listed here). The
+team's Bash egress proxy refuses `geocoding.geo.census.gov` and `tigerweb.geo.census.gov` (CONNECT 403, 2026-11-19).
+- **Docs:** `layers` is "a comma delimited list by ID or name as listed in the TIGERweb WMS layers"; `layers=all` is
+  accepted; examples `layers=14,16,18` and `layers=Unified+School+Districts,Secondary+School+Districts,Elementary+
+  School+Districts`. `format` json or jsonp, `callback` names the function; "the geocoder does not support CORS
+  requests". No rate limit stated. Default geographies layers include Incorporated Places, Census Designated Places,
+  County Subdivisions, Counties, congressional and state legislative districts; school districts are not default.
+- **Benchmark 4 = `Public_AR_Current`, vintage 4 = `Current_Current`** (both `isDefault: true`).
+- **Matched:** "1 PUBLIC SQ, CLARKSVILLE, TN, 37040", x -87.361481272763, y 36.527643783069.
+- **Layer names returned with `layers=all`** (exact): 2020 Census Public Use Microdata Areas, 2020 Census ZIP Code
+  Tabulation Areas, Urban Areas, Incorporated Places, Counties, Unified School Districts, 2020 Census Blocks, States,
+  Census Block Groups, County Subdivisions, 2026 State Legislative Districts - Upper, Census Divisions, 120th
+  Congressional Districts, 2026 State Legislative Districts - Lower, Census Regions, Metropolitan Statistical Areas,
+  Census Tracts. No Secondary or Elementary School Districts and no Census Designated Places here (a layer with no
+  unit at the point is left out). Some names carry a year, so read layers by exact name.
+- **Incorporated Places:** NAME "Clarksville city", BASENAME "Clarksville", GEOID 4715160, STATE 47, PLACE 15160,
+  FUNCSTAT A, LSADC 25, PLACECC C1, MTFCC G4110.
+- **Counties:** NAME "Montgomery County", GEOID 47125, COUNTY 125, FUNCSTAT A, LSADC 06, COUNTYCC H1, MTFCC G4020.
+- **County Subdivisions:** NAME "District 5", BASENAME "5", GEOID 4712590886, FUNCSTAT **N**, LSADC 28, COUSUBCC Z1,
+  MTFCC G4040. In Tennessee the county subdivisions are county commission districts, not governments: FUNCSTAT N
+  tells them apart.
+- **Unified School Districts:** NAME "Clarksville-Montgomery County School System", GEOID 4703030, SDUNI 03030,
+  FUNCSTAT **E**, LSADC 00, LOGRADE PK, HIGRADE 12, SDTYP empty, MTFCC G5420.
+- Every layer also carries OBJECTID, OID, AREALAND, AREAWATER, CENTLAT/CENTLON, INTPTLAT/INTPTLON.
+
+## Census TIGER/Line codes (B2 for daylight-national; verified 2026-11-19)
+How: the team's Bash proxy refuses `www.census.gov` and `www2.census.gov` (CONNECT 403), so the manager read the pages
+and code files below through the WebFetch tool on 2026-11-19 (a relayed reading, as for the geocoder section above).
+Definitions are verbatim from the pages; rows are `class code|FUNCSTAT` as the 2020 code files print them.
+Sources: functional status https://www.census.gov/library/reference/code-lists/functional-status-codes.html (full text
+https://www2.census.gov/geo/pdfs/reference/FunctionalStatusCodes.pdf); class codes
+https://www.census.gov/library/reference/code-lists/class-codes.html; 2020 county file
+https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt and per state
+`https://www2.census.gov/geo/docs/reference/codes2020/cou/st<FIPS>_<st>_cou2020.txt`; 2020 place files per state
+`https://www2.census.gov/geo/docs/reference/codes2020/place/st<FIPS>_<st>_place2020.txt`.
+- **FUNCSTAT** (verified): A "Active government providing primary general-purpose functions"; B "Active government that
+  is partially consolidated with another government" (separate officials still provide primary general-purpose
+  functions); C "Active government consolidated with another government with a single set of officials"; E "Active
+  government providing special-purpose functions"; F "Fictitious entity created to fill the Census Bureau geographic
+  hierarchy"; G "Active government that is subordinate to another unit of government"; I "Inactive governmental unit
+  that has the power to provide primary special-purpose functions"; L "Inactive, nonfunctioning legal real property
+  entity with potential quasi-legal administrative functions"; M "Active legal real property entity with quasi-legal
+  functions"; N "Nonfunctioning legal entity"; S "Statistical entity"; T "Active state-recognized entity". There is
+  no D. In the recorded geocoder answer: Clarksville city A, Montgomery County A, CMCSS (a school district) E, the TN
+  commission district N, so `governments()` step 1 (place, county, cousub keep A; school districts keep A or E)
+  holds for TN. B, C and G units are real governments that step 1 drops; `show` is the only way back (Davidson
+  County, C, is seeded that way). Open question for the architect: keep B and C at step 1 too.
+- **Class codes** (verified, verbatim): C1 "An active incorporated place that does not serve as a county subdivision
+  equivalent"; C2 "An active incorporated place that is legally coextensive with a county subdivision"; C3
+  "Consolidated City"; C5 "An active incorporated place that is independent of any county subdivision and serves as a
+  county subdivision equivalent"; C7 "An incorporated place that is independent of any county"; C8 "The balance of a
+  consolidated city excluding the separately incorporated place(s) within that consolidated government"; C9 "An
+  inactive or nonfunctioning incorporated place"; H1 "An active county or equivalent feature"; H4 "An inactive county
+  or equivalent feature"; H6 "A county that is coextensive with an incorporated place, part of an incorporated place,
+  or a consolidated city"; T1 "An active county subdivision that is not coextensive with an incorporated place"; T5 "An
+  active county subdivision that is coextensive with an incorporated place"; T9 "An inactive county subdivision"; Z1
+  "A nonfunctioning county subdivision"; Z5 "A statistical county subdivision"; Z7 "A county subdivision that is
+  coextensive with a county or equivalent feature"; Z9 "County subdivision not defined". In the recorded answer:
+  Clarksville PLACECC C1, Montgomery County COUNTYCC H1, TN "District 5" COUSUBCC Z1.
+  Note for task F1: `units` carry no class code, so step 5 (drop a county subdivision coextensive with the kept place)
+  uses name equality as the architecture says. Reading `COUSUBCC` into the unit (T5 = coextensive with a place)
+  would prove it (recommendation, not a change made here).
+- **Rows behind the seeds** (verified, 2020 files): TN Davidson County 47037 H6|C; Montgomery County 47125 H1|A;
+  Clarksville city 4715160 C1|A; Nashville-Davidson metropolitan government (balance) 4752006 C8|F (the TN place file
+  has no 52004 row). Connecticut: the eight old counties 09001-09015 all H4|N (the planning regions 091xx are in
+  2022 and later vintages, not in this file). Rhode Island 44001-44009 all H4|N. Massachusetts: Barnstable 25001,
+  Bristol 25005, Dukes 25007, Norfolk 25021, Plymouth 25023 H1|A; Berkshire 25003, Essex 25009, Franklin 25011,
+  Hampden 25013, Hampshire 25015, Middlesex 25017, Nantucket 25019, Suffolk 25025, Worcester 25027 H4|N. Independent
+  cities: the 38 Virginia county equivalents 51510-51840 all C7|F, their places (for example Alexandria 01000,
+  Richmond 67000, Norfolk 57000, Virginia Beach 82000) C7|A; Bedford city 51515 is gone (Bedford town 05544 C1|A).
+  Baltimore city county equivalent 24510 C7|F, place 2404000 C7|A; St. Louis city place 2965000 C7|A; Carson City
+  place 3209700 C7|A.
+- **What that means for `governments()`** (inference from the rows): step 1 already drops the N counties (CT, RI,
+  the nine MA) and the F copies (independent-city county equivalents, the Nashville balance), so `no-county` must fire
+  when a returned county was dropped for any reason, and `independent-city` and `consolidated` must ride on a dropped
+  unit (architecture 3.3, 4.1, changed accordingly). The gov-flags `hide` entries for those units are redundant with
+  step 1 and stay as a second guard against a later vintage changing a FUNCSTAT.
+- **School district "not defined"** (unverified: not on the pages read): an LEA code of 99999 ("School District Not
+  Defined") marks area in no school district of that type; step 3's GEOID-ending-99999 rule assumes it.
+- **Seeded in `config/national/gov-flags.yml`**, each entry with its 2020 code-file source: CT (09) and RI (44)
+  counties by `rules`; the nine MA H4|N counties by `hide`; Nashville (Metro `county-47037` by `show`, the balance
+  `place-4752006` hidden with `lines: consolidated`); the 38 VA independent cities plus Baltimore city 24510,
+  St. Louis city 29510 and Carson City 32510, each county copy hidden with `lines: independent-city`. Not seeded yet
+  (follow-up, same pattern): the other consolidated city-counties (for example Louisville-Jefferson,
+  Lexington-Fayette, Indianapolis-Marion, Jacksonville-Duval, Athens-Clarke, Augusta-Richmond) and Alaska boroughs.
+  St. Louis city and Carson City county-equivalent rows verified 2026-11-19: `MO|29|510|00767557|St. Louis city|C7|F`
+  (https://www2.census.gov/geo/docs/reference/codes2020/cou/st29_mo_cou2020.txt) and
+  `NV|32|510|00863219|Carson City|C7|F` (https://www2.census.gov/geo/docs/reference/codes2020/cou/st32_nv_cou2020.txt).
+- **MAX_ANSWER** (`sitegen/national.py`, 220,000 characters): sized for 20 matches x 6 layers from the fields of the
+  recorded answer, about twice each part's expected size; a test builds a 20 x 6 answer with every recorded field at
+  the longest realistic widths (about 83,000 characters, so 2.6 times under) and fails if it comes within 30% of the
+  cap. Re-check against a raw 20-match answer in a browser (security "needs verification").
+
+## Daylight Digest outside links (2026-11-19; fetched by ux-designer 2026-11-19)
+How: both pages were read by the ux-designer on 2026-11-19 for design v1.2 (`docs/design/daylight-national.md`
+section 3, "Outside links"). The frontend engineer who wired them did not fetch them again. They are settings in
+`config/national/links.yml`, embedded in `#digest-config` on `digest/index.html`; the site sends nothing to either
+host, and the address a person typed is never put in either link.
+- `election_url`: `https://www.usa.gov/state-election-office`, "State and local election offices" on USA.gov (run by
+  the US General Services Administration). A plain directory of each state's election site, with local offices
+  reached from there; no call to register or vote. Used by the lines `lookup.election` and `lookup.election-none`.
+  Fallback if it moves: `https://www.eac.gov/voters/register-and-vote-in-your-state` (leads with a call to act, so
+  second choice).
+- `census_url`: `https://geocoding.geo.census.gov/geocoder/`, the Census Geocoder's front page (the person picks
+  "Find Geographies", then a "Benchmark"). Used by the line `lookup.down-census` when our lookup can't reach the
+  Census. It is a plain link a person chooses to follow, so it is in no page's CSP.
+
+## Clarksville upcoming agendas in the data (checked 2026-11-19 from code and the data files on the branch)
+- County Commission: `data/county-agendas/agendas.json` holds each agenda-only meeting's items with `title` as printed
+  (whitespace joined, a word broken at a line end joined), `number`, `printed`, `section`, `page`, and each source's
+  URL (`collector/county_agenda.py`). 14 meetings, 2026-05-04 to 2026-11-09, in the copy on the branch (fetched
+  2026-11-10).
+- City Council: meetings carry `agenda_url` and `agenda_source_id`, but every `item_events` row comes from minutes
+  (1,759 motions, 2,405 roll calls; 0 from agenda sources). Upcoming council agenda items are not stored. Neither body
+  stores a meeting time.
+- Morning note sender: reads only `note-` tags (`sender/common.py` `read_tags`, `sender/deliver.py` `recipient`), so a
+  subscriber with other tags only has an empty selection (code read; no test pins it yet).

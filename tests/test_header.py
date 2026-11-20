@@ -101,11 +101,21 @@ def test_the_header_is_one_partial_that_no_page_template_can_change():
     include = base.index('{% include "_header.html.j2" %}')
     assert base.index('<a class="skip"') < include < base.index('<nav class="body-switch"')
     assert partial.count('<header class="site-header has-sky">') == 1 and partial.count("</header>") == 1
-    # the partial has no blocks to override and reads nothing of the page: only the site's settings and `root`
-    assert "{% block" not in partial and "{% if" not in partial.replace("{% if sp %}", "")
-    used = set(re.findall(r"\{\{\s*([a-z_.]+)", partial))
-    assert used == {"root", "site.site_name", "site.cfg.site_place", "site.unofficial.tag", "site.cfg.site_timezone",
-                    "site.cfg.today_place", "sp.lat", "sp.lon"}, used
+    # the partial has no blocks to override and reads nothing of the page: only the site's settings and `root`, plus
+    # the one digest variant (docs/architecture/daylight-national.md 7a: `digest_header`, set only by
+    # sitegen/national_pages.py, and its plate place `digest_place`)
+    rest = partial
+    for v in ("{% if sp and not digest_header | default(false) %}", "{% if not digest_header | default(false) %}"):
+        assert rest.count(v) == 1, v
+        rest = rest.replace(v, "")
+    assert "{% block" not in partial and "{% if" not in rest
+    assert rest.count("default(false)") == 1 and "if digest_header | default(false) else site.cfg.site_place }}" in rest
+    # every name read inside {{ ... }} (not only the first), the filter and the keywords left out
+    words = {"if", "else", "not", "and", "or", "default", "false", "true", "none"}
+    used = {n for expr in re.findall(r"\{\{(.*?)\}\}", partial, re.S)
+            for n in re.findall(r"[a-z_][a-z_.]*", expr) if n not in words}
+    assert used == {"root", "site.site_name", "digest_place", "digest_header", "site.cfg.site_place",
+                    "site.unofficial.tag", "site.cfg.site_timezone", "site.cfg.today_place", "sp.lat", "sp.lon"}, used
     for word in ("page_name", "body_current", "crumbs", "sky_full"):
         assert word not in partial, word
     assert "sky_full" not in base and "{% block sky %}" not in base
