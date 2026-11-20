@@ -10,7 +10,8 @@
 # - lookup.*, form.* and count.* are for the lookup page's script (task F2): the builder embeds them in
 #   digest/index.html as JSON (`#digest-strings`), drawn with textContent; the same two rules apply there.
 # - state.<USPS> names a state folder's heading; a directory entry whose state has no label fails the build.
-# - tz.<zone> names a time zone; a feed whose zone has no label fails the build.
+# - tz.<zone> names a time zone; a covered entry whose zone (its platform's tz, else site_timezone) has no label
+#   fails the build when the files are loaded, before any data is read (architecture 12, national-isolation).
 # Open: index.who is the design's DRAFT (Brian approves the facts, design Q2).
 # Settled by ux-designer, design v1.2 (2026-11-19): body.withheld, body.cut, body.item-page, body.no-time, body.newest
 # and body.no-records (design section 5). M1 records no check run (B4 review, national-freshness/

@@ -111,7 +111,7 @@ def allowed_url(url, platform: str = "daylight", client: str | None = None) -> s
 
 
 HOST_OK_KEYS = frozenset({"date", "link"})
-HOST_OK_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+HOST_OK_DATE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")   # ASCII digits (S2b finding 2)
 # Where Brian's OK can be recorded (national/r5-self-attested, S2a finding 7): the team's GitHub (a PR, issue or
 # comment under github.com/gn0sh/) or a claude.ai page. Exact hosts, so a look-alike subdomain is refused.
 HOST_OK_LINK_HOSTS = {"github.com": "/gn0sh/", "claude.ai": "/"}

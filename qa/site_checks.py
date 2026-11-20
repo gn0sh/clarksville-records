@@ -114,7 +114,9 @@ Every exemption below names the `digest/` prefix (DIGEST); pages outside it are 
   form-action are digest/csp's; sources: an unmarked outbound link on a digest page is https, rel "noopener
   noreferrer", and a directory entry's official, checked or reason URL, the geocoder's or (while its form is on) the
   morning note provider's privacy page, or a URL of the
-  coming-up page's own JSON.
+  coming-up page's own JSON; dates/no-raw-utc-day: a coming-up page digest/<st>/<id>.html is read without its
+  <main>, the government's feed text, which prints no fetch day of ours (architecture 12.1 row 6); its header and
+  footer are checked as on every page.
 
 Councils (config/site.yml `councils`, each config/localities/<locality>/council.yml): a real build also has each
 council's pages under its folder, built from the council's own facts file. links, sources, unverified, layout, totals,
@@ -160,6 +162,25 @@ DIGEST = "digest/"                          # every digest exemption in this fil
 DIGEST_FRAME = DIGEST + "geo-frame.html"    # the geo frame (4.0): a framed document, not a site page
 DIGEST_INDEX = DIGEST + "index.html"        # the lookup page, the one parent of the frame
 DIGEST_PAGE_LABELS = ROOT / "config" / "national" / "page-labels.yml"
+# A coming-up page digest/<st>/<body id>.html prints a government's feed text (titles, times, item text from
+# national-data or the adapter) inside its <main>; base.html.j2 puts exactly one such element on a page.
+DIGEST_MAIN_OPEN, DIGEST_MAIN_CLOSE = '<main id="main">', "</main>"
+
+
+def digest_gov_page(rel: str) -> bool:
+    """A coming-up page: digest/<st>/<file>.html (two folders deep under the site root, under DIGEST)."""
+    return rel.startswith(DIGEST) and rel.count("/") == 2 and rel.endswith(".html")
+
+
+def without_feed_text(text: str) -> str:
+    """dates/no-raw-utc-day's scoped exemption (architecture 12.1 row 6, national-isolation/site-checks-read-feed-text):
+    a coming-up page without its <main> (the feed text: a Legistar title "Item added 2026-01-05" is not a fetch day
+    of ours, and the page prints no fetch day there). The header and footer, "Data as of" included, stay checked.
+    A page whose <main> is not where base.html.j2 puts it is returned whole (checked whole)."""
+    start, end = text.find(DIGEST_MAIN_OPEN), text.rfind(DIGEST_MAIN_CLOSE)
+    if start < 0 or end < start or text.count(DIGEST_MAIN_OPEN) != 1:
+        return text
+    return text[:start] + text[end + len(DIGEST_MAIN_CLOSE):]
 # Restated from sitegen/national.py CENSUS_GEOGRAPHIES (4.0): the one source the frame's script-src adds.
 CENSUS_GEOGRAPHIES = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
 # Elements the geo frame's raw HTML may never hold (digest/csp), whatever the parser makes of them.
@@ -3060,6 +3081,8 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     n = labelled_n = 0
     for rel in sorted(pages):
         text = (site / rel).read_text(encoding="utf-8")
+        if digest_gov_page(rel):     # scoped exemption (DIGEST): not the feed text of a coming-up page
+            text = without_feed_text(text)
         own = next((f for pre, f in scopes if rel.startswith(pre)), county)
         cands: list[str] = []
         prev: list[str] = []
