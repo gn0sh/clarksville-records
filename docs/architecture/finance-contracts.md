@@ -226,7 +226,9 @@ keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
 - Schema: a file whose books all have `amount_unit: "cents"` requires `cents` on every cell (top-level if/then).
 - Daily run (`fin_books.run_step`): the committed finance.json is kept (build exit 3, a run-log warning) when the new
   build reads a book from a file whose sha256 differs from the committed source, drops a book or lines, or has more
-  held or does-not-add-up lines; exit 2 is a run-log warning too. `fin-books build` by hand always writes.
+  held or does-not-add-up lines; exit 2 is a run-log warning too. `fin-books build` by hand always writes. Since ADR 0011 a person does not commit its output: `data/` is gitignored on
+  `main`. To get a reviewed reading in, fix the reader by PR, or list it in `config/fin-books-accepted.yml` by PR; the
+  next daily run rebuilds (ADR 0011 decision 2a).
 - `book.report_dates` (added 2026-11-16, frontend-engineer, round 2 budget): optional, set only when the locality's
   config has `budget.rows.report_date` (the city: `Report generated: MM/DD/YYYY` in the page foot of the pages read;
   time, page number and login are never stored). One entry per distinct date, `{as_printed, page}` (first page that

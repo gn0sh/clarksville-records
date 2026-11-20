@@ -64,6 +64,44 @@ A new reader that runs with a credential outside a gated `main` run, or that wri
 refuse symlinks itself (`os.lstat`/`is_symlink`), as `rpc_export` does; a change to `SHAPE` changes G, J2 and the
 test in one PR.
 
+## After the cutover (ADR 0011; cutover merged 2026-11-19, 8d69778)
+ADR 0011 supersedes the code-owner rule R1' and the data-only exception in I-main above (ADR 0010 decisions 1, 2
+and 5). I-data and the gate's shape check remain as `SHAPE''` for `records-data`. The four invariants below are
+stated in full, with every consumer, in `docs/architecture/v1-fail-2026-11-18.md` section 2 (and the table there);
+this is the short form. The trust roots the scripts compare against are in `docs/architecture/data-off-main-trust-roots.md`
+(I-root, consumers C1-C22); the I-pub detail is in `docs/architecture/ipub-tripwire-invariant.md`.
+
+- **I-main''.** `main` moves only by a person's bypass merge of a reviewed PR. No workflow token can satisfy `main`'s
+  merge rule for any PR. `main` tracks no `data/`. Curated inputs are reviewed code under `config/`. Collector
+  output lives on branch `records-data`, which only moves forward. There is no data-only exception: the gate refuses
+  any first-parent commit after `MAIN_PR_BASELINE` that a person did not merge, and any tracked `data/` on `S`.
+- **I-prov.** The gate accepts the `records-data` head `D` only if (a) its tree listing
+  (`git ls-tree -r -z D -- data`, as a file) carries an artifact attestation signed by
+  `.github/workflows/daily-update.yml` at `refs/heads/main` in this repository (GitHub-hosted runner, SLSA provenance
+  v1), or (b) `D` is the parentless seed commit and its digest equals `RECORDS_DATA_SEED_DIGEST`, pinned by the
+  cutover PR. Only the `push` job holds `attestations: write`. A person's whole-tree restore of an earlier attested
+  tree is accepted; a hand edit is not. `D`'s tree must also meet `SHAPE''` and hold no config-owned names (I-data'').
+- **I-pub.** A run deploys only if no vote, roll call or outcome already on the live site changes or disappears.
+  "Live" is the `D` recorded in the site's `build-info.json`. Only a change listed in the reviewed
+  `config/published-fact-changes.yml` passes; `allow_shrink` never counts. Otherwise the run opens an issue and holds
+  the deploy; the data push still happens. I-pub gives no protection against a parser compromise in the update job
+  itself (ADR 0011 consequence a).
+- **I-in.** Every file a build or a credentialed job reads comes from exactly one of two places: (a) `D`, or (b) `S`,
+  reviewed code and config that reached `main` by a person's merge. No person-run tool writes under `data/` for
+  commit. What a person makes (a transcript batch, a map manifest row, an accepted city-book reading) reaches the
+  build only as a reviewed file under `config/`, and no reader of a config-owned input falls back to `data/`.
+
+| Consumer | Invariants it upholds | Where |
+|---|---|---|
+| `gate` job (G) | I-main'', I-data'', I-prov | Reads `D` once; no workflow input can set it. |
+| `update` job (J1) | I-run'' (`S` plus `D`), I-pub | Checks out `S`, then `D`'s `data/`; runs the tripwire; sets `held`. |
+| `push` job (J2) | I-prov, I-data'' | Fast-forwards `records-data`, then attests the listing. No PR, so R2 is not needed. |
+| `deploy` job (J3) | I-pub | Also needs `held != yes`. |
+| `note` job (J4) | I-main'' | Reads no `data/`; skipped when the deploy is held. |
+| Rulesets R1'', R-D, R-T; R2 off | I-main'' | R1'' on `main`; R-D on `records-data` (no deletion, no non-fast-forward); R-T blocks a tag named `main`. |
+| `scripts/protect-main`, `merge-reviewed`, `u3-toggle`, `cutover-data-off-main` | I-main'', I-prov | Trust roots: `data-off-main-trust-roots.md`. |
+| Curated files (CFG), transcripts (TR), map manifest (MP), kept city books (FB), scrub tool (SC), readers that list `data/` (LS) | I-in | `v1-fail-2026-11-18.md` rows CFG, TR, MP, FB, SC, LS; `data-inventory.md`. |
+
 ## Every consumer, and how it upholds the invariant
 | # | Consumer | How it upholds it |
 |---|---|---|

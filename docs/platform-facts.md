@@ -340,7 +340,7 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   since go-live (2026-11-13, `docs/status.md`), custom domain `daylight.gnoshcodes.com`. Branch `gh-pages` still
   exists (last commit 90ded2e, 2026-11-13, "Preview: build of main 0b01310") but is no longer served. The
   `github-pages` environment's deployment branch list could not be read (the session's proxy refuses
-  `environments/` and `pages`), so whether `gh-pages` is still allowed is unverified. Removing `gh-pages` from that
+  `environments/` and `pages`), so whether `gh-pages` is still allowed was unverified from the session (Brian's PC read on 2026-11-18 is under "Main protection" below: `main` only). Removing `gh-pages` from that
   list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
 
 ## Main protection (V1 probe, T4.10.1)
@@ -368,7 +368,11 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   does not change whether a data PR needs review (ADR 0010 U2; L1).
 - Re-plan: ADR 0010 (code-owner rule R1' replaces V1); superseded in part by ADR 0011 after U1 (below). Next facts
   here: the first data PR merged under R1'' and the first S2 merge under R1''.
-- `github-pages` deployment branches after runbook 2.0.5: not checked yet.
+- **Environments, read on Brian's PC 2026-11-18** (as recorded in ADR 0011 Context; the team's session cannot read
+  `environments`): both `github-pages` and `morning-note` allow deployments from `main` only (custom policy);
+  Pages `build_type` is `workflow`; `morning-note` has no required reviewer. This replaces "`github-pages`
+  deployment branches after runbook 2.0.5: not checked yet". The policy type (`branch` or `tag`, ADR 0011 decision
+  6) is not recorded here until `protect-main` reads it.
 - **U1 false: rule suites read pass for PRs #48, #49, #52 (2026-11-18).** U1 is ADR 0010's assumption that
   code-owner review binds at 0 approvals. GitHub's rule suites for 2bba3b1 (#48), 2b20704 (#49) and e3cb819 (#52)
   read `pull_request` **pass**, not bypass, so the code-owner rule of R1' never applied. The cause is unconfirmed:
@@ -388,3 +392,8 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   written (`scripts/u3-toggle.ps1:344-348`). PR #58 head 4f2aa8c0
   was reviewed just after the merge, not before (`docs/reviews/pr58-code-review.md`, approve with nits; its 3 nits
   are applied above). The gate is open for B1..D2.
+- **ADR 0011 cutover merged 2026-11-19 as 8d69778 (PR #65).** Collector data now lives on branch `records-data`
+  (seed commit 30a1dd0), not `main`; curated and person-run inputs live under `config/`. Rulesets: R1'' `27502319`
+  (`main`), R-D `27685092` (`records-data`), R-T `27685093` (tag named `main`). R2 ("Allow GitHub Actions to create
+  and approve pull requests") is off. Source: the manager's W1 brief after the cutover; no `protect-main` read of
+  these ids is recorded here yet.
