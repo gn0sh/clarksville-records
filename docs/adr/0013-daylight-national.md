@@ -228,3 +228,9 @@ Recorded by the manager from docs/architecture/daylight-national.md v2 and docs/
 - Decision 6: a Legistar agenda is final only when `EventAgendaStatusName` exactly equals one of the entry's
   `final_statuses` (default every name in `LEGISTAR_FINAL_STATUSES`), not the `^final\b` regex, so an unexpected
   spelling fails closed to "not final" (architecture 4.5 "As built").
+
+## Amendment C (2026-11-20, S2b security review, loop-limit re-plan)
+- The isolation rule ("a national failure never holds a Clarksville build or deploy") is stated as the invariant
+  `national-isolation` in architecture section 12: load-time reviewed-config errors are the only allowed raises; every
+  data-phase failure degrades to `stale_feed` (per government, then whole `digest/`), and every national CI step has a
+  timeout inside its job's budget.
