@@ -186,6 +186,8 @@ Definitions of done:
 | B-ISO National isolation, backend (architecture 12.2: B-ISO-1 to -7; S2b findings 1, 2, nit b, new N2-N4) | backend-engineer (opus/high) | A2 | yes, with D-ISO | no |
 | D-ISO National isolation, workflows (architecture 12.2: D-ISO-1 to -8; S2b findings 3, 4, 5 optional, nits a, d, e, new N1) | devops-engineer | A2 | yes, with B-ISO | **nit e only: `national-data` ruleset blocks force-push and deletion (Brian's PC, batched with U3-0)** |
 | D-ISO-9 Daily issue on `national: degraded` or a degraded government (with S2b ruling 5's >20% stale issue) | devops-engineer | B-ISO | no | no |
+| B-ISO-12..15 Row 6s (architecture 12.1 row 6s, 12.2 v3; S2d findings 1, 2, nit a): fixed-title rule, `host_ok.date` floor on `checked_at`, blanking only inside digest-meeting sections, exact ordered `digest/feed-text`; 12.3 #15 | backend-engineer (opus/high) | A2 v3 | yes, with D-ISO-16..17 | no |
+| D-ISO-16..17 S2d nits b, c: one exact body-id rule in every copy (workflows, schema, `collector/national/run.py:76`); attestation warning text | devops-engineer | A2 v3 | yes, with B-ISO-12..15 | no |
 | S2 Security review C1, C2, C4, D1, D2, D3 | security-engineer | D2, D3, C4 | no | no |
 | P1 Terms check for the Legistar Web API; record in platform-facts | deep-researcher | none | yes | no |
 | A1 State the `privacy-withhold` invariant and consumers (architecture section 11, done in v2) and review it before C2 | software-architect | none | yes | no |
@@ -197,6 +199,9 @@ H1 gates (security review): finding 3 (C4), finding 6 (D1), finding 7 (B1, D3).
   PR output (#1-9 and #13 backend, #10-12 devops); each 12.1 row marked "breaks" cites its closing test; then a fresh
   code review and a fresh security review (the diffs touch CI). D-ISO-1 and D-ISO-2 land first (they hold the
   Clarksville deploy with the switch off); B-ISO and D-ISO-9 gate `national.enabled: true` with any collected entry.
+  v3: B-ISO-12..15 and D-ISO-16..17 likewise gate the switch (not a release blocker); Done when 12.3 #15 and the
+  extended D-ISO-10 test pass in the PR output, the switch-off fixture build is byte-identical to 30cb61d2, and a
+  fresh security review passes (D-ISO-16 touches CI).
 - **C1** Done when: tests show a 403 on `/v1/a/` blocks only tenant `a`; 403 from a second tenant, 429, a 403 on
   robots.txt and a non-JSON 403 each block the host; delay and caps stay per host; `/v1/Salem/` and `/v1/salem/` are
   one tenant (finding 10, `national/tenant-key-normalize`); existing fetch tests unchanged.

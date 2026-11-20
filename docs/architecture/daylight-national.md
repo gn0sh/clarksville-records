@@ -1066,6 +1066,9 @@ v2, software-architect, 2026-11-20: row 6 restated check by check (code review D
 `docs/reviews/code-review-daylight-national-d12-iso.md`); row 4 residual and 12.2 tasks for security S2c
 (`docs/reviews/security-review-daylight-national-s2c.md`); 12.6 states the `national-budget` invariant after its
 second hit. Line numbers in v2 text are at 32936af3.
+v3, software-architect, 2026-11-20: row 6s, after the second hit on row 6 (security S2d findings 1-2 and nits a-c,
+`docs/reviews/security-review-daylight-national-s2d.md`; code review delta should-fix `feed-attr-blanks-own-footer`).
+Line numbers in v3 text are at 30cb61d2.
 
 **National inputs** are: (1) any bytes under `national-data`, or in the folder `RECORDS_NATIONAL_DATA` names, or their
 absence (missing, partial, oversized, malformed, hostile, stale, or collected while an entry was shown and read after
@@ -1173,6 +1176,7 @@ fields, or gets the fix.
 | 6p | `hscroll`, `row-height` (:3306, :3352) | browser layout of sampled pages; `page_type` (:3262) types no `digest/` page, so none is sampled | holds (digest layout is not browser-checked: a known gap, not an isolation break) | - |
 | 6q | `files` (:3975) | file count against the target cap | holds (one page and one JSON per covered entry, bounded by the reviewed directory) | - |
 | 6r | all others (`index`, `layout`, `totals`, `official-numbers`, `vote-list`, `current-holders`, `about`, `transcripts`, `feeds`, `county-committees`, `rpc-*` but motions, `report-channel`, `seats-fresh`) | open no digest file (named Clarksville paths, `feeds/*.xml`, config) | holds | - |
+| 6s | (v3) every feed-derived value a digest file prints **outside** a `<span data-feed>`, and the reach of the blanking itself | S2d finding 1: a Legistar meeting `title` with `title_ours: true` (body.html.j2:29, and in the gov JSON, where `feed_json_without_text` keeps it) and `checked_at` as day words (:22) print unblanked, validated by the schema only; S2d finding 2: `feed_text_removed` (qa/site_checks.py:250-264) runs `FEED_ATTR.sub` (:261) and the date-words replace (:262-263) page-wide, so our footer `datetime` and "Data as of" words, and our official link, are blanked when a feed value equals them | **breaks** (S2d findings 1, 2; second hit in row 6) | rule and table 6s below; B-ISO-12..15, D-ISO-16..17 |
 
 **The wrapper (B-ISO-8, decided over all of `<main>`).** The templates print each feed-text string as the sole content
 of `<span data-feed>…</span>` (no other attribute, no child markup), like the existing `data-item-title` and
@@ -1184,8 +1188,43 @@ checked (fails safe). `feed_json_without_text(raw)` parses gov JSON and blanks t
 bytes are scanned. A new check `digest/feed-text` keeps the exemption honest: (i) no page outside `digest_gov_page`
 carries `data-feed`; (ii) each `data-feed` span's unescaped, space-normalised text is a substring of a feed-text field
 of the page's own gov JSON (substring, so cut item text still matches). So none of our own words can hide in a
-wrapper. Rejected: exempting all of `<main>` (our labels, date words and links there go unchecked, S2c nit b);
+wrapper. *(v3: (ii) is replaced by B-ISO-14's exact, in-order rule; the printed item text is the JSON's own, already
+cut, so substring matching was never needed.)* Rejected: exempting all of `<main>` (our labels, date words and links there go unchecked, S2c nit b);
 exempting whole files (the same, and the brand and color rules would miss our own CSS classes).
+
+**Row 6s, the rule (v3).** (1) Every feed-derived value a digest file prints outside a `<span data-feed>` is
+validated, or blanked, before it reaches the page: validated means a check in the copy step (or the schema) that
+leaves the value unable to fail any 6a-6r check; blanked means the equality blanking of B-ISO-8 as built, deviation 1.
+(2) Site-check blanking (`FEED_SPAN`, `FEED_ATTR`, the date words) runs only inside `<section class="digest-meeting"
+...> ... </section>` (opening tag included; the template prints no nested `<section>`, and autoescaped feed text and
+`MEETING_ID_RE` ids hold no `<` or `>`). Everything else on the page (eyebrow, h1, official-record link, newest line,
+no-meetings line, topic note, footer, header) is read raw. "Feed-derived" means read from a national input (12,
+inputs 1 and 2), the Clarksville adapter's included. The full list, from `site/templates/digest/*.html.j2`,
+`sitegen/national_pages.py` (`meeting_view`, `_gov_files`, `build_national`) and `sitegen/national.py`
+(`page_directory`):
+
+| Value | Printed (outside a span) | Held by | Test |
+|---|---|---|---|
+| meeting `title`, `title_ours: true`, Legistar | body.html.j2:29; gov JSON | **new** B-ISO-12: the copy step refuses it unless it is the platform's fixed title | 12.3 #15a |
+| meeting `title`, `title_ours: true`, adapter | :29; gov JSON | our kind labels (`config/council.yml`, `national_clarksville.py:57`, :104): reviewed, stays checked | 12.3 #14 (last sentence) |
+| meeting `title` of a withheld entry | :29; gov JSON | `bind_feed` sets WITHHELD_TITLE (`national_guards.py:409`): ours | 11.3 |
+| `checked_at` day words, Legistar | :22 `body.newest` | **new** B-ISO-13: the printed local day >= the entry's `host_ok.date` | 12.3 #15b |
+| `checked_at` day words, adapter | :22 | the newest `fetched_at` of Clarksville source records (`newest_record_at`, `national_pages.py:365`): our own collector's fetch day, under records-data provenance (I-prov); no fetch of ours is dated 2022. Holds without a new validator (judgment call, high confidence) | 12.3 #15b control |
+| `checked_at`, `last_ok_at` | gov JSON | schema `instant` (ASCII digits and `-T:Z`) and `instant_ok`: no letter, `#`, `(` or `/`, so no byte check can match | 12.3 #15f |
+| `last_ok_at` as pagedir `stale` | index.html `#digest-pagedir` | a boolean only (`national.py:658`) | - |
+| meeting `id` in `id="m-..."` and `aria-labelledby` | :27, :28 | `MEETING_ID_RE`; blanked by equality inside the section (rule 2 keeps the section's own opening tag in scope) | 12.3 #14, #15c |
+| meeting `date` in `datetime`; its day words (`m.day`, the agenda link's `sr`) | :28, :32 | `civil_day` (B-ISO-2); blanked inside the section | 12.3 #14, #15c |
+| agenda `url`, item `source.url` (or the official-link fallback) | :32, :37, :39, :47, :48 hrefs | `allowed_url` for the client; blanked inside the section; `sources` and `links` read raw hrefs (6h, 6i) | 12.3 #14 |
+| item `source.page` | :48, inside the `body.item-page` label text | **not in the findings.** Schema `integer >= 1` (a number too long to parse is `NotJson`): digits alone match no 6a-6r pattern. Holds by the schema; pinned | 12.3 #15e |
+| item `seq`, `item_count`, `cut`, `may_be_incomplete`, `items_withheld`, agenda `state`, whether `time` is set | gov JSON; in HTML only as which label prints | schema types and enums; `item_topics` prints label keys only | 12.3 #4 |
+| `review` | gov JSON | schema `^[0-9a-f]{64}$`: no `#`, so no color match | 12.3 #15f |
+| `body.*` (id, name, tz, links) | h1, `<title>`, eyebrow, official-record; gov JSON | rewritten from the directory entry by `bind_feed`: reviewed config | 11.3 |
+| covered.html and pagedir rows (`checked`, `reason`, `official_url`) | covered.html:30-33; index pagedir | directory config, not feed | - |
+| ICS and Atom (M4) | each government's feed files | not built yet; the M4 writers take this rule (row 18) | M4 |
+
+After B-ISO-12..15 rule 1 holds for every row above and rule 2 by B-ISO-14. Residual, accepted: our official link
+inside a section (the `body.not-posted` fallback, :34) is still blanked when it equals a feed URL; the same href prints
+at :18, outside every section, and is checked there (12.3 #15d).
 
 **Summary.** Holds: rows 2, 3, 15-23 and 25. Break today: 1 (finding 3), 4 (N1), 6 (N2), 7, 8, 9 (finding 1), 10,
 11 (finding 2), 13 (N3), 14 (N4) and 24 (nit d); row 12 is fragile. Rows 1 and 4 hold the Clarksville deploy **with
@@ -1195,6 +1234,10 @@ entry, as S2b gates findings 1 and 2.
 through 6a-6f and gates the switch with B-ISO-8. New, switch-on only: a refused body file is silent (code review
 finding 2, B-ISO-9), the run-log contract is untested (finding 3, B-ISO-10, D-ISO-10). Row 24 stays until 12.3 #1-9
 and #14 pass on `main`. The request budget has its own invariant, 12.6.
+*v3 (at 30cb61d2):* B-ISO-8..11 and D-ISO-10..14 hold (S2d, code review delta). Row 6 breaks through 6s (S2d findings
+1 and 2, LOW, switch-on only); B-ISO-12..15 gate `national.enabled: true` with a collected entry, with S2b ruling 5 and
+12.3 #12. None of them changes Clarksville output (digest pages and `qa/` only; the switch-off build reads no national
+input).
 
 ### 12.2 Fixes and owners
 **backend-engineer** (opus/high under the data-integrity rule; one PR; B-ISO-3 first, the others may follow in any
@@ -1264,6 +1307,27 @@ markup), so its own-text control is the gov page only. (5) B-ISO-9: a root or `b
 `NotAnObject` (also JSON `null`), `SchemaRefused`, or the exception's own (`BindError`, `UnsafeIdError`). (6) B-ISO-10
 lives in `tests/test_rpc_daily.py` beside its `county_run` fixture.
 
+*v3 tasks (backend-engineer, opus/high; one PR; row 6s. Done for each: its 12.3 #15 tests pass, and the switch-off
+fixture build is byte-identical to 30cb61d2):*
+- B-ISO-12 S2d finding 1a (`sitegen/national_copy.py` `copy_feed`, after `bind_feed` and the withheld check, before
+  `date_problem`): every meeting with `title_ours` true has `title` in `OURS_TITLES[platform]` (Legistar `{"Meeting"}`:
+  the collector's `FALLBACK_TITLE`, `collector/national/legistar_upcoming.py:60`, which equals `WITHHELD_TITLE`), else
+  `_refused(entry, counts, BAD_FILE, " (TitleNotOurs)")`. A test holds `OURS_TITLES["legistar"]` equal to both
+  constants. `feed_texts` and `feed_json_without_text` keep skipping such titles (now always ours).
+- B-ISO-13 S2d finding 1b: `date_problem` takes the entry; `checked_at` is also `bad-instant` when
+  `newest_day(checked_at)` (the site_timezone day the page prints) is before the entry's `host_ok.date` (the collector
+  cannot fetch before Brian's OK). `last_ok_at` keeps the epoch floor (never printed). Load phase (an allowed raise):
+  every covered entry's `host_ok.date` is after `config/site.yml` `lines_effective`, so a valid day is never a
+  `provenance` banned day. Chosen over blanking the day words: they are our label and stay checked.
+- B-ISO-14 S2d finding 2 and nit a (`qa/site_checks.py`): `feed_text_removed` applies `FEED_SPAN.sub`, `FEED_ATTR.sub`
+  and the words replace only to each `<section class="digest-meeting"[^>]*>.*?</section>` match (`re.S`); the rest of
+  the page is returned as is. `check_digest_feed_text`: (iii) becomes exact and ordered: the spans in page order,
+  unescaped and whitespace-normalised, are an in-order subsequence of `feed_texts` (each equals the next unused field
+  exactly), so spans <= fields, no empty span without an empty field, no reordering; (iv) a `data-feed` span outside
+  every digest-meeting section fails. The module docstring (:101-115) and the template comment (body.html.j2:6-9) say
+  so.
+- B-ISO-15 tests 12.3 #15.
+
 **devops-engineer** (sonnet/medium; a CI workflow diff goes to a fresh security review):
 - D-ISO-1 S2b finding 3 (row 1): gate step timeouts and job budget; test 12.3 #10. Chosen over moving the lookup to
   its own job: a job-level `success()` reads every ancestor, so a failed lookup job would skip `push` (whose `if:`
@@ -1313,6 +1377,18 @@ lives in `tests/test_rpc_daily.py` beside its `county_run` fixture.
 - D-ISO-15 12.6 route 10, read-only: check with `gh api repos/gn0sh/clarksville-records/actions/permissions` (and the
   fork-PR approval setting) that workflows from outside contributors' fork PRs need approval; record the result in
   `docs/platform-facts.md`. If they don't, the manager puts a one-click ask to Brian (settings change, his account).
+
+*v3 tasks (devops-engineer, sonnet/medium; one PR, after B-ISO-12..15 or in parallel; fresh security review):*
+- D-ISO-16 S2d nit b: one exact body-id rule, the one `id_layer` accepts and `daily-update.yml:1111` already uses:
+  `(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})`. It replaces `-[0-9]{5,10}` in
+  `national-update.yml:319` (push validate `id=`), every `NPATHS` (`daily-update.yml:293`, `national-update.yml:104`,
+  `:357`), `schema/daylight-upcoming.schema.json` `body.id`, and (**not in the findings**)
+  `collector/national/run.py:76` `BODY_FILE_RE` (`[a-z]+-[0-9]{5,10}`). Extend the D-ISO-10 test: every copy, read
+  from its file, equals the string built from `GEOID_DIGITS`, accepts each `id_layer` shape and refuses
+  `place-12345` and `county-1234567`.
+- D-ISO-17 S2d nit c (`daily-update.yml:346-347`): when `$src` is empty (the jq `select` kept no certificate), print
+  "national-data <c>: no attestation by national-update.yml on main for this commit: not read."; keep the current
+  text for a digest off the first-parent line. A test pins both strings.
 
 ### 12.3 Tests (each route closed)
 1. **Shipped config, switch on, every PR**: `config/site.yml` patched on, fixture data, no national root: the build
@@ -1370,6 +1446,18 @@ lives in `tests/test_rpc_daily.py` beside its `county_run` fixture.
     passes. The same probe in our own text on that gov page (a patched page label) and on a page outside `digest/`
     fails its check. `digest/feed-text`: a `data-feed` span on a page outside `digest/`, and a span whose text is in
     no feed field of its gov JSON, each fail; an adapter meeting with `title_ours` true prints its title unwrapped.
+15. **Row 6s (v3, S2d)**, the #14 harness, switch on: (a) a Legistar body file that otherwise copies (`built`), with
+    `title_ours: true` and title "Paint color #2B4BA5", "gnoshcodes-mark-black", "a request to present the budget" or
+    "": stale, `bad-file`, one warning naming `TitleNotOurs`; with "Meeting": `built`; every site check passes. (b)
+    `checked_at: "2022-08-30T16:00:00Z"`, and one whose local day is the day before the entry's `host_ok.date`:
+    `bad-instant`; on `host_ok.date`: `built`; a fixture entry with `host_ok.date` on or before `lines_effective` is
+    refused at load. Control: an adapter feed's `checked_at` is its newest source `fetched_at`. (c) **Control for
+    finding 2**: a meeting dated the build's "Data as of" day, with the footer day patched wrong, still fails
+    `dates/no-raw-utc-day` on that gov page; with the footer right, it passes. (d) A directory `official_url` equal to
+    a feed `meeting_url`: the official-record href (:18) stays in `own_text`, and a brand probe there fails. (e) Item
+    `source.page` 20220830 and 2 pass every check. (f) A gov JSON `review` and instants pass both brand checks. (g)
+    `digest/feed-text`: two spans swapped, an extra empty span, a span equal to a prefix of a field, and a span outside
+    a digest-meeting section each fail; the shipped fixtures pass.
 
 ### 12.4 Alternatives considered
 - **Keep raising and fix each raise path** (the current shape): every review has found another (S2a, S2b, and rows
