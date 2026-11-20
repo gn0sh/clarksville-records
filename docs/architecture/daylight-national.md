@@ -1062,6 +1062,10 @@ v1, software-architect, 2026-11-20: loop-limit re-plan after three hits in famil
 (security S2b findings 1-3, `docs/reviews/security-review-daylight-national-s2b.md`), from ADR 0013 decision 6 ("a
 national failure never holds a Clarksville build or deploy"). Where 3.7, 4.3, 4.6 or 11.2 differ from this section,
 this section wins. Line numbers are at 85bd69a4.
+v2, software-architect, 2026-11-20: row 6 restated check by check (code review D1/D2/iso finding 1,
+`docs/reviews/code-review-daylight-national-d12-iso.md`); row 4 residual and 12.2 tasks for security S2c
+(`docs/reviews/security-review-daylight-national-s2c.md`); 12.6 states the `national-budget` invariant after its
+second hit. Line numbers in v2 text are at 32936af3.
 
 **National inputs** are: (1) any bytes under `national-data`, or in the folder `RECORDS_NATIONAL_DATA` names, or their
 absence (missing, partial, oversized, malformed, hostile, stale, or collected while an entry was shown and read after
@@ -1118,9 +1122,9 @@ check is decidable from repository files at load, never first triggered by data 
 | 1 | `daily-update.yml` gate job budget | `timeout-minutes: 10` (:102) covers checkout, the history check (:120, no step timeout) and the D2 lookup (:267-271, `continue-on-error`, step timeout 3). A job timeout fails the job whatever `continue-on-error` says, so a slow lookup on a slow history day fails the gate and skips update, push and deploy, **even with the switch off** | **breaks** (S2b finding 3) | every gate step gets `timeout-minutes`; job timeout >= the sum of step timeouts + 1 (e.g. checkout 1, history 8, lookup 3, job 13); test (D-ISO-1) |
 | 2 | gate lookup step outputs | `set -uo pipefail` (no `-e`); `found`/`none` (:277-278) write `sha` once and exit 0; a timeout or failure leaves `national_sha` empty, so update skips N | holds | - |
 | 3 | update job: check out N (:394-403) | `continue-on-error`, step timeout 3; a failure gives `CHECKOUT != success`, no root | holds | - |
-| 4 | update job: "Put N's data/national beside the build" (:405-426) | `continue-on-error` but **no `timeout-minutes`**: a hang (`mv`, or the `rm -rf` trap on a large tree) runs to the update job's 355-minute timeout and fails the update job, **switch off or on** | **breaks** (new, N1) | `timeout-minutes: 2`; test: every `continue-on-error` step in `daily-update.yml` has a step timeout (D-ISO-2) |
+| 4 | update job: "Put N's data/national beside the build" (:405-426) | `continue-on-error` but **no `timeout-minutes`**: a hang (`mv`, or the `rm -rf` trap on a large tree) runs to the update job's 355-minute timeout and fails the update job, **switch off or on** | **breaks** (new, N1) | `timeout-minutes: 2`; test: every `continue-on-error` step in `daily-update.yml` has a step timeout (D-ISO-2). *v2 residual (S2c nit e, accepted, not a break):* the update job's national steps (check out N 3, put 2, D-ISO-9 issue 5: 10 minutes) are not summed against its 355-minute timeout the way the gate's are (D-ISO-1), and no test holds them inside it. Each is bounded by its own step timeout, and a cold Clarksville run takes 4-5 h, so they sit inside the job's margin today; the job timeout is set by the Clarksville collect, not by them. Revisit (devops) if a cold run's duration comes within 15 minutes of 355 |
 | 5 | Collect step (:506-512) and Rebuild step (:633-638) | both build with `RECORDS_NATIONAL_DATA`. `collector/__main__.py:508` calls `site_build` with no handler, so a national raise ends the county run non-zero before `run-log.json` is written: the step and the update job fail, and **the day's records-data push is lost too**, not only the deploy | holds only as far as rows 7-19 hold | none here; rows 7-19 remove the raises |
-| 6 | Site checks step (:643-647) on `build/site` | runs every check on digest pages too. `dates/no-raw-utc-day` (`qa/site_checks.py:2876-2882` `FETCH_DAY`, `check_local_dates` :3058-3090) fails any page whose text holds "Fetched/Collected/Added/Downloaded/Retrieved (on) YYYY-MM-DD" or "Data as of YYYY-MM-DD" that is not a manifest fetch day. A Legistar title or item text such as "Item added 2026-01-05" on `digest/<st>/<id>.html` fails the step, the update job and the deploy. Other checks: `sources` (:1395-1412, URLs from `digest_link_urls` :2592-2632) holds by construction (page links are the JSON's, through the same `allowed_url`); `links` skips http(s); `digest/csp`, `header`, `switch`, `footer` and `unofficial` read structure; `private_details` reads `data-transcript` only; `notcollected` and `freshness` read classed blocks | **breaks** (new, N2, `national-isolation/site-checks-read-feed-text`) | `dates/no-raw-utc-day` skips the feed text of `digest/<st>/` pages (a scoped exemption naming `DIGEST`; those pages print no fetch day); test 12.3 #9 runs every site check over a hostile-text build (B-ISO-6) |
+| 6 | Site checks step (:643-647) on `build/site` | runs every check on digest pages too. v1 named only `dates/no-raw-utc-day` (fixed by B-ISO-6 with a `<main>`-wide exemption). v2 lists every check that reads a digest page's text or bytes (`.html` and `.json`) in **6a-6r below**. Three reach the feed text of every `digest/<st>/<id>.html`, and two of them the `.json` beside it, and still break (code review finding 1: `name-links`, `brand/no-old-gnoshcodes`, `brand/no-old-daylight-colors`); the v2 grep found two more (`unverified`, the `digest/csp` geo-frame name test). Any agenda author anywhere (or the county's own agenda, through the Clarksville adapter) can then hold the Clarksville deploy | **breaks** (N2, `national-isolation/site-checks-read-feed-text`, hit again in the D1/D2/iso review) | **Rule (manager decision, 2026-11-20):** verbatim source text on a digest page is exempt from every site check that judges *our* text (name links, brand, colors, the raw-OCR token scan, the date rule, the geo-frame name test), for N2's reason: it is the government's text, not ours. Our own text on the same pages, and every page outside `digest/`, stays checked. **Scope (architect decision, S2c nit b):** a narrow `data-feed` wrapper around each verbatim string, not all of `<main>`; it replaces B-ISO-6's `without_feed_text` (B-ISO-8). Tests 12.3 #9 and #14 |
 | 7 | `sitegen/build.py:1049-1057` | `NationalBuildError` becomes `BuildError`; any other exception (the `ValueError` of row 11, a `TypeError`, a `UnicodeError`) passes up uncaught | **breaks** for every data raise | only load-phase `NationalBuildError` becomes `BuildError`; tiers 1 and 2 (B-ISO-3) |
 | 8 | `national_pages.run` (:637-664) | the `try` (:642-651) wraps loads and `build_feeds` together and turns every `ValueError`, data or config, into `NationalBuildError`; `build_national` (:658) and the log lines run outside it | **breaks** (the mechanism of findings 1 and 2) | split into load phase, tier 1 and tier 2 (B-ISO-3) |
 | 9 | `national_copy.copy_feed` (:122-147), every raise path | `_platform_keys` :75, :79, :81 (allowed: a reviewed entry; moves to the load phase); `read_body_file` :93-108 `except Exception` -> missing (holds); `clean_feed`/`bind_feed`/`feed_errors` :131-139 `except Exception` -> missing (holds; `checked_id` is inside the `try`); **`withheld_stripped` :141-143 raises `CopyError`** | **breaks** (S2b finding 1) | 11.2 as amended: `stale_feed`, state `withheld-items`, warning with id and count, never raises (B-ISO-1) |
@@ -1141,10 +1145,56 @@ check is decidable from repository files at load, never first triggered by data 
 | 24 | report issue text (`national-update.yml:403-408`) | says "The Clarksville site is not affected", untrue until rows 1, 4 and 6-14 land | **wrong today** (S2b nit d) | until then drop that sentence; the PR that lands 12.3 restores it (D-ISO-6) |
 | 25 | run log and annotations | counts and fixed words only (11.1 row 23) | holds | every new line matches 12.3 #13 |
 
+**Row 6, check by check (v2).** Every check `run_checks` (`qa/site_checks.py:3961`) runs, by whether it opens a digest
+file. "Feed text" is every verbatim string a digest page prints from the feed: meeting `time`, meeting `title` when
+`title_ours` is false (the Clarksville adapter's titles are our kind labels, `national_clarksville.py:102-108`, and stay
+checked), item `number` and item `text` (`site/templates/digest/body.html.j2:26`, `:27`, `:43`), and any such string
+added later. Government names, state names and labels come from reviewed config and stay checked. "Gov JSON" is
+`digest/<st>/<id>.json`. The exemption is that text only: each check below either holds by reading markup or our own
+fields, or gets the fix.
+
+| # | Check (report key) | Reads on digest pages | Holds? | Fix (B-ISO-8) |
+|---|---|---|---|---|
+| 6a | `name-links` (`check_name_links` :2140, every `.html` :2155) | every text node (NameLinks); a feed title naming a Clarksville or county official ("Resolution honoring A. Example") is not linked to their page | **breaks** (CR finding 1) | on `digest_gov_page` files, parse `feed_text_removed(text)`. Manager decision: verbatim source text is exempt from the name-link rule; our own digest text stays checked |
+| 6b | `brand/no-old-gnoshcodes` (`check_old_brand` :2183, every file, bytes :2191) | `.html` and gov JSON bytes: the kit's file names and path data ("gnoshcodes-mark-black") | **breaks** (CR finding 1) | signatures and names over `feed_text_removed(...)` bytes for gov pages and `feed_json_without_text(...)` for gov JSON; the file-name test and the favicon sha1 stay on the raw file |
+| 6c | `brand/no-old-daylight-colors` (`check_old_daylight_colors` :2211, every file, bytes :2218) | `.html` and gov JSON bytes: "Paint color #2B4BA5", "rgb(43, 75, 165)" | **breaks** (CR finding 1) | as 6b |
+| 6d | `unverified` token scan (`check_unverified` :1609-1627, every text file, raw and unescaped) | `.html` and gov JSON: an unverified roll call's `outcome_text` (over 12 characters, `unverified_tokens` :1474-1493: a generic "Motion carried ..." line in any government's agenda) or a `<meeting id>/att`-shaped run fails it | **breaks** (new in v2) | as 6b. Safe because feed text can never be our OCR: the feed schema has no outcome, motion or attendance field, and the adapter reads `agendas.json` and council listings only, never roll calls (`national_clarksville.py:113-166`). The fact-id loops (:1632, :1653) read `data-fact-id` markup, which digest pages never print: hold |
+| 6e | `digest/csp`, geo-frame name test (:2719) | the raw text of every page but `digest/index.html` for "geo-frame.html" | **breaks** (new in v2) | on `digest_gov_page` files, test `feed_text_removed(text)`. The CSP, script and frame tests read markup: hold |
+| 6f | `provenance` (`check_provenance` :1862, every page :1871) | `BANNED` (:1769: "to present", "vacant since", "Held this seat", "in use since") and the `lines_effective` day and the day before (ISO and worded) in the whole unescaped text (only `data-transcript` text is removed, :1875). "to present" is common agenda wording ("a request to present the budget") | **breaks** (new in v2) | remove feed text too: `feed_text_removed` on gov pages before the `BANNED` scan. `SeatTexts` (:1879) reads holder markup: holds |
+| 6g | `dates/no-raw-utc-day` (`check_local_dates` :3052, exemption :3084-3085) | fixed by B-ISO-6 with `without_feed_text` (:175-183), which drops all of `<main>`, so our own labels there go unchecked (S2c nit b) | holds, too wide | use `feed_text_removed`; delete `without_feed_text` |
+| 6h | `sources` (`check_sources` :1393, `digest_link_urls` :2613-2650 reads gov JSON) | page links against the JSON's URLs | holds by construction (same `allowed_url`) | - |
+| 6i | `links` (:1353) | hrefs; http(s) skipped | holds | - |
+| 6j | `external` (:2478) | resources (`img`, `script`, `form`) and settings blocks; feed text prints only as text and `<a href>` | holds | - |
+| 6k | `footer` (:2224), `unofficial/notice-on-every-page` (:2830), `header/same-on-every-page` (:2327) | footer, tag and header markup, outside `<main>` | holds (autoescaped text cannot make elements) | - |
+| 6l | `switch/on-every-page` (:2234) | `SWITCH_NAV` and the raw count of `class="body-switch"` (:2253) | holds: autoescape turns the quotes into `&#34;` | probe in 12.3 #14 |
+| 6m | `notcollected/never-coming` (:2437), `dates/freshness-linked` (:3007) | blocks anchored on classed markup (`NOT_COLLECTED_BLOCKS` :2433, `FRESH_BLOCK` :3001) | holds | probes in 12.3 #9 |
+| 6n | `rpc-motions` (:372-377), `committee-motions` (:900-906) | every page's raw text, but only inside `RPC_CARD`/`class="rpc-motion` and `CM_ATT_BLOCK`/`CM_BLOCK` markup | holds (quoted class names; "cm-attendance" in text only passes the pre-filter, the block regex then finds nothing) | - |
+| 6o | `transcripts/private-addresses` (:3568-3586) | `data-transcript` spans; the needle scan only under `data/` and `static/search-index.js` | holds (gov JSON is under `digest/`) | - |
+| 6p | `hscroll`, `row-height` (:3306, :3352) | browser layout of sampled pages; `page_type` (:3262) types no `digest/` page, so none is sampled | holds (digest layout is not browser-checked: a known gap, not an isolation break) | - |
+| 6q | `files` (:3975) | file count against the target cap | holds (one page and one JSON per covered entry, bounded by the reviewed directory) | - |
+| 6r | all others (`index`, `layout`, `totals`, `official-numbers`, `vote-list`, `current-holders`, `about`, `transcripts`, `feeds`, `county-committees`, `rpc-*` but motions, `report-channel`, `seats-fresh`) | open no digest file (named Clarksville paths, `feeds/*.xml`, config) | holds | - |
+
+**The wrapper (B-ISO-8, decided over all of `<main>`).** The templates print each feed-text string as the sole content
+of `<span data-feed>…</span>` (no other attribute, no child markup), like the existing `data-item-title` and
+`data-transcript` spans. `qa/site_checks.py` gets `feed_text_removed(text)`: on `digest_gov_page` files only, every
+match of `<span data-feed>[^<]*</span>` becomes `<span data-feed></span>`; on any other page it returns the text
+unchanged. Autoescaped text holds no `<`, so the match is exact, and a span that holds markup does not match and stays
+checked (fails safe). `feed_json_without_text(raw)` parses gov JSON and blanks the feed-text fields (meeting `time`,
+`title` when `title_ours` is false, agenda `status_as_posted`, item `number` and `text`); if it does not parse, the raw
+bytes are scanned. A new check `digest/feed-text` keeps the exemption honest: (i) no page outside `digest_gov_page`
+carries `data-feed`; (ii) each `data-feed` span's unescaped, space-normalised text is a substring of a feed-text field
+of the page's own gov JSON (substring, so cut item text still matches). So none of our own words can hide in a
+wrapper. Rejected: exempting all of `<main>` (our labels, date words and links there go unchecked, S2c nit b);
+exempting whole files (the same, and the brand and color rules would miss our own CSS classes).
+
 **Summary.** Holds: rows 2, 3, 15-23 and 25. Break today: 1 (finding 3), 4 (N1), 6 (N2), 7, 8, 9 (finding 1), 10,
 11 (finding 2), 13 (N3), 14 (N4) and 24 (nit d); row 12 is fragile. Rows 1 and 4 hold the Clarksville deploy **with
 the switch off** and land now. The rest are switch-on paths and gate `national.enabled: true` with any collected
 entry, as S2b gates findings 1 and 2.
+*v2 (at 32936af3):* rows 1, 4 and 7-14 are fixed (B-ISO-1..7, D-ISO-1..9; code review and S2c). Row 6 still breaks
+through 6a-6f and gates the switch with B-ISO-8. New, switch-on only: a refused body file is silent (code review
+finding 2, B-ISO-9), the run-log contract is untested (finding 3, B-ISO-10, D-ISO-10). Row 24 stays until 12.3 #1-9
+and #14 pass on `main`. The request budget has its own invariant, 12.6.
 
 ### 12.2 Fixes and owners
 **backend-engineer** (opus/high under the data-integrity rule; one PR; B-ISO-3 first, the others may follow in any
@@ -1169,6 +1219,30 @@ listing file degrades only its council (`adapter-error`, 12.3 #7). (4) In 12.3 #
 item with a null title do not degrade the county: the B14 guards drop the meeting (counted) and print an empty item
 text, so the page builds; a list `source_id` and a non-JSON or non-UTF-8 listing give `adapter-error`.
 
+*v2 tasks (backend-engineer, opus/high; one PR with D-ISO-10; B-ISO-8 blocks the switch, the rest before switch-on):*
+- B-ISO-8 code review finding 1 and S2c nit b (row 6, 6a-6g): the `data-feed` wrapper in
+  `site/templates/digest/body.html.j2` (:26 time, :27 title when not `title_ours`, :43 item number and text);
+  `feed_text_removed` and `feed_json_without_text` in `qa/site_checks.py`, used by `name-links`, both brand checks,
+  the `unverified` token scan, the `digest/csp` geo-frame test, `provenance` and `dates/no-raw-utc-day` (replacing
+  and deleting `without_feed_text`); the new `digest/feed-text` check; module docstring (:101-115) lists the new
+  scoped exemptions; tests 12.3 #9 (extended) and #14. Done when: every 12.3 #14 probe passes on a gov page and its
+  JSON and fails on a page outside `digest/`, and our own label text on a gov page still fails each check.
+- B-ISO-9 code review finding 2 (`national-isolation/refused-file-silent`, `sitegen/national_copy.py:209-227`):
+  `read_body_file` returns absent (no file: state `missing`, silent, as today) apart from unreadable (exists but a
+  symlink, FIFO, oversized, too deep, not UTF-8 or not JSON); unreadable, and every refusal after a read (`clean_feed`
+  or `bind_feed` raising, :216; `feed_errors` true or raising, :225, :227), go through `_refused(entry, counts,
+  BAD_FILE, <type name>)`: state `bad-file`, one `::warning::` with id, state and type name. `BAD_FILE = "bad-file"`
+  joins `DEGRADED_STATES` (`national_pages.py:138`) and `STATE_OF`; the hostile sweep (12.3 #4) asserts `bad-file`
+  for each refused case, not `{}`; 12.3 #13 covers the new line. Done when: a schema-drift fixture (every Legistar
+  file with one renamed key) gives `national_states` of `bad-file` for each entry and one warning each.
+- B-ISO-10 code review finding 3, backend half (`national-isolation/run-log-contract-untested`): a `cmd_run` test
+  with a stubbed `site_build` (as `tests/test_rpc_daily.py:520` does for `rpc`) asserting `run-log.json` carries
+  `national` (`off`, `built`, `degraded`) and `national_states` (`{}` and a degraded map) as written at
+  `collector/__main__.py:510-514`, including a `site_build` result without either key (`off`, `{}`).
+- B-ISO-11 code review nit 6: rename `tests/test_national_copy.py:193`
+  `test_an_entry_the_collector_may_not_read_stops_the_build` to say it checks `copy_feed` raises, and point its
+  docstring at `test_national_pages.py::test_a_covered_entry_without_a_feed_source_is_refused_at_load`.
+
 **devops-engineer** (sonnet/medium; a CI workflow diff goes to a fresh security review):
 - D-ISO-1 S2b finding 3 (row 1): gate step timeouts and job budget; test 12.3 #10. Chosen over moving the lookup to
   its own job: a job-level `success()` reads every ancestor, so a failed lookup job would skip `push` (whose `if:`
@@ -1186,7 +1260,34 @@ text, so the page builds; a list `source_id` and a non-JSON or non-UTF-8 listing
   `national-data` ruleset must block force-push and deletion (Brian's PC step, batched with the U3-0 ruleset ask).
 - D-ISO-8 tests 12.3 #10 (coupling) and #11 (dispatch).
 - D-ISO-9 (before the switch goes on with a collected entry, with S2b ruling 5's >20% stale issue): one fixed-title
-  daily issue when `run-log.json` says `national: degraded` or any government is in a degraded state.
+  daily issue when `run-log.json` says `national: degraded` or any government is in a degraded state. Code review
+  nit 4 (`national-observability/no-root-silent`: no root or a timed-out lookup leaves every page `missing` and opens
+  nothing) lands with it, through S2b ruling 5's ">20% stale" issue.
+
+*v2 tasks (devops-engineer, sonnet/medium; each CI workflow diff goes to a fresh security review):*
+- D-ISO-10 code review findings 2 and 3, workflow half (with B-ISO-9 in one PR, backend commit first): add
+  `bad-file` to the D-ISO-9 case list (`daily-update.yml:1103`); a test that parses that `case` line and asserts its
+  words equal `set(sitegen.national_pages.DEGRADED_STATES)`, and that the id regex (:1102) accepts every id shape
+  `id_layer` accepts and refuses the 12.3 #13 bad ids (no hand-copied list can drift unseen).
+- D-ISO-11 S2c finding 1 (`national-budget/schedule-rerun-no-cap`, 12.6 route 3): the collect `if:`
+  (`national-update.yml:175-177`) becomes `needs.gate.outputs.ready == 'yes' && github.ref == 'refs/heads/main' &&
+  ((github.event_name == 'schedule' && github.run_attempt == '1') || (github.actor == 'gn0sh' &&
+  github.triggering_actor == 'gn0sh'))`; update the comment above it to name every route of 12.6; tests 12.3 #11.
+- D-ISO-12 S2c nit a: defence in depth on `gh attestation verify --format json` (`daily-update.yml:338`,
+  `national-update.yml:147`): the `--jq` filter keeps only entries whose certificate `buildSignerURI` is the pinned
+  `national-update.yml@refs/heads/main` and `sourceRepositoryRef == "refs/heads/main"`; a test pins the filter text.
+  Wrong path fails closed. Verify on the first real run (record the run link in `docs/status.md` via the manager).
+- D-ISO-13 S2c nit c / code review nit 5, recorded as built: a rebuild-only dispatch (`daily-update.yml:656`) writes
+  no `run-log.json`, so a degraded rebuild opens no D-ISO-9 issue; its `::warning::`/`::error::` lines are the
+  signal. Accepted (a person started that run and reads its log). Say so in a comment at the D-ISO-9 step and in
+  `docs/ops/u3-positive-control.md`. No code change.
+- D-ISO-14 S2c nit d: the `national-update.yml` gate (:57-59, `timeout-minutes: 10`) gets a `timeout-minutes` on every
+  step, job timeout >= their sum + 1, as D-ISO-1 for the daily gate (the unshallow fetch of `national-data` history,
+  about 730 commits a year, `blob:none`, is the one that grows); extend the 12.3 #10 test to this gate; record the
+  history step's duration from the first real run.
+- D-ISO-15 12.6 route 10, read-only: check with `gh api repos/gn0sh/clarksville-records/actions/permissions` (and the
+  fork-PR approval setting) that workflows from outside contributors' fork PRs need approval; record the result in
+  `docs/platform-facts.md`. If they don't, the manager puts a one-click ask to Brian (settings change, his account).
 
 ### 12.3 Tests (each route closed)
 1. **Shipped config, switch on, every PR**: `config/site.yml` patched on, fixture data, no national root: the build
@@ -1214,19 +1315,36 @@ text, so the page builds; a list `source_id` and a non-JSON or non-UTF-8 listing
    a symlink: the build output is byte-identical to the build with it unset, and nothing is under `digest/`.
 9. **Site checks (N2)**: the #4 build with feed text "Item added 2026-01-05", "Fetched 2026-01-05", "Data as of
    2026-01-05", "meeting collected 2026-01-05", the not-collected tag word and "Coming" passes
-   `python -m qa.site_checks`; the same raw day on a page outside `digest/` still fails.
+   `python -m qa.site_checks`; the same raw day on a page outside `digest/` still fails. v2: the build carries the
+   #14 probes as well, in a Legistar entry's feed (HTML and JSON) and in a Montgomery County agenda item through the
+   adapter, and passes every check.
 10. **Workflows (devops)**: in `daily-update.yml` every gate step has `timeout-minutes` and the job's is >= their sum
     + 1; every `continue-on-error` step in any job has `timeout-minutes`; no job `needs` a national-only job; the
     lookup keeps `continue-on-error` and `if: success()` (existing test `test_national_workflow.py:498`).
     `national-update.yml` has no `actions/cache` step, no `workflow_run` trigger, no concurrency group shared with
     `daily-update.yml`, and writes only `national-data`.
 11. **Dispatch cap (finding 4)**: the collect job's `if:` holds the schedule-or-gn0sh clause; the budget regex refuses
-    0 and 361.
+    0 and 361. v2 (12.6, S2c finding 1): the `if:` is exactly the D-ISO-11 string, and a truth table evaluates it
+    (a small evaluator for `==`, `&&`, `||` and parentheses over string literals and context values): schedule
+    attempt 1 runs; schedule attempt 2 re-run by another account does not; schedule attempt 2 with actor and triggering actor gn0sh runs, with actor another account and triggering
+    actor gn0sh does not (12.6 route 3);
+    dispatch by gn0sh (actor and triggering actor) runs; dispatch by another account does not; gn0sh's dispatch
+    re-run by another account does not; any of these on a ref other than `refs/heads/main`, or with gate `ready`
+    not `yes`, does not. The `on:` keys are exactly `schedule` and `workflow_dispatch`, with two crons; the collect
+    step's `BUDGET` is `inputs.budget || vars.NATIONAL_REQUEST_BUDGET || '300'` and the regex refuses 0 and 361.
 12. **Issue text (nit d)**: the report job's body is the fixed text, without the "not affected" sentence until #1-9
     pass on `main`.
 13. **Annotation hygiene**: every line sitegen's national step prints (tests capture stdout and stderr) holds only
     ids that `id_layer` accepts, fixed state words, exception type names and `name=<integer>` counts; a test feeds
     the sentinel text through every degrade path and finds it in no printed line.
+14. **Site checks over feed text (v2, CR finding 1, row 6a-6g)**: with the 12.3 #9 harness, switch on, one probe per
+    build in a Legistar meeting title, item text, item number and time, in both `.html` and `.json`: "Resolution
+    honoring <a seated official's name>", "gnoshcodes-mark-black", "Paint color #2B4BA5", "rgb(43, 75, 165)", an
+    unverified roll call's outcome text from the fixture facts, "<a fixture meeting id>/att", "a request to present
+    the budget", the `lines_effective` day in ISO and words, "geo-frame.html", and `class="body-switch"`: every check
+    passes. The same probe in our own text on that gov page (a patched page label) and on a page outside `digest/`
+    fails its check. `digest/feed-text`: a `data-feed` span on a page outside `digest/`, and a span whose text is in
+    no feed field of its gov JSON, each fail; an adapter meeting with `title_ours` true prints its title unwrapped.
 
 ### 12.4 Alternatives considered
 - **Keep raising and fix each raise path** (the current shape): every review has found another (S2a, S2b, and rows
@@ -1245,3 +1363,47 @@ text, so the page builds; a list `source_id` and a non-JSON or non-UTF-8 listing
 4.3 and 4.6 "D2 copy step": the copy step never raises on data; the three phases. 3.5: `date` and `instant` are ASCII
 `[0-9]`. Tasks D2 and B13 gain 12.3 #8 and #9. ADR 0013 decision 6 gains a delta line pointing here (manager, as N3
 of section 10 does for the other deltas).
+
+### 12.6 Invariant: national requests stay within the daily budget (`national-budget`)
+v1, software-architect, 2026-11-20: loop-limit statement after the second hit of family `national-budget` at the
+workflow level (security S2b finding 4 `dispatch-no-daily-cap`, S2c finding 1 `schedule-rerun-no-cap`; 4.4.4 holds the
+same family inside one run). From ADR 0013 decision 6: twice daily, `NATIONAL_REQUEST_BUDGET` (default 300) a run,
+capacity about 100 bodies a run and 200 a day. *Assumption (recorded, not a change):* ADR 0013's "200 a day" counts
+bodies; at about 3 requests a body that is about 600 requests, which is 2 runs x 300. Line numbers are at 32936af3,
+in `.github/workflows/national-update.yml` unless named.
+
+**Invariant.** In any UTC day, the reviewed `national-update.yml` on `main` sends `webapi.legistar.com` at most
+**2 x B** requests on its own (B = the run budget, a whole number from 1 to 360, default 300: one first attempt of
+each of the two scheduled runs), plus at most 360 for each run gn0sh himself dispatches or re-runs; **no other route,
+by any account or event, reaches a collect job that sends a request.** Every route that can start a collect run is
+one of the routes below, and each is capped or refused. Inside a run, the budget, the per-tenant cap and the deadline
+of 4.4.4 hold. Out of scope by construction: a *changed* copy of the workflow (route 11), which no `if:` on `main` can
+bind; it is held by repository access and settings, not by this file.
+
+| # | Route that can start a collect run | Current behaviour at 32936af3 | Holds? | Fix (task) |
+|---|---|---|---|---|
+| 1 | schedule, first attempt (crons 04:23 and 16:23 UTC, :39-41) | collect `if:` :175-177 passes on `event_name == 'schedule'`; `BUDGET` :232 is `vars.NATIONAL_REQUEST_BUDGET` or 300 (no input on a schedule); regex :235 allows 1-360; the CLI refuses more again (`collector/national/__main__.py:72-78`, `MAX_BUDGET` :54) | holds | - |
+| 2 | re-run of a scheduled run by any write-access account (Re-run all jobs, failed jobs, one job, debug re-run; UI, `gh run rerun` or REST) | `event_name` stays `schedule` on every attempt, so :177 passes; each attempt spends up to 360; concurrency only queues | **breaks** (S2c finding 1) | add `github.run_attempt == '1'` to the schedule clause (D-ISO-11) |
+| 3 | re-run of a scheduled run by gn0sh | after D-ISO-11 it passes only through the gn0sh clause, which needs `github.actor == 'gn0sh'`; on a scheduled run `actor` is the account GitHub ties the schedule to (whoever last changed the workflow's cron), which may not be gn0sh | holds after D-ISO-11 (fails closed: if refused, Brian dispatches instead) | D-ISO-11 |
+| 4 | `workflow_dispatch` by gn0sh (actor and triggering actor, :42-47, :177) | runs, budget `inputs.budget` checked 1-360 | holds (by design: Brian's own call, each run capped) | - |
+| 5 | `workflow_dispatch` by any other account (UI, `gh workflow run`, REST) | `actor != 'gn0sh'`: collect skipped | holds (D-ISO-3) | - |
+| 6 | re-run of gn0sh's dispatch by another account | `actor` stays gn0sh, `triggering_actor` is the re-runner: skipped | holds (D-ISO-3) | - |
+| 7 | re-run of a dispatch by gn0sh | runs, as route 4 | holds (his own) | - |
+| 8 | an agent session using gn0sh's GitHub token (`gh workflow run` or `gh run rerun`) | indistinguishable from routes 4 and 7: passes | holds only by rule | **team rule (manager to record):** no agent dispatches or re-runs `national-update.yml`; only Brian does. The manager adds it to `docs/status.md` |
+| 9 | any of 1-7 on a ref other than `refs/heads/main` (dispatch from a branch; a schedule always runs the default branch) | `github.ref == 'refs/heads/main'` (:176): skipped | holds | - |
+| 10 | `workflow_call`, `workflow_run`, `repository_dispatch`, `push`, `pull_request`, `pull_request_target`, `merge_group` or any other event | not in `on:` (:38-48): no such run exists | holds | test: `on:` keys exactly `schedule`, `workflow_dispatch` (12.3 #11) |
+| 11 | a changed copy of the workflow (a pushed branch that adds a trigger or drops the `if:`, or a fork PR) | runs that file, not `main`'s, so it can send requests; it cannot move `national-data` (ruleset; the gates accept only attestations by `national-update.yml@refs/heads/main`) | residual, accepted: write access is trusted (as in the I-prov model); fork-PR workflows must need approval | D-ISO-15 verifies the fork-PR approval setting (read-only) |
+| 12 | queued runs (concurrency `national-collect`, :50-52, never cancels a run in progress) | queues; a newer pending run replaces an older pending one, which never starts | holds: adds no route; each queued run passes the same `if:` | - |
+| 13 | `python -m collector.national` outside Actions (a person's or an agent's machine) | nothing is sent for an entry without a valid `host_ok` (Brian's OK, R5: `collector/national/legistar_upcoming.py:397-398`); tests use recorded fetchers | holds by R5 and by rule: no agent runs the CLI against the network | - |
+| 14 | inside one run | budget regex :235, CLI `_budget`, per-tenant cap (ADR 0013: 12 a tenant, `collector/fetch.py`), wall deadline (4.4.4) | holds | - |
+
+**Tests.** 12.3 #11 as extended in v2 (the exact `if:`, its truth table over routes 1-7 and 9, the `on:` keys, the
+budget expression and regex) and the 4.4.4 tests for route 14. Routes 8, 11 and 13 are rules and settings, not code;
+D-ISO-15 records the setting in `docs/platform-facts.md`.
+
+**Alternatives considered.** A daily request counter kept on `national-data` (each run reads the day's spend and
+lowers its budget): the only design that also caps Brian's own repeat dispatches, but it adds state to a branch whose
+writes are attested and gated, and a failed push would undercount; rejected while Brian is the only one who can
+dispatch. A GitHub environment with Brian as required reviewer on the collect job: caps every route including
+re-runs, but every scheduled run would then wait for his click twice a day; rejected. Dropping `workflow_dispatch`:
+removes routes 4-8, but leaves no way to recover a missed run short of waiting 12 hours; kept, capped to gn0sh.
