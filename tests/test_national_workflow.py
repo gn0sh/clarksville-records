@@ -1044,18 +1044,62 @@ def test_a_degraded_government_is_named_by_id_and_state_word_only(tmp_path):
     sentinel = "SENTINEL-ITEM-TEXT"
     states = {"place-4715160": "withheld-items", "county-47125": "adapter-error",
               f"place-1 {sentinel}": "bad-date", "place-0000001": f"bad-date {sentinel}",
-              "sde-12345": {"x": sentinel}, "cousub-123456\n- injected: line": "render-error"}
+              "sde-1234567": {"x": sentinel}, "cousub-123456\n- injected: line": "render-error",
+              "place-47125": "bad-file"}
     calls, body = _degraded(tmp_path, {"national": "built", "national_states": states})
     assert calls[-1].startswith("issue create")
     assert sentinel not in body and "injected" not in body
     assert "- place-4715160: withheld-items\n" in body and "- county-47125: adapter-error\n" in body
-    assert "- unknown: unknown\n" in body and "- place-0000001: unknown\n" in body and "- sde-12345: unknown\n" in body
+    assert "- unknown: unknown\n" in body and "- place-0000001: unknown\n" in body and "- sde-1234567: unknown\n" in body
+    assert "- unknown: bad-file\n" in body                     # a place id with a county's length: not an id
     rows = [ln for ln in body.splitlines() if ln.startswith("- ")]
     assert all(re.fullmatch(r"- [a-z0-9-]+: [a-z-]+", ln) for ln in rows), rows
     assert "national: built; governments degraded: " in body
     many = {f"place-{1000000 + i}": "bad-instant" for i in range(60)}
     _c, body = _degraded(tmp_path / "many", {"national": "degraded", "national_states": many})
     assert "governments degraded: 60" in body and body.count(": bad-instant\n") == 50
+
+
+# D-ISO-10 (code review findings 2 and 3): the D-ISO-9 step's shell rules against the Python they copy.
+CASE_RE = re.compile(r'case "\$state" in ([a-z|-]+)\) ;; \*\) state=unknown ;; esac')
+ID_TEST_RE = re.compile(r'\[\[ "\$id" =~ (\S+) \]\] \|\| id=unknown')
+
+
+def _shell_rules():
+    run = _steps(DAILY, "update")[DEGRADED_STEP]["run"]
+    cases, ids = CASE_RE.findall(run), ID_TEST_RE.findall(run)
+    assert len(cases) == 1 and len(ids) == 1, (cases, ids)
+    return cases[0].split("|"), ids[0]
+
+
+def test_the_degraded_step_s_state_words_are_degraded_states():
+    """The `case` list equals sitegen.national_pages.DEGRADED_STATES, so a new degraded state (B-ISO-9's bad-file)
+    can never show as "unknown" in the issue unseen. Fails until B-ISO-9 adds bad-file to DEGRADED_STATES."""
+    from sitegen import national_pages as npg
+    words, _r = _shell_rules()
+    assert len(words) == len(set(words)) and set(words) == set(npg.DEGRADED_STATES), (words, npg.DEGRADED_STATES)
+
+
+def test_the_degraded_step_s_id_rule_is_id_layer():
+    """The shell id regex accepts exactly what sitegen.national_guards.id_layer accepts: every layer at every length
+    from 1 to 12 digits, the 12.3 #13 and checked_id bad ids, and non-ASCII digits."""
+    from sitegen.national_guards import GEOID_DIGITS, id_layer
+    _w, regex = _shell_rules()
+    cands = [f"{layer}-{d * n}" for layer in (*GEOID_DIGITS, "tract", "Place") for n in range(1, 13) for d in "09"]
+    cands += ["county-4712", "county-47125/../x", "../county-47125", "place-47125", "County-47125", "county-47125\n",
+              "", "unknown", "place-4715160 x", "xplace-4715160", "place-471516a", "place--4715160", "place4715160",
+              "place-\uff14\uff17\uff11\uff15\uff11\uff16\uff10", "place-\u0664\u0667\u0661\u0665\u0661\u0666\u0660",
+              "place-4715160\u200b", "SENTINEL-ITEM-TEXT", "place-4715160\r"]
+    script = f'while IFS= read -r -d "" id; do if [[ "$id" =~ {regex} ]]; then echo y; else echo n; fi; done'
+    for locale in ("C.UTF-8", "C"):
+        r = subprocess.run(["bash", "-c", script], input="".join(c + "\0" for c in cands).encode(), capture_output=True,
+                           env={**os.environ, "LC_ALL": locale})
+        assert r.returncode == 0, r.stderr
+        got = r.stdout.decode().split()
+        assert len(got) == len(cands)
+        diff = [(c, g) for c, g in zip(cands, got) if (g == "y") != (id_layer(c) is not None)]
+        assert diff == [], (locale, diff)
+    assert sum(id_layer(c) is not None for c in cands) == 2 * len(GEOID_DIGITS)     # each layer's length, 0s and 9s
 
 
 # ------------------------------------------------------------------------------------------------ push job

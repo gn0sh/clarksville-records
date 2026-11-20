@@ -1106,8 +1106,10 @@ jobs:
           while IFS= read -r line; do
             n=$((n + 1))
             id="${line%% *}"; state="${line#* }"
-            [[ "$id" =~ ^(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}$ ]] || id=unknown
-            case "$state" in withheld-items|bad-date|bad-instant|adapter-error|render-error) ;; *) state=unknown ;; esac
+            # D-ISO-10: the id rule is sitegen.national_guards.id_layer (each layer's GEOID length) and the words are
+            # sitegen.national_pages.DEGRADED_STATES; a test keeps both equal to the Python, so neither can drift.
+            [[ "$id" =~ ^(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})$ ]] || id=unknown
+            case "$state" in withheld-items|bad-date|bad-instant|bad-file|adapter-error|render-error) ;; *) state=unknown ;; esac
             if [ "$n" -le 50 ]; then list="$list- $id: $state"$'\n'; fi
           done < "$rows.raw"
           if [ "$status" != degraded ] && [ "$n" = 0 ]; then exit 0; fi
@@ -1121,8 +1123,9 @@ jobs:
             echo ""
             echo "A degraded government's page and JSON show no meetings (stale) until a good build. Its line in the log"
             echo "reads 'National pages: <id>: <state> (<exception type>)'; 'built with no data' means every national page"
-            echo "was built stale. States: withheld-items, bad-date, bad-instant (the national data), adapter-error"
-            echo "(Clarksville's own files as the national step reads them), render-error (code)."
+            echo "was built stale. States: withheld-items, bad-date, bad-instant, bad-file (the national data; bad-file: a"
+            echo "file that could not be read or was refused), adapter-error (Clarksville's own files as the national step"
+            echo "reads them), render-error (code)."
           } > "$body"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$NAT_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.NAT_TITLE)) | .[0].number // empty')
