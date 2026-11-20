@@ -1,6 +1,6 @@
 # ADR 0011: Collector data moves off `main`; no workflow can merge into `main`
 
-Status: proposed (software-architect, 2026-11-18), **gated on U3** (`docs/ops/u3-positive-control.md`). Supersedes
+Status: **Accepted (U3 PASS 2026-11-18; cutover merged 2026-11-19, 8d69778).** Proposed by software-architect, 2026-11-18, gated on U3 (`docs/ops/u3-positive-control.md`). Supersedes
 ADR 0010 decisions 1 (CODEOWNERS), 2 (ruleset R1') and 5 (the V1' probe). ADR 0010 decisions 3 (R2 on, now
 interim), 4 (canary removal, done by #52) and 6 (the gate stands) remain. Analysis, invariant and every consumer:
 `docs/architecture/v1-fail-2026-11-18.md`. Panel: `docs/reviews/brain-trust-data-off-main.md` (Fix First, 5-1).

@@ -66,7 +66,23 @@ and may be labelled differently. Record what each screen really says in `docs/pl
 
 ## 2. GitHub settings (Brian, once; nothing runs yet)
 0. **Brian: protect `main` first** (security-note-workflow M1, main-protect/actions-bypass-reopens-M1,
-   note-key/writer-reach-whole-list). **Changed 2026-11-18 (ADR 0010): the ruleset is R1'.** The daily `data/`
+   note-key/writer-reach-whole-list).
+   **State after the cutover (ADR 0011, merged 2026-11-19 as 8d69778; read this first, it overrides the R1' text
+   below where they differ).** `main` is protected by ruleset **R1''** (id 27502319): every merge is a person's
+   bypass merge by the Repository admin role (`merge-reviewed`, 2.0.3), and `.github/CODEOWNERS` is gone. The daily
+   data no longer goes through `main`: the `push` job fast-forwards branch `records-data` (ruleset **R-D**, id
+   27685092: no deletion, no non-fast-forward) and attests it; no data PR is opened. Tag ruleset **R-T** (id
+   27685093) blocks a tag named `main`. **R2 ("Allow GitHub Actions to create and approve pull requests") is off**
+   and must stay off: R1'' holds only while no credential other than gn0sh's can bypass it or supply enough approvals
+   (ADR 0011 decision 6 and Amendment 2026-11-18 (b); R2 off takes github-actions[bot] out of the approvers). `MAIN_PR_BASELINE` is set in the workflow (4.7). Curated and person-run inputs live under `config/`, and
+   `main` tracks no `data/`. The 2.0.1 to 2.0.4 text below is kept for history: the R1' ruleset, the data PR, the R2
+   turn-on and the V1' probe are superseded. The V1'' probe (section 4 item 6a) is still ahead.
+   **Drift rules (ADR 0011 decision 6).** The team's session cannot read `actions/permissions`, `collaborators` or
+   `environments`, so only `protect-main` run from Brian's PC sees all the settings R1'' rests on. (1) Unset
+   `MORNING_NOTE_SEND` before R2 goes back on and before any ruleset changes. (2) Re-run `protect-main` from Brian's
+   PC after any settings change, and before `MAIN_PR_BASELINE` is set or changed; it reports NOT OK on any refused or
+   failed read.
+   **Before the cutover (ADR 0010): the ruleset was R1'.** The daily `data/`
    commit reaches `main` by its own pull request, and nobody, GitHub Actions included, can push `main` directly.
    R1' adds: **code-owner review** (`.github/CODEOWNERS`: `* @gn0sh`, then `/data/` with no owner, so every path
    outside `data/` is owned and `data/` is not), **squash only**, and one bypass, the **Repository admin role in
@@ -98,7 +114,8 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      gate counts a person's merge and a person's review instead. Changing it needs ADR 0009 changed first;
      `protect-main.ps1` says NOT OK if it is not 0, or if auto-merge is on (L-D: auto-merge merges whatever head the
      branch has later).
-   - **The daily `data/` pull request.** The `push` job commits `data/` on a branch
+   - **The daily `data/` pull request (superseded by ADR 0011: the `push` job now fast-forwards `records-data` and
+     opens no PR; the paragraph describes the pre-cutover job).** The `push` job commits `data/` on a branch
      `data/<date>-run<run id>-<attempt>`, opens a pull request to `main` and squash-merges it with `GITHUB_TOKEN`
      (0 required approvals, so the ruleset allows it), then deletes the branch. Before merging it checks GitHub's
      copy of that PR: open, into `main`, from this run's branch and commit, and every file it adds, changes, removes
@@ -127,7 +144,9 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    `main` takes changes by pull request only; the daily `data/` commit is a pull request too.
    **Order:** the pull request that made the `push` job open data PRs must be on `main` first (the scripts below
    check this and change nothing otherwise); the old job pushed `main` directly and would fail under this ruleset.
-   1. **Brian, from a terminal (recommended: one command does all of 2.0).** Prerequisite, once: install GitHub
+   1. **Brian, from a terminal (recommended: one command does all of 2.0).** *After the cutover this command writes
+      R1'', R-D and R-T and turns R2 off, not the R1' and R2-on described next (ADR 0011 decision 6). Run it again
+      after any settings change; the OK and NOT OK lines below are the pre-cutover wording.* Prerequisite, once: install GitHub
       CLI (`winget install GitHub.cli`), then **open a new PowerShell window** so `gh` is found, and run
       `gh auth login`, signed in as the repository owner. Get the repository (once): `gh repo clone
       gn0sh/clarksville-records; cd clarksville-records`; if you already have it, `git pull` in that folder. Then,
@@ -155,7 +174,8 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       allowed: false`, the ruleset `active, bypass RepositoryRole:5:pull_request, required approvals 0` and
       `Code-owner review: true, merge methods: squash, dismiss stale reviews: true`), or **NOT OK** with what it found: send that output to the
       team. (U4 of ADR 0010: the bypass line shows the owner's admin role is the one that bypasses.)
-   2. **Or by hand, in the browser** (only if the terminal is not an option). First, before 2, open
+   2. **Or by hand, in the browser** (pre-cutover steps; after the cutover use `protect-main`, because it checks
+      settings the browser steps do not: ADR 0011 decision 6). First, before 2, open
       https://github.com/gn0sh/clarksville-records/commits/main and send the team the first commit's full sha (the
       copy button), as `R2 was off; main was <sha>` (L-b; main-protect/window-start-gap: read before the ruleset is
       written). Then do 2 (the ruleset), then 1:
@@ -209,14 +229,15 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       to `<sha>` naming the reports, squash-merges pinned to `<sha>`, deletes the branch and prints the merge commit.
       Never the Merge button and never auto-merge (repository auto-merge stays off): a PR merged any other way has no
       review at its head, and from the baseline on the gate refuses it and every run after it ("When the gate fails").
-      **Under R1' this merge is an admin bypass merge** (the PR has no code owner's approval; GitHub logs the bypass
+      **Under R1' (and now R1'', U3 PASS 2026-11-18) this merge is an admin bypass merge** (the PR has no code owner's approval; GitHub logs the bypass
       in the ruleset's insights). U3 of ADR 0010 is whether GitHub lets the script's REST merge bypass: if it
       refuses with a message naming the ruleset or code-owner review, the script has already posted its review
       pinned to `<sha>`; then, and only then, open the PR page, check its head is still `<sha>`, and click **Merge
       without waiting for requirements to be met (bypass rules)** > **Squash and merge**, then delete the branch.
       The gate is satisfied either way (a person merged, a person's review at the head). Record the first S2
       merge's result in `docs/platform-facts.md` "Main protection" (U3).
-   4. **V1 probe: FAIL on 2026-11-18; next, the V1' probe (T4.10.1, T4.11.7; architecture
+   4. **V1 probe: FAIL on 2026-11-18; the V1' probe is superseded by the V1'' probe of ADR 0011 (section 4 item
+      6a), which is not yet run. Older text: next, the V1' probe (T4.10.1, T4.11.7; architecture
       `docs/architecture/main-protect-invariant.md` "V1 probe").** The first V1 probe (2026-11-18 08:50 UTC, run
       44270476748) ended **FAIL (V1 false)**: the runner's REST squash merge, pinned to the head, merged probe PR
       #40 (`main` 551a483 -> 3ef440a, `merged_by` github-actions[bot]). The script turned **Allow GitHub Actions to
@@ -274,6 +295,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       `gh api repos/gn0sh/clarksville-records/environments/github-pages/deployment-branch-policies --jq '.branch_policies[].name'`
       prints only `main`. If the next Daily update's `deploy` job fails with "not allowed to deploy to github-pages",
       add `main` back the same way (**Add deployment branch or tag rule** > `main`) and re-run the failed jobs.
+      (Read on Brian's PC 2026-11-18, `docs/platform-facts.md`: both environments allow `main` only.)
 1. **Brian:** https://github.com/gn0sh/clarksville-records/settings/environments > **New environment** > name
    `morning-note` > **Configure environment**.
 2. **Brian:** in `morning-note`, **Deployment branches and tags** > **Selected branches and tags** > **Add deployment
@@ -356,7 +378,12 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    sets it (item 7; ADR 0011 Amendment (c) item 6).
    And `github-pages` deploys from `main` only (step 2.0.5).
 7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only; ADR 0011 Amendment (c)).**
-   Set by the cutover PR of ADR 0011 (not by a separate PR, and not gated by the V1'' probe, which gates only
+   **State now (cutover merged 2026-11-19, 8d69778):** the baseline is set in the gate step's `env:` in
+   `.github/workflows/daily-update.yml` (`1922fda3afec13759ade9cb8dd4dc7fffee5b2fa`, the `main` sha the seed was cut
+   from), next to `RECORDS_DATA_SEED_DIGEST`; an empty value on `main` is now a gate refusal, not phase 0. The
+   text below says how it was set and how to check it. Changing it later: only by a reviewed PR after a person has
+   checked every commit it skips, and run `protect-main` from Brian's PC first (drift rules, 2.0); unset
+   `MORNING_NOTE_SEND` before any ruleset change. Set by the cutover PR of ADR 0011 (not by a separate PR, and not gated by the V1'' probe, which gates only
    `MORNING_NOTE_SEND`). Its value is the `main` sha the `records-data` seed is cut from, which is also the PR's base.
    `scripts/cutover-data-off-main.ps1 -Plan` prints it as `BASELINE <sha>`, together with the 4.7.1 listing below,
    which is pasted into the cutover PR. Brian's C1 "yes" covers it (hard stop 1). At note go-live this item is only
