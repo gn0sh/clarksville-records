@@ -156,6 +156,12 @@ what the page holds and the checks read.
 Measured on the real data at 393x660 (iPhone 14 Pro): 3,890px tall before, about 2,600px after (about 2,400px
 before "Public money" gained its "Coming" line the same day).
 
+**The morning note beside the address card, 1100px and wider (wall of text, 2026-11-19).** The invitation keeps its
+place in the page (right after the address card) and its words; from 1100px it is a card in the column beside the
+address card, its sentence over its button, instead of a strip under it. Placement only, no `order`. The same card
+sits beside the header of the county's, the city's and the planning commission's pages (`_note_invite.html.j2`).
+Pending the owner's yes on the screenshots.
+
 **The body switch's line, every width (2026-11-13).** A choice other than All is remembered on the device. On the home
 page the line that says so ("Showing Montgomery County only" and a "Show all" button; `static/switch.js`, the same
 words for every body, `role="status"`) is now first in the page, right under the switch, not down in the meetings

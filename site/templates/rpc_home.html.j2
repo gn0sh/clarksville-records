@@ -10,7 +10,7 @@
 {% set h = hub | default(none) %}
 {% set title = (h.title if h and h.title else body) %}
 {% set lede %}{% if h and h.lede %}{{ h.lede }}{% else %}Records of the {{ body }}, each linked to the commission's own document.{% endif %}{% endset %}
-{% call body_head(h, title, lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch) %}
+{% call body_head(h, title, lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch, invite=true) %}
 Meetings, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span class="nowrap">{{ coverage.to | day_words }}</span>: {{ n_meetings }} meetings, {{ n_docs }} documents collected{% if fetched_to %} (latest fetched {{ fetched_to }}){% endif %}, {{ n_cases }} case items read from the agendas.{% if n_link_only %} {{ n_link_only }} documents are linked on another host and were not collected.{% endif %}
 {% endcall %}
 {{ hub_cards(hub | default(none), root) }}

@@ -246,11 +246,26 @@ def test_on_a_touch_screen_details_and_show_more_are_44px_and_cover_no_link(buil
 
 
 def test_the_smallest_labels_share_one_size():
-    assert re.search(r"--t-eyebrow: \.72rem;", CSS)
-    for sel in (".day-dow", ".meet-date .dow, .meet-date .mon", ".filters label", ".day-when"):
+    # the gnoshcodes 12px floor (design system, 2026-11-19): the smallest size is .75rem, and nothing is set below it
+    assert re.search(r"--t-eyebrow: \.75rem;", CSS)
+    for sel in (".day-dow", ".meet-date .dow, .meet-date .mon", ".filters label", ".day-when", ".plate-place"):
         assert "font-size: var(--t-eyebrow)" in rule(sel), sel
-    small = re.findall(r"(?m)^([^{}\n]+)\{[^}]*font-size: \.6\d*rem", CSS)
-    assert [s.strip() for s in small] == [".plate-place"]      # the name plate's place line: it must fit at 375px
+    sizes = re.findall(r"font-size: (0?\.\d+)rem", CSS)
+    assert sizes and min(float(v) for v in sizes) >= .75, sorted(set(sizes))
+    assert not re.search(r"font-size: (?:\d|1[01])(?:\.\d+)?px", CSS)
+
+
+def test_the_wide_column_and_its_reading_measure():
+    """Owner, 2026-11-19 (the side margins looked too big): from 1440px the column grows to 80rem and on to 84rem;
+    laptops keep 64rem; on the wider column a paragraph with no cap of its own stops at 70ch, with no weight, so the
+    ledes' and notes' own caps still win."""
+    assert re.search(r"(?m)^  --measure: 64rem;", CSS)
+    wide = CSS[CSS.index("@media (min-width: 1440px) {"):]
+    wide = wide[:wide.index("\n}\n")]
+    assert ":root { --measure: clamp(80rem, calc(80rem + (100vw - 1440px) / 4), 84rem); }" in wide
+    assert ":where(main p:not(.official-record):not(.find p), main dd) { max-width: 70ch; }" in wide
+    assert "main .hub-cards { grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); }" in wide
+    assert CSS.count("--measure:") == 2                         # set once, widened once
 
 
 def test_one_heading_system():

@@ -75,9 +75,21 @@ def test_it_is_near_the_top_under_the_address_card_and_before_the_doors(on):
     assert ".landing > .note-invite { order: -1; }" in CSS
 
 
-def test_only_the_front_page_carries_it(on):
-    _, pages, _ = on
-    assert [rel for rel, html in pages.items() if "note-invite" in html] == ["index.html"]
+def test_only_the_front_page_and_the_body_pages_carry_it(on):
+    """Wall of text (owner, 2026-11-19): a first-time visitor may land on a body's page and never see the front page,
+    so the county's, the city's and the planning commission's landing pages carry the same invitation, beside their
+    header (_hub.html.j2 body_head `invite`). No other page does. The fixture build has the county's."""
+    _, pages, cfg = on
+    t = cfg["morning_note"]["page"]
+    assert sorted(rel for rel, html in pages.items() if "note-invite" in html) == ["index.html", "montgomery-county.html"]
+    html = pages["montgomery-county.html"]
+    card = INVITE.findall(html)
+    assert len(card) == 1
+    assert " ".join(parse(card[0]).all_text().split()) == f'{t["front_pitch"]} {t["front_button"]}'
+    assert re.findall(r"<a\b[^>]*>", card[0]) == ['<a class="note-invite-btn" href="alerts.html#note">']
+    # it follows the body's header, inside the one wrapper that sets it beside the header on a wide screen
+    top = html.index('<div class="body-top">')
+    assert top < html.index('<div class="body-head"') < html.index('<section class="note-invite"') < html.index('id="hub-h"')
 
 
 def test_absent_while_the_form_is_off(off):
