@@ -771,6 +771,18 @@ requirements, and S2's D1/D2 review checks each.
   `clean_feed` or `allowed_url`.
 - **M4 writers.** The ICS and Atom writers trust their input, so M4 passes them only feeds that came out of the D2
   step above (bound feeds).
+- **As built (D1, D2; devops-engineer, 2026-11-20).** `.github/workflows/national-update.yml`: `gate` (contents
+  and attestations read: national-data's head N is the pinned seed or attested by `national-update.yml@refs/heads/main`;
+  no branch yet = clean no-op), `collect` (main only, contents read, no token; code and N in new folders `code/` and
+  `national/`; step timeouts 1+1+1 before the CLI, 69 for it, 2 after, job 75 = `JOB_MINUTES`; the CLI runs with
+  workflow commands stopped and without GITHUB_OUTPUT/ENV/PATH/STEP_SUMMARY), `push` (the only writer: one commit on
+  N, data/national/** only, attest, then fast-forward push), `report` (one fixed-title issue on failure, timeout or
+  exit 3). One tree helper (`national_check`) in both jobs and in `daily-update.yml`. D2: the daily gate's soft step
+  "Find the newest attested national-data" (first-parent, at most 10 commits, same pinned identity; the seed is never
+  read) feeds `national_sha`; the update job checks N out into `.national-data`, moves `data/national` to
+  `$RUNNER_TEMP/national` (never into `data/`), and passes it as `RECORDS_NATIONAL_DATA` to the two build steps;
+  `sitegen/national_copy.py` is the copy step, called by `national_pages.build_feeds` only while the switch is on.
+  Tests: `tests/test_national_workflow.py`, `tests/test_national_copy.py`.
 
 ## 5. Key flows
 1. **Lookup (M1):** `/digest/` loads (directory embedded; a page-view count if counting is on, path only; the saved
