@@ -360,6 +360,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    that unlocks it for one run (one line in each of `scripts/v1pp-probe.ps1` and `.sh`). Wait for the team to say
    so, then:
    The unlock carries a last day (UTC); after it the script refuses, and the team makes a new unlock PR.
+   Run it well away from the daily run at 09:07 UTC (03:07 CST): in the afternoon Central time, for example.
    1. In PowerShell, in the repository folder: `git pull`.
    2. Open https://github.com/settings/installations and check the Apps answer, as for `protect-main`: `claude`
       (only the Claude App reaches this repository, with none of Administration, Variables, Secrets or Environments

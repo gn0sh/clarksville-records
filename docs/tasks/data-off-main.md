@@ -374,7 +374,9 @@ locked as they are. Choices the reviewers should check:
   - runner-perms-comment: reworded.
   - pages-api-coverage (S1): `v1pp-env.yml` job `pages-api`, no `environment:`, `pages: write` + `id-token: write`,
     calls `POST pages/deployments` with `artifact_id=1`. PASS only on "not allowed to deploy" / "protection
-    rule"; a refusal naming only the artifact is FAIL (the path is open); exit 0 is FAIL; else INCONCLUSIVE.
+    rule"; a refusal naming only the artifact is INCONCLUSIVE ("artifact refused first; branch check not reached";
+    delta review: the artifact stays fake, a real one could replace the live site); exit 0 is FAIL; else
+    INCONCLUSIVE.
     Residual: if GitHub accepts it, a failed Pages deployment is created; the live site should stay (judgment,
     medium confidence).
   - lock-window (S4): the lock line is now a last UTC day (`v1pp_unlocked_until=YYYY-MM-DD`); past it, refused.
