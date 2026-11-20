@@ -322,6 +322,9 @@ jobs:
           # S2b finding 5 (`data-prov/attest-source-commit-unchecked`): an attestation counts only when the run that made
           # it built a commit on this run's first-parent line, never a main commit pushed after S. The history check
           # above has read main's full history on main; anywhere else the line is S alone, so nothing is read.
+          # S2c nit a (D-ISO-12): the --jq filter keeps only certificates whose buildSignerURI is national-update.yml on
+          # main and whose sourceRepositoryRef is main (defence in depth on --format json; a test pins its text). A
+          # wrong path prints nothing: that commit is not read (soft; Clarksville unaffected).
           mainline="$RUNNER_TEMP/national-mainline"
           if ! git rev-list --first-parent HEAD > "$mainline"; then none "could not read this commit's history."; fi
           head=""
@@ -335,7 +338,7 @@ jobs:
             if src=$(gh attestation verify "$listing" --repo gn0sh/clarksville-records \
                  --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/national-update.yml@refs/heads/main \
                  --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners \
-                 --limit 1000 --format json --jq '.[].verificationResult.signature.certificate.sourceRepositoryDigest'); then
+                 --limit 1000 --format json --jq '.[] | .verificationResult.signature.certificate | select(.buildSignerURI == "https://github.com/gn0sh/clarksville-records/.github/workflows/national-update.yml@refs/heads/main" and .sourceRepositoryRef == "refs/heads/main") | .sourceRepositoryDigest'); then
               on_line=no
               for s in $src; do
                 if [[ "$s" =~ ^[0-9a-f]{40}$ ]] && grep -Fxq -- "$s" "$mainline"; then on_line=yes; break; fi

@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -476,9 +477,13 @@ def test_an_executable_or_a_symlink_fails_the_helper(tmp_path):
 
 # `gh attestation verify FILE --flag value ...` as gh does it, against a store of attestations (ATTEST, a JSON list):
 # it passes only when one attestation matches the file's digest and every constraint the step passes. With
-# `--format json --jq SOURCE_JQ` it prints, one per line, the source commit (sourceRepositoryDigest) of each matching
-# attestation: its "source", or the commit checked out here when that is None (S2b finding 5).
-SOURCE_JQ = ".[].verificationResult.signature.certificate.sourceRepositoryDigest"
+# `--format json --jq SOURCE_JQ` it builds gh's JSON (a list of {verificationResult: {signature: {certificate:
+# {buildSignerURI, sourceRepositoryRef, sourceRepositoryDigest}}}}) for each matching attestation, plus every "leak"
+# entry of the store whatever it matches (a gh that printed an attestation it did not verify: S2c nit a), and runs
+# the real jq on it with the step's filter. sourceRepositoryDigest is the entry's "source", or the commit checked out
+# here when that is None (S2b finding 5); buildSignerURI is its "signer", else its identity.
+SOURCE_JQ = (f'.[] | .verificationResult.signature.certificate | select(.buildSignerURI == "{NAT_ID}" and '
+             '.sourceRepositoryRef == "refs/heads/main") | .sourceRepositoryDigest')
 _GH = '''#!/usr/bin/env python3
 import hashlib, json, os, subprocess, sys
 a = sys.argv[1:]
@@ -495,17 +500,22 @@ while rest:
     else:
         opts[rest[0]], rest = rest[1], rest[2:]
 store = json.load(open(os.environ["ATTEST"]))
-hits = [s for s in store if s["digest"] == digest and s["repo"] == opts.get("--repo")
+hits = [s for s in store if not s.get("leak") and s["digest"] == digest and s["repo"] == opts.get("--repo")
         and s["identity"] == opts.get("--cert-identity") and s["source_ref"] == opts.get("--source-ref")
         and s["predicate"] == opts.get("--predicate-type") and (s["hosted"] or not opts.get("deny"))]
 if not hits:
     print("no attestation matched", file=sys.stderr)
     sys.exit(1)
 if "--format" in opts:
-    assert opts["--format"] == "json" and opts["--jq"] == "%s", opts
+    assert opts["--format"] == "json" and opts["--jq"] == %r, opts
     head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-    for s in hits:
-        print(head if s["source"] is None else s["source"])
+    shown = hits + [s for s in store if s.get("leak") and s["digest"] == digest]
+    out = [{"verificationResult": {"signature": {"certificate": {
+        "buildSignerURI": s.get("signer", s["identity"]), "sourceRepositoryRef": s["source_ref"],
+        "sourceRepositoryDigest": head if s["source"] is None else s["source"]}}}} for s in shown]
+    r = subprocess.run(["jq", "-r", opts["--jq"]], input=json.dumps(out), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    sys.stdout.write(r.stdout)
 else:
     print("Verification succeeded")
 sys.exit(0)
@@ -564,6 +574,8 @@ def _world(tmp_path, commits):
 
 
 def _run(tmp_path, work, run, step_env, store=(), gh_fail=False):
+    if not shutil.which("jq"):
+        pytest.skip("jq not installed (the gh stub runs the steps' --jq filter through it)")
     bindir = tmp_path / "bin"
     bindir.mkdir(exist_ok=True)
     (bindir / "gh").write_text(_GH)
@@ -674,6 +686,60 @@ def _gate_world(tmp_path, commits, sources):
     r, outputs, calls = _run(tmp_path, work, step["run"],
                              {"SHA": sha, "NATIONAL_DATA_SEED_DIGEST": step["env"]["NATIONAL_DATA_SEED_DIGEST"]}, store)
     return r, outputs, calls, shas, sha
+
+
+def test_both_lookups_pin_the_jq_filter_to_this_workflow_on_main():
+    """S2c nit a (D-ISO-12): the exact filter, in single quotes, in the national gate and the daily lookup."""
+    for run in (_steps(NAT, "gate")[GATE_STEP]["run"], _steps(DAILY, "gate")[LOOKUP_STEP]["run"]):
+        assert run.count("--jq '") == 1 and f"--format json --jq '{SOURCE_JQ}')" in run
+
+
+# Entries gh printed without verifying them (S2c nit a): a source on this run's line, but another signer or ref.
+LEAKS = {
+    "daily-signer": {"signer": DAILY_ID},
+    "branch-signer": {"signer": NAT_ID.replace("refs/heads/main", "refs/heads/x")},
+    "fork-signer": {"signer": NAT_ID.replace(REPO, "someone/fork")},
+    "branch-ref": {"source_ref": "refs/heads/x"},
+    "no-signer": {"signer": None},
+}
+
+
+@pytest.mark.parametrize("leak", sorted(LEAKS))
+def test_the_gate_ignores_a_printed_attestation_by_another_signer_or_ref(tmp_path, leak):
+    """D-ISO-12: gh verified one attestation, from a commit off this run's line, and also printed one it did not
+    verify whose source is on the line: the filter drops the second, so the gate still refuses (fails closed)."""
+    work, shas = _world(tmp_path, [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}])
+    later = _later_main_commit(tmp_path)
+    digest = _listing_digest(shas["repo"], shas[1])
+    store = [_attestation(digest, source=later), _attestation(digest, leak=True, **LEAKS[leak])]
+    step = _steps(NAT, "gate")[GATE_STEP]
+    sha = _git(work, "rev-parse", "HEAD")
+    r, outputs, _c = _run(tmp_path, work, step["run"],
+                          {"SHA": sha, "NATIONAL_DATA_SEED_DIGEST": step["env"]["NATIONAL_DATA_SEED_DIGEST"]}, store)
+    assert r.returncode == 2 and outputs == {} and "first-parent line" in r.stdout, (r.stdout, r.stderr)
+    # the same leak beside a verified attestation from this run's line: accepted through the verified one
+    store = [_attestation(digest), _attestation(digest, leak=True, **LEAKS[leak])]
+    (tmp_path / "b").mkdir()
+    r, outputs, _c = _run(tmp_path / "b", work, step["run"],
+                          {"SHA": sha, "NATIONAL_DATA_SEED_DIGEST": step["env"]["NATIONAL_DATA_SEED_DIGEST"]}, store)
+    assert r.returncode == 0 and outputs == {"code": sha, "sha": shas[1], "ready": "yes"}, (r.stdout, r.stderr)
+
+
+@pytest.mark.parametrize("leak", sorted(LEAKS))
+def test_the_lookup_ignores_a_printed_attestation_by_another_signer_or_ref(tmp_path, leak):
+    """D-ISO-12 in the daily lookup: the head's only on-line source is a leaked entry, so the head is not read and
+    the older commit attested from this run's line is."""
+    commits = [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}, {"data/national/health.json": '{"a": 2}\n'}]
+    work, shas = _world(tmp_path, commits)
+    later = _later_main_commit(tmp_path)
+    head = _listing_digest(shas["repo"], shas[2])
+    store = [_attestation(head, source=later), _attestation(head, leak=True, **LEAKS[leak]),
+             _attestation(_listing_digest(shas["repo"], shas[1]))]
+    step = _steps(DAILY, "gate")[LOOKUP_STEP]
+    r, outputs, _c = _run(tmp_path, work, step["run"], {"NATIONAL_LOOKBACK": step["env"]["NATIONAL_LOOKBACK"]}, store)
+    assert r.returncode == 0 and outputs == {"sha": shas[1]}, (r.stdout, r.stderr)
+    assert f"national-data {shas[2]} is attested, but by no run of a commit on this commit's first-parent line" \
+        in r.stdout
 
 
 @pytest.mark.parametrize("sources", [["later"], ["f" * 40], [""], ["not-a-sha"]],

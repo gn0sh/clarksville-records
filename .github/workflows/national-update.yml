@@ -144,10 +144,13 @@ jobs:
           elif src=$(gh attestation verify "$listing" --repo gn0sh/clarksville-records \
                  --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/national-update.yml@refs/heads/main \
                  --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners \
-                 --limit 1000 --format json --jq '.[].verificationResult.signature.certificate.sourceRepositoryDigest'); then
+                 --limit 1000 --format json --jq '.[] | .verificationResult.signature.certificate | select(.buildSignerURI == "https://github.com/gn0sh/clarksville-records/.github/workflows/national-update.yml@refs/heads/main" and .sourceRepositoryRef == "refs/heads/main") | .sourceRepositoryDigest'); then
             # S2b finding 5 (`data-prov/attest-source-commit-unchecked`): --cert-identity pins the workflow, ref and
             # repository, not the commit the attesting run built. One of the matching attestations must come from a
             # run of a commit on this commit's first-parent line, never from a main commit pushed after it.
+            # S2c nit a (D-ISO-12): --format json prints only verified attestations (gh 2.89); the --jq filter keeps
+            # only certificates whose buildSignerURI is this file on main and whose sourceRepositoryRef is main, as
+            # defence in depth (a test pins its text). A wrong path prints nothing, so the gate refuses: fails closed.
             deepen=()
             if [ "$(git rev-parse --is-shallow-repository)" = true ]; then deepen=(--unshallow); fi
             git fetch -q --no-tags --filter=blob:none "${deepen[@]}" origin main || refuse "could not read main's history."
