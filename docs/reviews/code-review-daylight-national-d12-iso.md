@@ -46,3 +46,21 @@ to Clarksville while the switch is off.
 ## Test runs
 national_isolation/copy/workflow + workflow_lock: 737 passed, 3 failed (environmental: need data/). Other
 test_national_*.py with CR_ALLOW_NO_DATA=1: 798 passed, 10 skipped.
+
+## Delta re-review (32936af3..fbf1ba62), 2026-11-20
+**Verdict: APPROVE WITH NITS.** Must-fix closed; fix the should-fix before switch-on.
+- Closed: `site-checks-read-feed-text` (probes in 12.3 #14, tests/test_national_isolation.py:716-760; rows 6a-6r; digest/feed-text
+  check); `refused-file-silent` (`bad-file` for every refused-present case, absent stays `missing`, in DEGRADED_STATES and shell
+  list); `run-log-contract-untested` (cmd_run test in tests/test_rpc_daily.py, parity tests test_national_workflow.py:1076);
+  rebuild-only no-issue (accepted, D-ISO-13); test name (3ca4dcc7). Kept: `national-observability/no-root-silent` (waits on S2b ruling 5).
+- Deviation 1: equal-value attribute blanking and the JSON blanking are sound (feed URLs pass allowed_url so can't equal our
+  relative links; `sources` reads hrefs via Page; our JSON fields stay checked). The page-wide replace is not:
+- **should-fix `national-isolation/feed-attr-blanks-own-footer`** (qa/site_checks.py feed_text_removed: FEED_ATTR.sub and the
+  `words` loop). Footer `<time class="data-as-of" datetime="D">` is blanked when any meeting is on day D (confirmed: FETCH_DAY
+  matches 6 -> 3), so `dates/no-raw-utc-day` skips that page's "Data as of". Common (meetings from today on). Low impact (footer
+  checked on other pages). Fix: blank only inside templated `<section class="digest-meeting">` blocks (or mark feed dates
+  `<time data-feed-date>`); control test: meeting on as-of day + wrong footer day still fails.
+- nit `national-isolation/feed-span-substring` (check_digest_feed_text rule iii): span passes if its text is a substring of any
+  feed field; compare equality after whitespace normalisation.
+- Holding: D-ISO-11 matches 12.6 routes 1-14; D-ISO-12 fails closed in gate, soft in lookup; D-ISO-14 2+8+1 in 11.
+- Tests (CR_ALLOW_NO_DATA=1): 995 passed, 2 skipped, 4 failed + 1 error, all needing filled data/.
