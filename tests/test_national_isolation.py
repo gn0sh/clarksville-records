@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from markupsafe import escape as esc
 
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
 from qa import site_checks as SC
@@ -83,8 +84,8 @@ def point_at(mp: pytest.MonkeyPatch, folder: Path, reviewed: dict | None) -> Non
     mp.setattr(nat, "load_directory", load_directory)
 
 
-def build(out: Path, *, on: bool = True, root=None) -> dict:
-    """The fixture build with the switch `on` and RECORDS_NATIONAL_DATA `root` (None: unset)."""
+def build(out: Path, *, on: bool = True, root=None, **kw) -> dict:
+    """The fixture build with the switch `on` and RECORDS_NATIONAL_DATA `root` (None: unset); `kw` go to build."""
     saved_switch, saved_env = config.SITE.get("national", "absent"), os.environ.get(ncopy.ENV)
     config.SITE["national"] = {"enabled": on}
     if root is None:
@@ -93,7 +94,7 @@ def build(out: Path, *, on: bool = True, root=None) -> dict:
         os.environ[ncopy.ENV] = str(root)
     try:
         return build_mod.build(FIXTURE, out, internal=False, seats_path=FIXTURE_SEATS,
-                               districts_path=FIXTURE_DISTRICTS, target="pages", today=TODAY)
+                               districts_path=FIXTURE_DISTRICTS, target="pages", today=TODAY, **kw)
     finally:
         if saved_switch == "absent":
             config.SITE.pop("national", None)
@@ -623,9 +624,253 @@ def test_a_raw_day_in_a_coming_up_page_s_footer_still_fails(world, tmp_path, mon
 def test_feed_text_exemption_is_scoped_to_coming_up_pages():
     assert SC.digest_gov_page(PAGE) and not SC.digest_gov_page(INDEX) and not SC.digest_gov_page("about.html")
     assert not SC.digest_gov_page("city/digest/tn/x.html")
-    two = '<main id="main">a</main><main id="main">b</main>'
-    assert SC.without_feed_text(two) == two              # not where base.html.j2 puts it: checked whole
-    assert SC.without_feed_text('x<main id="main">Fetched 2026-01-05</main>y') == "xy"
+    assert SC.digest_gov_json(DATA) and not SC.digest_gov_json(PAGE) and not SC.digest_gov_json("data/facts.json")
+    page = ('<main id="main"><p>Ours 2026-01-05</p><span data-feed>Fetched 2026-01-05</span>'
+            '<span data-feed class="x">kept</span><span data-feed><b>kept</b></span></main>')
+    want = ('<main id="main"><p>Ours 2026-01-05</p><span data-feed></span>'
+            '<span data-feed class="x">kept</span><span data-feed><b>kept</b></span></main>')
+    assert SC.feed_text_removed(PAGE, page) == want      # only a bare span of text; any other markup stays checked
+    assert SC.feed_text_removed("about.html", page) == page
+    assert SC.feed_text_removed(INDEX, page) == page
+
+
+def test_feed_values_are_removed_only_where_they_equal_the_page_s_own_feed():
+    """Beyond the spans (B-ISO-8 as built): the meeting ids, dates and links the page prints as attributes, and the
+    dates in words, are removed only when they are values of the page's own JSON."""
+    feed = {"meetings": [{"id": "e-1", "date": "2022-08-30", "meeting_url": None,
+                          "agenda": {"url": "https://x.legistar.com/a?b=1&c=2"},
+                          "items": [{"source": {"url": "https://x.legistar.com/i"}}]}]}
+    page = ('<section id="m-e-1" aria-labelledby="m-e-1-h"><time datetime="2022-08-30">Tuesday, August 30, 2022'
+            '</time><a href="https://x.legistar.com/a?b=1&amp;c=2">a</a><a href="https://x.legistar.com/i">i</a>'
+            '<a href="../../about.html">ours</a><p id="m-e-2">x</p></section>')
+    assert SC.feed_text_removed(PAGE, page, feed) == (
+        '<section id="" aria-labelledby=""><time datetime="">Tuesday, </time><a href="">a</a><a href="">i</a>'
+        '<a href="../../about.html">ours</a><p id="m-e-2">x</p></section>')
+    assert SC.feed_text_removed("about.html", page, feed) == page
+    for odd in (None, [], {"meetings": 1}, {"meetings": [1, {"items": 2, "agenda": 3}]}):
+        assert SC.feed_text_removed(PAGE, page, odd) == page
+
+
+def test_the_gov_json_is_scanned_without_its_feed_strings():
+    doc = body_file("a" * 64, title="T1", time="T2", text="T3")
+    doc["body"]["name"] = "Kept name"
+    blank = json.loads(SC.feed_json_without_text(DATA, json.dumps(doc).encode()))
+    m = blank["meetings"][0]
+    assert (m["id"], m["date"], m["time"], m["title"], m["meeting_url"]) == ("", "", "", "", "")
+    assert m["agenda"] == {"state": "final", "url": "", "status_as_posted": ""}
+    assert m["items"] == [{"seq": 1, "number": "", "text": "", "source": {"url": "", "page": 2}}]
+    assert blank["body"] == doc["body"] and blank["review"] == "a" * 64
+    ours = dict(doc, meetings=[dict(doc["meetings"][0], title="Ours", title_ours=True)])
+    assert json.loads(SC.feed_json_without_text(DATA, json.dumps(ours).encode()))["meetings"][0]["title"] == "Ours"
+    assert SC.feed_json_without_text(DATA, b"{not json") == b"{not json"             # scanned whole: fails safe
+    assert json.loads(SC.feed_json_without_text(DATA, b'[1, {"meetings": "x"}]')) == [1, {"meetings": "x"}]
+    raw = json.dumps(doc).encode()
+    assert SC.feed_json_without_text("data/facts.json", raw) == raw
+    assert SC.feed_json_without_text("digest/index.json", raw) == raw
+
+
+# --- 12.3 #14: the site checks over feed text (code review D1/D2/iso finding 1, rows 6a-6g) ---------------------------
+
+def _fixture_facts() -> dict:
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+
+def _probes() -> dict[str, tuple[str, str]]:
+    """{probe: (text, the check it fails in our own text)}: one per check of rows 6a-6g, from the fixture facts."""
+    facts = _fixture_facts()
+    toks = SC.unverified_tokens(facts)
+    outcome = next(t for t, why in toks if why.endswith("outcome text"))
+    att = next(t for t, why in toks if why == "unverified attendance")
+    eff = config.SITE["lines_effective"]
+    d = date.fromisoformat(eff)
+    return {"name": (f"Resolution honoring {facts['officials'][0]['name']}", "name-links"),
+            "brand-name": ("gnoshcodes-mark-black", "brand/no-old-gnoshcodes"),
+            "hex": ("Paint color #2B4BA5", "brand/no-old-daylight-colors"),
+            "rgb": ("rgb(43, 75, 165)", "brand/no-old-daylight-colors"),
+            "outcome": (outcome, "unverified"),
+            "att": (att, "unverified"),
+            "present": ("a request to present the budget", "provenance"),
+            "lines-iso": (eff, "provenance"),
+            "lines-words": (f"{d.strftime('%B')} {d.day}, {d.year}", "provenance"),
+            "geo-frame": ("geo-frame.html", "digest/csp"),
+            "switch": ('class="body-switch"', "switch/on-every-page")}
+
+
+PROBES = sorted(_probes())
+
+
+def _probe_doc(review, probe: str) -> dict:
+    """A Legistar body file with `probe` in every feed-text field: title, time, status_as_posted, item number, text."""
+    doc = body_file(review, title=probe, time=probe, text=f"{probe} and more")
+    doc["meetings"][0]["agenda"]["status_as_posted"] = probe
+    doc["meetings"][0]["items"][0]["number"] = probe
+    return doc
+
+
+@pytest.fixture(scope="module")
+def _baseline_checks(_world):
+    with pytest.MonkeyPatch.context() as mp:
+        point_at(mp, _world["folder"], ENTRY)
+        return _checks(_world["baseline_dir"], mp)
+
+
+@pytest.mark.parametrize("name", PROBES)
+def test_a_probe_in_a_legistar_feed_passes_every_check(world, _baseline_checks, tmp_path, monkeypatch, name):
+    probe, _check = _probes()[name]
+    out = tmp_path / "site"
+    build(out, root=national_root(tmp_path, _probe_doc(world["review"], probe)))
+    page, feed = (out / PAGE).read_text(encoding="utf-8"), json.loads((out / DATA).read_text(encoding="utf-8"))
+    assert esc(probe) in page and feed["meetings"][0]["title"] == probe     # copied, printed
+    assert page.count("<span data-feed>") == 4                      # time, title, item number, item text
+    got = _checks(out, monkeypatch)
+    assert got == _baseline_checks, {k: v for k, v in got.items() if v != _baseline_checks.get(k)}
+
+
+# One link carrying the probes a URL can hold; a meeting id and a meeting date are feed values the page prints too.
+PROBE_URL = ("https://example.legistar.com/gnoshcodes-mark-black/geo-frame.html/{att}/{eff}?c=rgb(43,75,165)"
+             "#2B4BA5")
+
+
+def _url() -> str:
+    p = _probes()
+    return PROBE_URL.format(att=p["att"][0], eff=p["lines-iso"][0])
+
+
+FEED_VALUE_CASES = {
+    "links": lambda m: (m.update(meeting_url=_url()), m["agenda"].update(url=_url()),
+                        m["items"][0]["source"].update(url=_url())),
+    "meeting-id": lambda m: m.update(id="gnoshcodes-mark-black"),
+    "meeting-date": lambda m: m.update(date=config.SITE["lines_effective"]),
+}
+
+
+@pytest.mark.parametrize("case", sorted(FEED_VALUE_CASES))
+def test_feed_links_ids_and_dates_pass_every_check(world, _baseline_checks, tmp_path, monkeypatch, case):
+    """B-ISO-8 as built: the same route through the values a page prints as attributes (and a date in words)."""
+    doc = body_file(world["review"])
+    FEED_VALUE_CASES[case](doc["meetings"][0])
+    out = tmp_path / "site"
+    build(out, root=national_root(tmp_path, doc))
+    m = json.loads((out / DATA).read_text(encoding="utf-8"))["meetings"][0]                   # copied, not stale
+    assert {k: m[k] for k in ("id", "date", "meeting_url")} == {k: doc["meetings"][0][k]
+                                                                for k in ("id", "date", "meeting_url")}
+    got = _checks(out, monkeypatch)
+    assert got == _baseline_checks, {k: v for k, v in got.items() if v != _baseline_checks.get(k)}
+
+
+def test_the_probe_link_fails_its_checks_outside_a_coming_up_page(world, tmp_path, monkeypatch):
+    """Control for the links case: the same link on a page outside digest/ fails brand, colors, provenance and the
+    frame-name test."""
+    out = tmp_path / "site"
+    shutil.copytree(world["baseline_dir"], out)
+    p = out / "about.html"
+    p.write_text(p.read_text(encoding="utf-8").replace(
+        '<main id="main">', f'<main id="main"><a href="{esc(_url())}">x</a>', 1), encoding="utf-8")
+    got = _checks(out, monkeypatch)
+    for check in ("brand/no-old-gnoshcodes", "brand/no-old-daylight-colors", "provenance", "digest/csp"):
+        assert not got[check][0] and any("about.html" in pr for pr in got[check][1]), check
+
+
+def _with_probe(world, tmp_path, rel: str, probe: str) -> Path:
+    """The baseline site with `probe` printed raw as our own words in the <main> of `rel`."""
+    out = tmp_path / "site"
+    shutil.copytree(world["baseline_dir"], out)
+    p = out / rel
+    text = p.read_text(encoding="utf-8")
+    assert '<main id="main">' in text
+    p.write_text(text.replace('<main id="main">', f'<main id="main"><p>{probe}</p>', 1), encoding="utf-8")
+    return out
+
+
+@pytest.mark.parametrize("name,rel", [(n, r) for n in PROBES for r in (PAGE, "about.html")
+                                      if (n, r) != ("switch", "about.html")])
+def test_the_same_probe_in_our_own_text_fails_its_check(world, tmp_path, monkeypatch, name, rel):
+    """Our own words on a coming-up page (outside every data-feed span) and on a page outside digest/ stay checked.
+    (`class="body-switch"` as text is a fault on a digest page only: elsewhere the check reads the switch's markup.)"""
+    probe, check = _probes()[name]
+    ok, problems = _checks(_with_probe(world, tmp_path, rel, probe), monkeypatch)[check]
+    assert not ok and any(rel in pr for pr in problems), (check, problems)
+
+
+@pytest.mark.parametrize("name", ["brand-name", "hex", "rgb", "outcome", "att"])
+def test_the_same_probe_in_a_gov_json_field_of_ours_fails_its_check(world, tmp_path, monkeypatch, name):
+    """The gov JSON's own fields (the government's name from the directory) are scanned as before."""
+    probe, check = _probes()[name]
+    out = tmp_path / "site"
+    shutil.copytree(world["baseline_dir"], out)
+    doc = json.loads((out / DATA).read_text(encoding="utf-8"))
+    doc["body"]["name"] = probe
+    (out / DATA).write_text(json.dumps(doc), encoding="utf-8")
+    ok, problems = _checks(out, monkeypatch)[check]
+    assert not ok and any(DATA in pr for pr in problems), (check, problems)
+
+
+def test_digest_feed_text_holds_the_wrapper_to_the_page_s_own_feed(world, tmp_path, monkeypatch):
+    out = tmp_path / "site"
+    build(out, root=national_root(tmp_path, body_file(world["review"])))
+    assert _checks(out, monkeypatch)["digest/feed-text"] == (True, [])
+    page = (out / PAGE).read_text(encoding="utf-8")
+    cases = {"about.html": '<span data-feed>City Council</span>',            # a span outside a coming-up page
+             PAGE: '<span data-feed>Our own words</span>',                  # text in no feed field of its JSON
+             "markup": '<span data-feed><b>City Council</b></span>',        # not a bare span of text
+             "attribute": '<p data-feed="1">City Council</p>'}
+    for where, span in cases.items():
+        rel = "about.html" if where == "about.html" else PAGE
+        (out / PAGE).write_text(page, encoding="utf-8")
+        site = _with_probe(world, tmp_path / where.replace("/", "-"), rel, span) if rel == "about.html" else out
+        if rel == PAGE:
+            (out / PAGE).write_text(page.replace('<main id="main">', f'<main id="main">{span}', 1), encoding="utf-8")
+        ok, problems = _checks(site, monkeypatch)["digest/feed-text"]
+        assert not ok and any(rel in pr for pr in problems), where
+        assert not any("City Council" in pr or "Our own words" in pr for pr in problems)    # never the text
+
+
+def test_a_cut_item_text_still_matches_its_feed_field(world, tmp_path, monkeypatch):
+    out = tmp_path / "site"
+    build(out, root=national_root(tmp_path, body_file(world["review"], text="word " * 600)))
+    assert json.loads((out / DATA).read_text(encoding="utf-8"))["meetings"][0]["items"][0].get("cut") is True
+    assert _checks(out, monkeypatch)["digest/feed-text"] == (True, [])
+
+
+def _county_agendas(*titles) -> dict:
+    """An agendas file as collector/county_agenda.py writes it, one coming meeting with `titles` as its items."""
+    mid = "2026-12-14-formal"
+    return {"body": "county", "index_url": "https://mcgtn.org/commission/agendas", "problems": [], "skipped": [],
+            "sources": [{"id": "s1", "kind": "agenda", "label": "2026 December Formal", "pages": 3, "sha256": "0" * 64,
+                         "url": "https://mcgtn.org/a.pdf", "fetched_at": "2026-11-18"}],
+            "meetings": [{"id": mid, "date": "2026-12-14", "date_page": 1, "kind": "formal", "source_id": "s1",
+                          "items": [{"id": f"{mid}/26-12-{n}", "link_basis": "number", "number": f"26-12-{n}",
+                                     "page": 1, "printed": f"26-12-{n}", "section": "RESOLUTIONS", "title": t,
+                                     "year": 2026} for n, t in enumerate(titles, 1)]}]}
+
+
+def test_probes_in_a_county_agenda_through_the_adapter_hold_no_digest_page(world, tmp_path, monkeypatch):
+    """12.3 #9 v2: the Montgomery County agenda reaches its coming-up page through the adapter. The same titles print
+    on Clarksville's own agenda page (Clarksville data, checked there as always); no check names a digest/ file, the
+    item text is wrapped and the adapter's own meeting title (title_ours) is printed unwrapped."""
+    probes = [p for p, _ in _probes().values()]
+
+    def site_with(titles, name):
+        out, agendas = tmp_path / name, tmp_path / f"{name}.json"
+        agendas.write_text(json.dumps(_county_agendas(*titles)), encoding="utf-8")
+        build(out, county_agendas=agendas)
+        return out
+    plain = _checks(site_with([f"Roads {n}" for n in range(len(probes))], "plain"), monkeypatch)
+    out = site_with(probes, "probes")
+    rel = f"digest/tn/{COUNTY_ID}.html"
+    page = (out / rel).read_text(encoding="utf-8")
+    feed = json.loads((out / rel).with_suffix(".json").read_text(encoding="utf-8"))
+    m = feed["meetings"][0]
+    assert m["title_ours"] is True and [it["text"] for it in m["items"]] == probes
+    assert f'<p class="digest-meeting-title">{esc(m["title"])}</p>' in page
+    for p in probes:
+        assert f"<span data-feed>{esc(p)}</span>" in page
+    got = _checks(out, monkeypatch)
+
+    def on_digest(results):         # each check's problems that name a digest/ file, as the plain titles' build has
+        return {k: [pr for pr in v[1] if pr.startswith(SC.DIGEST)] for k, v in results.items()}
+    assert on_digest(got) == on_digest(plain)
+    assert got["digest/feed-text"] == (True, [])
 
 
 # --- 12.3 #13: the sentinel through every degrade path ---------------------------------------------------------------

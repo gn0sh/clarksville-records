@@ -107,6 +107,9 @@ Every exemption below names the `digest/` prefix (DIGEST); pages outside it are 
               site's normal CSP; no CSP but the frame's names the Census on a digest page, the geographies path on
               any page, or the Census at all on a page without the landing address box; only digest/index.html names
               the frame
+  digest/feed-text  no page but a coming-up page digest/<st>/<id>.html carries data-feed; there every data-feed
+              element is a bare <span data-feed> of text only, and its text is part of a feed-text field (time, a
+              title that is not ours, status_as_posted, item number or text) of the page's own JSON
   Scoped exemptions (each on `digest/` only): the geo frame (DIGEST_FRAME) is a framed document, not a site page, so
   footer, external, unofficial, switch and header skip it (digest/csp holds it); header: a digest page carries the
   usual header after the three substitutions of 7a (plate place, no moon, no sky-in span); switch: a digest page has
@@ -114,9 +117,14 @@ Every exemption below names the `digest/` prefix (DIGEST); pages outside it are 
   form-action are digest/csp's; sources: an unmarked outbound link on a digest page is https, rel "noopener
   noreferrer", and a directory entry's official, checked or reason URL, the geocoder's or (while its form is on) the
   morning note provider's privacy page, or a URL of the
-  coming-up page's own JSON; dates/no-raw-utc-day: a coming-up page digest/<st>/<id>.html is read without its
-  <main>, the government's feed text, which prints no fetch day of ours (architecture 12.1 row 6); its header and
-  footer are checked as on every page.
+  coming-up page's own JSON. Feed text (architecture 12.1 row 6, B-ISO-8; the government's words, not ours):
+  name-links, brand/no-old-gnoshcodes, brand/no-old-daylight-colors, unverified (the token scan), provenance (the
+  banned words and days), digest/csp (the frame-name test) and dates/no-raw-utc-day read a coming-up page
+  digest/<st>/<id>.html without the text of its <span data-feed>s and without the href, id, aria-labelledby and
+  datetime values that are its own JSON's meeting links, "m-<meeting id>"s and dates (and those dates in words),
+  and the byte and token scans read its JSON digest/<st>/<id>.json with those feed strings blanked
+  (feed_text_removed, feed_json_without_text); everything else on those pages, our labels, header and footer
+  included, is checked as on every page, and the file-name and favicon tests read the raw file.
 
 Councils (config/site.yml `councils`, each config/localities/<locality>/council.yml): a real build also has each
 council's pages under its folder, built from the council's own facts file. links, sources, unverified, layout, totals,
@@ -162,9 +170,6 @@ DIGEST = "digest/"                          # every digest exemption in this fil
 DIGEST_FRAME = DIGEST + "geo-frame.html"    # the geo frame (4.0): a framed document, not a site page
 DIGEST_INDEX = DIGEST + "index.html"        # the lookup page, the one parent of the frame
 DIGEST_PAGE_LABELS = ROOT / "config" / "national" / "page-labels.yml"
-# A coming-up page digest/<st>/<body id>.html prints a government's feed text (titles, times, item text from
-# national-data or the adapter) inside its <main>; base.html.j2 puts exactly one such element on a page.
-DIGEST_MAIN_OPEN, DIGEST_MAIN_CLOSE = '<main id="main">', "</main>"
 
 
 def digest_gov_page(rel: str) -> bool:
@@ -172,15 +177,139 @@ def digest_gov_page(rel: str) -> bool:
     return rel.startswith(DIGEST) and rel.count("/") == 2 and rel.endswith(".html")
 
 
-def without_feed_text(text: str) -> str:
-    """dates/no-raw-utc-day's scoped exemption (architecture 12.1 row 6, national-isolation/site-checks-read-feed-text):
-    a coming-up page without its <main> (the feed text: a Legistar title "Item added 2026-01-05" is not a fetch day
-    of ours, and the page prints no fetch day there). The header and footer, "Data as of" included, stay checked.
-    A page whose <main> is not where base.html.j2 puts it is returned whole (checked whole)."""
-    start, end = text.find(DIGEST_MAIN_OPEN), text.rfind(DIGEST_MAIN_CLOSE)
-    if start < 0 or end < start or text.count(DIGEST_MAIN_OPEN) != 1:
+def digest_gov_json(rel: str) -> bool:
+    """A coming-up page's JSON (the gov JSON): digest/<st>/<file>.json."""
+    return rel.startswith(DIGEST) and rel.count("/") == 2 and rel.endswith(".json")
+
+
+# Feed text (architecture 12.1 row 6, B-ISO-8; national-isolation/site-checks-read-feed-text): the templates print each
+# verbatim string of a government's feed as the sole content of a bare <span data-feed>. Autoescaped text holds no
+# "<", so the match is exact; a span with markup or another attribute does not match and stays checked (fails safe).
+FEED_SPAN = re.compile(r"<span data-feed>([^<]*)</span>")
+# Where a coming-up page prints a feed value as an attribute: the meeting id (id="m-<id>", "m-<id>-h"), its date
+# (datetime) and its links (href). Only a value equal to one of the page's own feed values is blanked.
+FEED_ATTR = re.compile(r'(\s(?:href|id|aria-labelledby|datetime)=")([^"]*)(")')
+
+
+def gov_json_of(site: Path, rel: str):
+    """The parsed gov JSON of the coming-up page `rel` (or of `rel` itself when it is one), or None."""
+    path = site / (rel[:-len(".html")] + ".json" if rel.endswith(".html") else rel)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, RecursionError):
+        return None
+
+
+def _feed_meetings(feed) -> list[dict]:
+    meetings = feed.get("meetings") if isinstance(feed, dict) else None
+    return [m for m in meetings if isinstance(m, dict)] if isinstance(meetings, list) else []
+
+
+def _feed_items(m: dict) -> list[dict]:
+    items = m.get("items")
+    return [it for it in items if isinstance(it, dict)] if isinstance(items, list) else []
+
+
+def feed_texts(feed) -> list[str]:
+    """Every feed-text field of a gov JSON (schema/daylight-upcoming.schema.json): meeting time, title when title_ours
+    is not true (the Clarksville adapter's titles are our kind labels and stay checked), the agenda's status_as_posted,
+    item number and text."""
+    out = []
+    for m in _feed_meetings(feed):
+        agenda = m.get("agenda") if isinstance(m.get("agenda"), dict) else {}
+        out += [m.get("time"), m.get("title") if m.get("title_ours") is not True else None,
+                agenda.get("status_as_posted")]
+        for it in _feed_items(m):
+            out += [it.get("number"), it.get("text")]
+    return [s for s in out if isinstance(s, str)]
+
+
+def _feed_values(feed) -> tuple[set[str], set[str]]:
+    """({attribute values a coming-up page prints from its feed}, {its meeting dates in words}): each meeting's
+    "m-<id>" and "m-<id>-h", its ISO date, and its meeting, agenda and item source links."""
+    import datetime as _dt
+    attrs, words = set(), set()
+    for m in _feed_meetings(feed):
+        if isinstance(m.get("id"), str):
+            attrs |= {f"m-{m['id']}", f"m-{m['id']}-h"}
+        if isinstance(m.get("date"), str):
+            attrs.add(m["date"])
+            try:
+                d = _dt.date.fromisoformat(m["date"])
+            except ValueError:
+                d = None
+            if d:   # the words pages print a date in, restated as check_provenance restates them
+                words.add(f"{d.strftime('%B')} {d.day}, {d.year}")
+        agenda = m.get("agenda") if isinstance(m.get("agenda"), dict) else {}
+        links = [m.get("meeting_url"), agenda.get("url")]
+        links += [it["source"].get("url") for it in _feed_items(m) if isinstance(it.get("source"), dict)]
+        attrs |= {u for u in links if isinstance(u, str) and u}
+    return attrs, words
+
+
+def feed_text_removed(rel: str, text: str, feed=None) -> str:
+    """A coming-up page (digest_gov_page) without the government's own text (architecture 12.1 row 6, B-ISO-8): every
+    <span data-feed> emptied and, given its gov JSON `feed`, every href, id, aria-labelledby or datetime value equal
+    to one of that feed's links, "m-<meeting id>"s or dates, and those dates in words. Our own words on the page (its
+    labels, header, footer and our links) stay. Any other page is returned unchanged."""
+    if not digest_gov_page(rel):
         return text
-    return text[:start] + text[end + len(DIGEST_MAIN_CLOSE):]
+    text = FEED_SPAN.sub("<span data-feed></span>", text)
+    if feed is None:
+        return text
+    attrs, words = _feed_values(feed)
+    text = FEED_ATTR.sub(lambda m: m[1] + m[3] if html.unescape(m[2]) in attrs else m[0], text)
+    for w in sorted(words, key=len, reverse=True):
+        text = text.replace(w, "")
+    return text
+
+
+def feed_json_without_text(rel: str, raw: bytes) -> bytes:
+    """A gov JSON (digest_gov_json) with its feed's strings blanked (B-ISO-8): meeting id, date, time, title (when
+    title_ours is not true) and meeting_url, the agenda's url and status_as_posted, item number, text and source url.
+    The government's name, id, tz and links from the directory stay. Any other file, or one that does not parse, is
+    returned raw (scanned whole: fails safe)."""
+    if not digest_gov_json(rel):
+        return raw
+    try:
+        feed = json.loads(raw.decode("utf-8"))
+        for m in _feed_meetings(feed):
+            for key in ("id", "date", "time", "title", "meeting_url"):
+                if isinstance(m.get(key), str) and (key != "title" or m.get("title_ours") is not True):
+                    m[key] = ""
+            agenda = m.get("agenda") if isinstance(m.get("agenda"), dict) else {}
+            for key in ("url", "status_as_posted"):
+                if isinstance(agenda.get(key), str):
+                    agenda[key] = ""
+            for it in _feed_items(m):
+                for key in ("number", "text"):
+                    if isinstance(it.get(key), str):
+                        it[key] = ""
+                if isinstance(it.get("source"), dict) and isinstance(it["source"].get("url"), str):
+                    it["source"]["url"] = ""
+        return json.dumps(feed, ensure_ascii=False).encode("utf-8")
+    except (ValueError, RecursionError):
+        return raw
+
+
+def own_text(site: Path, rel: str, text: str) -> str:
+    """`text` of the built file `rel` as the checks that judge our own words read it (B-ISO-8): a coming-up page
+    through feed_text_removed with its gov JSON, its gov JSON through feed_json_without_text, any other file as is."""
+    if digest_gov_page(rel):
+        return feed_text_removed(rel, text, gov_json_of(site, rel))
+    if digest_gov_json(rel):
+        return feed_json_without_text(rel, text.encode("utf-8", "replace")).decode("utf-8", "replace")
+    return text
+
+
+def own_bytes(site: Path, rel: str, body: bytes) -> bytes:
+    """own_text for the byte scans (brand, colors): a file that is not UTF-8 is scanned raw."""
+    if not (digest_gov_page(rel) or digest_gov_json(rel)):
+        return body
+    try:
+        return own_text(site, rel, body.decode("utf-8")).encode("utf-8")
+    except UnicodeError:
+        return body
 # Restated from sitegen/national.py CENSUS_GEOGRAPHIES (4.0): the one source the frame's script-src adds.
 CENSUS_GEOGRAPHIES = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
 # Elements the geo frame's raw HTML may never hold (digest/csp), whatever the parser makes of them.
@@ -1610,7 +1739,9 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
         rel = f.relative_to(site).as_posix()
         if not f.is_file() or rel == "review.html" or f.suffix not in (".html", ".csv", ".json", ".js", ".css", ".txt", ".md", ".xml"):
             continue
-        body = f.read_text(encoding="utf-8", errors="replace")
+        # scoped exemption (DIGEST, B-ISO-8): a coming-up page's feed text and its gov JSON's feed strings are the
+        # government's, never our OCR (the feed has no outcome, motion or attendance field)
+        body = own_text(site, rel, f.read_text(encoding="utf-8", errors="replace"))
         body = body + "\n" + html.unescape(body)
         ids = None
         for tok, why in toks:
@@ -1871,8 +2002,8 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
     for rel in sorted(pages):
         body = (site / rel).read_text(encoding="utf-8")
         # transcript text (data-transcript) is what the speech-recognition software wrote, shown verbatim: its words
-        # are the speakers', not the site's seat wording
-        plain = html.unescape(TRANSCRIPT_TEXT.sub(r"\1\3", body))
+        # are the speakers', not the site's seat wording; a coming-up page's feed text is the government's (B-ISO-8)
+        plain = html.unescape(TRANSCRIPT_TEXT.sub(r"\1\3", own_text(site, rel, body)))
         for b in banned:
             if b in plain:
                 problems.append(f"{rel}: contains banned {b!r}")
@@ -2156,7 +2287,8 @@ def check_name_links(site: Path, facts: dict, roster: list[dict], councils_=()) 
     for f in pages:
         rel = f.relative_to(site).as_posix()
         p = NameLinks()
-        p.feed(f.read_text(encoding="utf-8"))
+        # scoped exemption (DIGEST, B-ISO-8): a name in a coming-up page's feed text is the government's text
+        p.feed(own_text(site, rel, f.read_text(encoding="utf-8")))
         for text, href in p.nodes:
             if "Provided as a free service by" in text or "This site is run by" in text:   # the operator lines (footer, About)
                 continue
@@ -2191,6 +2323,7 @@ def check_old_brand(site: Path) -> tuple[list[str], str]:
         body = f.read_bytes()
         if hashlib.sha1(body).hexdigest() == OLD_BRAND_FAVICON_SHA1:
             problems.append(f"{rel}: is the old gnoshcodes favicon")
+        body = own_bytes(site, rel, body)       # scoped exemption (DIGEST, B-ISO-8): not a government's feed text
         hits = sum(sig in body for sig in OLD_BRAND_SIGNATURES) + len(OLD_BRAND_NAMES.findall(body))
         if hits:
             problems.append(f"{rel}: {hits} old gnoshcodes logo signature(s) (path data or file name)")
@@ -2214,8 +2347,10 @@ def check_old_daylight_colors(site: Path) -> tuple[list[str], str]:
     problems, n = [], 0
     for f in sorted(p for p in site.rglob("*") if p.is_file()):
         n += 1
+        # scoped exemption (DIGEST, B-ISO-8): a coming-up page's feed text and its gov JSON's feed strings
+        body = own_bytes(site, f.relative_to(site).as_posix(), f.read_bytes())
         hits = sorted({"#" + hx.decode().upper() if hx else OLD_DAYLIGHT_RGB[re.match(rb"\d+", rgb).group().decode()]
-                       for hx, rgb in OLD_DAYLIGHT_COLORS.findall(f.read_bytes())})
+                       for hx, rgb in OLD_DAYLIGHT_COLORS.findall(body)})
         if hits:
             problems.append(f"{f.relative_to(site).as_posix()}: old Daylight color(s) {', '.join(hits)}")
     return problems, f"{n} files scanned for the old Daylight blue #2B4BA5 and orange #EF5E35 (hex, alpha hex, rgb)"
@@ -2655,6 +2790,49 @@ def digest_link_urls(site: Path, pages: dict[str, "Page"], cfg: dict) -> dict[st
     return out
 
 
+class FeedMarks(HTMLParser):
+    """How many elements of a page carry a data-feed attribute, whatever their tag or value."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.n = 0
+
+    def handle_starttag(self, tag, attrs):
+        self.n += any(name == "data-feed" for name, _ in attrs)
+
+
+def check_digest_feed_text(site: Path) -> tuple[list[str], str]:
+    """digest/feed-text (architecture 12.1 row 6, B-ISO-8) keeps the feed-text exemption honest: (i) no page but a
+    coming-up page (digest_gov_page) carries data-feed; (ii) on a coming-up page every data-feed element is a bare
+    <span data-feed> holding text only; (iii) each such span's text (unescaped, spaces normalised) is part of a
+    feed-text field of the page's own gov JSON (feed_texts; a part, so cut item text matches). So none of our own
+    words can hide in the wrapper. Problems name the page and counts, never the text."""
+    problems, spans, n = [], 0, 0
+    for f in sorted(site.rglob("*.html")):
+        rel, n = f.relative_to(site).as_posix(), n + 1
+        text = f.read_text(encoding="utf-8", errors="replace")
+        if "data-feed" not in text:
+            continue
+        p = FeedMarks()
+        p.feed(text)
+        if not p.n:
+            continue
+        if not digest_gov_page(rel):
+            problems.append(f"{rel}: {p.n} data-feed element(s) on a page that is not a coming-up page")
+            continue
+        found = FEED_SPAN.findall(text)
+        spans += len(found)
+        if len(found) != p.n:
+            problems.append(f"{rel}: {p.n - len(found)} data-feed element(s) that are not a bare <span data-feed> "
+                            "holding text only")
+        fields = [" ".join(s.split()) for s in feed_texts(gov_json_of(site, rel))]
+        alien = [i for i, s in enumerate(found, 1)
+                 if not any(" ".join(html.unescape(s).split()) in fld for fld in fields)]
+        if alien:
+            problems.append(f"{rel}: data-feed span(s) {alien[:5]} hold text in no feed field of its gov JSON")
+    return problems, f"{spans} data-feed spans on {n} pages"
+
+
 def check_digest_csp(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) -> tuple[list[str], str]:
     """digest/csp (architecture 4.0 and 6; security finding 1, national/csp-jsonp-gadget), per file:
     - digest/geo-frame.html: one CSP meta, exactly frame_csp(<its one inline script>) and equal to
@@ -2716,7 +2894,8 @@ def check_digest_csp(site: Path, pages: dict[str, "Page"], cfg: dict | None = No
             problems.append(f"{rel}: names the Census geographies path in its CSP (only {DIGEST_FRAME} may)")
         elif "census.gov" in csp and not pg.json_blocks.get("addr-config"):
             problems.append(f"{rel}: names the Census in its CSP without the landing address box")
-        if rel != DIGEST_INDEX and "geo-frame.html" in (site / rel).read_text(encoding="utf-8"):
+        # scoped exemption (DIGEST, B-ISO-8): a coming-up page's feed text may name anything
+        if rel != DIGEST_INDEX and "geo-frame.html" in own_text(site, rel, (site / rel).read_text(encoding="utf-8")):
             problems.append(f"{rel}: names the geo frame (only {DIGEST_INDEX} may)")
     # each digest page's own policy
     n = 0
@@ -3081,8 +3260,7 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     n = labelled_n = 0
     for rel in sorted(pages):
         text = (site / rel).read_text(encoding="utf-8")
-        if digest_gov_page(rel):     # scoped exemption (DIGEST): not the feed text of a coming-up page
-            text = without_feed_text(text)
+        text = own_text(site, rel, text)     # scoped exemption (DIGEST): not the feed text of a coming-up page
         own = next((f for pre, f in scopes if rel.startswith(pre)), county)
         cands: list[str] = []
         prev: list[str] = []
@@ -4065,6 +4243,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("external", check_external(visited, site, cfg))
     problems, note = check_digest_csp(site, pages, cfg)
     rep.add("digest/csp", problems, note)
+    problems, note = check_digest_feed_text(site)
+    rep.add("digest/feed-text", problems, note)
     problems, note = check_report_channel(pages, cfg, target)
     rep.add("report-channel", problems, note)
     # the contracts feed links each solicitation's first document, a finance.json source
