@@ -236,9 +236,11 @@ def test_a_file_named_for_another_body_is_never_read(tmp_path, monkeypatch):
 @pytest.mark.parametrize("change", [
     {"host_ok": None}, {"host_ok": {"date": "2026-11-18"}}, {"legistar": {"body_id": 7}}, {"platform": "boarddocs"}],
     ids=["no-host-ok", "host-ok-no-link", "no-client", "not-collected"])
-def test_an_entry_the_collector_may_not_read_stops_the_build(tmp_path, change):
+def test_copy_feed_raises_copy_error_for_an_entry_the_collector_may_not_read(tmp_path, change):
     """national/r5-not-enforced: the copy step refuses, as the loader and the collector do, a hand-built entry with no
-    valid host_ok (or no client), whatever national-data holds."""
+    valid host_ok (or no client), whatever national-data holds. This checks only that copy_feed raises; that the
+    build stops in the load phase is test_national_pages.py::
+    test_a_covered_entry_without_a_feed_source_is_refused_at_load (code review D1/D2/iso nit 6, B-ISO-11)."""
     entry = {**copy.deepcopy(ENTRY), **change}
     if entry.get("host_ok") is None:
         entry.pop("host_ok")
