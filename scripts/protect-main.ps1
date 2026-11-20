@@ -34,6 +34,11 @@
 #   may hold pull-requests: write or set its permissions inline, and the workflow's own permissions are {}.
 #   -PreCutover: cutover step 4 only, before the cutover merge. Main must then still hold the old step
 #   "Open and merge the data pull request", and the post-cutover checks wait for the next run without it.
+# Main's .github/workflows/national-update.yml is read too (ADR 0013 decision 6; main-protect-invariant.md note
+#   2026-11-20), in both modes: the gate step ("Check the national-data head") in job gate and only there, push must
+#   need gate, push must be the only job with attestations: write, contents: write and id-token: write, the only other
+#   write is issues: write in job report, no job may hold pull-requests: write, set its permissions inline, name an
+#   environment or call a reusable workflow, no line may read a secret, and the workflow's own permissions are {}.
 #   -Apps <names>|none: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App
 #   token: HTTP 403 for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and
 #   passes the Apps that can write this repository (or none). Without -Apps that check is NOT OK, never a silent pass.
@@ -47,7 +52,7 @@
 #   the bypass lists must equal the files. R1'' asks for 10 approvals, the ruleset API maximum (S1-1), so gn0sh plus
 #   one App can't reach it either: every merge is a gn0sh bypass, and rule 1 no longer rests on the COMMENT-only rule.
 # Also read (S1-6, S1-7): GitHub Pages must build from a workflow (build_type workflow, so nothing publishes outside
-#   daily-update's gate), and .github/workflows/ on main must hold daily-update.yml and nothing else.
+#   daily-update's gate), and .github/workflows/ on main must hold exactly daily-update.yml and national-update.yml.
 # No double quotes are passed to gh (Windows PowerShell 5.1 mangles them): strings come in through $ENV.
 # named parameters only: an unknown or .sh-style argument (--check) stops here, never binds to a parameter by position
 # (data-off-main/ps-unknown-args)
@@ -386,8 +391,11 @@ if ($Main) {
     else { Unread "main's commit (git/ref/heads/main)" }
     $wref = $Main; $tries = 10
 }
-# S1-7 main-protect/wf-shape-heuristic: daily-update.yml is the only workflow on main (any other file there runs with
-# the environments and never meets daily-update's gate)
+# S1-7 main-protect/wf-shape-heuristic: daily-update.yml and national-update.yml are the only workflows on main (any
+# other file there could run with the environments and never meets daily-update's gate). national-update.yml is
+# allowed since 2026-11-20 (main-protect-invariant.md note): it names no environment and reads no secret, and its
+# push job writes national-data only, attested as national-update.yml, which daily-update's gate never accepts for
+# records-data (checked below). The contents API lists a folder in name order; any other order is NOT OK.
 $wfs = $null
 for ($i = 1; $i -le $tries; $i++) {   # one read, or with -Main up to 10, 3 s apart, until one works (a sha never changes)
     $wfs = Lines "repos/$repo/contents/.github/workflows?ref=$wref" '.[] | [.name, .type] | @tsv'
@@ -396,15 +404,18 @@ for ($i = 1; $i -le $tries; $i++) {   # one read, or with -Main up to 10, 3 s ap
 }
 if ($null -eq $wfs) { Unread "main's .github/workflows/ folder" } else {
     Write-Host ("Main's .github/workflows/: " + ((@($wfs | ForEach-Object { $_ -replace "`t", ':' })) -join ','))
-    if ($wfs.Count -ne 1 -or $wfs[0] -cne "daily-update.yml`tfile") { Problem "main's .github/workflows/ must hold daily-update.yml and nothing else" }
+    if ($wfs.Count -ne 2 -or $wfs[0] -cne "daily-update.yml`tfile" -or $wfs[1] -cne "national-update.yml`tfile") {
+        Problem "main's .github/workflows/ must hold exactly daily-update.yml and national-update.yml"
+    }
 }
 
 # main's daily-update.yml (ADR 0011 row J2, I-prov): the post-cutover shape, or with -PreCutover the old one
 $gateStep = "Check main's history and the records-data head"
 $oldStep = 'Open and merge the data pull request'
 # lists are job names joined by commas. Comment lines and trailing comments are dropped.
-function WfShape($lines) {
-    $r = [ordered]@{ top = ''; gate = @(); attw = @(); contw = @(); prw = @(); inl = @(); oldpr = @(); pn = '' }
+function WfShape($lines, [string]$gs) {   # $gs: the workflow's gate step name
+    $r = [ordered]@{ top = ''; gate = @(); attw = @(); contw = @(); prw = @(); inl = @(); oldpr = @(); pn = ''
+        idw = @(); wr = @(); envs = @(); juses = @(); sec = @() }
     $inJobs = $false
     $job = ''
     foreach ($raw in $lines) {
@@ -413,20 +424,25 @@ function WfShape($lines) {
         $ln = ($ln -creplace '[ \t]+#.*$', '') -creplace '[ \t]+$', ''
         if ($ln -cmatch '^[^ \t]') { $inJobs = ($ln -cmatch '^jobs:$') }
         if ($ln -cmatch '^permissions:') { $r.top = $ln }
+        if ($ln -cmatch 'secrets([.]|\[)') { if ($inJobs -and $job) { $r.sec += $job } else { $r.sec += 'top' } }
         if (-not $inJobs) { continue }
         if ($ln -cmatch '^  ([A-Za-z0-9_-]+):$') { $job = $Matches[1]; continue }
         if ($ln -cmatch '^[ \t]+attestations:[ \t]*write$') { $r.attw += $job }
         if ($ln -cmatch '^[ \t]+contents:[ \t]*write$') { $r.contw += $job }
         if ($ln -cmatch '^[ \t]+pull-requests:[ \t]*write$') { $r.prw += $job }
+        if ($ln -cmatch '^[ \t]+id-token:[ \t]*write$') { $r.idw += $job }
+        if ($ln -cmatch '^[ \t]+([A-Za-z0-9_-]+):[ \t]*.?write.?$') { $r.wr += ($job + ':' + $Matches[1]) }
+        if ($ln -cmatch '^    environment:') { $r.envs += $job }
+        if ($ln -cmatch '^    uses:') { $r.juses += $job }
         if ($ln -cmatch '^    permissions:[ \t]*[^ \t]' -and $ln -cnotmatch '^    permissions:[ \t]*[{][}]$') { $r.inl += $job }
         if ($ln -cmatch '^[ \t]+(- )?name:[ \t]*(.*)$') {
             $n = $Matches[2]
-            if ($n -ceq $gateStep) { $r.gate += $job }
+            if ($n -ceq $gs) { $r.gate += $job }
             if ($n -ceq $oldStep) { $r.oldpr += $job }
         }
         if ($job -ceq 'push' -and $ln -cmatch '^    needs:[ \t]*(.*)$') { $r.pn = $Matches[1] }
     }
-    foreach ($k in @('gate', 'attw', 'contw', 'prw', 'inl', 'oldpr')) { $r[$k] = ($r[$k] -join ',') }
+    foreach ($k in @('gate', 'attw', 'contw', 'prw', 'inl', 'oldpr', 'idw', 'wr', 'envs', 'juses', 'sec')) { $r[$k] = ($r[$k] -join ',') }
     return $r
 }
 $wfOk = $false
@@ -437,7 +453,7 @@ for ($i = 1; $i -le $tries; $i++) {
     if ($i -lt $tries) { Start-Sleep -Seconds 3 }
 }
 if (-not $wfOk -or $wf.Count -eq 0) { Unread "main's .github/workflows/daily-update.yml" } else {
-    $w = WfShape $wf
+    $w = WfShape $wf $gateStep
     $top = $w.top; $g = $w.gate; $aw = $w.attw; $cw = $w.contw; $pw = $w.prw; $ip = $w.inl; $op = $w.oldpr; $pn = $w.pn
     Write-Host "Main's daily-update.yml: workflow '$top'; gate step in '$g'; attestations: write in '$aw'; contents: write in '$cw'; pull-requests: write in '$pw'; inline job permissions in '$ip'; data pull request step in '$op'; push needs '$pn'"
     if ($PreCutover) {
@@ -454,6 +470,40 @@ if (-not $wfOk -or $wf.Count -eq 0) { Unread "main's .github/workflows/daily-upd
         if (-not $pnl.Contains(',gate,')) { Problem "job push in main's daily-update.yml must need gate" }
         if ($op) { Problem "main's daily-update.yml still opens data pull requests (before the cutover): use -PreCutover only at cutover step 4, before the cutover merge" }
     }
+}
+
+# main's national-update.yml (ADR 0013 decision 6; main-protect-invariant.md note 2026-11-20), in both modes: the
+# properties that let it sit on main beside daily-update.yml. Same reader (WfShape) and strictness as daily-update.yml.
+$natStep = 'Check the national-data head'
+$wfnOk = $false
+for ($i = 1; $i -le $tries; $i++) {
+    $wfn = @(gh api "repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref" -H 'Accept: application/vnd.github.raw')
+    $wfnOk = ($LASTEXITCODE -eq 0)
+    if ($wfnOk) { break }
+    if ($i -lt $tries) { Start-Sleep -Seconds 3 }
+}
+if (-not $wfnOk -or $wfn.Count -eq 0) { Unread "main's .github/workflows/national-update.yml" } else {
+    $nw = WfShape $wfn $natStep
+    $ntop = $nw.top; $ng = $nw.gate; $naw = $nw.attw; $ncw = $nw.contw; $nidw = $nw.idw; $npw = $nw.prw
+    $nip = $nw.inl; $nwr = $nw.wr; $nenv = $nw.envs; $nju = $nw.juses; $nsec = $nw.sec; $npn = $nw.pn
+    Write-Host "Main's national-update.yml: workflow '$ntop'; gate step in '$ng'; attestations: write in '$naw'; contents: write in '$ncw'; id-token: write in '$nidw'; pull-requests: write in '$npw'; inline job permissions in '$nip'; writes '$nwr'; environments in '$nenv'; reusable workflows in '$nju'; secrets in '$nsec'; push needs '$npn'"
+    if ($ntop -cne 'permissions: {}') { Problem "main's national-update.yml must set permissions: {} at the top (each job then names its own)" }
+    if ($ng -cne 'gate') { Problem "main's national-update.yml must run the step '$natStep' in job gate, and only there (ADR 0013 decision 6)" }
+    if ($naw -cne 'push') { Problem "in main's national-update.yml only job push may hold attestations: write (its attestations name national-update.yml, never accepted for records-data)" }
+    if ($ncw -cne 'push') { Problem "in main's national-update.yml only job push may hold contents: write" }
+    if ($nidw -cne 'push') { Problem "in main's national-update.yml only job push may hold id-token: write" }
+    if ($npw) { Problem "no job in main's national-update.yml may hold pull-requests: write" }
+    if ($nip) { Problem "no job in main's national-update.yml may set its permissions inline (write-all, read-all or a { } map)" }
+    $nbad = @()
+    foreach ($x in @($nwr -split ',' | Where-Object { $_ -ne '' })) {
+        if (@('push:contents', 'push:id-token', 'push:attestations', 'report:issues') -cnotcontains $x) { $nbad += $x }
+    }
+    if ($nbad.Count -gt 0) { Problem ("in main's national-update.yml the only writes may be contents, id-token and attestations in job push and issues in job report, not '" + ($nbad -join ',') + "'") }
+    if ($nenv) { Problem "no job in main's national-update.yml may name an environment (only daily-update's gated jobs deploy or send)" }
+    if ($nju) { Problem "no job in main's national-update.yml may call a reusable workflow (a job-level uses:)" }
+    if ($nsec) { Problem "main's national-update.yml may read no secret" }
+    $npnl = ',' + ($npn -creplace '[\[\] ]', '') + ','
+    if (-not $npnl.Contains(',gate,')) { Problem "job push in main's national-update.yml must need gate" }
 }
 
 if ($script:problems -eq 0) {
