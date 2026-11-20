@@ -14,13 +14,19 @@
 #      probe/v1pp-n-bot, probe/v1pp-d0-bot): the runner's GITHUB_TOKEN tries to open them, and must be refused;
 #   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2);
 #   3. pushes probe/v1pp-env (.github/workflows/v1pp-env.yml: one job per environment, github-pages and morning-note,
-#      each only an echo), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments;
+#      each only an echo, and a pages-api job with no environment that calls POST pages/deployments with a made-up
+#      artifact), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments, and the
+#      Pages API on branch or environment grounds (refused only for the artifact = the path is open = FAIL);
 #   4. pushes probe/v1pp-runner (.github/workflows/v1pp-probe.yml): its GITHUB_TOKEN run tries steps 1-3 of section 4
 #      (bot pull requests, then per pull request a bot APPROVE, REST squash, merge, rebase, GraphQL squash, then a
 #      direct push to main by the REST ref update and by git push); a merge or push that goes through ends the run;
 #   5. reads every answer, every probe pull request's merged flag, each probe file on main and on records-data, the
-#      tag main and main's sha; then cleans up (closes every probe pull request, deletes every probe branch and tag)
-#      and reads each one again after cleanup.
+#      tag main and main's sha; then cancels any probe run not completed, cleans up (closes every probe pull request,
+#      deletes every probe branch and tag, and the tag main) and reads each one again. A cleanup step is PASS only
+#      when its write answered (a close: closed and unmerged; a delete: done, or "Reference does not exist") and the
+#      read after it agrees; else INCONCLUSIVE with the command to run.
+# Waits are bounded: 3 minutes for a run to start, 12 minutes for it to finish (then it is cancelled, INCONCLUSIVE).
+# Run it again after an INCONCLUSIVE: it deletes the probe branches and tag of an earlier try first.
 # Every step prints one line: PASS (the expected refusal), FAIL (it went through), NOT-TRIED (skipped because an
 # earlier merge or push ended the run) or INCONCLUSIVE (a read failed, or a refusal for another reason). Verdict: FAIL
 # if any line is FAIL (a probe pull request merged, a probe file on main or records-data, a push to main, a tag main,
@@ -33,19 +39,26 @@
 # first scheduled run after the cutover (D3 step 8).
 # Expected refusal wordings (read from GitHub's docs and the U3 control, not yet seen live for every step; any other
 # wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash "approving
-# review", direct push "rule violation", tag main "rule violation", environments "not allowed to deploy to <env>".
+# review", merge and rebase "not allowed", "approving review" or "rule violation", direct push "rule violation", tag
+# main "rule violation", environments "not allowed to deploy to <env>", the Pages API "not allowed to deploy" or
+# "protection rule".
 # Writes the result to v1pp-probe-results-<time>.txt in RESULTS_DIR (default: the home folder). Nothing is sent.
 # Needs: gh signed in as gn0sh (gh auth login), GNU base64. Takes about 5 minutes.
 # Run: bash scripts/v1pp-probe.sh --apps claude|none   (the same answer protect-main takes)
 #
-# BEGIN-REFUSAL-LOCK (v1pp-probe/run-once): the probe pushes workflows and tries merges, so it runs once, by a reviewed
-# PR. To enable that one run, the PR changes exactly one line in each twin:
-#   scripts/v1pp-probe.sh:   v1pp_locked=yes   ->   v1pp_locked=no
-#   scripts/v1pp-probe.ps1:  $v1ppLocked = $true   ->   $v1ppLocked = $false
-# and the PR that records the result changes it back. Nothing below runs while it is locked.
-v1pp_locked=yes
-if [ "$v1pp_locked" != no ]; then
+# BEGIN-REFUSAL-LOCK (v1pp-probe/run-once, v1pp-probe/lock-window): the probe pushes workflows and tries merges, so it
+# runs once, by a reviewed PR. To enable that run, the PR changes exactly one line in each twin to the last UTC day it
+# may run (a few days after the merge), and the PR that records the result changes it back:
+#   scripts/v1pp-probe.sh:   v1pp_unlocked_until=none   ->   v1pp_unlocked_until=YYYY-MM-DD
+#   scripts/v1pp-probe.ps1:  $v1ppUnlockedUntil = 'none'   ->   $v1ppUnlockedUntil = 'YYYY-MM-DD'
+# Nothing below runs while it is locked, or after that day (an unlock left in place expires by itself).
+v1pp_unlocked_until=none
+if ! [[ "$v1pp_unlocked_until" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
   echo "REFUSED: the V1'' probe is locked (v1pp-probe/run-once). The team enables it for one run by a reviewed PR. Nothing was changed."
+  exit 1
+fi
+if [[ "$(date -u +%F)" > "$v1pp_unlocked_until" ]]; then
+  echo "REFUSED: the V1'' probe's unlock expired after $v1pp_unlocked_until (UTC) (v1pp-probe/lock-window). Ask the team for a new one. Nothing was changed."
   exit 1
 fi
 # END-REFUSAL-LOCK
@@ -157,9 +170,13 @@ file_env=.github/workflows/v1pp-env.yml
 probe_refs=()
 for b in "${g_branches[@]}" "${b_branches[@]}" "$runner" "$envb"; do probe_refs+=("heads/$b"); done
 probe_refs+=("tags/$ptag")
+clean_refs=("${probe_refs[@]}" tags/main)   # v1pp-probe/tag-main-cleanup: the guard read tags/main absent, so always
 nums=()            # every probe pull request into main: yours, and any the bot opened
-tag_main_made=""   # set when a tag named main exists after this run's try (only then is it deleted)
+merged_read=()     # the pull requests whose merged flag has been read (and marked)
 r2_done=""; finished=""; started=""
+# the three probe runs: name, pushed head, run id, looked up (v1pp-probe/inflight-run-at-cleanup)
+r_names=("$runner" "$envb" "$ptag"); r_heads=("" "" ""); r_ids=("" "" ""); r_looked=("" "" "")
+flat() { printf '%s' "$1" | tr '\r\n' '  '; }
 
 r2_read() { gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews' 2>/dev/null; }
 turn_r2_off() {   # at once on the first FAIL (mark calls it), so always before cleanup (as V1')
@@ -175,41 +192,100 @@ turn_r2_off() {   # at once on the first FAIL (mark calls it), so always before 
 }
 pr_state() { gh api "repos/$repo/pulls/$1" --jq '[.state, (.merged|tostring)] | @tsv' 2>/dev/null; }
 ref_state() { local s; s=$(sha_of "$1") || return 1; if [ "$s" = absent ]; then printf absent; else printf present; fi; }
-cleanup() {   # every probe pull request closed (a merged one stays merged), every probe branch and tag deleted
-  local n r
+cleanup_quiet() {   # an early stop: cancel known runs, close, delete; nothing recorded
+  local n r id
+  for id in "${r_ids[@]}"; do [ -z "$id" ] || api_quiet -X POST "repos/$repo/actions/runs/$id/cancel"; done
   for n in "${nums[@]}"; do api_quiet -X PATCH "repos/$repo/pulls/$n" -f state=closed; done
-  for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done
-  if [ -n "$tag_main_made" ]; then api_quiet -X DELETE "repos/$repo/git/refs/tags/main"; fi
+  for r in "${clean_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done
+}
+close_res=(); del_res=()
+cleanup() {   # v1pp-probe/cleanup-absence-read: each write's own answer is kept (read-after-write rule 6)
+  local n r out
+  close_res=(); del_res=()
+  for n in "${nums[@]}"; do   # a merged one stays merged: its answer says so
+    if out=$(gh api -X PATCH "repos/$repo/pulls/$n" -f state=closed --jq '[.state, (.merged|tostring)] | @tsv' 2>&1); then
+      close_res+=("$out")
+    else close_res+=("failed: $(flat "$out")"); fi
+  done
+  for r in "${clean_refs[@]}"; do
+    if out=$(gh api -X DELETE "repos/$repo/git/refs/$r" 2>&1); then del_res+=(done)
+    elif grep -q 'Reference does not exist' <<< "$out"; then del_res+=(done)
+    elif [ "$r" = tags/main ] && grep -qi 'rule violation' <<< "$out"; then del_res+=(done)   # R-T refusing it
+    else del_res+=("failed: $(flat "$out")"); fi
+  done
 }
 add_num() { local n x; for n in "$@"; do for x in "${nums[@]}"; do [ "$x" = "$n" ] && continue 2; done; nums+=("$n"); done; }
 list_prs() {   # $1 branch: the numbers of every pull request from it into main, one per line
   gh api "repos/$repo/pulls?state=all&base=main&head=$owner:$1" --jq '.[].number' 2>/dev/null
 }
-finish() {   # cleanup, the reads after it, the verdict; never returns
-  local n r tab=$'\t' x
+read_merged() {   # $1 pull request: its merged flag, read and marked once
+  local m x
+  for x in "${merged_read[@]}"; do [ "$x" = "$1" ] && return 0; done
+  merged_read+=("$1")
+  m=$(gh api "repos/$repo/pulls/$1" --jq '.merged' 2>/dev/null) || m=""
+  case "$m" in
+    false) mark PASS "pull request #$1" "unmerged" ;;
+    true) mark FAIL "pull request #$1" "merged into main" ;;
+    *) mark INCONCLUSIVE "pull request #$1" "could not read whether it merged" ;;
+  esac
+}
+run_once() {   # $1 branch or tag, $2 its head: one read of the push run's id (empty: none yet; 1: unread)
+  local id
+  id=$(H="$2" gh run list --repo "$repo" --branch "$1" --event push --json databaseId,headSha \
+       --jq '[.[] | select(.headSha == $ENV.H)][0].databaseId // empty' 2>/dev/null) || return 1
+  if [[ "$id" =~ ^[0-9]+$ ]]; then printf '%s' "$id"; fi
+}
+run_state() { gh run view "$1" --repo "$repo" --json status --jq '.status' 2>/dev/null; }
+settle_runs() {   # v1pp-probe/inflight-run-at-cleanup: no probe run may still be running when cleanup starts
+  local i id s out
+  for i in 0 1 2; do
+    if [ -z "${r_ids[$i]}" ] && [ -n "${r_heads[$i]}" ] && [ -z "${r_looked[$i]}" ]; then
+      id=$(run_once "${r_names[$i]}" "${r_heads[$i]}") || id=""
+      r_ids[$i]=$id; r_looked[$i]=yes
+      if [ -z "$id" ]; then
+        mark INCONCLUSIVE "run ${r_names[$i]}" "pushed, but no run seen yet: if one starts, cancel it at https://github.com/$repo/actions"
+      fi
+    fi
+    id=${r_ids[$i]}
+    [ -n "$id" ] || continue
+    s=$(run_state "$id") || s=""
+    [ "$s" = completed ] && continue
+    log "Run $id (${r_names[$i]}) reads '${s:-unread}': cancelling it before cleanup."
+    out=$(gh api -X POST "repos/$repo/actions/runs/$id/cancel" 2>&1) || log "  The cancel answered: $(flat "$out")"
+    if ! read_until "Run $id" completed run_state "$id"; then
+      mark INCONCLUSIVE "run $id" "still '${rlast:-unread}' after the cancel: cancel it at https://github.com/$repo/actions/runs/$id"
+    fi
+  done
+}
+finish() {   # cancel, cleanup, the reads after it, the verdict; never returns
+  local n r tab=$'\t' x i c d ok
   started=""; finished=yes
   for r in "${g_branches[@]}" "${b_branches[@]}"; do   # pull requests whose number this run did not learn
     if x=$(list_prs "$r"); then add_num $x; else mark INCONCLUSIVE "cleanup $r" "could not list its pull requests"; fi
   done
-  log "Cleanup: closing ${#nums[@]} probe pull request(s), deleting ${#probe_refs[@]} probe ref(s)."
+  for n in "${nums[@]}"; do read_merged "$n"; done   # before cleanup closes them (v1pp-probe/r2-after-cleanup)
+  settle_runs
+  log "Cleanup: closing ${#nums[@]} probe pull request(s), deleting ${#clean_refs[@]} ref(s)."
   cleanup
+  i=0
   for n in "${nums[@]}"; do
-    if read_until "Pull request #$n" "closed${tab}false" pr_state "$n"; then
-      mark PASS "after cleanup #$n" "closed, unmerged"
-    elif [ "${rlast#*"$tab"}" = true ]; then
+    c=${close_res[$i]}; i=$((i + 1))
+    if read_until "Pull request #$n" "closed${tab}false" pr_state "$n"; then ok=yes; else ok=""; fi
+    if [ "${c#*"$tab"}" = true ] || [ "${rlast#*"$tab"}" = true ]; then
       mark FAIL "after cleanup #$n" "merged into main"
+    elif [ "$c" = "closed${tab}false" ] && [ -n "$ok" ]; then
+      mark PASS "after cleanup #$n" "closed, unmerged"
     else
-      mark INCONCLUSIVE "after cleanup #$n" "reads '${rlast:-unread}', not closed and unmerged: close it at https://github.com/$repo/pull/$n"
+      mark INCONCLUSIVE "after cleanup #$n" "the close answered '$c', it reads '${rlast:-unread}': close it with gh pr close $n --repo $repo"
     fi
   done
-  for r in "${probe_refs[@]}"; do
-    if read_until "$r" absent ref_state "$r"; then mark PASS "after cleanup $r" "deleted"
-    else mark INCONCLUSIVE "after cleanup $r" "reads '${rlast:-unread}': delete it with gh api -X DELETE repos/$repo/git/refs/$r"; fi
+  i=0
+  for r in "${clean_refs[@]}"; do
+    d=${del_res[$i]}; i=$((i + 1))
+    if read_until "$r" absent ref_state "$r"; then ok=yes; else ok=""; fi
+    if [ "$d" = done ] && [ -n "$ok" ]; then mark PASS "after cleanup $r" "deleted"
+    else mark INCONCLUSIVE "after cleanup $r" "the delete answered '$d', it reads '${rlast:-unread}': delete it with gh api -X DELETE repos/$repo/git/refs/$r"; fi
   done
-  if [ -n "$tag_main_made" ]; then
-    if read_until tags/main absent ref_state tags/main; then mark PASS "after cleanup tags/main" "deleted"
-    else mark INCONCLUSIVE "after cleanup tags/main" "reads '${rlast:-unread}': delete it with gh api -X DELETE repos/$repo/git/refs/tags/main"; fi
-  fi
   rm -rf "$work"
   if [ "$fails" != 0 ]; then
     log "FAIL (V1''): $fails step(s) above went through. 'Allow GitHub Actions to create and approve pull requests' is off (see above)."
@@ -218,14 +294,14 @@ finish() {   # cleanup, the reads after it, the verdict; never returns
     give_back_scope; exit 2
   fi
   if [ "$others" != 0 ]; then
-    log "INCONCLUSIVE (V1''): $others step(s) above are not PASS (a read failed, a refusal for another reason, or a step not tried); nothing went through. MORNING_NOTE_SEND stays unset. Send this output to the team. Saved to $results"
+    log "INCONCLUSIVE (V1''): $others step(s) above are not PASS (a read failed, a refusal for another reason, or a step not tried); nothing was seen to go through. MORNING_NOTE_SEND stays unset. Send this output to the team. Saved to $results"
     give_back_scope; exit 1
   fi
-  log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. Send this output to the team. Saved to $results"
+  log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment or Pages deployment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. Send this output to the team. Saved to $results"
   give_back_scope; exit 0
 }
 on_exit() {   # an exit before finish (Ctrl+C, an unexpected stop): clean up quietly
-  if [ -n "$started" ]; then started=""; cleanup; fi
+  if [ -n "$started" ]; then started=""; cleanup_quiet; fi
   rm -rf "$work"
   give_back_scope
 }
@@ -288,7 +364,6 @@ done
 log "Probe pull requests (yours): W #${g_nums[0]}, N #${g_nums[1]}, D0 #${g_nums[2]}. Bot branches: ${b_branches[*]}."
 # F2 (R-T): a tag named main must not be creatable, by anyone
 if out=$(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha="$main_before" --jq '.ref' 2>&1); then
-  tag_main_made=yes
   mark FAIL "tag main" "GitHub created it: $(printf '%s' "$out" | tr '\r\n' '  ')"
 elif grep -qi 'rule violation' <<< "$out"; then
   mark PASS "tag main" "refused ($(printf '%s' "$out" | tr '\r\n' '  '))"
@@ -296,39 +371,47 @@ else
   mark INCONCLUSIVE "tag main" "failed without naming a rule: $(printf '%s' "$out" | tr '\r\n' '  ')"
 fi
 push_file "$envb" "$file_env" "$envwf" "V1pp probe: environment refusal" || setup_failed "could not push $envb"
-env_head=$pushed
+env_head=$pushed; r_heads[1]=$env_head
 gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/$ptag" -f sha="$env_head" --silent \
   || setup_failed "could not create the tag $ptag"
+r_heads[2]=$env_head
 push_file "$runner" "$file_runner" "$runwf" "V1pp probe: runner workflow" || setup_failed "could not push $runner"
-run_head=$pushed
+run_head=$pushed; r_heads[0]=$run_head
 
 # ---------------------------------------------------------------------------------------------- the runs (reads)
 run_of() {   # $1 branch or tag, $2 its head: the push run's id, or nothing after 3 minutes
   local id i
   for i in $(seq 1 18); do
-    id=$(H="$2" gh run list --repo "$repo" --branch "$1" --event push --json databaseId,headSha \
-         --jq '[.[] | select(.headSha == $ENV.H)][0].databaseId // empty' 2>/dev/null) || id=""
-    if [[ "$id" =~ ^[0-9]+$ ]]; then printf '%s' "$id"; return 0; fi
+    id=$(run_once "$1" "$2") || id=""
+    if [ -n "$id" ]; then printf '%s' "$id"; return 0; fi
     [ "$i" = 18 ] || sleep 10
   done
   return 1
 }
-run_status() {   # $1 run id: waits for it, then prints its status
-  gh run watch "$1" --repo "$repo" >/dev/null 2>&1 || true
-  gh run view "$1" --repo "$repo" --json status --jq '.status' 2>/dev/null
+wait_run() {   # $1 run id: v1pp-probe/unbounded-watch: up to 12 minutes (72 reads, 10 s apart); prints the last status
+  local s="" i
+  for i in $(seq 1 72); do
+    s=$(run_state "$1") || s=""
+    [ "$s" = completed ] && break
+    [ "$i" = 72 ] || sleep 10
+  done
+  printf '%s' "$s"
+}
+run_log() {   # $1 run id: the run's log; untrusted text, so ANSI colour codes, then control characters, are dropped
+  gh run view "$1" --repo "$repo" --log 2>/dev/null | sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' \
+    | tr -d '\000-\010\013-\037\177'
 }
 run_id=$(run_of "$runner" "$run_head") || run_id=""
+r_ids[0]=$run_id; r_looked[0]=yes
 lines=""
 if [ -z "$run_id" ]; then
   mark INCONCLUSIVE "runner" "the probe run did not start within 3 minutes"
 else
   log "Probe run: https://github.com/$repo/actions/runs/$run_id"
-  st=$(run_status "$run_id") || st=""
+  st=$(wait_run "$run_id")
   if [ "$st" = completed ]; then mark PASS "runner" "the run completed"
-  else mark INCONCLUSIVE "runner" "the run reads '${st:-unread}', not completed, so its answers are not final"; fi
-  # the run's log is untrusted text: ANSI colour codes, then control characters, dropped before any of it is used
-  log_text=$(gh run view "$run_id" --repo "$repo" --log 2>/dev/null | sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' \
-             | tr -d '\000-\010\013-\037\177') || log_text=""
+  else mark INCONCLUSIVE "runner" "the run reads '${st:-unread}', not completed after 12 minutes, so its answers are not final (it is cancelled before cleanup)"; fi
+  log_text=$(run_log "$run_id") || log_text=""
   lines=$(grep -oE "V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH)( .*)?$" <<< "$log_text" || true)
   while IFS= read -r l; do [ -n "$l" ] && log "  $l"; done <<< "$lines"
   errs=$(grep -v 'echo "V1PP-ERROR' <<< "$log_text" | grep -oE "V1PP-ERROR: .*" || true)
@@ -352,8 +435,8 @@ judge() {   # $1 target, $2 step, $3 what the refusal must name (an ERE, any cas
 judge_pr() {   # $1 target: the bot approval and every merge try on its pull request
   judge "$1" approve 'not permitted to (create or )?approve pull requests'
   judge "$1" squash 'approving review'
-  judge "$1" merge ''
-  judge "$1" rebase ''
+  judge "$1" merge 'not allowed|approving review|rule violation'    # v1pp-probe/unobserved-refusal-pass
+  judge "$1" rebase 'not allowed|approving review|rule violation'
   judge "$1" graphql 'approving review'
 }
 i=0
@@ -379,7 +462,7 @@ env_refused() {   # $1 run label, $2 run id: each environment's job refused befo
     return 0
   fi
   log "Environment run ($1): https://github.com/$repo/actions/runs/$2"
-  run_status "$2" >/dev/null || true
+  wait_run "$2" >/dev/null
   jobs=$(gh api "repos/$repo/actions/runs/$2/jobs" \
          --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null) || jobs=""
   for e in github-pages morning-note; do
@@ -400,21 +483,30 @@ env_refused() {   # $1 run label, $2 run id: each environment's job refused befo
     fi
   done
 }
+pages_refused() {   # $1 run label, $2 run id: v1pp-probe/pages-api-coverage, the pages-api job's answer
+  local l code rest
+  if [ -z "$2" ]; then mark INCONCLUSIVE "$1 pages-api" "the run did not start within 3 minutes"; return 0; fi
+  l=$(run_log "$2" | grep -oE "V1PP-RESULT PAGES api exit=[0-9]+( .*)?$" | head -n 1) || l=""
+  if [ -z "$l" ]; then mark INCONCLUSIVE "$1 pages-api" "no answer in the run's log"; return 0; fi
+  rest=${l#*exit=}; code=${rest%% *}
+  if [ "$code" = 0 ]; then mark FAIL "$1 pages-api" "GitHub accepted a Pages deployment: $rest"
+  elif grep -qiE 'not allowed to deploy|protection rule' <<< "$rest"; then mark PASS "$1 pages-api" "refused: $rest"
+  elif grep -qi 'artifact' <<< "$rest"; then
+    mark FAIL "$1 pages-api" "refused only for the made-up artifact, so the Pages API is open to $1: $rest"
+  else mark INCONCLUSIVE "$1 pages-api" "refused, but not on branch or environment grounds: $rest"; fi
+}
 env_run=$(run_of "$envb" "$env_head") || env_run=""
+r_ids[1]=$env_run; r_looked[1]=yes
 env_refused "branch $envb" "$env_run"
+pages_refused "branch $envb" "$env_run"
 tag_run=$(run_of "$ptag" "$env_head") || tag_run=""
+r_ids[2]=$tag_run; r_looked[2]=yes
 env_refused "tag $ptag" "$tag_run"
+pages_refused "tag $ptag" "$tag_run"
 
 # every probe pull request's merged flag (yours and any the bot opened)
 for r in "${g_branches[@]}"; do x=$(list_prs "$r") && add_num $x; done
-for n in "${nums[@]}"; do
-  m=$(gh api "repos/$repo/pulls/$n" --jq '.merged' 2>/dev/null) || m=""
-  case "$m" in
-    false) mark PASS "pull request #$n" "unmerged" ;;
-    true) mark FAIL "pull request #$n" "merged into main" ;;
-    *) mark INCONCLUSIVE "pull request #$n" "could not read whether it merged" ;;
-  esac
-done
+for n in "${nums[@]}"; do read_merged "$n"; done
 for f in "$file_w" "$file_n" "$file_d" "$file_push" "$file_runner" "$file_env"; do
   for ref in main records-data; do
     if out=$(gh api "repos/$repo/contents/$f?ref=$ref" --jq '.sha' 2>&1); then
@@ -428,7 +520,7 @@ tag_after=$(sha_of tags/main) || tag_after=""
 case "$tag_after" in
   absent) mark PASS "tag main after" "absent" ;;
   "") mark INCONCLUSIVE "tag main after" "could not read it" ;;
-  *) tag_main_made=yes; mark FAIL "tag main after" "a tag named main exists at $tag_after" ;;
+  *) mark FAIL "tag main after" "a tag named main exists at $tag_after" ;;
 esac
 main_after=$(sha_of heads/main) || main_after=""
 if [ "$main_after" = "$main_before" ]; then mark PASS "main" "unchanged at $main_before"

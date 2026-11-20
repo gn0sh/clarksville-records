@@ -3,8 +3,11 @@
 # .github/workflows/v1pp-env.yml, then creates the tag v1pp-probe at the same commit; each push starts one run. Both
 # environments allow main only (a deployment policy of type branch), so GitHub must refuse each job before it starts,
 # with the annotation "... is not allowed to deploy to <environment> due to environment protection rules". A job that
-# gets in only prints one line and succeeds, which the probe records as FAIL. It grants nothing, reads no secret and
-# runs no file from the repository.
+# gets in only prints one line and succeeds, which the probe records as FAIL. Those two grant nothing.
+# The pages-api job (v1pp-probe/pages-api-coverage) declares no environment, so nothing stops it starting: with pages
+# write and an OIDC token it calls POST pages/deployments for a made-up artifact (id 1). PASS only if GitHub refuses on
+# branch or environment grounds; refused only for the artifact means the path is open (FAIL). It prints the answer.
+# No job reads a secret or runs a file from the repository.
 name: V1pp environment probe (one time)
 on:
   push:
@@ -28,3 +31,27 @@ jobs:
     permissions: {}
     steps:
       - run: echo "This job got into an environment it must not reach."
+  pages-api:
+    name: pages-api
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Try the Pages deployment API without an environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The target and step names sit in variables, so the step's own text, which the log also shows, never matches
+        # the probe script's result pattern.
+        run: |
+          set -uo pipefail
+          t=PAGES; s=api
+          tok=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" \
+                | jq -r '.value // empty') || tok=""
+          if [ -z "$tok" ]; then echo "V1PP-ERROR: no OIDC token"; exit 1; fi
+          echo "::add-mask::$tok"
+          code=0
+          out=$(gh api -X POST "repos/$GITHUB_REPOSITORY/pages/deployments" -F artifact_id=1 \
+                -f pages_build_version="$GITHUB_SHA" -f oidc_token="$tok" -f environment=github-pages 2>&1) || code=$?
+          echo "V1PP-RESULT $t $s exit=$code $(printf '%s' "$out" | tr '\r\n' '  ')"

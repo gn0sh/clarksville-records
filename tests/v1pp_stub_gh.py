@@ -96,10 +96,19 @@ if a[:2] == ["run", "watch"]:
 if a[:2] == ["run", "view"]:
     rid = a[2]
     if "--log" in a:
-        assert rid == "500", a
-        sys.stdout.write(cfg.get("runner_log", ""))
+        if rid == "500":
+            sys.stdout.write(cfg.get("runner_log", ""))
+        else:   # an environment run: the pages-api job's answer, refused on branch or environment grounds
+            who = {"501": 'Branch "probe/v1pp-env"', "502": 'Tag "v1pp-probe"'}[rid]
+            default = ('pages-api\tTry\t2026-11-21T15:00:00Z echo "V1PP-RESULT $t $s exit=$code $(printf ...)"\n'
+                       "pages-api\tTry\t2026-11-21T15:00:02Z V1PP-RESULT PAGES api exit=1 gh: %s is not allowed to "
+                       "deploy to github-pages due to environment protection rules. (HTTP 400)\n" % who)
+            sys.stdout.write(cfg.get("env_logs", {}).get(rid, default))
         sys.exit(0)
-    ok({"status": cfg.get("run_status", {}).get(rid, "completed")})
+    status = cfg.get("run_status", {}).get(rid, "completed")
+    if rid in st.get("cancelled", []):
+        status = "completed"
+    ok({"status": status})
 
 assert a[:1] == ["api"], a
 m = method()
@@ -139,8 +148,17 @@ if short == "git/refs" and m == "POST":
     refs[r] = fl["sha"]
     st.setdefault("created", []).append(r)
     ok({"ref": "refs/" + r, "object": {"sha": fl["sha"]}})
+if short.startswith("actions/runs/") and short.endswith("/cancel") and m == "POST":
+    rid = short.split("/")[2]
+    if rid not in [str(x) for x in cfg.get("cancel_ignored", [])]:
+        st.setdefault("cancelled", []).append(rid)
+    ok({})
 if short.startswith("git/refs/") and m == "DELETE":
     r = short[len("git/refs/"):]
+    if r in cfg.get("delete_fail", []):
+        err(502, "Server Error")
+    if r == "tags/main" and r not in refs and cfg.get("tag_main_delete") == "rule":
+        err(422, "Repository rule violations found\n\nCannot delete this protected ref.")
     if r not in refs:
         err(422, "Reference does not exist")
     if r in cfg.get("delete_ignored", []):
@@ -185,7 +203,9 @@ if short.startswith("pulls/") and m == "PATCH":
         pr["state"] = "closed"
         if int(n) in cfg.get("merged_after_cleanup", []):   # a merge that landed meanwhile (verdict race)
             pr["merged"] = True
-    ok({})
+    if int(n) in cfg.get("close_fail", []):
+        err(502, "Server Error")
+    ok({"number": int(n), "state": pr["state"], "merged": pr["merged"] or int(n) in cfg.get("merged", [])})
 if short.startswith("pulls/") and m == "GET":
     n = short.split("/")[1]
     pr = st["prs"][n]

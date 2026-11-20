@@ -21,7 +21,11 @@ SH = ROOT / "scripts" / "v1pp-probe.sh"
 PS1 = ROOT / "scripts" / "v1pp-probe.ps1"
 PROBE_DIR = ROOT / "scripts" / "v1pp-probe"
 STUB = ROOT / "tests" / "v1pp_stub_gh.py"
-LOCK = {"sh": ("v1pp_locked=yes", "v1pp_locked=no"), "ps1": ("$v1ppLocked = $true", "$v1ppLocked = $false")}
+# the one lock line of each twin, and the unlocked form the enabling PR writes (here: a day far ahead)
+LOCK = {"sh": ("v1pp_unlocked_until=none", "v1pp_unlocked_until=2099-12-31"),
+        "ps1": ("$v1ppUnlockedUntil = 'none'", "$v1ppUnlockedUntil = '2099-12-31'")}
+LOCK_DOC = ("v1pp_unlocked_until=none   ->   v1pp_unlocked_until=YYYY-MM-DD",
+            "$v1ppUnlockedUntil = 'none'   ->   $v1ppUnlockedUntil = 'YYYY-MM-DD'")
 MAIN, RD = "1" * 40, "2" * 40
 G, B = ("W", "N", "D0"), ("WB", "NB", "D0B")
 BRANCHES = ["probe/v1pp-w", "probe/v1pp-n", "probe/v1pp-d0", "probe/v1pp-w-bot", "probe/v1pp-n-bot",
@@ -137,7 +141,8 @@ class Run:
         return len([c for c in self.calls if c["method"] == "SLEEP"])
 
 
-def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False, pm="ok"):
+def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False, pm="ok", unlock="2099-12-31",
+          refs=None):
     scripts, bindir = tmp / "scripts", tmp / "bin"
     scripts.mkdir()
     bindir.mkdir()
@@ -149,7 +154,7 @@ def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False
             old, new = LOCK[tw]
             pat = re.compile("(?m)^" + re.escape(old) + "$")
             assert len(pat.findall(text)) == 1, name
-            text = pat.sub(lambda _: new, text)
+            text = pat.sub(lambda _: new.replace("2099-12-31", unlock), text)
         (scripts / name).write_text(text, encoding="utf-8")
     (scripts / "v1pp-probe").symlink_to(PROBE_DIR)
     (scripts / "protect-main.sh").write_text(_PM)
@@ -160,7 +165,7 @@ def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False
         (bindir / f).chmod(0o755)
     cfg = {"runner_log": runner_log(), **(cfg or {})}
     (tmp / "cfg.json").write_text(json.dumps(cfg))
-    state = {"refs": {"heads/main": MAIN, "heads/records-data": RD}}
+    state = {"refs": {"heads/main": MAIN, "heads/records-data": RD, **(refs or {})}}
     if cfg.get("tag_exists"):
         state["refs"]["tags/main"] = MAIN
     for b, n in cfg.get("bot_prs", {}).items():   # a pull request the runner's GITHUB_TOKEN opened
@@ -184,13 +189,20 @@ def assert_cleaned(run):
     """Every probe ref deleted and read again as gone; every probe pull request closed and read again."""
     left = [r for r in REFS if r in run.state["refs"]]
     assert not left, left
-    for r in REFS:
+    for r in REFS + ["tags/main"]:
         assert f"PASS after cleanup {r}: deleted" in run.out, r
     for n, pr in run.state.get("prs", {}).items():
         assert pr["state"] == "closed", n
     deletes = [c["path"] for c in run.calls if c["method"] == "DELETE"]
     for r in REFS:
         assert deletes.count("git/refs/" + r) == 2, r     # the leftovers pass, then cleanup
+    assert deletes.count("git/refs/tags/main") == 1      # v1pp-probe/tag-main-cleanup: always, once
+    # v1pp-probe/inflight-run-at-cleanup: every probe run reads completed before the first cleanup write
+    first_close = next((i for i, c in enumerate(run.calls) if c["method"] == "PATCH"), None)
+    if first_close is not None:
+        for rid in run.state.get("cancelled", []):
+            cancel = next(i for i, c in enumerate(run.calls) if c["path"] == f"actions/runs/{rid}/cancel")
+            assert cancel < first_close, rid
 
 
 # ------------------------------------------------------------------ PASS
@@ -213,6 +225,7 @@ def test_pass_when_every_try_is_refused(tmp_path, twin):
         for e in ("github-pages", "morning-note"):
             assert any(ln.startswith(f"PASS {label} {e}: refused") and "not allowed to deploy to " + e in ln
                        for ln in passes), (label, e)
+        assert any(ln.startswith(f"PASS {label} pages-api: refused") for ln in passes), label
     assert any(ln.startswith("PASS tag main: refused") for ln in passes)
     assert "PASS tag main after: absent" in run.out and f"PASS main: unchanged at {MAIN}" in run.out
     for f in FILES:
@@ -293,6 +306,12 @@ FAILS = {
     "file-on-records-data": ({"on_rd": [FILES[1]]}, [f"FAIL {FILES[1]} on records-data"]),
     "file-on-main-no-merge-line": ({"on_main": [FILES[0]]}, [f"FAIL {FILES[0]} on main"]),
     "merged-after-cleanup": ({"merged_after_cleanup": [79]}, ["FAIL after cleanup #79: merged into main"]),
+    # v1pp-probe/pages-api-coverage
+    "pages-accepted": ({"env_logs": {"501": _line("V1PP-RESULT PAGES api exit=0 {\"status_url\": \"x\"}")}},
+                       ["FAIL branch probe/v1pp-env pages-api: GitHub accepted a Pages deployment"]),
+    "pages-refused-only-for-artifact": (
+        {"env_logs": {"502": _line("V1PP-RESULT PAGES api exit=1 gh: Artifact not found (HTTP 404)")}},
+        ["FAIL tag v1pp-probe pages-api: refused only for the made-up artifact"]),
 }
 
 
@@ -362,6 +381,19 @@ INCONCLUSIVE = {
     "tag-main-other": ({"tag_main": "other"}, "INCONCLUSIVE tag main: failed without naming a rule"),
     "tag-main-unread": ({"tag_main_reads_fail": True}, "INCONCLUSIVE tag main after: could not read it"),
     "bot-list-unread": ({"fail": {"head=gn0sh:probe/v1pp-n-bot": 1}}, "INCONCLUSIVE NB pull request: could not list"),
+    # v1pp-probe/unobserved-refusal-pass: a merge or rebase refused for another reason is not a PASS
+    "merge-502": ({"runner_log": runner_log(N_merge="1 gh: Server Error (HTTP 502)")},
+                  "INCONCLUSIVE N merge: refused, but not naming 'not allowed|approving review|rule violation'"),
+    "rebase-502": ({"runner_log": runner_log(D0_rebase="1 gh: Server Error (HTTP 502)")},
+                   "INCONCLUSIVE D0 rebase: refused, but not naming"),
+    "pages-other": ({"env_logs": {"501": _line("V1PP-RESULT PAGES api exit=1 gh: Server Error (HTTP 502)")}},
+                    "INCONCLUSIVE branch probe/v1pp-env pages-api: refused, but not on branch or environment grounds"),
+    "pages-missing": ({"env_logs": {"502": _line("V1PP-ERROR: no OIDC token")}},
+                      "INCONCLUSIVE tag v1pp-probe pages-api: no answer in the run's log"),
+    # v1pp-probe/cleanup-absence-read: a cleanup write that failed is INCONCLUSIVE, even if the re-read agrees
+    "close-failed": ({"close_fail": [78]}, "INCONCLUSIVE after cleanup #78: the close answered 'failed:"),
+    "delete-failed": ({"delete_fail": ["heads/probe/v1pp-n"]},
+                      "INCONCLUSIVE after cleanup heads/probe/v1pp-n: the delete answered 'failed:"),
 }
 
 
@@ -373,7 +405,76 @@ def test_a_failed_read_or_another_refusal_is_inconclusive(tmp_path, twin, case):
     assert any(ln.startswith(want) for ln in run.out.splitlines()), (want, run.out)
     assert run.out.rstrip().splitlines()[-1].startswith("INCONCLUSIVE (V1''):")
     assert not run.marks("FAIL") and "r2_puts" not in run.state      # nothing went through: R2 untouched
-    assert not [r for r in REFS if r in run.state["refs"]]           # cleanup ran anyway
+    left = [r for r in REFS if r in run.state["refs"]]               # cleanup ran anyway
+    assert left == (["heads/probe/v1pp-n"] if case == "delete-failed" else []), left
+    assert "nothing was seen to go through" in run.out.rstrip().splitlines()[-1]
+
+
+def test_a_run_still_going_at_the_deadline_is_cancelled_before_cleanup(tmp_path, twin):
+    """v1pp-probe/unbounded-watch and inflight-run-at-cleanup: 72 reads, 10 s apart, then the cancel, then cleanup."""
+    run = probe(tmp_path, twin, {"run_status": {"500": "in_progress"}})
+    assert run.r.returncode == 1
+    assert any(ln.startswith("INCONCLUSIVE runner: the run reads 'in_progress', not completed after 12 minutes")
+               for ln in run.out.splitlines())
+    reads = [c for c in run.calls if c["method"] == "run view" and "500" in c["argv"] and "--log" not in c["argv"]]
+    assert len(reads) == 72 + 1 + 1          # the bounded wait, the read before the cancel, the read after it
+    assert run.state["cancelled"] == ["500"] and "cancelling it before cleanup" in run.out
+    assert_cleaned(run)
+    assert not [c for c in run.calls if c["method"] == "run watch"]   # no unbounded gh run watch
+
+
+def test_a_run_that_will_not_cancel_is_inconclusive_with_the_link(tmp_path, twin):
+    run = probe(tmp_path, twin, {"run_status": {"502": "in_progress"}, "cancel_ignored": [502]})
+    assert run.r.returncode == 1
+    assert ("INCONCLUSIVE run 502: still 'in_progress' after the cancel: cancel it at "
+            "https://github.com/gn0sh/clarksville-records/actions/runs/502") in run.out
+
+
+def test_a_setup_failure_looks_up_and_cancels_a_run_it_started(tmp_path, twin):
+    """The env branch was pushed (its run may be going), then the tag failed: the run is found and cancelled."""
+    run = probe(tmp_path, twin, {"fail": {"ref=refs/tags/v1pp-probe": 1}, "run_status": {"501": "queued"}})
+    assert run.r.returncode == 1 and "INCONCLUSIVE setup: could not create the tag v1pp-probe" in run.out
+    assert run.state["cancelled"] == ["501"]
+    assert not [c for c in run.calls if c["method"] == "run list" and "probe/v1pp-runner" in c["argv"]]
+    assert_cleaned(run)
+
+
+def test_a_tag_main_delete_refused_by_r_t_is_done(tmp_path, twin):
+    """v1pp-probe/tag-main-cleanup: R-T may refuse deleting a tag main that isn't there; the re-read decides."""
+    run = probe(tmp_path, twin, {"tag_main_delete": "rule"})
+    assert run.r.returncode == 0, run.out
+    assert "PASS after cleanup tags/main: deleted" in run.out
+
+
+def test_a_merged_pr_found_only_at_cleanup_is_read_before_cleanup(tmp_path, twin):
+    """v1pp-probe/r2-after-cleanup: a bot PR first seen by finish's listing: its merged flag is read (FAIL, R2 off)
+    before any cleanup write."""
+    run = probe(tmp_path, twin, {"fail": {"branch=probe/v1pp-w-bot": 1}, "bot_prs": {"probe/v1pp-w-bot": 90},
+                                 "merged": [90]})
+    assert run.r.returncode == 2
+    assert "FAIL pull request #90: merged into main" in run.out
+    read = next(i for i, c in enumerate(run.calls) if c["path"] == "pulls/90" and c["method"] == "GET")
+    put = next(i for i, c in enumerate(run.calls) if c["path"] == "actions/permissions/workflow" and c["method"] == "PUT")
+    first_close = next(i for i, c in enumerate(run.calls) if c["method"] == "PATCH")
+    assert read < put < first_close
+
+
+def test_an_expired_unlock_is_refused(tmp_path, twin):
+    """v1pp-probe/lock-window: an unlock left in place stops working after its day."""
+    run = probe(tmp_path, twin, unlock="2000-01-01")
+    assert run.r.returncode == 1 and "unlock expired after 2000-01-01" in run.out and not run.calls
+
+
+def test_a_rerun_deletes_the_leftovers_of_an_earlier_try_first(tmp_path, twin):
+    """S3: after a closed window the runbook says run it again; the leftover branches and tag go first."""
+    left = {r: "9" * 40 for r in REFS}
+    run = probe(tmp_path, twin, refs=left)
+    assert run.r.returncode == 0, run.out
+    first_create = next(i for i, c in enumerate(run.calls) if c["method"] == "POST" and c["path"] == "git/refs")
+    for r in REFS:
+        d = next(i for i, c in enumerate(run.calls) if c["method"] == "DELETE" and c["path"] == "git/refs/" + r)
+        assert d < first_create, r
+    assert_cleaned(run)
 
 
 def test_a_setup_failure_is_inconclusive_and_still_cleans_up(tmp_path, twin):
@@ -389,8 +490,8 @@ def test_a_setup_failure_is_inconclusive_and_still_cleans_up(tmp_path, twin):
 def test_a_ref_still_there_after_cleanup_is_inconclusive_with_the_command(tmp_path, twin):
     run = probe(tmp_path, twin, {"delete_ignored": ["heads/probe/v1pp-env"]})
     assert run.r.returncode == 1
-    assert ("INCONCLUSIVE after cleanup heads/probe/v1pp-env: reads 'present': delete it with gh api -X DELETE "
-            "repos/gn0sh/clarksville-records/git/refs/heads/probe/v1pp-env") in run.out
+    assert ("INCONCLUSIVE after cleanup heads/probe/v1pp-env: the delete answered 'done', it reads 'present': delete "
+            "it with gh api -X DELETE repos/gn0sh/clarksville-records/git/refs/heads/probe/v1pp-env") in run.out
     assert run.sleeps() >= 9
 
 
@@ -406,7 +507,8 @@ def test_a_lagging_read_after_cleanup_waits_and_passes(tmp_path, twin):
 def test_a_pull_request_that_will_not_close_is_inconclusive(tmp_path, twin):
     run = probe(tmp_path, twin, {"close_ignored": [78]})
     assert run.r.returncode == 1
-    assert "INCONCLUSIVE after cleanup #78: reads 'open\tfalse', not closed and unmerged" in run.out.replace("\\t", "\t")
+    assert ("INCONCLUSIVE after cleanup #78: the close answered 'open\tfalse', it reads 'open\tfalse': close it with "
+            "gh pr close 78 --repo gn0sh/clarksville-records") in run.out
 
 
 # ------------------------------------------------------------------ refusals before anything changes
@@ -484,7 +586,8 @@ def test_the_twins_agree():
         old, new = LOCK[tw]
         code_lines = [ln for ln in text.splitlines() if not ln.lstrip().startswith("#")]
         assert code_lines.count(old) == 1 and not [ln for ln in code_lines if new in ln], tw
-        assert f"{LOCK['sh'][0]}   ->   {LOCK['sh'][1]}" in text and f"{LOCK['ps1'][0]}   ->   {LOCK['ps1'][1]}" in text
+        assert all(d in text for d in LOCK_DOC), tw
+        assert "v1pp-probe/lock-window" in text and "expired" in text, tw
         lock = text.index("\n" + old + "\n")
         assert text.index("BEGIN-REFUSAL-LOCK") < lock < text.index("END-REFUSAL-LOCK")
         # nothing that calls GitHub comes before the lock (comments aside)
@@ -523,10 +626,19 @@ def test_the_probe_workflows_are_inert_and_least_privilege():
     envwf = yaml.safe_load(envwf_text)
     assert (envwf.get("on") or envwf[True]) == {"push": {"branches": ["probe/v1pp-env"], "tags": ["v1pp-probe"]}}
     assert envwf["permissions"] == {}
-    assert {k: (j["name"], j["environment"], j["permissions"]) for k, j in envwf["jobs"].items()} == {
-        "github-pages": ("github-pages", "github-pages", {}), "morning-note": ("morning-note", "morning-note", {})}
-    for j in envwf["jobs"].values():
+    jobs = envwf["jobs"]
+    assert {k: (j["name"], j.get("environment"), j["permissions"]) for k, j in jobs.items()} == {
+        "github-pages": ("github-pages", "github-pages", {}), "morning-note": ("morning-note", "morning-note", {}),
+        "pages-api": ("pages-api", None, {"pages": "write", "id-token": "write"})}
+    for k in ("github-pages", "morning-note"):
+        j = jobs[k]
         assert [list(s) for s in j["steps"]] == [["run"]] and j["steps"][0]["run"].startswith("echo ")
+    # v1pp-probe/pages-api-coverage: one call, a made-up artifact, the OIDC token masked, the answer printed
+    (step,) = jobs["pages-api"]["steps"]
+    run = step["run"]
+    assert '"repos/$GITHUB_REPOSITORY/pages/deployments" -F artifact_id=1' in run and "::add-mask::$tok" in run
+    assert 'echo "V1PP-RESULT $t $s exit=$code' in run and "t=PAGES; s=api" in run
+    assert not re.search(r"V1PP-RESULT PAGES\b", envwf_text)
     for text in (envwf_text, (PROBE_DIR / "v1pp-canary.yml").read_text(encoding="utf-8")):
         assert "secrets." not in text and "uses:" not in text
     text = (PROBE_DIR / "v1pp-probe.yml").read_text(encoding="utf-8")

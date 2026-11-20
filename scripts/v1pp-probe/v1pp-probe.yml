@@ -1,7 +1,7 @@
 # V1'' probe runner (docs/architecture/v1-fail-2026-11-18.md section 4 items 1-3; ADR 0011; scripts/v1pp-probe.ps1).
 # The probe script puts this file on the throwaway branch probe/v1pp-runner as .github/workflows/v1pp-probe.yml; that
-# push starts it. With GITHUB_TOKEN only, holding the most a pushed workflow can grant itself here (contents and
-# pull-requests write; main's own workflow holds less), it:
+# push starts it. With GITHUB_TOKEN only, holding contents and pull-requests write, which covers every path tried below
+# (opening, approving and merging pull requests, and pushing to main; main's own workflow holds less), it:
 #   1. tries to open a pull request into main from each bot target branch (WB, NB, D0B): refused while R2 is off;
 #   2. for each open pull request into main from a probe target branch (W, N, D0 opened by gn0sh, and any bot one that
 #      step 1 got through), posts an APPROVE review pinned to the head (refused: R2 off), then tries REST squash,
