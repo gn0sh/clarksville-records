@@ -94,6 +94,9 @@ Definitions of done:
   non-digest page and zero on digest pages (a test for each); `digest/csp` checks the per-file policies of
   architecture section 6 and 4.0 (the Census appears in no CSP but the frame's; the parent has `script-src 'self'`);
   the PR lists any other check that flagged a digest page with the scoped exemption proposed, each naming the prefix.
+  Gains 12.3 #9 (section 12, B-ISO-6): `dates/no-raw-utc-day` reads a coming-up page `digest/<st>/<id>.html` without
+  its `<main>` (the feed text); a raw day there passes, the same day outside a coming-up page or in its footer fails
+  (`tests/test_national_isolation.py`).
 - **B5** (revised) Done when: a test builds with the switch off and compares every output file to a build of `main` at
   the same data, byte for byte (including every `static/count.js`, `_header` output and footer); with it on, removing
   the two fixed fragments (front-page line, Menu group) and the new `digest/` and `static/` files leaves a byte-equal

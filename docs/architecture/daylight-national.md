@@ -210,7 +210,9 @@ government, bidi-override and other control characters stripped and counted in t
 the file (`official_url`, `meeting_url`, `agenda.url`, `items[].source.url`) must pass `config.https_link` and, off
 Daylight, the platform's host allowlist, at collection and again at build; a bad URL is dropped (field null) and the
 page falls back to the directory's `official_url` (finding 4). A meeting `id` matches `^[a-z0-9][a-z0-9-]{0,79}$` (a meeting that does not is dropped and
-counted); every id and path rule is a full match (no trailing newline). Whitespace controls (tab, CR, LF, VT, FF) are
+counted); every id and path rule is a full match (no trailing newline). `date` and the instants take ASCII digits
+only (schema `[0-9]`, never `\d`, which takes any Unicode digit); the copy step also requires each `date` to be a
+calendar day and each instant to lie from the epoch to one day after the build (section 12, B-ISO-2). Whitespace controls (tab, CR, LF, VT, FF) are
 word breaks, not stripped characters; any other text field read from outside is stripped the same way and capped at
 2,000 characters without a `cut` mark (B14). `time` is the posted time string or null. `title_ours` marks
 a title built from fixed labels (Clarksville meetings have a kind, not a posted title). No vote, outcome, tally,
@@ -427,6 +429,17 @@ lines.
   two outside links `election_url` and `census_url` from `config/national/links.yml`: each an https URL or null, and
   the script leaves a line out whole when its link is null; UX section 3 "Outside links"), and
   has the mounts `#digest-form`, `#digest-result`, `#digest-list`, `#digest-saved`, `#digest-noscript` for F2.
+- As built (B-ISO, 2026-11-20; section 12): `run(...)` returns a `NationalRun` (`pages`, `state` `built` or
+  `degraded`, `govs`) in three phases. `load_phase(folder)` loads and runs `check_load` (state, slot and `tz.` labels,
+  `gov_page`, `national_copy.check_entry` for collected entries, `national_clarksville.route_checks` for daylight
+  ones); its `NationalBuildError` is the only national exception `build.py` turns into `BuildError`. Tier 1:
+  `build_feeds` (copy step or adapter per entry) and `build_national`'s per-government bind and render each run in a
+  `try`; any exception gives `stale_feed(entry)`, a word of `DEGRADED_STATES` and `::warning::National pages: <id>:
+  <state> (<type name>)`. Tier 2: anything else clears `digest/`, prints `::error::National pages: built with no data
+  (<type name>)` and rebuilds all stale; a raise there stops the build. `council_inputs` carries an unreadable
+  listing as its exception, raised in that council's tier-1 step. The build result and `build/run-log.json` carry
+  `national` (`off`, `built`, `degraded`) and `national_states` ({body id: `withheld-items` | `bad-date` |
+  `bad-instant` | `adapter-error` | `render-error`}, degraded governments only; D-ISO-9 reads both).
 
 ### 4.4 Fetcher tenant rule (`collector/fetch.py`, M2)
 - `SHARED_HOSTS = {"webapi.legistar.com": re.compile(r"^/v1/([a-z0-9-]{2,40})/")}`.
@@ -768,7 +781,10 @@ requirements, and S2's D1/D2 review checks each.
 - **D2 copy step.** For each kept body file: parse per 4.4.3 (any error = file missing), then `clean_feed`, then
   `bind_feed` against the current directory entry, then the schema; only that output is written to `digest/`. The
   collector's files are not trusted as cleaned: `_kept_feed` (`run.py:178-191`) rebinds but does not re-run
-  `clean_feed` or `allowed_url`.
+  `clean_feed` or `allowed_url`. The copy step never raises on data (section 12): after `bind_feed`,
+  `withheld_stripped > 0` gives `withheld-items`, a bad `date` `bad-date`, a bad instant `bad-instant` (each
+  `stale_feed`, one `::warning::` with id, word and count); only the reviewed entry's R5 keys raise `CopyError`, and
+  those are checked in the load phase. It runs inside tier 1 of the three phases (4.3 "As built (B-ISO)").
 - **M4 writers.** The ICS and Atom writers trust their input, so M4 passes them only feeds that came out of the D2
   step above (bound feeds).
 - **As built (D1, D2; devops-engineer, 2026-11-20).** `.github/workflows/national-update.yml`: `gate` (contents
@@ -1143,6 +1159,15 @@ order):
 - B-ISO-5 N4 (row 14): the adapter per entry in tier 1; route checks in the load phase.
 - B-ISO-6 N2 (row 6): the scoped `dates/no-raw-utc-day` exemption for `digest/<st>/` feed text.
 - B-ISO-7 S2b nit b, plus tests 12.3 #1-9 and #13.
+
+*As built (backend-engineer, 2026-11-20), where it differs from the text above:* (1) the copy step runs the date and
+instant checks after `bind_feed` and before the schema (not after `feed_errors`), so a non-ASCII digit the schema
+also refuses is reported as `bad-date`/`bad-instant` (12.3 #3), not "missing"; `withheld-items` is checked first.
+(2) An exception escaping the copy step itself is `adapter-error` (no separate word); the tier-2 rebuild marks no
+government (`national: degraded` says every page is stale). (3) `council_inputs` stays in tier 2, but an unreadable
+listing file degrades only its council (`adapter-error`, 12.3 #7). (4) In 12.3 #7, a county meeting with no id and an
+item with a null title do not degrade the county: the B14 guards drop the meeting (counted) and print an empty item
+text, so the page builds; a list `source_id` and a non-JSON or non-UTF-8 listing give `adapter-error`.
 
 **devops-engineer** (sonnet/medium; a CI workflow diff goes to a fresh security review):
 - D-ISO-1 S2b finding 3 (row 1): gate step timeouts and job budget; test 12.3 #10. Chosen over moving the lookup to
