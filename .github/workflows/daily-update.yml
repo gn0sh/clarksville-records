@@ -97,9 +97,13 @@ jobs:
   # so the PR that sets it is checked too; a PR that empties it freezes the pipeline instead of reopening phase 0.
   # The check is inline, never a script in the repository; no file from the checkout is run (test: the gate's
   # commands are allowlisted). Cost: 3 API calls per commit after the baseline, plus one attestation lookup.
+  # Time (architecture 12.1 row 1, `national-isolation/gate-timeout-budget`): a job timeout fails the job whatever a
+  # step's continue-on-error says, so the job's budget is the sum of its step timeouts (checkout 2 + history 8 +
+  # national lookup 3 = 13) plus 1 for setup and post steps: 14. A slow D2 lookup then ends at its own 3 minutes and
+  # never takes the gate (and with it update, push and deploy) down, switch off or on. A test keeps the sum.
   gate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 14
     outputs:
       sha: ${{ steps.check.outputs.sha }}
       data_sha: ${{ steps.check.outputs.data_sha }}
@@ -112,6 +116,7 @@ jobs:
       attestations: read     # read the attestations of records-data's listing (I-prov)
     steps:
       - name: Check out this run's commit
+        timeout-minutes: 2
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
@@ -119,6 +124,7 @@ jobs:
 
       - name: Check main's history and the records-data head
         id: check
+        timeout-minutes: 8
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}

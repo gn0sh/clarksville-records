@@ -2451,7 +2451,7 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     gate = jobs["gate"]
     # exactly the three reads (ADR 0011: attestations: read for I-prov)
     assert gate["permissions"] == {"contents": "read", "pull-requests": "read", "attestations": "read"}
-    assert "needs" not in gate and "if" not in gate and "environment" not in gate and gate["timeout-minutes"] <= 10
+    assert "needs" not in gate and "if" not in gate and "environment" not in gate and gate["timeout-minutes"] <= 15
     assert gate["outputs"] == {"sha": "${{ steps.check.outputs.sha }}",
                                "data_sha": "${{ steps.check.outputs.data_sha }}",
                                "seed": "${{ steps.check.outputs.seed }}",

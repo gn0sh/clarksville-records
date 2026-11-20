@@ -502,6 +502,17 @@ def test_the_lookup_step_is_soft_and_cannot_hold_a_clarksville_run():
     assert DAILY["jobs"]["update"]["needs"] == "gate"            # no new job in the deploy's chain
 
 
+def test_every_gate_step_has_a_timeout_and_the_gate_s_budget_holds_them_all():
+    """Architecture 12.3 #10, 12.1 row 1 (`national-isolation/gate-timeout-budget`, S2b finding 3): a job timeout fails
+    the job whatever continue-on-error says, so the gate's budget is at least the sum of its step timeouts plus one
+    minute for setup and post steps. A slow D2 lookup then ends at its own timeout and the gate still succeeds."""
+    gate = DAILY["jobs"]["gate"]
+    mins = [s.get("timeout-minutes") for s in gate["steps"]]
+    assert all(isinstance(m, int) and m >= 1 for m in mins), mins
+    assert gate["timeout-minutes"] >= sum(mins) + 1, (gate["timeout-minutes"], mins)
+    assert gate["timeout-minutes"] <= 15                       # still a short, read-only job
+
+
 def test_the_lookup_reads_the_attested_head(tmp_path):
     outputs, _c, shas, _o = _lookup(tmp_path, [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}],
                                     attest=[(1, {})])
