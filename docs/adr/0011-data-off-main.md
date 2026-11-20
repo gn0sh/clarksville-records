@@ -301,6 +301,15 @@ day, after the day's run, as for the seed digest). The window start (`R2 first o
 ruleset` sha) isn't recorded in `docs/platform-facts.md` yet. The manager supplies it from the ledger before the
 cutover PR's review. If it's unknown, the architect picks the window (runbook 4.7.1). Until then, D3 step 1 refuses.
 
+**Note 2026-11-20 (baseline moved).** PR #66 (design fixes) was squash-merged into `main` by hand as
+`eef6ed0643f42fd104ca2e0a463650066558e20f` on 2026-11-20 03:46 UTC, without `scripts/merge-reviewed` and with no
+person's review of its head, so the gate refused every run after it (correctly). A revert cannot help (eef6ed0 stays on
+the first-parent line) and a review posted now fails `submitted_at <= merged_at`. `MAIN_PR_BASELINE` therefore moves from
+1922fda3 to eef6ed06, after code review and security review of eef6ed0 (docs/reviews/pr66-merged-*.md) checked that it
+touches no trust root and that `1922fda3..eef6ed06` is exactly [8d69778, eef6ed0]. Past the new baseline the gate no
+longer re-checks the cutover squash 8d69778 (item 1); its facts were verified by hand (PR #65 merged by gn0sh, a person's
+review at head 20c3b972 before the merge). From now on every merge into `main` goes through `scripts/merge-reviewed`.
+
 ## Amendment 2026-11-19 (d): S1
 
 Source: security review S1 of the data-off-main milestone (`reviews/s1-security-data-off-main-5fb948f2.md`, OK with
