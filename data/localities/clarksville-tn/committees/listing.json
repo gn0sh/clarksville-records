@@ -2746,8 +2746,8 @@
   },
   {
     "agenda_id": "cc-3064",
-    "agenda_name": null,
-    "agenda_url": null,
+    "agenda_name": "Agenda",
+    "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3363,plainText=false)",
     "body": "Finance Committee",
     "cancelled": false,
     "committee": "finance",
