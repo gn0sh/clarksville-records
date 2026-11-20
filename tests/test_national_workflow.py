@@ -68,9 +68,13 @@ def test_triggers_concurrency_and_least_privilege():
     assert jobs["push"]["permissions"] == {"contents": "write", "id-token": "write", "attestations": "write"}
     assert jobs["report"]["permissions"] == {"issues": "write"}
     assert jobs["collect"]["needs"] == "gate" and jobs["push"]["needs"] == ["gate", "collect"]
-    for job in ("collect", "push"):          # main only, and never before national-data exists (U3-0)
-        cond = " ".join(jobs[job]["if"].split())
-        assert cond == "needs.gate.outputs.ready == 'yes' && github.ref == 'refs/heads/main'", cond
+    base = "needs.gate.outputs.ready == 'yes' && github.ref == 'refs/heads/main'"   # main only, never before U3-0
+    assert " ".join(jobs["push"]["if"].split()) == base
+    # 12.3 #11 (S2b finding 4): the collect job runs on the schedule, or when gn0sh both dispatched and triggered it
+    assert " ".join(jobs["collect"]["if"].split()) == (
+        base + " && (github.event_name == 'schedule' || (github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh'))")
+    assert "status" not in jobs["push"]["if"] and "always()" not in jobs["push"]["if"]  # implied success(): a
+    #                                                                       skipped collect skips the push too
     assert "github.ref == 'refs/heads/main'" in jobs["report"]["if"]
 
 
@@ -205,10 +209,18 @@ def test_the_collect_step_maps_the_cli_exit_codes(tmp_path, rc, ok, flagged):
         assert any(ln.startswith("::warning::") for ln in lines[resume:])
 
 
-@pytest.mark.parametrize("budget", ["", "0", "abc", "1000", "3 --directory x", "-1"])
+@pytest.mark.parametrize("budget", ["", "0", "abc", "1000", "3 --directory x", "-1", "361", "400", "999", "0360",
+                                    "36 0", "360\n"])
 def test_a_bad_budget_collects_nothing(tmp_path, budget):
     r, out, _s, args = _run_collect(tmp_path, 0, budget=budget)
     assert r.returncode != 0 and args == "" and out == ""
+
+
+@pytest.mark.parametrize("budget", ["1", "9", "10", "99", "100", "299", "300", "359", "360"])
+def test_a_budget_from_1_to_360_collects(tmp_path, budget):
+    """12.3 #11: the step's range is the CLI's (argparse caps at 360), so a value the CLI would refuse never starts it."""
+    r, out, _s, args = _run_collect(tmp_path, 0, budget=budget)
+    assert r.returncode == 0 and args.split()[-1] == budget and out == "flagged=no\n"
 
 
 def test_the_budget_comes_from_the_input_then_the_variable_then_300():
