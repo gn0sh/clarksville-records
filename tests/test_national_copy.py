@@ -5,6 +5,7 @@ collector-input/json-depth-recursion, privacy-withhold/national-prefix, national
 import copy
 import json
 import os
+import re
 import shutil
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -149,37 +150,82 @@ def _symlinked_root(tmp_path):
     return tmp_path / "link"
 
 
-MISSING = {
+def _fifo(tmp_path):
+    root = _root(tmp_path)
+    os.mkfifo(root / "bodies" / f"{GOV}.json")
+    return root
+
+
+def _folder(tmp_path):
+    root = _root(tmp_path)
+    (root / "bodies" / f"{GOV}.json").mkdir()
+    return root
+
+
+# No file to read (absent): state `missing`, silent (the page is stale; no root at all is code review nit 4's case).
+ABSENT = {
     "no-root": lambda t: None,
     "root-absent": lambda t: t / "nowhere",
     "no-file": lambda t: _root(t),
-    "not-json": lambda t: _root(t, raw=b"{not json"),
-    "not-utf8": lambda t: _root(t, raw=b"\xff\xfe{}"),
-    "nested-arrays": lambda t: _root(t, raw=b"[" * 60000),
-    "nested-objects": lambda t: _root(t, raw=b'{"a":' * 500 + b"1" + b"}" * 500),
-    "not-an-object": lambda t: _root(t, raw=b"[]"),
-    "null": lambda t: _root(t, raw=b"null"),
-    "too-big": lambda t: _root(t, raw=b" " * (ncopy.MAX_FILE_BYTES + 1) + b"{}"),
-    "other-body-id": lambda t: _root(t, dict(_feed(items=False), body=dict(_feed()["body"], id="place-4799991"))),
-    "bad-body-id": lambda t: _root(t, dict(_feed(items=False), body=dict(_feed()["body"], id="../x"))),
-    "other-platform": lambda t: _root(t, dict(_feed(items=False), body=dict(_feed()["body"], platform="daylight"))),
-    "extra-key": lambda t: _root(t, dict(_feed(items=False), votes=[])),
-    "schema-fails": lambda t: _root(t, dict(_feed(items=False), schema="daylight-upcoming/2")),
-    "date-not-text": lambda t: _root(t, dict(_feed(items=False),
-                                             meetings=[dict(_feed(items=False)["meetings"][0], date=20261203)])),
-    "symlinked-file": _symlinked_file,
     "symlinked-bodies": _symlinked_bodies,
     "symlinked-root": _symlinked_root,
 }
+# A file that is there but refused (B-ISO-9, national-isolation/refused-file-silent): state `bad-file`, one warning
+# with the id, the word and a type name. {case: (make, type name)}
+REFUSED = {
+    "not-json": (lambda t: _root(t, raw=b"{not json"), "NotJson"),
+    "not-utf8": (lambda t: _root(t, raw=b"\xff\xfe{}"), "NotJson"),
+    "nested-arrays": (lambda t: _root(t, raw=b"[" * 60000), "NotJson"),
+    "nested-objects": (lambda t: _root(t, raw=b'{"a":' * 500 + b"1" + b"}" * 500), "NotJson"),
+    "not-an-object": (lambda t: _root(t, raw=b"[]"), "NotAnObject"),
+    "null": (lambda t: _root(t, raw=b"null"), "NotAnObject"),
+    "too-big": (lambda t: _root(t, raw=b" " * (ncopy.MAX_FILE_BYTES + 1) + b"{}"), "FileTooLarge"),
+    "other-body-id": (lambda t: _root(t, dict(_feed(items=False), body=dict(_feed()["body"], id="place-4799991"))),
+                      None),
+    "bad-body-id": (lambda t: _root(t, dict(_feed(items=False), body=dict(_feed()["body"], id="../x"))), None),
+    "other-platform": (lambda t: _root(t, dict(_feed(items=False), body=dict(_feed()["body"], platform="daylight"))),
+                       None),
+    "extra-key": (lambda t: _root(t, dict(_feed(items=False), votes=[])), "BindError"),
+    "schema-fails": (lambda t: _root(t, dict(_feed(items=False), schema="daylight-upcoming/2")), "SchemaRefused"),
+    "date-not-text": (lambda t: _root(t, dict(_feed(items=False), meetings=[
+        dict(_feed(items=False)["meetings"][0], date=20261203)])), "SchemaRefused"),
+    "symlinked-file": (_symlinked_file, "NotRegularFile"),
+    "fifo": (_fifo, "NotRegularFile"),
+    "folder": (_folder, "NotRegularFile"),
+}
 
 
-@pytest.mark.parametrize("case", sorted(MISSING))
-def test_any_unreadable_or_wrong_file_is_missing_and_the_page_stale(tmp_path, monkeypatch, case):
-    """4.4.3 site 7 and 11.1 row 16: any error = file missing (page stale), never an exception, never the file."""
+@pytest.mark.parametrize("case", sorted(ABSENT))
+def test_no_file_is_missing_silently_and_the_page_stale(tmp_path, monkeypatch, capsys, case):
+    """4.4.3 site 7 and 11.1 row 16: no file = file missing (page stale), never an exception, no annotation."""
     entry = _load(tmp_path, monkeypatch, ENTRY)
     counts = ncopy.CopyCounts()
-    _is_stale(ncopy.copy_feed(MISSING[case](tmp_path), entry, counts), entry)
+    _is_stale(ncopy.copy_feed(ABSENT[case](tmp_path), entry, counts), entry)
     assert counts.state == "missing"
+    assert "::warning::" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("case", sorted(REFUSED))
+def test_a_file_that_is_there_but_refused_is_bad_file_with_one_warning(tmp_path, monkeypatch, capsys, case):
+    """B-ISO-9: never an exception, never the file's text; the warning names the id, `bad-file` and a type name."""
+    entry = _load(tmp_path, monkeypatch, ENTRY)
+    counts = ncopy.CopyCounts()
+    make, type_name = REFUSED[case]
+    _is_stale(ncopy.copy_feed(make(tmp_path), entry, counts), entry)
+    assert counts.state == ncopy.BAD_FILE == "bad-file"
+    lines = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("::")]
+    assert len(lines) == 1 and re.fullmatch(rf"::warning::National pages: {GOV}: bad-file \(([A-Za-z_]\w*)\)",
+                                            lines[0]), lines
+    if type_name:
+        assert lines[0].endswith(f"({type_name})")
+
+
+def test_read_body_file_tells_absent_from_refused(tmp_path):
+    assert ncopy.read_body_file(None, GOV) == (None, None)
+    assert ncopy.read_body_file(_root(tmp_path / "a"), GOV) == (None, None)
+    assert ncopy.read_body_file(_root(tmp_path / "b"), "../x") == (None, None)       # an id it may not name
+    assert ncopy.read_body_file(_root(tmp_path / "c", raw=b"{x"), GOV) == (None, "NotJson")
+    assert ncopy.read_body_file(_root(tmp_path / "d", raw=b'{"a": 1}'), GOV) == ({"a": 1}, None)
 
 
 def test_a_file_named_for_another_body_is_never_read(tmp_path, monkeypatch):

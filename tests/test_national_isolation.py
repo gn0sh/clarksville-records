@@ -173,9 +173,10 @@ def assert_clean_lines(text: str) -> list[str]:
 
 def test_the_run_log_contract_d_iso_9_reads():
     """build result and run-log.json: `national` is off | built | degraded; `national_states` maps a degraded
-    government's id to one of these five words only (manager note, 2026-11-20)."""
+    government's id to one of these six words only (manager note, 2026-11-20; `bad-file`: B-ISO-9)."""
     assert (npg.OFF, npg.BUILT, npg.DEGRADED) == ("off", "built", "degraded")
-    assert set(npg.DEGRADED_STATES) == {"withheld-items", "bad-date", "bad-instant", "adapter-error", "render-error"}
+    assert set(npg.DEGRADED_STATES) == {"withheld-items", "bad-date", "bad-instant", "bad-file", "adapter-error",
+                                       "render-error"}
     run = npg.NationalRun(pages=[], govs={GOV: ncopy.MISSING, COUNTY_ID: npg.BUILT, COUNCIL_ID: npg.RENDER_ERROR})
     assert run.degraded == {COUNCIL_ID: "render-error"}
 
@@ -361,8 +362,14 @@ HOSTILE = {
     "bad-instant": lambda b, r: national_root(b, body_file(r, checked_at="2026-11-21T18:00:01Z")),
     "instant-before-epoch": lambda b, r: national_root(b, body_file(r, checked_at="1969-12-31T23:59:59Z")),
 }
+COPIED_CASES = {"fields-and-marks", "fragment-anchors", "huge-integers"}     # cleaned, then published
+# B-ISO-9 (national-isolation/refused-file-silent): a file that is there but refused is `bad-file`, never silent
 STATE_OF = {"bad-date": ncopy.BAD_DATE, "arabic-indic-date": ncopy.BAD_DATE, "bad-instant": ncopy.BAD_INSTANT,
-            "instant-before-epoch": ncopy.BAD_INSTANT}
+            "instant-before-epoch": ncopy.BAD_INSTANT,
+            **{case: ncopy.BAD_FILE for case in HOSTILE if case not in COPIED_CASES and "date" not in case
+               and "instant" not in case}}
+TYPE_OF = {"not-json": "NotJson", "too-big": "FileTooLarge", "depth-33": "NotJson", "symlink": "NotRegularFile",
+           "fifo": "NotRegularFile", "huge-integers-past-the-limit": "NotJson", "extra-key": "BindError"}
 
 
 @pytest.mark.parametrize("case", sorted(HOSTILE))
@@ -375,13 +382,44 @@ def test_a_hostile_body_file_changes_only_its_own_page(world, tmp_path, capsys, 
     assert result["national_states"] == ({GOV: STATE_OF[case]} if case in STATE_OF else {})
     feed = json.loads(got[DATA])
     assert npg.ncl.feed_errors(feed) == []
-    assert_clean_lines(capsys.readouterr().out)
+    lines = [ln for ln in assert_clean_lines(capsys.readouterr().out) if ln.startswith("::warning::")]
+    if case in STATE_OF:                        # one warning, the id, the word and (for bad-file) a type name
+        assert len(lines) == 1 and lines[0].startswith(f"::warning::National pages: {GOV}: {STATE_OF[case]}")
+    if case in TYPE_OF:
+        assert lines == [f"::warning::National pages: {GOV}: bad-file ({TYPE_OF[case]})"]
     if got[DATA] != world["baseline"][DATA]:    # copied: the page prints the JSON's item text, escaped
-        assert case in {"surrogates", "fields-and-marks", "fragment-anchors", "huge-integers"}, case
+        assert case in COPIED_CASES, case
         printed = " ".join(html_mod.unescape(got[PAGE].decode("utf-8")).split())
         for m in feed["meetings"]:
             for it in m["items"]:
                 assert " ".join(it["text"].split()) in printed
+
+
+def test_schema_drift_in_every_legistar_file_is_bad_file_for_each_entry(tmp_path, monkeypatch, capsys):
+    """B-ISO-9 done-when: every Legistar file with one renamed key (a collector schema change) gives `bad-file` for
+    each entry in national_states and one warning each, never a silent `missing`."""
+    gov2 = "place-4799991"
+    second = dict(ENTRY, gov=gov2, body_name="Second Legistar Council",
+                  legistar=dict(ENTRY["legistar"], body_id=8))
+    folder = tmp_path / "config-national"
+    shutil.copytree(nat.NATIONAL_DIR, folder)
+    doc = yaml.safe_load((nat.NATIONAL_DIR / "directory.yml").read_text(encoding="utf-8"))
+    doc["govs"] += [ENTRY, second]
+    (folder / "directory.yml").write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    point_at(monkeypatch, folder, ENTRY)
+    monkeypatch.setattr(nat, "SHOWN_REVIEWED", nat.SHOWN_REVIEWED + (nat.ShownReview(gov2, nat.norm_entry(second)),))
+    directory = LOAD_DIRECTORY(folder / "directory.yml", nat.load_labels())
+    root = national_root(tmp_path)
+    for gov in (GOV, gov2):
+        body = body_file(directory.get(gov)["review"])
+        body["body"].update(id=gov, name=directory.get(gov)["body_name"])
+        body["checkedAt"] = body.pop("checked_at")                  # the one renamed key
+        (root / "bodies" / f"{gov}.json").write_text(json.dumps(body), encoding="utf-8")
+    result = build(tmp_path / "site", root=root)
+    assert result["national"] == npg.BUILT
+    assert result["national_states"] == {GOV: ncopy.BAD_FILE, gov2: ncopy.BAD_FILE}
+    warnings = [ln for ln in assert_clean_lines(capsys.readouterr().out) if ln.startswith("::warning::")]
+    assert sorted(warnings) == sorted(f"::warning::National pages: {g}: bad-file (BindError)" for g in (GOV, gov2))
 
 
 def test_the_fragment_anchors_in_feed_text_are_escaped_and_added_once(world, tmp_path):
@@ -876,9 +914,9 @@ def test_probes_in_a_county_agenda_through_the_adapter_hold_no_digest_page(world
 # --- 12.3 #13: the sentinel through every degrade path ---------------------------------------------------------------
 
 def test_no_degrade_path_prints_input_text(world, tmp_path, monkeypatch, capsys):
-    """withheld-items, bad-date, bad-instant, adapter-error (the copy step or the adapter), render-error and tier 2,
-    each with the sentinel in the input or the exception's own text: every printed line is ids, fixed words, type
-    names and counts."""
+    """withheld-items, bad-date, bad-instant, bad-file, adapter-error (the copy step or the adapter), render-error and
+    tier 2, each with the sentinel in the input or the exception's own text: every printed line is ids, fixed words,
+    type names and counts."""
     review = world["review"]
     seen = set()
 
@@ -900,6 +938,8 @@ def test_no_degrade_path_prints_input_text(world, tmp_path, monkeypatch, capsys)
         one("withheld", national_root(tmp_path / "w", body_file(review)))
     one("bad-date", national_root(tmp_path / "d", body_file(review, date_=f"2026-02-30 {SENTINEL}")))
     one("bad-instant", national_root(tmp_path / "i", body_file(review, checked_at=SENTINEL)))
+    one("bad-file", national_root(tmp_path / "b", dict(body_file(review), **{SENTINEL: SENTINEL})))
+    one("bad-file-read", national_root(tmp_path / "r", raw=SENTINEL.encode()))
     good = national_root(tmp_path / "g", body_file(review))
 
     def boom(*a, **k):
@@ -915,5 +955,5 @@ def test_no_degrade_path_prints_input_text(world, tmp_path, monkeypatch, capsys)
             raise ValueError(SENTINEL)
         return real(*a, **k)
     one("tier-2", good, lambda mp: mp.setattr(nat, "page_directory", first))
-    assert seen == {ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, npg.ADAPTER_ERROR,
+    assert seen == {ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, ncopy.BAD_FILE, npg.ADAPTER_ERROR,
                     npg.RENDER_ERROR, npg.DEGRADED}
