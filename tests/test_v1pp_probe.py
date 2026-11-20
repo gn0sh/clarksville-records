@@ -179,6 +179,9 @@ def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False
         argv = ["bash", str(scripts / SH.name), *args]
     else:
         pwsh_twin.install(tmp, bindir)
+        # the .ps1 writes its results file to [Environment]::GetFolderPath('MyDocuments'), which .NET on Linux
+        # returns as '' unless HOME/Documents exists (Brian's Windows always has one)
+        (tmp / "Documents").mkdir(exist_ok=True)
         e = pwsh_twin.env(e)
         argv = pwsh_twin.argv(scripts / PS1.name, pwsh_twin.flags(list(args), {"--apps": "-Apps", "--bogus": "-Bogus"}))
     r = subprocess.run(argv, env=e, capture_output=True, text=True, timeout=300)
