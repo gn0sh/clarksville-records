@@ -43,6 +43,7 @@ from markupsafe import Markup, escape
 from . import config, localdates, morning_page, views
 from . import national as nat
 from . import national_clarksville as ncl
+from . import national_copy as ncopy
 from .national_guards import BAD_TEXT_RE, BindCounts, BindError, GuardCounts, allowed_url, bind_feed, link_or_official
 from .views import CSP_BASE
 
@@ -365,15 +366,27 @@ def council_inputs(councils, fixture: bool) -> dict[str, tuple[dict, list]]:
 
 
 def build_feeds(directory: nat.Directory, councils: Mapping[str, tuple[dict, list]], county_agendas: dict | None,
-                today: date, counts: dict[str, GuardCounts] | None = None) -> dict[str, dict]:
+                today: date, counts: dict[str, GuardCounts] | None = None, *, national_root: Path | None = None,
+                copy_counts: dict[str, ncopy.CopyCounts] | None = None) -> dict[str, dict]:
     """{body id: feed} for every covered entry, each with its own `checked_at` (the newest record, see
     newest_record_at) and `last_ok_at` null (M1 records no successful check run): the council's from its facts file's
     sources, the county's from the agendas file's sources (newest_record_at). `councils`: council_inputs(). The adapter
     (national_clarksville.clarksville_feeds) is called once per entry so each gets its own instant; a covered entry
-    with no feed stops the build (its page would link nowhere)."""
+    with no feed stops the build (its page would link nowhere). A covered entry on a collected platform (Legistar)
+    gets its feed from the D2 copy step (`national_copy.copy_feed`) under `national_root`, the attested
+    national-data's `data/national` (None: none, every such page stale); `copy_counts` receives what it did."""
     feeds: dict[str, dict] = {}
     for gov in directory.govs:
         if gov["status"] != "covered":
+            continue
+        if gov.get("platform") in ncopy.COLLECTED:
+            one_counts = ncopy.CopyCounts()
+            try:
+                feeds[gov["gov"]] = ncopy.copy_feed(national_root, gov, one_counts)
+            except ncopy.CopyError as exc:
+                raise NationalBuildError(str(exc)) from exc
+            if copy_counts is not None:
+                copy_counts[gov["gov"]] = one_counts
             continue
         key = (gov.get("daylight") or {}).get("body")
         if key == ncl.COUNTY_BODY_KEY:
@@ -631,12 +644,16 @@ def run(out_dir: Path, env, site: dict, *, councils, county_agendas: dict | None
         page_labels = load_page_labels(Path(folder) / "page-labels.yml")
         links = load_links(Path(folder) / "links.yml")
         counts: dict[str, GuardCounts] = {}
-        feeds = build_feeds(directory, council_inputs(councils, fixture), county_agendas, built_day, counts)
+        copied: dict[str, ncopy.CopyCounts] = {}
+        feeds = build_feeds(directory, council_inputs(councils, fixture), county_agendas, built_day, counts,
+                            national_root=ncopy.data_root(), copy_counts=copied)
     except (nat.NationalConfigError, ncl.FeedError, ValueError) as exc:
         raise NationalBuildError(str(exc)) from exc
     for gid, n in sorted(counts.items()):
         if n.any():
             print(f"sitegen: national: {gid}: guards changed the feed: {n.summary()}", flush=True)
+    for gid, c in sorted(copied.items()):
+        print(f"sitegen: national: {gid}: national-data {c.summary()}", flush=True)
     binds: dict[str, BindCounts] = {}
     written = build_national(out_dir, env, site, directory, flags, labels, page_labels, feeds,
                              built_at=build_instant(built_day), counter=counter, bind_counts=binds, links=links)
