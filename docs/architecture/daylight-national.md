@@ -885,7 +885,9 @@ from a digest page names it). The golden test removes (b) and (c) by their exact
 | Shared `national-data` provenance doubles ADR 0011 surface | medium | security review of D1 and D2 |
 | Metadata clobber between morning and weekly senders | high if built separately | one sender package, merged object, shared concurrency (ADR 0013 decision 8) |
 | City Council shows no items in M1 | certain | plain label and agenda link; B9 later |
-| A server drips its TLS handshake, headers or chunked framing (chunk-size lines, extensions, trailer), stretching the request in flight past X = 360 s (4.4.4) | low (Legistar is an approved API) | job timeout is the backstop (nothing written, pages go stale); a dripped chunked answer still fails the fetch by the reader's final `A` check; D1 flags a run killed by its timeout so a repeat is seen; then the margin grows or `A` is enforced below http.client (backlog) |
+| `national-update.yml` collect job: code execution there (a parser bug on a hostile Legistar answer) could read `ACTIONS_RUNTIME_TOKEN` and save a main-scoped Actions cache that `daily-update.yml`'s update job later restores (security S2b finding 6, `national-ci/collect-runtime-token-cache`) | low | **accepted residual** (S2b): the collect job has no repository token and contents read only; the update job's own PDF parsing carries the same exposure today; `national-update.yml` saves no cache (test 12.3 #10 keeps it so); revisit if a cache step is ever added to either workflow |
+| A national step degrades every day and nobody looks (section 12 tier 1 and 2 turn failures into stale pages) | medium | each degrade prints a fixed `::warning::`/`::error::` line; before the switch goes on with a collected entry, the daily run opens one fixed-title issue on `national: degraded` or any degraded government state (task D-ISO-9, with S2b ruling 5's >20% stale issue) |
+| A server drips its TLS handshake, headers or chunked framing (chunk-size lines, extensions, trailer), stretching the request in flight past X = 360 s (4.4.4) | low (Legistar is an approved API) | job timeout is the backstop (nothing written, pages go stale); a dripped chunked answer still fails the fetch by the reader's final `A` check; D1 flags a run killed by its timeout so a repeat is seen; then the margin grows or `A` is enforced below http.client (backlog). **Accepted residual** (`max_answer_seconds` is checked above http.client, between reads, not inside one; S2b re-confirmed): it can only fail a national run, never a Clarksville one (section 12 row 23) |
 
 ## 9. Assumptions
 - AS1. Spec v2's M1 scope is as the manager's brief states (lookup, statuses, Request it, What we cover, Clarksville and
@@ -994,8 +996,14 @@ pinned one field (prefix, name, then the (gov, name) pair) while the meaning of 
   non-null exactly when the file carries items read under that review.
 - Adapter: `_shown` becomes `is_shown`; `_feed` writes `review`; `COUNTY_BODY_KEY` check (row 10).
 - Checks run at load (rows 1-7, source uniqueness), adapter (10-12), build (`bind_feed` then the schema, 14-17),
-  collect (18-19, `bind_feed` again). D2's deploy job fails on `withheld_stripped > 0` (a collector bug) and only
-  logs `review_mismatch` (expected for one run after a reviewed change).
+  collect (18-19, `bind_feed` again). D2's copy step (`national_copy.copy_feed`) never raises on
+  `withheld_stripped > 0` (a collector bug, or a file collected while the entry was shown and read after a PR narrowed
+  it to `items: withheld`): it returns `stale_feed(entry)`, sets `CopyCounts.state = "withheld-items"` and prints one
+  `::warning::National pages: <id>: withheld-items, withheld_stripped=<n>` (id and count only, never the file's
+  text); the build completes and nothing of the file is published (security S2b finding 1,
+  `national-isolation/withheld-stop-holds-site`; section 12). Raising would un-publish nothing (`national-data` is
+  public, 11.1 row 20) and would hold the narrowing PR's own deploy. It only logs `review_mismatch` (expected for one
+  run after a reviewed change).
 
 ### 11.3 Tests (each route closed; fixtures: a withheld `place-` "Youth Council", an `sd*` entry, and the sentinel
 item text `SENTINEL-ITEM-TEXT` in every source fixture)
@@ -1032,3 +1040,183 @@ fails the PR's own checks before merge, as every other 3.2 rule does. Signing th
 3.2: the pair rule becomes the digest rule plus source-key uniqueness. 3.5 and 3.7: top-level `review` (11.2); 3.7
 cache files carry `review`. 4.3: `build_national` writes only `bind_feed` output. 4.5: the `EventBodyId` check and
 cache rule. Tasks B1, B3, B14, B4, C2, C3 and D2 gain the matching tests of 11.3.
+
+## 12. Invariant: national data never holds a Clarksville build or deploy (`national-isolation`)
+v1, software-architect, 2026-11-20: loop-limit re-plan after three hits in family `national-isolation` in one review
+(security S2b findings 1-3, `docs/reviews/security-review-daylight-national-s2b.md`), from ADR 0013 decision 6 ("a
+national failure never holds a Clarksville build or deploy"). Where 3.7, 4.3, 4.6 or 11.2 differ from this section,
+this section wins. Line numbers are at 85bd69a4.
+
+**National inputs** are: (1) any bytes under `national-data`, or in the folder `RECORDS_NATIONAL_DATA` names, or their
+absence (missing, partial, oversized, malformed, hostile, stale, or collected while an entry was shown and read after
+a PR narrowed it); (2) the Clarksville data files *as the national step reads them* (`data/county-agendas/agendas.json`,
+council facts and listings, through the adapter); (3) any outcome of a national step in `daily-update.yml` (failure,
+timeout, cancellation, a missing output); (4) anything at all that `national-update.yml` does or fails to do.
+
+**Invariant.** For every combination of national inputs and every reviewed national config state on `main`:
+- (a) **Off** (`national.enabled: false`): the Clarksville build completes and is byte-identical to a build with no
+  national input at all (7a), whatever `RECORDS_NATIONAL_DATA` names.
+- (b) **On**: the build completes and writes every Clarksville page. A bad national input changes only national
+  output, and only by degrading: that government's page and JSON are built from `stale_feed(entry)` (no meetings,
+  "no records yet", pagedir `stale`), with one `::warning::` naming the government id, a fixed state word and counts
+  or an exception's type name, never the input's text. Every file outside `digest/` is byte-identical to the same
+  build with no national root. Nothing raises out of the national step because of a national input.
+- (c) **Deploy**: every `daily-update.yml` job and step the Clarksville deploy depends on (gate, update, push,
+  deploy, note) ends with the result it would have with no national input. A national step may fail, time out or be
+  skipped without changing any of them.
+
+**Allowed raises (the only ones).** The build may stop on the national side only for a problem that is a function of
+reviewed repository files alone (`config/national/*.yml`, `config/site.yml` `national`, `schema/`, `site/templates/`,
+code) and is decided in the **load phase**, before any national input is read: the loaders' `NationalConfigError`
+(`load_all`, `load_page_labels`, `load_links`), `enabled()`'s switch typo (`national_pages.py:127-128`), the
+adapter's route checks (`national_clarksville.py:190-194`, `:207`), `_platform_keys` (`national_copy.py:75`, `:79`,
+`:81`), a missing page label for a covered entry's state, slot or zone, `gov_page` (`national.py:636`), and the
+fragment anchors of `apply_site_fragments` (`national_pages.py:253`, `:262`, `:269`, `:275`). This does not break the
+invariant because such a state never reaches `main`: test 12.3 #1 builds the shipped config with the switch on in
+every PR, and the daily build runs the same code on the same files, so a raise there fails the PR's own checks
+first, as every other 3.2 rule does. It holds only under two conditions, which are part of the invariant: (i) the
+check is decidable from repository files at load, never first triggered by data (today `_tz_label` is not: row 13);
+(ii) any clock dependence is monotone toward valid (`host_ok.date` no later than today: once true, it stays true).
+
+**How it is held by construction, not by finding each raise.** `national_pages.run` gets three phases:
+- **Load phase** (allowed raises only): every load and every config cross-check, including the new ones of rows 9,
+  13 and 14. Its `NationalBuildError` is the only national exception `build.py` turns into `BuildError`.
+- **Tier 1, per government**: everything that reads a national input for one covered entry (`copy_feed`, or the
+  Clarksville adapter for that entry; bind; schema; the date and instant checks; `meeting_view`; rendering its page
+  and JSON text) runs inside one `try/except Exception`. Any exception: that entry's page and JSON come from
+  `stale_feed(entry)` instead, `CopyCounts.state` is a fixed word (`withheld-items`, `bad-date`, `bad-instant`,
+  `adapter-error`, `render-error`), and one line `::warning::National pages: <id>: <state> (<type name>)` is
+  printed. Rendering `stale_feed` depends only on config (test 12.3 #1).
+- **Tier 2, the whole data phase**: anything else that raises after the load phase (`council_inputs`/`load_listing`,
+  `page_directory`, the index, What we cover, the writes) clears `out/digest/`, re-runs the data phase with no
+  national root and no Clarksville inputs (every covered entry `stale_feed`), prints
+  `::error::National pages: built with no data (<type name>)`, and the build result and `build/run-log.json` say
+  `national: degraded` (else `built`, or `off`). Its inputs are reviewed files only, so a raise in that re-run is an
+  allowed raise and stops the build (test 12.3 #6). "Fall back to the off build" is not used: `digest/csp`
+  (`qa/site_checks.py:2648-2659`) fails a switch-on build with no digest pages, and the Menu group on every page
+  would link missing files; an all-stale digest keeps both true.
+
+### 12.1 Every input and consumer, national input to the Clarksville deploy
+| # | Consumer or route | Current behaviour at 85bd69a4 | Holds? | Fix (task) |
+|---|---|---|---|---|
+| 1 | `daily-update.yml` gate job budget | `timeout-minutes: 10` (:102) covers checkout, the history check (:120, no step timeout) and the D2 lookup (:267-271, `continue-on-error`, step timeout 3). A job timeout fails the job whatever `continue-on-error` says, so a slow lookup on a slow history day fails the gate and skips update, push and deploy, **even with the switch off** | **breaks** (S2b finding 3) | every gate step gets `timeout-minutes`; job timeout >= the sum of step timeouts + 1 (e.g. checkout 1, history 8, lookup 3, job 13); test (D-ISO-1) |
+| 2 | gate lookup step outputs | `set -uo pipefail` (no `-e`); `found`/`none` (:277-278) write `sha` once and exit 0; a timeout or failure leaves `national_sha` empty, so update skips N | holds | - |
+| 3 | update job: check out N (:394-403) | `continue-on-error`, step timeout 3; a failure gives `CHECKOUT != success`, no root | holds | - |
+| 4 | update job: "Put N's data/national beside the build" (:405-426) | `continue-on-error` but **no `timeout-minutes`**: a hang (`mv`, or the `rm -rf` trap on a large tree) runs to the update job's 355-minute timeout and fails the update job, **switch off or on** | **breaks** (new, N1) | `timeout-minutes: 2`; test: every `continue-on-error` step in `daily-update.yml` has a step timeout (D-ISO-2) |
+| 5 | Collect step (:506-512) and Rebuild step (:633-638) | both build with `RECORDS_NATIONAL_DATA`. `collector/__main__.py:508` calls `site_build` with no handler, so a national raise ends the county run non-zero before `run-log.json` is written: the step and the update job fail, and **the day's records-data push is lost too**, not only the deploy | holds only as far as rows 7-19 hold | none here; rows 7-19 remove the raises |
+| 6 | Site checks step (:643-647) on `build/site` | runs every check on digest pages too. `dates/no-raw-utc-day` (`qa/site_checks.py:2876-2882` `FETCH_DAY`, `check_local_dates` :3058-3090) fails any page whose text holds "Fetched/Collected/Added/Downloaded/Retrieved (on) YYYY-MM-DD" or "Data as of YYYY-MM-DD" that is not a manifest fetch day. A Legistar title or item text such as "Item added 2026-01-05" on `digest/<st>/<id>.html` fails the step, the update job and the deploy. Other checks: `sources` (:1395-1412, URLs from `digest_link_urls` :2592-2632) holds by construction (page links are the JSON's, through the same `allowed_url`); `links` skips http(s); `digest/csp`, `header`, `switch`, `footer` and `unofficial` read structure; `private_details` reads `data-transcript` only; `notcollected` and `freshness` read classed blocks | **breaks** (new, N2, `national-isolation/site-checks-read-feed-text`) | `dates/no-raw-utc-day` skips the feed text of `digest/<st>/` pages (a scoped exemption naming `DIGEST`; those pages print no fetch day); test 12.3 #9 runs every site check over a hostile-text build (B-ISO-6) |
+| 7 | `sitegen/build.py:1049-1057` | `NationalBuildError` becomes `BuildError`; any other exception (the `ValueError` of row 11, a `TypeError`, a `UnicodeError`) passes up uncaught | **breaks** for every data raise | only load-phase `NationalBuildError` becomes `BuildError`; tiers 1 and 2 (B-ISO-3) |
+| 8 | `national_pages.run` (:637-664) | the `try` (:642-651) wraps loads and `build_feeds` together and turns every `ValueError`, data or config, into `NationalBuildError`; `build_national` (:658) and the log lines run outside it | **breaks** (the mechanism of findings 1 and 2) | split into load phase, tier 1 and tier 2 (B-ISO-3) |
+| 9 | `national_copy.copy_feed` (:122-147), every raise path | `_platform_keys` :75, :79, :81 (allowed: a reviewed entry; moves to the load phase); `read_body_file` :93-108 `except Exception` -> missing (holds); `clean_feed`/`bind_feed`/`feed_errors` :131-139 `except Exception` -> missing (holds; `checked_id` is inside the `try`); **`withheld_stripped` :141-143 raises `CopyError`** | **breaks** (S2b finding 1) | 11.2 as amended: `stale_feed`, state `withheld-items`, warning with id and count, never raises (B-ISO-1) |
+| 10 | `build_feeds` (:368-403) | `CopyError` -> `NationalBuildError` (:386-387); "covered, but no feed" (:401) is a code assert | breaks via row 9 | per-entry tier 1 (B-ISO-3) |
+| 11 | meeting dates | schema `date` `^\d{4}-\d{2}-\d{2}$` (`schema/daylight-upcoming.schema.json:45`): `\d` takes any Unicode digit and there is no calendar check, so `2026-02-30` or Arabic-Indic digits pass `copy_feed`; then `long_day` (`national_pages.py:439-442`, `date.fromisoformat`, called from `meeting_view` :490) raises `ValueError` inside `build_national`, outside `run()`'s `try`, and row 7 lets it out. `day_words` (`localdates.words`) catches `ValueError` (holds) | **breaks** (S2b finding 2) | in `copy_feed` after `feed_errors`: every `meetings[].date` fullmatches `[0-9]{4}-[0-9]{2}-[0-9]{2}` and `date.fromisoformat` accepts it, else `stale_feed`, state `bad-date`; schema `\d` -> `[0-9]` in `date` and `instant`; also `HOST_OK_DATE_RE` (`national_guards.py:114`) (B-ISO-2) |
+| 12 | instants `checked_at`, `last_ok_at` | schema `instant` (:37) has the same `\d`; read by `newest_day` (:431-436) and `page_directory` (`national.py:654`) through `_parse_instant` (`national.py:620-628`, `ValueError` -> None): the page says no records, the pagedir says stale. `0001-...Z` stops at `<= EPOCH` before `astimezone`; `9999-12-31T23:59:59Z` converts only because `site_timezone` is west of UTC; a future `last_ok_at` would never go stale | holds today (degrades), fragile | in `copy_feed`: both (when not null) parse with `_parse_instant` and lie in `[EPOCH, built_at + 1 day]`, else `stale_feed`, state `bad-instant` (B-ISO-2) |
+| 13 | meeting `time` and `_tz_label` (:458-461, called at :491 only when `time` is not null) | a covered Legistar entry whose zone has no `tz.<zone>` page label passes every PR test without a timed-meeting fixture, then raises `NationalBuildError` on the first collected meeting with a time | **breaks** (new, N3: a config defect first triggered by data) | load phase: every covered entry's zone (`<platform>.tz`, else `site_timezone`) has a `tz.` label (an allowed raise); the render-time raise stays as a code assert inside tier 1 (B-ISO-4) |
+| 14 | Clarksville adapter on Clarksville data (`national_clarksville.py:176-222`; `build_feeds` :389-402; `council_inputs` :356-365 `load_listing`) | route checks :190-194 and :207 are allowed raises. Data-driven: `BindError` (:212-213) and schema errors (:215-216) become `FeedError` -> `NationalBuildError` -> `BuildError`; a malformed `agendas.json` meeting (an unhashable `source_id` is a `TypeError` at :151) or a listing file that is not JSON raises too. These files also build Clarksville's own pages, which tolerate shapes the national schema refuses, so one odd record holds the whole site once the switch is on | **breaks** (new, N4, latent) | the adapter call per entry runs in tier 1 (state `adapter-error`); `council_inputs` in tier 2; the route checks move to the load phase (B-ISO-5) |
+| 15 | `build_national` (:527-634) | `BindError` (:551-554) cannot fire on feeds already bound by `copy_feed` or the adapter, and `feed_json`'s schema raise (:406-411) cannot fire on feeds already checked (code asserts). `_state_label` (:451-455), `labels["slot..."]` and `gov_page` are reviewed config (load phase). Item text reaches `item_topics` at 2,000 characters at most. `label_html` fills fields in one pass (a `{x}` in data is never read as a field). Writes (:629-633): text fields carry no lone surrogate after `clean_text` (`BAD_TEXT_RE` :49-50), URLs pass `allowed_url`, ids are ASCII; `date` is the one uncleaned free string, closed by row 11 | holds after rows 11 and 13; tier 1 is the backstop for anything missed | B-ISO-3 |
+| 16 | `stale_feed` (`national_copy.py:111-119`) | built from the entry only; must pass the schema and render | holds (test 12.3 #1 renders every covered entry stale) | - |
+| 17 | `apply_to_tree` (:293-306) on every `.html`, digest pages included | the anchors come from Clarksville templates (reviewed; B5 golden test); data on a digest page is autoescaped, so it can never hold `</ul>`, `</footer>` or the address-card tag | holds | the hostile-text sweep includes the anchors (12.3 #4) |
+| 18 | ICS and Atom (`sitegen/national_feeds.py`, M4, not called yet) | bad ids and dates are left out (:107, :122, :153 catch `TypeError`/`ValueError`); the state-code raise (:214) is config | holds | M4 rule: the writers run inside tier 1 per government; an exception omits that government's `.ics`/`.xml` and every link to them |
+| 19 | `page_directory` (`national.py:640-669`) | the two `ValueError`s (:646, :648) are code asserts; `last_ok_at` parsing as row 12 | holds | inside tier 2 |
+| 20 | switch off | `build.py:1051-1052`: `run` is not called, so `national_copy` never reads the root | holds, untested for a bad root | test 12.3 #8 (S2b nit b; B-ISO-7) |
+| 21 | update job, later steps: Tests (:662), I-pub tripwire (:671), data age (:775), uploads, push job, deploy (:1301-1320), note job | read `data/` and the Clarksville part of `build/site`; national data lives in `$RUNNER_TEMP/national`, never in `data/` (:415-424); deploy's `if:` tests each needed job by name | holds | keep: no daily job may `needs` a national-only job (test 12.3 #10) |
+| 22 | `national-update.yml` coupling to `daily-update.yml` | triggers schedule and `workflow_dispatch` only (:37-48); concurrency `national-collect` (:49-50), not `daily-update`; no `workflow_run`, no cross-workflow `needs`; pushes only `national-data` with `GITHUB_TOKEN` (which starts no workflow). Shared surfaces: `national-data` (read softly, rows 2-4), the Actions cache scope (S2b finding 6, accepted residual, section 8; it saves no cache), the API rate limit (at most 10 attestation lookups a daily run) | holds | test 12.3 #10 keeps it so |
+| 23 | `national-update.yml` failures | any job failing or timing out (including the dripped-answer residual of section 8) changes nothing on `national-data`; its gate refuses forever after an unattested head (S2b nit e): national stops, Clarksville is not touched; recovery is a branch reset (hard stop 2, Brian) | holds | runbook note (D-ISO-7) |
+| 24 | report issue text (`national-update.yml:403-408`) | says "The Clarksville site is not affected", untrue until rows 1, 4 and 6-14 land | **wrong today** (S2b nit d) | until then drop that sentence; the PR that lands 12.3 restores it (D-ISO-6) |
+| 25 | run log and annotations | counts and fixed words only (11.1 row 23) | holds | every new line matches 12.3 #13 |
+
+**Summary.** Holds: rows 2, 3, 15-23 and 25. Break today: 1 (finding 3), 4 (N1), 6 (N2), 7, 8, 9 (finding 1), 10,
+11 (finding 2), 13 (N3), 14 (N4) and 24 (nit d); row 12 is fragile. Rows 1 and 4 hold the Clarksville deploy **with
+the switch off** and land now. The rest are switch-on paths and gate `national.enabled: true` with any collected
+entry, as S2b gates findings 1 and 2.
+
+### 12.2 Fixes and owners
+**backend-engineer** (opus/high under the data-integrity rule; one PR; B-ISO-3 first, the others may follow in any
+order):
+- B-ISO-1 S2b finding 1 (row 9): 11.2 as amended; `_platform_keys` checked for every covered collected entry in the
+  load phase; rewrite point 4 of the `national_copy.py` docstring.
+- B-ISO-2 S2b finding 2 (rows 11, 12): ASCII date and instant checks in `copy_feed`; schema `[0-9]`.
+- B-ISO-3 the boundary (rows 7, 8, 10, 15, 19): load phase, tier 1, tier 2; `build.py` turns only load-phase
+  `NationalBuildError` into `BuildError`; the build result and `run-log.json` carry `national` and each degraded
+  government's state (for D-ISO-9).
+- B-ISO-4 N3 (row 13): zone labels checked at load.
+- B-ISO-5 N4 (row 14): the adapter per entry in tier 1; route checks in the load phase.
+- B-ISO-6 N2 (row 6): the scoped `dates/no-raw-utc-day` exemption for `digest/<st>/` feed text.
+- B-ISO-7 S2b nit b, plus tests 12.3 #1-9 and #13.
+
+**devops-engineer** (sonnet/medium; a CI workflow diff goes to a fresh security review):
+- D-ISO-1 S2b finding 3 (row 1): gate step timeouts and job budget; test 12.3 #10. Chosen over moving the lookup to
+  its own job: a job-level `success()` reads every ancestor, so a failed lookup job would skip `push` (whose `if:`
+  calls no status function), and every downstream `if:` would need rewriting by name.
+- D-ISO-2 N1 (row 4): `timeout-minutes: 2` on "Put N's data/national"; every `continue-on-error` step has a timeout.
+- D-ISO-3 S2b finding 4 (`national-budget/dispatch-no-daily-cap`): the collect `if:` adds `&& (github.event_name ==
+  'schedule' || (github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh'))`; the shell budget regex allows 1
+  to 360 only; tests.
+- D-ISO-4 S2b finding 5 (optional, shared with records-data I-prov): `--format json`, require
+  `sourceRepositoryDigest` in `git rev-list --first-parent HEAD`, in both lookups.
+- D-ISO-5 S2b nit a: `env -u GITHUB_STATE` on the collect CLI step.
+- D-ISO-6 S2b nit d (row 24).
+- D-ISO-7 S2b nit e (row 23): a note in `docs/ops/u3-positive-control.md` (the U3-0 runbook) that an unattested
+  `national-data` head stops the national gate until a reset, and that the reset is Brian's (hard stop 2); the
+  `national-data` ruleset must block force-push and deletion (Brian's PC step, batched with the U3-0 ruleset ask).
+- D-ISO-8 tests 12.3 #10 (coupling) and #11 (dispatch).
+- D-ISO-9 (before the switch goes on with a collected entry, with S2b ruling 5's >20% stale issue): one fixed-title
+  daily issue when `run-log.json` says `national: degraded` or any government is in a degraded state.
+
+### 12.3 Tests (each route closed)
+1. **Shipped config, switch on, every PR**: `config/site.yml` patched on, fixture data, no national root: the build
+   completes, `national == "built"`, every covered entry has its page and JSON; the same with every covered entry
+   forced to `stale_feed` completes too. A Legistar fixture entry whose zone has no `tz.` label is refused at load.
+2. **Finding 1**: a file collected while the entry was shown, read after it is narrowed to `items: withheld`: the
+   build completes; that page is stale; state `withheld-items`; the warning holds the id and count and no file text;
+   `SENTINEL-ITEM-TEXT` appears in no output file.
+3. **Finding 2**: `2026-02-30`, Arabic-Indic and fullwidth digits, and `2026-1-05` as a meeting date -> stale,
+   `bad-date`; the same for `checked_at`/`last_ok_at`, plus an instant before the epoch and one a day after the build
+   -> `bad-instant`; the schema refuses non-ASCII digits.
+4. **Hostile national-data sweep**, one bad file per case (not JSON, 8 MiB + 1, depth 33, symlink, FIFO, wrong
+   `body.id`, wrong platform, an extra key, `meetings` or `items` not a list, `\ud800` escapes in every string field,
+   `{name}` and `[x]` in text, the `MENU_ANCHOR` and `</footer>` text, huge integers in `seq` and `page`, `null`
+   everywhere): each build completes; only that entry's page and JSON change; every file outside `digest/` is
+   byte-identical to the build with no national root.
+5. **Tier 1 backstop**: `meeting_view` monkeypatched to raise `TypeError` for one entry: that entry is stale with
+   `render-error`, the others are built normally, the build completes.
+6. **Tier 2**: `page_directory` monkeypatched to raise once: `digest/` is built all stale, `national == "degraded"`,
+   one `::error::` line; raising on the re-run too: `BuildError` (tier 2 never hides a config or code fault).
+7. **Adapter (N4)**: an `agendas.json` meeting with a list `source_id`, an item with a null title, a meeting with no
+   id, and a council listing file that is not JSON: the Montgomery County or City Council entry is stale with
+   `adapter-error`; files outside `digest/` are as in #4.
+8. **Switch off (nit b)**: `RECORDS_NATIONAL_DATA` naming a withheld-items file, a bad-date file, a missing path and
+   a symlink: the build output is byte-identical to the build with it unset, and nothing is under `digest/`.
+9. **Site checks (N2)**: the #4 build with feed text "Item added 2026-01-05", "Fetched 2026-01-05", "Data as of
+   2026-01-05", "meeting collected 2026-01-05", the not-collected tag word and "Coming" passes
+   `python -m qa.site_checks`; the same raw day on a page outside `digest/` still fails.
+10. **Workflows (devops)**: in `daily-update.yml` every gate step has `timeout-minutes` and the job's is >= their sum
+    + 1; every `continue-on-error` step in any job has `timeout-minutes`; no job `needs` a national-only job; the
+    lookup keeps `continue-on-error` and `if: success()` (existing test `test_national_workflow.py:498`).
+    `national-update.yml` has no `actions/cache` step, no `workflow_run` trigger, no concurrency group shared with
+    `daily-update.yml`, and writes only `national-data`.
+11. **Dispatch cap (finding 4)**: the collect job's `if:` holds the schedule-or-gn0sh clause; the budget regex refuses
+    0 and 361.
+12. **Issue text (nit d)**: the report job's body is the fixed text, without the "not affected" sentence until #1-9
+    pass on `main`.
+13. **Annotation hygiene**: every line sitegen's national step prints (tests capture stdout and stderr) holds only
+    ids that `id_layer` accepts, fixed state words, exception type names and `name=<integer>` counts; a test feeds
+    the sentinel text through every degrade path and finds it in no printed line.
+
+### 12.4 Alternatives considered
+- **Keep raising and fix each raise path** (the current shape): every review has found another (S2a, S2b, and rows
+  4, 6, 13 and 14 here); without a boundary the next unknown `ValueError` reopens the family. Rejected.
+- **Wrap the whole national step and fall back to the off build**: the simplest code, but `digest/csp` fails a
+  switch-on build with no digest pages and the Menu links break on every page, so the deploy is held anyway.
+  Rejected for tier 2's all-stale rebuild.
+- **Treat every national exception as a degrade, config errors included**: a broken reviewed config would then ship
+  silently as a stale digest. Rejected: reviewed-config faults raise in the load phase, where PR tests catch them.
+- **Move the D2 lookup to its own job** (finding 3's second option): see D-ISO-1. Allowed later if every downstream
+  job's `if:` is rewritten with `!cancelled()` and named results, with a test.
+- **Do nothing until the switch goes on**: rows 1 and 4 already hold the Clarksville deploy with the switch off, so
+  they cannot wait; the rest can, and are gated on the switch.
+
+### 12.5 Edits other sections need (the engineer, in the fix PR)
+4.3 and 4.6 "D2 copy step": the copy step never raises on data; the three phases. 3.5: `date` and `instant` are ASCII
+`[0-9]`. Tasks D2 and B13 gain 12.3 #8 and #9. ADR 0013 decision 6 gains a delta line pointing here (manager, as N3
+of section 10 does for the other deltas).

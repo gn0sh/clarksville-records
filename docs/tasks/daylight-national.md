@@ -179,6 +179,10 @@ Definitions of done:
 | D1 `national-update.yml`, concurrency `national-collect`, budget, push `national-data`, attest; read-only collect job, separate write-scoped push job, pinned `--cert-identity` (finding 6) | devops-engineer | C3, ADR 0011 cutover | no | **ruleset for `national-data` is Brian's PC (U3-0)** |
 | D2 Daily deploy reads attested `national-data` (owning thread's file) | devops-engineer | D1 | no | no |
 | D3 Collector refuses a non-daylight entry without `host_ok` (finding 7); directory checks reused from B1 | backend-engineer | C3, B1 | no | no |
+| A2 State the `national-isolation` invariant and consumers (architecture section 12, done 2026-11-20) | software-architect | S2b | no | no |
+| B-ISO National isolation, backend (architecture 12.2: B-ISO-1 to -7; S2b findings 1, 2, nit b, new N2-N4) | backend-engineer (opus/high) | A2 | yes, with D-ISO | no |
+| D-ISO National isolation, workflows (architecture 12.2: D-ISO-1 to -8; S2b findings 3, 4, 5 optional, nits a, d, e, new N1) | devops-engineer | A2 | yes, with B-ISO | **nit e only: `national-data` ruleset blocks force-push and deletion (Brian's PC, batched with U3-0)** |
+| D-ISO-9 Daily issue on `national: degraded` or a degraded government (with S2b ruling 5's >20% stale issue) | devops-engineer | B-ISO | no | no |
 | S2 Security review C1, C2, C4, D1, D2, D3 | security-engineer | D2, D3, C4 | no | no |
 | P1 Terms check for the Legistar Web API; record in platform-facts | deep-researcher | none | yes | no |
 | A1 State the `privacy-withhold` invariant and consumers (architecture section 11, done in v2) and review it before C2 | software-architect | none | yes | no |
@@ -186,6 +190,10 @@ Definitions of done:
 | R2 Salem covered in directory + deploy | devops-engineer | H1, QA of the Salem page | no | **yes: deploy** |
 
 H1 gates (security review): finding 3 (C4), finding 6 (D1), finding 7 (B1, D3).
+- **B-ISO / D-ISO** (`national-isolation`, architecture section 12) Done when: every test of 12.3 passes in the
+  PR output (#1-9 and #13 backend, #10-12 devops); each 12.1 row marked "breaks" cites its closing test; then a fresh
+  code review and a fresh security review (the diffs touch CI). D-ISO-1 and D-ISO-2 land first (they hold the
+  Clarksville deploy with the switch off); B-ISO and D-ISO-9 gate `national.enabled: true` with any collected entry.
 - **C1** Done when: tests show a 403 on `/v1/a/` blocks only tenant `a`; 403 from a second tenant, 429, a 403 on
   robots.txt and a non-JSON 403 each block the host; delay and caps stay per host; `/v1/Salem/` and `/v1/salem/` are
   one tenant (finding 10, `national/tenant-key-normalize`); existing fetch tests unchanged.
