@@ -124,11 +124,20 @@ the checkout to push) cannot move `main`: R1'' (`scripts/main-ruleset.json`) nee
 only bypass is the admin role in PR mode; the token has no `pull-requests` permission, and with R2 off it cannot
 approve. It cannot create, move or delete the tag `main` (R-T). It *can* fast-forward `records-data` (R-D blocks only
 deletion and force pushes) or create other tags, but only by running code in that job, which runs inline shell and
-three pinned actions only; and a `records-data` head it made is attested by `national-update.yml`, which the gate
-refuses (`daily-update.yml` line 211 pins `daily-update.yml@refs/heads/main`): a held run, not a bad deploy. The same
-holds for `daily-update.yml`'s own push job, so this adds no new kind of exposure. No ref is read by short name
-(every checkout and fetch uses a sha or `refs/heads/...`), so another tag cannot shadow a branch.
-Residuals: `national-data` has no ruleset until U3-0, so any `contents: write` token could move it (the daily
+three pinned actions only. A new tree it made carries only a `national-update.yml` attestation, which the gate
+refuses (`daily-update.yml` line 211 pins `daily-update.yml@refs/heads/main`): a held run. But the gate accepts any
+head whose listing matches *any* past `daily-update.yml` attestation, so such a token could also fast-forward
+`records-data` to a commit whose tree is an older attested tree: the site then deploys stale data, not held
+(security review of 8bc835f7, `main-protect/replay-attested-listing`; I-prov already accepts a person's whole-tree
+restore). The same holds for `daily-update.yml`'s own push job and for gn0sh, so this adds no new kind of exposure.
+Every checkout uses a sha; fetches use `refs/heads/...`, except `git fetch ... origin main` in the daily gate
+(`daily-update.yml` ~226) and the national gate (`national-update.yml`:162), which read main's history only: R-T
+blocks a tag named `main`, and the history checks walk from `HEAD` = `github.sha`, not from the fetched ref.
+Since the security review, `protect-main` also pins `national-update.yml`'s blob sha (the shape regexes above are a
+heuristic: `main-protect/nat-shape-heuristic-bypass`): any change to the file is NOT OK until a reviewed PR updates
+the pin in both twins, and a test keeps the pin equal to `git hash-object` of the checkout's file.
+Residuals: replaying an older attested `records-data` tree (stale deploy; pre-existing; no gate change now).
+ `national-data` has no ruleset until U3-0, so any `contents: write` token could move it (the daily
 national lookup reads only attested commits and fails soft); a D3 rollback restores `daily-update.yml` and leaves
 `national-update.yml` on `main`, which I-wf still allows.
 Consumers of the old "only `daily-update.yml`" rule: `scripts/protect-main.sh` and `.ps1` (S1-7 and header; changed);

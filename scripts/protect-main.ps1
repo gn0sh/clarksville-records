@@ -39,6 +39,9 @@
 #   need gate, push must be the only job with attestations: write, contents: write and id-token: write, the only other
 #   write is issues: write in job report, no job may hold pull-requests: write, set its permissions inline, name an
 #   environment or call a reusable workflow, no line may read a secret, and the workflow's own permissions are {}.
+#   Those shape checks are a heuristic (main-protect/nat-shape-heuristic-bypass): what holds is the pin, its blob sha
+#   must equal the reviewed one (a test keeps the pin equal to git hash-object of this checkout's file), so any change
+#   to national-update.yml is NOT OK here until a reviewed PR updates this script.
 #   -Apps <names>|none: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App
 #   token: HTTP 403 for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and
 #   passes the Apps that can write this repository (or none). Without -Apps that check is NOT OK, never a silent pass.
@@ -424,7 +427,7 @@ function WfShape($lines, [string]$gs) {   # $gs: the workflow's gate step name
         $ln = ($ln -creplace '[ \t]+#.*$', '') -creplace '[ \t]+$', ''
         if ($ln -cmatch '^[^ \t]') { $inJobs = ($ln -cmatch '^jobs:$') }
         if ($ln -cmatch '^permissions:') { $r.top = $ln }
-        if ($ln -cmatch 'secrets([.]|\[)') { if ($inJobs -and $job) { $r.sec += $job } else { $r.sec += 'top' } }
+        if ($ln -cmatch '(^|[^A-Za-z0-9_])secrets([^A-Za-z0-9_]|$)') { if ($inJobs -and $job) { $r.sec += $job } else { $r.sec += 'top' } }
         if (-not $inJobs) { continue }
         if ($ln -cmatch '^  ([A-Za-z0-9_-]+):$') { $job = $Matches[1]; continue }
         if ($ln -cmatch '^[ \t]+attestations:[ \t]*write$') { $r.attw += $job }
@@ -504,6 +507,21 @@ if (-not $wfnOk -or $wfn.Count -eq 0) { Unread "main's .github/workflows/nationa
     if ($nsec) { Problem "main's national-update.yml may read no secret" }
     $npnl = ',' + ($npn -creplace '[\[\] ]', '') + ','
     if (-not $npnl.Contains(',gate,')) { Problem "job push in main's national-update.yml must need gate" }
+}
+# main-protect/nat-shape-heuristic-bypass: the regexes above can be fooled by YAML they do not model (other indents,
+# quoted keys, flow style), so the file itself is pinned: its blob sha on main must be the reviewed one.
+$natBlob = '4bbe6f8844913f4efae601a544f6f747b1ddacd7'   # git hash-object .github/workflows/national-update.yml (a test keeps them equal)
+$nsha = $null
+for ($i = 1; $i -le $tries; $i++) {
+    $nsha = Lines "repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref" '.sha'
+    if ($null -ne $nsha) { break }
+    if ($i -lt $tries) { Start-Sleep -Seconds 3 }
+}
+if ($null -eq $nsha) { Unread "main's .github/workflows/national-update.yml blob sha" } else {
+    $nshaText = ($nsha -join ',')
+    $nshaShown = $(if ($nshaText) { $nshaText } else { 'none' })
+    Write-Host "Main's national-update.yml blob: $nshaShown (reviewed: $natBlob)"
+    if ($nsha.Count -ne 1 -or $nsha[0] -cne $natBlob) { Problem "main's national-update.yml is not the reviewed one (blob $nshaShown, reviewed $natBlob): a changed national-update.yml needs a reviewed protect-main update (main-protect-invariant.md, I-wf)" }
 }
 
 if ($script:problems -eq 0) {

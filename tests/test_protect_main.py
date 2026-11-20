@@ -5,6 +5,7 @@ The .sh scripts run here against a stub gh (no GitHub call is ever made: the stu
 tokens are removed from the environment). With PWSH set, every test that runs a script also runs its .ps1 twin against
 the same stub (tests/pwsh_twin.py); the .ps1 twins are also pinned to the same filters, lines and refusals text by
 text."""
+import hashlib
 import json
 import os
 import re
@@ -154,6 +155,16 @@ jobs:
         run: true
 """
 WORKFLOWS_OK = [["daily-update.yml", "file"], ["national-update.yml", "file"]]
+# The real national-update.yml of this checkout (what main holds) and the blob sha both twins pin
+# (main-protect/nat-shape-heuristic-bypass). The stub answers a file's .sha truthfully: git's blob sha of what it serves.
+REAL_NAT = (ROOT / ".github" / "workflows" / "national-update.yml").read_text(encoding="utf-8")
+NAT_BLOB = re.search(r"^nat_blob=([0-9a-f]{40}) ", (SCRIPTS / "protect-main.sh").read_text(encoding="utf-8"),
+                     re.M).group(1)
+
+
+def _blob(text):
+    b = text.encode("utf-8")
+    return hashlib.sha1(b"blob %d\0" % len(b) + b).hexdigest()
 PRE_WF = (POST_WF.replace("      - name: Check main's history and the records-data head\n",
                           "      - name: Check every change outside data/ reached main by a reviewed pull request\n")
           .replace("      attestations: write    # store that attestation, which the gate's I-prov check reads\n",
@@ -202,6 +213,7 @@ def _as_sh(r):
 
 # ---------------------------------------------------------------------------------------------- the stub gh
 _GH = r'''#!/usr/bin/env python3
+import hashlib
 import copy, io, json, os, subprocess, sys
 a = sys.argv[1:]
 statef = os.environ["GH_STATE"]
@@ -274,7 +286,9 @@ def handle():
         assert "Accept: application/vnd.github.raw" in a, a
         save(); sys.stdout.write(st["wf"]); sys.exit(0)
     if path.startswith(R + "/contents/.github/workflows/national-update.yml?ref="):   # ref=main, or --main's sha
-        assert "Accept: application/vnd.github.raw" in a, a
+        if "Accept: application/vnd.github.raw" not in a:      # --jq .sha: the blob sha (pin)
+            out({"name": "national-update.yml", "type": "file", "sha": st.get("wfn_sha") or hashlib.sha1(
+                b"blob %d\0" % len(st["wfn"].encode()) + st["wfn"].encode()).hexdigest()})
         save(); sys.stdout.write(st["wfn"]); sys.exit(0)
     if path == R + "/rulesets?per_page=100":
         if method == "POST":
@@ -374,7 +388,7 @@ def _perm(level):
 
 
 def _pm_state(**over):
-    st = {"main": "1" * 40, "rulesets": [], "r2": True, "auto": False, "wf": POST_WF, "wfn": NAT_WF,
+    st = {"main": "1" * 40, "rulesets": [], "r2": True, "auto": False, "wf": POST_WF, "wfn": REAL_NAT,
           "collabs": [{"login": "gn0sh", "permissions": _perm("admin"), "role_name": "admin"}],
           "invites": [], "keys": [],
           "envs": {e: {"protected_branches": False, "custom_branch_policies": True}
@@ -738,6 +752,7 @@ def test_raw_row10_main_pins_the_ref_and_reads_the_workflow_at_that_sha(tmp_path
     contents = [c["path"] for c in made if "/contents/" in c.get("path", "")]
     assert contents == [f"{R}/contents/.github/workflows?ref={_PIN}",
                         f"{R}/contents/.github/workflows/daily-update.yml?ref={_PIN}",
+                        f"{R}/contents/.github/workflows/national-update.yml?ref={_PIN}",
                         f"{R}/contents/.github/workflows/national-update.yml?ref={_PIN}"], contents
     if lag == 9:
         _ok(r)
@@ -1384,6 +1399,11 @@ _NAT_BAD = [
     ("secret-in-step", lambda w: w.replace("          GH_TOKEN: ${{ github.token }}",
                                            "          GH_TOKEN: ${{ secrets.BUTTONDOWN_API_KEY }}"),
      "main's national-update.yml may read no secret"),
+    ("secret-tojson", lambda w: w.replace("          GH_TOKEN: ${{ github.token }}",
+                                          "          ALL: ${{ toJSON(secrets) }}"),
+     "main's national-update.yml may read no secret"),
+    ("secret-bare", lambda w: w.replace("        run: true\n  push:", "        run: echo ${{ secrets }}\n  push:"),
+     "main's national-update.yml may read no secret"),
     ("secret-at-top", lambda w: w.replace("permissions: {}\n", "permissions: {}\nenv:\n  K: ${{ secrets['K'] }}\n"),
      "main's national-update.yml may read no secret"),
     ("push-not-after-gate", lambda w: w.replace("    needs: [gate, collect]\n", "    needs: [collect]\n"),
@@ -1396,14 +1416,14 @@ _NAT_BAD = [
 def test_protect_main_not_ok_for_a_national_workflow_off_its_shape(tmp_path, change, says):
     bad = change(NAT_WF)
     assert bad != NAT_WF
-    r, _ = _pm(tmp_path, _pm_state(wfn=bad))
+    r, _ = _pm(tmp_path, _pm_state(wfn=bad, wfn_sha=NAT_BLOB))
     _not_ok(r, says)
 
 
 def test_protect_main_national_comment_lines_count_for_nothing(tmp_path):
     """A secret, an environment or a write named only in a comment is not a finding (the same rule as daily-update)."""
     wf = NAT_WF.replace("  push:\n", "  # environment: github-pages ${{ secrets.X }} pages: write\n  push:\n")
-    r, _ = _pm(tmp_path, _pm_state(wfn=wf.replace("\n", "\r\n")))
+    r, _ = _pm(tmp_path, _pm_state(wfn=wf.replace("\n", "\r\n"), wfn_sha=NAT_BLOB))
     _ok(r)
     assert _nat_line(r) == _NAT_OK_LINE
 
@@ -1434,7 +1454,8 @@ def test_protect_main_ps1_reads_the_national_workflow_the_same_way():
     assert "$'daily-update.yml\\tfile\\nnational-update.yml\\tfile'" in sh
     assert '$wfs.Count -ne 2 -or $wfs[0] -cne "daily-update.yml`tfile" -or $wfs[1] -cne "national-update.yml`tfile"' in ps1
     assert "$wfs.Count -ne 1" not in ps1 and "$'daily-update.yml\\tfile' ]" not in sh
-    for want in ("^[ \\t]+id-token:[ \\t]*write$", "^    environment:", "^    uses:", "secrets([.]|\\[)"):
+    for want in ("^[ \\t]+id-token:[ \\t]*write$", "^    environment:", "^    uses:",
+                 "(^|[^A-Za-z0-9_])secrets([^A-Za-z0-9_]|$)"):
         assert want in sh and want in ps1, want
     assert "/^[ \\t]+[A-Za-z0-9_-]+:[ \\t]*.?write.?$/" in sh
     assert "'^[ \\t]+([A-Za-z0-9_-]+):[ \\t]*.?write.?$'" in ps1
@@ -1469,3 +1490,66 @@ def test_protect_main_ps1_reads_the_national_workflow_the_same_way():
     # no double quote inside a --jq argument (Windows PowerShell 5.1 mangles them)
     for m in re.finditer(r"--jq '([^']*)'", ps1):
         assert '"' not in m.group(1), m.group(0)
+
+
+# ---------------------------------------------------------------------------------------------- national: the pin
+def test_the_national_pin_is_this_checkouts_file_in_both_twins():
+    """main-protect/nat-shape-heuristic-bypass: both twins pin git hash-object of this checkout's national-update.yml,
+    so any change to that workflow fails here until a reviewed PR updates protect-main (and this note: I-wf)."""
+    got = subprocess.run(["git", "hash-object", str(ROOT / ".github" / "workflows" / "national-update.yml")],
+                         capture_output=True, text=True, check=True).stdout.strip()
+    assert got == NAT_BLOB == _blob(REAL_NAT), (got, NAT_BLOB)
+    ps1 = PM_PS1.read_text(encoding="utf-8")
+    assert f"$natBlob = '{NAT_BLOB}'" in ps1 and ps1.count(NAT_BLOB) == 1
+    assert PM_SH.read_text(encoding="utf-8").count(NAT_BLOB) == 1
+    call = 'gh api "repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref" --jq .sha'
+    assert call in PM_SH.read_text(encoding="utf-8")
+    assert "Lines \"repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref\" '.sha'" in ps1
+    for ln in ["Main's national-update.yml blob: ",
+               "main's national-update.yml is not the reviewed one (blob ",
+               "a changed national-update.yml needs a reviewed protect-main update (main-protect-invariant.md, I-wf)",
+               "nread \"main's .github/workflows/national-update.yml blob sha\""]:
+        assert ln in PM_SH.read_text(encoding="utf-8") and ln in ps1, ln
+
+
+def test_protect_main_ok_with_the_pinned_national_workflow(tmp_path):
+    r, _ = _pm(tmp_path, _pm_state(wfn=REAL_NAT))
+    _ok(r)
+    assert f"Main's national-update.yml blob: {NAT_BLOB} (reviewed: {NAT_BLOB})" in r.stdout
+
+
+_PIN_SAYS = "main's national-update.yml is not the reviewed one (blob "
+# Each passes the shape regexes (the security review's bypasses); only the pin catches it.
+_NAT_BYPASS = [
+    ("job-props-6-spaces", lambda w: w.replace("  push:\n    needs: [gate, collect]\n",
+                                               "  push:\n      environment: morning-note\n      needs: [gate, collect]\n")),
+    ("flow-style-job", lambda w: w.replace("\njobs:\n", "\njobs:\n  x: {runs-on: ubuntu-24.04, environment: "
+                                           "github-pages, steps: [{run: echo}]}\n")),
+    ("quoted-key", lambda w: w.replace("  push:\n    needs: [gate, collect]\n",
+                                       "  push:\n    needs: [gate, collect]\n    \"environment\": github-pages\n")),
+    ("spaced-colon", lambda w: w.replace("      contents: read         # check out the code",
+                                         "      contents : write")),
+    ("one-byte", lambda w: w + "\n"),
+]
+
+
+@pytest.mark.parametrize("change", [c for _, c in _NAT_BYPASS], ids=[i for i, _ in _NAT_BYPASS])
+def test_protect_main_not_ok_for_any_change_to_the_national_workflow(tmp_path, change):
+    bad = change(REAL_NAT)
+    assert bad != REAL_NAT
+    r, _ = _pm(tmp_path, _pm_state(wfn=bad))
+    _not_ok(r, _PIN_SAYS + _blob(bad) + ", reviewed " + NAT_BLOB + "): a changed national-update.yml needs a reviewed "
+               "protect-main update")
+
+
+def test_protect_main_a_refused_pin_read_is_not_ok(tmp_path):
+    r, _ = _pm(tmp_path, _pm_state(fail={f"GET {NAT_PATH}": [2]}))       # the raw read works, the .sha read fails
+    _not_ok(r, "could not read main's .github/workflows/national-update.yml blob sha")
+    assert "1 problem(s) above" in r.stdout
+
+
+def test_secrets_word_rule_spares_other_words(tmp_path):
+    wf = NAT_WF.replace("          GH_TOKEN: ${{ github.token }}",
+                        "          GH_TOKEN: ${{ github.token }}\n          my_secrets_dir: x\n          a: secretsx")
+    r, _ = _pm(tmp_path, _pm_state(wfn=wf, wfn_sha=NAT_BLOB))
+    _ok(r)

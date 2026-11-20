@@ -29,6 +29,9 @@
 #   need gate, push must be the only job with attestations: write, contents: write and id-token: write, the only other
 #   write is issues: write in job report, no job may hold pull-requests: write, set its permissions inline, name an
 #   environment or call a reusable workflow, no line may read a secret, and the workflow's own permissions are {}.
+#   Those shape checks are a heuristic (main-protect/nat-shape-heuristic-bypass): what holds is the pin, its blob sha
+#   must equal the reviewed one (a test keeps the pin equal to git hash-object of this checkout's file), so any change
+#   to national-update.yml is NOT OK here until a reviewed PR updates this script.
 # --apps: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App token: HTTP 403
 #   for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and passes the Apps
 #   that can write this repository (or none). Without --apps that check is NOT OK, never a silent pass. Only the Claude
@@ -333,7 +336,7 @@ wf_awk='{ sub(/\r$/, "") }
 { sub(/[ \t]+#.*$/, ""); sub(/[ \t]+$/, "") }
 /^[^ \t]/ { injobs = ($0 ~ /^jobs:$/) }
 /^permissions:/ { top = $0 }
-/secrets([.]|\[)/ { sec = sec "," ((injobs && job != "") ? job : "top") }
+/(^|[^A-Za-z0-9_])secrets([^A-Za-z0-9_]|$)/ { sec = sec "," ((injobs && job != "") ? job : "top") }
 !injobs { next }
 /^  [A-Za-z0-9_-]+:$/ { job = $0; sub(/^  /, "", job); sub(/:$/, "", job); next }
 /^[ \t]+attestations:[ \t]*write$/ { attw = attw "," job }
@@ -400,6 +403,13 @@ if wfn=$(read_at gh api "repos/$repo/contents/.github/workflows/national-update.
   npnl=",$(tr -d '[] ' <<< "$npn"),"
   [[ "$npnl" == *,gate,* ]] || problem "job push in main's national-update.yml must need gate"
 else unread "main's .github/workflows/national-update.yml"; fi
+# main-protect/nat-shape-heuristic-bypass: the regexes above can be fooled by YAML they do not model (other indents,
+# quoted keys, flow style), so the file itself is pinned: its blob sha on main must be the reviewed one.
+nat_blob=4bbe6f8844913f4efae601a544f6f747b1ddacd7   # git hash-object .github/workflows/national-update.yml (a test keeps them equal)
+if nsha=$(read_at gh api "repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref" --jq .sha); then
+  echo "Main's national-update.yml blob: ${nsha:-none} (reviewed: $nat_blob)"
+  [ "$nsha" = "$nat_blob" ] || problem "main's national-update.yml is not the reviewed one (blob ${nsha:-none}, reviewed $nat_blob): a changed national-update.yml needs a reviewed protect-main update (main-protect-invariant.md, I-wf)"
+else unread "main's .github/workflows/national-update.yml blob sha"; fi
 
 if [ "$problems" = 0 ]; then
   echo "OK: main is protected (R1'', R-D, R-T as written, R2 off, auto-merge off, $owner the only writer, both environments main only)."
