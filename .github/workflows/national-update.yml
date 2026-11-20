@@ -168,13 +168,29 @@ jobs:
 
   collect:
     needs: gate
-    # main only: a run on another branch never sends a request and never moves national-data. Scheduled, or
-    # dispatched by gn0sh himself (both the actor and the triggering actor, as daily-update.yml's allow_shrink check,
-    # data-prov/dispatch-actor): any other write-access account dispatching back to back would spend the day's request
-    # budget again and again (S2b finding 4, `national-budget/dispatch-no-daily-cap`).
+    # The daily request budget (architecture 12.6, `national-budget`): in a UTC day this file sends at most 2 x the
+    # run budget on its own, plus at most 360 for each run gn0sh himself dispatches or re-runs. The routes of 12.6:
+    #  1 schedule, first attempt: runs (run_attempt 1).
+    #  2 re-run of a scheduled run by any other account (all jobs, failed jobs, one job, debug; UI, gh or REST):
+    #    skipped, its run_attempt is 2 or more (S2c finding 1, `national-budget/schedule-rerun-no-cap`).
+    #  3 re-run of a scheduled run by gn0sh: runs only through the gn0sh clause, which also needs actor gn0sh (the
+    #    account the schedule is tied to may be another): fails closed, and Brian dispatches instead.
+    #  4 dispatch by gn0sh (actor and triggering actor, as daily-update.yml's allow_shrink check): runs, capped 1-360.
+    #  5 dispatch by any other account: skipped (S2b finding 4, `national-budget/dispatch-no-daily-cap`).
+    #  6 re-run of gn0sh's dispatch by another account: skipped (the triggering actor is the re-runner).
+    #  7 re-run of a dispatch by gn0sh: runs, as 4.
+    #  8 an agent with gn0sh's token: looks like 4 or 7; held by the team rule that only Brian dispatches or re-runs.
+    #  9 any of these on a ref other than refs/heads/main: skipped (main only; never moves national-data).
+    # 10 any other event: not in `on:` (schedule and workflow_dispatch only; a test keeps the keys).
+    # 11 a changed copy of this file (a branch or a fork PR): outside this `if:`; held by repository access, the
+    #    national-data ruleset and the fork-PR approval setting.
+    # 12 queued runs (the concurrency group above): add no route; each passes this same `if:`.
+    # 13 the CLI outside Actions: nothing is sent without Brian's host_ok (R5).
+    # 14 inside one run: the budget regex and the CLI's cap, the per-tenant cap and the deadline (4.4.4).
     if: >-
       needs.gate.outputs.ready == 'yes' && github.ref == 'refs/heads/main'
-      && (github.event_name == 'schedule' || (github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh'))
+      && ((github.event_name == 'schedule' && github.run_attempt == '1')
+      || (github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh'))
     runs-on: ubuntu-24.04
     timeout-minutes: 75      # = collector/national/__main__.py JOB_MINUTES (a test keeps them equal)
     outputs:

@@ -70,12 +70,154 @@ def test_triggers_concurrency_and_least_privilege():
     assert jobs["collect"]["needs"] == "gate" and jobs["push"]["needs"] == ["gate", "collect"]
     base = "needs.gate.outputs.ready == 'yes' && github.ref == 'refs/heads/main'"   # main only, never before U3-0
     assert " ".join(jobs["push"]["if"].split()) == base
-    # 12.3 #11 (S2b finding 4): the collect job runs on the schedule, or when gn0sh both dispatched and triggered it
-    assert " ".join(jobs["collect"]["if"].split()) == (
-        base + " && (github.event_name == 'schedule' || (github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh'))")
+    # 12.3 #11 (S2b finding 4, S2c finding 1; 12.6): the collect job runs on a scheduled run's first attempt, or when
+    # gn0sh both started and triggered it; the truth table is test_the_collect_if_caps_every_route_of_12_6
+    assert " ".join(jobs["collect"]["if"].split()) == COLLECT_IF
     assert "status" not in jobs["push"]["if"] and "always()" not in jobs["push"]["if"]  # implied success(): a
     #                                                                       skipped collect skips the push too
     assert "github.ref == 'refs/heads/main'" in jobs["report"]["if"]
+
+
+COLLECT_IF = ("needs.gate.outputs.ready == 'yes' && github.ref == 'refs/heads/main' && "
+              "((github.event_name == 'schedule' && github.run_attempt == '1') || "
+              "(github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh'))")
+
+
+def _expr(text: str, ctx: dict):
+    """A GitHub Actions expression over `==`, `!=`, `&&`, `||`, `!`, parentheses, '...' literals and context names
+    (dotted, read from `ctx`; a missing one is null), with GitHub's comparison rules: strings compare ignoring case,
+    a string against a number is compared as a number. Anything else in the text is an error, so a new operator or
+    function in the `if:` fails the test instead of being guessed at."""
+    toks = re.findall(r"\s*(==|!=|&&|\|\||!|\(|\)|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_.-]*|\S)", text)
+    pos = 0
+
+    def peek():
+        return toks[pos] if pos < len(toks) else None
+
+    def take(want=None):
+        nonlocal pos
+        tok = peek()
+        assert tok is not None and (want is None or tok == want), (want, tok, text)
+        pos += 1
+        return tok
+
+    def num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return float("nan")
+
+    def eq(a, b):
+        if isinstance(a, str) and isinstance(b, str):
+            return a.lower() == b.lower()
+        if isinstance(a, (int, float)) or isinstance(b, (int, float)):
+            return num(a) == num(b)
+        return a == b
+
+    def atom():
+        tok = take()
+        if tok == "(":
+            v = disj()
+            take(")")
+            return v
+        if tok == "!":
+            return not atom()
+        if tok.startswith("'"):
+            return tok[1:-1].replace("''", "'")
+        assert re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.-]*", tok) and tok not in ("true", "false", "null"), tok
+        assert peek() != "(", f"function call {tok}() is not evaluated here"
+        return ctx.get(tok)
+
+    def comp():
+        v = atom()
+        while peek() in ("==", "!="):
+            op = take()
+            r = eq(v, atom())
+            v = r if op == "==" else not r
+        return v
+
+    def conj():
+        v = comp()
+        while peek() == "&&":
+            take()
+            r = comp()
+            v = v and r
+        return v
+
+    def disj():
+        v = conj()
+        while peek() == "||":
+            take()
+            r = conj()
+            v = v or r
+        return v
+
+    v = disj()
+    assert pos == len(toks), (toks[pos:], text)
+    return bool(v)
+
+
+def _route(event, attempt="1", actor="gn0sh", triggering="gn0sh", ref="refs/heads/main", ready="yes") -> dict:
+    return {"github.event_name": event, "github.run_attempt": attempt, "github.actor": actor,
+            "github.triggering_actor": triggering, "github.ref": ref, "needs.gate.outputs.ready": ready}
+
+
+# 12.6 routes 1-7 and 9 (12.3 #11 v2). On a scheduled run `actor` is the account the schedule is tied to (whoever
+# last changed the cron), which may be any account with write access; `triggering_actor` is whoever started the attempt.
+COLLECT_ROUTES = {
+    "1-schedule-first-attempt": (_route("schedule", actor="bot", triggering="bot"), True),
+    "1-schedule-first-attempt-tied-to-gn0sh": (_route("schedule"), True),
+    "2-schedule-rerun-by-another": (_route("schedule", "2", actor="bot", triggering="mallory"), False),
+    "2-schedule-rerun-by-another-tied-to-gn0sh": (_route("schedule", "2", triggering="mallory"), False),
+    "2-schedule-rerun-by-the-tied-account": (_route("schedule", "2", actor="mallory", triggering="mallory"), False),
+    "2-schedule-attempt-10-by-another": (_route("schedule", "10", actor="bot", triggering="mallory"), False),
+    "3-schedule-rerun-by-gn0sh-tied-to-gn0sh": (_route("schedule", "2"), True),
+    "3-schedule-rerun-by-gn0sh-tied-to-another": (_route("schedule", "2", actor="bot"), False),
+    "4-dispatch-by-gn0sh": (_route("workflow_dispatch"), True),
+    "4-dispatch-by-gn0sh-any-case": (_route("workflow_dispatch", actor="Gn0sh", triggering="GN0SH"), True),
+    "5-dispatch-by-another": (_route("workflow_dispatch", actor="mallory", triggering="mallory"), False),
+    "5-dispatch-named-like-gn0sh": (_route("workflow_dispatch", actor="gn0sh-bot", triggering="gn0sh-bot"), False),
+    "6-gn0sh-dispatch-rerun-by-another": (_route("workflow_dispatch", "2", triggering="mallory"), False),
+    "7-dispatch-rerun-by-gn0sh": (_route("workflow_dispatch", "2"), True),
+    "9-schedule-other-ref": (_route("schedule", ref="refs/heads/x"), False),
+    "9-dispatch-by-gn0sh-other-ref": (_route("workflow_dispatch", ref="refs/heads/x"), False),
+    "9-dispatch-by-gn0sh-tag": (_route("workflow_dispatch", ref="refs/tags/main"), False),
+    "gate-not-ready-schedule": (_route("schedule", ready="no"), False),
+    "gate-not-ready-dispatch": (_route("workflow_dispatch", ready="no"), False),
+    "gate-no-output-dispatch": (_route("workflow_dispatch", ready=None), False),
+    # 12.6 route 10: the `if:` alone would pass any event gn0sh starts, so only `on:` keeps them out (next test)
+    "10-other-event-by-gn0sh-if-alone": (_route("push"), True),
+    "10-other-event-by-another-if-alone": (_route("push", actor="mallory", triggering="mallory"), False),
+}
+
+
+@pytest.mark.parametrize("route", sorted(COLLECT_ROUTES))
+def test_the_collect_if_caps_every_route_of_12_6(route):
+    """Architecture 12.6 (`national-budget`), 12.3 #11 v2: only a scheduled run's first attempt and runs gn0sh both
+    started and triggered reach the collect job; every re-run of a scheduled run by another account is skipped."""
+    ctx, runs = COLLECT_ROUTES[route]
+    assert _expr(NAT["jobs"]["collect"]["if"], ctx) is runs
+
+
+def test_the_expression_evaluator_reads_the_if_as_github_does():
+    """The evaluator itself, so the truth table cannot pass through a parser that drops a clause."""
+    assert _expr("a == '1'", {"a": "1"}) and not _expr("a == '1'", {"a": "2"}) and _expr("a == '1'", {"a": 1})
+    assert not _expr("a == '1'", {}) and _expr("a != 'x'", {"a": "y"}) and _expr("!(a == 'x')", {"a": "y"})
+    assert _expr("a == 'X' && b == 'y' || c == 'z'", {"c": "z"})
+    assert not _expr("a == 'x' && (b == 'y' || c == 'z')", {"c": "z"})
+    for bad in ("contains(a, 'x')", "a == 'x' || always()", "a == 'x' ||", "a = 'x'"):
+        with pytest.raises(AssertionError):
+            _expr(bad, {"a": "x"})
+
+
+def test_on_holds_only_schedule_and_dispatch_and_the_budget_is_capped():
+    """12.6 routes 10 and 14: no other event can start this file, and the run budget is the input, the variable or
+    300, checked 1-360 in the step (test_a_bad_budget_collects_nothing runs the regex on 0 and 361)."""
+    on = _on(NAT)
+    assert set(on) == {"schedule", "workflow_dispatch"} and len(on["schedule"]) == 2
+    assert set(on["workflow_dispatch"]) == {"inputs"} and set(on["workflow_dispatch"]["inputs"]) == {"budget"}
+    step = _steps(NAT, "collect")[COLLECT_STEP]
+    assert step["env"]["BUDGET"] == "${{ inputs.budget || vars.NATIONAL_REQUEST_BUDGET || '300' }}"
 
 
 def test_the_collect_job_holds_no_token():
