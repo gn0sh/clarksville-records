@@ -508,9 +508,10 @@ def cmd_run(args) -> int:
         res = site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
         log["warnings"] += list((res or {}).get("warnings") or [])  # e.g. seats.yml older than the facts (M1)
         # Daylight Digest (architecture 12, B-ISO-3; D-ISO-9 reads these): "off", "built" or "degraded", and
-        # {body id: state word} of each government whose page was built stale from a bad national input
+        # national_states: {body id: state word} of each government built stale from a bad national input (words:
+        # withheld-items, bad-date, bad-instant, adapter-error, render-error; national_pages.DEGRADED_STATES)
         log["national"] = (res or {}).get("national", "off")
-        log["national_degraded"] = dict((res or {}).get("national_degraded") or {})
+        log["national_states"] = dict((res or {}).get("national_states") or {})
     res = res if site_build else None
     if res is None or res.get("export", True):   # a preview over its cap was built without the export: add none
         export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)

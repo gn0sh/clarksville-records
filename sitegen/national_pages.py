@@ -37,7 +37,7 @@ adapter reads them) never stops the build. `run` has three phases:
   line (id, word, exception type name).
 - tier 2, the whole data phase: anything else that raises after the load phase clears `digest/`, prints one
   `::error::` line (type name only) and builds the data phase again with no national root and no Clarksville inputs
-  (every covered entry stale, state NO_DATA); the run is then DEGRADED. A raise in that rebuild stops the build.
+  (every covered entry stale, state `missing`); the run is then DEGRADED. A raise in that rebuild stops the build.
 """
 from __future__ import annotations
 
@@ -134,9 +134,8 @@ class NationalBuildError(ValueError):
 
 OFF, BUILT, DEGRADED = "off", "built", "degraded"            # the national step as a whole (build result `national`)
 # one government: BUILT (the adapter's feed) or ncopy.COPIED / ncopy.MISSING, else one of DEGRADED_STATES
-COPY_ERROR, ADAPTER_ERROR, RENDER_ERROR, NO_DATA = "copy-error", "adapter-error", "render-error", "no-data"
-DEGRADED_STATES = (ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, COPY_ERROR, ADAPTER_ERROR, RENDER_ERROR,
-                   NO_DATA)
+ADAPTER_ERROR, RENDER_ERROR = "adapter-error", "render-error"
+DEGRADED_STATES = (ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, ADAPTER_ERROR, RENDER_ERROR)
 WARNING = "::warning::National pages: "
 ERROR = "::error::National pages: "
 
@@ -439,7 +438,7 @@ def build_feeds(directory: nat.Directory, councils: Mapping[str, tuple[dict, lis
     `built_at` (the build's instant); `copy_counts` receives what it did.
 
     Tier 1 (architecture 12): each entry's feed is made inside its own `try`. Any exception gives that entry
-    `stale_feed(entry)`, state ADAPTER_ERROR (or COPY_ERROR on a collected platform) and one `::warning::` line;
+    `stale_feed(entry)`, state ADAPTER_ERROR (the copy step or the adapter raised) and one `::warning::` line;
     nothing raises out. `states` receives each covered entry's state word (BUILT, or the copy step's word)."""
     feeds: dict[str, dict] = {}
     states = states if states is not None else {}
@@ -453,9 +452,9 @@ def build_feeds(directory: nat.Directory, councils: Mapping[str, tuple[dict, lis
                 feeds[gid] = ncopy.copy_feed(national_root, gov, one_counts, built_at=built_at)
                 states[gid] = one_counts.state
             except Exception as exc:        # CopyError is a load-phase check (check_entry): here, a code fault
-                _warn(gov, COPY_ERROR, exc)
-                feeds[gid], states[gid] = ncopy.stale_feed(gov), COPY_ERROR
-                one_counts.state = COPY_ERROR
+                _warn(gov, ADAPTER_ERROR, exc)
+                feeds[gid], states[gid] = ncopy.stale_feed(gov), ADAPTER_ERROR
+                one_counts.state = ADAPTER_ERROR
             if copy_counts is not None:
                 copy_counts[gid] = one_counts
             continue
@@ -804,7 +803,7 @@ def _data_phase(out_dir: Path, env, site: dict, loaded: Loaded, *, councils, cou
     states: dict[str, str] = {}
     if no_data:
         feeds = {g["gov"]: ncopy.stale_feed(g) for g in d.govs if g["status"] == "covered"}
-        states = dict.fromkeys(feeds, NO_DATA)
+        states = dict.fromkeys(feeds, ncopy.MISSING)
     else:
         feeds = build_feeds(d, council_inputs(councils, fixture), county_agendas, built_day, counts,
                             national_root=national_root, copy_counts=copied, states=states, built_at=built_at)

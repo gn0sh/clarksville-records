@@ -170,6 +170,15 @@ def assert_clean_lines(text: str) -> list[str]:
     return lines
 
 
+def test_the_run_log_contract_d_iso_9_reads():
+    """build result and run-log.json: `national` is off | built | degraded; `national_states` maps a degraded
+    government's id to one of these five words only (manager note, 2026-11-20)."""
+    assert (npg.OFF, npg.BUILT, npg.DEGRADED) == ("off", "built", "degraded")
+    assert set(npg.DEGRADED_STATES) == {"withheld-items", "bad-date", "bad-instant", "adapter-error", "render-error"}
+    run = npg.NationalRun(pages=[], govs={GOV: ncopy.MISSING, COUNTY_ID: npg.BUILT, COUNCIL_ID: npg.RENDER_ERROR})
+    assert run.degraded == {COUNCIL_ID: "render-error"}
+
+
 # --- fixtures ---------------------------------------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
@@ -202,11 +211,11 @@ def test_the_baseline_build_has_the_stale_page_and_a_good_file_is_published(worl
     base = world["baseline"]
     stale = json.loads(base[DATA])
     assert stale["meetings"] == [] and stale["checked_at"] == ncopy.EPOCH_INSTANT
-    assert world["result"]["national"] == npg.BUILT and world["result"]["national_degraded"] == {}
+    assert world["result"]["national"] == npg.BUILT and world["result"]["national_states"] == {}
     got_dir = tmp_path / "site"
     result = build(got_dir, root=national_root(tmp_path, body_file(world["review"])))
     got = tree(got_dir)
-    assert result["national"] == npg.BUILT and result["national_degraded"] == {}
+    assert result["national"] == npg.BUILT and result["national_states"] == {}
     assert_only_gov_changed(got, base)
     assert json.loads(got[DATA])["meetings"][0]["items"][0]["text"] == SENTINEL
     assert SENTINEL in got[PAGE].decode()
@@ -219,7 +228,7 @@ def test_the_baseline_build_has_the_stale_page_and_a_good_file_is_published(worl
 def test_shipped_config_switch_on_builds_every_covered_page(tmp_path, monkeypatch):
     monkeypatch.delenv(ncopy.ENV, raising=False)
     result = build(tmp_path / "site")
-    assert result["national"] == npg.BUILT and result["national_degraded"] == {}
+    assert result["national"] == npg.BUILT and result["national_states"] == {}
     covered = [g for g in nat.load_all()[0].govs if g["status"] == "covered"]
     assert covered
     for g in covered:
@@ -234,7 +243,7 @@ def test_shipped_config_with_every_covered_entry_stale_still_builds(tmp_path, mo
     result = build(tmp_path / "site")
     covered = [g for g in nat.load_all()[0].govs if g["status"] == "covered"]
     assert result["national"] == npg.BUILT
-    assert result["national_degraded"] == {g["gov"]: npg.ADAPTER_ERROR for g in covered}
+    assert result["national_states"] == {g["gov"]: npg.ADAPTER_ERROR for g in covered}
     for g in covered:
         feed = json.loads((tmp_path / "site" / nat.gov_page(g)).with_suffix(".json").read_text(encoding="utf-8"))
         assert feed == npg.bind_feed(ncopy.stale_feed(g), g)[0]
@@ -267,7 +276,7 @@ def test_a_file_collected_while_shown_and_read_after_narrowing_gives_a_stale_pag
     point_at(monkeypatch, folder, None)
     out = tmp_path / "site"
     result = build(out, root=national_root(tmp_path, body_file(world["review"])))
-    assert result["national"] == npg.BUILT and result["national_degraded"] == {GOV: ncopy.WITHHELD_ITEMS}
+    assert result["national"] == npg.BUILT and result["national_states"] == {GOV: ncopy.WITHHELD_ITEMS}
     got = tree(out)
     assert json.loads(got[DATA])["meetings"] == []
     assert not [k for k, v in got.items() if SENTINEL.encode() in v]
@@ -362,7 +371,7 @@ def test_a_hostile_body_file_changes_only_its_own_page(world, tmp_path, capsys, 
     got = tree(out)
     assert_only_gov_changed(got, world["baseline"])
     assert result["national"] == npg.BUILT
-    assert result["national_degraded"] == ({GOV: STATE_OF[case]} if case in STATE_OF else {})
+    assert result["national_states"] == ({GOV: STATE_OF[case]} if case in STATE_OF else {})
     feed = json.loads(got[DATA])
     assert npg.ncl.feed_errors(feed) == []
     assert_clean_lines(capsys.readouterr().out)
@@ -394,7 +403,7 @@ def test_a_render_error_for_one_government_leaves_the_others_built(world, tmp_pa
     monkeypatch.setattr(npg, "meeting_view", flaky)
     out = tmp_path / "site"
     result = build(out, root=national_root(tmp_path, body_file(world["review"])))
-    assert result["national"] == npg.BUILT and result["national_degraded"] == {GOV: npg.RENDER_ERROR}
+    assert result["national"] == npg.BUILT and result["national_states"] == {GOV: npg.RENDER_ERROR}
     assert tree(out) == world["baseline"]       # GOV stale, the Clarksville pages as always
     lines = assert_clean_lines(capsys.readouterr().out)
     assert f"::warning::National pages: {GOV}: render-error (TypeError)" in lines
@@ -417,7 +426,7 @@ def test_a_raise_after_the_load_phase_builds_the_digest_all_stale(world, tmp_pat
     assert result["national"] == npg.DEGRADED
     directory = nat.load_all(world["folder"])[0]
     covered = [g for g in directory.govs if g["status"] == "covered"]
-    assert result["national_degraded"] == {g["gov"]: npg.NO_DATA for g in sorted(covered, key=lambda g: g["gov"])}
+    assert result["national_states"] == {}            # `national: degraded` says every page is stale
     got = tree(out)
     for g in covered:
         rel = nat.gov_page(g)[:-len(".html")] + ".json"
@@ -556,7 +565,7 @@ def test_switch_off_ignores_any_national_root(tmp_path, monkeypatch):
     for name, root in _switch_off_roots(tmp_path / "roots", "a" * 64).items():
         out = tmp_path / name
         result = build(out, on=False, root=root)
-        assert result["national"] == npg.OFF and result["national_degraded"] == {}
+        assert result["national"] == npg.OFF and result["national_states"] == {}
         assert tree(out) == want, name
 
 
@@ -622,8 +631,9 @@ def test_feed_text_exemption_is_scoped_to_coming_up_pages():
 # --- 12.3 #13: the sentinel through every degrade path ---------------------------------------------------------------
 
 def test_no_degrade_path_prints_input_text(world, tmp_path, monkeypatch, capsys):
-    """withheld-items, bad-date, bad-instant, copy-error, adapter-error, render-error and tier 2, each with the
-    sentinel in the input or the exception's own text: every printed line is ids, fixed words, type names and counts."""
+    """withheld-items, bad-date, bad-instant, adapter-error (the copy step or the adapter), render-error and tier 2,
+    each with the sentinel in the input or the exception's own text: every printed line is ids, fixed words, type
+    names and counts."""
     review = world["review"]
     seen = set()
 
@@ -634,7 +644,7 @@ def test_no_degrade_path_prints_input_text(world, tmp_path, monkeypatch, capsys)
             out = tmp_path / name
             result = build(out, root=root)
         lines = assert_clean_lines(capsys.readouterr().out)
-        seen.update(result["national_degraded"].values())
+        seen.update(result["national_states"].values())
         if result["national"] == npg.DEGRADED:
             seen.add(npg.DEGRADED)
         return lines
@@ -649,7 +659,7 @@ def test_no_degrade_path_prints_input_text(world, tmp_path, monkeypatch, capsys)
 
     def boom(*a, **k):
         raise ValueError(SENTINEL)
-    one("copy-error", good, lambda mp: mp.setattr(ncopy, "copy_feed", boom))
+    one("copy-step-error", good, lambda mp: mp.setattr(ncopy, "copy_feed", boom))
     one("adapter-error", good, lambda mp: mp.setattr(npg.ncl, "clarksville_feeds", boom))
     one("render-error", good, lambda mp: mp.setattr(npg, "meeting_view", boom))
     real, calls = nat.page_directory, []
@@ -660,5 +670,5 @@ def test_no_degrade_path_prints_input_text(world, tmp_path, monkeypatch, capsys)
             raise ValueError(SENTINEL)
         return real(*a, **k)
     one("tier-2", good, lambda mp: mp.setattr(nat, "page_directory", first))
-    assert seen == {ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, npg.COPY_ERROR, npg.ADAPTER_ERROR,
-                    npg.RENDER_ERROR, npg.NO_DATA, npg.DEGRADED}
+    assert seen == {ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, npg.ADAPTER_ERROR,
+                    npg.RENDER_ERROR, npg.DEGRADED}

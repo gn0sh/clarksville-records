@@ -703,7 +703,7 @@ def test_a_covered_entry_without_a_feed_source_is_refused_at_load(loaded, page_l
                        flags, labels, page_labels)
     states = {}
     feeds = npg.build_feeds(odd, {"city": ({}, [])}, None, date(2026, 11, 19), states=states)
-    assert states == {COUNCIL_ID: npg.BUILT, COUNTY_ID: npg.COPY_ERROR}
+    assert states == {COUNCIL_ID: npg.BUILT, COUNTY_ID: npg.ADAPTER_ERROR}
     assert feeds[COUNTY_ID] == npg.ncopy.stale_feed(odd.get(COUNTY_ID))
     npg.check_load(directory, flags, labels, page_labels)          # the shipped directory passes
 
