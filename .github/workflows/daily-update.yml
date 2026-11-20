@@ -1071,6 +1071,60 @@ jobs:
             gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
           fi
 
+      # D-ISO-9 (architecture 12.2; ADR 0013 decision 6): the national step degrades instead of failing (architecture
+      # 12, tiers 1 and 2), so a degrade every day could go unseen. One fixed-title issue, a comment each later day,
+      # when this run's build/run-log.json says `national` is "degraded" or names any government in `national_states`
+      # ({id: state word}, the degraded governments only; written by the collector from the site build, B-ISO-3). The body
+      # holds fixed text, the national word, counts, and only ids and state words that pass the checks below (anything
+      # else shows as "unknown"): never a line of input text. No run-log (a failed or rebuild-only run), switch off
+      # (`off`) or `built` with no state: nothing. main only, like the other national issue.
+      - name: Open or update the national pages degraded issue
+        if: always() && github.ref == 'refs/heads/main'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAT_TITLE: "Daily update: national pages degraded"
+        run: |
+          set -eu
+          log=build/run-log.json
+          [ -f "$log" ] || exit 0
+          status=$(jq -r '.national // "absent" | if type == "string" then . else "unknown" end' "$log" 2>/dev/null) || exit 0
+          case "$status" in off|built|degraded|absent) ;; *) status=unknown ;; esac
+          rows="$RUNNER_TEMP/national-degraded.txt"
+          jq -r '(.national_states // {}) | if type == "object" then to_entries[] | "\(.key) \(.value)" else empty end' \
+            "$log" 2>/dev/null > "$rows.raw" || : > "$rows.raw"
+          list=""
+          n=0
+          while IFS= read -r line; do
+            n=$((n + 1))
+            id="${line%% *}"; state="${line#* }"
+            [[ "$id" =~ ^(place|county|cousub|sdu|sds|sde)-[0-9]{5,10}$ ]] || id=unknown
+            case "$state" in withheld-items|bad-date|bad-instant|adapter-error|render-error) ;; *) state=unknown ;; esac
+            if [ "$n" -le 50 ]; then list="$list- $id: $state"$'\n'; fi
+          done < "$rows.raw"
+          if [ "$status" != degraded ] && [ "$n" = 0 ]; then exit 0; fi
+          body="$RUNNER_TEMP/national-degraded-issue.md"
+          {
+            echo "The national pages were built degraded in this run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo ""
+            echo "national: $status; governments degraded: $n (the first 50 below)."
+            echo ""
+            printf '%s' "$list"
+            echo ""
+            echo "A degraded government's page and JSON show no meetings (stale) until a good build. Its line in the log"
+            echo "reads 'National pages: <id>: <state> (<exception type>)'; 'built with no data' means every national page"
+            echo "was built stale. States: withheld-items, bad-date, bad-instant (the national data), adapter-error"
+            echo "(Clarksville's own files as the national step reads them), render-error (code)."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$NAT_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.NAT_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$NAT_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
+
       # Keep newly fetched PDFs even when a later step failed, so a retry does not refetch them (10 s each).
       - name: Check whether the store grew
         if: always() && steps.store.conclusion == 'success'

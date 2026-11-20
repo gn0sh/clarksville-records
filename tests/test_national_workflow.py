@@ -178,7 +178,8 @@ def _run_collect(tmp_path, rc, budget="300", prints=""):
                     'echo "$@" > "$ARGS_FILE"\n'
                     '[ -n "${GITHUB_OUTPUT:-}" ] && echo "flagged=no" >> "$GITHUB_OUTPUT"\n'
                     '[ -n "${GITHUB_STEP_SUMMARY:-}" ] && echo leak >> "$GITHUB_STEP_SUMMARY"\n'
-                    'for f in "${GITHUB_ENV:-}" "${GITHUB_PATH:-}" "${GITHUB_STATE:-}"; do [ -n "$f" ] && echo leak=1 >> "$f"; done\n'
+                    'for f in "${GITHUB_ENV:-}" "${GITHUB_PATH:-}" "${GITHUB_STATE:-}"; do\n'
+                    '  [ -n "$f" ] && echo leak=1 >> "$f"\ndone\n'
                     f"exit {rc}\n")
     stub.chmod(0o755)
     out, summary, args = tmp_path / "out", tmp_path / "summary", tmp_path / "args"
@@ -746,6 +747,83 @@ def test_the_put_step_moves_n_s_national_folder_outside_the_checkout(tmp_path):
 def test_the_put_step_gives_no_root_on_anything_unexpected(tmp_path, kw):
     out, _r = _put(tmp_path, **kw)
     assert out == ""
+
+
+# ------------------------------------------------------------------------------------------------ D-ISO-9 issue
+
+DEGRADED_STEP = "Open or update the national pages degraded issue"
+
+
+def _degraded(tmp_path, run_log, open_issue=""):
+    """The D-ISO-9 step with a `gh` stub that records its calls and the body file; returns (calls, body)."""
+    work, bindir = tmp_path / "work", tmp_path / "bin"
+    (work / "build").mkdir(parents=True)
+    bindir.mkdir()
+    if run_log is not None:
+        (work / "build" / "run-log.json").write_text(run_log if isinstance(run_log, str) else json.dumps(run_log))
+    calls, body = tmp_path / "calls", tmp_path / "body"
+    (bindir / "gh").write_text("#!/bin/bash\n"
+                               f'echo "$@" >> "{calls}"\n'
+                               f'if [ "$2" = list ]; then echo "{open_issue}"; fi\n'
+                               'for ((i=1; i<=$#; i++)); do j=$((i+1)); '
+                               f'if [ "${{!i}}" = --body-file ]; then cp "${{!j}}" "{body}"; fi; done\n')
+    (bindir / "gh").chmod(0o755)
+    step = _steps(DAILY, "update")[DEGRADED_STEP]
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "RUNNER_TEMP": str(tmp_path),
+           "GITHUB_SERVER_URL": "https://x", "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "1", "GH_TOKEN": "t",
+           "NAT_TITLE": step["env"]["NAT_TITLE"]}
+    r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    return (calls.read_text().splitlines() if calls.exists() else []), (body.read_text() if body.exists() else "")
+
+
+def test_the_degraded_issue_step_is_soft_main_only_and_fixed_text():
+    step = _steps(DAILY, "update")[DEGRADED_STEP]
+    assert step["if"] == "always() && github.ref == 'refs/heads/main'"
+    assert step["continue-on-error"] is True and step["timeout-minutes"] <= 5 and "${{" not in step["run"]
+    assert step["env"] == {"GH_TOKEN": "${{ github.token }}", "NAT_TITLE": "Daily update: national pages degraded"}
+    assert "--app github-actions" in step["run"] and "--body-file" in step["run"]
+    names = list(_steps(DAILY, "update"))
+    assert names.index("Site checks") < names.index(DEGRADED_STEP) < names.index("Upload refreshed data")
+
+
+@pytest.mark.skipif(not __import__("shutil").which("jq"), reason="jq not installed")
+@pytest.mark.parametrize("run_log", [None, "{not json", {}, {"national": "off"}, {"national": "built"},
+                                     {"national": "built", "national_states": {}}, {"rpc": {"exit": 0}}],
+                         ids=["no-log", "not-json", "empty", "off", "built", "built-no-states", "no-key"])
+def test_no_degrade_opens_nothing(tmp_path, run_log):
+    calls, _b = _degraded(tmp_path, run_log)
+    assert calls == []
+
+
+@pytest.mark.skipif(not __import__("shutil").which("jq"), reason="jq not installed")
+@pytest.mark.parametrize("open_issue", ["", "9"])
+def test_a_degraded_build_opens_or_comments_on_one_issue(tmp_path, open_issue):
+    calls, body = _degraded(tmp_path, {"national": "degraded"}, open_issue=open_issue)
+    assert calls[-1].startswith("issue comment 9" if open_issue else
+                                "issue create --repo o/r --title Daily update: national pages degraded")
+    assert len(calls) == 2 and "national: degraded; governments degraded: 0" in body and "https://x/o/r/actions/runs/1" \
+        in body
+
+
+@pytest.mark.skipif(not __import__("shutil").which("jq"), reason="jq not installed")
+def test_a_degraded_government_is_named_by_id_and_state_word_only(tmp_path):
+    """The body holds only ids and state words that pass the step's checks: any other text is "unknown"."""
+    sentinel = "SENTINEL-ITEM-TEXT"
+    states = {"place-4715160": "withheld-items", "county-47125": "adapter-error",
+              f"place-1 {sentinel}": "bad-date", "place-0000001": f"bad-date {sentinel}",
+              "sde-12345": {"x": sentinel}, "cousub-123456\n- injected: line": "render-error"}
+    calls, body = _degraded(tmp_path, {"national": "built", "national_states": states})
+    assert calls[-1].startswith("issue create")
+    assert sentinel not in body and "injected" not in body
+    assert "- place-4715160: withheld-items\n" in body and "- county-47125: adapter-error\n" in body
+    assert "- unknown: unknown\n" in body and "- place-0000001: unknown\n" in body and "- sde-12345: unknown\n" in body
+    rows = [ln for ln in body.splitlines() if ln.startswith("- ")]
+    assert all(re.fullmatch(r"- [a-z0-9-]+: [a-z-]+", ln) for ln in rows), rows
+    assert "national: built; governments degraded: " in body
+    many = {f"place-{1000000 + i}": "bad-instant" for i in range(60)}
+    _c, body = _degraded(tmp_path / "many", {"national": "degraded", "national_states": many})
+    assert "governments degraded: 60" in body and body.count(": bad-instant\n") == 50
 
 
 # ------------------------------------------------------------------------------------------------ push job
