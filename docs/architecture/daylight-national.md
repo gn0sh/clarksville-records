@@ -1281,6 +1281,10 @@ text, so the page builds; a list `source_id` and a non-JSON or non-UTF-8 listing
   no `run-log.json`, so a degraded rebuild opens no D-ISO-9 issue; its `::warning::`/`::error::` lines are the
   signal. Accepted (a person started that run and reads its log). Say so in a comment at the D-ISO-9 step and in
   `docs/ops/u3-positive-control.md`. No code change.
+  *As built (devops-engineer, 2026-11-20):* the rebuild step runs `python -m sitegen` and `python -m collector
+  export`; only `collector run` (`collector/__main__.py:523`) writes `build/run-log.json`, so the D-ISO-9 step exits
+  at its `[ -f "$log" ] || exit 0`. Comment at the D-ISO-9 step; runbook section "A rebuild-only run opens no
+  'national pages degraded' issue" in `docs/ops/u3-positive-control.md`.
 - D-ISO-14 S2c nit d: the `national-update.yml` gate (:57-59, `timeout-minutes: 10`) gets a `timeout-minutes` on every
   step, job timeout >= their sum + 1, as D-ISO-1 for the daily gate (the unshallow fetch of `national-data` history,
   about 730 commits a year, `blob:none`, is the one that grows); extend the 12.3 #10 test to this gate; record the

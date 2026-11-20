@@ -95,3 +95,14 @@ Architecture `docs/architecture/daylight-national.md` 12.1 row 23, task D-ISO-7.
   the push job's fast-forward pushes still pass), with no bypass for the team's token or GitHub Actions, so only
   Brian can make that reset (he lifts the rule for it, then restores it). This is Brian's PC step, batched with the
   U3-0 ruleset ask (no second card).
+
+## A rebuild-only run opens no "national pages degraded" issue (S2c nit c)
+Architecture 12.2, task D-ISO-13. Recorded as built; no code change.
+- A manual rebuild-only run (`daily-update.yml` dispatched with `collect` false: "Rebuild site from committed data")
+  runs `python -m sitegen` and `python -m collector export`, never `collector run`, so it writes no
+  `build/run-log.json`. The D-ISO-9 step ("Open or update the national pages degraded issue") reads only that file,
+  so a degraded national build in a rebuild-only run opens or comments on no issue.
+- The signal there is the run's own log: the national step's `::warning::National pages: <id>: <state> (<type>)`
+  lines (tier 1) and its `::error::` line (tier 2, every national page stale). A person started that run and reads
+  its log; the next scheduled run, which does write `run-log.json`, opens the issue if the degrade is still there.
+- Accepted (security review S2c nit c, code review nit 5).

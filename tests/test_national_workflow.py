@@ -995,6 +995,18 @@ def test_the_degraded_issue_step_is_soft_main_only_and_fixed_text():
     assert names.index("Site checks") < names.index(DEGRADED_STEP) < names.index("Upload refreshed data")
 
 
+def test_a_rebuild_only_run_writes_no_run_log_so_opens_no_degraded_issue():
+    """D-ISO-13 (S2c nit c), as built: the rebuild-only step never runs `collector run` (the one writer of
+    build/run-log.json), and the D-ISO-9 step stops when that file is absent; the comment says so."""
+    steps = _steps(DAILY, "update")
+    rebuild = steps["Rebuild site from committed data"]
+    assert rebuild["if"] == "github.event_name == 'workflow_dispatch' && !inputs.collect"
+    assert "collector run" not in rebuild["run"] and "run-log" not in rebuild["run"]
+    assert '[ -f "$log" ] || exit 0' in steps[DEGRADED_STEP]["run"]
+    text = DAILY_PATH.read_text(encoding="utf-8")
+    assert "D-ISO-13 (S2c nit c, recorded as built)" in text
+
+
 @pytest.mark.skipif(not __import__("shutil").which("jq"), reason="jq not installed")
 @pytest.mark.parametrize("run_log", [None, "{not json", {}, {"national": "off"}, {"national": "built"},
                                      {"national": "built", "national_states": {}}, {"rpc": {"exit": 0}}],

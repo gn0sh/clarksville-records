@@ -1081,6 +1081,10 @@ jobs:
       # holds fixed text, the national word, counts, and only ids and state words that pass the checks below (anything
       # else shows as "unknown"): never a line of input text. No run-log (a failed or rebuild-only run), switch off
       # (`off`) or `built` with no state: nothing. main only, like the other national issue.
+      # D-ISO-13 (S2c nit c, recorded as built): a rebuild-only run ("Rebuild site from committed data") runs sitegen
+      # and `collector export`, never `collector run`, so it writes no run-log.json and a degraded rebuild opens no
+      # issue here. Its signal is the national step's ::warning::/::error:: lines in its own log; a person started it
+      # and reads that log. Accepted (docs/ops/u3-positive-control.md, architecture 12.2).
       - name: Open or update the national pages degraded issue
         if: always() && github.ref == 'refs/heads/main'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
