@@ -6,7 +6,8 @@
 # gets in only prints one line and succeeds, which the probe records as FAIL. Those two grant nothing.
 # The pages-api job (v1pp-probe/pages-api-coverage) declares no environment, so nothing stops it starting: with pages
 # write and an OIDC token it calls POST pages/deployments for a made-up artifact (id 1). PASS only if GitHub refuses on
-# branch or environment grounds; refused only for the artifact means the path is open (FAIL). It prints the answer.
+# branch or environment grounds; refused for the artifact is INCONCLUSIVE (the branch check was not reached; the
+# artifact stays fake, since a real one could replace the live site). It prints the answer.
 # No job reads a secret or runs a file from the repository.
 name: V1pp environment probe (one time)
 on:

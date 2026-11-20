@@ -309,9 +309,6 @@ FAILS = {
     # v1pp-probe/pages-api-coverage
     "pages-accepted": ({"env_logs": {"501": _line("V1PP-RESULT PAGES api exit=0 {\"status_url\": \"x\"}")}},
                        ["FAIL branch probe/v1pp-env pages-api: GitHub accepted a Pages deployment"]),
-    "pages-refused-only-for-artifact": (
-        {"env_logs": {"502": _line("V1PP-RESULT PAGES api exit=1 gh: Artifact not found (HTTP 404)")}},
-        ["FAIL tag v1pp-probe pages-api: refused only for the made-up artifact"]),
 }
 
 
@@ -388,6 +385,11 @@ INCONCLUSIVE = {
                    "INCONCLUSIVE D0 rebase: refused, but not naming"),
     "pages-other": ({"env_logs": {"501": _line("V1PP-RESULT PAGES api exit=1 gh: Server Error (HTTP 502)")}},
                     "INCONCLUSIVE branch probe/v1pp-env pages-api: refused, but not on branch or environment grounds"),
+    "pages-artifact-first": (
+        {"env_logs": {"502": _line("V1PP-RESULT PAGES api exit=1 gh: Artifact not found (HTTP 404)")}},
+        "INCONCLUSIVE tag v1pp-probe pages-api: artifact refused first; branch check not reached"),
+    "tag-main-delete-failed": ({"delete_fail": ["tags/main"]},
+                               "INCONCLUSIVE after cleanup tags/main: the delete answered 'failed:"),
     "pages-missing": ({"env_logs": {"502": _line("V1PP-ERROR: no OIDC token")}},
                       "INCONCLUSIVE tag v1pp-probe pages-api: no answer in the run's log"),
     # v1pp-probe/cleanup-absence-read: a cleanup write that failed is INCONCLUSIVE, even if the re-read agrees
@@ -437,6 +439,27 @@ def test_a_setup_failure_looks_up_and_cancels_a_run_it_started(tmp_path, twin):
     assert run.state["cancelled"] == ["501"]
     assert not [c for c in run.calls if c["method"] == "run list" and "probe/v1pp-runner" in c["argv"]]
     assert_cleaned(run)
+
+
+def test_a_tag_main_left_behind_says_a_person_edits_r_t(tmp_path, twin):
+    """Delta review: a plain DELETE of tags/main is refused by R-T, so the hint is the ruleset edit, not the command."""
+    run = probe(tmp_path, twin, {"delete_fail": ["tags/main"]})
+    assert run.r.returncode == 1
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("INCONCLUSIVE after cleanup tags/main"))
+    assert "a person removes it by editing the R-T ruleset" in line and "gh api -X DELETE" not in line
+
+
+def test_runs_are_settled_before_the_merged_reads_and_r2_before_cleanup(tmp_path, twin):
+    """Delta review: settle_runs first, so a merge by a late run is read, and R2 goes off, before any cleanup write."""
+    run = probe(tmp_path, twin, {"fail": {"ref=refs/tags/v1pp-probe": 1}, "run_status": {"501": "queued"},
+                                 "bot_prs": {"probe/v1pp-w-bot": 90}, "merged": [90]})
+    assert run.r.returncode == 2
+    idx = lambda pred: next(i for i, c in enumerate(run.calls) if pred(c))   # noqa: E731
+    cancel = idx(lambda c: c["path"] == "actions/runs/501/cancel")
+    read = idx(lambda c: c["path"] == "pulls/90" and c["method"] == "GET")
+    put = idx(lambda c: c["path"] == "actions/permissions/workflow" and c["method"] == "PUT")
+    first_close = idx(lambda c: c["method"] == "PATCH")
+    assert cancel < read < put < first_close
 
 
 def test_a_tag_main_delete_refused_by_r_t_is_done(tmp_path, twin):
@@ -579,7 +602,7 @@ def test_the_twins_agree():
                      "PASS (V1'')", "FAIL (V1'')", "INCONCLUSIVE (V1'')", "BEGIN-REFUSAL-LOCK", "END-REFUSAL-LOCK",
                      # the review fixes (v1pp-probe/*): the same rule text in both twins
                      "'not allowed|approving review|rule violation'", "V1PP-RESULT PAGES api exit=[0-9]+( .*)?$",
-                     "'not allowed to deploy|protection rule'", "refused only for the made-up artifact",
+                     "'not allowed to deploy|protection rule'", "artifact refused first; branch check not reached",
                      "Reference does not exist", "/actions/runs/$", "/cancel", "not completed after 12 minutes",
                      "nothing was seen to go through", "unlock expired after", "pushed, but no run seen yet"):
             assert part in s, part

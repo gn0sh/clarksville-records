@@ -16,7 +16,7 @@
 #   3. pushes probe/v1pp-env (.github/workflows/v1pp-env.yml: one job per environment, github-pages and morning-note,
 #      each only an echo, and a pages-api job with no environment that calls POST pages/deployments with a made-up
 #      artifact), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments, and the
-#      Pages API on branch or environment grounds (refused only for the artifact = the path is open = FAIL);
+#      Pages API on branch or environment grounds (refused for the artifact = branch check not reached = INCONCLUSIVE);
 #   4. pushes probe/v1pp-runner (.github/workflows/v1pp-probe.yml): its GITHUB_TOKEN run tries steps 1-3 of section 4
 #      (bot pull requests, then per pull request a bot APPROVE, REST squash, merge, rebase, GraphQL squash, then a
 #      direct push to main by the REST ref update and by git push); a merge or push that goes through ends the run;
@@ -263,8 +263,8 @@ finish() {   # cancel, cleanup, the reads after it, the verdict; never returns
   for r in "${g_branches[@]}" "${b_branches[@]}"; do   # pull requests whose number this run did not learn
     if x=$(list_prs "$r"); then add_num $x; else mark INCONCLUSIVE "cleanup $r" "could not list its pull requests"; fi
   done
+  settle_runs   # first: a late run's merge is then seen by the reads below, and R2 goes off before cleanup
   for n in "${nums[@]}"; do read_merged "$n"; done   # before cleanup closes them (v1pp-probe/r2-after-cleanup)
-  settle_runs
   log "Cleanup: closing ${#nums[@]} probe pull request(s), deleting ${#clean_refs[@]} ref(s)."
   cleanup
   i=0
@@ -284,6 +284,8 @@ finish() {   # cancel, cleanup, the reads after it, the verdict; never returns
     d=${del_res[$i]}; i=$((i + 1))
     if read_until "$r" absent ref_state "$r"; then ok=yes; else ok=""; fi
     if [ "$d" = done ] && [ -n "$ok" ]; then mark PASS "after cleanup $r" "deleted"
+    elif [ "$r" = tags/main ]; then
+      mark INCONCLUSIVE "after cleanup $r" "the delete answered '$d', it reads '${rlast:-unread}': R-T refuses a plain DELETE, so a person removes it by editing the R-T ruleset (tag main: blocked) to allow deletion, deleting the tag, then running protect-main again"
     else mark INCONCLUSIVE "after cleanup $r" "the delete answered '$d', it reads '${rlast:-unread}': delete it with gh api -X DELETE repos/$repo/git/refs/$r"; fi
   done
   rm -rf "$work"
@@ -491,8 +493,8 @@ pages_refused() {   # $1 run label, $2 run id: v1pp-probe/pages-api-coverage, th
   rest=${l#*exit=}; code=${rest%% *}
   if [ "$code" = 0 ]; then mark FAIL "$1 pages-api" "GitHub accepted a Pages deployment: $rest"
   elif grep -qiE 'not allowed to deploy|protection rule' <<< "$rest"; then mark PASS "$1 pages-api" "refused: $rest"
-  elif grep -qi 'artifact' <<< "$rest"; then
-    mark FAIL "$1 pages-api" "refused only for the made-up artifact, so the Pages API is open to $1: $rest"
+  elif grep -qi 'artifact' <<< "$rest"; then   # the fake artifact stays: a real one could replace the live site
+    mark INCONCLUSIVE "$1 pages-api" "artifact refused first; branch check not reached: $rest"
   else mark INCONCLUSIVE "$1 pages-api" "refused, but not on branch or environment grounds: $rest"; fi
 }
 env_run=$(run_of "$envb" "$env_head") || env_run=""
