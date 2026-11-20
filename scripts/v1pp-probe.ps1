@@ -55,7 +55,7 @@ param([string]$Apps = '')
 #   scripts/v1pp-probe.sh:   v1pp_unlocked_until=none   ->   v1pp_unlocked_until=YYYY-MM-DD
 #   scripts/v1pp-probe.ps1:  $v1ppUnlockedUntil = 'none'   ->   $v1ppUnlockedUntil = 'YYYY-MM-DD'
 # Nothing below runs while it is locked, or after that day (an unlock left in place expires by itself).
-$v1ppUnlockedUntil = 'none'
+$v1ppUnlockedUntil = '2026-11-22'
 if ($v1ppUnlockedUntil -cnotmatch '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') {
     Write-Host "REFUSED: the V1'' probe is locked (v1pp-probe/run-once). The team enables it for one run by a reviewed PR. Nothing was changed."
     exit 1
