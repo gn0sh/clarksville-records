@@ -11,26 +11,31 @@ For each covered entry on a collected platform:
 1. The entry itself must be one the collector may read: its platform's key mapping with a `client`, and a valid
    `host_ok` (R5, the loader's own check): else CopyError. `check_entry` runs this in the builder's load phase
    (section 12), before any national input is read, so a reviewed entry that fails it stops the PR's own checks;
-   `copy_feed` repeats it (`national/r5-not-enforced`).
+   `copy_feed` repeats it (`national/r5-not-enforced`). The load phase also holds `host_ok.date` after config/site.yml
+   `lines_effective` (B-ISO-13), so the `checked_at` floor of point 3 never lets the page print a `provenance` day.
 2. Read `bodies/<id>.json` (the id through `checked_id` first) and parse it per 4.4.3 (`collector.safe_json`). No
    root, a root or `bodies/` that is not a real folder (symlinked), or nothing at the path is "file missing"
    (`missing`, silent). Something at the path that is refused, a symlink, FIFO or folder, a file over
    MAX_FILE_BYTES, any error while reading or parsing, or a value that is not an object, is `bad-file` (point 4).
 3. `clean_feed` with the entry's platform and client (the collector's files are not trusted as cleaned: S2a), then
-   `bind_feed` against the current directory entry, then the date and instant checks, then the `daylight-upcoming/1`
+   `bind_feed` against the current directory entry, then the title check (B-ISO-12, architecture 12.1 row 6s: a
+   meeting with `title_ours` true prints its title outside every `<span data-feed>`, so it must be one of the
+   platform's fixed titles, OURS_TITLES), then the date and instant checks, then the `daylight-upcoming/1`
    schema. A clean, bind or schema error is `bad-file` too (B-ISO-9: schema drift would otherwise leave every
    Legistar page stale while the run log says `built`).
 4. Nothing here raises on a national input (section 12; security S2b findings 1 and 2). Each case below gives
    `stale_feed(entry)`, sets `CopyCounts.state` to its fixed word and prints one `::warning::` line with the id and
    that word (and a count or an exception's type name), never the file's text:
    - `bad-file`: points 2 and 3, with the refusal's type name (NotRegularFile, FileTooLarge, NotJson, NotAnObject,
-     SchemaRefused, or the exception's own: BindError, UnsafeIdError, ...).
+     SchemaRefused, TitleNotOurs, or the exception's own: BindError, UnsafeIdError, ...).
    - `withheld-items`: `withheld_stripped > 0`, the file carried items for an entry that is not shown (a collector
      bug, or a file collected while the entry was shown and read after a PR narrowed it to `items: withheld`).
      Raising would un-publish nothing (`national-data` is public) and would hold the narrowing PR's own deploy.
    - `bad-date`: a `meetings[].date` that is not ASCII `YYYY-MM-DD` or not a calendar day (`2026-02-30`).
    - `bad-instant`: a `checked_at` or `last_ok_at` that is not ASCII `YYYY-MM-DDTHH:MM:SSZ`, or lies before the
-     epoch or more than a day after the build's instant.
+     epoch or more than a day after the build's instant; or a `checked_at` whose site_timezone day (the day the page
+     prints, `national_pages.newest_day`) is before the entry's `host_ok.date` (B-ISO-13: the collector cannot fetch
+     before Brian's OK).
    `review_mismatch` (shown, read under another review) is only counted: expected for the runs between a reviewed
    change and the next collect.
 
@@ -69,6 +74,11 @@ INSTANT_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z
 COPIED, MISSING = "copied", "missing"
 WITHHELD_ITEMS, BAD_DATE, BAD_INSTANT = "withheld-items", "bad-date", "bad-instant"
 BAD_FILE = "bad-file"                  # a body file that is there but refused (B-ISO-9)
+# The fixed titles a collected platform's meeting may carry with `title_ours: true` (architecture 12.1 row 6s,
+# B-ISO-12): such a title prints outside every <span data-feed>, so it must be ours. Legistar's is the collector's
+# FALLBACK_TITLE (collector/national/legistar_upcoming.py), which equals national_guards.WITHHELD_TITLE (a test holds
+# both).
+OURS_TITLES: dict[str, frozenset[str]] = {"legistar": frozenset({"Meeting"})}
 ANNOTATION = "::warning::National pages: "
 
 
@@ -114,10 +124,26 @@ def _platform_keys(entry: Mapping) -> tuple[str, str]:
     return platform, client
 
 
+def _as_day(value) -> date:
+    """A day held as a `date` (YAML) or as the strict `YYYY-MM-DD` text `host_ok_problem` already accepted."""
+    return value if isinstance(value, date) else date.fromisoformat(value)
+
+
+def host_ok_day(entry: Mapping) -> date:
+    """The `host_ok.date` of an entry `_platform_keys` accepted: the day Brian said yes to its host (R5)."""
+    return _as_day(entry["host_ok"]["date"])
+
+
 def check_entry(entry: Mapping) -> None:
     """The load-phase check of one covered entry on a collected platform (point 1; architecture 12, B-ISO-1): a
-    function of the reviewed directory entry alone. CopyError when the collector may not read it."""
+    function of the reviewed directory entry alone. CopyError when the collector may not read it, or when its
+    `host_ok.date` is on or before config/site.yml `lines_effective` (B-ISO-13: `checked_at` is held on or after that
+    date, so the page's newest-record day is never the banned `provenance` day)."""
     _platform_keys(entry)
+    floor = host_ok_day(entry)
+    if floor <= _as_day(config.SITE["lines_effective"]):
+        raise CopyError(f"{safe_gov(entry)}: host_ok.date {floor.isoformat()} is on or before lines_effective "
+                        f"(B-ISO-13): refused")
 
 
 def _real_dir(path: Path) -> bool:
@@ -146,6 +172,18 @@ class NotAnObject(BadFile):
 
 class SchemaRefused(BadFile):
     """The cleaned, bound feed fails the `daylight-upcoming/1` schema."""
+
+
+class TitleNotOurs(BadFile):
+    """A meeting with `title_ours` true whose `title` is not one of its platform's OURS_TITLES (B-ISO-12)."""
+
+
+def title_problem(feed: Mapping, platform: str) -> bool:
+    """True when a meeting of the bound feed says `title_ours` but its `title` is not one of the platform's fixed
+    titles (B-ISO-12; architecture 12.1 row 6s): it would print outside every <span data-feed>, unchecked."""
+    ours = OURS_TITLES.get(platform, frozenset())
+    return any(isinstance(m, dict) and m.get("title_ours") is True and m.get("title") not in ours
+               for m in feed.get("meetings") or ())
 
 
 def read_body_file(root: Path | None, gov: str) -> tuple[dict | None, str | None]:
@@ -219,15 +257,21 @@ def instant_ok(value, built_at: datetime) -> bool:
     return EPOCH <= t <= built_at + INSTANT_SLACK
 
 
-def date_problem(feed: Mapping, built_at: datetime) -> str | None:
+def date_problem(feed: Mapping, built_at: datetime, entry: Mapping) -> str | None:
     """BAD_DATE or BAD_INSTANT for a text date or instant of a bound feed that the pages could not print, else None.
-    A value of another type is left to the schema (`bad-file`)."""
+    `checked_at` is also BAD_INSTANT when the day the page prints for it (site_timezone, `newest_day`) is before the
+    entry's `host_ok.date` (B-ISO-13; `last_ok_at` is never printed and keeps the epoch floor). A value of another
+    type is left to the schema (`bad-file`)."""
+    from .national_pages import newest_day      # national_pages imports this module: imported at call time
     for m in feed.get("meetings") or ():
         if isinstance(m, dict) and isinstance(m.get("date"), str) and not civil_day(m["date"]):
             return BAD_DATE
     for key in ("checked_at", "last_ok_at"):
         if isinstance(feed.get(key), str) and not instant_ok(feed[key], built_at):
             return BAD_INSTANT
+    day = newest_day(feed.get("checked_at"))     # None for the epoch (no record: the page prints no day)
+    if day is not None and date.fromisoformat(day) < host_ok_day(entry):
+        return BAD_INSTANT
     return None
 
 
@@ -242,9 +286,10 @@ def _refused(entry: Mapping, counts: CopyCounts, state: str, tail: str = "") -> 
 def copy_feed(root: Path | None, entry: dict, counts: CopyCounts | None = None, *,
               built_at: datetime | None = None) -> dict:
     """The feed published for one covered entry on a collected platform (module docstring): the file's feed after
-    clean_feed, bind_feed, the date and instant checks and the schema, or `stale_feed(entry)` when the file is missing
-    or fails any of them. `built_at` (aware) is the build's instant (default now). Raises CopyError only for an entry
-    the collector may not read (point 1, a reviewed-config problem); never for anything the file holds."""
+    clean_feed, bind_feed, the title check, the date and instant checks and the schema, or `stale_feed(entry)` when
+    the file is missing or fails any of them. `built_at` (aware) is the build's instant (default now). Raises
+    CopyError only for an entry the collector may not read (point 1, a reviewed-config problem); never for anything
+    the file holds."""
     platform, client = _platform_keys(entry)
     counts = counts if counts is not None else CopyCounts()
     built_at = built_at or datetime.now(timezone.utc)
@@ -262,7 +307,9 @@ def copy_feed(root: Path | None, entry: dict, counts: CopyCounts | None = None, 
     if bound.withheld_stripped:           # security S2b finding 1: degrade, never stop the build
         counts.bind = bound
         return _refused(entry, counts, WITHHELD_ITEMS, f", withheld_stripped={bound.withheld_stripped}")
-    problem = date_problem(feed, built_at)
+    if title_problem(feed, platform):     # B-ISO-12 (row 6s, S2d finding 1a)
+        return _refused(entry, counts, BAD_FILE, f" ({TitleNotOurs.__name__})")
+    problem = date_problem(feed, built_at, entry)
     if problem:                           # security S2b finding 2
         return _refused(entry, counts, problem)
     try:

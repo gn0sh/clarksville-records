@@ -332,9 +332,11 @@ def test_an_instant_out_of_form_or_range_gives_a_stale_page(tmp_path, monkeypatc
 
 @pytest.mark.parametrize("checked_at,last_ok_at", [
     (ncopy.EPOCH_INSTANT, None), ("2026-11-21T18:00:00Z", "2026-11-21T18:00:00Z"),
-    ("2026-02-28T00:00:00Z", "2024-02-29T23:59:59Z")])
+    ("2026-11-18T06:00:00Z", "2024-02-29T23:59:59Z")])
 def test_instants_at_the_edges_of_the_range_are_kept(tmp_path, monkeypatch, checked_at, last_ok_at):
-    """The epoch (a stale feed's own checked_at) up to one day after the build's instant, and a null last_ok_at."""
+    """The epoch (a stale feed's own checked_at, no day printed) up to one day after the build's instant, a
+    checked_at at the first instant of the host_ok day in the site's zone (B-ISO-13: 06:00Z is midnight in Chicago in
+    November), a last_ok_at before it (never printed: the epoch floor only) and a null last_ok_at."""
     entry = _load(tmp_path, monkeypatch, ENTRY)
     doc = dict(_feed(items=False), checked_at=checked_at, last_ok_at=last_ok_at)
     counts = ncopy.CopyCounts()
@@ -360,3 +362,70 @@ def test_host_ok_dates_take_ascii_digits_only():
     from sitegen.national_guards import host_ok_valid
     assert host_ok_valid(HOST_OK)
     assert not host_ok_valid(dict(HOST_OK, date="٢٠٢٦-١١-١٨"))
+
+
+# --- row 6s (architecture 12.1, B-ISO-12, B-ISO-13; security S2d finding 1): national-isolation/feed-value-outside-wrapper
+
+def test_legistar_s_ours_titles_are_the_collector_s_fallback_and_the_withheld_title():
+    from collector.national.legistar_upcoming import FALLBACK_TITLE
+    from sitegen.national_guards import WITHHELD_TITLE
+    assert ncopy.OURS_TITLES["legistar"] == {FALLBACK_TITLE} == {WITHHELD_TITLE}
+    assert set(ncopy.OURS_TITLES) == set(ncopy.COLLECTED)
+
+
+@pytest.mark.parametrize("title", ["Paint color #2B4BA5", "gnoshcodes-mark-black", "a request to present the budget",
+                                   "", "meeting", "Meeting #2B4BA5", None])
+def test_a_title_ours_that_is_not_the_platform_s_fixed_title_is_bad_file(tmp_path, monkeypatch, capsys, title):
+    """B-ISO-12: such a title prints outside every <span data-feed> (body.html.j2), so only the fixed one passes."""
+    entry = _load(tmp_path, monkeypatch, dict(ENTRY, items="shown"), reviewed=True)
+    doc = _feed(review=entry["review"])
+    doc["meetings"][0].update(title=title, title_ours=True)
+    counts = ncopy.CopyCounts()
+    _is_stale(ncopy.copy_feed(_root(tmp_path, doc), entry, counts, built_at=BUILT), entry)
+    assert counts.state == ncopy.BAD_FILE
+    assert capsys.readouterr().out == f"::warning::National pages: {GOV}: bad-file (TitleNotOurs)\n"
+
+
+def test_the_fixed_title_with_title_ours_and_any_title_without_it_are_kept(tmp_path, monkeypatch):
+    entry = _load(tmp_path, monkeypatch, dict(ENTRY, items="shown"), reviewed=True)
+    for title, ours in (("Meeting", True), ("Paint color #2B4BA5", False)):
+        doc = _feed(review=entry["review"])
+        doc["meetings"][0].update(title=title, title_ours=ours)
+        counts = ncopy.CopyCounts()
+        feed = ncopy.copy_feed(_root(tmp_path, doc), entry, counts, built_at=BUILT)
+        assert counts.state == ncopy.COPIED and feed["meetings"][0]["title"] == title
+
+
+@pytest.mark.parametrize("checked_at", ["2022-08-30T16:00:00Z", "2026-11-18T05:59:59Z", "2026-11-17T12:00:00Z"])
+def test_a_checked_at_whose_printed_day_is_before_host_ok_is_bad_instant(tmp_path, monkeypatch, capsys, checked_at):
+    """B-ISO-13: the page prints checked_at's site_timezone day (newest_day); the collector cannot fetch before
+    Brian's OK (host_ok.date 2026-11-18). 05:59:59Z on the 18th is still the 17th in Chicago."""
+    entry = _load(tmp_path, monkeypatch, ENTRY)
+    doc = dict(_feed(items=False), checked_at=checked_at, last_ok_at=None)
+    counts = ncopy.CopyCounts()
+    _is_stale(ncopy.copy_feed(_root(tmp_path, doc), entry, counts, built_at=BUILT), entry)
+    assert counts.state == ncopy.BAD_INSTANT
+    assert capsys.readouterr().out == f"::warning::National pages: {GOV}: bad-instant\n"
+
+
+def test_the_checked_at_floor_reads_a_host_ok_date_held_as_a_date(tmp_path, monkeypatch):
+    entry = dict(_load(tmp_path, monkeypatch, ENTRY), host_ok=dict(HOST_OK, date=date(2026, 11, 18)))
+    for checked_at, state in (("2026-11-18T06:00:00Z", ncopy.COPIED), ("2026-11-18T05:59:59Z", ncopy.BAD_INSTANT)):
+        counts = ncopy.CopyCounts()
+        ncopy.copy_feed(_root(tmp_path, dict(_feed(items=False), checked_at=checked_at)), entry, counts,
+                        built_at=BUILT)
+        assert counts.state == state, checked_at
+
+
+@pytest.mark.parametrize("day,refused", [("2022-08-29", True), ("2022-08-30", True), ("2022-08-31", False),
+                                         (date(2022, 8, 30), True), (date(2022, 8, 31), False)])
+def test_check_entry_refuses_a_host_ok_on_or_before_lines_effective(day, refused):
+    """B-ISO-13, load phase: with host_ok.date after lines_effective, a checked_at the floor admits is never printed
+    as the banned provenance day."""
+    assert npg.config.SITE["lines_effective"] == "2022-08-30"
+    entry = dict(ENTRY, host_ok=dict(HOST_OK, date=day))
+    if refused:
+        with pytest.raises(ncopy.CopyError, match="lines_effective"):
+            ncopy.check_entry(entry)
+    else:
+        ncopy.check_entry(entry)
