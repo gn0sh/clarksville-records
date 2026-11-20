@@ -336,6 +336,31 @@ moves the baseline past that commit. The drift rule for the baseline is met insi
 step 4, just before the merge sets the baseline, and a plain `--check` prints OK just after it.
 Done when the PASS output is recorded in platform facts.
 
+Built, not run (devops-engineer, 2026-11-20; `scripts/v1pp-probe.{sh,ps1}`, `scripts/v1pp-probe/*.yml`, tests
+`tests/test_v1pp_probe.py` with the stateful stub `tests/v1pp_stub_gh.py`; runbook section 4 item 6a). The V1' files stay
+locked as they are. Choices the reviewers should check:
+- **Lock:** a BEGIN/END-REFUSAL-LOCK block, first in each twin, refuses before any `gh` call. The run is enabled by
+  one line per twin (`v1pp_locked=yes` -> `no`; `$v1ppLocked = $true` -> `$false`) in the enabling PR; the result PR
+  flips it back. The tests run a copy with exactly that line flipped.
+- **Guard:** refused in a cloud session or CI; `--apps claude|none` (`-Apps`) is required and passed to
+  `protect-main --check`, whose last line must start "OK: main is protected"; main and records-data must read as
+  commits and the tag `main` as a 404. All before the first write.
+- **Targets:** W, N, D0 twice from main: set G opened by gn0sh, set B (`-bot` branches) for the runner's
+  `GITHUB_TOKEN` to open (refused). The runner tries, per open PR, APPROVE, REST squash/merge/rebase and GraphQL
+  squash, then a direct push to main (REST ref update and `git push`). A merge or push ends the run; the script
+  prints `NOT-TRIED` for every step with no answer after that (it derives these itself, never trusts the run's word).
+- **F2:** gn0sh tries `POST git/refs refs/tags/main` (expected a rule violation). `probe/v1pp-env` and tag
+  `v1pp-probe` carry one workflow with a `github-pages` and a `morning-note` job: PASS needs each job `completed`,
+  `failure` and an annotation "not allowed to deploy to <env>"; `success` is FAIL; anything else INCONCLUSIVE.
+- **Verdict:** any FAIL line (merged PR, probe file on main or records-data, accepted approve/open/push/tag, a job
+  in an environment) turns R2 off at once (PUT, then `read_until R2 false`), before cleanup. The expected refusal
+  wordings are assumptions (header list); a different wording is INCONCLUSIVE, never PASS.
+- **Cleanup re-read:** each PR `read_until` `closed<TAB>false` (a merged one is FAIL); each ref `read_until absent`.
+  The second reads an absence, which read-after-write rule 5 says retry can't prove: here the DELETE's 2xx is the
+  write's proof (rule 6) and the re-read can only delay, so a ref still shown after 10 reads is INCONCLUSIVE with the
+  exact delete command. Architect to confirm (problem key `v1pp-probe/cleanup-absence-read`).
+- Not covered by the script (section 4): item 5 (gate unit test) and item 7 (first scheduled run, D3 step 8).
+
 ## W1: docs
 - `docs/architecture/main-protect-invariant.md`: I-main'', I-prov, I-pub, I-in, the consumer table from the note.
 - Operator docs that tell a person to commit `data/` (transcripts import, `fetch_map`, `fin-books build`): name the

@@ -262,7 +262,8 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         request could not be read again after cleanup, `main` moved during the probe while
         the probe pull requests stayed unmerged (another merge in the window), or a read failed: the Actions setting
         is left on. Send the output; the team fixes the cause and you run it again.
-      `MORNING_NOTE_SEND` waits on the V1'' PASS (section 4 item 6a).
+      `MORNING_NOTE_SEND` waits on the V1'' PASS (section 4 item 6a). The V1' probe above stays locked; the V1''
+      probe (`scripts\v1pp-probe.ps1`, after the cutover) replaces it, and its run steps are in section 4 item 6a.
    5. **`github-pages` deploys from `main` only (T4.10.5; Brian, one click; the live site keeps deploying).** The
       site deploys today from the `deploy` job on `main` (Pages source: GitHub Actions, since go-live 2026-11-13);
       the old `gh-pages` branch preview is no longer served, but the `github-pages` environment may still allow
@@ -355,6 +356,34 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    V1'' PASS (ADR 0011), `MORNING_NOTE_SEND` stays unset. The probe no longer gates `MAIN_PR_BASELINE`: the cutover PR
    sets it (item 7; ADR 0011 Amendment (c) item 6).
    And `github-pages` deploys from `main` only (step 2.0.5).
+   **Running the V1'' probe (Brian, once, on his PC; task V1).** The script is locked until the team merges the PR
+   that unlocks it for one run (one line in each of `scripts/v1pp-probe.ps1` and `.sh`). Wait for the team to say
+   so, then:
+   1. In PowerShell, in the repository folder: `git pull`.
+   2. Open https://github.com/settings/installations and check the Apps answer, as for `protect-main`: `claude`
+      (only the Claude App reaches this repository, with none of Administration, Variables, Secrets or Environments
+      set to Read and write) or `none`.
+   3. Run (with that answer):
+      ```
+      powershell -NoProfile -File scripts\v1pp-probe.ps1 -Apps claude
+      ```
+      It first runs `scripts\protect-main.ps1 -Check` (no changes) and stops, changing nothing, unless that prints
+      "OK: main is protected". A browser may open once to add the `workflow` scope to your GitHub CLI sign-in:
+      approve it. It is given back at the very end (a browser may open again).
+   4. Leave it running, about 5 minutes. It makes throwaway branches (`probe/v1pp-...`), three pull requests from
+      you, a tag `v1pp-probe`, and three short workflow runs; it tries to create a tag named `main`; then it removes
+      all of them and checks again that they are gone. Every step prints one line: PASS, FAIL, NOT-TRIED or
+      INCONCLUSIVE.
+   5. Send the team the file it names at the end, `Documents\v1pp-probe-results-<time>.txt`. The last line is the
+      verdict:
+      - **PASS (V1'')**: every try was refused. The team records it in `docs/platform-facts.md` "Main
+        protection" and relocks the script. This is what lets `MORNING_NOTE_SEND` be set later (section 5).
+      - **FAIL (V1'')**: something got through. The script has already turned **Allow GitHub Actions to create and
+        approve pull requests** off. Leave `MORNING_NOTE_SEND` unset and run nothing else. If a probe commit reached
+        `main`, the daily run now stops at the gate until a person's PR moves the baseline past it; the team
+        handles that.
+      - **INCONCLUSIVE (V1'')**: a read failed or GitHub refused for another reason; nothing got through and nothing
+        is left on. The team fixes the cause and asks you to run it again.
 7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only; ADR 0011 Amendment (c)).**
    Set by the cutover PR of ADR 0011 (not by a separate PR, and not gated by the V1'' probe, which gates only
    `MORNING_NOTE_SEND`). Its value is the `main` sha the `records-data` seed is cut from, which is also the PR's base.
