@@ -1,0 +1,439 @@
+#!/usr/bin/env bash
+# V1'' probe, one time (ADR 0011 decision 7 and Amendment (c) item 6; docs/architecture/v1-fail-2026-11-18.md
+# section 4; task V1 in docs/tasks/data-off-main.md; runbook docs/ops/morning-note.md section 4 item 6a). The bash twin
+# of scripts/v1pp-probe.ps1, which is the one Brian runs. Brian's PC only: refused in a cloud session or CI.
+#
+# Question: after the cutover (R1'' on main: the ruleset maximum of approvals, squash only, bypass = the admin role in
+# pull request mode; R-D; R-T; R2 off), can GITHUB_TOKEN get anything into main, and can a branch or tag other than
+# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after the guard passed), it:
+#   0. refuses unless scripts/protect-main.sh --check --apps <answer> prints OK (no writes), main and records-data read
+#      as commits and no tag named main exists;
+#   1. pushes three targets, twice, each one commit on main: W (an inert .github/workflows/v1pp-canary.yml), N
+#      (sitegen/v1pp-probe-canary.txt), D0 (data/v1pp-probe-canary.txt, data/ now refused on main too). Set G
+#      (probe/v1pp-w, probe/v1pp-n, probe/v1pp-d0): you open their pull requests into main. Set B (probe/v1pp-w-bot,
+#      probe/v1pp-n-bot, probe/v1pp-d0-bot): the runner's GITHUB_TOKEN tries to open them, and must be refused;
+#   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2);
+#   3. pushes probe/v1pp-env (.github/workflows/v1pp-env.yml: one job per environment, github-pages and morning-note,
+#      each only an echo), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments;
+#   4. pushes probe/v1pp-runner (.github/workflows/v1pp-probe.yml): its GITHUB_TOKEN run tries steps 1-3 of section 4
+#      (bot pull requests, then per pull request a bot APPROVE, REST squash, merge, rebase, GraphQL squash, then a
+#      direct push to main by the REST ref update and by git push); a merge or push that goes through ends the run;
+#   5. reads every answer, every probe pull request's merged flag, each probe file on main and on records-data, the
+#      tag main and main's sha; then cleans up (closes every probe pull request, deletes every probe branch and tag)
+#      and reads each one again after cleanup.
+# Every step prints one line: PASS (the expected refusal), FAIL (it went through), NOT-TRIED (skipped because an
+# earlier merge or push ended the run) or INCONCLUSIVE (a read failed, or a refusal for another reason). Verdict: FAIL
+# if any line is FAIL (a probe pull request merged, a probe file on main or records-data, a push to main, a tag main,
+# a bot pull request or approval, a job inside an environment): then "Allow GitHub Actions to create and approve pull
+# requests" is turned off at once, before cleanup. Else INCONCLUSIVE if any line is not PASS. Else PASS.
+# Exit 0 PASS, 1 INCONCLUSIVE or refused, 2 FAIL.
+# A PASS gates MORNING_NOTE_SEND only (ADR 0011 Amendment (c) item 6). A FAIL that put a commit on main makes the gate
+# refuse every later run until a person moves MAIN_PR_BASELINE past that commit.
+# Not here (section 4): item 5, an unattested push to records-data, is a gate unit test on a fixture repo; item 7 is the
+# first scheduled run after the cutover (D3 step 8).
+# Expected refusal wordings (read from GitHub's docs and the U3 control, not yet seen live for every step; any other
+# wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash "approving
+# review", direct push "rule violation", tag main "rule violation", environments "not allowed to deploy to <env>".
+# Writes the result to v1pp-probe-results-<time>.txt in RESULTS_DIR (default: the home folder). Nothing is sent.
+# Needs: gh signed in as gn0sh (gh auth login), GNU base64. Takes about 5 minutes.
+# Run: bash scripts/v1pp-probe.sh --apps claude|none   (the same answer protect-main takes)
+#
+# BEGIN-REFUSAL-LOCK (v1pp-probe/run-once): the probe pushes workflows and tries merges, so it runs once, by a reviewed
+# PR. To enable that one run, the PR changes exactly one line in each twin:
+#   scripts/v1pp-probe.sh:   v1pp_locked=yes   ->   v1pp_locked=no
+#   scripts/v1pp-probe.ps1:  $v1ppLocked = $true   ->   $v1ppLocked = $false
+# and the PR that records the result changes it back. Nothing below runs while it is locked.
+v1pp_locked=yes
+if [ "$v1pp_locked" != no ]; then
+  echo "REFUSED: the V1'' probe is locked (v1pp-probe/run-once). The team enables it for one run by a reviewed PR. Nothing was changed."
+  exit 1
+fi
+# END-REFUSAL-LOCK
+set -uo pipefail
+repo=gn0sh/clarksville-records
+owner=gn0sh
+here=$(cd "$(dirname "$0")" && pwd)
+usage="Usage: bash scripts/v1pp-probe.sh --apps claude|none"
+apps=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --apps) [ "$#" -ge 2 ] || { echo "$usage. Nothing was changed."; exit 1; }; apps=$2; shift 2 ;;
+    *) echo "$usage ('$1' is not an option). Nothing was changed."; exit 1 ;;
+  esac
+done
+case "$apps" in
+  claude|none) ;;
+  *) echo "$usage: --apps is the same answer protect-main takes (open https://github.com/settings/installations first). Nothing was changed."; exit 1 ;;
+esac
+for v in CLAUDE_CODE_REMOTE GITHUB_ACTIONS CI; do
+  if [ -n "${!v:-}" ]; then
+    echo "REFUSED: $v is set. The V1'' probe runs only from Brian's PC. Nothing was changed."
+    exit 1
+  fi
+done
+gh auth status >/dev/null 2>&1 || { echo "Not signed in: run gh auth login (as $owner). Nothing was changed."; exit 1; }
+
+# ---------------------------------------------------------------------------------------------- guard (reads only)
+echo "Guard: scripts/protect-main.sh --check --apps $apps (no writes) must print OK first."
+pm_out=$(bash "$here/protect-main.sh" --check --apps "$apps" 2>&1); pm_rc=$?
+printf '%s\n' "$pm_out"
+pm_last=$(printf '%s\n' "$pm_out" | grep . | tail -n 1)
+if [ "$pm_rc" != 0 ] || [ "${pm_last#OK: main is protected}" = "$pm_last" ]; then
+  echo "REFUSED: protect-main --check did not print OK, so main is not as the probe assumes (R1'', R-D, R-T, R2 off). Nothing was changed. Send this output to the team."
+  exit 1
+fi
+sha_of() {   # $1 a ref (heads/main, tags/main): prints its sha, or "absent" on a 404; returns 1 on any other answer
+  local out
+  if out=$(gh api "repos/$repo/git/ref/$1" --jq '.object.sha' 2>&1); then
+    [[ "$out" =~ ^[0-9a-f]{40}$ ]] || return 1
+    printf '%s' "$out"; return 0
+  fi
+  grep -q 'HTTP 404' <<< "$out" || return 1
+  printf 'absent'
+}
+main_before=$(sha_of heads/main) || main_before=""
+rd_before=$(sha_of heads/records-data) || rd_before=""
+tag_before=$(sha_of tags/main) || tag_before=""
+[[ "$main_before" =~ ^[0-9a-f]{40}$ ]] || { echo "REFUSED: could not read main. Nothing was changed."; exit 1; }
+[[ "$rd_before" =~ ^[0-9a-f]{40}$ ]] || { echo "REFUSED: could not read records-data. Nothing was changed."; exit 1; }
+[ "$tag_before" = absent ] || { echo "REFUSED: a tag named main exists or could not be read ('${tag_before:-unread}'): R-T should make that impossible. Nothing was changed. Send this output to the team."; exit 1; }
+
+scope_added=""
+give_back_scope() {   # the workflow scope this run added (a browser may open); runs last, after the verdict
+  if [ -n "$scope_added" ]; then
+    scope_added=""
+    echo "Removing the workflow scope this probe added to your GitHub CLI sign-in (a browser may open)."
+    gh auth refresh -h github.com --remove-scopes workflow || echo "Could not remove it: run gh auth refresh -h github.com --remove-scopes workflow"
+  fi
+}
+if ! gh auth status 2>&1 | grep -q "workflow"; then
+  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
+  gh auth refresh -h github.com -s workflow || { echo "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
+  scope_added=yes
+fi
+work=$(mktemp -d) || { give_back_scope; echo "Could not make a temporary folder. Nothing was changed."; exit 1; }
+out_dir="${RESULTS_DIR:-$HOME}"
+results="$out_dir/v1pp-probe-results-$(date +%Y%m%d-%H%M).txt"
+if ! : > "$results"; then give_back_scope; rm -rf "$work"; echo "Could not write $results. Nothing was changed."; exit 1; fi
+
+# ---------------------------------------------------------------------------------------------- the record
+log() { printf '%s\n' "$1"; printf '%s\n' "$1" >> "$results"; }
+fails=0; others=0
+mark() {   # $1 PASS|FAIL|NOT-TRIED|INCONCLUSIVE, $2 the step, $3 what was seen
+  log "$1 $2: $3"
+  case "$1" in PASS) ;; FAIL) fails=$((fails + 1)); turn_r2_off ;; *) others=$((others + 1)) ;; esac
+}
+api_quiet() { gh api "$@" --silent >/dev/null 2>&1 || true; }
+# read-after-write (docs/architecture/read-after-write-invariant.md): after a write to GitHub, its confirming read may
+# lag. read_until <what> <expected> <cmd...> runs <cmd> up to 10 times, 3 s apart (never after the last), and returns 0
+# on the first read that exits 0 and prints exactly <expected>; a failed read or any other value is "not yet". Else it
+# says what it read last and returns 1. The write is never retried. Sets rlast (the last read) and rrc (its exit code).
+# The same text in every script that uses it (tests pin that).
+read_until() {
+  local what=$1 want=$2 i
+  shift 2
+  rlast=""; rrc=1
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if rlast=$("$@"); then rrc=0; else rrc=$?; fi
+    [ "$rrc" = 0 ] && [ "$rlast" = "$want" ] && return 0
+    [ "$i" = 10 ] || sleep 3
+  done
+  if [ "$rrc" = 0 ]; then echo "$what reads '$rlast', not '$want', after 10 reads."
+  else echo "$what: could not read the state, not '$want', after 10 reads."; fi
+  return 1
+}
+
+g_branches=(probe/v1pp-w probe/v1pp-n probe/v1pp-d0)
+b_branches=(probe/v1pp-w-bot probe/v1pp-n-bot probe/v1pp-d0-bot)
+runner=probe/v1pp-runner
+envb=probe/v1pp-env
+ptag=v1pp-probe
+file_w=.github/workflows/v1pp-canary.yml
+file_n=sitegen/v1pp-probe-canary.txt
+file_d=data/v1pp-probe-canary.txt
+file_push=sitegen/v1pp-push.txt
+file_runner=.github/workflows/v1pp-probe.yml
+file_env=.github/workflows/v1pp-env.yml
+probe_refs=()
+for b in "${g_branches[@]}" "${b_branches[@]}" "$runner" "$envb"; do probe_refs+=("heads/$b"); done
+probe_refs+=("tags/$ptag")
+nums=()            # every probe pull request into main: yours, and any the bot opened
+tag_main_made=""   # set when a tag named main exists after this run's try (only then is it deleted)
+r2_done=""; finished=""; started=""
+
+r2_read() { gh api "repos/$repo/actions/permissions/workflow" --jq '.can_approve_pull_request_reviews' 2>/dev/null; }
+turn_r2_off() {   # at once on the first FAIL (mark calls it), so always before cleanup (as V1')
+  [ -z "$r2_done" ] || return 0
+  r2_done=yes
+  log "A FAIL was found: turning off 'Allow GitHub Actions to create and approve pull requests' now (R2 should already be off)."
+  if gh api -X PUT "repos/$repo/actions/permissions/workflow" -F can_approve_pull_request_reviews=false --silent \
+     && read_until R2 false r2_read; then
+    log "R2 reads off."
+  else
+    log "Could NOT confirm it is off: Settings > Actions > General > Workflow permissions > untick Allow GitHub Actions to create and approve pull requests > Save. Now."
+  fi
+}
+pr_state() { gh api "repos/$repo/pulls/$1" --jq '[.state, (.merged|tostring)] | @tsv' 2>/dev/null; }
+ref_state() { local s; s=$(sha_of "$1") || return 1; if [ "$s" = absent ]; then printf absent; else printf present; fi; }
+cleanup() {   # every probe pull request closed (a merged one stays merged), every probe branch and tag deleted
+  local n r
+  for n in "${nums[@]}"; do api_quiet -X PATCH "repos/$repo/pulls/$n" -f state=closed; done
+  for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done
+  if [ -n "$tag_main_made" ]; then api_quiet -X DELETE "repos/$repo/git/refs/tags/main"; fi
+}
+add_num() { local n x; for n in "$@"; do for x in "${nums[@]}"; do [ "$x" = "$n" ] && continue 2; done; nums+=("$n"); done; }
+list_prs() {   # $1 branch: the numbers of every pull request from it into main, one per line
+  gh api "repos/$repo/pulls?state=all&base=main&head=$owner:$1" --jq '.[].number' 2>/dev/null
+}
+finish() {   # cleanup, the reads after it, the verdict; never returns
+  local n r tab=$'\t' x
+  started=""; finished=yes
+  for r in "${g_branches[@]}" "${b_branches[@]}"; do   # pull requests whose number this run did not learn
+    if x=$(list_prs "$r"); then add_num $x; else mark INCONCLUSIVE "cleanup $r" "could not list its pull requests"; fi
+  done
+  log "Cleanup: closing ${#nums[@]} probe pull request(s), deleting ${#probe_refs[@]} probe ref(s)."
+  cleanup
+  for n in "${nums[@]}"; do
+    if read_until "Pull request #$n" "closed${tab}false" pr_state "$n"; then
+      mark PASS "after cleanup #$n" "closed, unmerged"
+    elif [ "${rlast#*"$tab"}" = true ]; then
+      mark FAIL "after cleanup #$n" "merged into main"
+    else
+      mark INCONCLUSIVE "after cleanup #$n" "reads '${rlast:-unread}', not closed and unmerged: close it at https://github.com/$repo/pull/$n"
+    fi
+  done
+  for r in "${probe_refs[@]}"; do
+    if read_until "$r" absent ref_state "$r"; then mark PASS "after cleanup $r" "deleted"
+    else mark INCONCLUSIVE "after cleanup $r" "reads '${rlast:-unread}': delete it with gh api -X DELETE repos/$repo/git/refs/$r"; fi
+  done
+  if [ -n "$tag_main_made" ]; then
+    if read_until tags/main absent ref_state tags/main; then mark PASS "after cleanup tags/main" "deleted"
+    else mark INCONCLUSIVE "after cleanup tags/main" "reads '${rlast:-unread}': delete it with gh api -X DELETE repos/$repo/git/refs/tags/main"; fi
+  fi
+  rm -rf "$work"
+  if [ "$fails" != 0 ]; then
+    log "FAIL (V1''): $fails step(s) above went through. 'Allow GitHub Actions to create and approve pull requests' is off (see above)."
+    log "If a probe commit is on main, the gate now refuses every daily run until a person moves MAIN_PR_BASELINE past it (ADR 0011 Amendment (c) item 6); the team removes the probe file by a person's pull request (scripts/merge-reviewed.sh)."
+    log "Leave MORNING_NOTE_SEND unset, and do not run anything else. Send this output to the team. Saved to $results"
+    give_back_scope; exit 2
+  fi
+  if [ "$others" != 0 ]; then
+    log "INCONCLUSIVE (V1''): $others step(s) above are not PASS (a read failed, a refusal for another reason, or a step not tried); nothing went through. MORNING_NOTE_SEND stays unset. Send this output to the team. Saved to $results"
+    give_back_scope; exit 1
+  fi
+  log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. Send this output to the team. Saved to $results"
+  give_back_scope; exit 0
+}
+on_exit() {   # an exit before finish (Ctrl+C, an unexpected stop): clean up quietly
+  if [ -n "$started" ]; then started=""; cleanup; fi
+  rm -rf "$work"
+  give_back_scope
+}
+trap on_exit EXIT
+trap 'exit 130' INT TERM
+
+log "V1'' probe $(date -u +%FT%TZ). main before: $main_before. records-data before: $rd_before."
+for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try
+started=yes
+
+# ---------------------------------------------------------------------------------------------- setup (writes)
+setup_failed() { mark INCONCLUSIVE setup "$1 (see the messages above)"; finish; }
+b64() { base64 -w0; }
+pushed=""
+push_file() {   # $1 branch, $2 path, $3 base64 content, $4 message: the branch at main_before plus one commit (sets pushed)
+  pushed=""
+  gh api -X POST "repos/$repo/git/refs" -f ref="refs/heads/$1" -f sha="$main_before" --silent || return 1
+  pushed=$(gh api -X PUT "repos/$repo/contents/$2" -f message="$4" -f content="$3" -f branch="$1" --jq '.commit.sha') \
+    || return 1
+  [[ "$pushed" =~ ^[0-9a-f]{40}$ ]]
+}
+pr_num=""
+open_pr() {   # $1 branch, $2 name, $3 the pushed head: its pull request into main (read-after-write rule 6; sets pr_num)
+  local i=0 out n h
+  pr_num=""
+  while :; do
+    i=$((i + 1))
+    if out=$(gh api -X POST "repos/$repo/pulls" -f head="$1" -f base=main -f title="V1pp probe $2 (do not merge)" \
+        -f body="One-time V1'' probe (ADR 0011; runbook section 4 item 6a). Closed by the probe script; never merge it." \
+        --jq '[(.number|tostring), (.head.sha|tostring)] | @tsv' 2>"$work/pr.err"); then
+      IFS=$'\t' read -r n h <<< "$out" || true
+      [[ "${n:-}" =~ ^[0-9]+$ ]] || return 1
+      add_num "$n"
+      [ "${h:-}" = "$3" ] || { echo "Pull request #$n has head '${h:-}', not the pushed $3."; return 1; }
+      pr_num=$n; return 0
+    fi
+    cat "$work/pr.err" 2>/dev/null
+    grep -q '(HTTP 422)' "$work/pr.err" 2>/dev/null || return 1   # anything else: a pull request may exist (cleanup lists them)
+    [ "$i" != 10 ] || return 1
+    sleep 3
+  done
+}
+canary=$(b64 < "$here/v1pp-probe/v1pp-canary.yml") || setup_failed "could not read scripts/v1pp-probe/v1pp-canary.yml"
+envwf=$(b64 < "$here/v1pp-probe/v1pp-env.yml") || setup_failed "could not read scripts/v1pp-probe/v1pp-env.yml"
+runwf=$(b64 < "$here/v1pp-probe/v1pp-probe.yml") || setup_failed "could not read scripts/v1pp-probe/v1pp-probe.yml"
+text_n=$(printf 'V1pp probe: inert, never merge.\n' | b64)
+text_d=$(printf 'V1pp probe: a data/ file, never on main.\n' | b64)
+heads=()
+i=0
+for b in "${g_branches[@]}" "${b_branches[@]}"; do
+  case $((i % 3)) in 0) f=$file_w; c=$canary ;; 1) f=$file_n; c=$text_n ;; *) f=$file_d; c=$text_d ;; esac
+  push_file "$b" "$f" "$c" "V1pp probe: $f" || setup_failed "could not push $b"
+  heads+=("$pushed"); i=$((i + 1))
+done
+g_nums=(); g_names=(W N D0)
+for i in 0 1 2; do
+  open_pr "${g_branches[$i]}" "${g_names[$i]}" "${heads[$i]}" || setup_failed "could not open the pull request for ${g_branches[$i]}"
+  g_nums+=("$pr_num")
+done
+log "Probe pull requests (yours): W #${g_nums[0]}, N #${g_nums[1]}, D0 #${g_nums[2]}. Bot branches: ${b_branches[*]}."
+# F2 (R-T): a tag named main must not be creatable, by anyone
+if out=$(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha="$main_before" --jq '.ref' 2>&1); then
+  tag_main_made=yes
+  mark FAIL "tag main" "GitHub created it: $(printf '%s' "$out" | tr '\r\n' '  ')"
+elif grep -qi 'rule violation' <<< "$out"; then
+  mark PASS "tag main" "refused ($(printf '%s' "$out" | tr '\r\n' '  '))"
+else
+  mark INCONCLUSIVE "tag main" "failed without naming a rule: $(printf '%s' "$out" | tr '\r\n' '  ')"
+fi
+push_file "$envb" "$file_env" "$envwf" "V1pp probe: environment refusal" || setup_failed "could not push $envb"
+env_head=$pushed
+gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/$ptag" -f sha="$env_head" --silent \
+  || setup_failed "could not create the tag $ptag"
+push_file "$runner" "$file_runner" "$runwf" "V1pp probe: runner workflow" || setup_failed "could not push $runner"
+run_head=$pushed
+
+# ---------------------------------------------------------------------------------------------- the runs (reads)
+run_of() {   # $1 branch or tag, $2 its head: the push run's id, or nothing after 3 minutes
+  local id i
+  for i in $(seq 1 18); do
+    id=$(H="$2" gh run list --repo "$repo" --branch "$1" --event push --json databaseId,headSha \
+         --jq '[.[] | select(.headSha == $ENV.H)][0].databaseId // empty' 2>/dev/null) || id=""
+    if [[ "$id" =~ ^[0-9]+$ ]]; then printf '%s' "$id"; return 0; fi
+    [ "$i" = 18 ] || sleep 10
+  done
+  return 1
+}
+run_status() {   # $1 run id: waits for it, then prints its status
+  gh run watch "$1" --repo "$repo" >/dev/null 2>&1 || true
+  gh run view "$1" --repo "$repo" --json status --jq '.status' 2>/dev/null
+}
+run_id=$(run_of "$runner" "$run_head") || run_id=""
+lines=""
+if [ -z "$run_id" ]; then
+  mark INCONCLUSIVE "runner" "the probe run did not start within 3 minutes"
+else
+  log "Probe run: https://github.com/$repo/actions/runs/$run_id"
+  st=$(run_status "$run_id") || st=""
+  if [ "$st" = completed ]; then mark PASS "runner" "the run completed"
+  else mark INCONCLUSIVE "runner" "the run reads '${st:-unread}', not completed, so its answers are not final"; fi
+  # the run's log is untrusted text: ANSI colour codes, then control characters, dropped before any of it is used
+  log_text=$(gh run view "$run_id" --repo "$repo" --log 2>/dev/null | sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' \
+             | tr -d '\000-\010\013-\037\177') || log_text=""
+  lines=$(grep -oE "V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH)( .*)?$" <<< "$log_text" || true)
+  while IFS= read -r l; do [ -n "$l" ] && log "  $l"; done <<< "$lines"
+  errs=$(grep -v 'echo "V1PP-ERROR' <<< "$log_text" | grep -oE "V1PP-ERROR: .*" || true)
+  while IFS= read -r l; do [ -n "$l" ] && log "  $l"; done <<< "$errs"
+fi
+ended=""
+if grep -qE '^V1PP-MERGED ' <<< "$lines"; then ended=yes; fi
+judge() {   # $1 target, $2 step, $3 what the refusal must name (an ERE, any case; empty: any refusal)
+  local l code rest
+  l=$(grep -E "^V1PP-RESULT $1 $2 exit=[0-9]+( |$)" <<< "$lines" | head -n 1)
+  if [ -z "$l" ]; then
+    if [ -n "$ended" ]; then mark NOT-TRIED "$1 $2" "skipped: an earlier merge or push ended the run"
+    else mark INCONCLUSIVE "$1 $2" "no answer in the run's log"; fi
+    return 0
+  fi
+  rest=${l#*exit=}; code=${rest%% *}
+  if [ "$code" = 0 ]; then mark FAIL "$1 $2" "GitHub accepted it: $rest"
+  elif [ -z "$3" ] || grep -qiE "$3" <<< "$rest"; then mark PASS "$1 $2" "refused: $rest"
+  else mark INCONCLUSIVE "$1 $2" "refused, but not naming '$3': $rest"; fi
+}
+judge_pr() {   # $1 target: the bot approval and every merge try on its pull request
+  judge "$1" approve 'not permitted to (create or )?approve pull requests'
+  judge "$1" squash 'approving review'
+  judge "$1" merge ''
+  judge "$1" rebase ''
+  judge "$1" graphql 'approving review'
+}
+i=0
+for t in WB NB D0B; do
+  judge "$t" open 'not permitted to create'
+  if grep -qE "^V1PP-RESULT $t open exit=0( |$)" <<< "$lines"; then judge_pr "$t"; fi
+  if x=$(list_prs "${b_branches[$i]}"); then
+    if [ -n "$x" ]; then add_num $x; mark FAIL "$t pull request" "a pull request from ${b_branches[$i]} exists: #$(printf '%s' "$x" | paste -sd, -)"
+    else mark PASS "$t pull request" "none from ${b_branches[$i]}"; fi
+  else
+    mark INCONCLUSIVE "$t pull request" "could not list the pull requests from ${b_branches[$i]}"
+  fi
+  i=$((i + 1))
+done
+for t in W N D0; do judge_pr "$t"; done
+judge PUSH rest 'rule violation'
+judge PUSH git 'rule violation'
+
+env_refused() {   # $1 run label, $2 run id: each environment's job refused before it started
+  local jobs e row id st concl ann tab=$'\t'
+  if [ -z "$2" ]; then
+    for e in github-pages morning-note; do mark INCONCLUSIVE "$1 $e" "the run did not start within 3 minutes"; done
+    return 0
+  fi
+  log "Environment run ($1): https://github.com/$repo/actions/runs/$2"
+  run_status "$2" >/dev/null || true
+  jobs=$(gh api "repos/$repo/actions/runs/$2/jobs" \
+         --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null) || jobs=""
+  for e in github-pages morning-note; do
+    row=$(awk -F'\t' -v n="$e" '$1 == n' <<< "$jobs" | head -n 1)
+    if [ -z "$row" ]; then mark INCONCLUSIVE "$1 $e" "could not read the job"; continue; fi
+    IFS="$tab" read -r _ id st concl <<< "$row"
+    if [ "$concl" = success ]; then mark FAIL "$1 $e" "the job ran inside environment $e"; continue; fi
+    if [ "$st" != completed ] || [ "$concl" != failure ]; then
+      mark INCONCLUSIVE "$1 $e" "the job reads '$st' '$concl', not refused"; continue
+    fi
+    if ! [[ "$id" =~ ^[0-9]+$ ]] || ! ann=$(gh api "repos/$repo/check-runs/$id/annotations" --jq '.[].message' 2>/dev/null); then
+      mark INCONCLUSIVE "$1 $e" "could not read the job's annotations"; continue
+    fi
+    if grep -qiF "not allowed to deploy to $e" <<< "$ann"; then
+      mark PASS "$1 $e" "refused: $(grep -iF "not allowed to deploy to $e" <<< "$ann" | head -n 1)"
+    else
+      mark INCONCLUSIVE "$1 $e" "the job failed without the environment refusal: $(printf '%s' "$ann" | tr '\r\n' '  ')"
+    fi
+  done
+}
+env_run=$(run_of "$envb" "$env_head") || env_run=""
+env_refused "branch $envb" "$env_run"
+tag_run=$(run_of "$ptag" "$env_head") || tag_run=""
+env_refused "tag $ptag" "$tag_run"
+
+# every probe pull request's merged flag (yours and any the bot opened)
+for r in "${g_branches[@]}"; do x=$(list_prs "$r") && add_num $x; done
+for n in "${nums[@]}"; do
+  m=$(gh api "repos/$repo/pulls/$n" --jq '.merged' 2>/dev/null) || m=""
+  case "$m" in
+    false) mark PASS "pull request #$n" "unmerged" ;;
+    true) mark FAIL "pull request #$n" "merged into main" ;;
+    *) mark INCONCLUSIVE "pull request #$n" "could not read whether it merged" ;;
+  esac
+done
+for f in "$file_w" "$file_n" "$file_d" "$file_push" "$file_runner" "$file_env"; do
+  for ref in main records-data; do
+    if out=$(gh api "repos/$repo/contents/$f?ref=$ref" --jq '.sha' 2>&1); then
+      if [[ "$out" =~ ^[0-9a-f]{40}$ ]]; then mark FAIL "$f on $ref" "it is there"
+      else mark INCONCLUSIVE "$f on $ref" "unreadable answer"; fi
+    elif grep -q 'HTTP 404' <<< "$out"; then mark PASS "$f on $ref" "absent"
+    else mark INCONCLUSIVE "$f on $ref" "could not read it"; fi
+  done
+done
+tag_after=$(sha_of tags/main) || tag_after=""
+case "$tag_after" in
+  absent) mark PASS "tag main after" "absent" ;;
+  "") mark INCONCLUSIVE "tag main after" "could not read it" ;;
+  *) tag_main_made=yes; mark FAIL "tag main after" "a tag named main exists at $tag_after" ;;
+esac
+main_after=$(sha_of heads/main) || main_after=""
+if [ "$main_after" = "$main_before" ]; then mark PASS "main" "unchanged at $main_before"
+elif [[ "$main_after" =~ ^[0-9a-f]{40}$ ]]; then mark INCONCLUSIVE "main" "moved during the probe: $main_before -> $main_after (the lines above say whether a probe change went in)"
+else mark INCONCLUSIVE "main" "could not read it after the probe"; fi
+rd_after=$(sha_of heads/records-data) || rd_after=""
+log "records-data after: ${rd_after:-unread} (the daily run may move it; only the probe files above count)."
+finish

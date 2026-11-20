@@ -1,0 +1,30 @@
+# V1'' probe, environment refusal (docs/architecture/v1-fail-2026-11-18.md section 4 item 4; PR #54 finding 2;
+# scripts/v1pp-probe.ps1). The probe script puts this file on the throwaway branch probe/v1pp-env as
+# .github/workflows/v1pp-env.yml, then creates the tag v1pp-probe at the same commit; each push starts one run. Both
+# environments allow main only (a deployment policy of type branch), so GitHub must refuse each job before it starts,
+# with the annotation "... is not allowed to deploy to <environment> due to environment protection rules". A job that
+# gets in only prints one line and succeeds, which the probe records as FAIL. It grants nothing, reads no secret and
+# runs no file from the repository.
+name: V1pp environment probe (one time)
+on:
+  push:
+    branches: [probe/v1pp-env]
+    tags: [v1pp-probe]
+permissions: {}
+jobs:
+  github-pages:
+    name: github-pages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    environment: github-pages
+    permissions: {}
+    steps:
+      - run: echo "This job got into an environment it must not reach."
+  morning-note:
+    name: morning-note
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    environment: morning-note
+    permissions: {}
+    steps:
+      - run: echo "This job got into an environment it must not reach."

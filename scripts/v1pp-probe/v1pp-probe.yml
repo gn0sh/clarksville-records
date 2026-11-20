@@ -1,0 +1,106 @@
+# V1'' probe runner (docs/architecture/v1-fail-2026-11-18.md section 4 items 1-3; ADR 0011; scripts/v1pp-probe.ps1).
+# The probe script puts this file on the throwaway branch probe/v1pp-runner as .github/workflows/v1pp-probe.yml; that
+# push starts it. With GITHUB_TOKEN only, holding the most a pushed workflow can grant itself here (contents and
+# pull-requests write; main's own workflow holds less), it:
+#   1. tries to open a pull request into main from each bot target branch (WB, NB, D0B): refused while R2 is off;
+#   2. for each open pull request into main from a probe target branch (W, N, D0 opened by gn0sh, and any bot one that
+#      step 1 got through), posts an APPROVE review pinned to the head (refused: R2 off), then tries REST squash,
+#      merge, rebase and GraphQL mergePullRequest (squash), each pinned to the head;
+#   3. tries a direct push to main: the REST ref update, then git push, each of a commit adding sitegen/v1pp-push.txt.
+# It prints GitHub's answer to each, and stops everything at the first merge or push that goes through (the probe
+# script prints NOT-TRIED for each step it skipped). It reads no secret and runs no file from the repository.
+name: V1pp probe (one time)
+on:
+  push:
+    branches: [probe/v1pp-runner]
+permissions: {}
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Try to get into main with GITHUB_TOKEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+        # GitHub runs this as `bash -e {0}`: every try keeps its own exit code (`|| code=$?`), so a refusal is printed
+        # and the next try runs instead of ending the step. The target and step names sit in variables, so the run's
+        # own text, which the log also shows, never matches the probe script's result pattern.
+        run: |
+          set -uo pipefail
+          repo="$GITHUB_REPOSITORY"
+          q='mutation($id: ID!, $oid: GitObjectID!) { mergePullRequest(input: {pullRequestId: $id, expectedHeadOid: $oid, mergeMethod: SQUASH}) { pullRequest { merged } } }'
+          flat() { printf '%s' "$1" | tr '\r\n' '  '; }
+          # 1. the bot's own pull requests: POST pulls must be refused while R2 is off
+          for pair in WB:probe/v1pp-w-bot NB:probe/v1pp-n-bot D0B:probe/v1pp-d0-bot; do
+            t=${pair%%:*}; branch=${pair#*:}; s=open
+            code=0
+            out=$(gh api -X POST "repos/$repo/pulls" -f head="$branch" -f base=main -f title="V1pp probe $t (do not merge)" \
+                  -f body="One-time V1pp probe: opened by GITHUB_TOKEN, which must be refused. Closed by the probe script." \
+                  --jq '.number' 2>&1) || code=$?
+            echo "V1PP-RESULT $t $s exit=$code $(flat "$out")"
+          done
+          # 2. every open pull request into main from a probe target branch
+          for pair in W:probe/v1pp-w N:probe/v1pp-n D0:probe/v1pp-d0 WB:probe/v1pp-w-bot NB:probe/v1pp-n-bot D0B:probe/v1pp-d0-bot; do
+            t=${pair%%:*}; branch=${pair#*:}
+            num=$(gh api "repos/$repo/pulls?state=open&base=main&head=$OWNER:$branch" --jq '.[0].number // empty') || num="?"
+            if [ -z "$num" ] && [ "${t%B}" != "$t" ]; then echo "V1PP-NOPR $t"; continue; fi
+            if ! [[ "$num" =~ ^[0-9]+$ ]]; then echo "V1PP-ERROR: no open pull request from $branch"; exit 1; fi
+            head=$(gh api "repos/$repo/pulls/$num" --jq '.head.sha') || head=""
+            if ! [[ "$head" =~ ^[0-9a-f]{40}$ ]]; then echo "V1PP-ERROR: could not read the head of $branch"; exit 1; fi
+            echo "V1PP-PR $t #$num head $head"
+            s=approve
+            code=0
+            out=$(gh api -X POST "repos/$repo/pulls/$num/reviews" -f event=APPROVE -f commit_id="$head" \
+                  -f body="V1pp probe: bot approval (must be refused)." --jq '.state' 2>&1) || code=$?
+            echo "V1PP-RESULT $t $s exit=$code $(flat "$out")"
+            for s in squash merge rebase; do
+              code=0
+              out=$(gh api -X PUT "repos/$repo/pulls/$num/merge" -f merge_method="$s" -f sha="$head" 2>&1) || code=$?
+              echo "V1PP-RESULT $t $s exit=$code $(flat "$out")"
+              if [ "$code" = 0 ]; then echo "V1PP-MERGED $t $s"; exit 0; fi
+            done
+            s=graphql
+            node=$(gh api "repos/$repo/pulls/$num" --jq '.node_id') || node=""
+            if [ -z "$node" ]; then echo "V1PP-ERROR: could not read node_id"; exit 1; fi
+            code=0
+            out=$(gh api graphql -f query="$q" -f id="$node" -f oid="$head" 2>&1) || code=$?
+            echo "V1PP-RESULT $t $s exit=$code $(flat "$out")"
+            if [ "$code" = 0 ]; then echo "V1PP-MERGED $t $s"; exit 0; fi
+          done
+          # 3. a direct push to main, by the REST ref update and by git push
+          t=PUSH
+          main=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') || main=""
+          if ! [[ "$main" =~ ^[0-9a-f]{40}$ ]]; then echo "V1PP-ERROR: could not read main"; exit 1; fi
+          base=$(gh api "repos/$repo/git/commits/$main" --jq '.tree.sha') || base=""
+          jq -n --arg b "$base" '{base_tree: $b, tree: [{path: "sitegen/v1pp-push.txt", mode: "100644", type: "blob",
+            content: "V1pp probe: a direct push by GITHUB_TOKEN, never on main.\n"}]}' > "$RUNNER_TEMP/tree.json"
+          tree=$(gh api -X POST "repos/$repo/git/trees" --input "$RUNNER_TEMP/tree.json" --jq '.sha') || tree=""
+          c=$(gh api -X POST "repos/$repo/git/commits" -f message="V1pp probe: direct push (must be refused)" -f tree="$tree" \
+              -f "parents[]=$main" --jq '.sha') || c=""
+          if ! [[ "$c" =~ ^[0-9a-f]{40}$ ]]; then echo "V1PP-ERROR: could not make the push commit"; exit 1; fi
+          s=rest
+          code=0
+          out=$(gh api -X PATCH "repos/$repo/git/refs/heads/main" -f sha="$c" -F force=false 2>&1) || code=$?
+          echo "V1PP-RESULT $t $s exit=$code $(flat "$out")"
+          if [ "$code" = 0 ]; then echo "V1PP-MERGED $t $s"; exit 0; fi
+          s=git
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          cd "$RUNNER_TEMP" && git init -q push && cd push
+          git config user.name "V1pp probe"; git config user.email "v1pp-probe@invalid"
+          code=0
+          out=$(git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" fetch -q --depth=1 \
+                "https://github.com/$repo.git" main 2>&1) || code=$?
+          if [ "$code" != 0 ]; then echo "V1PP-ERROR: could not fetch main: $(flat "$out")"; exit 1; fi
+          git checkout -q FETCH_HEAD && mkdir -p sitegen && echo "V1pp probe: a direct git push, never on main." > sitegen/v1pp-push.txt
+          git add sitegen/v1pp-push.txt && git commit -q -m "V1pp probe: direct git push (must be refused)"
+          code=0
+          out=$(git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push \
+                "https://github.com/$repo.git" HEAD:refs/heads/main 2>&1) || code=$?
+          echo "V1PP-RESULT $t $s exit=$code $(flat "$out")"
+          if [ "$code" = 0 ]; then echo "V1PP-MERGED $t $s"; exit 0; fi
+          s=all; echo "V1PP-DONE $s"
