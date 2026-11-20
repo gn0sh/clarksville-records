@@ -340,8 +340,8 @@ Built, not run (devops-engineer, 2026-11-20; `scripts/v1pp-probe.{sh,ps1}`, `scr
 `tests/test_v1pp_probe.py` with the stateful stub `tests/v1pp_stub_gh.py`; runbook section 4 item 6a). The V1' files stay
 locked as they are. Choices the reviewers should check:
 - **Lock:** a BEGIN/END-REFUSAL-LOCK block, first in each twin, refuses before any `gh` call. The run is enabled by
-  one line per twin (`v1pp_locked=yes` -> `no`; `$v1ppLocked = $true` -> `$false`) in the enabling PR; the result PR
-  flips it back. The tests run a copy with exactly that line flipped.
+  one line per twin (`v1pp_unlocked_until=none` -> a last UTC day; `$v1ppUnlockedUntil = 'none'` -> `'YYYY-MM-DD'`)
+  in the enabling PR; the result PR flips it back. The tests run a copy with exactly that line flipped.
 - **Guard:** refused in a cloud session or CI; `--apps claude|none` (`-Apps`) is required and passed to
   `protect-main --check`, whose last line must start "OK: main is protected"; main and records-data must read as
   commits and the tag `main` as a 404. All before the first write.
@@ -360,6 +360,26 @@ locked as they are. Choices the reviewers should check:
   write's proof (rule 6) and the re-read can only delay, so a ref still shown after 10 reads is INCONCLUSIVE with the
   exact delete command. Architect to confirm (problem key `v1pp-probe/cleanup-absence-read`).
 - Not covered by the script (section 4): item 5 (gate unit test) and item 7 (first scheduled run, D3 step 8).
+- **Review round 1 (code review REQUEST CHANGES, security OK with follow-ups, at e0c3c6f), fixed in both twins:**
+  - unobserved-refusal-pass: merge and rebase now need "not allowed", "approving review" or "rule violation";
+    any other refusal (a 502) is INCONCLUSIVE.
+  - inflight-run-at-cleanup and unbounded-watch: no `gh run watch`; each run is read up to 72 times, 10 s apart
+    (12 minutes). Before cleanup every probe run not `completed` is cancelled (`POST actions/runs/<id>/cancel`)
+    and read until `completed` (10 x 3 s), else INCONCLUSIVE with its link. After a setup stop, a pushed run
+    not yet looked up gets one lookup.
+  - cleanup-absence-read: each close keeps its own answer (`closed<TAB>false`) and each DELETE its own (2xx or
+    "Reference does not exist"); PASS needs the answer and the re-read to agree; else INCONCLUSIVE with the
+    command (`gh pr close`, `gh api -X DELETE`).
+  - r2-after-cleanup: PRs first seen in cleanup's listing have their merged flag read before any cleanup write.
+  - runner-perms-comment: reworded.
+  - pages-api-coverage (S1): `v1pp-env.yml` job `pages-api`, no `environment:`, `pages: write` + `id-token: write`,
+    calls `POST pages/deployments` with `artifact_id=1`. PASS only on "not allowed to deploy" / "protection
+    rule"; a refusal naming only the artifact is FAIL (the path is open); exit 0 is FAIL; else INCONCLUSIVE.
+    Residual: if GitHub accepts it, a failed Pages deployment is created; the live site should stay (judgment,
+    medium confidence).
+  - lock-window (S4): the lock line is now a last UTC day (`v1pp_unlocked_until=YYYY-MM-DD`); past it, refused.
+  - tag-main-cleanup (S5): cleanup always deletes `tags/main` (absent: "Reference does not exist" counts as done;
+    an R-T rule refusal also counts, and the re-read decides).
 
 ## W1: docs
 - `docs/architecture/main-protect-invariant.md`: I-main'', I-prov, I-pub, I-in, the consumer table from the note.

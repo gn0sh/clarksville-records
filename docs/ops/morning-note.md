@@ -359,6 +359,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    **Running the V1'' probe (Brian, once, on his PC; task V1).** The script is locked until the team merges the PR
    that unlocks it for one run (one line in each of `scripts/v1pp-probe.ps1` and `.sh`). Wait for the team to say
    so, then:
+   The unlock carries a last day (UTC); after it the script refuses, and the team makes a new unlock PR.
    1. In PowerShell, in the repository folder: `git pull`.
    2. Open https://github.com/settings/installations and check the Apps answer, as for `protect-main`: `claude`
       (only the Claude App reaches this repository, with none of Administration, Variables, Secrets or Environments
@@ -370,10 +371,10 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       It first runs `scripts\protect-main.ps1 -Check` (no changes) and stops, changing nothing, unless that prints
       "OK: main is protected". A browser may open once to add the `workflow` scope to your GitHub CLI sign-in:
       approve it. It is given back at the very end (a browser may open again).
-   4. Leave it running, about 5 minutes. It makes throwaway branches (`probe/v1pp-...`), three pull requests from
-      you, a tag `v1pp-probe`, and three short workflow runs; it tries to create a tag named `main`; then it removes
-      all of them and checks again that they are gone. Every step prints one line: PASS, FAIL, NOT-TRIED or
-      INCONCLUSIVE.
+   4. Leave it running, about 5 minutes (at most about 20). It makes throwaway branches (`probe/v1pp-...`), three
+      pull requests from you, a tag `v1pp-probe`, and three short workflow runs; it tries to create a tag named
+      `main`; then it stops any of its runs still going, removes all of them and checks again that they are gone.
+      Every step prints one line: PASS, FAIL, NOT-TRIED or INCONCLUSIVE.
    5. Send the team the file it names at the end, `Documents\v1pp-probe-results-<time>.txt`. The last line is the
       verdict:
       - **PASS (V1'')**: every try was refused. The team records it in `docs/platform-facts.md` "Main
@@ -382,8 +383,12 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
         approve pull requests** off. Leave `MORNING_NOTE_SEND` unset and run nothing else. If a probe commit reached
         `main`, the daily run now stops at the gate until a person's PR moves the baseline past it; the team
         handles that.
-      - **INCONCLUSIVE (V1'')**: a read failed or GitHub refused for another reason; nothing got through and nothing
-        is left on. The team fixes the cause and asks you to run it again.
+      - **INCONCLUSIVE (V1'')**: a read failed or GitHub refused for another reason; nothing was seen to go
+        through. Any line that names a command (a branch or pull request left behind, a run still going) gives the
+        exact command or link; the team checks those. The team fixes the cause and asks you to run it again.
+      If the unlock's last day has passed (the window closed), the script refuses at once and changes nothing: ask
+      the team for a new unlock, then run it again. A new run first deletes the probe branches and tag an earlier
+      try left behind.
 7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only; ADR 0011 Amendment (c)).**
    Set by the cutover PR of ADR 0011 (not by a separate PR, and not gated by the V1'' probe, which gates only
    `MORNING_NOTE_SEND`). Its value is the `main` sha the `records-data` seed is cut from, which is also the PR's base.
