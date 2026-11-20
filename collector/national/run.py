@@ -73,7 +73,7 @@ PROPOSAL_KINDS = ("status", "agenda-status-name")
 
 INSTANT_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 MAX_URL = guards_max_url         # characters of an evidence_url read back (allowed_url's own cap, finding 6)
-BODY_FILE_RE = re.compile(r"[a-z]+-[0-9]{5,10}\.json")
+BODY_FILE_RE = re.compile(r"(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})\.json")
 
 
 class HostNotApproved(ValueError):
