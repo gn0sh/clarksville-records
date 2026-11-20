@@ -51,8 +51,15 @@ def load_council(locality: str) -> dict:
     if held is not None and not (isinstance(held, dict) and "other" in held and all(
             isinstance(v, str) and v.startswith("Not confirmed: ") and v.endswith(".") for v in held.values())):
         raise ValueError(f"{path}: held_sentences must map checks (and `other`) to 'Not confirmed: ...' sentences")
+    # Transcripts are a reviewed input under config/, never collector output in data/ (I-in, ADR 0011 decision 2a)
     return {**cfg, "locality": locality, "facts_path": REPO_ROOT / cfg["facts"],
-            "wards_path": REPO_ROOT / cfg["wards"]}
+            "wards_path": REPO_ROOT / cfg["wards"], "transcripts_path": transcripts_path(locality)}
+
+
+def transcripts_path(locality: str) -> Path:
+    """A council's transcripts folder: config/localities/<locality>/transcripts/ (I-in). The only place the build, the
+    importer and the qa checks read or write transcripts; there is no fallback to data/."""
+    return CONFIG_DIR / "localities" / locality / "transcripts"
 
 
 COUNCILS = [load_council(loc) for loc in SITE.get("councils") or []]

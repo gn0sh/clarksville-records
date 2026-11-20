@@ -13,3 +13,5 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+# ADR 0011: collector output lives on branch records-data (scripts/fetch-data fills data/)
+data/

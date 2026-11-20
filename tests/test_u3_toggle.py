@@ -1,7 +1,9 @@
 """scripts/u3-toggle.{sh,ps1}: the U3 positive control (docs/ops/u3-positive-control.md, ADR 0011 decision 5).
 
-The .sh runs here against a stub gh (no GitHub call is ever made); the .ps1 (no PowerShell here) is pinned to the
-same filters, lines and refusals text by text."""
+The .sh runs here against a stub gh (no GitHub call is ever made). With PWSH set, every test that runs the script also
+runs the .ps1 twin against the same stub (tests/pwsh_twin.py); the .ps1 is also pinned to the same filters, lines and
+refusals text by text."""
+import base64
 import json
 import os
 import re
@@ -13,11 +15,13 @@ from pathlib import Path
 
 import pytest
 
+import pwsh_twin
+
 ROOT = Path(__file__).resolve().parent.parent
 SH = ROOT / "scripts" / "u3-toggle.sh"
 PS1 = ROOT / "scripts" / "u3-toggle.ps1"
-R1P = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
-R1PP = json.loads((ROOT / "scripts" / "main-ruleset-r1pp.json").read_text(encoding="utf-8"))
+R1P = json.loads((ROOT / "scripts" / "main-ruleset-r1p.json").read_text(encoding="utf-8"))
+R1PP = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
 REPO = "gn0sh/clarksville-records"
 RID = 27502319
 MAIN0 = "0" * 40
@@ -28,6 +32,34 @@ READ_ONLY = {"id": RID, "source_type": "Repository", "source": REPO, "node_id": 
              "current_user_can_bypass": "pull_requests_only"}
 
 pytestmark = pytest.mark.skipif(shutil.which("jq") is None, reason="jq is needed by the script and the stub")
+TWIN = {"now": "sh"}
+
+
+def pytest_generate_tests(metafunc):
+    """Each test that runs the script (it takes tmp_path) runs once per twin: "sh", and "ps1" when PWSH is set."""
+    if "tmp_path" in metafunc.fixturenames:
+        metafunc.parametrize("twin", pwsh_twin.TWINS, indirect=True)
+
+
+@pytest.fixture(autouse=True)
+def twin(request):
+    TWIN["now"] = getattr(request, "param", "sh")
+    yield TWIN["now"]
+    TWIN["now"] = "sh"
+
+
+PS_FLAGS = {"--pr": "-Pr", "--merge": "-Merge", "--report": "-Report", "--restore": "-Restore", "--noop": "-Noop",
+            "--rehearse": "-Rehearse", "--show-body": "-ShowBody"}
+
+
+def _cmd(script, args):
+    """The command that runs <script> (a u3-toggle.sh) with the .sh's <args>, or its .ps1 twin with the same ones."""
+    if TWIN["now"] == "sh":
+        return ["bash", str(script), *args]
+    a = pwsh_twin.flags(args, PS_FLAGS)
+    if a[:1] == ["-Restore"] and len(a) > 1:          # the .sh's --restore <file> is -Restore -From <file>
+        a = ["-Restore", "-From", *a[1:]]
+    return pwsh_twin.argv(Path(script).with_suffix(".ps1"), a)
 
 _GH = r'''#!/usr/bin/env python3
 import json, os, subprocess, sys
@@ -113,6 +145,12 @@ if path.startswith(R + "/rulesets/rule-suites?"):
     out(st.get("suites", []))
 if path.startswith(R + "/rulesets/rule-suites/"):
     out(st["suite"])
+if path.startswith(R + "/contents/scripts/"):
+    name, _, q = path[len(R + "/contents/scripts/"):].partition("?")
+    assert q == "ref=main", path
+    if name not in st.get("main_files", {}):
+        sys.stderr.write("gh: Not Found (HTTP 404)\n"); sys.exit(1)
+    out({"type": "file", "encoding": "base64", "content": st["main_files"][name]})
 sys.stderr.write("stub: unexpected call %r\n" % a); sys.exit(9)
 '''
 
@@ -128,13 +166,23 @@ exec /bin/date "$@"
 '''
 
 
+def _b64(raw):
+    """GitHub's contents API body: base64 in 60-character lines."""
+    t = base64.b64encode(raw).decode()
+    return "".join(t[i:i + 60] + "\n" for i in range(0, len(t), 60))
+
+
+MAIN_FILES = {n: _b64((ROOT / "scripts" / n).read_bytes()) for n in ("main-ruleset-r1p.json", "main-ruleset.json")}
+
+
 def _state(**over):
     pr = {"number": 60, "state": "open", "base": {"ref": "main"}, "user": {"login": "gn0sh"}, "draft": False,
           "mergeable": True, "changed_files": 1, "merged": False, "merged_by": None, "merge_commit_sha": None,
           "head": {"sha": HEAD, "ref": "claude/u3-pr-p", "repo": {"full_name": REPO}}}
     st = {"ruleset": json.loads(json.dumps(R1P)), "read_only": dict(READ_ONLY), "runs": ["completed"] * 3,
           "main": MAIN0, "pr_number": 60, "pr": pr, "files": [{"filename": "docs/platform-facts.md"}],
-          "merge_sha": MERGE, "suites": [{"id": 777, "after_sha": MERGE, "result": "bypass"}],
+          "merge_sha": MERGE, "main_files": dict(MAIN_FILES),
+          "suites": [{"id": 777, "after_sha": MERGE, "result": "bypass"}],
           "suite": {"id": 777, "result": "bypass", "rule_evaluations": [
               {"rule_source": {"type": "ruleset", "id": RID, "name": "main: pull request required"},
                "enforcement": "active", "result": "fail", "rule_type": "pull_request"},
@@ -157,13 +205,24 @@ def _env(tmp_path, st, hm="1400"):
     (tmp_path / "state.json").write_text(json.dumps(st))
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
-    return {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(tmp_path / "calls"),
-            "GH_STATE": str(tmp_path / "state.json"), "FAKE_HM": hm, "HOME": str(home)}
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(tmp_path / "calls"),
+           "GH_STATE": str(tmp_path / "state.json"), "FAKE_HM": hm, "HOME": str(home)}
+    if TWIN["now"] == "ps1":
+        pwsh_twin.install(home, bindir)
+        _docs(tmp_path).mkdir(exist_ok=True)
+        env = pwsh_twin.env(env)
+    return env
+
+
+def _docs(tmp_path):
+    """Where the backup goes: the .sh's $HOME, the .ps1's Documents folder (on Linux .NET gives $HOME/Documents, and
+    only when it exists)."""
+    return tmp_path / "home" / ("Documents" if TWIN["now"] == "ps1" else "")
 
 
 def _run(tmp_path, args, st=None, hm="1400", timeout=60, script=SH, **env_over):
     env = {**_env(tmp_path, st or _state(), hm), **env_over}
-    r = subprocess.run(["bash", str(script), *args], env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(_cmd(script, args), env=env, capture_output=True, text=True, timeout=timeout)
     return r, _calls(tmp_path)
 
 
@@ -211,13 +270,17 @@ def _assert_restored(r, made, verdict):
 
 def test_r1pp_json_is_adr_0011_decision_5_and_otherwise_r1_prime():
     adr = (ROOT / "docs" / "adr" / "0011-data-off-main.md").read_text(encoding="utf-8")
-    d5 = adr[adr.index("5. **Ruleset R1'' on `main`:**"):adr.index("6. **R2 off")]
-    for s in ("`required_approving_review_count: 2`", "`dismiss_stale_reviews_on_push: true`",
+    d5 = adr[adr.index("5. **Ruleset R1'' on `main`:**"):adr.index("\n6. ")]   # 6 may carry an amendment note
+    # The count is 10 since S1-1 (main-protect/approval-margin: the ruleset API maximum); decision 5 says so.
+    for s in ("`required_approving_review_count: 10`", "`dismiss_stale_reviews_on_push: true`",
               "`require_last_push_approval: true`", "`require_code_owner_review: false`", "squash only",
               "bypass Repository admin role", "`pull_request` mode"):
         assert s in d5, s
     pr = [x for x in R1PP["rules"] if x["type"] == "pull_request"][0]["parameters"]
-    assert pr["required_approving_review_count"] == 2 and pr["dismiss_stale_reviews_on_push"] is True
+    assert pr["required_approving_review_count"] == 10 and pr["dismiss_stale_reviews_on_push"] is True
+    for f in ("u3-toggle.sh", "u3-toggle.ps1"):   # the pin follows the json (S1-1)
+        text = (ROOT / "scripts" / f).read_text(encoding="utf-8")
+        assert ("'[10,true,false]'" in text or "-ceq '10'" in text) and "'[2,true,false]'" not in text, f
     assert pr["require_last_push_approval"] is True and pr["require_code_owner_review"] is False
     assert pr["allowed_merge_methods"] == ["squash"]
     assert R1PP["bypass_actors"] == [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
@@ -227,12 +290,12 @@ def test_r1pp_json_is_adr_0011_decision_5_and_otherwise_r1_prime():
     assert set(pr) == set(prime) and {k for k in pr if pr[k] != prime[k]} == changed
     strip = lambda o: {**o, "rules": [x for x in o["rules"] if x["type"] != "pull_request"]}
     assert strip(R1PP) == strip(R1P)
-    for p in ("main-ruleset.json", "main-ruleset-r1pp.json"):   # BOM-less ASCII, read by both scripts
+    for p in ("main-ruleset-r1p.json", "main-ruleset.json"):   # BOM-less ASCII, read by both scripts
         raw = (ROOT / "scripts" / p).read_bytes()
         assert raw[:1] == b"{" and all(b < 0x80 for b in raw), p
     for script in (SH, PS1):
         text = script.read_text(encoding="utf-8")
-        assert "main-ruleset-r1pp.json" in text and "main-ruleset.json" in text, script.name
+        assert "main-ruleset.json" in text and "main-ruleset-r1p.json" in text, script.name
 
 
 # ---------------------------------------------------------------------------------------------- the whitelist
@@ -243,8 +306,9 @@ def test_the_whitelist_drops_every_read_only_field(tmp_path):
     get["bypass_actors"] = [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]
     get["rules"] = list(reversed(get["rules"]))                        # GitHub's order does not matter
     (tmp_path / "get.json").write_text(json.dumps(get))
-    r = subprocess.run(["bash", str(SH), "--show-body", str(tmp_path / "get.json")], capture_output=True, text=True,
-                       env={**os.environ, "PATH": f"/nonexistent-gh:{os.environ['PATH']}"})
+    env = {**os.environ, "PATH": f"/nonexistent-gh:{os.environ['PATH']}"}
+    r = subprocess.run(_cmd(SH, ["--show-body", str(tmp_path / "get.json")]), capture_output=True, text=True,
+                       env=pwsh_twin.env(env) if TWIN["now"] == "ps1" else env)
     assert r.returncode == 0, r.stderr
     body = json.loads(r.stdout)
     assert body == _wl(R1P)
@@ -262,7 +326,7 @@ def test_every_put_body_is_whitelisted(tmp_path):
     for c in made:
         if c.get("method") == "PUT" and c["path"].endswith("/rulesets/27502319"):
             assert "--input" in c["argv"] and not any(x.startswith(("-f", "-F")) for x in c["argv"]), c
-    backup = next(Path(p) for p in (tmp_path / "home").iterdir() if p.name.startswith("u3-ruleset-backup-"))
+    backup = next(Path(p) for p in _docs(tmp_path).iterdir() if p.name.startswith("u3-ruleset-backup-"))
     assert json.loads(backup.read_text()) == _wl(R1P)
     assert re.search(rf"^U3 WINDOW OPEN \d{{4}}-\d\d-\d\dT\d\d:\d\d:\d\dZ BACKUP {re.escape(str(backup))}$", r.stdout, re.M)
     assert f"\nBACKUP {backup}\n" in r.stdout
@@ -294,7 +358,8 @@ def test_pass_brians_path_waits_for_main_to_move(tmp_path):
 
 @pytest.mark.parametrize("suite_result", ["bypass", "pass"])
 def test_fail_rule_when_the_pull_request_evaluation_reads_pass(tmp_path, suite_result):
-    """v1-probe/u3-false-pass-on-pr-eval-pass: a pass evaluation means 2 approvals did not bind, so a bypass suite
+    """v1-probe/u3-false-pass-on-pr-eval-pass: a pass evaluation means the ruleset maximum (10)
+    approvals did not bind, so a bypass suite
     with it must never read PASS."""
     st = _state(suites=[{"id": 778, "after_sha": MERGE, "result": suite_result}])
     st["suite"]["result"] = suite_result
@@ -428,7 +493,8 @@ def test_a_refused_r1pp_put_is_still_restored(tmp_path):
 
 def test_a_failed_restore_is_loud_and_never_pass(tmp_path):
     r, made = _run(tmp_path, ["--pr", "60", "--merge", "--report", "x"], _state(put_fail=[2, 3, 4]))
-    assert "RESTORE FAILED" in r.stdout and "--restore" in r.stdout and r.returncode == 3
+    restore = "--restore" if TWIN["now"] == "sh" else "-Restore -From"
+    assert "RESTORE FAILED" in r.stdout and restore in r.stdout and r.returncode == 3
     failed = next(ln for ln in r.stdout.splitlines() if ln.startswith("RESTORE FAILED"))
     assert re.search(r"BACKUP \S+u3-ruleset-backup-\d{8}-\d{6}\.json", failed), failed
     line = _verdict(r.stdout)
@@ -438,7 +504,7 @@ def test_a_failed_restore_is_loud_and_never_pass(tmp_path):
 def test_ctrl_c_in_the_window_restores(tmp_path):
     env = _env(tmp_path, _state(), "1400")
     env["STUB_SLEEP"] = "0.2"
-    p = subprocess.Popen(["bash", str(SH), "--pr", "60"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    p = subprocess.Popen(_cmd(SH, ["--pr", "60"]), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          text=True)
     seen = []
     deadline = time.time() + 30
@@ -447,7 +513,7 @@ def test_ctrl_c_in_the_window_restores(tmp_path):
         seen.append(ln)
         if ln.startswith("U3 WINDOW OPEN"):
             break
-    for b in (tmp_path / "home").glob("u3-ruleset-backup-*"):     # u3-restore-source: memory, not the file
+    for b in _docs(tmp_path).glob("u3-ruleset-backup-*"):     # u3-restore-source: memory, not the file
         b.unlink()
     time.sleep(0.3)
     p.send_signal(signal.SIGINT)
@@ -540,6 +606,55 @@ def test_usage_errors_change_nothing(tmp_path, args):
     assert r.returncode == 1 and not _puts(made)
 
 
+def _edited(name, change):
+    o = json.loads((ROOT / "scripts" / name).read_text(encoding="utf-8"))
+    change(o)
+    return _b64(json.dumps(o, indent=2).encode() + b"\n")
+
+
+@pytest.mark.parametrize("name", ["main-ruleset-r1p.json", "main-ruleset.json"])
+@pytest.mark.parametrize("how", ["differs", "unread"])
+def test_refused_unless_both_ruleset_files_are_mains(tmp_path, name, how):
+    """data-off-main/rollback-checkout-unpinned (L2, I-root C19): a stale or edited checkout's ruleset file is never
+    written; it must equal main's byte for byte (contents API, ref=main), and a failed read refuses."""
+    files = dict(MAIN_FILES)
+    if how == "unread":
+        del files[name]
+    else:
+        files[name] = _edited(name, lambda o: o["bypass_actors"].append(
+            {"actor_id": 1, "actor_type": "OrganizationAdmin", "bypass_mode": "always"}))
+    for args in (["--pr", "60"], ["--pr", "60", "--rehearse"]):
+        r, made = _run(tmp_path, args, _state(main_files=files))
+        _refused(r, made, f"scripts/{name} is not main's byte for byte, or main's could not be read")
+        assert any(c.get("path", "").endswith(f"/contents/scripts/{name}?ref=main") for c in made)
+        (tmp_path / "calls").unlink()
+
+
+def test_restore_refuses_unless_r1_prime_is_mains_and_a_backup_file_skips_the_check(tmp_path):
+    files = {**MAIN_FILES, "main-ruleset-r1p.json": _edited("main-ruleset-r1p.json", lambda o: o.update(name="x"))}
+    r, made = _run(tmp_path, ["--restore"], _state(main_files=files, ruleset=json.loads(json.dumps(R1PP))))
+    assert r.returncode == 1 and "scripts/main-ruleset-r1p.json is not main's byte for byte" in r.stdout, r.stdout
+    assert "Nothing was changed." in r.stdout and not _puts(made)
+    (tmp_path / "calls").unlink()
+    (tmp_path / "b.json").write_text(json.dumps(_wl(R1P)))   # the operator's own backup: not a checkout file
+    r, made = _run(tmp_path, ["--restore", str(tmp_path / "b.json")], _state(main_files={}))
+    assert r.returncode == 0 and "RESTORED " in r.stdout and _puts(made) == [_wl(R1P)], r.stdout
+    assert not any("/contents/" in c.get("path", "") for c in made)
+
+
+def test_ps1_reads_both_ruleset_files_against_main():
+    ps1 = PS1.read_text(encoding="utf-8")
+    sh = SH.read_text(encoding="utf-8")
+    assert "\"repos/$repo/contents/scripts/${name}?ref=main\" --jq '.content'" in ps1
+    assert "\"repos/$repo/contents/scripts/$1?ref=main\" --jq '.content'" in sh
+    assert "[Convert]::FromBase64String($b64)" in ps1 and "[IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $name))" in ps1
+    assert "foreach ($f in @('main-ruleset-r1p.json', 'main-ruleset.json')) { if (-not (MainCopyOk $f))" in ps1
+    assert "for f in main-ruleset-r1p.json main-ruleset.json; do main_copy_ok \"$f\"" in sh
+    assert "if (-not $From -and -not (MainCopyOk 'main-ruleset-r1p.json'))" in ps1
+    assert ps1.index("MainCopyOk $f") > ps1.index("if (-not (PinOk))")
+    assert sh.index('main_copy_ok "$f"') > sh.index("pin_ok ||")
+
+
 # ---------------------------------------------------------------------------------------------- --restore, --noop
 
 
@@ -597,7 +712,8 @@ def test_ps1_has_the_same_steps_lines_and_refusals():
     sh = SH.read_text(encoding="utf-8")
     for s in ("U3 WINDOW OPEN $opened BACKUP $($script:backup)", "RESTORED ", "U3 VERDICT ", "RESTORE FAILED",
               "U3 REHEARSAL WINDOW OPEN ", "U3 REHEARSAL DONE", "U3 REHEARSAL FAILED", "[switch]$Rehearse",
-              "BACKUP $($script:backup)", "[DateTime]::UtcNow.AddMinutes(20)", "[DateTime]::UtcNow -ge $deadline",
+              "BACKUP $($script:backup)", "(Get-Date).ToUniversalTime().AddMinutes(20)",
+              "(Get-Date).ToUniversalTime() -ge $deadline",
               "$hm -ge 730 -and $hm -le 1030", "if (-not (PinOk))", "$script:backupObj = $live",
               "$suiteResult -ceq 'bypass' -and $prEval -ceq 'fail'", "$prEnf -cne 'active'", "$ev.Count -ne 3",
               "$script:prSt[3] -cne $head", "'(?i)approving review'", "$m -cne $mainBefore", "startswith($ENV.U3_REFUSED)", "$env:U3_REFUSED = 'U3 merge refused'",
@@ -624,7 +740,9 @@ def test_ps1_has_the_same_steps_lines_and_refusals():
     # the restore runs in finally, after RunWindow, and the window is armed before the first PUT
     body = ps1[ps1.index("function RunWindow"):]
     assert body.index("$script:armed = $true") < body.index("PutVerify (ReadJsonFile $r1pp)")
-    assert re.search(r"try \{\s*RunWindow\s*\} finally \{\s*if \(\$script:armed\) \{ CloseWindow \}\s*\}", ps1)
+    fin = ps1[ps1.index("try {\n    RunWindow"):]
+    assert re.match(r"try \{\s*RunWindow\s*\$script:ran = \$true\s*\} finally \{\s*if \(\$script:armed\) \{", fin), fin
+    assert fin.index("CloseWindow") < fin.index("exit $script:code") < fin.index("\n}\n")   # the exit is inside finally
     close = ps1[ps1.index("function CloseWindow"):]
     assert close.index("RestoreFrom $src $label") < close.index("U3 REHEARSAL DONE") < close.index("U3 VERDICT")
     assert "$src = $script:backupObj" in close and "$src = ReadJsonFile $r1p" in close
@@ -662,11 +780,11 @@ def test_refused_unless_r1pp_is_pinned_to_adr_0011(tmp_path, change):
     """v1-probe/u3-r1pp-pin: the preflight itself checks R1'' = R1' plus exactly the three decision-5 values."""
     sdir = tmp_path / "scripts"
     sdir.mkdir()
-    for name in ("u3-toggle.sh", "main-ruleset.json", "merge-reviewed.sh"):
+    for name in ("u3-toggle.sh", "main-ruleset-r1p.json", "merge-reviewed.sh", "u3-toggle.ps1", "merge-reviewed.ps1"):
         shutil.copy(ROOT / "scripts" / name, sdir / name)
     rs = json.loads(json.dumps(R1PP))
     change([x for x in rs["rules"] if x["type"] == "pull_request"][0]["parameters"])
-    (sdir / "main-ruleset-r1pp.json").write_text(json.dumps(rs))
+    (sdir / "main-ruleset.json").write_text(json.dumps(rs))
     r, made = _run(tmp_path, ["--pr", "60"], script=sdir / "u3-toggle.sh")
     _refused(r, made, "is not R1' with only ADR 0011 decision 5's three changes")
 
@@ -695,7 +813,7 @@ def test_rehearsal_runs_the_same_preflight(tmp_path):
 def test_rehearsal_ctrl_c_restores(tmp_path):
     env = _env(tmp_path, _state(), "1400")
     env["STUB_SLEEP"] = "0.3"
-    p = subprocess.Popen(["bash", str(SH), "--pr", "60", "--rehearse"], env=env, stdout=subprocess.PIPE,
+    p = subprocess.Popen(_cmd(SH, ["--pr", "60", "--rehearse"]), env=env, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, text=True)
     seen = []
     while True:

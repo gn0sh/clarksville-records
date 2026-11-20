@@ -18,7 +18,7 @@ collector/            fetch -> store -> parse -> verify -> export   (backend-eng
   discover.py         finds minutes PDFs on the county index page
   store.py            content-addressed document store + data/manifest.json
   parse/              M0 spike parser (minutes PDF -> raw fragments); owned by the M0 engineer
-  names.py            name normaliser + resolver (data/names.yml)
+  names.py            name normaliser + resolver (config/names.yml)
   verify.py           P2 checks, verification status, G4 skew report
   facts.py            assembles data/facts.json (deterministic order, stable ids)
   export.py           CSV + JSON open-data export of shown facts (G5)
@@ -31,8 +31,10 @@ site/                 non-Python assets (not a package: `site` would shadow the 
   templates/*.html.j2 base, index, official, meeting, items_year, about, review, changes
   static/style.css, static/filter.js
   fixtures/facts.sample.json   FIXTURE data for frontend work and tests
-data/                 committed: names.yml, manifest.json, facts.json, changes.jsonl
+data/                 committed: manifest.json, facts.json, changes.jsonl
                       not committed: data/store/ (PDF bytes; path overridable by RECORDS_STORE)
+config/               curated, reviewed inputs (ADR 0011): names.yml, procedural-titles.yml, corrections-log.json,
+                      published-fact-changes.yml (never in data/: data/ holds collector output only)
 build/                not committed: site/, report.json, run-log.json, name-candidates.json
 schema/facts.schema.json   the parser/verifier -> sitegen contract
 schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen); source_url must be https://
@@ -163,8 +165,8 @@ no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not e
   agenda's title for its number, else the number alone; an unnumbered one with no other title is "(untitled)" and is
   never title-linked.
 
-### Names and merge rules (`collector/names.py`, `data/names.yml`)
-`data/names.yml` is the roster: one entry per official, curated by the team from the county's published commissioner
+### Names and merge rules (`collector/names.py`, `config/names.yml`)
+`config/names.yml` is the roster: one entry per official, curated by the team from the county's published commissioner
 list, each with `id` (slug), `name`, `surname`, `given`, optional `terms` (start/end, with source URL), and `aliases`
 (each alias with the reason and an example source page). Brian never edits it (Goal 3). Merge rules, applied identically
 to every official and printed on the About page (AC1.1, G2):
@@ -684,7 +686,7 @@ Moved/Seconded `<motion_id>/moved` and `<motion_id>/seconded`.
 3. Numbered items: all appearances with the same normalised number share one item (`link_basis: number`).
 4. Unnumbered items: title normalised by casefold, collapsed whitespace and trailing punctuation removed, nothing else.
    Appearances link only when normalised titles are identical (`link_basis: title`, shown as "linked by title"). Any
-   other difference makes a separate item (AC7.3). Recurring procedural titles listed in `data/procedural-titles.yml`
+   other difference makes a separate item (AC7.3). Recurring procedural titles listed in `config/procedural-titles.yml`
    (e.g. approval of the minutes, invocation, pledge) are never title-linked: each appearance is its own item, otherwise
    one "item" would collect every meeting's minutes approval.
 5. Item page = `item_events` for the item sorted by (date, source page, order); `roll_call` events expand to the full

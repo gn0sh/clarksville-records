@@ -23,10 +23,13 @@ def test_daily_workflow_runs_the_committees_before_the_site_build_as_a_warning_o
         r = subprocess.run(["bash", "-e", "-c", fake], capture_output=True, text=True)
         assert r.returncode == 0 and (("::warning::" in r.stdout) is (rc != 0)), (rc, r.stdout, r.stderr)
         assert f"committees_exit={rc}" in r.stdout
-    files = subprocess.run(["git", "ls-files", "data/localities/clarksville-tn/committees"], cwd=ROOT,
-                           capture_output=True, text=True, check=True).stdout.split()
-    assert files and all(f.endswith(".json") for f in files)     # the push job's allowlist: *.json|*.yml|changes.jsonl
+    # the data/ tree on disk (fetch-data or the daily run's checkout of records-data), not git's index: data/ leaves
+    # main at the cutover (ADR 0011 row LS). An empty folder fails: the test must never pass on no collector output.
+    folder = ROOT / "data" / "localities" / "clarksville-tn" / "committees"
+    files = sorted(p.name for p in folder.rglob("*") if p.is_file()) if folder.is_dir() else []
+    assert files, f"{folder} holds no file: fill data/ from records-data first (scripts/fetch-data)"
+    assert all(f.endswith(".json") for f in files)               # the push job's allowlist: *.json|changes.jsonl
     validate = {s.get("name"): s for s in wf["jobs"]["push"]["steps"]}["Validate refreshed data"]["run"]
-    assert "*.json|*.yml|*/changes.jsonl) ;;" in validate
+    assert "*.json|*/changes.jsonl) ;;" in validate
     assert "data/localities/clarksville-tn/committees/manifest.json" in (ROOT / "config" / "site.yml").read_text(
         encoding="utf-8")                                         # fetch days on the pages are site_timezone days

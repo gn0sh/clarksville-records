@@ -1,3 +1,0 @@
-# Code owners (ADR 0010, docs/adr/0010-code-owner-rule-replaces-v1.md): every path outside data/ needs gn0sh.
-* @gn0sh
-/data/
