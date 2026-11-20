@@ -78,3 +78,20 @@ Owner: devops-engineer (script), Brian (runs it; U3-0 = no), manager (merge and 
   3. Type `U3 go` in the thread.
   4. Wait for `RESTORED` and the verdict line. Paste it in the thread. Keep the PC awake and don't close the
      PowerShell window until you see RESTORED.
+
+## `national-data`: an unattested head stops national collection until a reset (S2b nit e)
+Architecture `docs/architecture/daylight-national.md` 12.1 row 23, task D-ISO-7. For the U3-0 step that creates
+`national-data` and its ruleset.
+- `national-update.yml`'s gate reads only the head of `national-data`. If that head is neither the pinned seed nor
+  attested by `national-update.yml` on `main` (a hand push, a push by another workflow, a half-finished run), the
+  gate refuses on **every later run**: nothing is collected or pushed, and the report job opens its issue each time.
+  It never clears by itself.
+- Clarksville is not held by it: the daily deploy's lookup (`daily-update.yml`, "Find the newest attested
+  national-data") skips an unattested head, reads the newest attested commit among the last 10, and is soft.
+- **Recovery is a reset of `national-data` to its last attested commit** (or to the seed). That moves a shared
+  branch's history, so it is **hard stop 2: Brian's decision**, never the team's. The team prepares the exact
+  commit and command; Brian runs it.
+- So the `national-data` ruleset must **block force-push and deletion** (rules `non_fast_forward` and `deletion`;
+  the push job's fast-forward pushes still pass), with no bypass for the team's token or GitHub Actions, so only
+  Brian can make that reset (he lifts the rule for it, then restores it). This is Brian's PC step, batched with the
+  U3-0 ruleset ask (no second card).
