@@ -197,7 +197,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    must show that PR as merged by `github-actions`. If the run logs **"No data changes."** it committed nothing, so
    the data PR is not checked yet: wait for a later run (scheduled or manual) that does commit `data/`. If the
    `push` job fails with "GitHub Actions is not permitted to create or approve pull requests", step 2.0.1 (b) or
-   2.0.2.1 did not take: tick that box and re-run the failed job. (Superseded (ADR 0011): do NOT turn R2 on; the push job opens no PR.) If the merge fails, the "Daily update failed"
+   2.0.2.1 did not take. (Superseded (ADR 0011): this pre-cutover fix no longer applies. Do NOT turn R2 on; the push job opens no PR.) If the merge fails, the "Daily update failed"
    issue says so; data collection is unaffected (the next run commits again), and the site keeps its last deploy.
    - **Verified (2026-11-17, `gh api` from the team's session as the owner):** `main` has no ruleset and no branch
      protection yet (`rulesets` is `[]`, `rules/branches/main` is `[]`, `branches/main` says `protected: false`);
@@ -380,8 +380,8 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    And `github-pages` deploys from `main` only (step 2.0.5).
 7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only; ADR 0011 Amendment (c)).**
    **State now (cutover merged 2026-11-19, 8d69778):** the baseline is set in the gate step's `env:` in
-   `.github/workflows/daily-update.yml` (`1922fda3afec13759ade9cb8dd4dc7fffee5b2fa`, the `main` sha the seed was cut
-   from), next to `RECORDS_DATA_SEED_DIGEST`; an empty value on `main` is now a gate refusal, not phase 0. The
+   `.github/workflows/daily-update.yml` (first `1922fda3afec13759ade9cb8dd4dc7fffee5b2fa`, the `main` sha the seed was cut
+   from; moved to `eef6ed0643f42fd104ca2e0a463650066558e20f` on 2026-11-20, see the ADR 0011 note 2026-11-20), next to `RECORDS_DATA_SEED_DIGEST`; an empty value on `main` is now a gate refusal, not phase 0. The
    text below says how it was set and how to check it. Changing it later: only by a reviewed PR after a person has
    checked every commit it skips, and run `protect-main` from Brian's PC first (drift rules, 2.0); unset
    `MORNING_NOTE_SEND` before any ruleset change. Set by the cutover PR of ADR 0011 (not by a separate PR, and not gated by the V1'' probe, which gates only
