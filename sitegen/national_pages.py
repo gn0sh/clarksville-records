@@ -26,11 +26,25 @@ other page links it, and like the two digest scripts it is copied into the build
 Every fixed word on a digest page comes from config/national/page-labels.yml (or labels.yml's card labels); every
 other word is source text from the directory or a feed (AC4.5, AC4.8). Labels mark their one link as `[text]` and
 their data as `{name}`; `label_html` escapes both.
+
+Invariant `national-isolation` (architecture 12): a national input (national-data bytes, the Clarksville files as the
+adapter reads them) never stops the build. `run` has three phases:
+- the load phase (`load_phase`): every load and config cross-check, from reviewed files alone. Its NationalBuildError
+  is the only national exception sitegen/build.py turns into BuildError.
+- tier 1, per government (`build_feeds`, then `build_national`'s per-government step): the copy step or the adapter,
+  bind, schema, the date and instant checks, `meeting_view` and the page and JSON text run inside one `try`; any
+  exception gives that government `stale_feed(entry)`, a fixed state word (DEGRADED_STATES) and one `::warning::`
+  line (id, word, exception type name).
+- tier 2, the whole data phase: anything else that raises after the load phase clears `digest/`, prints one
+  `::error::` line (type name only) and builds the data phase again with no national root and no Clarksville inputs
+  (every covered entry stale, state NO_DATA); the run is then DEGRADED. A raise in that rebuild stops the build.
 """
 from __future__ import annotations
 
 import json
 import re
+import shutil
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timezone
 from pathlib import Path
 from typing import Mapping
@@ -44,7 +58,7 @@ from . import config, localdates, morning_page, views
 from . import national as nat
 from . import national_clarksville as ncl
 from . import national_copy as ncopy
-from .national_guards import BAD_TEXT_RE, BindCounts, BindError, GuardCounts, allowed_url, bind_feed, link_or_official
+from .national_guards import BAD_TEXT_RE, BindCounts, GuardCounts, allowed_url, bind_feed, link_or_official
 from .views import CSP_BASE
 
 FOLDER = "digest"
@@ -112,7 +126,24 @@ METHOD_SENTENCE = "These two keys are all this site keeps in your browser."
 
 
 class NationalBuildError(ValueError):
-    """The national pages cannot be built as the contract says: the build stops."""
+    """The national pages cannot be built as the contract says: the build stops. Raised for reviewed files only (the
+    load phase, or the tier-2 rebuild that reads nothing else; architecture 12)."""
+
+
+# --- state words (architecture 12; fixed: the run log, the build result and the annotations print only these) ------
+
+OFF, BUILT, DEGRADED = "off", "built", "degraded"            # the national step as a whole (build result `national`)
+# one government: BUILT (the adapter's feed) or ncopy.COPIED / ncopy.MISSING, else one of DEGRADED_STATES
+COPY_ERROR, ADAPTER_ERROR, RENDER_ERROR, NO_DATA = "copy-error", "adapter-error", "render-error", "no-data"
+DEGRADED_STATES = (ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, COPY_ERROR, ADAPTER_ERROR, RENDER_ERROR,
+                   NO_DATA)
+WARNING = "::warning::National pages: "
+ERROR = "::error::National pages: "
+
+
+def _warn(gov: Mapping, state: str, exc: BaseException) -> None:
+    """The one annotation of a tier-1 degrade: the id, the fixed word and the exception's type name, never its text."""
+    print(f"{WARNING}{ncopy.safe_gov(gov)}: {state} ({type(exc).__name__})", flush=True)
 
 
 # --- the switch -----------------------------------------------------------------------------------------------------
@@ -356,8 +387,19 @@ def newest_record_at(sources) -> datetime:
 def council_inputs(councils, fixture: bool) -> dict[str, tuple[dict, list]]:
     """{council.yml body_key: (facts, listing)} for the adapter, from the build's CouncilIndex list. A fixture build
     builds no council and reads no real council data: each configured council then has no facts and no listing (its
-    page says no meetings are posted and that it could not check), never the real files beside fixture facts."""
-    out = {c.cfg["body_key"]: (c.facts, ncl.load_listing(c.cfg)) for c in councils if c.cfg.get("body_key")}
+    page says no meetings are posted and that it could not check), never the real files beside fixture facts.
+
+    A listing that cannot be read (not JSON, not UTF-8) is carried as its exception in place of the rows, and is
+    raised in that council's own tier-1 step (`build_feeds`: its entry is ADAPTER_ERROR), so one bad file degrades one
+    government, not the whole digest (architecture 12.3 #7)."""
+    out = {}
+    for c in councils:
+        if c.cfg.get("body_key"):
+            try:
+                listing = ncl.load_listing(c.cfg)
+            except Exception as exc:                # Clarksville data as the national step reads it (12, input 2)
+                listing = exc
+            out[c.cfg["body_key"]] = (c.facts, listing)
     if fixture:
         for cfg in config.COUNCILS:
             if cfg.get("body_key"):
@@ -365,41 +407,64 @@ def council_inputs(councils, fixture: bool) -> dict[str, tuple[dict, list]]:
     return out
 
 
+def _adapter_feed(gov: dict, councils: Mapping[str, tuple[dict, list]], county_agendas: dict | None, today: date,
+                  counts: dict[str, GuardCounts] | None) -> dict:
+    """One covered daylight entry's feed from the Clarksville adapter (raises on anything; tier 1 catches it)."""
+    key = (gov.get("daylight") or {}).get("body")
+    inputs = councils.get(key)
+    if inputs is not None and isinstance(inputs[1], BaseException):
+        raise inputs[1]                                 # its listing could not be read (council_inputs)
+    if key == ncl.COUNTY_BODY_KEY:
+        at = newest_record_at((county_agendas or {}).get("sources"))
+    else:
+        at = newest_record_at(((inputs or ({}, []))[0] or {}).get("sources"))
+    one = nat.Directory(govs=(gov,), alias={})
+    feed = ncl.clarksville_feeds(one, councils, county_agendas, today, checked_at=at, counts=counts).get(gov["gov"])
+    if feed is None:                                    # a code assert: the load phase checked every route
+        raise NationalBuildError(f"{gov['gov']}: covered, but no feed is built for it")
+    feed["last_ok_at"] = None           # schema: instant or null; no check time is recorded in M1
+    return feed
+
+
 def build_feeds(directory: nat.Directory, councils: Mapping[str, tuple[dict, list]], county_agendas: dict | None,
                 today: date, counts: dict[str, GuardCounts] | None = None, *, national_root: Path | None = None,
-                copy_counts: dict[str, ncopy.CopyCounts] | None = None) -> dict[str, dict]:
+                copy_counts: dict[str, ncopy.CopyCounts] | None = None, states: dict[str, str] | None = None,
+                built_at: datetime | None = None) -> dict[str, dict]:
     """{body id: feed} for every covered entry, each with its own `checked_at` (the newest record, see
     newest_record_at) and `last_ok_at` null (M1 records no successful check run): the council's from its facts file's
     sources, the county's from the agendas file's sources (newest_record_at). `councils`: council_inputs(). The adapter
-    (national_clarksville.clarksville_feeds) is called once per entry so each gets its own instant; a covered entry
-    with no feed stops the build (its page would link nowhere). A covered entry on a collected platform (Legistar)
-    gets its feed from the D2 copy step (`national_copy.copy_feed`) under `national_root`, the attested
-    national-data's `data/national` (None: none, every such page stale); `copy_counts` receives what it did."""
+    (national_clarksville.clarksville_feeds) is called once per entry so each gets its own instant. A covered entry
+    on a collected platform (Legistar) gets its feed from the D2 copy step (`national_copy.copy_feed`) under
+    `national_root`, the attested national-data's `data/national` (None: none, every such page stale), checked against
+    `built_at` (the build's instant); `copy_counts` receives what it did.
+
+    Tier 1 (architecture 12): each entry's feed is made inside its own `try`. Any exception gives that entry
+    `stale_feed(entry)`, state ADAPTER_ERROR (or COPY_ERROR on a collected platform) and one `::warning::` line;
+    nothing raises out. `states` receives each covered entry's state word (BUILT, or the copy step's word)."""
     feeds: dict[str, dict] = {}
+    states = states if states is not None else {}
     for gov in directory.govs:
         if gov["status"] != "covered":
             continue
+        gid = gov["gov"]
         if gov.get("platform") in ncopy.COLLECTED:
             one_counts = ncopy.CopyCounts()
             try:
-                feeds[gov["gov"]] = ncopy.copy_feed(national_root, gov, one_counts)
-            except ncopy.CopyError as exc:
-                raise NationalBuildError(str(exc)) from exc
+                feeds[gid] = ncopy.copy_feed(national_root, gov, one_counts, built_at=built_at)
+                states[gid] = one_counts.state
+            except Exception as exc:        # CopyError is a load-phase check (check_entry): here, a code fault
+                _warn(gov, COPY_ERROR, exc)
+                feeds[gid], states[gid] = ncopy.stale_feed(gov), COPY_ERROR
+                one_counts.state = COPY_ERROR
             if copy_counts is not None:
-                copy_counts[gov["gov"]] = one_counts
+                copy_counts[gid] = one_counts
             continue
-        key = (gov.get("daylight") or {}).get("body")
-        if key == ncl.COUNTY_BODY_KEY:
-            at = newest_record_at((county_agendas or {}).get("sources"))
-        else:
-            at = newest_record_at((councils.get(key, ({}, []))[0] or {}).get("sources"))
-        one = nat.Directory(govs=(gov,), alias={})
-        feeds.update(ncl.clarksville_feeds(one, councils, county_agendas, today, checked_at=at, counts=counts))
-        if gov["gov"] in feeds:
-            feeds[gov["gov"]]["last_ok_at"] = None      # schema: instant or null; no check time is recorded in M1
-        if gov["gov"] not in feeds:
-            raise NationalBuildError(f"{gov['gov']}: covered, but no feed is built for it (platform "
-                                     f"{gov.get('platform')!r})")
+        try:
+            feeds[gid] = _adapter_feed(gov, councils, county_agendas, today, counts)
+            states[gid] = BUILT
+        except Exception as exc:            # Clarksville data the national schema refuses (12.1 row 14, N4)
+            _warn(gov, ADAPTER_ERROR, exc)
+            feeds[gid], states[gid] = ncopy.stale_feed(gov), ADAPTER_ERROR
     return feeds
 
 
@@ -524,18 +589,44 @@ class Pages:
         return [{"href": hrefs[k], "label": self.L[k]} for k in keys]
 
 
+def _gov_files(pages: "Pages", g: Mapping, feed: dict, flags: nat.GovFlags, labels: Mapping[str, str],
+               morning: str | None) -> tuple[str, str, str, str]:
+    """(page path, page HTML, JSON path, JSON text) of one covered government, from its bound feed only."""
+    L = pages.L
+    rel = nat.gov_page(g)
+    daylight = g.get("platform") == ncl.PLATFORM          # Clarksville's own bodies (AC4.5, AC8.3)
+    official = official_of(g)
+    meetings = [meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"]]
+    html = pages.html(
+        "digest/body.html.j2", rel, label_text(L["body.title"], name=g["body_name"]),
+        crumbs=pages.crumbs("crumb.home", "crumb.covered"),
+        name=g["body_name"], official=official, state_name=_state_label(L, g["state"]),
+        slot=labels[f"slot.{nat.slot_of(g['gov'], flags)}"], host=_host(official),
+        newest=newest_day(feed.get("checked_at")),
+        meetings=meetings, topic_note=any(e["topics"] for m in meetings for e in m["entries"]),
+        full_href=g["daylight"]["full_url"] if daylight else None, morning=morning if daylight else None)
+    return rel, html, rel[:-len(".html")] + ".json", feed_json(feed)
+
+
 def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, flags: nat.GovFlags,
                    labels: Mapping[str, str], page_labels: Mapping[str, str], feeds: Mapping[str, dict], *,
                    built_at: datetime, counter: dict | None,
                    bind_counts: dict[str, BindCounts] | None = None,
-                   links: Mapping[str, str | None] | None = None) -> list[str]:
+                   links: Mapping[str, str | None] | None = None,
+                   states: dict[str, str] | None = None) -> list[str]:
     """Writes the digest pages (module docstring) and returns their site paths, the HTML pages first. `counter`: the
     build's analytics settings (analytics.settings()) or None; `site`: the build's site context. `links`: load_links()
     (None: no outside link, both settings null).
 
     Architecture 11.1 row 15: every feed passes `national_guards.bind_feed(feed, entry)` with its covered directory
     entry first, and the .json and .html are written only from that bound object (a feed for no covered entry is not
-    written). `bind_counts`, if given, receives what each bind stripped (counts only)."""
+    written). `bind_counts`, if given, receives what each bind stripped (counts only).
+
+    Tier 1 (architecture 12): each covered government's bind, `meeting_view` and page and JSON text run inside one
+    `try`; any exception (a feed for another body, a missing feed, a schema error, an unprintable value) gives that
+    government the bound `stale_feed(entry)` instead, state RENDER_ERROR in `states` and one `::warning::` line. The
+    stale page depends on reviewed config only (an exception there is not caught here). The page directory is made
+    after, from the feeds actually written."""
     out = Path(out_dir)
     pages = Pages(env, site, labels, page_labels)
     L = page_labels
@@ -544,17 +635,24 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     files: dict[str, str] = {}
 
     covered = [g for g in directory.govs if g["status"] == "covered"]
-    bound: dict[str, dict] = {}
+    feeds_out: dict[str, dict] = {}
+    gov_files: dict[str, tuple[str, str, str, str]] = {}
     for g in covered:
-        if g["gov"] not in feeds:
-            raise NationalBuildError(f"{g['gov']}: covered, but no feed was given")
+        gid = g["gov"]
         try:
-            bound[g["gov"]], n = bind_feed(feeds[g["gov"]], g)
-        except BindError as exc:
-            raise NationalBuildError(str(exc)) from exc
-        if bind_counts is not None:
-            bind_counts[g["gov"]] = n
-    feeds = bound
+            feed, n = bind_feed(feeds[gid], g)
+            gov_files[gid] = _gov_files(pages, g, feed, flags, labels, morning)
+        except Exception as exc:
+            _warn(g, RENDER_ERROR, exc)
+            if states is not None:
+                states[gid] = RENDER_ERROR
+            feed, _n = bind_feed(ncopy.stale_feed(g), g)
+            gov_files[gid] = _gov_files(pages, g, feed, flags, labels, morning)
+        else:
+            if bind_counts is not None:
+                bind_counts[gid] = n
+        feeds_out[gid] = feed
+    feeds = feeds_out
     last_ok = {gid: f.get("last_ok_at") for gid, f in feeds.items()}
 
     # the entry page: the page directory relative to digest/ (its own data-root), the script strings and settings
@@ -609,22 +707,11 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     written[HOW] = pages.html("digest/how.html.j2", HOW, label_text(L["how.title"]), crumbs=pages.crumbs("crumb.home"),
                               buttondown_privacy=settings["privacy_url"], counter=counter)
 
-    # one coming-up page and its JSON per covered government
+    # one coming-up page and its JSON per covered government (made in tier 1 above)
     for g in covered:
-        feed = feeds[g["gov"]]               # bound above: body.id and platform are this entry's
-        rel = nat.gov_page(g)
-        daylight = g.get("platform") == ncl.PLATFORM          # Clarksville's own bodies (AC4.5, AC8.3)
-        official = official_of(g)
-        meetings = [meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"]]
-        written[rel] = pages.html(
-            "digest/body.html.j2", rel, label_text(L["body.title"], name=g["body_name"]),
-            crumbs=pages.crumbs("crumb.home", "crumb.covered"),
-            name=g["body_name"], official=official, state_name=_state_label(L, g["state"]),
-            slot=labels[f"slot.{nat.slot_of(g['gov'], flags)}"], host=_host(official),
-            newest=newest_day(feed.get("checked_at")),
-            meetings=meetings, topic_note=any(e["topics"] for m in meetings for e in m["entries"]),
-            full_href=g["daylight"]["full_url"] if daylight else None, morning=morning if daylight else None)
-        files[rel[:-len(".html")] + ".json"] = feed_json(feed)
+        rel, html, json_rel, json_text = gov_files[g["gov"]]
+        written[rel] = html
+        files[json_rel] = json_text
 
     files[FRAME] = nat.geo_frame_html()
     for rel, text in [*written.items(), *files.items()]:
@@ -634,33 +721,135 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     return [*written, *files]
 
 
-def run(out_dir: Path, env, site: dict, *, councils, county_agendas: dict | None, built_day: date,
-        counter: dict | None, fixture: bool, folder: Path = nat.NATIONAL_DIR) -> list[str]:
-    """The build's one call (sitegen/build.py, only when `enabled()`): load and check the curated files, make the
-    feeds, write the digest/ files. Returns the HTML pages written (for static/pages.js); the guards' counts go to
-    the run log as one line per government that had any."""
+@dataclass(frozen=True)
+class Loaded:
+    """The reviewed files the national step reads, loaded and cross-checked (the load phase)."""
+    directory: nat.Directory
+    flags: nat.GovFlags
+    labels: dict[str, str]
+    page_labels: dict[str, str]
+    links: dict[str, str | None]
+
+
+def zone_of(gov: Mapping) -> str:
+    """The time zone a covered entry's feed carries (`national_guards.bind_feed` writes `body.tz` from it): its
+    platform block's `tz`, else config.SITE `site_timezone`."""
+    keys = gov.get(gov.get("platform")) if isinstance(gov.get("platform"), str) else None
+    return (keys.get("tz") if isinstance(keys, dict) else None) or config.SITE["site_timezone"]
+
+
+def check_load(directory: nat.Directory, flags: nat.GovFlags, labels: Mapping[str, str],
+               page_labels: Mapping[str, str]) -> None:
+    """The load phase's cross-checks (architecture 12 "Allowed raises"): every config fact a page or feed of any
+    government needs, decided from reviewed files before any national input is read, so a defect fails the PR's own
+    checks and is never first triggered by data. Raises NationalBuildError (or the adapter's FeedError, the copy
+    step's CopyError, the loader's NationalConfigError, each a reviewed-file problem):
+    - every entry's state has a `state.<st>` page label and its slot a `slot.<slot>` label;
+    - every covered entry has a safe page path (`gov_page`) and a feed source: a collected platform's entry passes
+      `national_copy.check_entry` (R5: client and host_ok; B-ISO-1), a daylight entry the adapter's route checks
+      (`national_clarksville.route_checks`; B-ISO-5), and any other platform has none;
+    - every covered entry's zone (`zone_of`) has a `tz.<zone>` page label (12.1 row 13, N3; B-ISO-4)."""
+    ncl.route_checks(directory)
+    for g in directory.govs:
+        _state_label(page_labels, g["state"])
+        slot = f"slot.{nat.slot_of(g['gov'], flags)}"
+        if slot not in labels:
+            raise NationalBuildError(f"config/national/labels.yml: no label {slot} (directory entry {g['gov']})")
+        if g["status"] != "covered":
+            continue
+        nat.gov_page(g)
+        if g.get("platform") in ncopy.COLLECTED:
+            ncopy.check_entry(g)
+        elif g.get("platform") != ncl.PLATFORM:
+            raise NationalBuildError(f"{g['gov']}: covered, but no feed is built for platform "
+                                     f"{str(g.get('platform'))[:40]!r}")
+        _tz_label(page_labels, zone_of(g))
+
+
+def load_phase(folder: Path = nat.NATIONAL_DIR) -> Loaded:
+    """Every load and config cross-check of the national step (architecture 12): its NationalBuildError is the only
+    national exception the build turns into BuildError."""
     try:
         directory, flags, labels = nat.load_all(folder)
         page_labels = load_page_labels(Path(folder) / "page-labels.yml")
         links = load_links(Path(folder) / "links.yml")
-        counts: dict[str, GuardCounts] = {}
-        copied: dict[str, ncopy.CopyCounts] = {}
-        feeds = build_feeds(directory, council_inputs(councils, fixture), county_agendas, built_day, counts,
-                            national_root=ncopy.data_root(), copy_counts=copied)
-    except (nat.NationalConfigError, ncl.FeedError, ValueError) as exc:
+        check_load(directory, flags, labels, page_labels)
+    except (nat.NationalConfigError, ncl.FeedError, ncopy.CopyError) as exc:
         raise NationalBuildError(str(exc)) from exc
+    return Loaded(directory, flags, labels, page_labels, links)
+
+
+@dataclass
+class NationalRun:
+    """What the national step did: the HTML pages written (for static/pages.js), the step's state (BUILT, or
+    DEGRADED after a tier-2 rebuild) and each covered government's state word."""
+    pages: list[str]
+    state: str = BUILT
+    govs: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def degraded(self) -> dict[str, str]:
+        """{body id: state} of every covered government in one of DEGRADED_STATES (for the run log and D-ISO-9)."""
+        return {g: s for g, s in sorted(self.govs.items()) if s in DEGRADED_STATES}
+
+
+def _data_phase(out_dir: Path, env, site: dict, loaded: Loaded, *, councils, county_agendas: dict | None,
+                built_day: date, built_at: datetime, counter: dict | None, fixture: bool,
+                national_root: Path | None, no_data: bool = False) -> NationalRun:
+    """Make the feeds (tier 1 per government) and write the digest/ files. `no_data`: the tier-2 rebuild, every
+    covered entry `stale_feed` (no national root, no Clarksville inputs: reviewed files only)."""
+    d = loaded.directory
+    counts: dict[str, GuardCounts] = {}
+    copied: dict[str, ncopy.CopyCounts] = {}
+    states: dict[str, str] = {}
+    if no_data:
+        feeds = {g["gov"]: ncopy.stale_feed(g) for g in d.govs if g["status"] == "covered"}
+        states = dict.fromkeys(feeds, NO_DATA)
+    else:
+        feeds = build_feeds(d, council_inputs(councils, fixture), county_agendas, built_day, counts,
+                            national_root=national_root, copy_counts=copied, states=states, built_at=built_at)
     for gid, n in sorted(counts.items()):
         if n.any():
             print(f"sitegen: national: {gid}: guards changed the feed: {n.summary()}", flush=True)
     for gid, c in sorted(copied.items()):
         print(f"sitegen: national: {gid}: national-data {c.summary()}", flush=True)
     binds: dict[str, BindCounts] = {}
-    written = build_national(out_dir, env, site, directory, flags, labels, page_labels, feeds,
-                             built_at=build_instant(built_day), counter=counter, bind_counts=binds, links=links)
+    written = build_national(out_dir, env, site, d, loaded.flags, loaded.labels, loaded.page_labels, feeds,
+                             built_at=built_at, counter=counter, bind_counts=binds, links=loaded.links, states=states)
     for gid, n in sorted(binds.items()):
         if n.withheld_stripped or n.review_mismatch:
             print(f"sitegen: national: {gid}: bind_feed stripped items: {n.summary()}", flush=True)
-    return [r for r in written if r.endswith(".html") and r != FRAME]
+    return NationalRun(pages=[r for r in written if r.endswith(".html") and r != FRAME],
+                       state=DEGRADED if no_data else BUILT, govs=states)
+
+
+def _clear(folder: Path) -> None:
+    if folder.is_symlink() or folder.is_file():
+        folder.unlink()
+    elif folder.is_dir():
+        shutil.rmtree(folder)
+
+
+def run(out_dir: Path, env, site: dict, *, councils, county_agendas: dict | None, built_day: date,
+        counter: dict | None, fixture: bool, folder: Path = nat.NATIONAL_DIR) -> NationalRun:
+    """The build's one call (sitegen/build.py, only when `enabled()`), in three phases (module docstring; architecture
+    12): the load phase (reviewed files; NationalBuildError stops the build), then the data phase with tier 1 per
+    government, inside tier 2. Nothing a national input holds raises out of here. The guards' counts go to the run
+    log as one line per government that had any."""
+    loaded = load_phase(folder)
+    built_at = build_instant(built_day)
+    phase = dict(councils=councils, county_agendas=county_agendas, built_day=built_day, built_at=built_at,
+                 counter=counter, fixture=fixture)
+    try:
+        return _data_phase(out_dir, env, site, loaded, national_root=ncopy.data_root(), **phase)
+    except Exception as exc:                # tier 2: anything after the load phase
+        print(f"{ERROR}built with no data ({type(exc).__name__})", flush=True)
+    _clear(Path(out_dir) / FOLDER)
+    try:
+        return _data_phase(out_dir, env, site, loaded, national_root=None, no_data=True, **phase)
+    except Exception as exc:                # reviewed files only: a config or code fault, never hidden
+        raise NationalBuildError(f"the national pages cannot be built even with no data: {type(exc).__name__}: "
+                                 f"{exc}") from exc
 
 
 def fragment_labels(folder: Path = nat.NATIONAL_DIR) -> dict[str, str]:

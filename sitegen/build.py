@@ -1046,12 +1046,17 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                **views.review(ix, read_report(report_path)))
 
     # Daylight Digest (sitegen/national_pages.py, ADR 0013): only with config/site.yml national.enabled; off, nothing
-    # here runs and the digest-only scripts stay out of static/, so the build is byte-identical (architecture 7a)
+    # here runs and the digest-only scripts stay out of static/, so the build is byte-identical (architecture 7a).
+    # national-isolation (architecture 12): run() raises only its load phase's NationalBuildError (reviewed files);
+    # a bad national input degrades that government's page, or the whole digest (`national: degraded`).
+    national, national_degraded = national_pages.OFF, {}
     try:
         national_on = national_pages.enabled()
         if national_on:
-            written += national_pages.run(out, env, site, councils=cixs, county_agendas=ax.data if ax else None,
-                                          built_day=built_day, counter=counter, fixture=fixture)
+            nrun = national_pages.run(out, env, site, councils=cixs, county_agendas=ax.data if ax else None,
+                                      built_day=built_day, counter=counter, fixture=fixture)
+            written += nrun.pages
+            national, national_degraded = nrun.state, nrun.degraded
             national_pages.apply_to_tree(out, national_pages.fragment_labels())
     except national_pages.NationalBuildError as exc:
         raise BuildError(f"national: {exc}") from exc
@@ -1110,4 +1115,4 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,
             "morning": morning_note, "export": export, "warnings": warnings, "vote_lists": vote_lists,
-            "city_budget": city_bg is not None}
+            "city_budget": city_bg is not None, "national": national, "national_degraded": national_degraded}

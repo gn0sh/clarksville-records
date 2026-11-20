@@ -690,12 +690,22 @@ def test_real_coming_up_pages_print_exactly_the_json_items(tmp_path, loaded, pag
     assert not any(m["items"] for m in feeds[COUNCIL_ID]["meetings"])     # the council's are not stored (7)
 
 
-def test_a_covered_entry_without_a_feed_stops_the_build(loaded):
-    directory, _f, _l = loaded
-    with pytest.raises(npg.NationalBuildError):
-        npg.build_feeds(nat.Directory(govs=tuple(g for g in directory.govs if g["gov"] != COUNTY_ID)
-                                      + (dict(directory.get(COUNTY_ID), platform="legistar"),), alias={}),
-                        {"city": ({}, [])}, None, date(2026, 11, 19))
+def test_a_covered_entry_without_a_feed_source_is_refused_at_load(loaded, page_labels):
+    """national-isolation (architecture 12): a covered entry the build has no feed source for is a reviewed-config
+    fault, refused in the load phase; reached at data time anyway, it only degrades that entry (tier 1)."""
+    directory, flags, labels = loaded
+    odd = nat.Directory(govs=tuple(g for g in directory.govs if g["gov"] != COUNTY_ID)
+                        + (dict(directory.get(COUNTY_ID), platform="legistar"),), alias={})
+    with pytest.raises(npg.ncopy.CopyError, match="no legistar client"):
+        npg.check_load(odd, flags, labels, page_labels)
+    with pytest.raises(npg.NationalBuildError, match="no feed is built for platform 'boarddocs'"):
+        npg.check_load(nat.Directory(govs=(dict(directory.get(COUNTY_ID), platform="boarddocs"),), alias={}),
+                       flags, labels, page_labels)
+    states = {}
+    feeds = npg.build_feeds(odd, {"city": ({}, [])}, None, date(2026, 11, 19), states=states)
+    assert states == {COUNCIL_ID: npg.BUILT, COUNTY_ID: npg.COPY_ERROR}
+    assert feeds[COUNTY_ID] == npg.ncopy.stale_feed(odd.get(COUNTY_ID))
+    npg.check_load(directory, flags, labels, page_labels)          # the shipped directory passes
 
 
 SALEM_LEGISTAR = {"gov": "place-4164900", "body_name": "Salem City Council", "state": "OR", "status": "covered",
@@ -917,14 +927,23 @@ def test_builder_sweep_a_stale_review_publishes_no_item(tmp_path, loaded, page_l
     assert binds[COUNTY_ID].review_mismatch == 1
 
 
-def test_a_feed_for_another_body_stops_the_build(tmp_path, loaded, page_labels):
+def test_a_feed_for_another_body_is_never_written_and_that_page_is_stale(tmp_path, loaded, page_labels, capsys):
+    """11.1 row 15 and architecture 12 (tier 1): bind_feed refuses the county's feed for the council; nothing of it is
+    written, the council's page and JSON are its stale feed (render-error), the county is built as usual."""
     directory, flags, labels = loaded
     feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas(SENTINEL), date(2026, 11, 19),
                                   checked_at=BUILT_AT)
     feeds[COUNCIL_ID] = feeds[COUNTY_ID]
-    with pytest.raises(npg.NationalBuildError):
-        npg.build_national(tmp_path, build_mod.make_env(), _SITE_CTX(), directory, flags, labels, page_labels,
-                           feeds, built_at=BUILT_AT, counter=None)
+    states = {}
+    npg.build_national(tmp_path, build_mod.make_env(), _SITE_CTX(), directory, flags, labels, page_labels,
+                       feeds, built_at=BUILT_AT, counter=None, states=states)
+    assert states == {COUNCIL_ID: npg.RENDER_ERROR}
+    council = json.loads((tmp_path / "digest" / "tn" / f"{COUNCIL_ID}.json").read_text(encoding="utf-8"))
+    stale, _n = npg.bind_feed(npg.ncopy.stale_feed(directory.get(COUNCIL_ID)), directory.get(COUNCIL_ID))
+    assert council == stale and council["meetings"] == []
+    assert SENTINEL in (tmp_path / "digest" / "tn" / f"{COUNTY_ID}.json").read_text(encoding="utf-8")
+    assert _sweep(tmp_path) == {f"digest/tn/{COUNTY_ID}.html", f"digest/tn/{COUNTY_ID}.json"}
+    assert capsys.readouterr().out == f"::warning::National pages: {COUNCIL_ID}: render-error (BindError)\n"
 
 
 def test_only_sitegen_national_reads_the_directory_file():

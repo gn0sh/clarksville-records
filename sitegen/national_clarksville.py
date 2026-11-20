@@ -173,6 +173,29 @@ def _feed(gov: Mapping, tz: str, meetings: list[dict], stamp: str) -> dict:
             "checked_at": stamp, "last_ok_at": stamp, "meetings": meetings}
 
 
+def _county_route() -> None:
+    if config.SITE.get("county_key") != COUNTY_BODY_KEY:
+        raise FeedError(f"config.SITE county_key {config.SITE.get('county_key')!r} is not {COUNTY_BODY_KEY!r}: the "
+                        "county route is the only one that carries items (privacy-withhold, 11.1 row 10)")
+    if any(c.get("body_key") == COUNTY_BODY_KEY for c in config.COUNCILS):
+        raise FeedError(f"a council.yml body_key is {COUNTY_BODY_KEY!r}, the county's key (11.1 row 10)")
+
+
+def route_checks(directory: Directory) -> None:
+    """The adapter's route checks, from reviewed files alone (config/site.yml, council.yml, the directory), for the
+    builder's load phase (architecture 12, B-ISO-5): FeedError unless config.SITE `county_key` is COUNTY_BODY_KEY and
+    no council's `body_key` is, and unless every covered daylight entry's `daylight.body` is the county's key or a
+    council.yml `body_key`. clarksville_feeds repeats them; there they are code asserts."""
+    _county_route()
+    for gov in directory.govs:
+        if gov.get("status") != "covered" or gov.get("platform") != PLATFORM:
+            continue
+        key = (gov.get("daylight") or {}).get("body")
+        if key != COUNTY_BODY_KEY and council_cfg(key) is None:
+            raise FeedError(f"{gov['gov']}: daylight.body {key!r} is neither the county's key nor a council.yml "
+                            "body_key")
+
+
 def clarksville_feeds(directory: Directory, councils: Mapping[str, tuple[dict, list]], county_agendas: dict | None,
                       today: date, *, checked_at: datetime,
                       counts: dict[str, GuardCounts] | None = None,
@@ -187,11 +210,7 @@ def clarksville_feeds(directory: Directory, councils: Mapping[str, tuple[dict, l
     Stops the build (FeedError) unless config.SITE `county_key` is COUNTY_BODY_KEY and no council's `body_key` is."""
     stamp = _instant(checked_at)
     tz = config.SITE["site_timezone"]
-    if config.SITE.get("county_key") != COUNTY_BODY_KEY:
-        raise FeedError(f"config.SITE county_key {config.SITE.get('county_key')!r} is not {COUNTY_BODY_KEY!r}: the "
-                        "county route is the only one that carries items (privacy-withhold, 11.1 row 10)")
-    if any(c.get("body_key") == COUNTY_BODY_KEY for c in config.COUNCILS):
-        raise FeedError(f"a council.yml body_key is {COUNTY_BODY_KEY!r}, the county's key (11.1 row 10)")
+    _county_route()
     feeds: dict[str, dict] = {}
     for gov in directory.govs:
         if gov.get("status") != "covered" or gov.get("platform") != PLATFORM:

@@ -108,8 +108,10 @@ def test_items_for_a_withheld_entry_stop_the_build(tmp_path, monkeypatch):
         ncopy.copy_feed(_root(tmp_path, _feed(review="a" * 64)), entry)
     assert SENTINEL not in str(exc.value)
     directory = nat.Directory(govs=(entry,), alias={})
-    with pytest.raises(npg.NationalBuildError, match="not shown"):
-        npg.build_feeds(directory, {}, None, date(2026, 11, 20), national_root=_root(tmp_path))
+    states = {}                     # architecture 12 tier 1: the build degrades that entry, it never stops
+    feed = npg.build_feeds(directory, {}, None, date(2026, 11, 20), national_root=_root(tmp_path), states=states)
+    _is_stale(feed[GOV], entry)
+    assert states == {GOV: npg.COPY_ERROR}
 
 
 def test_a_shown_entry_read_under_another_review_loses_its_items_and_is_counted(tmp_path, monkeypatch):
