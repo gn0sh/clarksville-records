@@ -49,7 +49,7 @@ UPCOMING_SCHEMA = "daylight-upcoming/1"
 UPCOMING_SCHEMA_PATH = config.REPO_ROOT / "schema" / "daylight-upcoming.schema.json"
 PLATFORM = "daylight"
 COUNTY_BODY_KEY = "county"     # the only daylight.body whose feed carries items (11.1 row 10), fixed in code
-DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+DATE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")   # ASCII digits only (S2b finding 2)
 
 NOT_READ = "not-read"          # posted, items not read by us (the City Council in M1)
 NOT_POSTED = "not-posted"

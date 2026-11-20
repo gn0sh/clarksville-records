@@ -214,13 +214,16 @@ def copy_feed(root: Path | None, entry: dict, counts: CopyCounts | None = None, 
         feed, bound = bind_feed(cleaned, entry)
     except Exception:                     # UnsafeIdError, BindError, RecursionError, anything: file missing
         return stale_feed(entry)
+    if bound.withheld_stripped:           # security S2b finding 1: degrade, never stop the build
+        counts.bind = bound
+        return _refused(entry, counts, WITHHELD_ITEMS, f", withheld_stripped={bound.withheld_stripped}")
+    problem = date_problem(feed, built_at)
+    if problem:                           # security S2b finding 2
+        return _refused(entry, counts, problem)
     try:
         if feed_errors(feed):
             return stale_feed(entry)
     except Exception:                     # a value the validator cannot take (RecursionError): file missing
         return stale_feed(entry)
-    if bound.withheld_stripped:
-        raise CopyError(f"{entry['gov']}: national-data carried items for a government that is not shown "
-                        f"({bound.withheld_stripped} meeting(s)): a collector bug, the build stops (11.2)")
     counts.guards, counts.bind, counts.state = guards, bound, COPIED
     return feed

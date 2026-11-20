@@ -6,7 +6,7 @@ import copy
 import json
 import os
 import shutil
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -101,17 +101,22 @@ def test_a_withheld_entry_s_file_without_items_is_kept_with_fixed_titles(tmp_pat
     assert m["title"] == "Meeting" and m["time"] is None and m["agenda"]["status_as_posted"] is None
 
 
-def test_items_for_a_withheld_entry_stop_the_build(tmp_path, monkeypatch):
-    """11.2: D2 fails on withheld_stripped > 0 (a collector bug), and nothing of the file is returned."""
+def test_items_for_a_withheld_entry_give_a_stale_page_and_never_stop_the_build(tmp_path, monkeypatch, capsys):
+    """11.2 as amended (security S2b finding 1, national-isolation/withheld-stop-holds-site): withheld_stripped > 0
+    gives stale_feed, state withheld-items and one annotation with the id and count; nothing of the file is returned
+    or printed, and nothing raises."""
     entry = _load(tmp_path, monkeypatch, ENTRY)
-    with pytest.raises(ncopy.CopyError, match="not shown") as exc:
-        ncopy.copy_feed(_root(tmp_path, _feed(review="a" * 64)), entry)
-    assert SENTINEL not in str(exc.value)
+    counts = ncopy.CopyCounts()
+    _is_stale(ncopy.copy_feed(_root(tmp_path, _feed(review="a" * 64)), entry, counts), entry)
+    assert counts.state == ncopy.WITHHELD_ITEMS and counts.bind.withheld_stripped == 1
+    out = capsys.readouterr().out
+    assert out == f"::warning::National pages: {GOV}: withheld-items, withheld_stripped=1\n"
     directory = nat.Directory(govs=(entry,), alias={})
-    states = {}                     # architecture 12 tier 1: the build degrades that entry, it never stops
+    states = {}
     feed = npg.build_feeds(directory, {}, None, date(2026, 11, 20), national_root=_root(tmp_path), states=states)
     _is_stale(feed[GOV], entry)
-    assert states == {GOV: npg.COPY_ERROR}
+    assert states == {GOV: ncopy.WITHHELD_ITEMS}
+    assert SENTINEL not in capsys.readouterr().out
 
 
 def test_a_shown_entry_read_under_another_review_loses_its_items_and_is_counted(tmp_path, monkeypatch):
@@ -159,7 +164,9 @@ MISSING = {
     "bad-body-id": lambda t: _root(t, dict(_feed(items=False), body=dict(_feed()["body"], id="../x"))),
     "other-platform": lambda t: _root(t, dict(_feed(items=False), body=dict(_feed()["body"], platform="daylight"))),
     "extra-key": lambda t: _root(t, dict(_feed(items=False), votes=[])),
-    "schema-fails": lambda t: _root(t, dict(_feed(items=False), checked_at="yesterday")),
+    "schema-fails": lambda t: _root(t, dict(_feed(items=False), schema="daylight-upcoming/2")),
+    "date-not-text": lambda t: _root(t, dict(_feed(items=False),
+                                             meetings=[dict(_feed(items=False)["meetings"][0], date=20261203)])),
     "symlinked-file": _symlinked_file,
     "symlinked-bodies": _symlinked_bodies,
     "symlinked-root": _symlinked_root,
@@ -239,3 +246,69 @@ def test_the_build_writes_the_copied_feed_or_a_stale_page(tmp_path, monkeypatch,
     log = capsys.readouterr().out
     assert f"sitegen: national: {GOV}: national-data {'copied' if with_data else 'missing'};" in log
     assert "City Council" not in log and SENTINEL not in log
+
+
+# --- security S2b finding 2 (national-isolation/date-crashes-build; architecture 12.3 #3) ---------------------------
+
+BUILT = datetime(2026, 11, 20, 18, 0, tzinfo=timezone.utc)
+BAD_DAYS = {"not-a-day": "2026-02-30", "arabic-indic": "٢٠٢٦-١٢-٠٣", "fullwidth": "２０２６-１２-０３",
+            "short-month": "2026-1-05", "newline": "2026-12-03\n", "mixed": "2026-12-0٣"}
+BAD_INSTANTS = {"arabic-indic": "٢٠٢٦-١١-٢٠T04:30:00Z", "fullwidth": "２０２６-11-20T04:30:00Z",
+                "not-a-day": "2026-02-30T04:30:00Z", "hour-25": "2026-11-20T25:00:00Z", "words": "yesterday",
+                "before-epoch": "1969-12-31T23:59:59Z", "far-past": "0001-01-01T00:00:00Z",
+                "after-build": "2026-11-21T18:00:01Z", "far-future": "9999-12-31T23:59:59Z",
+                "offset": "2026-11-20T04:30:00+00:00", "newline": "2026-11-20T04:30:00Z\n"}
+
+
+@pytest.mark.parametrize("case", sorted(BAD_DAYS))
+def test_a_meeting_date_the_pages_cannot_print_gives_a_stale_page(tmp_path, monkeypatch, capsys, case):
+    entry = _load(tmp_path, monkeypatch, dict(ENTRY, items="shown"), reviewed=True)
+    doc = _feed(review=entry["review"])
+    doc["meetings"][0]["date"] = BAD_DAYS[case]
+    counts = ncopy.CopyCounts()
+    _is_stale(ncopy.copy_feed(_root(tmp_path, doc), entry, counts, built_at=BUILT), entry)
+    assert counts.state == ncopy.BAD_DATE
+    assert capsys.readouterr().out == f"::warning::National pages: {GOV}: bad-date\n"
+
+
+@pytest.mark.parametrize("key", ["checked_at", "last_ok_at"])
+@pytest.mark.parametrize("case", sorted(BAD_INSTANTS))
+def test_an_instant_out_of_form_or_range_gives_a_stale_page(tmp_path, monkeypatch, capsys, case, key):
+    entry = _load(tmp_path, monkeypatch, ENTRY)
+    doc = dict(_feed(items=False), **{key: BAD_INSTANTS[case]})
+    counts = ncopy.CopyCounts()
+    _is_stale(ncopy.copy_feed(_root(tmp_path, doc), entry, counts, built_at=BUILT), entry)
+    assert counts.state == ncopy.BAD_INSTANT
+    assert capsys.readouterr().out == f"::warning::National pages: {GOV}: bad-instant\n"
+
+
+@pytest.mark.parametrize("checked_at,last_ok_at", [
+    (ncopy.EPOCH_INSTANT, None), ("2026-11-21T18:00:00Z", "2026-11-21T18:00:00Z"),
+    ("2026-02-28T00:00:00Z", "2024-02-29T23:59:59Z")])
+def test_instants_at_the_edges_of_the_range_are_kept(tmp_path, monkeypatch, checked_at, last_ok_at):
+    """The epoch (a stale feed's own checked_at) up to one day after the build's instant, and a null last_ok_at."""
+    entry = _load(tmp_path, monkeypatch, ENTRY)
+    doc = dict(_feed(items=False), checked_at=checked_at, last_ok_at=last_ok_at)
+    counts = ncopy.CopyCounts()
+    feed = ncopy.copy_feed(_root(tmp_path, doc), entry, counts, built_at=BUILT)
+    assert counts.state == ncopy.COPIED and feed["checked_at"] == checked_at
+
+
+@pytest.mark.parametrize("field,value", [("date", "٢٠٢٦-١٢-٠٣"), ("date", "２０２６-１２-０３"),
+                                         ("checked_at", "٢٠٢٦-١١-٢٠T04:30:00Z"),
+                                         ("last_ok_at", "２０２６-11-20T04:30:00Z")])
+def test_the_schema_refuses_non_ascii_digits(field, value):
+    doc = _feed(items=False)
+    doc["body"]["full_url"] = None
+    assert feed_errors(doc) == []
+    if field == "date":
+        doc["meetings"][0]["date"] = value
+    else:
+        doc[field] = value
+    assert feed_errors(doc)
+
+
+def test_host_ok_dates_take_ascii_digits_only():
+    from sitegen.national_guards import host_ok_valid
+    assert host_ok_valid(HOST_OK)
+    assert not host_ok_valid(dict(HOST_OK, date="٢٠٢٦-١١-١٨"))
