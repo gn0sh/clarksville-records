@@ -1243,6 +1243,27 @@ text, so the page builds; a list `source_id` and a non-JSON or non-UTF-8 listing
   `test_an_entry_the_collector_may_not_read_stops_the_build` to say it checks `copy_feed` raises, and point its
   docstring at `test_national_pages.py::test_a_covered_entry_without_a_feed_source_is_refused_at_load`.
 
+*As built, v2 tasks (backend-engineer, 2026-11-20), where it differs from the text above:* (1) **B-ISO-8 covers feed
+values as well as feed text.** A probe showed the same route through what a gov page prints as attributes: `allowed_url`
+takes any path, query or fragment on `<client>.legistar.com`, so an agenda link
+`https://example.legistar.com/gnoshcodes-mark-black/geo-frame.html/...?c=rgb(43,75,165)#2B4BA5` failed both brand
+checks, `provenance` and the `digest/csp` frame-name test; a meeting id (`[a-z0-9-]`, printed as `id="m-<id>"`) can be
+`gnoshcodes-mark-black`; a meeting dated the `lines_effective` day prints it in `datetime` and in words. So
+`feed_text_removed(rel, text, feed)` (it takes the page path, and the parsed gov JSON for this part) also blanks every
+`href`, `id`, `aria-labelledby` and `datetime` value *equal to* one of that page's own JSON links, `m-<meeting id>`,
+`m-<meeting id>-h` or meeting dates, and those dates in words (`<Month> <day>, <year>`); our own links and labels on the
+page stay checked. `feed_json_without_text` also blanks meeting `id`, `date`, `meeting_url`, the agenda `url` and item
+`source.url`. Callers use `own_text`/`own_bytes` (`qa/site_checks.py`). (2) `digest/feed-text` also fails a `data-feed`
+element that is not a bare `<span data-feed>` of text (counted with a parser), and prints page paths and counts only,
+never the text. (3) 12.3 #9 v2 through the adapter: the county's own agenda page prints the same titles (Clarksville
+data, checked as always), so the test compares the problems naming a `digest/` file with the same build carrying plain
+titles. (4) 12.3 #14: `class="body-switch"` as text fails only on a digest page (outside, the check reads the switch's
+markup), so its own-text control is the gov page only. (5) B-ISO-9: a root or `bodies/` that is not a real folder stays
+`missing` (absent: the whole root, code review nit 4's case), not `bad-file`. `read_body_file` returns `(doc, None)`,
+`(None, None)` (absent) or `(None, <type name>)`; the type names are `NotRegularFile`, `FileTooLarge`, `NotJson`,
+`NotAnObject` (also JSON `null`), `SchemaRefused`, or the exception's own (`BindError`, `UnsafeIdError`). (6) B-ISO-10
+lives in `tests/test_rpc_daily.py` beside its `county_run` fixture.
+
 **devops-engineer** (sonnet/medium; a CI workflow diff goes to a fresh security review):
 - D-ISO-1 S2b finding 3 (row 1): gate step timeouts and job budget; test 12.3 #10. Chosen over moving the lookup to
   its own job: a job-level `success()` reads every ancestor, so a failed lookup job would skip `push` (whose `if:`
