@@ -180,7 +180,7 @@ Definitions of done:
 | C3 National run: budget order, health, proposals, never fails the run on one body | backend-engineer | C1, C2 | no | no |
 | C4 ICS writer in Python with RFC 5545 escaping (finding 3); Atom via `sitegen/feeds.py` (M4 ships them, the writer lands now) | backend-engineer | B3 schema | yes | no |
 | D1 `national-update.yml`, concurrency `national-collect`, budget, push `national-data`, attest; read-only collect job, separate write-scoped push job, pinned `--cert-identity` (finding 6) | devops-engineer | C3, ADR 0011 cutover | no | **ruleset for `national-data` is Brian's PC (U3-0)** |
-| D2 Daily deploy reads attested `national-data` (owning thread's file) | devops-engineer | D1 | no | no |
+| D2 Daily deploy reads attested `national-data` (owning thread's file; gains 12.3 #8 and #9: the switch off ignores any `RECORDS_NATIONAL_DATA`, and the site checks pass feed text with raw days; `tests/test_national_isolation.py`) | devops-engineer | D1 | no | no |
 | D3 Collector refuses a non-daylight entry without `host_ok` (finding 7); directory checks reused from B1 | backend-engineer | C3, B1 | no | no |
 | A2 State the `national-isolation` invariant and consumers (architecture section 12, done 2026-11-20) | software-architect | S2b | no | no |
 | B-ISO National isolation, backend (architecture 12.2: B-ISO-1 to -7; S2b findings 1, 2, nit b, new N2-N4) | backend-engineer (opus/high) | A2 | yes, with D-ISO | no |
