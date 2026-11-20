@@ -95,7 +95,8 @@ def runner_log(**kw):
 
 # ------------------------------------------------------------------ the harness
 _PM = r'''#!/usr/bin/env bash
-python3 -c 'import json,os,sys; open(os.environ["GH_CALLS"],"a").write(json.dumps({"method":"SCRIPT","path":"protect-main","argv":sys.argv[1:]})+"\n")' "$@"
+python3 -c 'import json,os,sys; open(os.environ["GH_CALLS"],"a").write(json.dumps(
+  {"method":"SCRIPT","path":"protect-main","argv":sys.argv[1:]})+"\n")' "$@"
 echo "CHECK ONLY: nothing is written; the checks below read the live settings."
 if [ "${STUB_PM:-ok}" = ok ]; then echo "OK: main is protected (stub)."; exit 0; fi
 if [ "$STUB_PM" = ok-exit1 ]; then echo "OK: main is protected (stub)."; exit 1; fi
@@ -272,7 +273,8 @@ def test_any_other_failure_opening_a_pull_request_is_not_retried(tmp_path, twin)
 
 # ------------------------------------------------------------------ FAIL
 FAILS = {
-    "w-squash-merged": ({"runner_log": runner_log(W_squash="0 "), "merged": [77]}, ["FAIL W squash", "FAIL pull request #77"]),
+    "w-squash-merged": ({"runner_log": runner_log(W_squash="0 "), "merged": [77]},
+                        ["FAIL W squash", "FAIL pull request #77"]),
     "n-graphql-merged": ({"runner_log": runner_log(N_graphql="0 {\"data\":{}}"), "merged": [78]}, ["FAIL N graphql"]),
     "d0-rebase-merged": ({"runner_log": runner_log(D0_rebase="0 "), "on_main": [FILES[2]]},
                          ["FAIL D0 rebase", f"FAIL {FILES[2]} on main"]),
@@ -337,13 +339,15 @@ INCONCLUSIVE = {
     "merged-unread": ({"fail": {"pulls/78 --jq .merged": 1}}, "INCONCLUSIVE pull request #78: could not read"),
     "file-unread": ({"fail": {"contents/data/v1pp-probe-canary.txt?ref=records-data": 1}},
                     "INCONCLUSIVE data/v1pp-probe-canary.txt on records-data: could not read it"),
-    "jobs-unread": ({"fail": {"actions/runs/501/jobs": 1}}, "INCONCLUSIVE branch probe/v1pp-env github-pages: could not read the job"),
+    "jobs-unread": ({"fail": {"actions/runs/501/jobs": 1}},
+                    "INCONCLUSIVE branch probe/v1pp-env github-pages: could not read the job"),
     "annotations-unread": ({"fail": {"check-runs/604/annotations": 1}},
                            "INCONCLUSIVE tag v1pp-probe morning-note: could not read the job's annotations"),
     "env-other-failure": ({"annotations": {"602": ["The job was not started because of a billing issue."]}},
                           "INCONCLUSIVE branch probe/v1pp-env morning-note: the job failed without the environment refusal"),
-    "env-waiting": ({"jobs": {"501": [{"id": 601, "name": "github-pages", "status": "waiting", "conclusion": None, "steps": []},
-                                      {"id": 602, "name": "morning-note", "status": "completed", "conclusion": "failure", "steps": []}]}},
+    "env-waiting": ({"jobs": {"501": [
+        {"id": 601, "name": "github-pages", "status": "waiting", "conclusion": None, "steps": []},
+        {"id": 602, "name": "morning-note", "status": "completed", "conclusion": "failure", "steps": []}]}},
                     "INCONCLUSIVE branch probe/v1pp-env github-pages: the job reads 'waiting' 'null'"),
     "run-not-finished": ({"run_status": {"500": "in_progress"}}, "INCONCLUSIVE runner: the run reads 'in_progress'"),
     "runner-never-started": ({"no_run": ["probe/v1pp-runner"]}, "INCONCLUSIVE runner: the probe run did not start"),
