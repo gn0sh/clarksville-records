@@ -22,8 +22,14 @@ PS1 = ROOT / "scripts" / "v1pp-probe.ps1"
 PROBE_DIR = ROOT / "scripts" / "v1pp-probe"
 STUB = ROOT / "tests" / "v1pp_stub_gh.py"
 # the one lock line of each twin, and the unlocked form the enabling PR writes (here: a day far ahead)
-LOCK = {"sh": ("v1pp_unlocked_until=none", "v1pp_unlocked_until=2099-12-31"),
-        "ps1": ("$v1ppUnlockedUntil = 'none'", "$v1ppUnlockedUntil = '2099-12-31'")}
+# The committed line is either locked (`none`) or, on an unlock PR, a `YYYY-MM-DD` day; both are accepted.
+# LOCK[tw] = (line template with {} for the value, regex matching the one lock line in either state)
+LOCK = {"sh": ("v1pp_unlocked_until={}", r"v1pp_unlocked_until=(none|\d{4}-\d{2}-\d{2})"),
+        "ps1": ("$v1ppUnlockedUntil = '{}'", r"\$v1ppUnlockedUntil = '(none|\d{4}-\d{2}-\d{2})'")}
+
+
+def lock_re(tw):
+    return re.compile("(?m)^" + LOCK[tw][1] + "$")
 LOCK_DOC = ("v1pp_unlocked_until=none   ->   v1pp_unlocked_until=YYYY-MM-DD",
             "$v1ppUnlockedUntil = 'none'   ->   $v1ppUnlockedUntil = 'YYYY-MM-DD'")
 MAIN, RD = "1" * 40, "2" * 40
@@ -150,11 +156,10 @@ def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False
         if tw != twin:
             continue
         text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
-        if not locked:   # the one documented line, flipped
-            old, new = LOCK[tw]
-            pat = re.compile("(?m)^" + re.escape(old) + "$")
-            assert len(pat.findall(text)) == 1, name
-            text = pat.sub(lambda _: new.replace("2099-12-31", unlock), text)
+        pat = lock_re(tw)
+        assert len(pat.findall(text)) == 1, name
+        # unlocked: flip the one line to the test's value; locked: force it to `none` even if committed as a date
+        text = pat.sub(lambda _: LOCK[tw][0].format("none" if locked else unlock), text)
         (scripts / name).write_text(text, encoding="utf-8")
     (scripts / "v1pp-probe").symlink_to(PROBE_DIR)
     (scripts / "protect-main.sh").write_text(_PM)
@@ -614,9 +619,11 @@ def test_the_twins_agree():
         assert "-ExecutionPolicy Bypass" not in s
     # the lock: one line flips it, documented in both headers, before anything else runs
     for tw, text in (("sh", sh), ("ps1", ps1)):
-        old, new = LOCK[tw]
+        pat = lock_re(tw)
         code_lines = [ln for ln in text.splitlines() if not ln.lstrip().startswith("#")]
-        assert code_lines.count(old) == 1 and not [ln for ln in code_lines if new in ln], tw
+        lock_lines = [ln for ln in code_lines if pat.match(ln)]
+        assert len(lock_lines) == 1 and len(pat.findall(text)) == 1, tw   # one lock line, in code not comments
+        old = lock_lines[0]
         assert all(d in text for d in LOCK_DOC), tw
         assert "v1pp-probe/lock-window" in text and "expired" in text, tw
         lock = text.index("\n" + old + "\n")
