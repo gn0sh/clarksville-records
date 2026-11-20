@@ -71,7 +71,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    below where they differ).** `main` is protected by ruleset **R1''** (id 27502319): every merge is a person's
    bypass merge by the Repository admin role (`merge-reviewed`, 2.0.3), and `.github/CODEOWNERS` is gone. The daily
    data no longer goes through `main`: the `push` job fast-forwards branch `records-data` (ruleset **R-D**, id
-   27685092: no deletion, no non-fast-forward) and attests it; no data PR is opened. Tag ruleset **R-T** (id
+   27685092: no deletion, no force push, no bypass) and attests it; no data PR is opened. Tag ruleset **R-T** (id
    27685093) blocks a tag named `main`. **R2 ("Allow GitHub Actions to create and approve pull requests") is off**
    and must stay off: R1'' holds only while no credential other than gn0sh's can bypass it or supply enough approvals
    (ADR 0011 decision 6 and Amendment 2026-11-18 (b); R2 off takes github-actions[bot] out of the approvers). `MAIN_PR_BASELINE` is set in the workflow (4.7). Curated and person-run inputs live under `config/`, and
@@ -106,7 +106,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      or a collaborator's) posted before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
      workflow using `GITHUB_TOKEN`, which the setting below allows) is refused. The baseline is set once, the day
      the V1' probe passes (2.0.4, section 4 item 7); until then it is empty, the gate checks nothing and the note
-     never runs. The team merged earlier work without pull requests; **from the baseline on, every change outside
+     never runs. (Pre-cutover history; see the 4.7 "State now" note.) The team merged earlier work without pull requests; **from the baseline on, every change outside
      `data/` reaches `main` by `scripts/merge-reviewed.ps1` (2.0.3)**, never the Merge button, never auto-merge,
      never "Rebase and merge" (a rebased commit other than the last one is refused).
    - **Required approvals stay 0 (main-protect L-E).** With "Allow GitHub Actions to create and approve pull
@@ -191,12 +191,13 @@ and may be labelled differently. Record what each screen really says in `docs/pl
          review, recorded by 2.0.3). `.github/CODEOWNERS` must already be on `main`. Leave every other rule off (no required
          status checks: the data PR, opened by `GITHUB_TOKEN`, starts no workflow, so a required check would never
          report and the PR could never merge). **Create**.
+   **Superseded (ADR 0011): do NOT turn R2 on; the push job opens no PR.** The check below is pre-cutover history.
    Check run: **Actions** > **Daily update** > **Run workflow** (collect on): the `push` job must go green, its log
    must say "Merged pull request #<n> into main.", and https://github.com/gn0sh/clarksville-records/pulls?q=is%3Apr+head%3Adata%2F
    must show that PR as merged by `github-actions`. If the run logs **"No data changes."** it committed nothing, so
    the data PR is not checked yet: wait for a later run (scheduled or manual) that does commit `data/`. If the
    `push` job fails with "GitHub Actions is not permitted to create or approve pull requests", step 2.0.1 (b) or
-   2.0.2.1 did not take: tick that box and re-run the failed job. If the merge fails, the "Daily update failed"
+   2.0.2.1 did not take: tick that box and re-run the failed job. (Superseded (ADR 0011): do NOT turn R2 on; the push job opens no PR.) If the merge fails, the "Daily update failed"
    issue says so; data collection is unaffected (the next run commits again), and the site keeps its last deploy.
    - **Verified (2026-11-17, `gh api` from the team's session as the owner):** `main` has no ruleset and no branch
      protection yet (`rulesets` is `[]`, `rules/branches/main` is `[]`, `branches/main` says `protected: false`);
@@ -272,7 +273,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         `data/v1-probe-CODEOWNERS` is on `main`, the output says first: main has lost `.github/CODEOWNERS`**, so
         the code-owner rule binds nothing. The first fix is one pull request that restores `.github/CODEOWNERS`
         and deletes `data/v1-probe-CODEOWNERS`, merged by a person with `scripts/merge-reviewed.ps1` (2.0.3; the
-        team opens it); then wait for the team. Do not run `scripts\protect-main.ps1` on your own: it turns R2 back on,
+        team opens it); then wait for the team. Do not run `scripts\protect-main.ps1` on your own: it turns R2 back on (Superseded (ADR 0011): do NOT turn R2 on; the push job opens no PR; protect-main now turns R2 off),
         so run it only after the team says so (v1-probe/h1-recovery-reenables-r2). In every FAIL the script has already
         turned R2 off (the daily data stops saving). Leave `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` unset and send the
         output to the team; what merged is removed by a person's PR, and the fallback "data off `main`" goes to a
@@ -369,9 +370,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    PR before `MORNING_NOTE_SEND` is set. A note job that finds confirmed subscribers but no `note-` tag fails as
    `no-tags` (sender/tags-silent-zero).
 5. The site deploy is live (`RECORDS_DEPLOY_ENABLED` is `true`): the note job needs a successful deploy.
-6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.1) prints "OK: main is protected" (R1':
-   code-owner review, squash only, admin bypass for pull requests only, approvals 0, auto-merge off), and the last scheduled run's `push` job merged its `data/` pull request
-   into `main` under the ruleset. Link the check output and that PR in the go-live PR.
+6. `main` is protected (step 2.0): `scripts/protect-main.ps1` run from Brian's PC prints "OK" for R1'', R-D and R-T
+   with R2 off (ADR 0011), and the last scheduled run's `push` job pushed `records-data`; no data PR is opened
+   (R2 stays off). Link the check output and that run in the go-live PR.
 6a. **V1'' probe passed (link)** (ADR 0011 section 4; step 2.0.4, T4.11.7; the 2026-11-18 V1 probe was FAIL): the PASS output, the
    run link and the U2 and U3 positive controls are in `docs/platform-facts.md` "Main protection". Without the
    V1'' PASS (ADR 0011), `MORNING_NOTE_SEND` stays unset. The probe no longer gates `MAIN_PR_BASELINE`: the cutover PR
@@ -403,7 +404,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       that starts at `main`'s commit read just before 2.0.1 wrote the ruleset (architecture "Baseline window
       check", L-b; from then on only merged pull requests reach `main`): `<R2-on sha>` is the
       `R2 first on: <sha>` line in `docs/platform-facts.md` "Main protection" (from 2.0.1's
-      `R2 was off; main was <sha>`). If 2.0.1 needed more than one run, the window starts at `main`'s sha before
+      `R2 was off; main was <sha>`). (Pre-cutover history: the R2-on window; see the 4.7 "State now" note above.) If 2.0.1 needed more than one run, the window starts at `main`'s sha before
       the **first** run (that run's `Main before the ruleset: <sha>`), not at a later run's
       (main-protect/window-start-gap). If 2.0.1's first run said `R2 already on`, the start is unknown: stop, the
       architect picks the window. Paste the whole output into the baseline PR (the cutover PR; D3 `-Plan` prints it):

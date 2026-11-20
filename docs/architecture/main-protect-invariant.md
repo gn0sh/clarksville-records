@@ -1,4 +1,6 @@
 # main-protect invariant (loop rule re-plan, 2026-11-17)
+> Superseded in part by ADR 0011; see "After the cutover" below.
+
 software-architect, 2026-11-17. Replaces the 2026-11-11 version (devops-engineer; git history keeps it). The
 `main-protect/` family has been hit twice since the no-bypass ruleset: M1 (the Actions bypass let a workflow on any
 branch push `main`) and the bot-merge path that replaced it (security V1, M-A, L-A, L-C, L-D, L-E). Decision record:
@@ -71,8 +73,9 @@ stated in full, with every consumer, in `docs/architecture/v1-fail-2026-11-18.md
 this is the short form. The trust roots the scripts compare against are in `docs/architecture/data-off-main-trust-roots.md`
 (I-root, consumers C1-C22); the I-pub detail is in `docs/architecture/ipub-tripwire-invariant.md`.
 
-- **I-main''.** `main` moves only by a person's bypass merge of a reviewed PR. No workflow token can satisfy `main`'s
-  merge rule for any PR. `main` tracks no `data/`. Curated inputs are reviewed code under `config/`. Collector
+- **I-main''.** `main` moves only by a person's bypass merge of a reviewed PR. With R2 off, gn0sh the only writer, and R1'' needing 10 approvals with at most the `claude` App
+  approving (ADR 0011 Amendment 2026-11-18 (b); `scripts/protect-main.sh`), as checked by `protect-main` from Brian's PC,
+  no workflow token can satisfy `main`'s merge rule for any PR. `main` tracks no `data/`. Curated inputs are reviewed code under `config/`. Collector
   output lives on branch `records-data`, which only moves forward. There is no data-only exception: the gate refuses
   any first-parent commit after `MAIN_PR_BASELINE` that a person did not merge, and any tracked `data/` on `S`.
 - **I-prov.** The gate accepts the `records-data` head `D` only if (a) its tree listing
@@ -96,9 +99,9 @@ this is the short form. The trust roots the scripts compare against are in `docs
 | `gate` job (G) | I-main'', I-data'', I-prov | Reads `D` once; no workflow input can set it. |
 | `update` job (J1) | I-run'' (`S` plus `D`), I-pub | Checks out `S`, then `D`'s `data/`; runs the tripwire; sets `held`. |
 | `push` job (J2) | I-prov, I-data'' | Fast-forwards `records-data`, then attests the listing. No PR, so R2 is not needed. |
-| `deploy` job (J3) | I-pub | Also needs `held != yes`. |
+| `deploy` job (J3) | I-pub | Also needs `held == no` (`daily-update.yml`). |
 | `note` job (J4) | I-main'' | Reads no `data/`; skipped when the deploy is held. |
-| Rulesets R1'', R-D, R-T; R2 off | I-main'' | R1'' on `main`; R-D on `records-data` (no deletion, no non-fast-forward); R-T blocks a tag named `main`. |
+| Rulesets R1'', R-D, R-T; R2 off | I-main'' | R1'' on `main`; R-D on `records-data` (no deletion, no force push, no bypass); R-T blocks a tag named `main`. |
 | `scripts/protect-main`, `merge-reviewed`, `u3-toggle`, `cutover-data-off-main` | I-main'', I-prov | Trust roots: `data-off-main-trust-roots.md`. |
 | Curated files (CFG), transcripts (TR), map manifest (MP), kept city books (FB), scrub tool (SC), readers that list `data/` (LS) | I-in | `v1-fail-2026-11-18.md` rows CFG, TR, MP, FB, SC, LS; `data-inventory.md`. |
 
