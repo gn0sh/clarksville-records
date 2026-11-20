@@ -547,6 +547,28 @@ def test_workflow_collect_step_treats_only_the_rpc_codes_as_warnings():
     assert f"at most {rpc.DAILY_FETCH_CAP} requests per run" in step
 
 
+@pytest.mark.parametrize("result,national,states", [
+    ({"national": "off", "national_states": {}}, "off", {}),
+    ({"national": "built", "national_states": {}}, "built", {}),
+    ({"national": "built", "national_states": {"place-4799990": "bad-file", "county-47125": "adapter-error"}},
+     "built", {"place-4799990": "bad-file", "county-47125": "adapter-error"}),
+    ({"national": "degraded", "national_states": {}}, "degraded", {}),
+    ({"warnings": []}, "off", {}),                       # a site_build result without either key
+    (None, "off", {}),                                   # no result at all
+], ids=["off", "built", "built-degraded-govs", "degraded", "no-keys", "none"])
+def test_run_log_carries_the_national_result_d_iso_9_reads(county_run, monkeypatch, tmp_path, result, national,
+                                                          states):
+    """Code review D1/D2/iso finding 3 (national-isolation/run-log-contract-untested, B-ISO-10): `collector run`
+    copies the site build's `national` and `national_states` into build/run-log.json (collector/__main__.py), the
+    file the daily workflow's D-ISO-9 step reads; a result without them says `off` and `{}`."""
+    import sitegen.build
+    monkeypatch.setattr(sitegen.build, "build", lambda *a, **k: county_run["order"].append("site") or result)
+    assert M.main(["run", "--offline"]) == 0
+    log = json.loads((tmp_path / "build" / "run-log.json").read_text())
+    assert log["national"] == national and log["national_states"] == states
+    assert county_run["order"][-1] == "site"
+
+
 def test_an_rpc_failure_with_a_good_county_run_still_commits_the_county_data(county_run, tmp_path):
     """The collector writes the county facts and builds the site when only the RPC step failed (exit 5); the
     workflow's Collect step then passes, so the data artifact is uploaded and the push job commits it."""
