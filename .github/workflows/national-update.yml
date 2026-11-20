@@ -391,6 +391,8 @@ jobs:
     steps:
       # Fixed text, the job results (fixed words, checked) and the run's link only: never a log line. The lookup lists
       # only issues opened by GitHub Actions, so an outsider's issue with the same title is never commented on.
+      # No "the Clarksville site is not affected" line (S2b nit d, architecture 12.1 row 24): it is untrue until
+      # architecture 12.3 #1-9 pass on main; the PR that lands them restores it (test 12.3 #12).
       - name: Open or update the national update issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -410,8 +412,7 @@ jobs:
             echo ""
             echo "gate: $(word "$GATE"); collect: $(word "$COLLECT"); push: $(word "$PUSH"); flagged (exit 3): $flagged."
             echo ""
-            echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its outputs. The"
-            echo "Clarksville site is not affected: the daily deploy shows national governments as stale until a good run."
+            echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its outputs."
           } > "$body"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$NATIONAL_TITLE\" in:title" --json number,title --jq "map(select(.title == \"$NATIONAL_TITLE\")) | .[0].number // empty")
           if [ -z "$open" ]; then

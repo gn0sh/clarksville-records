@@ -766,3 +766,12 @@ def test_the_report_issue_is_fixed_text_and_job_results_only():
     assert len(job["steps"]) == 1 and "uses" not in step and "${{" not in step["run"]
     assert "--app github-actions" in step["run"] and "--body-file" in step["run"]
     assert step["env"]["NATIONAL_TITLE"] == "National update: run failed or flagged"
+    # 12.3 #12 (S2b nit d): the body is fixed text, with no "not affected" claim until 12.3 #1-9 pass on main
+    body = [ln.strip() for ln in step["run"].splitlines() if ln.strip().startswith("echo ")]
+    assert body == ['echo "The national update needs a look: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/'
+                    '$GITHUB_RUN_ID"', 'echo ""',
+                    'echo "gate: $(word "$GATE"); collect: $(word "$COLLECT"); push: $(word "$PUSH"); flagged (exit 3):'
+                    ' $flagged."', 'echo ""',
+                    'echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its'
+                    ' outputs."']
+    assert "not affected" not in step["run"].lower()
