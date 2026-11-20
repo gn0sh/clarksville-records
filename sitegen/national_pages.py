@@ -135,7 +135,8 @@ class NationalBuildError(ValueError):
 OFF, BUILT, DEGRADED = "off", "built", "degraded"            # the national step as a whole (build result `national`)
 # one government: BUILT (the adapter's feed) or ncopy.COPIED / ncopy.MISSING, else one of DEGRADED_STATES
 ADAPTER_ERROR, RENDER_ERROR = "adapter-error", "render-error"
-DEGRADED_STATES = (ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, ADAPTER_ERROR, RENDER_ERROR)
+DEGRADED_STATES = (ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, ncopy.BAD_FILE, ADAPTER_ERROR,
+                   RENDER_ERROR)
 WARNING = "::warning::National pages: "
 ERROR = "::error::National pages: "
 

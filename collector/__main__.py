@@ -509,7 +509,7 @@ def cmd_run(args) -> int:
         log["warnings"] += list((res or {}).get("warnings") or [])  # e.g. seats.yml older than the facts (M1)
         # Daylight Digest (architecture 12, B-ISO-3; D-ISO-9 reads these): "off", "built" or "degraded", and
         # national_states: {body id: state word} of each government built stale from a bad national input (words:
-        # withheld-items, bad-date, bad-instant, adapter-error, render-error; national_pages.DEGRADED_STATES)
+        # withheld-items, bad-date, bad-instant, bad-file, adapter-error, render-error; national_pages.DEGRADED_STATES)
         log["national"] = (res or {}).get("national", "off")
         log["national_states"] = dict((res or {}).get("national_states") or {})
     res = res if site_build else None

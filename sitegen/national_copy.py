@@ -12,15 +12,19 @@ For each covered entry on a collected platform:
    `host_ok` (R5, the loader's own check): else CopyError. `check_entry` runs this in the builder's load phase
    (section 12), before any national input is read, so a reviewed entry that fails it stops the PR's own checks;
    `copy_feed` repeats it (`national/r5-not-enforced`).
-2. Read `bodies/<id>.json` (the id through `checked_id` first) and parse it per 4.4.3 (`collector.safe_json`): a
-   missing file, a symlinked root, `bodies/` or file, a file over MAX_FILE_BYTES, or any error while reading or
-   parsing, or a value that is not an object, is "file missing".
+2. Read `bodies/<id>.json` (the id through `checked_id` first) and parse it per 4.4.3 (`collector.safe_json`). No
+   root, a root or `bodies/` that is not a real folder (symlinked), or nothing at the path is "file missing"
+   (`missing`, silent). Something at the path that is refused, a symlink, FIFO or folder, a file over
+   MAX_FILE_BYTES, any error while reading or parsing, or a value that is not an object, is `bad-file` (point 4).
 3. `clean_feed` with the entry's platform and client (the collector's files are not trusted as cleaned: S2a), then
    `bind_feed` against the current directory entry, then the date and instant checks, then the `daylight-upcoming/1`
-   schema. A clean, bind or schema error is "file missing" too.
+   schema. A clean, bind or schema error is `bad-file` too (B-ISO-9: schema drift would otherwise leave every
+   Legistar page stale while the run log says `built`).
 4. Nothing here raises on a national input (section 12; security S2b findings 1 and 2). Each case below gives
    `stale_feed(entry)`, sets `CopyCounts.state` to its fixed word and prints one `::warning::` line with the id and
-   that word (and a count), never the file's text:
+   that word (and a count or an exception's type name), never the file's text:
+   - `bad-file`: points 2 and 3, with the refusal's type name (NotRegularFile, FileTooLarge, NotJson, NotAnObject,
+     SchemaRefused, or the exception's own: BindError, UnsafeIdError, ...).
    - `withheld-items`: `withheld_stripped > 0`, the file carried items for an entry that is not shown (a collector
      bug, or a file collected while the entry was shown and read after a PR narrowed it to `items: withheld`).
      Raising would un-publish nothing (`national-data` is public) and would hold the narrowing PR's own deploy.
@@ -64,6 +68,7 @@ INSTANT_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z
 # CopyCounts.state words (fixed: the run log and the annotations print only these)
 COPIED, MISSING = "copied", "missing"
 WITHHELD_ITEMS, BAD_DATE, BAD_INSTANT = "withheld-items", "bad-date", "bad-instant"
+BAD_FILE = "bad-file"                  # a body file that is there but refused (B-ISO-9)
 ANNOTATION = "::warning::National pages: "
 
 
@@ -75,7 +80,7 @@ class CopyError(ValueError):
 @dataclass
 class CopyCounts:
     """What the copy step did for one government, for the run log (counts and fixed words only)."""
-    state: str = MISSING                    # COPIED, MISSING (page stale), WITHHELD_ITEMS, BAD_DATE or BAD_INSTANT
+    state: str = MISSING        # COPIED, MISSING (no file: page stale), BAD_FILE, WITHHELD_ITEMS, BAD_DATE, BAD_INSTANT
     guards: GuardCounts = field(default_factory=GuardCounts)
     bind: BindCounts = field(default_factory=BindCounts)
 
@@ -119,26 +124,64 @@ def _real_dir(path: Path) -> bool:
     return not path.is_symlink() and path.is_dir()
 
 
-def read_body_file(root: Path | None, gov: str):
-    """The parsed `bodies/<gov>.json` under `root`, or None for "file missing" (4.4.3: any error is unreadable)."""
+class BadFile(ValueError):
+    """A body file that exists but cannot be read as a JSON object (state BAD_FILE). Only its class name is printed."""
+
+
+class NotRegularFile(BadFile):
+    """A symlink, FIFO, folder or anything else that is not a regular file."""
+
+
+class FileTooLarge(BadFile):
+    """More than MAX_FILE_BYTES."""
+
+
+class NotJson(BadFile):
+    """Not UTF-8, not JSON, or nested deeper than collector.safe_json allows."""
+
+
+class NotAnObject(BadFile):
+    """JSON whose value is not an object."""
+
+
+class SchemaRefused(BadFile):
+    """The cleaned, bound feed fails the `daylight-upcoming/1` schema."""
+
+
+def read_body_file(root: Path | None, gov: str) -> tuple[dict | None, str | None]:
+    """(the parsed `bodies/<gov>.json` under `root`, None), or (None, None) when there is no such file (absent: no
+    root, the root or `bodies/` not a real folder, an id `checked_id` refuses, or nothing at that path), or
+    (None, <type name>) when something is there but is refused (B-ISO-9, national-isolation/refused-file-silent): a
+    symlink, FIFO or folder (NotRegularFile), over MAX_FILE_BYTES (FileTooLarge), unreadable or not JSON (NotJson;
+    4.4.3), not an object (NotAnObject), or any error while reading (its type name). Never raises."""
     if root is None:
-        return None
+        return None, None
     try:
         root = Path(root)
         bodies = root / "bodies"
         if not _real_dir(root) or not _real_dir(bodies):
-            return None
+            return None, None
         path = bodies / f"{checked_id(gov)}.json"
+        if not os.path.lexists(path):
+            return None, None
+    except Exception:
+        return None, None
+    try:
         if path.is_symlink() or not path.is_file():
-            return None
+            raise NotRegularFile()
         fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         with os.fdopen(fd, "rb") as f:
             raw = f.read(MAX_FILE_BYTES + 1)
         if len(raw) > MAX_FILE_BYTES:
-            return None
-        return parse_json(raw)
-    except Exception:
-        return None
+            raise FileTooLarge()
+        doc = parse_json(raw)
+        if doc is None:                   # unreadable, or the JSON value null
+            raise NotAnObject() if raw.strip() == b"null" else NotJson()
+        if not isinstance(doc, dict):
+            raise NotAnObject()
+        return doc, None
+    except Exception as e:
+        return None, type(e).__name__
 
 
 def stale_feed(entry: Mapping) -> dict:
@@ -178,7 +221,7 @@ def instant_ok(value, built_at: datetime) -> bool:
 
 def date_problem(feed: Mapping, built_at: datetime) -> str | None:
     """BAD_DATE or BAD_INSTANT for a text date or instant of a bound feed that the pages could not print, else None.
-    A value of another type is left to the schema (file missing)."""
+    A value of another type is left to the schema (`bad-file`)."""
     for m in feed.get("meetings") or ():
         if isinstance(m, dict) and isinstance(m.get("date"), str) and not civil_day(m["date"]):
             return BAD_DATE
@@ -206,14 +249,16 @@ def copy_feed(root: Path | None, entry: dict, counts: CopyCounts | None = None, 
     counts = counts if counts is not None else CopyCounts()
     built_at = built_at or datetime.now(timezone.utc)
     counts.state = MISSING
-    doc = read_body_file(root, entry["gov"])
-    if not isinstance(doc, dict):
+    doc, unreadable = read_body_file(root, entry["gov"])
+    if unreadable:                        # B-ISO-9: there, but refused (never silent)
+        return _refused(entry, counts, BAD_FILE, f" ({unreadable})")
+    if doc is None:                       # absent: no file (silent; stale)
         return stale_feed(entry)
     try:
         cleaned, guards = clean_feed(doc, platform, client)
         feed, bound = bind_feed(cleaned, entry)
-    except Exception:                     # UnsafeIdError, BindError, RecursionError, anything: file missing
-        return stale_feed(entry)
+    except Exception as e:                # UnsafeIdError, BindError, RecursionError, anything
+        return _refused(entry, counts, BAD_FILE, f" ({type(e).__name__})")
     if bound.withheld_stripped:           # security S2b finding 1: degrade, never stop the build
         counts.bind = bound
         return _refused(entry, counts, WITHHELD_ITEMS, f", withheld_stripped={bound.withheld_stripped}")
@@ -222,8 +267,8 @@ def copy_feed(root: Path | None, entry: dict, counts: CopyCounts | None = None, 
         return _refused(entry, counts, problem)
     try:
         if feed_errors(feed):
-            return stale_feed(entry)
-    except Exception:                     # a value the validator cannot take (RecursionError): file missing
-        return stale_feed(entry)
+            raise SchemaRefused()
+    except Exception as e:                # the schema, or a value the validator cannot take (RecursionError)
+        return _refused(entry, counts, BAD_FILE, f" ({type(e).__name__})")
     counts.guards, counts.bind, counts.state = guards, bound, COPIED
     return feed
