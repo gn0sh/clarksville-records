@@ -17,9 +17,25 @@
   </ul>
   {% if note and lines | selectattr("lagged") | list %}<p class="muted fresh-note">{{ note }}</p>{% endif %}
 {%- endmacro %}
-{% macro freshness(lines, note, heading="How recent the records are", collapsed=false, plain=false) -%}
+{# `strip` (a body's landing page, _hub.html.j2 body_head; wall of text, 2026-11-19): the same words as a date strip,
+   one figure per date, each "<what> through" over its date, the heading kept for a screen reader. A line the page
+   marks as its own body's (sitegen/freshness.py own) leaves out the body's name, which the page's h1 gives; any
+   other line keeps it. The note goes in the caller's "About these dates". #}
+{% macro fresh_strip(lines) -%}
+  <ul class="fresh-list stats fresh-strip">
+    {% for l in lines %}{% for p in l.parts %}
+    <li class="stat stat-dates"><span class="stat-label">{% if not l.get("own") %}{{ l.body }}: {% endif %}{{ p.what[:1] | upper }}{{ p.what[1:] }} through</span> <span class="stat-num">{{ fresh_date(p) }}</span></li>
+    {% endfor %}{% endfor %}
+  </ul>
+{%- endmacro %}
+{% macro freshness(lines, note, heading="How recent the records are", collapsed=false, plain=false, strip=false) -%}
 {% if lines %}
-{% if collapsed %}
+{% if strip %}
+<section class="freshness" id="freshness" aria-labelledby="fresh-h">
+  <h2 id="fresh-h" class="fresh-h sr-only">{{ heading }}</h2>
+  {{ fresh_strip(lines) }}
+</section>
+{% elif collapsed %}
 <details class="freshness" id="freshness">
   {% if plain %}<summary id="fresh-h">{{ heading }}</summary>{% else %}<summary><h2 id="fresh-h" class="fresh-h">{{ heading }}</h2></summary>{% endif %}
   {{ fresh_body(lines, note) }}

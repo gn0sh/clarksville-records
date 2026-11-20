@@ -3,6 +3,7 @@
    config, never fetched). #}
 {% from "_freshness.html.j2" import freshness as fresh with context %}
 {% from "_macros.html.j2" import watch_link %}
+{% from "_note_invite.html.j2" import note_invite %}
 {% macro coming_tag() %}<span class="chip chip-coming">Coming</span>{% endmacro %}
 {# a record this site does not collect (config switch.not_collected_tag): its own word, never "Coming" #}
 {% macro not_collected_tag(word) %}<span class="chip chip-uncollected">{{ word }}</span>{% endmacro %}
@@ -12,15 +13,36 @@
    only when the body has that fact: kicker, h1 (with the Coming tag when nothing is collected), a one-sentence lede,
    the coverage line (the caller's block: what is here and its dates, with the body's own counts), how recent the
    records are (_freshness.html.j2), the Watch link. The section cards follow it. Import `with context` (for `root`). #}
-{% macro body_head(hub, title, lede, coming=false, freshness=none, freshness_note="", watch=none) %}
+{# Wall of text (owner, 2026-11-19): the newest dates are a date strip, and the note on why minutes run behind
+   agendas sits under one "About these dates" toggle, every word kept. The coverage line goes in the toggle only when
+   the caller says it is a date range and nothing else (`cover_in_toggle`); a line that also says what is collected
+   or what is not (the RPC's, a committee's) stays in sight under the strip (disclosure/collapsed-limits). `invite`:
+   the morning note's invitation beside the header (_note_invite.html.j2), on the bodies whose records are
+   collected. #}
+{% macro body_head(hub, title, lede, coming=false, freshness=none, freshness_note="", watch=none, invite=false,
+                   cover_in_toggle=false) %}
+{% set mn = site.morning_note if invite and site is defined else none %}
+{% if mn %}<div class="body-top">{% endif %}
 <div class="body-head"{% if hub %} data-body-head="{{ hub.key }}"{% endif %}>
 {{ hub_kicker(hub) }}
 <h1>{{ title }}{% if coming %} {{ coming_tag() }}{% endif %}</h1>
 <p class="lede">{{ lede }}</p>
-{% if caller is defined %}{% set cover = caller() | trim %}{% if cover %}<p class="body-cover">{{ cover }}</p>{% endif %}{% endif %}
-{{ fresh(freshness or [], freshness_note) }}
+{% set cover = (caller() | trim) if caller is defined else "" %}
+{% set lines = freshness or [] %}
+{% set lag = freshness_note if lines | selectattr("lagged") | list else "" %}
+{% set tuck = cover if cover_in_toggle and lines else "" %}
+{{ fresh(lines, "", strip=true) }}
+{% if cover and not tuck %}<p class="body-cover">{{ cover }}</p>{% endif %}
+{% if tuck or (lines and lag) %}
+<details class="fresh-about"><summary>About these dates</summary>
+{% if tuck %}<p class="body-cover">{{ tuck }}</p>{% endif %}
+{% if lag %}<p class="muted fresh-note">{{ lag }}</p>{% endif %}
+</details>
+{% endif %}
 {% if watch %}<p class="watch-line">{{ watch_link(watch) }}</p>{% endif %}
 </div>
+{% if mn %}{{ note_invite(mn, root) }}
+</div>{% endif %}
 {% endmacro %}
 {% macro hub_cards(hub, root, level=2) %}
 {% if hub and hub.cards %}

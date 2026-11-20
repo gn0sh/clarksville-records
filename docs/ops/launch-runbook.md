@@ -74,9 +74,11 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   one run may request) or "the cap of 40 requests ran out" with no stored gap filled. Neither clears by itself: it
   **repeats every day until someone acts**, because a daily run that cannot finish keeps no manifest entry. Recovery,
   capped like the daily step (40 requests per call, robots.txt crawl-delay obeyed, a 403/429 stops it): look at
-  https://www.cmcrpc.com/documents/agenda-minutes/ first (did the site move its files?), then on a checkout of `main`
-  with the store restored, run `python -m collector rpc fetch --limit 30` once a day until it no longer prints
-  "documents still to fetch", then commit `data/localities/cmc-rpc/` (listing.json, manifest.json). The next daily
+  https://www.cmcrpc.com/documents/agenda-minutes/ first (did the site move its files?), then ask the team
+  for recovery. A manual `python -m collector rpc fetch --limit 30` loop no longer helps the daily run: nothing it fetches is
+  committed, and the daily run never sees a local store. (Since ADR 0011, 2026-11-19, `main` tracks no `data/` and a person does not commit it: the
+  collector output lives on `records-data`, and `data/` locally is a fetched copy (`scripts/fetch-data`). Older runbook
+  text said to commit `data/localities/cmc-rpc/` here. `config/localities/cmc-rpc/rpc.yml` exists, but there is no `config/` path for `listing.json` or `manifest.json`.) The next daily
   run fetches any bytes its cache lacks as gaps and rebuilds rpc.json; the RPC issue can be closed when it is green.
 - **City committees** (Finance and Audit, `collector/committees.py`; its own step "Collect city committees (warning
   only)" before Collect). Never a failure: any exit but 0 is a `::warning::` and the committed files under

@@ -115,7 +115,12 @@ def test_the_page_keeps_the_wide_order_and_only_a_phone_reorders(html):
     assert ".landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }" in phone
     assert ".landing { display: flex; flex-direction: column; }" in phone
     outside = css.replace(phone, "")
-    assert ".landing >" not in outside and not re.search(r"\.landing \{[^}]*flex", outside)
+    assert not re.search(r"\.landing \{[^}]*flex", outside)
+    # wall of text (owner, 2026-11-19): from 1100px the invitation sits in the column beside the address card. That is
+    # placement in the page's own order (the invitation follows the card), never a reorder: no `order` and no
+    # `grid-row` on the landing outside the phone query
+    wide = [r for r in re.findall(r"\.landing[^{}]*\{[^}]*\}", outside)]
+    assert wide and not any(re.search(r"\border:|grid-row|grid-area", r) for r in wide), wide
     doc = (ROOT / "docs" / "design" / "front-page-v2.md").read_text(encoding="utf-8")
     assert "Accepted deviation" in doc and "visual order" in doc
 

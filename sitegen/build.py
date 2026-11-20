@@ -779,7 +779,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if "county" in hubs:   # the county's hub page (the city's and the RPC's hubs are their own home pages)
         render("hub.html.j2", hubs["county"]["href"], hubs["county"]["title"], hub=hubs["county"],
                cover={"what": site.get("coverage_what") or "minutes", **site["coverage"]},
-               freshness=[x for x in [fresh_mod.county(ix, ax)] if x], freshness_note=fresh_mod.NOTE,
+               freshness=[x for x in [fresh_mod.own(fresh_mod.county(ix, ax))] if x], freshness_note=fresh_mod.NOTE,
                watch=watch_mod.body(config.SITE["county_key"]))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
@@ -916,7 +916,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                council_href=c.home_href(), **council_mod.home(c),
                hub=hubs.get("city") if hubs.get("city", {}).get("href") == c.home_href() else None,
                home_feeds=[f for f in body_feeds if f["key"] == c.body_key], watch=watch_mod.body(c.body_key),
-               freshness=[x for x in [fresh_mod.council(c)] if x], freshness_note=fresh_mod.NOTE)
+               freshness=[x for x in [fresh_mod.own(fresh_mod.council(c))] if x], freshness_note=fresh_mod.NOTE)
         for o in c.facts["officials"]:
             ctx = council_mod.member(o["id"], c)
             groups = [g for g in ctx["row_groups"] if g["year"]]
@@ -947,7 +947,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if rpx is not None:   # Regional Planning Commission (sitegen/rpc.py): home and one page per year of meetings
         rsite = rpx.site_for(site)
         render("rpc_home.html.j2", rpx.home_href(), rpx.page_name(), rsite, **rpx.home(), hub=hubs.get("rpc"),
-               watch=watch_mod.body(rpx.body_key), freshness=[x for x in [fresh_mod.rpc(rpx)] if x],
+               watch=watch_mod.body(rpx.body_key), freshness=[x for x in [fresh_mod.own(fresh_mod.rpc(rpx))] if x],
                freshness_note=fresh_mod.NOTE)
         for y in rpx.years():
             render("rpc_meetings_year.html.j2", rpx.year_href(y), rpx.page_name(f"Meetings {y}"), rsite,
@@ -956,7 +956,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         c.today = built_day.isoformat()
         csite = c.site_for(site)
         render("city_committee_home.html.j2", c.home_href(), c.page_name(), csite, **c.home(), record=c.record(),
-               freshness=[x for x in [fresh_mod.committee(c)] if x], freshness_note=fresh_mod.NOTE)
+               freshness=[x for x in [fresh_mod.own(fresh_mod.committee(c))] if x], freshness_note=fresh_mod.NOTE)
         for y in c.years():
             render("city_committee_meetings_year.html.j2", c.year_href(y), c.page_name(f"Meetings {y}"), csite,
                    home_href=c.home_href(), record=c.record(), **c.meetings_year(y))
