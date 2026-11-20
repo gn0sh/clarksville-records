@@ -577,6 +577,19 @@ def test_the_update_job_reads_n_outside_data_and_passes_it_to_the_build_only():
     assert ".national-data" not in up and "national" not in up.replace("records-data", "")
 
 
+def test_every_continue_on_error_step_has_its_own_timeout():
+    """Architecture 12.3 #10, 12.1 row 4 (`national-isolation/put-step-no-timeout`, N1): continue-on-error does not
+    survive a job timeout, so a step that may fail softly must also end softly, well inside its job's budget. "Put
+    N's data/national" ends within 2 minutes."""
+    for wf in (DAILY, NAT):
+        for jname, job in wf["jobs"].items():
+            soft = [s for s in job["steps"] if s.get("continue-on-error")]
+            for s in soft:
+                m = s.get("timeout-minutes")
+                assert isinstance(m, int) and 1 <= m < job["timeout-minutes"], (jname, s.get("name"), m)
+    assert _steps(DAILY, "update")[PUT_STEP]["timeout-minutes"] == 2
+
+
 def _put(tmp_path, checkout="success", n=None, data=True, dest_exists=False):
     work = tmp_path / "ws"
     work.mkdir()

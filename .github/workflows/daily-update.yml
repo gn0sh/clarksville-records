@@ -397,6 +397,9 @@ jobs:
       # records-data's tree and is uploaded and pushed). Soft: a failure here leaves RECORDS_NATIONAL_DATA empty, the
       # national pages show their governments as stale, and nothing else changes. Read by the site build only while
       # config/site.yml national.enabled is true (sitegen/national_copy.py: parse, clean_feed, bind_feed, schema).
+      # Every continue-on-error step in this file has its own timeout-minutes (architecture 12.1 row 4, a test keeps
+      # it): continue-on-error does not survive a job timeout, so a hang here would otherwise run to this job's 355
+      # minutes and fail it, switch off or on.
       - name: Check out the gate's national-data commit (N)
         id: national_checkout
         if: success() && needs.gate.outputs.national_sha != ''
@@ -412,6 +415,7 @@ jobs:
         id: national
         if: success() && needs.gate.outputs.national_sha != ''
         continue-on-error: true
+        timeout-minutes: 2
         env:
           N: ${{ needs.gate.outputs.national_sha }}
           CHECKOUT: ${{ steps.national_checkout.outcome }}
@@ -500,6 +504,7 @@ jobs:
         id: committees
         if: github.event_name == 'schedule' || inputs.collect
         continue-on-error: true
+        timeout-minutes: 45  # the longest run so far took about 8 minutes (40 PDFs at 10 s, then the offline build)
         run: |
           set +e   # Actions runs bash with -e: without this a non-zero exit would end the step before rc is read
           python -m collector committees run --limit 40; rc=$?
@@ -660,6 +665,7 @@ jobs:
       - name: Plan the morning note (dry run, no network)
         id: plan
         continue-on-error: true
+        timeout-minutes: 5
         env:
           RECORDS_SITE_URL: https://daylight.gnoshcodes.com/   # the editions link site pages from alerts.site_url
         run: python -m sender plan --rehearse --site build/site --out build/morning-send
@@ -720,6 +726,7 @@ jobs:
       - name: Open or update the deploy-held issue
         if: always() && steps.tripwire.outputs.held == 'yes' && github.ref == 'refs/heads/main'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload or push
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           HELD_TITLE: "Daily update: deploy held (published facts)"
@@ -782,6 +789,7 @@ jobs:
         id: staleness
         if: success()
         continue-on-error: true
+        timeout-minutes: 5
         run: python -m qa.staleness check --data data --out build/staleness.json
 
       # One open "Stale source: ... [key]" issue per stale source, labelled stale-source: created once, its body
@@ -791,6 +799,7 @@ jobs:
         id: stale_issues
         if: success() && steps.staleness.outcome == 'success' && github.ref == 'refs/heads/main'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m qa.staleness issues --report build/staleness.json
@@ -802,6 +811,7 @@ jobs:
           always() && github.ref == 'refs/heads/main' &&
           (steps.staleness.outcome == 'failure' || steps.stale_issues.outcome == 'failure')
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           AGE_TITLE: "Daily update: data-age check broken"
@@ -847,6 +857,7 @@ jobs:
       - name: Open or update the RPC issue
         if: always() && steps.collect.outputs.rpc == 'failed'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           RPC_TITLE: "Daily update: RPC step failed"
@@ -885,6 +896,7 @@ jobs:
       - name: Open or update the county committee agendas issue
         if: always() && steps.collect.outputs.county_committees == 'failed'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           CC_TITLE: "Daily update: county committee agendas step failed"
@@ -919,6 +931,7 @@ jobs:
       - name: Open or update the city budget books issue
         if: always() && steps.collect.outputs.city_books == 'kept'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           CB_TITLE: "Daily update: city budget books kept"
@@ -959,6 +972,7 @@ jobs:
       - name: Open or update the county kept-meetings issue
         if: always() && (steps.collect.outputs.kept == 'yes' || steps.collect.outputs.allowed == 'yes')
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           KEPT_TITLE: "Daily update: county meetings kept"
@@ -1007,6 +1021,7 @@ jobs:
       - name: Open or update the city meetings-kept issue
         if: always() && steps.collect.outputs.city_kept == 'yes'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           KEPT_TITLE: "Daily update: city meetings kept"
