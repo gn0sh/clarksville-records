@@ -1,0 +1,13 @@
+# Kept city books a person reviewed and accepted (I-in, ADR 0011 decision 2a; schema/fin-books-accepted.schema.json).
+# When the daily run keeps the stored finance.json because a book's source file changed (the city replaced it),
+# a person reproduces the new reading locally (scripts/fetch-data, then `python -m collector fin-books fetch` and
+# `build --locality <id>`; review build/fin-books-<id>.json; data/ is never committed), then either fixes the reader
+# by PR or lists the reading here by a reviewed PR. The next daily run writes it. An entry drops that one book's
+# keep reasons only while the new build reads exactly source_sha256 and the stored book's source differs from it,
+# so it is spent once the reading is on records-data; a spent entry may stay or be removed. One entry per reading:
+#   - locality: clarksville-tn
+#     book_id: fy2024-adopted                 # finance.yml budget.books id
+#     source_sha256: <the new file's full sha256, 64 hex, from the build report or the store>
+#     listed_on: "2026-11-18"
+#     reason: The city replaced the PDF; every fund total was checked against the new file.
+[]

@@ -10,15 +10,15 @@
 #   bash scripts/u3-toggle.sh --pr <P> --merge --report <R>  team path: runs scripts/merge-reviewed.sh <P> <head> <R>
 #   bash scripts/u3-toggle.sh --pr <P> --rehearse            the whole preflight, then a one-minute window that PUTs
 #                                                            R1' itself (no change) and restores: try Ctrl+C in it
-#   bash scripts/u3-toggle.sh --restore [<backup json>]      PUTs scripts/main-ruleset.json (R1'), or that backup
+#   bash scripts/u3-toggle.sh --restore [<backup json>]      PUTs scripts/main-ruleset-r1p.json (R1'), or that backup
 #   bash scripts/u3-toggle.sh --noop                         U3-0: PUTs the live ruleset back unchanged, reads it back
 #   bash scripts/u3-toggle.sh --show-body <json>             prints the PUT body built from a file; no GitHub call
 #
 # Steps (it stops at the first failure):
 #   1. Preflight, read-only: refuses (nothing changed) from 07:30 to 10:30 UTC (a 30-minute run started then could
 #      reach the daily run's 08:00-10:30), while a daily-update run is not completed, unless
-#      scripts/main-ruleset-r1pp.json is R1' with only the three ADR 0011 decision 5 changes, unless ruleset 27502319
-#      equals R1' (scripts/main-ruleset.json) on every written field, unless PR P is open into main, authored by
+#      scripts/main-ruleset.json is R1' with only the three ADR 0011 decision 5 changes, unless ruleset 27502319
+#      equals R1' (scripts/main-ruleset-r1p.json) on every written field, unless PR P is open into main, authored by
 #      gn0sh, from a branch of this repository, not a draft, mergeable and docs-only, and unless
 #      current_user_can_bypass is pull_requests_only or always. Saves the live ruleset outside the repository and
 #      prints "BACKUP <file>".
@@ -29,12 +29,13 @@
 #      rule-suite reads included, ends 20 minutes after it opened.
 #   4. Reads PR P (merged, merged_by, merge_commit_sha), the ruleset again (still R1''?) and the rule suite whose
 #      after_sha is the merge commit.
-#   5. Restores the backup held in memory (equal to scripts/main-ruleset.json; that file if the backup is unusable),
+#   5. Restores the backup held in memory (equal to scripts/main-ruleset-r1p.json; that file if the backup is unusable),
 #      reads it back, prints "RESTORED <utc>", then one line:
 #      "U3 VERDICT <PASS|FAIL-U3|FAIL-RULE|INCONCLUSIVE> rule-suite <id|none>: <detail>".
 # PASS: the suite's result is bypass and its one pull_request evaluation (ruleset 27502319, enforcement active) is
-# fail. FAIL-RULE: that evaluation is pass (suite bypass or pass): 2 approvals did not bind. FAIL-U3: the merge was
-# refused with HTTP 405 naming reviews or approvals, P unmerged at the same head. Anything else: INCONCLUSIVE.
+# fail. FAIL-RULE: that evaluation is pass (suite bypass or pass): R1'''s required approvals (the ruleset maximum,
+# 10) did not bind. FAIL-U3: the merge was refused with HTTP 405 naming reviews or approvals, P unmerged at the
+# same head. Anything else: INCONCLUSIVE.
 # Every PUT body comes from one function (wl below): only name, target, enforcement, conditions, bypass_actors
 # (actor_id, actor_type, bypass_mode) and rules (type, parameters); never id, _links, source or
 # current_user_can_bypass. Exit: 0 PASS (or a verified --rehearse / --restore / --noop), 1 refused before any write,
@@ -45,8 +46,8 @@ repo=gn0sh/clarksville-records
 owner=gn0sh
 rid=27502319
 here=$(cd "$(dirname "$0")" && pwd)
-r1p="$here/main-ruleset.json"
-r1pp="$here/main-ruleset-r1pp.json"
+r1p="$here/main-ruleset-r1p.json"
+r1pp="$here/main-ruleset.json"
 export U3_OWNER=$owner U3_RULE=pull_request U3_RID=$rid U3_REFUSED="U3 merge refused"
 # The one whitelist: every PUT body and every comparison goes through it (order made canonical: rules by type).
 wl='def wl: {name, target, enforcement, conditions,
@@ -113,9 +114,9 @@ restore() {   # $1 source json, $2 its name; three tries
     [ "$i" = 3 ] || sleep 5
   done
   if [ -n "$backup" ]; then
-    echo "RESTORE FAILED: ruleset $rid may still be R1''. BACKUP $backup. Run: bash scripts/u3-toggle.sh --restore '$backup' (or bash scripts/protect-main.sh). Send this output to the team."
+    echo "RESTORE FAILED: ruleset $rid may still be R1''. BACKUP $backup. Run: bash scripts/u3-toggle.sh --restore '$backup'. Send this output to the team."
   else
-    echo "RESTORE FAILED: ruleset $rid may not be R1'. Run: bash scripts/u3-toggle.sh --restore (or bash scripts/protect-main.sh). Send this output to the team."
+    echo "RESTORE FAILED: ruleset $rid may not be R1'. Run: bash scripts/u3-toggle.sh --restore. Send this output to the team."
   fi
   return 1
 }
@@ -123,13 +124,23 @@ restore() {   # $1 source json, $2 its name; three tries
 pin_ok() {
   local strip='del(.rules[] | select(.type == "pull_request") | .parameters | (.required_approving_review_count, .require_last_push_approval, .require_code_owner_review))'
   [ "$(jq -S -c "$wl | $strip" "$r1pp" 2>/dev/null)" = "$(jq -S -c "$wl | $strip" "$r1p" 2>/dev/null)" ] || return 1
-  [ "$(jq -c '[.rules[] | select(.type == "pull_request") | .parameters | .required_approving_review_count, .require_last_push_approval, .require_code_owner_review]' "$r1pp" 2>/dev/null)" = '[2,true,false]' ]
+  [ "$(jq -c '[.rules[] | select(.type == "pull_request") | .parameters | .required_approving_review_count, .require_last_push_approval, .require_code_owner_review]' "$r1pp" 2>/dev/null)" = '[10,true,false]' ]
 }
+# L2 data-off-main/rollback-checkout-unpinned (I-root C19): a ruleset file of this checkout is used only when it is
+# main's byte for byte (GitHub API, ref=main), so a stale or edited checkout can't write its own ruleset
+main_copy_ok() {   # $1 a file name in scripts/
+  gh api "repos/$repo/contents/scripts/$1?ref=main" --jq '.content' > "$work/main-$1.b64" 2>/dev/null \
+    && base64 -d < "$work/main-$1.b64" > "$work/main-$1" 2>/dev/null && cmp -s "$work/main-$1" "$here/$1"
+}
+not_main="is not main's byte for byte, or main's could not be read (run this from a clean origin/main)"
 
 if [ "$mode" = restore ]; then
   trap 'rm -rf "$work"' EXIT
   src="${src:-$r1p}"
   [ -f "$src" ] || { echo "No such file: $src. Nothing was changed."; exit 1; }
+  if [ "$src" = "$r1p" ]; then
+    main_copy_ok main-ruleset-r1p.json || { echo "scripts/main-ruleset-r1p.json $not_main. Nothing was changed."; exit 1; }
+  fi
   restore "$src" "$(basename "$src")" && exit 0
   exit 3
 fi
@@ -144,7 +155,7 @@ if [ "$mode" = noop ]; then
     0) echo "NOOP OK $(utc): ruleset $rid written with its own body and read back unchanged."; exit 0 ;;
     1) echo "NOOP REFUSED: could not build the body. Nothing was changed."; exit 1 ;;
     2) echo "NOOP REFUSED $(utc): GitHub did not accept the PUT (see gh's message and HTTP status above). Nothing was changed."; exit 1 ;;
-    *) echo "NOOP CHANGED $(utc): ruleset $rid did not read back as it was. Run: bash scripts/protect-main.sh. Send this output to the team."; exit 3 ;;
+    *) echo "NOOP CHANGED $(utc): ruleset $rid did not read back as it was. Run: bash scripts/u3-toggle.sh --restore. Send this output to the team."; exit 3 ;;
   esac
 fi
 
@@ -159,7 +170,8 @@ hm=$(date -u +%H%M)
 if [ $((10#$hm)) -ge 730 ] && [ $((10#$hm)) -le 1030 ]; then
   refuse "it is ${hm:0:2}:${hm:2:2} UTC: a run started from 07:30 to 10:30 could reach the daily run's window (08:00-10:30); run it later"
 fi
-pin_ok || refuse "scripts/main-ruleset-r1pp.json is not R1' with only ADR 0011 decision 5's three changes (2 approvals, last-push approval, no code-owner review)"
+pin_ok || refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (10 approvals: S1-1, the API maximum; last-push approval, no code-owner review)"
+for f in main-ruleset-r1p.json main-ruleset.json; do main_copy_ok "$f" || refuse "scripts/$f $not_main"; done
 runs=$(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?per_page=30" --jq '.workflow_runs[].status') \
   || refuse "could not read the daily-update runs"
 busy=$(printf '%s\n' "$runs" | grep -cv -e '^completed$' -e '^$')
@@ -167,7 +179,7 @@ busy=$(printf '%s\n' "$runs" | grep -cv -e '^completed$' -e '^$')
 read_live "$work/live.json" || refuse "could not read ruleset $rid"
 bypass=$(jq -r '.current_user_can_bypass // "missing"' "$work/live.json")
 case "$bypass" in pull_requests_only|always) ;; *) refuse "current_user_can_bypass is '$bypass', not pull_requests_only or always" ;; esac
-same_as "$work/live.json" "$r1p" || refuse "ruleset $rid is not R1' (scripts/main-ruleset.json)"
+same_as "$work/live.json" "$r1p" || refuse "ruleset $rid is not R1' (scripts/main-ruleset-r1p.json)"
 # every field goes through tostring, so none is empty and a tab-split never shifts the fields
 prline=""
 for i in 1 2 3 4; do
@@ -219,8 +231,8 @@ finish() {
   if ! { [ -n "$backup_json" ] && printf '%s\n' "$backup_json" > "$src" && jq -e '.name' "$src" >/dev/null 2>&1; }; then
     src="$r1p"
   fi
-  echo "Closing the window: restoring R1' ($( [ "$src" = "$r1p" ] && echo "scripts/main-ruleset.json" || echo "the backup")). BACKUP $backup"
-  restore "$src" "$( [ "$src" = "$r1p" ] && echo "scripts/main-ruleset.json" || echo "the backup")" || true
+  echo "Closing the window: restoring R1' ($( [ "$src" = "$r1p" ] && echo "scripts/main-ruleset-r1p.json" || echo "the backup")). BACKUP $backup"
+  restore "$src" "$( [ "$src" = "$r1p" ] && echo "scripts/main-ruleset-r1p.json" || echo "the backup")" || true
   rm -rf "$work"
   if [ "$rehearse" = 1 ]; then
     if [ "$restored" = 1 ]; then echo "U3 REHEARSAL DONE: the window opened and R1' was restored and verified${why:+ ($why)}."; exit 0; fi

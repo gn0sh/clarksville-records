@@ -426,16 +426,29 @@ def test_committed_rpc_json_carries_no_phone_number(tmp_path):
     has_phone = rpc_agenda.PHONE.search(text) is not None    # a bool: pytest would print the Match and its text
     assert not has_phone, "rpc.json carries a phone number"     # (privacy/test-output-prints-match)
     assert scrub.main(["--check", "--path", str(rpc_json)]) == 0
-    # the migration: only the location changes, and a second run changes nothing
-    d = json.loads(text)
-    d["cases"][0] = {**d["cases"][0], "location": "120 Fixture Ln Clarksville TN 37040 931-555-0100"}
+
+
+def test_the_scrub_tool_only_checks(tmp_path, capsys):
+    """ADR 0011 decision 2a, row SC: the rewrite mode is gone (no person-run tool writes data/, I-in); --check is the
+    one mode, reads only, exits 1 on a phone number and names the case id, never the location text."""
+    import inspect
+
+    from tools import scrub_rpc_phones as scrub
+    src = inspect.getsource(scrub)
+    assert "write_json" not in src and "write_text" not in src and "write_bytes" not in src and ".open(" not in src
+    assert not hasattr(scrub, "scrub")
+    d = {"cases": [{"id": "SR-47-2024", "location": "120 Fixture Ln Clarksville TN 37040 931-555-0100"},
+                   {"id": "SR-48-2024", "location": "121 Fixture Ln Clarksville TN 37040"}], "meetings": []}
     p = tmp_path / "rpc.json"
     p.write_text(json.dumps(d), encoding="utf-8")
-    assert scrub.main(["--path", str(p)]) == 0
-    after = json.loads(p.read_text(encoding="utf-8"))
-    assert after["cases"][0]["location"] == "120 Fixture Ln Clarksville TN 37040"
-    assert after["cases"][1:] == d["cases"][1:] and after["meetings"] == d["meetings"]
-    assert scrub.main(["--check", "--path", str(p)]) == 0
+    before = p.read_bytes()
+    with pytest.raises(SystemExit):                       # no flag: no rewrite mode to fall into
+        scrub.main(["--path", str(p)])
+    assert scrub.main(["--check", "--path", str(p)]) == 1
+    out = capsys.readouterr().out
+    assert "carries a phone number: SR-47-2024" in out and "SR-48-2024" not in out and "555" not in out
+    assert p.read_bytes() == before and sorted(x.name for x in tmp_path.iterdir()) == ["rpc.json"]
+    assert scrub.main(["--check", "--path", str(tmp_path / "missing.json")]) == 2
 
 
 def test_no_string_in_committed_rpc_json_matches_the_phone_rule():

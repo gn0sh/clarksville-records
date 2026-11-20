@@ -328,8 +328,9 @@ def test_every_fixed_title_issue_lookup_lists_only_actions_issues():
     text = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
     lookups = [ln for ln in text.splitlines() if "gh issue list" in ln]
     # 1 data-age check, 2 update job failure, 3 RPC step, 4 county committee agendas step, 5 city budget books
-    # kept, 6 county meetings kept, 7 city meetings kept (ADR 0006), 8 push job failure, 9 morning note, 10 gate
-    assert len(lookups) == 10, lookups
+    # kept, 6 county meetings kept, 7 city meetings kept (ADR 0006), 8 push job failure, 9 morning note, 10 gate,
+    # 11 deploy held by the I-pub tripwire (ADR 0011)
+    assert len(lookups) == 11, lookups
     for ln in lookups:
         assert "--app github-actions" in ln, ln
 

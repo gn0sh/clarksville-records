@@ -488,7 +488,7 @@ def test_a_run_without_agenda_files_keeps_every_committed_agenda_only_meeting(ci
     transcript) vanished from facts.json because their agendas were not in the store, and the site build stopped on
     'transcript for 2026-01-06-executive, which is not a meeting in the facts'. Their rows are still listed, so each is
     kept exactly as committed (exit 7) and the transcripts load."""
-    from sitegen import transcripts
+    from sitegen import config, transcripts
     facts = city["facts"]
     gone = {m["id"] for m in agenda_only(facts)}
     assert "2026-01-06-executive" in gone and len(gone) > 100
@@ -504,7 +504,8 @@ def test_a_run_without_agenda_files_keeps_every_committed_agenda_only_meeting(ci
     check_unit(out, "the merged city facts")
     kept = {m for k in city["guard"]()["kept_meetings"] for m in k["meeting_ids"]}
     assert gone <= kept
-    assert "2026-01-06-executive" in transcripts.load(CITY / "facts.json", out)            # the build's check holds
+    # the build's check holds (the committed transcripts, config/ since I-in)
+    assert "2026-01-06-executive" in transcripts.load(config.transcripts_path("clarksville-tn"), out)
 
 
 def test_agenda_only_meetings_kept_twice_is_byte_identical(city, monkeypatch):

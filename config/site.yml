@@ -14,7 +14,7 @@ fetch_manifests:
   - data/localities/cmc-rpc/manifest.json
   - data/localities/clarksville-tn/committees/manifest.json
   - data/localities/montgomery-tn/committee-agendas/manifest.json
-  - data/maps/manifest.json
+  - config/maps/manifest.json          # the source map PDFs (tools/fetch_map.py; a reviewed input, I-in)
 today_place: Clarksville            # header date line: "Tuesday in Clarksville" (static/sky.js reads it from the page)
 # The sky in the header (static/sky.js reads it from the page): the place whose sun and moon are drawn, in degrees
 # (north latitude, east longitude; the city hall area, to two places). The sun shows while it is up there, the moon

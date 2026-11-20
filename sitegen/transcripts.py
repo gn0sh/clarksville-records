@@ -104,14 +104,17 @@ def clock(seconds: float) -> str:
     return f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
 
 
-def load(facts_path: Path, facts: dict) -> dict[str, dict]:
-    """{meeting id: transcript} from <facts folder>/transcripts/index.json (none: {}). Every transcript must name a
+def load(folder: Path, facts: dict) -> dict[str, dict]:
+    """{meeting id: transcript} from <folder>/index.json (none: {}). `folder` is the council's transcripts folder,
+    config/localities/<locality>/transcripts/ (config.transcripts_path; I-in, ADR 0011 decision 2a): transcripts are a
+    reviewed input on main, never read from data/, so a copy left beside the facts file in data/ is ignored. Every
+    transcript must name a
     meeting of these facts and carry exactly that meeting's video_url; its segments [start, end, text], returned with
     addresses and phone numbers masked (privacy.mask_segments, defence in depth). The committed text is masked at rest
     (the import and `collector transcripts remask` write it masked), so masking must change no line: a committed line
     it would change raises TranscriptLoadError (naming the file and the line numbers, never the text), and the build
     fails. `masked_segments` is therefore always 0. (Whether its times link to the video is video_ok's rule.)"""
-    folder = Path(facts_path).parent / FOLDER
+    folder = Path(folder)
     index_path = folder / "index.json"
     if not index_path.is_file():
         return {}

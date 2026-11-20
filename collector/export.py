@@ -31,7 +31,7 @@ PROVENANCE: dict[str, str] = {
     **{f"{f}.{k}": v for f in ("meetings", "attendance", "roll_calls", "votes", "motions", "items", "item_events")
        for k, v in _CITE.items()},
     "officials.id": "derived: slug of the resolved name", "officials.name": "derived: one spelling chosen per person "
-    "(data/names.yml) from the names the minutes print", "officials.surname": "derived: split from name",
+    "(config/names.yml) from the names the minutes print", "officials.surname": "derived: split from name",
     "officials.given": "derived: split from name", "officials.title": "derived: same default title for everyone",
     "officials.aliases": "derived: other printed spellings matched to this person",
     # a configured, cited member (city path N10, M1): the official record that names the person and seat

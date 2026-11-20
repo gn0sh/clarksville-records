@@ -2,7 +2,7 @@
 
 Every attendance section, roll call and motion gets {status, checks[{check, ok, detail}]}. A fact is verified only
 when every check passes. The parser's P2 readings (collector/parse.py) supply the per-reading reasons; this module
-names them as checks, adds the name checks against data/names.yml, and computes the run's gates.
+names them as checks, adds the name checks against config/names.yml, and computes the run's gates.
 """
 from __future__ import annotations
 

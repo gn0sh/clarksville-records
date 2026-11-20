@@ -9,15 +9,15 @@
 #                                                         PUTs R1' itself (no change) and restores; try Ctrl+C in it
 #   .\scripts\u3-toggle.ps1 -Pr <P>                        Brian's path: opens the window, waits for main to move
 #   .\scripts\u3-toggle.ps1 -Pr <P> -Merge -Report <R>     team path: runs scripts\merge-reviewed.ps1 <P> <head> <R>
-#   .\scripts\u3-toggle.ps1 -Restore [-From <backup json>] PUTs scripts\main-ruleset.json (R1'), or that backup
+#   .\scripts\u3-toggle.ps1 -Restore [-From <backup json>] PUTs scripts\main-ruleset-r1p.json (R1'), or that backup
 #   .\scripts\u3-toggle.ps1 -Noop                          U3-0: PUTs the live ruleset back unchanged, reads it back
 #   .\scripts\u3-toggle.ps1 -ShowBody <json>               prints the PUT body built from a file; no GitHub call
 #
 # Steps (it stops at the first failure):
 #   1. Preflight, read-only: refuses (nothing changed) from 07:30 to 10:30 UTC (a 30-minute run started then could
 #      reach the daily run's 08:00-10:30), while a daily-update run is not completed, unless
-#      scripts\main-ruleset-r1pp.json is R1' with only the three ADR 0011 decision 5 changes, unless ruleset 27502319
-#      equals R1' (scripts\main-ruleset.json) on every written field, unless PR P is open into main, authored by
+#      scripts\main-ruleset.json is R1' with only the three ADR 0011 decision 5 changes, unless ruleset 27502319
+#      equals R1' (scripts\main-ruleset-r1p.json) on every written field, unless PR P is open into main, authored by
 #      gn0sh, from a branch of this repository, not a draft, mergeable and docs-only, and unless
 #      current_user_can_bypass is pull_requests_only or always. Saves the live ruleset to Documents and prints
 #      "BACKUP <file>".
@@ -28,12 +28,13 @@
 #      rule-suite reads included, ends 20 minutes after it opened.
 #   4. Reads PR P (merged, merged_by, merge_commit_sha), the ruleset again (still R1''?) and the rule suite whose
 #      after_sha is the merge commit.
-#   5. Restores the backup held in memory (equal to scripts\main-ruleset.json; that file if the backup is unusable),
+#   5. Restores the backup held in memory (equal to scripts\main-ruleset-r1p.json; that file if the backup is unusable),
 #      reads it back, prints "RESTORED <utc>", then one line:
 #      "U3 VERDICT <PASS|FAIL-U3|FAIL-RULE|INCONCLUSIVE> rule-suite <id|none>: <detail>".
 # PASS: the suite's result is bypass and its one pull_request evaluation (ruleset 27502319, enforcement active) is
-# fail. FAIL-RULE: that evaluation is pass (suite bypass or pass): 2 approvals did not bind. FAIL-U3: the merge was
-# refused with HTTP 405 naming reviews or approvals, P unmerged at the same head. Anything else: INCONCLUSIVE.
+# fail. FAIL-RULE: that evaluation is pass (suite bypass or pass): R1'''s required approvals (the ruleset maximum,
+# 10) did not bind. FAIL-U3: the merge was refused with HTTP 405 naming reviews or approvals, P unmerged at the
+# same head. Anything else: INCONCLUSIVE.
 # Every PUT body comes from one function (Wl below): only name, target, enforcement, conditions, bypass_actors
 # (actor_id, actor_type, bypass_mode) and rules (type, parameters); never id, _links, source or
 # current_user_can_bypass. Bodies are written as BOM-less UTF-8 files and passed with --input (never piped: Windows
@@ -58,8 +59,8 @@ Remove-TypeData System.Array -ErrorAction SilentlyContinue
 $repo = 'gn0sh/clarksville-records'
 $owner = 'gn0sh'
 $rid = '27502319'
-$r1p = Join-Path $PSScriptRoot 'main-ruleset.json'
-$r1pp = Join-Path $PSScriptRoot 'main-ruleset-r1pp.json'
+$r1p = Join-Path $PSScriptRoot 'main-ruleset-r1p.json'
+$r1pp = Join-Path $PSScriptRoot 'main-ruleset.json'
 $env:U3_OWNER = $owner
 $env:U3_RULE = 'pull_request'
 $env:U3_RID = $rid
@@ -70,6 +71,9 @@ function Utc { return (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss
 function Usage {
     Write-Host 'Usage: .\scripts\u3-toggle.ps1 -Pr <P> [-Merge -Report <review report> | -Rehearse] | -Restore [-From <backup json>] | -Noop | -ShowBody <json>'
 }
+# data-off-main/ps-unknown-args: an argument that matches no parameter stops here, before anything runs. (Not
+# [CmdletBinding()]: in an advanced script the exit code set in the window's finally block is lost after Ctrl+C.)
+if ($args.Count -gt 0) { Write-Host "Unknown argument(s): $($args -join ' '). Nothing was changed."; Usage; exit 1 }
 
 # The one whitelist: every PUT body and every comparison goes through it (order made canonical: rules by type).
 function Wl($o) {
@@ -171,9 +175,9 @@ function RestoreFrom($src, $label) {   # $src: a parsed ruleset object
         }
     }
     if ($script:backup) {
-        Write-Host "RESTORE FAILED: ruleset $rid may still be R1''. BACKUP $($script:backup). Run: .\scripts\u3-toggle.ps1 -Restore -From '$($script:backup)' (or .\scripts\protect-main.ps1). Send this output to the team."
+        Write-Host "RESTORE FAILED: ruleset $rid may still be R1''. BACKUP $($script:backup). Run: .\scripts\u3-toggle.ps1 -Restore -From '$($script:backup)'. Send this output to the team."
     } else {
-        Write-Host "RESTORE FAILED: ruleset $rid may not be R1'. Run: .\scripts\u3-toggle.ps1 -Restore (or .\scripts\protect-main.ps1). Send this output to the team."
+        Write-Host "RESTORE FAILED: ruleset $rid may not be R1'. Run: .\scripts\u3-toggle.ps1 -Restore. Send this output to the team."
     }
 }
 # ADR 0011 decision 5 pinned: R1'' is R1' except these three pull_request parameters, which take these values.
@@ -196,9 +200,19 @@ function PinOk {
     $pp = @($a.rules | Where-Object { $_.type -ceq 'pull_request' })
     if ($pp.Count -ne 1) { return $false }
     $q = $pp[0].parameters
-    return ((Canon $q.required_approving_review_count) -ceq '2' -and (Canon $q.require_last_push_approval) -ceq 'true' -and
+    return ((Canon $q.required_approving_review_count) -ceq '10' -and (Canon $q.require_last_push_approval) -ceq 'true' -and
             (Canon $q.require_code_owner_review) -ceq 'false')
 }
+# L2 data-off-main/rollback-checkout-unpinned (I-root C19): a ruleset file of this checkout is used only when it is
+# main's byte for byte (GitHub API, ref=main), so a stale or edited checkout can't write its own ruleset
+function MainCopyOk([string]$name) {   # a file name in scripts\
+    $b64 = (gh api "repos/$repo/contents/scripts/${name}?ref=main" --jq '.content' 2> $null) -join ''
+    if ($LASTEXITCODE -ne 0 -or -not $b64) { return $false }
+    try { $want = [Convert]::FromBase64String($b64) } catch { return $false }
+    try { $have = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot $name)) } catch { return $false }
+    return ([Convert]::ToBase64String($want) -ceq [Convert]::ToBase64String($have))
+}
+$notMain = "is not main's byte for byte, or main's could not be read (run this from a clean origin/main)"
 
 if ($ShowBody) {
     $o = ReadJsonFile $ShowBody
@@ -216,6 +230,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "Not signed in: run gh auth login (as $own
 if ($Restore) {
     $srcPath = if ($From) { $From } else { $r1p }
     if (-not (Test-Path -LiteralPath $srcPath)) { Write-Host "No such file: $srcPath. Nothing was changed."; exit 1 }
+    if (-not $From -and -not (MainCopyOk 'main-ruleset-r1p.json')) { Write-Host "scripts/main-ruleset-r1p.json $notMain. Nothing was changed."; exit 1 }
     RestoreFrom (ReadJsonFile $srcPath) (Split-Path -Leaf $srcPath)
     if ($script:restored) { exit 0 } else { exit 3 }
 }
@@ -228,7 +243,7 @@ if ($Noop) {
     if ($r -ceq 'ok') { Write-Host ('NOOP OK ' + (Utc) + ": ruleset $rid written with its own body and read back unchanged."); exit 0 }
     if ($r -ceq 'body') { Write-Host 'NOOP REFUSED: could not build the body. Nothing was changed.'; exit 1 }
     if ($r -ceq 'put') { Write-Host ('NOOP REFUSED ' + (Utc) + ": GitHub did not accept the PUT (see gh's message and HTTP status above). Nothing was changed."); exit 1 }
-    Write-Host ('NOOP CHANGED ' + (Utc) + ": ruleset $rid did not read back as it was. Run: .\scripts\protect-main.ps1. Send this output to the team.")
+    Write-Host ('NOOP CHANGED ' + (Utc) + ": ruleset $rid did not read back as it was. Run: .\scripts\u3-toggle.ps1 -Restore. Send this output to the team.")
     exit 3
 }
 
@@ -243,7 +258,8 @@ $hm = $now.Hour * 100 + $now.Minute
 if ($hm -ge 730 -and $hm -le 1030) {
     Refuse ('it is ' + $now.ToString('HH:mm') + " UTC: a run started from 07:30 to 10:30 could reach the daily run's window (08:00-10:30); run it later")
 }
-if (-not (PinOk)) { Refuse "scripts/main-ruleset-r1pp.json is not R1' with only ADR 0011 decision 5's three changes (2 approvals, last-push approval, no code-owner review)" }
+if (-not (PinOk)) { Refuse "scripts/main-ruleset.json is not R1' with only ADR 0011 decision 5's three changes (10 approvals: S1-1, the API maximum; last-push approval, no code-owner review)" }
+foreach ($f in @('main-ruleset-r1p.json', 'main-ruleset.json')) { if (-not (MainCopyOk $f)) { Refuse "scripts/$f $notMain" } }
 $runs = @(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?per_page=30" --jq '.workflow_runs[].status')
 if ($LASTEXITCODE -ne 0) { Refuse 'could not read the daily-update runs' }
 $busy = @($runs | Where-Object { $_ -and $_ -cne 'completed' })
@@ -254,7 +270,7 @@ $bypass = [string]$live.current_user_can_bypass
 if ($bypass -cne 'pull_requests_only' -and $bypass -cne 'always') {
     Refuse "current_user_can_bypass is '$bypass', not pull_requests_only or always"
 }
-if (-not (SameAs $live (ReadJsonFile $r1p) 'scripts\main-ruleset.json')) { Refuse "ruleset $rid is not R1' (scripts\main-ruleset.json)" }
+if (-not (SameAs $live (ReadJsonFile $r1p) 'scripts\main-ruleset-r1p.json')) { Refuse "ruleset $rid is not R1' (scripts\main-ruleset-r1p.json)" }
 # every field goes through tostring, so none is empty and a tab-split never shifts the fields
 $f = @()
 for ($i = 1; $i -le 4; $i++) {
@@ -343,7 +359,7 @@ function RunWindow {
     }
     if ((PutVerify (ReadJsonFile $r1pp)) -cne 'ok') { $script:why = "R1'' did not read back as written; the window closed at once"; return }
     $opened = Utc
-    $deadline = [DateTime]::UtcNow.AddMinutes(20)   # main-protect/u3-window-bound: rule-suite reads included
+    $deadline = (Get-Date).ToUniversalTime().AddMinutes(20)   # main-protect/u3-window-bound: rule-suite reads included
     $env:U3_OPENED = $opened
     Write-Host "U3 WINDOW OPEN $opened BACKUP $($script:backup)"
     Write-Host "If this window ever closes without a RESTORED line: gh api -X PUT repos/$repo/rulesets/$rid --input '$($script:backup)'"
@@ -367,7 +383,7 @@ function RunWindow {
         Write-Host 'Waiting for main to move (checked every 15 s, up to 20 minutes). Now type U3 go in the team thread.'
         $moved = $false; $fails = 0; $refused = ''
         for ($i = 1; $i -le 80; $i++) {
-            if ([DateTime]::UtcNow -ge $deadline) { break }
+            if ((Get-Date).ToUniversalTime() -ge $deadline) { break }
             Start-Sleep -Seconds 15
             $cur = ReadMain
             if (-not $cur) {
@@ -396,12 +412,12 @@ function RunWindow {
     if ($cur -cne $mergeSha) { $script:why = "main is at $cur, not PR #$Pr's merge commit $mergeSha (another actor)"; return }
     $win = ReadLive
     if ($null -eq $win) { $script:why = "ruleset $rid could not be read at the end of the window"; return }
-    if (-not (SameAs $win (ReadJsonFile $r1pp) 'scripts\main-ruleset-r1pp.json')) { $script:why = "ruleset $rid did not read R1'' at the end of the window"; return }
+    if (-not (SameAs $win (ReadJsonFile $r1pp) 'scripts\main-ruleset.json')) { $script:why = "ruleset $rid did not read R1'' at the end of the window"; return }
     $env:U3_AFTER = $mergeSha
     for ($i = 1; $i -le 8; $i++) {
         $ids = @(gh api "repos/$repo/rulesets/rule-suites?ref=main&time_period=hour&per_page=100" --jq '.[] | select(.after_sha == $ENV.U3_AFTER) | .id' 2> $null)
         if ($LASTEXITCODE -eq 0 -and $ids.Count -ge 1 -and [string]$ids[0] -match '^[0-9]+$') { $script:suiteId = [string]$ids[0]; break }
-        if ([DateTime]::UtcNow -ge $deadline) { break }
+        if ((Get-Date).ToUniversalTime() -ge $deadline) { break }
         if ($i -lt 8) { Start-Sleep -Seconds 15 }
     }
     if (-not $script:suiteId) { $script:why = "PR #$Pr merged by $owner as $mergeSha, but no rule suite listed it within the window"; return }
@@ -427,7 +443,7 @@ function RunWindow {
 function CloseWindow {
     $src = $script:backupObj
     $label = 'the backup'
-    if ($null -eq $src -or (CanonRs $src) -cne (CanonRs (ReadJsonFile $r1p))) { $src = ReadJsonFile $r1p; $label = 'scripts\main-ruleset.json' }
+    if ($null -eq $src -or (CanonRs $src) -cne (CanonRs (ReadJsonFile $r1p))) { $src = ReadJsonFile $r1p; $label = 'scripts\main-ruleset-r1p.json' }
     Write-Host "Closing the window: restoring R1' ($label; do not press Ctrl+C again). BACKUP $($script:backup)"
     RestoreFrom $src $label
     if ($Rehearse) {
@@ -449,9 +465,16 @@ function CloseWindow {
     Write-Host "U3 VERDICT $($script:verdict) rule-suite ${shownSuite}: $($script:detail)"
     if (-not $script:restored) { $script:code = 3 } elseif ($script:verdict -ceq 'PASS') { $script:code = 0 } else { $script:code = 2 }
 }
+# data-off-main/ps-ctrlc-exit-code: after Ctrl+C PowerShell runs this finally block and then skips everything after
+# it, so the exit code is set inside it (else the run exits 0, even after RESTORE FAILED)
+$script:ran = $false
 try {
     RunWindow
+    $script:ran = $true
 } finally {
-    if ($script:armed) { CloseWindow }
+    if ($script:armed) {
+        if (-not $script:ran -and -not $script:why) { $script:why = 'interrupted (Ctrl+C, a stop signal or an error)' }
+        CloseWindow
+    }
+    exit $script:code
 }
-exit $script:code

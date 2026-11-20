@@ -1,0 +1,15 @@
+# Published facts a deploy may change or remove (I-pub, ADR 0011 decision 4; schema/published-fact-changes.schema.json).
+# The daily run holds any deploy that changes or drops a vote, roll call or outcome already on the live site, unless
+# that exact change is listed here. Add an entry only by a reviewed pull request, after checking the change against
+# its source. allow_shrink never counts. One entry per fact, copied from the deploy-held issue's line
+# "tripwire: <change>: <fact_id> (<path>) value_sha256 <digest>". The digest pins the live value and the new one, so the
+# entry lets through only that transition and is spent once the live site shows it (a later change of the same fact
+# needs a new entry; remove spent ones in any later PR):
+#   - path: data/facts.json                # the facts file, as the tripwire prints it
+#     fact_id: rc-09962951-p101-0          # the roll call (or motion) id in the live data
+#     change: changed                      # changed | removed
+#     value_sha256: <64 hex>               # from the tripwire's line
+#     listed_on: "2026-11-18"
+#     reason: The county corrected the vote in its amended minutes.
+#     source_url: https://example.org/amended-minutes.pdf   # optional
+[]

@@ -20,7 +20,7 @@ from sitegen import transcripts as tx
 from sitegen.build import build
 
 A, P = privacy.ADDRESS_MASK, privacy.PHONE_MASK
-TRANSCRIPTS = ROOT / "data" / "localities" / "clarksville-tn" / "transcripts"
+TRANSCRIPTS = ROOT / "config" / "localities" / "clarksville-tn" / "transcripts"   # I-in: a reviewed input
 
 
 # ------------------------------------------------------------------------------------------------- the masking rule
@@ -267,7 +267,8 @@ def site(tmp_path_factory):
     m = next(x for x in sub["meetings"] if x["id"] == MEETING)
     write_raw(d / "raw", raw_transcript(m, SEGMENTS + ADDRESS_LINES))
     ctx.import_dir(d / "raw", sub, d / "transcripts", kind_of, LISTING)
-    cfg = {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json"}
+    cfg = {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json",
+           "transcripts_path": d / "transcripts"}
     out = tmp_path_factory.mktemp("site") / "build" / "site"
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, councils=[cfg])
     cs = [{"slug": "city", "prefix": "city/", "facts": sub, "transcripts_dir": d / "transcripts"}]
@@ -305,7 +306,7 @@ def test_load_fails_on_a_committed_line_that_is_not_masked(site, tmp_path):
     from sitegen.build import load_facts
     out, cs, mid, *_ = site
     folder = cs[0]["transcripts_dir"]
-    t = tx.load(folder.parent / "facts.json", load_facts(folder.parent / "facts.json"))[mid]
+    t = tx.load(folder, load_facts(folder.parent / "facts.json"))[mid]
     assert t["masked_segments"] == 0          # the import masked them: nothing left for load to change
     # a committed transcript with a raw address (data not masked at rest): load raises, never quoting the text
     d = tmp_path / "city"
@@ -315,7 +316,7 @@ def test_load_fails_on_a_committed_line_that_is_not_masked(site, tmp_path):
     body["segments"][-2][2] = "I live at 236 Fixture Court and"
     f.write_text(json.dumps(body), encoding="utf-8")
     with pytest.raises(tx.TranscriptLoadError) as exc:
-        tx.load(d / "facts.json", load_facts(d / "facts.json"))
+        tx.load(d / "transcripts", load_facts(d / "facts.json"))
     assert "1 committed lines hold an address or phone number" in str(exc.value) and "remask" in str(exc.value)
     assert "236" not in str(exc.value) and "Fixture" not in str(exc.value)     # build.py turns it into a BuildError
 

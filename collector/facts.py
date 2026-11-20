@@ -20,7 +20,7 @@ from .verify import (attendance_verification, motion_verification, roll_call_ver
                      verification)
 
 ROOT = Path(__file__).resolve().parent.parent
-PROCEDURAL = ROOT / "data" / "procedural-titles.yml"
+PROCEDURAL = ROOT / "config" / "procedural-titles.yml"
 VALUE = {"Yes": ("yes", "Y"), "No": ("no", "N"), "Abstain": ("abstain", "A")}
 
 
