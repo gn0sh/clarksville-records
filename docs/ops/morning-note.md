@@ -104,7 +104,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      line after the baseline `MAIN_PR_BASELINE` that touches anything outside `data/` must be the merge of exactly
      one pull request into `main`, **merged by a person**, with **a person's review of the PR's head commit** (the owner's
      or a collaborator's) posted before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
-     workflow using `GITHUB_TOKEN`, which the setting below allows) is refused. The baseline is set once, the day
+     workflow using `GITHUB_TOKEN`, which the setting below allows) is refused. (Pre-cutover history: the cutover PR set the baseline, and an empty one is now a refusal.) The baseline is set once, the day
      the V1' probe passes (2.0.4, section 4 item 7); until then it is empty, the gate checks nothing and the note
      never runs. (Pre-cutover history; see the 4.7 "State now" note.) The team merged earlier work without pull requests; **from the baseline on, every change outside
      `data/` reaches `main` by `scripts/merge-reviewed.ps1` (2.0.3)**, never the Merge button, never auto-merge,
