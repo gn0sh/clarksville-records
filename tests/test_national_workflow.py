@@ -791,6 +791,18 @@ def test_every_gate_step_has_a_timeout_and_the_gate_s_budget_holds_them_all():
     assert gate["timeout-minutes"] <= 15                       # still a short, read-only job
 
 
+def test_every_national_gate_step_has_a_timeout_and_the_gate_s_budget_holds_them_all():
+    """12.3 #10 extended (S2c nit d, D-ISO-14): national-update.yml's gate as the daily gate above. Its check step
+    unshallows history that grows (national-data, about 730 commits a year): it ends at its own timeout, and the job's
+    budget still holds every step plus one minute for setup and post steps."""
+    gate = NAT["jobs"]["gate"]
+    mins = [s.get("timeout-minutes") for s in gate["steps"]]
+    assert all(isinstance(m, int) and m >= 1 for m in mins), mins
+    assert gate["timeout-minutes"] >= sum(mins) + 1, (gate["timeout-minutes"], mins)
+    assert gate["timeout-minutes"] <= 15
+    assert _steps(NAT, "gate")[GATE_STEP]["timeout-minutes"] >= 5      # room for the history fetch
+
+
 def test_the_lookup_reads_the_attested_head(tmp_path):
     outputs, _c, shas, _o = _lookup(tmp_path, [SEED_FILES, {"data/national/health.json": '{"a": 1}\n'}],
                                     attest=[(1, {})])

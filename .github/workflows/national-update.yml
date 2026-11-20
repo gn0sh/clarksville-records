@@ -54,9 +54,13 @@ concurrency:
 permissions: {}
 
 jobs:
+  # Time (S2c nit d, D-ISO-14; as daily-update.yml's gate, D-ISO-1): every step has its own timeout and the job's
+  # budget is their sum (checkout 2 + check 8 = 10) plus 1 for setup and post steps: 11. The check step's one part
+  # that grows is the unshallow fetch of history (national-data's, about 730 commits a year, and main's, blob:none);
+  # a timed-out check fails the gate, so nothing is collected or pushed (fails closed). A test keeps the sum.
   gate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 11
     outputs:
       code: ${{ steps.check.outputs.code }}
       sha: ${{ steps.check.outputs.sha }}
@@ -66,6 +70,7 @@ jobs:
       attestations: read     # read the attestations of national-data's listing
     steps:
       - name: Check out this run's commit
+        timeout-minutes: 2
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
@@ -73,6 +78,7 @@ jobs:
 
       - name: Check the national-data head
         id: check
+        timeout-minutes: 8
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
