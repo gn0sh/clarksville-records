@@ -7,13 +7,15 @@ team creates no account, key, secret, variable or environment; every step marked
 and 5).
 
 ## How it runs (`.github/workflows/daily-update.yml`)
-- `gate` job, first, every run (T4.10.2; `docs/architecture/main-protect-invariant.md`, ADR 0009): step "Check every change outside data/ reached main by a reviewed pull request a person merged". On `main`, with `MAIN_PR_BASELINE` set, it refuses unless every commit on `main`'s first-parent line
+- `gate` job, first, every run (T4.10.2; `docs/architecture/main-protect-invariant.md`, ADR 0009): step "Check main's history and the records-data head". On `main`, with `MAIN_PR_BASELINE` set, it refuses unless every commit on `main`'s first-parent line
   after the baseline that changes anything outside `data/` is the merge or squash commit of exactly one pull request
   into `main`, merged by a person, with a person's review (Comment or Approve; by the owner or a collaborator) of the
   PR's head commit before the merge (step 2.0.3 does both); a merge commit's merged-in side must be that head. It outputs the run's commit and
   `verified`. `update` builds exactly that commit, `deploy` needs the gate's success, and `note` needs
-  `verified == 'true'`. While the baseline is empty (phase 0) or on any branch other than `main`, it passes with
-  `verified=false`: the site updates and deploys as before, and the note never runs. Read-only token, no secret;
+  `verified == 'true'`. There is no phase 0 on `main` (ADR 0011 Amendment (c)): the cutover PR pins
+  `MAIN_PR_BASELINE` to its base sha, and on `main` an empty baseline is a refusal. On any branch other than `main` it
+  passes with `verified=false`, and push, deploy and the note never run (they are `main` only, and each needs
+  `verified == 'true'`; deploy needs it on `collect = false` runs too). Read-only token, no secret;
   it runs no file from the repository. A refusal opens one issue **"Daily update: main history check failed"**
   (job `gate-failed`) and stops the build, deploy and note: "When the gate fails" below.
 - `update` job, step "Plan the morning note (dry run, no network)": `python -m sender plan --rehearse` every day,
@@ -26,7 +28,8 @@ and 5).
   3. the repository variable `MORNING_NOTE_SEND` is exactly `true`;
   4. the `update` and `deploy` jobs both succeeded (so it never runs while the deploy is locked, and an email never
      links a page that is not live);
-  5. the `gate` job verified `main`'s history (`verified` is `true`: never while `MAIN_PR_BASELINE` is empty).
+  5. the `gate` job verified `main`'s history (`verified` is `true`; on `main` an empty `MAIN_PR_BASELINE` is a gate
+     refusal, so the note never runs then either).
   Inside it: mask the canary ids, check out the gate's commit (no token kept), stop if its `sender/`,
   `config/site.yml` or `.github/` differ from `main` (a re-run of an older run), Python with no pip step, stage `sender/*.py` and
   `config/site.yml` from the commit's git objects into a new folder outside the checkout (its sha256 digest is
@@ -81,7 +84,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    - **The ruleset is accident prevention plus an audit trail**, not a lock: it stops every direct push and force
      push (its one bypass is for pull requests only), and it makes every change to `main` show up as a pull
      request. The `gate` job adds a check
-     on top, before anything is built, deployed or sent (step "Check every change outside data/ reached main by a reviewed pull request a person merged"): **every** commit on `main`'s first-parent
+     on top, before anything is built, deployed or sent (step "Check main's history and the records-data head"): **every** commit on `main`'s first-parent
      line after the baseline `MAIN_PR_BASELINE` that touches anything outside `data/` must be the merge of exactly
      one pull request into `main`, **merged by a person**, with **a person's review of the PR's head commit** (the owner's
      or a collaborator's) posted before the merge. So a later pull request never hides an earlier direct push, and a code PR merged by a bot (a
@@ -259,7 +262,7 @@ and may be labelled differently. Record what each screen really says in `docs/pl
         request could not be read again after cleanup, `main` moved during the probe while
         the probe pull requests stayed unmerged (another merge in the window), or a read failed: the Actions setting
         is left on. Send the output; the team fixes the cause and you run it again.
-      `MORNING_NOTE_SEND` waits on the V1' PASS (section 4 item 6a).
+      `MORNING_NOTE_SEND` waits on the V1'' PASS (section 4 item 6a).
    5. **`github-pages` deploys from `main` only (T4.10.5; Brian, one click; the live site keeps deploying).** The
       site deploys today from the `deploy` job on `main` (Pages source: GitHub Actions, since go-live 2026-11-13);
       the old `gh-pages` branch preview is no longer served, but the `github-pages` environment may still allow
@@ -347,17 +350,25 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.1) prints "OK: main is protected" (R1':
    code-owner review, squash only, admin bypass for pull requests only, approvals 0, auto-merge off), and the last scheduled run's `push` job merged its `data/` pull request
    into `main` under the ruleset. Link the check output and that PR in the go-live PR.
-6a. **V1' probe passed (link)** (step 2.0.4, T4.11.7; the 2026-11-18 V1 probe was FAIL): the PASS output, the
-   run link and the U2 and U3 positive controls are in `docs/platform-facts.md` "Main protection". Without the V1'
-   PASS, `MAIN_PR_BASELINE` and `MORNING_NOTE_SEND` stay unset.
+6a. **V1'' probe passed (link)** (ADR 0011 section 4; step 2.0.4, T4.11.7; the 2026-11-18 V1 probe was FAIL): the PASS output, the
+   run link and the U2 and U3 positive controls are in `docs/platform-facts.md` "Main protection". Without the
+   V1'' PASS (ADR 0011), `MORNING_NOTE_SEND` stays unset. The probe no longer gates `MAIN_PR_BASELINE`: the cutover PR
+   sets it (item 7; ADR 0011 Amendment (c) item 6).
    And `github-pages` deploys from `main` only (step 2.0.5).
-7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only).** Set by the team the day
-   the V1' probe passes (not at note go-live), after 2.0.5 and the gate's pull request merged; at note go-live this
-   item is only the check in 7.3. It is in `.github/workflows/daily-update.yml`, the `env:` of the `gate` job's step
-   "Check every change outside data/ reached main by a reviewed pull request a person merged", and is empty until then (phase 0: the gate checks nothing and passes with `verified=false`, so the note
-   job never runs). Set to a commit that is not a 40-hex sha on `main`'s first-parent line, the gate fails every
-   run. The gate checks every change outside `data/` after the baseline; the baseline stands for "a person checked
-   everything up to here".
+7. **The baseline `MAIN_PR_BASELINE` (T4.10.8; main-protect/pr-check-last-commit-only; ADR 0011 Amendment (c)).**
+   Set by the cutover PR of ADR 0011 (not by a separate PR, and not gated by the V1'' probe, which gates only
+   `MORNING_NOTE_SEND`). Its value is the `main` sha the `records-data` seed is cut from, which is also the PR's base.
+   `scripts/cutover-data-off-main.ps1 -Plan` prints it as `BASELINE <sha>`, together with the 4.7.1 listing below,
+   which is pasted into the cutover PR. Brian's C1 "yes" covers it (hard stop 1). At note go-live this item is only
+   the check in 7.3. It is in `.github/workflows/daily-update.yml`, the `env:` of the `gate` job's step "Check main's
+   history and the records-data head". After the cutover, an empty value
+   on `main` is a gate refusal, not phase 0. Before the cutover it is empty: the old workflow's phase 0 checks
+   nothing and passes with `verified=false`, so the note job never runs. Set to a commit that is not a 40-hex sha on
+   `main`'s first-parent line, the gate fails every run. The gate checks every commit after the baseline; the
+   baseline stands for "a person checked everything up to here". The cutover script refuses unless `origin/main`
+   still equals the pin and the 4.7.1 listing passes (step 1), and unless the squash's one parent is the pin (step
+   5). The window start is pinned in the script as `WINDOW_START` (4c5cd910, PR #31: `main` when ruleset 27502319 was
+   created; reasoning in `docs/tasks/data-off-main.md` D3).
    1. `git fetch origin main`, then
       `git log --first-parent --format='%h %an %s' origin/main -- . ':(exclude)data/'` and read it: each
       change outside `data/` was meant (the earlier ones were merged without pull requests). `%an` is the commit's
@@ -368,7 +379,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       `R2 was off; main was <sha>`). If 2.0.1 needed more than one run, the window starts at `main`'s sha before
       the **first** run (that run's `Main before the ruleset: <sha>`), not at a later run's
       (main-protect/window-start-gap). If 2.0.1's first run said `R2 already on`, the start is unknown: stop, the
-      architect picks the window. Paste the whole output into the baseline PR:
+      architect picks the window. Paste the whole output into the baseline PR (the cutover PR; D3 `-Plan` prints it):
       ```bash
       bash -s "<R2-on sha>" <<'WINDOW'
       set -euo pipefail
@@ -409,15 +420,15 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       **Otherwise it stops on any `Bot`** (a workflow merged code: treat it as an incident, `MAIN_PR_BASELINE` stays empty), on `none` (no
       merged PR, which R1 should have made impossible), on any failed read, and on N = 0: a person reads why before
       anything else. Then `git rev-parse origin/main` prints the baseline sha.
-   2. A PR that changes only `MAIN_PR_BASELINE: ""` to `MAIN_PR_BASELINE: "<that sha>"` (and makes
-      `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha), reviewed, merged with
-      `scripts/merge-reviewed.ps1` (2.0.3). That PR comes after the baseline, so the gate checks it too. The same
-      PR makes an empty baseline on `main` a refusal instead of phase 0 (main-protect L-1: otherwise a later PR
-      resetting it to `""` reopens phase 0 silently); the exact change and tests are in `docs/tasks/morning-note.md`
-      T4.10.8.
-   3. Check (the day it merges, and again before setting `MORNING_NOTE_SEND`): the next Daily update run's `gate`
-      job logs "Every change outside data/ on main after <baseline> was merged by a person, reviewed at its head:
-      <n> commit(s)." and `update`, `push` and `deploy` are green. Link that run.
+   2. The cutover PR (ADR 0011) carries `MAIN_PR_BASELINE: "<that sha>"` (and makes
+      `test_the_committed_baseline_is_unset_or_a_sha` accept only a sha). It is reviewed and merged by D3 step 5
+      with `scripts/merge-reviewed.ps1` (2.0.3). Its squash is the first commit after the baseline, so the gate
+      checks it too. The same PR makes an empty baseline on `main` a refusal instead of phase 0 (main-protect L-1:
+      otherwise a later PR resetting it to `""` would reopen phase 0 silently). The exact change and tests are in
+      `docs/tasks/data-off-main.md` B2 and D3.
+   3. Check (D3 steps 7 and 8 check it on the cutover day; check again before setting `MORNING_NOTE_SEND`): a Daily
+      update run's `gate` job logs "Every commit on main after <baseline> was merged by a person, reviewed at its
+      head: <n> commit(s)." (n = 1 on the cutover day), and `update`, `push` and `deploy` are green. Link that run.
    Never move the baseline later except by a reviewed PR, after a person has checked every commit it skips.
 
 ## 5. Go-live: every confirmed subscriber (Brian; hard stop 1)
@@ -455,7 +466,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    5. To stop approving later: same page, untick **Required reviewers** > **Save protection rules**.
    Check: `gh api repos/gn0sh/clarksville-records/environments/morning-note --jq '.protection_rules[].type'`
    prints `required_reviewers` (and `branch_policy`).
-1. **Brian**, only after section 4 is done (6a V1' PASS and 7 checked last), and after he approved the
+1. **Brian**, only after section 4 is done (6a V1'' PASS and 7 checked last), and after he approved the
    sample note: https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository
    variable** > name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
 2. The next scheduled run (09:07 UTC) schedules the day's emails for 7:00 (site time zone) to every confirmed
@@ -496,6 +507,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
   delete the scheduled emails: in Buttondown, Emails > Scheduled > open today's emails (their metadata `note_date`
   is today) > **Delete**. Deleting the variable first means no later run can recreate them.
 - **In code:** a PR setting `morning_note.sender.enabled: false` makes every `--live` a dry run.
+- **Rolling back ADR 0011's cutover** (`scripts/cutover-data-off-main.ps1 -Rollback`): run the rollback from the
+  cutover's reviewed head or a clean `origin/main` (`git status` shows nothing). R1' is read from `main`, but the
+  script itself and the scripts it calls come from the checkout (trust roots residual X1).
 - **Key leak or rotation:** Brian deletes the key in Buttondown (Settings > API), then replaces the
   `BUTTONDOWN_API_KEY` environment secret. Never rotate between a day's first run and 7:00 (the scheduled stamp
   emails would match nobody).
@@ -510,35 +524,60 @@ or "Check the plan" means the plan from the update job was missing or did not pa
 "Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
 re-run, or a change to `sender/`, `config/site.yml` or the workflow file merged during the run (see "Rules for
 manual runs and re-runs"): nothing was sent.
-A note job skipped with the gate green but `verified` false means phase 0 (`MAIN_PR_BASELINE` empty) or a run not
-on `main`: nothing to fix until section 4 item 7.
+A note job skipped with the gate green but `verified` false means a run not on `main` (on `main` an empty
+`MAIN_PR_BASELINE` is a gate refusal, ADR 0011 Amendment (c)): nothing to fix.
 
 ## When the gate fails
-The issue "Daily update: main history check failed" opens (or gets a comment). Nothing was built, deployed or sent;
-the live site keeps its last deploy and the data waits for the next run. Open the run's `gate` job log; it says one of:
-- `MAIN_PR_BASELINE` is not a sha, not on `main`'s first-parent line, or no commit after it changes anything outside
-  `data/`: the baseline PR was wrong. Fix it by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
+The issue "Daily update: main history check failed" opens (or gets a comment). Nothing was built, pushed, deployed or
+sent; the live site keeps its last deploy and the data waits for the next run. Open the run's `gate` job log; it says
+one of:
+- "MAIN_PR_BASELINE is empty on main (ADR 0011 Amendment (c): there is no phase 0 on main; ...": a PR emptied the
+  baseline, so the pipeline is frozen on purpose. Set it back to a reviewed `main` sha (runbook 4.7.1 window listing)
+  by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
+- `MAIN_PR_BASELINE` is not a sha, not on `main`'s first-parent line, or no commit follows it: the baseline PR was
+  wrong. Fix it by a PR merged with `scripts/merge-reviewed.ps1` (2.0.3).
 - A commit (its sha is in the log) is not the merge of exactly one PR into `main`; was merged by a bot or with no
   `merged_by`; is a merge whose merged-in side is not the PR's head; or has no review of the PR's head by the owner
-  or a collaborator before the merge. Read that commit first (`git show <sha>`, and its PR page): who merged it, how, and what it
+  or a collaborator before the merge. Since ADR 0011 this holds for every commit, `data/` included. Read that commit
+  first (`git show <sha>`, and its PR page): who merged it, how, and what it
   changed. A later pull request does **not** clear it: the gate refuses on every run until the baseline moves past
   it. If it was meant (for example a PR merged with the Merge button instead of 2.0.3): a person reads its whole
   diff, then a PR merged with `scripts/merge-reviewed.ps1` sets `MAIN_PR_BASELINE` to `main`'s commit at that time
   (as in section 4 item 7). If it was **not** meant (a workflow or someone merged code nobody reviewed): treat it
   as an incident; delete the variable `MORNING_NOTE_SEND`, and do not move the baseline until it is understood.
-- "data/ must hold only regular files with plain names ending .json or .yml, or named changes.jsonl (I-data): <m>
-  of <n> entries fit." (it checks on every run on `main`, phase 0 included), after up to 20 lines
-  "not allowed in data/: <entry>" (mode, object and name; any byte outside plain ASCII shown as `?`). A symlink,
-  submodule, executable file, a name with a space, a leading dot or a non-ASCII byte, or any other name under
-  `data/` is never something the collector writes. Read the commit that added it (`git log --first-parent -- data/`
-  on `main`, then `git show <sha> --stat`) and treat it as an incident if nobody meant it; otherwise remove it by a
-  PR merged with `scripts/merge-reviewed.ps1`.
-- "data/ is not a folder in this commit (missing, a file or a link), or could not be read (I-data)." `data/` was
-  deleted, emptied or replaced by a file or link (a data PR merged from an empty refresh, or a hand edit). Restore it
-  from the last commit whose `data/` was good, by a PR merged with `scripts/merge-reviewed.ps1`:
-  `git fetch origin main`, `git log --first-parent --format='%h %s' origin/main -- data` and pick the newest commit
-  before the bad one (`<good>`); then on a new branch from `origin/main`: `git rm -r -q --cached data; rm -rf data;
-  git checkout <good> -- data`, commit "Restore data/ from <good>", open the PR, review it, merge it with 2.0.3. The
-  next run collects again on top of it. If the same thing repeats, treat it as an incident.
-- "could not read data/ in this commit's tree.", "could not check data/'s names.", "could not read main's full
+- "this commit tracks data/ (I-main''): collector output lives on records-data only, curated inputs in config/."
+  A PR put `data/` back on `main`. Remove it by a PR merged with `scripts/merge-reviewed.ps1`; curated inputs go in
+  `config/`.
+- "could not read records-data (missing, or not readable)." or "could not read records-data's head commit.": the
+  branch `records-data` is gone or GitHub could not be read. Re-run the failed jobs once. If the branch is missing,
+  treat it as an incident (ruleset R-D forbids deleting it) and tell the team; do not recreate it by hand.
+- "records-data does not meet I-data'' at <sha>: ..." (the head commit), after up to 20 lines
+  "not allowed in data/: <entry>", "curated, belongs in config/: <entry>" or "person-made (maps/ or transcripts/),
+  belongs in config/: <entry>" (mode, object and name; any byte outside
+  plain ASCII shown as `?`). The reason is one of: "data/ must be the only entry of the tree, and a folder
+  (I-data''): ..."; "data/ must hold only regular files with plain names ending .json, or named changes.jsonl, none
+  of the curated files and nothing in a maps/ or transcripts/ folder (I-data''): <m> of <n> entries fit, <c> curated,
+  <p> person-made."; "could not read the tree of ...",
+  "could not read data/ in the tree of ..." or "could not check data/'s names.". A symlink, submodule, executable,
+  `.yml` file, a name with a space, a leading dot or a non-ASCII byte, a curated file, a `maps/` or `transcripts/`
+  folder (person-made inputs live in `config/`), or anything outside `data/` is
+  never something the push job writes (it runs the same check before it pushes). Read the commits that changed it
+  (`git log --format='%h %an %s' origin/records-data`) and treat it as an incident if nobody meant it. Then restore
+  the last attested tree whole on `records-data` (below).
+- "records-data is not attested by daily-update.yml on main, and is not the seed (I-prov): head <sha>, ..." The
+  head's tree listing has no attestation by `daily-update.yml` at `refs/heads/main` (predicate SLSA provenance v1,
+  GitHub-hosted runner), and it is not the parentless seed with the pinned digest. The push job attests before it
+  pushes, so its own commits are always attested: this is a hand edit, or a write-token workflow on another branch
+  pushed it (treat that as an incident). To recover, restore the last attested tree whole on `records-data`: find the
+  newest commit whose tree is attested (`git fetch origin records-data`, then for each candidate `<good>`:
+  `git ls-tree -r -z <good> -- data > listing && gh attestation verify listing --repo gn0sh/clarksville-records
+  --cert-identity https://github.com/gn0sh/clarksville-records/.github/workflows/daily-update.yml@refs/heads/main
+  --source-ref refs/heads/main --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners
+  --limit 1000`); then on
+  a checkout of `origin/records-data`: `git rm -r -q data; git checkout <good> -- data`, commit "Restore records-data
+  to <good>", and `git push origin HEAD:records-data` (a fast-forward; never force). Then run the workflow with
+  `collect = false`. The seed itself is never attested: once records-data has moved past it, its tree is refused.
+- "RECORDS_DATA_SEED_DIGEST is not a 64-hex sha256.": the cutover PR pinned a bad value. Fix it by a PR merged with
+  `scripts/merge-reviewed.ps1`.
+- "could not read this commit's tree.", "could not read records-data's listing.", "could not read main's full
   history." or a GitHub API error: re-run the failed jobs once; if it repeats, tell the team.

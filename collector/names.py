@@ -1,7 +1,8 @@
 """Name normaliser and resolver (architecture "Names and merge rules"; spec G2).
 
-data/names.yml is the roster: one entry per official with id, name, surname, given, title, sources and aliases
-(each alias with its reason and an example source page). The rules below apply identically to every official:
+config/names.yml is the roster: one entry per official with id, name, surname, given, title, sources and aliases
+(each alias with its reason and an example source page). It is curated, reviewed code (ADR 0011), never collector
+output, so it lives in config/ and not in data/. The rules below apply identically to every official:
 
 1. Normalise: NFKC, trim, drop leading titles (Commissioner, Comm., Chairman, Chairwoman, Mayor, Mr., Mrs., Ms.,
    Dr.), drop "." and ",", collapse spaces, casefold.
@@ -26,7 +27,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-NAMES = ROOT / "data" / "names.yml"
+NAMES = ROOT / "config" / "names.yml"
 TITLES = ("commissioner", "comm", "chairman", "chairwoman", "mayor", "mr", "mrs", "ms", "dr")
 
 

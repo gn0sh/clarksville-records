@@ -18,3 +18,4 @@ budgets, contracts) and shows them searchable, with every fact linked to its sou
 Strictly neutral and factual: every official shown the same way, no scores, rankings or commentary, no campaign link.
 Polite collection only: obey each site's robots.txt and crawl delay, public pages only, never work around a block.
 Plan: Claude Doc https://claude.ai/artifact/FGAT8SbvzN8zt6qx4imDTn. Facts: `docs/platform-facts.md`. Status: `docs/status.md`.
+Data (ADR 0011): from the cutover on, collector output lives on branch `records-data`, not `main`; run `scripts/fetch-data` before tests or a build (a no-op until then). Preflight: `docs/ops/preflight.md`.

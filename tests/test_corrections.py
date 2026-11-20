@@ -31,7 +31,8 @@ def full(tmp_path_factory):
     city, wards = pinned_subset()           # real-data-tests/: the pinned city data, never today's collection
     (d / "facts.json").write_text(json.dumps(city), encoding="utf-8")
     (d / "wards.json").write_text(json.dumps(wards), encoding="utf-8")
-    cfg = {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json"}
+    cfg = {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json",
+           "transcripts_path": d / "transcripts"}
     out = d / "build" / "site"
     sitegen_build.build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, finance_path=FIN,
                         councils=[cfg])

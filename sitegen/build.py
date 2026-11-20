@@ -548,7 +548,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     cixs = load_councils(councils, fixture)
     for c in cixs:
         try:
-            c.tx = transcripts_mod.Transcripts(c, transcripts_mod.load(c.cfg["facts_path"], c.facts), pages=transcripts)
+            # config/localities/<locality>/transcripts/ only (I-in): a copy in data/ is never read
+            loaded = transcripts_mod.load(c.cfg["transcripts_path"], c.facts)
+            c.tx = transcripts_mod.Transcripts(c, loaded, pages=transcripts)
         except transcripts_mod.TranscriptLoadError as exc:
             raise BuildError(str(exc)) from exc
     try:
