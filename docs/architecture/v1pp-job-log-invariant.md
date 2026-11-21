@@ -56,6 +56,15 @@ nothing. And the script starts writing before it has shown that it can read its 
    `x509` / `certificate` means TLS interception; `HTTP 4xx` from a storage host means a gh redirect problem (upgrade
    gh); `HTTP 404/410` from api.github.com means the wrong job or an expired log; `exit 0, no log lines` means the
    body was empty or not a log.
+6. **gh's escape-sequence check** (`v1pp-probe/log-read-escape-flag`; root cause of try 3, found 2026-11-21 on
+   Brian's PC: gh 2.104.0 exits 1 with `the response contains terminal escape sequences; pass
+   --allow-escape-sequences to output it anyway`, because job logs carry ANSI colours; gh 2.89.0 has no such flag
+   and rejects it as unknown). Once, before the self-check, the script reads `gh api --help` (local, no network); if
+   it lists `--allow-escape-sequences`, every job-log read (self-check included) passes it, and no other call does.
+   It logs `gh <version>: log reads pass ...` or `... do not pass ...`, plus `gh --version`'s first line, cleaned.
+   **Why the flag is safe:** gh's check guards a terminal from raw escapes; here no log text is ever printed raw.
+   `CleanLog`/`clean_log` strip ANSI sequences and the C0, C1 and bidi controls (item 4) from the log text before
+   any use, and only the cleaned result lines (and the self-check's line count) reach the screen or the results file.
 
 ## 3. Every consumer
 
@@ -236,6 +245,7 @@ PC and adds a new code path to a gate script, while a full try 4 also re-proves 
 - `v1pp-probe/log-read-selfcheck`: I-log 3.
 - `v1pp-probe/log-read-diag`: I-log 4.
 - `v1pp-probe/unread-not-absent`: I-log 2.
+- `v1pp-probe/log-read-escape-flag`: I-log 6.
 
 All are in family `v1pp-probe`. The next hit in this family, after this plan has been carried out, goes to Brian
 under the loop rule.

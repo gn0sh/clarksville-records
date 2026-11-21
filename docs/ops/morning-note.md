@@ -395,7 +395,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       It first runs `scripts\protect-main.ps1 -Check` (no changes) and stops, changing nothing, unless that prints
       "OK: main is protected". First it reads one finished job's log (the newest finished `daily-update` run); if it
       can't, it stops with "REFUSED: could not read the log ... Nothing was changed": nothing was changed, so just
-      send the file it names (it says why the read failed; `docs/architecture/v1pp-job-log-invariant.md`). Then a
+      send the file it names (it says why the read failed; `docs/architecture/v1pp-job-log-invariant.md`). On a gh
+      that knows `--allow-escape-sequences` (2.104 does; try 3 failed for want of it), the log reads pass that flag
+      by themselves, and the file says so near the top. Then a
       browser may open once to add the `workflow` scope to your GitHub CLI sign-in: approve it. It is given back at
       the very end (a browser may open again).
    4. Leave it running, about 5 minutes (at most about 20). It makes throwaway branches (`probe/v1pp-...`), three

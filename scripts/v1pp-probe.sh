@@ -428,7 +428,7 @@ job_log() {
   local i t text="" got="" rc errf why=""
   errf=$(mktemp) || { printf 'could not make a temporary file'; return 1; }
   for i in 1 2 3 4 5 6; do
-    t=$(gh api "repos/$repo/actions/jobs/$1/logs" 2>"$errf") && rc=0 || rc=$?
+    t=$(gh api "repos/$repo/actions/jobs/$1/logs" ${log_flag:+"$log_flag"} 2>"$errf") && rc=0 || rc=$?
     if [ "$rc" = 0 ] && grep -qE "$log_line" <<< "$t"; then
       got=yes; text=$(printf '%s\n' "$t" | clean_log)
       grep -qE "$2" <<< "$text" && break
@@ -443,8 +443,24 @@ job_log() {
 }
 
 log "V1'' probe $(date -u +%FT%TZ). main before: $main_before. records-data before: $rd_before."
-gh_ver=$(gh --version 2>/dev/null | head -n 1) || true
+gh_ver=$(gh --version 2>/dev/null) || true
+gh_ver=$(printf '%s\n' "${gh_ver%%$'\n'*}" | clean_log); gh_ver=${gh_ver:0:200}
 log "gh: ${gh_ver:-unread}."
+# v1pp-probe/log-read-escape-flag (I-log 6): gh 2.104 refuses to print a body holding terminal escape sequences (a job
+# log's ANSI colours) unless --allow-escape-sequences is passed; older gh (2.89) has no such flag and rejects it. So
+# ask this gh's own help, once and locally (no network), and pass the flag on the job-log reads only. Safe: clean_log
+# strips ANSI and control characters from the log text before any use, and no log text is ever printed raw.
+log_flag=""
+gh_short=gh
+if [[ "$gh_ver" =~ ^gh\ version\ ([0-9][0-9.]*[0-9]) ]]; then gh_short="gh ${BASH_REMATCH[1]}"; fi
+gh_help=$(gh api --help 2>/dev/null) || true   # read whole first: grep -q in a pipe could SIGPIPE gh (pipefail)
+if [[ "$gh_help" == *--allow-escape-sequences* ]]; then
+  log_flag=--allow-escape-sequences
+  log "$gh_short: log reads pass --allow-escape-sequences (log text is cleaned before any use)."
+else
+  log "$gh_short: log reads do not pass --allow-escape-sequences (this gh does not know it)."
+fi
+gh_help=""
 # v1pp-probe/log-read-selfcheck (I-log 3): every answer is read from job logs, so before the first write (the leftover
 # deletes below are writes) show that this machine can read one: the newest finished daily-update job's, through
 # job_log. Reads only; its text is never shown. Refused here, nothing was changed (started is still empty, and the

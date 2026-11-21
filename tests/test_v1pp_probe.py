@@ -693,7 +693,7 @@ def test_an_unreadable_job_log_refuses_before_any_write(tmp_path, twin):
                     " no such host); every answer is read from job logs, so the probe stops here "
                     "(v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team."), line
     assert line in run.results and "gh exit 1:" in run.results and STORAGE in run.results
-    assert "gh: gh version 2.89.0 (2026-11-01)." in run.results          # the header: gh, and the .ps1's PowerShell
+    assert "gh: gh version 2.104.0 (2026-11-10)." in run.results         # the header: gh, and the .ps1's PowerShell
     assert (". PowerShell " in run.results) == (twin == "ps1")
     assert not run.writes()
     assert [c["path"] for c in run.calls if c["path"].startswith("actions/jobs/")] == ["actions/jobs/701/logs"] * 6
@@ -739,6 +739,80 @@ def test_the_log_read_check_comes_before_the_first_write_and_shows_no_log_text(t
     assert check < run.calls.index(run.writes()[0]) and run.writes()[0]["method"] == "DELETE"
     assert "Log read check: job 701 of daily-update run 700 read (1 lines)." in run.results
     assert_never_shown(run)
+
+
+# ------------------------------------------------------------------ v1pp-probe/log-read-escape-flag (I-log 6)
+ESC_FLAG = "--allow-escape-sequences"
+
+
+def _stub(tmp, gh, *argv):
+    """The stub gh on its own, for what it models: one job-log read or one help call."""
+    (tmp / "cfg.json").write_text(json.dumps({"gh": gh}))
+    (tmp / "state.json").write_text(json.dumps({"refs": {}}))
+    e = {**os.environ, "GH_CFG": str(tmp / "cfg.json"), "GH_STATE": str(tmp / "state.json"),
+         "GH_CALLS": str(tmp / "calls")}
+    return subprocess.run(["python3", str(STUB), *argv], env=e, capture_output=True, text=True, timeout=60)
+
+
+def test_the_stub_models_both_gh_builds(tmp_path):
+    """gh 2.104 (Brian's PC) refuses a log body with escape sequences unless the flag is passed; gh 2.89 (the cloud)
+    has no such flag in its help and rejects it as unknown."""
+    logs = "api repos/gn0sh/clarksville-records/actions/jobs/701/logs".split()
+    r = _stub(tmp_path, "new", *logs)
+    assert r.returncode == 1 and not r.stdout, r
+    assert r.stderr == ("the response contains terminal escape sequences; pass --allow-escape-sequences to output it "
+                        "anyway\n")
+    r = _stub(tmp_path, "new", *logs, ESC_FLAG)
+    assert r.returncode == 0 and "\x1b[" in r.stdout and "SELFCHECK-BODY" in r.stdout, r
+    assert ESC_FLAG in _stub(tmp_path, "new", "api", "--help").stdout
+    r = _stub(tmp_path, "old", *logs)
+    assert r.returncode == 0 and "\x1b[" in r.stdout, r            # 2.89 prints the escapes as they come
+    r = _stub(tmp_path, "old", *logs, ESC_FLAG)
+    assert r.returncode == 1 and r.stderr.startswith("unknown flag: --allow-escape-sequences"), r
+    h = _stub(tmp_path, "old", "api", "--help")
+    assert h.returncode == 0 and "escape" not in h.stdout and "FLAGS" in h.stdout
+
+
+def assert_no_escapes(run):
+    for where, text in (("out", run.out), ("stderr", run.r.stderr), ("results", run.results)):
+        assert "\x1b" not in text and "[36;1m" not in text and "[0m" not in text, where
+
+
+@pytest.mark.parametrize("gh, flag, line", [
+    ("new", True, "gh 2.104.0: log reads pass --allow-escape-sequences (log text is cleaned before any use)."),
+    ("old", False, "gh 2.89.0: log reads do not pass --allow-escape-sequences (this gh does not know it)."),
+], ids=["gh-2.104", "gh-2.89"])
+def test_log_reads_pass_the_escape_flag_only_when_this_gh_knows_it(tmp_path, twin, gh, flag, line):
+    """Every log line has ANSI colours (the stub's default). gh's own help is asked once, before the self-check; the
+    flag goes on every job-log read (self-check, runner, pages-api) and on nothing else; the reads work either way,
+    the verdict is PASS, and no escape sequence reaches the output or the results file."""
+    run = probe(tmp_path, twin, {"gh": gh})
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    assert run.out.rstrip().splitlines()[-1].startswith("PASS (V1''): every step above was refused as expected")
+    assert line in run.results and line in run.out
+    helps = [i for i, c in enumerate(run.calls) if c["method"] == "api --help"]
+    logs = [i for i, c in enumerate(run.calls) if re.fullmatch(r"actions/jobs/[0-9]+/logs", c["path"])]
+    assert len(helps) == 1 and logs and helps[0] < logs[0], (helps, logs)
+    assert {run.calls[i]["path"] for i in logs} == {"actions/jobs/%s/logs" % j for j in (701, 600, 605, 606)}
+    for i in logs:
+        assert (ESC_FLAG in run.calls[i]["argv"]) == flag, run.calls[i]
+        assert run.calls[i]["argv"].count(ESC_FLAG) == int(flag)
+    assert not [c for i, c in enumerate(run.calls) if i not in logs and ESC_FLAG in c["argv"]]
+    assert "Log read check: job 701 of daily-update run 700 read (1 lines)." in run.results
+    assert_no_escapes(run)
+    assert_never_shown(run)
+
+
+def test_the_escape_flag_is_needed_on_gh_2_104(tmp_path, twin):
+    """Without the flag (a help that doesn't list it, but a gh that still checks), the self-check refuses with gh's
+    own line, sanitized: what try 3 would have shown had its stderr been kept."""
+    run = probe(tmp_path, twin, {"gh": "new", "help_without_flag": True})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("(last: gh exit 1: the response contains terminal escape sequences; pass --allow-escape-sequences to "
+            "output it anyway)") in run.results
+    assert not run.writes()
+    assert not [c for c in run.calls if ESC_FLAG in c["argv"]]
+    assert_no_escapes(run)
 
 
 def test_an_unread_runner_log_is_not_judged_and_says_why(tmp_path, twin):
@@ -1064,7 +1138,12 @@ def test_the_twins_agree():
                      "after 6 reads (last: ", "no error text, ", "Log read check: job ",
                      # the try-4 review follow-ups
                      "log-read-diag-query", "log-read-diag-controls", "gh-debug-legacy", "selfcheck-before-scope",
-                     "DEBUG", "?..."):
+                     "DEBUG", "?...",
+                     # v1pp-probe/log-read-escape-flag (I-log 6)
+                     "log-read-escape-flag", "gh api --help 2>", "--allow-escape-sequences",
+                     ": log reads pass --allow-escape-sequences (log text is cleaned before any use).",
+                     ": log reads do not pass --allow-escape-sequences (this gh does not know it).",
+                     "([0-9][0-9.]*[0-9])"):
             assert part in s, part
         assert "--log" not in s.replace("gh run view --log gave", "")   # v1pp-probe/run-log-missing
         assert "GH013|rule violation" not in s   # v1pp-probe/tag-git-local-hooks: GitHub's remote line only
@@ -1110,7 +1189,22 @@ def test_the_twins_agree():
              'Quiet -X DELETE "repos/$repo/git/refs/$r" }   # leftovers of an earlier try')):
         assert text.index(clear) < text.index(check) < text.index(deletes)
     # PS 5.1: the job-log read keeps stderr apart by type, never by 2>$null (which lost try 3's reason)
-    assert 'gh api "repos/$repo/actions/jobs/$jid/logs" 2>&1)' in ps1 and "[Management.Automation.ErrorRecord]" in ps1
+    assert 'gh api "repos/$repo/actions/jobs/$jid/logs" @logFlag 2>&1)' in ps1
+    assert "[Management.Automation.ErrorRecord]" in ps1
+    # v1pp-probe/log-read-escape-flag: the flag sits only on the one job-log read of each twin, and its one variable
+    # is set from gh's help, once, before the self-check reads anything
+    for text, read, var, check in (
+            (sh, 'gh api "repos/$repo/actions/jobs/$1/logs" ${log_flag:+"$log_flag"} 2>"$errf"', "log_flag",
+             'job_log "$sc_jid" "$log_line"'),
+            (ps1, 'gh api "repos/$repo/actions/jobs/$jid/logs" @logFlag 2>&1', "logFlag", "JobLog $scJid $logLine")):
+        code = [ln.strip() for ln in text.splitlines() if not ln.lstrip().startswith("#")]
+        # the flag's text: the help check, the one assignment, the two log lines; never on a gh call itself
+        flagged = [ln for ln in code if "--allow-escape-sequences" in ln]
+        assert len(flagged) == 4 and not [ln for ln in flagged if re.search(r"\bgh (api|run|auth)\b", ln)], flagged
+        # the variable reaches gh on the job-log read only
+        assert [ln for ln in code if re.search(r"\bgh\b", ln) and var in ln] == [
+            next(ln for ln in code if read in ln)], var
+        assert text.index("gh api --help") < text.index(check)
     assert "$ErrorActionPreference = 'Continue'" in ps1 and "$ErrorActionPreference = 'Stop'" not in ps1
     assert "scripts\\protect-main.ps1" in ps1 and "-Check -Apps $Apps" in ps1
     # Windows PowerShell 5.1: no double quote inside a --jq filter, ASCII only, no BOM

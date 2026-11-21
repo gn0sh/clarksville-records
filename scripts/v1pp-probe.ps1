@@ -492,7 +492,7 @@ function JobLog([string]$jid, [string]$want) {
     $text = $null
     $script:jobLogWhy = ''
     for ($k = 1; $k -le 6; $k++) {
-        $all = @(gh api "repos/$repo/actions/jobs/$jid/logs" 2>&1)
+        $all = @(gh api "repos/$repo/actions/jobs/$jid/logs" @logFlag 2>&1)
         $rc = $LASTEXITCODE
         $got = @($all | Where-Object { $_ -isnot [Management.Automation.ErrorRecord] })
         $err = @($all | Where-Object { $_ -is [Management.Automation.ErrorRecord] })
@@ -511,9 +511,25 @@ function JobLog([string]$jid, [string]$want) {
 }
 
 Log ("V1'' probe " + (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') + ". main before: $mainBefore. records-data before: $rdBefore.")
-$ghVer = @(gh --version 2>$null) | Select-Object -First 1
+$ghVer = [string](@(CleanLog ([string](@(gh --version 2>$null) | Select-Object -First 1))) | Select-Object -First 1)
+if ($ghVer.Length -gt 200) { $ghVer = $ghVer.Substring(0, 200) }
 if (-not $ghVer) { $ghVer = 'unread' }
 Log "gh: $ghVer. PowerShell $($PSVersionTable.PSVersion)."
+# v1pp-probe/log-read-escape-flag (I-log 6): gh 2.104 refuses to print a body holding terminal escape sequences (a job
+# log's ANSI colours) unless --allow-escape-sequences is passed; older gh (2.89) has no such flag and rejects it. So
+# ask this gh's own help, once and locally (no network), and pass the flag on the job-log reads only. Safe: CleanLog
+# strips ANSI and control characters from the log text before any use, and no log text is ever printed raw.
+$logFlag = @()
+$ghShort = 'gh'
+if ($ghVer -cmatch '^gh version ([0-9][0-9.]*[0-9])') { $ghShort = "gh $($Matches[1])" }
+$ghHelp = (@(gh api --help 2>$null | ForEach-Object { "$_" })) -join "`n"
+if ($ghHelp.Contains('--allow-escape-sequences')) {
+    $logFlag = @('--allow-escape-sequences')
+    Log "${ghShort}: log reads pass --allow-escape-sequences (log text is cleaned before any use)."
+} else {
+    Log "${ghShort}: log reads do not pass --allow-escape-sequences (this gh does not know it)."
+}
+$ghHelp = ''
 # v1pp-probe/log-read-selfcheck (I-log 3): every answer is read from job logs, so before the first write (the leftover
 # deletes below are writes) show that this machine can read one: the newest finished daily-update job's, through
 # JobLog. Reads only; its text is never shown. Refused here, nothing was changed ($script:started is still false, and

@@ -9,6 +9,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -101,7 +102,8 @@ if a[:1] == ["--git"]:   # the stub git (tests/test_v1pp_probe.py puts it on PAT
 path = next((x for x in a if x.startswith("repos/")), "")
 short = path[len(REPO):] if path.startswith(REPO) else path
 with open(os.environ["GH_CALLS"], "a") as f:
-    f.write(json.dumps({"method": method() if a[:1] == ["api"] else " ".join(a[:2]), "path": short, "argv": a,
+    how_called = "api --help" if a[:2] == ["api", "--help"] else method() if a[:1] == ["api"] else " ".join(a[:2])
+    f.write(json.dumps({"method": how_called, "path": short, "argv": a,
                         "gitenv": {k: v for k, v in os.environ.items()
                                    if k.startswith("GIT_") or k == "SSH_ASKPASS"}}) + "\n")
 
@@ -143,9 +145,27 @@ for sub, n in cfg.get("fail", {}).items():
             st["failed"][sub] = used + 1
             err(502, "Server Error")
 
+# v1pp-probe/log-read-escape-flag: which gh this is. "new" (the default, gh 2.104.0 as on Brian's PC) refuses to print
+# a body holding terminal escape sequences unless --allow-escape-sequences is passed; "old" (gh 2.89.0, as in the
+# cloud) has no such flag, and passing it is an unknown-flag error
+GH = cfg.get("gh", "new")
+VERSION = {"new": "2.104.0 (2026-11-10)", "old": "2.89.0 (2026-11-01)"}[GH]
+ESC_FLAG = "--allow-escape-sequences"
 if a[:1] == ["--version"]:   # the results file's header records line 1 (v1pp-probe/log-read-diag)
-    print("gh version 2.89.0 (2026-11-01)\nhttps://github.com/cli/cli/releases/tag/v2.89.0")
+    print("gh version %s\nhttps://github.com/cli/cli/releases/tag/v%s" % (VERSION, VERSION.split()[0]))
     sys.exit(0)
+if a[:2] == ["api", "--help"]:
+    print("Make an authenticated HTTP request to the GitHub API and print the response.\n\nUSAGE\n"
+          "  gh api <endpoint> [flags]\n\nFLAGS")
+    if GH == "new" and not cfg.get("help_without_flag"):   # the knob: a test that the flag is what makes it read
+        print("      --allow-escape-sequences   Output the response even if it contains terminal escape sequences")
+    print("      --cache duration           Cache the response, e.g. \"3600s\", \"60m\", \"1h\"\n"
+          "  -F, --field key=value          Add a typed parameter in key=value format\n"
+          "  -H, --header key:value         Add a HTTP request header in key:value format")
+    sys.exit(0)
+if GH == "old" and ESC_FLAG in a:
+    sys.stderr.write("unknown flag: %s\n\nUsage:  gh api <endpoint> [flags]\n" % ESC_FLAG)
+    sys.exit(1)
 if a[:2] == ["auth", "status"]:
     print(cfg.get("scopes", "Token scopes: 'gist', 'read:org', 'repo', 'workflow'"))
     sys.exit(0)
@@ -349,7 +369,12 @@ if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text
             "deploy to github-pages due to environment protection rules. (HTTP 400)\n" % who))
     else:
         err(404, "Not Found")
+    if cfg.get("ansi", True):   # as GitHub serves a log: ANSI colours on each line (v1pp-probe/log-read-escape-flag)
+        text = re.sub(r"(?m)^([0-9T:.-]+Z )(.*)$", "\\1\x1b[36;1m\\2\x1b[0m", text)
     save()
+    if GH == "new" and "\x1b" in text and ESC_FLAG not in a:   # gh 2.104's check, as Brian's PC showed it
+        sys.stderr.write("the response contains terminal escape sequences; pass %s to output it anyway\n" % ESC_FLAG)
+        sys.exit(1)
     if how == "bom":                         # the body starts with a UTF-8 BOM, as GitHub serves it (F3)
         sys.stdout.flush()
         sys.stdout.buffer.write(b"\xef\xbb\xbf" + text.encode("utf-8"))
