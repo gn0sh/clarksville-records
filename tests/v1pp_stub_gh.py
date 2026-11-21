@@ -84,7 +84,9 @@ if a[:1] == ["--git"]:   # the stub git (tests/test_v1pp_probe.py puts it on PAT
 path = next((x for x in a if x.startswith("repos/")), "")
 short = path[len(REPO):] if path.startswith(REPO) else path
 with open(os.environ["GH_CALLS"], "a") as f:
-    f.write(json.dumps({"method": method() if a[:1] == ["api"] else " ".join(a[:2]), "path": short, "argv": a}) + "\n")
+    f.write(json.dumps({"method": method() if a[:1] == ["api"] else " ".join(a[:2]), "path": short, "argv": a,
+                        "gitenv": {k: v for k, v in os.environ.items()
+                                   if k.startswith("GIT_") or k == "SSH_ASKPASS"}}) + "\n")
 
 
 def jq_out(body):

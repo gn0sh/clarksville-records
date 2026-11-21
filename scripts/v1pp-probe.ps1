@@ -242,7 +242,11 @@ function TagGit {
     $names = @(@(Get-ChildItem Env: | Where-Object { $_.Name -like 'GIT_TRACE*' } | ForEach-Object { $_.Name }) +
         @('GIT_TRACE_REDACT', 'GIT_CURL_VERBOSE', 'GIT_ASKPASS', 'SSH_ASKPASS', 'GIT_TERMINAL_PROMPT', 'GIT_CONFIG_GLOBAL') | Where-Object { $_ } | Select-Object -Unique)
     $saved = @{}
-    foreach ($n in $names) { $saved[$n] = [Environment]::GetEnvironmentVariable($n); [Environment]::SetEnvironmentVariable($n, $null) }
+    # removed, not emptied: on .NET Core/Unix an empty value stays set (Windows removes it); $null = was not set
+    foreach ($n in $names) {
+        $saved[$n] = [Environment]::GetEnvironmentVariable($n)
+        Remove-Item -LiteralPath ('Env:' + $n) -ErrorAction SilentlyContinue
+    }
     try {
         $null = New-Item -ItemType Directory -Path (Join-Path $script:tagDir 'no-hooks') -Force
         [IO.File]::WriteAllText((Join-Path $script:tagDir 'empty.gitconfig'), '')
@@ -266,7 +270,10 @@ function TagGit {
     } catch {
         Mark 'INCONCLUSIVE' 'tag main git' "could not run git: $(Flat ([string]$_))"
     } finally {
-        foreach ($n in $saved.Keys) { [Environment]::SetEnvironmentVariable($n, $saved[$n]) }
+        foreach ($n in $saved.Keys) {
+            if ($null -eq $saved[$n]) { Remove-Item -LiteralPath ('Env:' + $n) -ErrorAction SilentlyContinue }
+            else { Set-Item -LiteralPath ('Env:' + $n) -Value $saved[$n] }
+        }
         Remove-Item -LiteralPath $script:tagDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

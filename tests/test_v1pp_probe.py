@@ -594,7 +594,7 @@ def test_the_git_push_runs_with_a_clean_git_environment(tmp_path, twin):
     no hooks, gh the only credential helper; and the caller's environment is not changed for anything else."""
     dirty = {"GIT_TRACE": "1", "GIT_TRACE2_EVENT": str(tmp_path / "t2"), "GIT_TRACE_CURL": "1",
              "GIT_CURL_VERBOSE": "1", "GIT_ASKPASS": "/bin/false", "SSH_ASKPASS": "/bin/false",
-             "GIT_CONFIG_GLOBAL": str(tmp_path / "mine.gitconfig")}
+             "GIT_CONFIG_GLOBAL": str(tmp_path / "mine.gitconfig"), "GIT_TERMINAL_PROMPT": "1", "GIT_TRACE_REDACT": "0"}
     run = probe(tmp_path, twin, env=dirty)
     assert run.r.returncode == 0, run.out + run.r.stderr
     gits = [c for c in run.calls if c["method"].startswith("git ")]
@@ -610,6 +610,12 @@ def test_the_git_push_runs_with_a_clean_git_environment(tmp_path, twin):
         assert c["argv"][:6] == ["-c", hooks[0], "-c", "credential.helper=", "-c",
                                  "credential.helper=!gh auth git-credential"], c["argv"]
     assert "--no-verify" in gits[2]["argv"]
+    # and put back: every gh call after the git push sees the caller's settings again, nothing more
+    after = [c for c in run.calls[run.calls.index(gits[2]) + 1:] if "gitenv" in c]
+    assert after
+    for c in after:
+        e = c["gitenv"]
+        assert {k: e.get(k) for k in dirty} == dirty, (c["path"], e)
 
 
 def test_no_git_is_refused_before_any_write(tmp_path):
@@ -617,9 +623,9 @@ def test_no_git_is_refused_before_any_write(tmp_path):
     Get-Command git the same way, and sets $LASTEXITCODE to 99 before each git call)."""
     farm = tmp_path / "farm"
     farm.mkdir()
-    for d in ("/usr/local/bin", "/usr/bin", "/bin"):
-        for name in (os.listdir(d) if os.path.isdir(d) else []):
-            if not name.startswith("git") and not (farm / name).exists():
+    for d in ("/usr/local/bin", "/usr/bin", "/bin"):   # these overlap on merged-/usr systems: first one wins
+        for name in (sorted(os.listdir(d)) if os.path.isdir(d) else []):
+            if not name.startswith("git") and not os.path.lexists(farm / name):
                 (farm / name).symlink_to(os.path.join(d, name))
     run = probe(tmp_path, "sh", {"no_git": True}, env={"PATH_TAIL": str(farm)})
     assert run.r.returncode == 1 and "git not found" in run.out and "Nothing was changed." in run.out, run.out
