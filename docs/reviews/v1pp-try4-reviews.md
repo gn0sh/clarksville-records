@@ -25,3 +25,8 @@ pwsh run at 9a083b3: 44944071763 success. Final nits batch sent to backend-engin
 ## Final deltas 2d91149..6f0c512
 Security: OK, no open findings (controls-nested closed; paren-path accepted and documented).
 Code: REQUEST CHANGES on the test expectation only (ps1 U+FFFD); script changes correct. Fixed in dfbf027 (assert no live control; ps1 run green 44951329073), which makes it APPROVE by the reviewer's own condition.
+
+## Escape-sequences flag (4fbf630..aea29a0), 2026-11-21
+Root cause from a read-only check on Brian's PC (gh 2.104.0, Windows PowerShell 5.1): `gh api .../actions/jobs/<id>/logs` exits 1 with "the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway". Network, DNS and storage were fine; with the flag the read exits 0.
+Code: APPROVE, no findings. Security: OK, no findings (log text is cleaned before any use; the flag is on job-log reads only; wrong detection fails closed).
+pwsh 7 run 44956117018 at aea29a0: success.
