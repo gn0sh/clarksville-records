@@ -16,7 +16,8 @@
 #   3. pushes probe/v1pp-env (.github/workflows/v1pp-env.yml: one job per environment, github-pages and morning-note,
 #      each only an echo, and a pages-api job with no environment that calls POST pages/deployments with a made-up
 #      artifact), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments, and the
-#      Pages API on branch or environment grounds (refused for the artifact = branch check not reached = INCONCLUSIVE);
+#      Pages API on branch or environment grounds (v1pp-probe/pages-api-unreachable: GitHub's own "Unable to find
+#      artifact" 400 is NOT-REACHABLE, not counted: the fake artifact is refused before the branch check, by design);
 #   4. pushes probe/v1pp-runner (.github/workflows/v1pp-probe.yml): its GITHUB_TOKEN run tries steps 1-3 of section 4
 #      (bot pull requests, then per pull request a bot APPROVE, REST squash, merge, rebase, GraphQL squash, then a
 #      direct push to main by the REST ref update and by git push); a merge or push that goes through ends the run;
@@ -28,20 +29,25 @@
 # Waits are bounded: 3 minutes for a run to start, 12 minutes for it to finish (then it is cancelled, INCONCLUSIVE).
 # Run it again after an INCONCLUSIVE: it deletes the probe branches and tag of an earlier try first.
 # Every step prints one line: PASS (the expected refusal), FAIL (it went through), NOT-TRIED (skipped because an
-# earlier merge or push ended the run) or INCONCLUSIVE (a read failed, or a refusal for another reason). Verdict: FAIL
+# earlier merge or push ended the run), NOT-REACHABLE (only the pages-api step, on GitHub's artifact 400: nothing was
+# deployed, and the branch check behind it cannot be reached without a real artifact; not counted) or INCONCLUSIVE (a
+# read failed, or a refusal for another reason). Verdict: FAIL
 # if any line is FAIL (a probe pull request merged, a probe file on main or records-data, a push to main, a tag main,
 # a bot pull request or approval, a job inside an environment): then "Allow GitHub Actions to create and approve pull
-# requests" is turned off at once, before cleanup. Else INCONCLUSIVE if any line is not PASS. Else PASS.
+# requests" is turned off at once, before cleanup. Else INCONCLUSIVE if any line is not PASS or NOT-REACHABLE. Else PASS.
+# Decisions after try 1 (2026-11-21): docs/architecture/main-protect-invariant.md "V1'' try 1 inconclusive".
 # Exit 0 PASS, 1 INCONCLUSIVE or refused, 2 FAIL.
 # A PASS gates MORNING_NOTE_SEND only (ADR 0011 Amendment (c) item 6). A FAIL that put a commit on main makes the gate
 # refuse every later run until a person moves MAIN_PR_BASELINE past that commit.
 # Not here (section 4): item 5, an unattested push to records-data, is a gate unit test on a fixture repo; item 7 is the
 # first scheduled run after the cutover (D3 step 8).
 # Expected refusal wordings (read from GitHub's docs and the U3 control, not yet seen live for every step; any other
-# wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash "approving
-# review", merge and rebase "not allowed", "approving review" or "rule violation", direct push "rule violation", tag
-# main "rule violation", environments "not allowed to deploy to <env>", the Pages API "not allowed to deploy" or
-# "protection rule".
+# wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash and GraphQL
+# "approving review", or "Repository rule violations found" with "New changes require approval from someone other
+# than the last pusher" (require_last_push_approval in R1'', seen live in try 1), merge and rebase "not allowed",
+# "approving review" or "rule violation", direct push "rule violation", tag main "rule violation", or a 422 naming no
+# rule that GitHub's rule suite for this try records as R-T's creation rule failing (active), environments "not
+# allowed to deploy to <env>", the Pages API "not allowed to deploy" or "protection rule".
 # Writes the result to Documents\v1pp-probe-results-<time>.txt. Nothing is sent to anyone. Takes about 5 minutes.
 #
 # Run (PowerShell, in the repository folder):  powershell -NoProfile -File scripts\v1pp-probe.ps1 -Apps claude
@@ -55,7 +61,7 @@ param([string]$Apps = '')
 #   scripts/v1pp-probe.sh:   v1pp_unlocked_until=none   ->   v1pp_unlocked_until=YYYY-MM-DD
 #   scripts/v1pp-probe.ps1:  $v1ppUnlockedUntil = 'none'   ->   $v1ppUnlockedUntil = 'YYYY-MM-DD'
 # Nothing below runs while it is locked, or after that day (an unlock left in place expires by itself).
-$v1ppUnlockedUntil = '2026-11-22'
+$v1ppUnlockedUntil = '2026-11-24'
 if ($v1ppUnlockedUntil -cnotmatch '^[0-9]{4}-[0-9]{2}-[0-9]{2}$') {
     Write-Host "REFUSED: the V1'' probe is locked (v1pp-probe/run-once). The team enables it for one run by a reviewed PR. Nothing was changed."
     exit 1
@@ -144,9 +150,11 @@ try { [IO.File]::WriteAllText($results, '', $utf8) } catch { Write-Host "Could n
 function Log([string]$line) { Write-Host $line; [IO.File]::AppendAllText($results, $line + [Environment]::NewLine, $utf8) }
 $script:fails = 0
 $script:others = 0
-function Mark([string]$kind, [string]$step, [string]$seen) {   # PASS|FAIL|NOT-TRIED|INCONCLUSIVE, the step, what was seen
+$script:unreach = 0
+function Mark([string]$kind, [string]$step, [string]$seen) {   # PASS|FAIL|NOT-TRIED|NOT-REACHABLE|INCONCLUSIVE, the step, what was seen
     Log "$kind ${step}: $seen"
     if ($kind -ceq 'FAIL') { $script:fails++; TurnR2Off }
+    elseif ($kind -ceq 'NOT-REACHABLE') { $script:unreach++ }   # PagesRefused only (v1pp-probe/pages-api-unreachable)
     elseif ($kind -cne 'PASS') { $script:others++ }
 }
 function Quiet { gh api @args --silent *> $null }
@@ -167,6 +175,45 @@ function ReadUntil([string]$what, [string]$want, [scriptblock]$read) {
     if ($null -eq $script:readLast) { Write-Host "${what}: could not read the state, not '$want', after 10 reads." }
     else { Write-Host "$what reads '$($script:readLast)', not '$want', after 10 reads." }
     return $false
+}
+
+# v1pp-probe/tag-main-unnamed-422 (try 1: POST git/refs answered a bare 422 "Reference update failed"). A 422 that
+# names no rule is PASS only if GitHub's own record of this try, its rule suite (GET rulesets/rule-suites, fields per
+# GitHub's OpenAPI description), reads: exactly one suite on refs/tags/main with after_sha = main and pushed_at at or
+# after $tagT0, suite result fail, and exactly one evaluation from R-T (ruleset id $rtId) of rule_type creation, with
+# result fail and enforcement active. Any other shape, a second suite, or none within 6 reads 10 s apart: INCONCLUSIVE.
+$rtId = '27685093'   # R-T "tag main: blocked" (docs/platform-facts.md "Main protection"); a recreated R-T = INCONCLUSIVE
+$script:tagOut = ''
+$script:tagT0 = ''
+function JudgeTagMain {
+    if (-not $script:tagOut) { return }
+    $what = $script:tagOut
+    $script:tagOut = ''
+    $env:V1PP_SHA = $mainBefore; $env:V1PP_T0 = $script:tagT0; $env:V1PP_RT = $rtId; $env:V1PP_RULE = 'creation'
+    $sid = ''
+    for ($k = 1; $k -le 6; $k++) {
+        $ids = @(gh api "repos/$repo/rulesets/rule-suites?ref=refs/tags/main&time_period=day&per_page=100" --jq '.[] | select(.after_sha == $ENV.V1PP_SHA and .pushed_at >= $ENV.V1PP_T0) | .id' 2>$null)
+        if ($LASTEXITCODE -ne 0) { $ids = @() }
+        $ids = @($ids | Where-Object { [string]$_ -cmatch '^[0-9]+$' })
+        if ($ids.Count -eq 1) { $sid = [string]$ids[0]; break }
+        if ($ids.Count -gt 1) { Mark 'INCONCLUSIVE' 'tag main' "refused ($what), but $($ids.Count) rule suites match this try, not one"; return }
+        if ($k -lt 6) { Start-Sleep -Seconds 10 }
+    }
+    if (-not $sid) {
+        Mark 'INCONCLUSIVE' 'tag main' "failed without naming a rule, and no rule suite recorded this try: $what (see https://github.com/$repo/rules/insights)"
+        return
+    }
+    # line 1: the suite's result; then result and enforcement of each creation evaluation from R-T
+    $evl = @(gh api "repos/$repo/rulesets/rule-suites/$sid" --jq '.result, (.rule_evaluations[]? | select(.rule_source.id == ($ENV.V1PP_RT | tonumber) and .rule_type == $ENV.V1PP_RULE) | .result, .enforcement)' 2>$null)
+    if ($LASTEXITCODE -ne 0) { Mark 'INCONCLUSIVE' 'tag main' "refused ($what), but rule suite $sid could not be read"; return }
+    $evl = @($evl | ForEach-Object { [string]$_ })
+    $shown = @(0, 1, 2) | ForEach-Object { if ($_ -lt $evl.Count -and $evl[$_]) { $evl[$_] } else { 'none' } }
+    $detail = "rule suite ${sid}: result=$($shown[0]), R-T $rtId creation=$($shown[1]) enforcement=$($shown[2])"
+    if ($evl.Count -eq 3 -and $evl[0] -ceq 'fail' -and $evl[1] -ceq 'fail' -and $evl[2] -ceq 'active') {
+        Mark 'PASS' 'tag main' "refused ($what); $detail"
+    } else {
+        Mark 'INCONCLUSIVE' 'tag main' "refused ($what), but not shown to be R-T: $detail"
+    }
 }
 
 $gBranches = @('probe/v1pp-w', 'probe/v1pp-n', 'probe/v1pp-d0')
@@ -300,6 +347,7 @@ function SettleRuns {   # v1pp-probe/inflight-run-at-cleanup: no probe run may s
 function Finish {   # cancel, cleanup, the reads after it, the verdict; never returns
     $script:started = $false
     $script:finished = $true
+    JudgeTagMain   # a pending tag main answer, before cleanup deletes tags/main (no-op once judged)
     foreach ($b in ($gBranches + $bBranches)) {   # pull requests whose number this run did not learn
         $x = ListPrs $b
         if ($null -eq $x) { Mark 'INCONCLUSIVE' "cleanup $b" 'could not list its pull requests' } else { AddNum $x }
@@ -345,7 +393,7 @@ function Finish {   # cancel, cleanup, the reads after it, the verdict; never re
         Log "INCONCLUSIVE (V1''): $($script:others) step(s) above are not PASS (a read failed, a refusal for another reason, or a step not tried); nothing was seen to go through. MORNING_NOTE_SEND stays unset. Send this output to the team. Saved to $results"
         GiveBackScope; exit 1
     }
-    Log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment or Pages deployment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. Send this output to the team. Saved to $results"
+    Log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment job and no Pages deployment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. $($script:unreach) pages-api line(s) NOT-REACHABLE by design: the Pages API's own branch check is not covered (U-pages in the invariant note). Send this output to the team. Saved to $results"
     GiveBackScope; exit 0
 }
 
@@ -417,11 +465,14 @@ for ($k = 0; $k -lt 3; $k++) {
 }
 Log "Probe pull requests (yours): W #$($gNums[0]), N #$($gNums[1]), D0 #$($gNums[2]). Bot branches: $($bBranches -join ' ')."
 # F2 (R-T): a tag named main must not be creatable, by anyone
+$script:tagT0 = [DateTime]::UtcNow.AddSeconds(-60).ToString('yyyy-MM-ddTHH:mm:ssZ', [Globalization.CultureInfo]::InvariantCulture)   # rule suites of this try are pushed at or after it (clock skew margin)
 $out = Flat ((@(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha=$mainBefore --jq '.ref' 2>&1 | ForEach-Object { "$_" })) -join ' ')
 if ($LASTEXITCODE -eq 0) {
     Mark 'FAIL' 'tag main' "GitHub created it: $out"
 } elseif ($out -match 'rule violation') {
     Mark 'PASS' 'tag main' "refused ($out)"
+} elseif ($out -cmatch 'HTTP 422') {
+    $script:tagOut = $out   # judged by JudgeTagMain after the runs, from GitHub's rule suite of this try
 } else {
     Mark 'INCONCLUSIVE' 'tag main' "failed without naming a rule: $out"
 }
@@ -453,9 +504,29 @@ function WaitRun([string]$id) {   # v1pp-probe/unbounded-watch: up to 12 minutes
     }
     return $s
 }
-function RunLog([string]$id) {   # the run's log; untrusted text, so ANSI colour codes, then control characters, are dropped
-    return @(gh run view $id --repo $repo --log 2>$null | ForEach-Object {
-        ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
+function CleanLog($text) {   # untrusted text: ANSI colour codes, then control characters, are dropped; one string per line
+    return @($text | ForEach-Object { ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
+}
+function RunJobs([string]$id) {   # one line per job, name TAB id TAB status TAB conclusion, joined with `n; $null when unread
+    $x = @(gh api "repos/$repo/actions/runs/$id/jobs" --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>$null)
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ($x -join "`n")
+}
+# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
+# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
+# succeeds and holds $want (a regex, case-sensitive); returns the last log read, cleaned, joined with `n; $null if no
+# read succeeded.
+function JobLog([string]$jid, [string]$want) {
+    $text = $null
+    for ($k = 1; $k -le 6; $k++) {
+        $got = @(gh api "repos/$repo/actions/jobs/$jid/logs" 2>$null)
+        if ($LASTEXITCODE -eq 0) {
+            $text = (CleanLog $got) -join "`n"
+            if ($text -cmatch $want) { break }
+        }
+        if ($k -lt 6) { Start-Sleep -Seconds 10 }
+    }
+    return $text
 }
 $runId = RunOf $runner $runHead
 $script:rIds[0] = [string]$runId
@@ -471,7 +542,16 @@ if (-not $runId) {
         $shown = if ($st) { $st } else { 'unread' }
         Mark 'INCONCLUSIVE' 'runner' "the run reads '$shown', not completed after 12 minutes, so its answers are not final (it is cancelled before cleanup)"
     }
-    $logText = @(RunLog $runId)
+    $logText = @()
+    $jobs = RunJobs $runId
+    $jids = @()
+    if ($null -ne $jobs) { $jids = @($jobs -split "`n" | ForEach-Object { ([string]$_ -split "`t")[1] } | Where-Object { [string]$_ -cmatch '^[0-9]+$' }) }
+    if ($jids.Count -eq 0) { Mark 'INCONCLUSIVE' 'runner log' "could not read the run's jobs" }
+    foreach ($jid in $jids) {
+        $t = JobLog $jid 'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH) '
+        if ($null -eq $t) { Mark 'INCONCLUSIVE' 'runner log' "could not read job $jid's log" }
+        else { $logText += @($t -split "`n") }
+    }
     $script:lines = @($logText | ForEach-Object {
         if ($_ -cmatch 'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH)( .*)?$') { $Matches[0] } })
     foreach ($l in $script:lines) { Log "  $l" }
@@ -493,12 +573,15 @@ function Judge([string]$t, [string]$s, [string]$want) {   # what the refusal mus
     elseif (-not $want -or $rest -match $want) { Mark 'PASS' "$t $s" "refused: $rest" }
     else { Mark 'INCONCLUSIVE' "$t $s" "refused, but not naming '$want': $rest" }
 }
+# v1pp-probe/squash-last-pusher: the pull_request rule of R1'' may name its require_last_push_approval condition, not
+# the approval count; both are that one rule, so both count, the last-pusher one only with the ruleset header
+$prRule = 'approving review|Repository rule violations found.*New changes require approval from someone other than the last pusher'
 function JudgePr([string]$t) {   # the bot approval and every merge try on its pull request
     Judge $t 'approve' 'not permitted to (create or )?approve pull requests'
-    Judge $t 'squash' 'approving review'
+    Judge $t 'squash' $prRule
     Judge $t 'merge' 'not allowed|approving review|rule violation'    # v1pp-probe/unobserved-refusal-pass
     Judge $t 'rebase' 'not allowed|approving review|rule violation'
-    Judge $t 'graphql' 'approving review'
+    Judge $t 'graphql' $prRule
 }
 $bNames = @('WB', 'NB', 'D0B')
 for ($k = 0; $k -lt 3; $k++) {
@@ -521,8 +604,8 @@ function EnvRefused([string]$label, [string]$id) {   # each environment's job re
     }
     Log "Environment run (${label}): https://github.com/$repo/actions/runs/$id"
     $null = WaitRun $id
-    $jobs = @(gh api "repos/$repo/actions/runs/$id/jobs" --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>$null)
-    if ($LASTEXITCODE -ne 0) { $jobs = @() }
+    $jobsText = RunJobs $id
+    $jobs = if ($null -ne $jobsText) { @($jobsText -split "`n") } else { @() }
     foreach ($e in $envs) {
         $row = @($jobs | Where-Object { ([string]$_ -split "`t")[0] -ceq $e }) | Select-Object -First 1
         if (-not $row) { Mark 'INCONCLUSIVE' "$label $e" 'could not read the job'; continue }
@@ -543,13 +626,27 @@ function EnvRefused([string]$label, [string]$id) {   # each environment's job re
 }
 function PagesRefused([string]$label, [string]$id) {   # v1pp-probe/pages-api-coverage: the pages-api job's answer
     if (-not $id) { Mark 'INCONCLUSIVE' "$label pages-api" 'the run did not start within 3 minutes'; return }
-    $l = @(RunLog $id | ForEach-Object { if ($_ -cmatch 'V1PP-RESULT PAGES api exit=[0-9]+( .*)?$') { $Matches[0] } }) | Select-Object -First 1
-    if (-not $l) { Mark 'INCONCLUSIVE' "$label pages-api" "no answer in the run's log"; return }
+    $jobsText = RunJobs $id
+    $jid = ''
+    if ($null -ne $jobsText) {
+        $row = @($jobsText -split "`n" | Where-Object { ([string]$_ -split "`t")[0] -ceq 'pages-api' }) | Select-Object -First 1
+        if ($row) { $jid = ([string]$row -split "`t")[1] }
+    }
+    if ($jid -cnotmatch '^[0-9]+$') { Mark 'INCONCLUSIVE' "$label pages-api" 'could not read the job'; return }
+    $t = JobLog $jid 'V1PP-RESULT PAGES api exit=[0-9]'
+    if ($null -eq $t) { Mark 'INCONCLUSIVE' "$label pages-api" "could not read the job's log (job $jid)"; return }
+    $l = @($t -split "`n" | ForEach-Object { if ($_ -cmatch 'V1PP-RESULT PAGES api exit=[0-9]+( .*)?$') { $Matches[0] } }) | Select-Object -First 1
+    if (-not $l) { Mark 'INCONCLUSIVE' "$label pages-api" "no answer in the job's log"; return }
     $rest = $l.Substring($l.IndexOf('exit=') + 5)
     $code = ($rest -split ' ', 2)[0]
     if ($code -ceq '0') { Mark 'FAIL' "$label pages-api" "GitHub accepted a Pages deployment: $rest" }
     elseif ($rest -match 'not allowed to deploy|protection rule') { Mark 'PASS' "$label pages-api" "refused: $rest" }
-    elseif ($rest -match 'artifact') { Mark 'INCONCLUSIVE' "$label pages-api" "artifact refused first; branch check not reached: $rest" }   # the fake artifact stays: a real one could replace the live site
+    elseif ($rest.Contains('Unable to find artifact') -and $rest -cmatch '\(HTTP 400\)|"status":"400"') {
+        # v1pp-probe/pages-api-unreachable: GitHub's own answer to the made-up artifact (try 1); the fake artifact stays,
+        # since a real one could replace the live site, so the branch check behind it is never reached: not counted
+        Mark 'NOT-REACHABLE' "$label pages-api" "by design, not counted: the made-up artifact was refused (HTTP 400) before any branch check, so nothing was deployed and the Pages API's own branch check is not covered: $rest"
+    }
+    elseif ($rest -match 'artifact') { Mark 'INCONCLUSIVE' "$label pages-api" "artifact refused first; branch check not reached: $rest" }
     else { Mark 'INCONCLUSIVE' "$label pages-api" "refused, but not on branch or environment grounds: $rest" }
 }
 $envRun = RunOf $envBranch $envHead
@@ -563,6 +660,7 @@ $script:rLooked[2] = $true
 EnvRefused "tag $ptag" $tagRun
 PagesRefused "tag $ptag" $tagRun
 
+JudgeTagMain   # the tag main answer, if it named no rule: GitHub's rule suite has been written by now
 # every probe pull request's merged flag (yours and any the bot opened)
 foreach ($b in $gBranches) { $x = ListPrs $b; if ($null -ne $x) { AddNum $x } }
 foreach ($n in $script:nums) { ReadMerged $n }

@@ -398,7 +398,8 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    4. Leave it running, about 5 minutes (at most about 20). It makes throwaway branches (`probe/v1pp-...`), three
       pull requests from you, a tag `v1pp-probe`, and three short workflow runs; it tries to create a tag named
       `main`; then it stops any of its runs still going, removes all of them and checks again that they are gone.
-      Every step prints one line: PASS, FAIL, NOT-TRIED or INCONCLUSIVE.
+      Every step prints one line: PASS, FAIL, NOT-TRIED, NOT-REACHABLE (only the two Pages API lines, by design and
+      not counted: `docs/architecture/main-protect-invariant.md` "V1'' try 1 inconclusive") or INCONCLUSIVE.
    5. Send the team the file it names at the end, `Documents\v1pp-probe-results-<time>.txt`. The last line is the
       verdict:
       - **PASS (V1'')**: every try was refused. The team records it in `docs/platform-facts.md` "Main

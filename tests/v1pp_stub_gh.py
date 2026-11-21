@@ -5,6 +5,7 @@ State lives in GH_STATE (JSON, written back after each call); the test's knobs i
 is appended to GH_CALLS as {"method", "path", "argv"}. --jq is applied with the real jq (-r), as gh does, so the
 scripts' filters are exercised. An error answers like gh: a JSON body on stdout, "gh: <message> (HTTP <code>)" on
 stderr, exit 1. No network: nothing here reaches GitHub."""
+import datetime
 import hashlib
 import json
 import os
@@ -95,16 +96,8 @@ if a[:2] == ["run", "watch"]:
     sys.exit(0)
 if a[:2] == ["run", "view"]:
     rid = a[2]
-    if "--log" in a:
-        if rid == "500":
-            sys.stdout.write(cfg.get("runner_log", ""))
-        else:   # an environment run: the pages-api job's answer, refused on branch or environment grounds
-            who = {"501": 'Branch "probe/v1pp-env"', "502": 'Tag "v1pp-probe"'}[rid]
-            default = ('pages-api\tTry\t2026-11-21T15:00:00Z echo "V1PP-RESULT $t $s exit=$code $(printf ...)"\n'
-                       "pages-api\tTry\t2026-11-21T15:00:02Z V1PP-RESULT PAGES api exit=1 gh: %s is not allowed to "
-                       "deploy to github-pages due to environment protection rules. (HTTP 400)\n" % who)
-            sys.stdout.write(cfg.get("env_logs", {}).get(rid, default))
-        sys.exit(0)
+    if "--log" in a:   # try 1: it gave nothing for a finished run; the scripts read each job's log instead
+        sys.exit(1)
     status = cfg.get("run_status", {}).get(rid, "completed")
     if rid in st.get("cancelled", []):
         status = "completed"
@@ -137,10 +130,23 @@ if short == "git/refs" and m == "POST":
     r = fl["ref"][len("refs/"):]
     if r == "tags/main":
         how = cfg.get("tag_main", "refuse")
+        if how in ("refuse", "other") and not cfg.get("no_suite"):   # R-T's evaluation, as GitHub records it
+            now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            ev = [{"rule_source": {"type": "ruleset", "id": 27685093, "name": "tag main: blocked"},
+                   "enforcement": "active", "result": "fail", "rule_type": "creation"}]
+            suite = {"id": 900, "actor_name": "gn0sh", "before_sha": "0" * 40, "after_sha": fl["sha"],
+                     "ref": "refs/tags/main", "pushed_at": now, "result": "fail", "evaluation_result": None,
+                     "rule_evaluations": cfg.get("suite_evals", ev)}
+            suite.update(cfg.get("suite_over", {}))
+            st.setdefault("suites", []).append(suite)
+            for extra in cfg.get("suite_extra", []):   # another suite, e.g. an earlier try's
+                st["suites"].append({**suite, **extra})
         if how == "refuse":
             err(422, "Repository rule violations found\n\nCannot create ref due to creations being restricted.")
         if how == "other":
             err(422, "Reference update failed")
+        if how == "502":
+            err(502, "Server Error")
         refs[r] = fl["sha"]
         ok({"ref": "refs/" + r, "object": {"sha": fl["sha"]}})
     if r in refs:
@@ -215,9 +221,46 @@ if short.startswith("actions/runs/") and short.endswith("/jobs"):
     rid = short.split("/")[2]
     default = {"501": [("github-pages", 601), ("morning-note", 602)], "502": [("github-pages", 603), ("morning-note", 604)]}
     jobs = cfg.get("jobs", {}).get(rid)
+    if jobs is None and rid == "500":
+        jobs = [{"id": 600, "name": "probe", "status": "completed", "conclusion": "success", "steps": [{"name": "Try"}]}]
     if jobs is None:
         jobs = [{"id": i, "name": nm, "status": "completed", "conclusion": "failure", "steps": []} for nm, i in default[rid]]
+        jobs.append({"id": {"501": 605, "502": 606}[rid], "name": "pages-api", "status": "completed",
+                     "conclusion": "success", "steps": [{"name": "Try"}]})
     ok({"total_count": len(jobs), "jobs": jobs})
+if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text, as gh prints it after the redirect
+    jid = short.split("/")[2]
+    reads = st.setdefault("log_reads", {})
+    reads[jid] = reads.get(jid, 0) + 1
+    if reads[jid] <= cfg.get("log_lag", {}).get(jid, 0):            # not ready yet
+        err(404, "Not Found")
+    if jid == "600":
+        text = cfg.get("runner_log", "")
+    elif jid in ("605", "606"):   # the pages-api job's answer, by default refused on branch or environment grounds
+        rid = {"605": "501", "606": "502"}[jid]
+        who = {"501": 'Branch "probe/v1pp-env"', "502": 'Tag "v1pp-probe"'}[rid]
+        text = cfg.get("env_logs", {}).get(rid, (
+            '2026-11-21T15:00:00.0000000Z echo "V1PP-RESULT $t $s exit=$code $(printf ...)"\n'
+            "2026-11-21T15:00:02.0000000Z V1PP-RESULT PAGES api exit=1 gh: %s is not allowed to "
+            "deploy to github-pages due to environment protection rules. (HTTP 400)\n" % who))
+    else:
+        err(404, "Not Found")
+    save()
+    sys.stdout.write(text)
+    sys.exit(0)
+if short.startswith("rulesets/rule-suites?"):   # GitHub's record of each ref update (fields per its OpenAPI description)
+    q = dict(x.split("=", 1) for x in short.split("?", 1)[1].split("&"))
+    assert q == {"ref": "refs/tags/main", "time_period": "day", "per_page": "100"}, q
+    n = st["suite_reads"] = st.get("suite_reads", 0) + 1
+    if n <= cfg.get("suite_lag", 0):
+        ok([])
+    ok([{k: v for k, v in x.items() if k != "rule_evaluations"} for x in st.get("suites", [])])
+if short.startswith("rulesets/rule-suites/"):
+    sid = int(short.split("/")[2])
+    x = next((x for x in st.get("suites", []) if x["id"] == sid), None)
+    if x is None or cfg.get("suite_unreadable"):
+        err(404, "Not Found")
+    ok(x)
 if short.startswith("check-runs/") and short.endswith("/annotations"):
     jid = short.split("/")[1]
     over = cfg.get("annotations", {})
