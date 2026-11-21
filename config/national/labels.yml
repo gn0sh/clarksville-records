@@ -1,0 +1,35 @@
+# Daylight Digest fixed labels (docs/architecture/daylight-national.md 3.3, 3.4; copy from docs/design/daylight-national.md
+# section 2 and the copy table). The builder copies these into the embedded page directory; national.js draws them
+# with textContent. Keys:
+#   slot.<layer>     the card's slot label, from the id's layer (3.1)
+#   reason.<reason>  one per can't-cover reason; a directory `reason` with no label here fails the build
+#   official.<key>   optional: the link label of a directory entry whose `official_label` is <key>, for an official
+#                    page on a site other than the government's own (else the page label lookup.official/covered.official)
+#   note.<key>       the fixed lines governments() returns in `notes` (4.1): no-city, no-county, and each gov-flags
+#                    `line` (a gov-flags `line` with no note.<line> label fails the build)
+# All lines below are confirmed by the ux-designer (2026-11-19). robots-disallow and terms were rewritten from the
+# engineer's drafts: each names the site's own rule and says we follow it, so neither reads like the technical block
+# of blocks-readers.
+schema: daylight-labels/1
+labels:
+  slot.place: CITY OR TOWN
+  slot.county: COUNTY
+  slot.cousub: TOWNSHIP OR TOWN
+  slot.sdu: SCHOOL DISTRICT
+  slot.sds: SCHOOL DISTRICT
+  slot.sde: SCHOOL DISTRICT
+
+  official.county-site: Official agenda page (opens the county's site, which posts the school board's agendas)
+  reason.blocks-readers: Its records site blocks automated readers.
+  reason.blocks-readers-cmcss: The school system's own records site, cmcss.net, blocks automated readers.
+  reason.scanned-only: Its agendas are posted only as scanned images.
+  reason.not-posted: It does not post its agendas online.
+  reason.api-not-enabled: Its agenda system's public data feed is turned off.
+  reason.token-required: Its agenda system's data feed needs a key we don't have.
+  reason.robots-disallow: Its records site asks automated readers not to read its agenda pages. We follow that request.
+  reason.terms: The terms of use on its records site do not allow automated reading. We follow them.
+
+  note.no-city: This address is not inside a city or town.
+  note.no-county: No county is listed here because the county is not a working government.
+  note.consolidated: The city and county here are one government.
+  note.independent-city: This city is not part of any county.

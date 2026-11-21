@@ -1,0 +1,28 @@
+{% extends "base.html.j2" %}
+{# How Daylight Digest works (docs/design/daylight-national.md 9a; architecture 3.8, 3.9; security finding 8). Static, no
+   script, no storage. Built by sitegen/national_pages.py only while national.enabled is on. Every fixed word is a page
+   label (`L`); the three storage keys are code, not words. The "Just count me" and page-visit paragraphs print only
+   while the counter is on (`counter`, as on the entry page), so the page never describes counting that is not happening. #}
+{# the digest pages' own stylesheet (design 0a): linked here only, copied only while the switch is on #}
+{% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
+{% endblock %}
+{% block main %}
+<div class="digest digest-how-page">
+  <h1>{{ L["how.h1"] }}</h1>
+  <p>{{ L["how.address"] }}</p>
+  <p>{{ L["how.device-intro"] }}</p>
+  <ul class="digest-keys">
+    <li><code>daylight.us.list</code>: {{ L["how.key-list"] }}</li>
+    <li><code>daylight.us.requested</code>: {{ L["how.key-requested"] }}</li>
+    <li><code>daylight.us.counted</code>: {{ L["how.key-counted"] }}</li>
+  </ul>
+  <p>{{ L["how.device-after"] }}</p>
+  <p>{{ L["how.requests"] }}</p>
+  <p>{{ lh(L["how.requests-2"], buttondown_privacy, ext=true) }}</p>
+  {% if counter %}<p>{{ L["how.count"] }}</p>
+  <p>{{ L["how.count-2"] }}</p>
+  <p>{{ L["how.visits"] }}</p>
+  {% endif %}
+  <p>{{ lh(L["how.back"], "index.html") }}</p>
+</div>
+{% endblock %}

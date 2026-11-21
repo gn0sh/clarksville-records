@@ -31,7 +31,7 @@ line (the gate's own test, daily-update.yml:221), not any ancestor: a true merge
 | C15 | rollback merge: expected workflow, CODEOWNERS (S502-511, P654-664) | was R's own blobs | **fixed T-R3**: `--cutover-merge` on main, its parent's blobs |
 | C16 | rollback merge step 4: main vs R blobs | R head, reviewed | yes: checks the merge landed R, after C13-C15 and C21 |
 | C17 | rollback early: `restore_ok "$m"` | fetched main | yes (a) |
-| C18 | protect-main: ruleset and bypass JSON (`$here/`), main's workflow (`contents?ref=main`) | own checkout, API on main | yes (b), (c) |
+| C18 | protect-main: ruleset and bypass JSON (`$here/`), main's workflows folder and its two files, `daily-update.yml` and `national-update.yml` (`contents?ref=main`; I-wf, main-protect-invariant.md note 2026-11-20) | own checkout, API on main | yes (b), (c) |
 | C19 | u3-toggle: `r1p`, `r1pp`, `--restore <backup>` (S131-174, P205-259) | own checkout, checked equal to main's byte for byte (contents API, `ref=main`); operator's file | **fixed L2**: (b) checked against (c); unreadable refuses; `--restore <backup>` stays the operator's file |
 | C21 | rollback merge: R's changed paths and `.gitignore` vs its parent `$rp` (S532-544, P702-713) | `$rp` (on main, C14); `gitignore_edit`, the open path's own edit | **new L1**: `git diff-tree -r --no-renames --name-only -z $rp $sha` lists only `data/**`, the workflow, CODEOWNERS, `.gitignore`; R's `.gitignore` blob equals `gitignore_edit $rp` |
 | C22 | `fetch_main` / `FetchMain`, the source of `$m` for C9-C17 (S219, P285) | origin, fetched now | **fixed M1 (.ps1)**: a failed fetch returned the stale `refs/cutover/main`; now `$null`, and all 9 callers refuse or stop |

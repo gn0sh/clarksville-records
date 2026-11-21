@@ -336,6 +336,53 @@ moves the baseline past that commit. The drift rule for the baseline is met insi
 step 4, just before the merge sets the baseline, and a plain `--check` prints OK just after it.
 Done when the PASS output is recorded in platform facts.
 
+Built, not run (devops-engineer, 2026-11-20; `scripts/v1pp-probe.{sh,ps1}`, `scripts/v1pp-probe/*.yml`, tests
+`tests/test_v1pp_probe.py` with the stateful stub `tests/v1pp_stub_gh.py`; runbook section 4 item 6a). The V1' files stay
+locked as they are. Choices the reviewers should check:
+- **Lock:** a BEGIN/END-REFUSAL-LOCK block, first in each twin, refuses before any `gh` call. The run is enabled by
+  one line per twin (`v1pp_unlocked_until=none` -> a last UTC day; `$v1ppUnlockedUntil = 'none'` -> `'YYYY-MM-DD'`)
+  in the enabling PR; the result PR flips it back. The tests run a copy with exactly that line flipped.
+- **Guard:** refused in a cloud session or CI; `--apps claude|none` (`-Apps`) is required and passed to
+  `protect-main --check`, whose last line must start "OK: main is protected"; main and records-data must read as
+  commits and the tag `main` as a 404. All before the first write.
+- **Targets:** W, N, D0 twice from main: set G opened by gn0sh, set B (`-bot` branches) for the runner's
+  `GITHUB_TOKEN` to open (refused). The runner tries, per open PR, APPROVE, REST squash/merge/rebase and GraphQL
+  squash, then a direct push to main (REST ref update and `git push`). A merge or push ends the run; the script
+  prints `NOT-TRIED` for every step with no answer after that (it derives these itself, never trusts the run's word).
+- **F2:** gn0sh tries `POST git/refs refs/tags/main` (expected a rule violation). `probe/v1pp-env` and tag
+  `v1pp-probe` carry one workflow with a `github-pages` and a `morning-note` job: PASS needs each job `completed`,
+  `failure` and an annotation "not allowed to deploy to <env>"; `success` is FAIL; anything else INCONCLUSIVE.
+- **Verdict:** any FAIL line (merged PR, probe file on main or records-data, accepted approve/open/push/tag, a job
+  in an environment) turns R2 off at once (PUT, then `read_until R2 false`), before cleanup. The expected refusal
+  wordings are assumptions (header list); a different wording is INCONCLUSIVE, never PASS.
+- **Cleanup re-read:** each PR `read_until` `closed<TAB>false` (a merged one is FAIL); each ref `read_until absent`.
+  The second reads an absence, which read-after-write rule 5 says retry can't prove: here the DELETE's 2xx is the
+  write's proof (rule 6) and the re-read can only delay, so a ref still shown after 10 reads is INCONCLUSIVE with the
+  exact delete command. Architect to confirm (problem key `v1pp-probe/cleanup-absence-read`).
+- Not covered by the script (section 4): item 5 (gate unit test) and item 7 (first scheduled run, D3 step 8).
+- **Review round 1 (code review REQUEST CHANGES, security OK with follow-ups, at e0c3c6f), fixed in both twins:**
+  - unobserved-refusal-pass: merge and rebase now need "not allowed", "approving review" or "rule violation";
+    any other refusal (a 502) is INCONCLUSIVE.
+  - inflight-run-at-cleanup and unbounded-watch: no `gh run watch`; each run is read up to 72 times, 10 s apart
+    (12 minutes). Before cleanup every probe run not `completed` is cancelled (`POST actions/runs/<id>/cancel`)
+    and read until `completed` (10 x 3 s), else INCONCLUSIVE with its link. After a setup stop, a pushed run
+    not yet looked up gets one lookup.
+  - cleanup-absence-read: each close keeps its own answer (`closed<TAB>false`) and each DELETE its own (2xx or
+    "Reference does not exist"); PASS needs the answer and the re-read to agree; else INCONCLUSIVE with the
+    command (`gh pr close`, `gh api -X DELETE`).
+  - r2-after-cleanup: PRs first seen in cleanup's listing have their merged flag read before any cleanup write.
+  - runner-perms-comment: reworded.
+  - pages-api-coverage (S1): `v1pp-env.yml` job `pages-api`, no `environment:`, `pages: write` + `id-token: write`,
+    calls `POST pages/deployments` with `artifact_id=1`. PASS only on "not allowed to deploy" / "protection
+    rule"; a refusal naming only the artifact is INCONCLUSIVE ("artifact refused first; branch check not reached";
+    delta review: the artifact stays fake, a real one could replace the live site); exit 0 is FAIL; else
+    INCONCLUSIVE.
+    Residual: if GitHub accepts it, a failed Pages deployment is created; the live site should stay (judgment,
+    medium confidence).
+  - lock-window (S4): the lock line is now a last UTC day (`v1pp_unlocked_until=YYYY-MM-DD`); past it, refused.
+  - tag-main-cleanup (S5): cleanup always deletes `tags/main` (absent: "Reference does not exist" counts as done;
+    an R-T rule refusal also counts, and the re-read decides).
+
 ## W1: docs
 - `docs/architecture/main-protect-invariant.md`: I-main'', I-prov, I-pub, I-in, the consumer table from the note.
 - Operator docs that tell a person to commit `data/` (transcripts import, `fetch_map`, `fin-books build`): name the

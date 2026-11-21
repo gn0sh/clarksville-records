@@ -1,0 +1,190 @@
+/* Daylight Digest pages only (docs/design/daylight-national.md section 0a, and sections 1 to 5 for the layouts).
+   Linked after style.css by the templates in site/templates/digest/ and by no other page; the build copies this file
+   only while config/site.yml national.enabled is true (sitegen/national_pages.py STATIC_ONLY), so with the switch off
+   the site is byte for byte what it was. style.css is not changed for the digest: every rule that a digest page needs
+   and style.css lacks lives here.
+
+   No new colour. Everything is drawn with style.css's tokens, so the light and dark themes both follow from them:
+   - brand navy is --blue for fills and --link for text and outlines drawn on --surface (--link turns light blue on
+     the dark theme, where --blue would sink into the card);
+   - brand orange (--focus) is the focus ring and nothing else: no orange text, fill or border on a digest page;
+   - no red or green anywhere, so no status reads as a grade (R2). A status is told by its word, its mark and its
+     edge (filled, outlined, dashed), never by colour alone.
+   Contrast (WCAG 2.2 AA), light / dark: --on-blue on --blue 16.4 / 5.0 (keep that text at weight 600 and do not
+   lighten the fill) and on --blue-hover 8.8 / 6.6; --link on --surface 16.4 / 8.9 and on --surface-2 13.9 / 8.1;
+   --fg on --surface 17.3 / 14.9 and on --surface-2 14.7 / 13.5; --muted on --surface 7.5 / 7.4. Edges, where 3:1 is
+   the bar: the focus ring on --surface 4.1 / 4.1, the Covered pill's fill on --surface 16.4 / 3.4.
+   Class names are the ones site/static/national.js and the digest templates write. */
+
+/* ---- measure ------------------------------------------------------------------------------------------------ */
+.digest > p, .digest > details, .digest-list > p, .digest-saved > p, .digest-device { max-width: 44rem; }
+.digest h1, .digest h2, .digest h3 { overflow-wrap: anywhere; }
+
+/* ---- the entry page (design section 1) ----------------------------------------------------------------------- */
+.digest-who { margin: 0 0 4px; }
+.digest-cover-link { margin: 0; }
+.digest-cover-link a, .digest-noscript a { display: inline-flex; align-items: center; min-height: 44px; }
+.digest-find { margin-top: 8px; }
+.digest-noscript { margin: 0; }
+.digest-noscript[hidden] { display: none; }
+/* the busy Find button (national.js sets aria-disabled, not disabled, so it keeps focus), as .addr-form's :disabled */
+.digest-find .search-row button[aria-disabled="true"] { opacity: .6; cursor: progress; }
+.digest-find .digest-retry { margin: 4px 0; }
+.digest-privacy-detail, .digest-census-notice { font-size: var(--t-sm); color: var(--muted); }
+.digest-privacy-detail { margin: 12px 0 0; }
+details.digest-how { margin: 4px 0; font-size: var(--t-sm); }
+details.digest-how > summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 600; }
+details.digest-how > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
+details.digest-how > p { margin: 0 0 8px; }
+/* a phone: the input and Find stack, each full width */
+@media (max-width: 480px) {
+  .digest-find .search-row { flex-direction: column; }
+  .digest-find .search-row input, .digest-find .search-row button { width: 100%; }
+}
+
+/* ---- the list for this spot (design section 3) ---------------------------------------------------------------- */
+.digest-list[hidden], .digest-saved[hidden] { display: none; }
+.digest-list > h2, .digest-saved > h2 { margin-top: 1.2em; }
+/* One column, so the fixed slot order reads top to bottom and an open form never sits beside another card. */
+.digest-cards { grid-template-columns: minmax(0, 1fr); max-width: 44rem; margin-bottom: 12px; }
+/* Every card keeps the .bodies-card frame and the same --mark top edge whatever its status: the edge never carries
+   status. .bodies-card p turns every paragraph in a card --muted at --t-sm; the rules below give the facts back
+   their ink and leave the hints muted. */
+.digest-card > .eyebrow { margin: 0 0 4px; font-size: var(--t-eyebrow); }
+.digest-card h3 { overflow-wrap: anywhere; }
+.digest-card .digest-board, .digest-card .digest-reason, .digest-card > p:not([class]) { color: var(--fg); }
+.digest-card .digest-checked { color: var(--muted); }
+/* a card's own link lines ("See what's coming up", "Official agenda page"): a 44px row each */
+.digest-card > p:not([class]) > a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+.digest-card > p:not([class]):has(> a) { margin-bottom: 0; }
+
+/* ---- status pill: .chip.digest-pill in p.digest-status ----------------------------------------------------------
+   Covered is filled, Not covered yet is outlined, Can't cover is dashed (dashed already means "not collected" on
+   this site: .chip-status, .nc). The mark is an aria-hidden span and keeps .chip's 6px gap; the words are real text.
+   In forced-colors mode the fill drops and the border and the words remain. */
+.digest-card .digest-status { margin: 0 0 8px; }
+.digest-pill { padding: 3px 10px; border-width: 2px; font-size: var(--t-sm); font-weight: 600; white-space: nowrap; }
+.digest-pill-covered { background: var(--blue); border: 2px solid var(--blue); color: var(--on-blue); }
+.digest-pill-not-covered-yet { background: var(--surface); border: 2px solid var(--link); color: var(--link); }
+.digest-pill-cant-cover { background: var(--surface); border: 2px dashed var(--link); color: var(--link); }
+/* Very large text in a narrow window (20rem grows with the reader's text size): the pill may wrap, never clip. */
+@media (max-width: 20rem) { .digest-pill { white-space: normal; } }
+
+/* ---- buttons in a card --------------------------------------------------------------------------------------------
+   "Request it", "Request again", "Use a different email": outlined navy. "Send me the confirmation email": filled
+   navy. "Cancel" and "None of these" stay the plain .more-btn. All are 44px tall (.more-btn). */
+.digest-request { margin: 4px 0 0; }
+.digest-request-btn { background: var(--surface); border: 2px solid var(--link); color: var(--link); font-weight: 600; }
+.digest-request-btn:hover { background: var(--surface-2); }
+.digest-send { background: var(--blue); border-color: var(--blue); color: var(--on-blue); font-weight: 600; }
+.digest-send:hover { background: var(--blue-hover); }
+.digest-send[aria-disabled="true"] { opacity: .6; cursor: progress; }
+.digest-send[aria-disabled="true"]:hover { background: var(--blue); }
+.digest-req-form .more-btn { margin-right: 8px; }
+@media (max-width: 480px) {
+  .digest-request-btn, .digest-send { width: 100%; }
+  .digest-req-form .more-btn { margin-right: 0; }
+}
+/* The counter, "No email? Just count me.": a link-style button, so it reads as the lesser path under "Request it".
+   It stays a <button>; only the look is a link. The first line undoes .more-btn. */
+.digest-count-btn {
+  background: none; border: 0; padding: 0; margin: 4px 0 0;
+  display: inline-flex; align-items: center; min-height: 44px; font: inherit; font-size: var(--t-sm);
+  color: var(--link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+  text-align: left; cursor: pointer;
+}
+.digest-count-btn:hover { text-decoration-thickness: 2px; }
+.digest-count-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.digest-count-btn[aria-disabled="true"] { color: var(--muted); text-decoration: none; cursor: progress; }
+
+/* ---- message lines: p.digest-msg (role="status") and p.digest-err beside the email field --------------------------
+   The script puts the sent, failed, returning and counted text in the same p.digest-msg and marks which it is with
+   data-state="sent|failed|returning|counted". Sent and counted are a box with a navy left edge, failed the same box
+   with an ink edge and heavier words, returning plain text. With no data-state the base line still reads correctly:
+   ink at --t-sm. Focus moves to these lines after a send; they show the standard ring on :focus-visible only
+   (style.css [tabindex]:focus-visible). No red: the words say what went wrong. */
+.digest-card .digest-msg, .digest-card .digest-err { color: var(--fg); font-size: var(--t-sm); margin: 8px 0; overflow-wrap: anywhere; }
+.digest-card .digest-msg:empty, .digest-card .digest-err:empty { display: none; }
+.digest-card .digest-msg[data-state="sent"], .digest-card .digest-msg[data-state="counted"],
+.digest-card .digest-msg[data-state="failed"] {
+  padding: 8px 12px; background: var(--surface-2); border-left: 4px solid var(--link); border-radius: var(--radius);
+}
+.digest-card .digest-msg[data-state="failed"] { border-left-color: var(--fg); font-weight: 600; }
+.digest-card .digest-err { margin: 4px 0 8px; font-weight: 600; }
+.digest-card .digest-err[hidden] { display: none; }
+
+/* ---- the in-card form: form.digest-req-form -----------------------------------------------------------------------
+   The honest line and the two privacy lines are promises and disclosures a person should read before sending, so
+   inside the form every paragraph is ink at --t-sm (not --muted, and the .hint lines not --t-xs). */
+.digest-req-form { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
+.digest-req-form p, .digest-req-form p.hint { margin: 0 0 8px; color: var(--fg); font-size: var(--t-sm); line-height: 1.5; }
+.digest-req-form p a { color: var(--link); text-decoration: underline; }
+.digest-req-form h4 { margin: 12px 0 4px; font-family: var(--font-head); font-size: var(--t-md); font-weight: 700; line-height: 1.25; }
+.digest-req-form > label { display: block; margin: 12px 0 4px; color: var(--fg); font-size: var(--t-sm); font-weight: 600; }
+.digest-req-form input[type="email"] {
+  display: block; width: 100%; min-height: 44px; padding: 8px 12px; font: inherit; color: var(--fg);
+  background: var(--surface); border: 2px solid var(--fg); border-radius: var(--radius-lg);
+}
+/* bad email: the field keeps its 2px ink border and gains a 4px ink left edge; the words sit right under it */
+.digest-req-form input[type="email"][aria-invalid="true"] { border-left-width: 4px; }
+/* "Also request (optional)": .mn-check was made for the navy morning-note card; on a white card the rows stack,
+   each 44px, the tick box is navy and the name is ink. */
+.digest-also { flex-direction: column; flex-wrap: nowrap; gap: 0; margin: 12px 0 8px; }
+.digest-also legend { margin-bottom: 0; color: var(--fg); font-size: var(--t-sm); font-weight: 600; }
+.digest-also .mn-check { min-height: 44px; color: var(--fg); cursor: pointer; }
+.digest-also .mn-check input { accent-color: var(--blue); cursor: pointer; }
+.digest-also .mn-check span { min-width: 0; overflow-wrap: anywhere; }
+/* "We'll email you if it opens." under the button stays a hint (--muted is 7.5:1 on --surface): rank, not contrast */
+.digest-request .hint { margin: 0; font-size: var(--t-xs); color: var(--muted); }
+
+/* ---- match picker: ul.digest-pick, one full-width button per match ------------------------------------------------
+   The Census prints these in capitals; the case is left alone. */
+ul.digest-pick { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 8px; max-width: 44rem; }
+ul.digest-pick > li { min-width: 0; }
+.digest-pick-btn { display: block; width: 100%; margin: 0; min-height: 44px; text-align: left; font-size: var(--t-md); overflow-wrap: anywhere; }
+.digest-pick-btn:hover { background: var(--surface-2); }
+
+/* ---- under the list -------------------------------------------------------------------------------------------- */
+.digest-list > .more-btn { margin: 8px 8px 8px 0; }
+.digest-device { margin-top: 12px; }
+
+/* ---- What we cover (design section 4): ruled rows, each part on its own line -------------------------------------- */
+ul.digest-rows { list-style: none; margin: 0 0 1em; padding: 0; max-width: 44rem; border-top: 2px solid var(--fg); }
+ul.digest-rows > li { display: grid; justify-items: start; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+ul.digest-rows a { display: inline-flex; align-items: center; min-height: 32px; }
+ul.digest-rows > li > a:first-child, ul.digest-rows .digest-board { font-weight: 600; }
+ul.digest-rows .eyebrow, ul.digest-rows .digest-checked { color: var(--muted); }
+ul.digest-rows .digest-checked { font-size: var(--t-sm); }
+ul.digest-rows .digest-checked a { display: inline; min-height: 0; }
+.digest-covered h3 { margin-top: 1em; }
+@media (pointer: coarse) {
+  ul.digest-rows > li > a { min-height: 44px; }
+  .digest-covered > p > a { display: inline-flex; align-items: center; min-height: 44px; }
+}
+
+/* ---- a covered government's coming-up page (design section 5) ------------------------------------------------------
+   Source text is printed as the source prints it: no case change here. The withheld, incomplete and cut-short lines
+   are the site's .note (a --mark-soft rule), not orange and not red. */
+.digest-subject { margin: 0; font-family: var(--font-head); font-size: var(--t-lg); font-weight: 600; }
+.digest-body > .official-record { margin: 8px 0; padding-top: 0; border-top: 0; }
+.digest-body > .digest-checked { font-size: var(--t-sm); color: var(--muted); }
+.digest-meeting { max-width: 44rem; }
+.digest-meeting > h2 { margin-bottom: 4px; }
+.digest-meeting > p { margin: 0 0 4px; }
+.digest-meeting-title { font-weight: 600; }
+.digest-time { font-size: var(--t-sm); color: var(--muted); }
+.digest-agenda a, .digest-not-posted a, .digest-none a, .digest-full a, .digest-morning a { font-weight: 600; }
+.digest-agenda a { display: inline-flex; align-items: center; min-height: 32px; }
+@media (pointer: coarse) { .digest-agenda a { min-height: 44px; } }
+.digest-meeting > .digest-withheld, .digest-meeting > .digest-incomplete, .digest-items .digest-cut {
+  margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--mark-soft); background: var(--surface); font-size: var(--t-sm);
+}
+ol.digest-items { list-style: none; margin: 8px 0 0; padding: 0; border-top: 1px solid var(--border); }
+ol.digest-items > li { padding: 10px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+ol.digest-items h3 { margin: 0; font-family: var(--font-body); font-size: var(--t-md); font-weight: 600; line-height: 1.4; }
+ol.digest-items .item-num { margin: 0 6px 0 0; }
+.digest-item-src { margin: 2px 0 0; font-size: var(--t-sm); }
+/* a topic label (AC4.7): a small outlined mono chip after the item's title; its words are real text */
+.digest-topics { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.digest-topic { font-family: var(--font-mono); font-weight: 500; background: transparent; border-color: var(--link); color: var(--link); }
+.digest-topic-note { font-size: var(--t-sm); color: var(--muted); }

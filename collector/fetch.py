@@ -35,6 +35,32 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   robots.txt, redirects and retries. The request past it is never made (RequestCapReached); the RPC daily step
   uses it. A redirect from a capped host may only go to a host in the same cap group, where it counts against that
   cap; any other target is refused with no request (fetch/cap-redirect-escape).
+- shared hosts (architecture daylight-national 4.4): a host in SHARED_HOSTS serves many governments ("tenants"), each
+  under its own path (webapi.legistar.com/v1/<client>/...). tenant_key(url) names the tenant; the client segment is
+  lowercased first, so /v1/Salem/ and /v1/salem/ are one tenant (national/tenant-key-normalize). A 403 on a tenant
+  path whose body is a JSON object is that one government saying no: only that tenant is stopped for the run
+  (TenantBlocked, a HostBlocked). Anything else stops the whole host: a 403 on robots.txt, on a path that is no
+  tenant's, with a body that is not a JSON object, or from a second distinct tenant on the same host; and every 429.
+  The delay, robots.txt and limit_hosts stay per host; limit_tenant(url, n) adds a per-tenant cap inside the host
+  cap. A redirect never changes the tenant key, capped or not (national/tenant-redirect-uncapped): a tenant URL's
+  redirect stays in that tenant (counted against its cap) and a host-level URL, robots.txt included, never
+  redirects into a tenant. Classifying a 403/429 fails closed (architecture 4.4.2): any error while reading or
+  parsing the answer is a host block, recorded before the raise. One parser,
+  shared_path (architecture 4.4.1, national/tenant-block-escape), keys every URL sent to a shared host; a path outside
+  its strict grammar (any "%", empty or dot segment, leading or trailing dot, backslash, ";", "+", non-ASCII, or a
+  /v1/ client that is not 2-40 letters, digits, hyphens) is refused with no request (TenantPathRefused), never
+  rewritten. Case is the only variation mapped: /V1/Salem is /v1/salem. robots.txt is never a tenant: any 403 while
+  reading it, a redirect hop included, stops the host (national/tenant-robots-host-block); a refused hop or a cap
+  while reading it caches disallow_all for that host (a host cap is still raised as RequestCapReached; a tenant cap,
+  TenantCapReached, is a refused robots.txt and caps no other tenant). A subdomain of a shared host is refused.
+  Callers that treat a tenant apart catch TenantBlocked before HostBlocked.
+- Run deadline and slow answers (architecture daylight-national 4.4.4, national-budget/post-deadline-request), both
+  off by default (the national run turns them on; with both None every clock(), sleep and read is today's):
+  `past_deadline(pause)` is asked in _wait, the one place every request (robots.txt, retries, redirect hops) passes,
+  before the wait and after it, and before _last or any sent count changes; True raises DeadlineReached (a
+  RequestCapReached), so nothing is sent at or after the deadline. `max_answer_seconds` reads each answer body in
+  ANSWER_CHUNK pieces and fails the fetch (FetchFailed) once the answer has taken longer than that (a 403/429 body
+  read so cut short is a host block, as any unreadable refusal is).
 """
 from __future__ import annotations
 
@@ -51,6 +77,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from . import limits
+from .safe_json import parse_json
 
 USER_AGENT = ("clarksville-records research collector "
               "(+https://github.com/gn0sh/clarksville-records; polite, 10s/host)")
@@ -70,6 +97,12 @@ PROXY_REFUSALS_BEFORE_SKIP = 3
 MAX_REDIRECTS = 5
 RESET_RETRIES_PER_HOST = 3
 REDIRECT_CODES = (301, 302, 303, 307, 308)
+# Hosts shared by many governments, each under its own path: site_key(host) -> the pattern whose group 1 is the tenant
+# (matched after the client segment is lowercased). Architecture daylight-national 4.4.
+SHARED_HOSTS = {"webapi.legistar.com": re.compile(r"^/v1/([a-z0-9-]{2,40})/")}
+BLOCK_BODY_BYTES = 64 * 1024     # how much of a 403 body is read to decide tenant or host block
+ANSWER_CHUNK = 64 * 1024         # one body read when max_answer_seconds is set (read1: one socket read of body
+                                 # data, but on a chunked answer also the chunk-size lines and trailer: 4.4.4)
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -86,6 +119,12 @@ class HostBlocked(Exception):
     """The site answered 403/429 (or the host is already marked blocked). Do not retry it this run."""
 
 
+class TenantBlocked(HostBlocked):
+    """One tenant of a shared host answered 403 (or is already marked blocked): that tenant only, for the rest of the
+    run. A HostBlocked, so every existing `except HostBlocked` caller still stops; a caller that carries on with the
+    host's other tenants must catch TenantBlocked before HostBlocked."""
+
+
 class RobotsDisallowed(Exception):
     pass
 
@@ -98,12 +137,27 @@ class SchemeRefused(HostRefused):
     """The URL is not https on the default port (or carries user info). No request was made."""
 
 
+class TenantPathRefused(SchemeRefused):
+    """A shared-host path that could reach a tenant in another spelling (a dot segment, an encoded or unusual client
+    segment). Refused with no request, so a tenant block or cap cannot be stepped around."""
+
+
 class ProxyRefused(Exception):
     """The sandbox egress proxy refused the connection; the site never saw the request."""
 
 
 class RequestCapReached(Exception):
     """The run's request cap for this host's cap group (limit_hosts) is used up. No request was made."""
+
+
+class DeadlineReached(RequestCapReached):
+    """The run's deadline (`past_deadline`): this request would be sent, or its wait would end, at or after it. No
+    request was made. A RequestCapReached, so robots() and every caller treat it as a cap."""
+
+
+class TenantCapReached(RequestCapReached):
+    """The run's request cap for this one tenant (limit_tenant) is used up. No request was made. The host's other
+    tenants are not capped by it."""
 
 
 class FetchFailed(Exception):
@@ -168,6 +222,63 @@ def site_key(host: str) -> str:
     return h[4:] if h.startswith("www.") else h
 
 
+SHARED_SEG = r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*"
+SHARED_PATH = re.compile(rf"/(?:{SHARED_SEG}(?:/{SHARED_SEG})*/?)?")   # the only paths sent to a shared host
+TENANT_CLIENT = re.compile(r"[A-Za-z0-9-]{2,40}")
+
+
+def shared_path(url: str) -> tuple[str, str | None]:
+    """The one tenant parser (architecture daylight-national 4.4.1, national/tenant-block-escape) -> (site, tenant).
+    Run on the raw path exactly as it will be sent. tenant is "<site>/<client lowercased>" (e.g.
+    "webapi.legistar.com/salem") for /v1/<client> with or without further segments, else None (host-level: robots.txt,
+    /, /v1/, /v2/...). On a shared host a path outside the strict grammar is TenantPathRefused, never rewritten:
+    segments of letters, digits, "_" and "-" joined by single inner dots, one optional trailing "/", nothing else (no
+    "%", empty segment, dot segment, leading or trailing dot, backslash, ";", "+" or non-ASCII); and a /v1/ client
+    must be 2-40 letters, digits or hyphens. Case is the only variation mapped (Legistar treats it as one client). The
+    query is not part of the key. A subdomain of a shared host (other than "www.", which site_key folds into it) is
+    TenantPathRefused. A host that is not shared, or a malformed URL, is (site, None)."""
+    try:
+        p = urllib.parse.urlsplit(url)
+        host = p.hostname or ""
+    except ValueError:
+        return "", None
+    site = site_key(host)
+    pattern = SHARED_HOSTS.get(site)
+    if pattern is None:
+        under = next((h for h in SHARED_HOSTS if site.endswith("." + h)), None)
+        if under is not None:                # national/tenant-block-escape: x.webapi.legistar.com skips the rules
+            raise TenantPathRefused(f"{url}: a subdomain of shared host {under}; not fetched")
+        return site, None
+    path = p.path or "/"
+    if not SHARED_PATH.fullmatch(path):
+        raise TenantPathRefused(f"{url}: not a canonical path on shared host {site}; not fetched")
+    segs = path.split("/")                  # ["", "v1", "<client>", ...]
+    if len(segs) < 3 or segs[1].lower() != "v1" or segs[2] == "":
+        return site, None                   # /, /robots.txt, /v1, /v1/, /v2/...
+    if not TENANT_CLIENT.fullmatch(segs[2]):
+        raise TenantPathRefused(f"{url}: /v1/ client segment {segs[2]!r} is not 2-40 letters, digits or hyphens")
+    m = pattern.match(f"/v1/{segs[2].lower()}/")
+    if m is None:                           # cannot happen for TENANT_CLIENT; refuse rather than guess
+        raise TenantPathRefused(f"{url}: client segment does not match the {site} tenant pattern")
+    return site, f"{site}/{m.group(1)}"
+
+
+def tenant_key(url: str) -> str | None:
+    """shared_path's tenant: "<site>/<client>" or None (a host that is not shared, a host-level path, a malformed
+    URL). Raises TenantPathRefused for a non-canonical shared-host path, so None only ever means "host-level and
+    allowed". The "/" keeps a tenant key apart from every site key."""
+    return shared_path(url)[1]
+
+
+def _json_object(body: bytes) -> bool:
+    """True when `body` parses as a JSON object (fetch/403-body-parse-escapes: parse_json never raises, so a nested or
+    odd body is "not a JSON object", a host block)."""
+    try:
+        return isinstance(parse_json(body, "utf-8-sig"), dict)
+    except Exception:
+        return False
+
+
 def _header_value(v) -> bool:
     """A stored validator we may send back: non-empty printable ASCII (no line break or control character)."""
     return isinstance(v, str) and bool(v.strip()) and len(v) <= 512 and all(32 <= ord(c) < 127 for c in v)
@@ -211,6 +322,8 @@ class PoliteFetcher:
     extra_denied: tuple = ()                         # hosts denied for this run, e.g. finance.yml bonfire_hosts
     max_bytes: int = MAX_BYTES
     reset_retries: int = RESET_RETRIES_PER_HOST     # per host per run
+    past_deadline: object = None                     # (pause seconds) -> True when a request then is too late; None: off
+    max_answer_seconds: float | None = None          # seconds one answer's body may take to read; None: off
     # Per-site state is keyed by site_key(host); robots.txt by the exact lowercase host.
     _last: dict = field(default_factory=dict)        # site -> clock() of last request
     _robots: dict = field(default_factory=dict)      # exact host -> RobotFileParser
@@ -220,6 +333,11 @@ class PoliteFetcher:
     _resets: dict = field(default_factory=dict)      # site -> resets retried this run
     _sent: dict = field(default_factory=dict)        # site -> requests sent this run (every one, retries included)
     _caps: list = field(default_factory=list)        # [(frozenset of sites, request limit)] (limit_hosts)
+    _tenant_blocked: dict = field(default_factory=dict)  # tenant_key -> reason (that tenant said 403)
+    _tenant_sent: dict = field(default_factory=dict)  # tenant_key -> requests sent this run (retries included)
+    _tenant_caps: dict = field(default_factory=dict)  # tenant_key -> request limit (limit_tenant; only ever lowered)
+    _robots_capped: dict = field(default_factory=dict)  # exact host -> why its robots.txt ran into a request cap
+    _robots_unreadable: dict = field(default_factory=dict)  # exact host -> why robots.txt was not read (disallow_all)
     log: list = field(default_factory=list)          # [{event, host, url, detail}]
 
     # ------------------------------------------------------------ policy
@@ -255,6 +373,12 @@ class PoliteFetcher:
             self.log.append({"event": "refused", "host": parts.netloc, "url": url,
                              "detail": "not https on the default port"})
             raise SchemeRefused(f"{url}: only https:// on the default port is fetched")
+        try:
+            shared_path(url)
+        except TenantPathRefused as e:
+            self.log.append({"event": "refused", "host": parts.netloc, "url": url,
+                             "detail": "not a canonical shared-host path"})
+            raise TenantPathRefused(str(e)) from None
 
     def sent(self, host: str) -> int:
         """Requests made to host's site this run (robots.txt, redirects and retries included)."""
@@ -272,6 +396,24 @@ class PoliteFetcher:
         left = [limit - sum(self.sent(x) for x in group) for group, limit in self._caps if h in group]
         return max(0, min(left)) if left else None
 
+    def limit_tenant(self, url: str, n: int) -> None:
+        """Allow at most n more requests to url's tenant for the rest of this run, inside any host cap (both hold). A
+        cap only ever adds a limit: an earlier, lower tenant cap still holds. A URL that is no tenant's is a
+        ValueError (use limit_hosts for a whole host)."""
+        t = tenant_key(url)
+        if t is None:
+            raise ValueError(f"{url}: not a tenant path of a shared host")
+        limit = self._tenant_sent.get(t, 0) + max(0, int(n))
+        self._tenant_caps[t] = min(limit, self._tenant_caps.get(t, limit))
+
+    def remaining_tenant(self, url: str) -> int | None:
+        """Requests url's tenant may still get under its own cap, or None when it has none (the host cap, see
+        remaining(), still applies on top)."""
+        t = tenant_key(url)
+        if t is None or t not in self._tenant_caps:
+            return None
+        return max(0, self._tenant_caps[t] - self._tenant_sent.get(t, 0))
+
     def check_redirect(self, origin: str, target: str) -> None:
         """fetch/cap-redirect-escape: a redirect from a capped host must stay inside every cap group the origin is in,
         so the request it leads to counts against the origin's cap. Raises HostRefused, with no request, otherwise."""
@@ -281,19 +423,74 @@ class PoliteFetcher:
                 self.log.append({"event": "refused", "host": target, "detail": f"redirect from capped {origin}"})
                 raise HostRefused(f"{target}: a redirect from {origin} leaves its capped hosts; not followed")
 
+    def check_tenant_redirect(self, origin_url: str, target_url: str) -> None:
+        """A redirect never changes the tenant key (national/tenant-redirect-uncapped, S2a finding 8): from a tenant
+        URL it stays in that tenant (so it counts against the tenant's cap, if any), and a host-level URL (robots.txt
+        included) never leads into a tenant. Hosts that are not shared have no tenant on either side. Raises
+        HostRefused, with no request, otherwise."""
+        t, to = tenant_key(origin_url), tenant_key(target_url)
+        if t in self._tenant_caps and to != t:
+            self.log.append({"event": "refused", "host": split_url(target_url).netloc, "url": target_url,
+                             "detail": f"redirect from capped tenant {t}"})
+            raise HostRefused(f"{target_url}: a redirect from capped tenant {t} leaves it; not followed")
+        if to != t:     # national/tenant-redirect-uncapped (S2a finding 8): capped or not, a redirect keeps its tenant
+            self.log.append({"event": "refused", "host": split_url(target_url).netloc, "url": target_url,
+                             "detail": f"redirect changes tenant {t} -> {to}"})
+            raise HostRefused(f"{target_url}: a redirect from tenant {t} to tenant {to}; not followed")
+
     def delay_for(self, host: str) -> float:
         floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if host_matches(host, (k,))])
         return max(floor, self._delay.get(site_key(host), 0.0))
 
-    def _wait(self, host: str) -> None:
+    def _wait(self, host: str, url: str = "") -> None:
+        """Sleep out the host delay. With `past_deadline` set, a request that would be sent (or a wait that would end)
+        at or after the run's deadline raises DeadlineReached before anything sleeps or is counted (4.4.4)."""
         key = site_key(host)
         last = self._last.get(key)
         delay = self.delay_for(host)
+        pause = 0.0
         if last is not None:
             gap = self.clock() - last
             if gap < delay:
-                self.sleep(delay - gap)
+                pause = delay - gap
+        if self.past_deadline is not None and self.past_deadline(pause):
+            self._deadline(host, url)
+        if pause:
+            self.sleep(pause)
+        if self.past_deadline is not None and self.past_deadline(0.0):
+            self._deadline(host, url)                  # a sleep that overshot the deadline
         self._last[key] = self.clock()
+
+    def _deadline(self, host: str, url: str):
+        self.log.append({"event": "deadline", "host": host, "url": url})
+        raise DeadlineReached(f"{host}: the run's deadline; {url} was not requested")
+
+    def _read_answer(self, r, limit: int, t0, url: str) -> bytes:
+        """The answer body, at most `limit` bytes: one read(limit) when max_answer_seconds is None (today's), else
+        ANSWER_CHUNK reads (read1 when the answer has it) and FetchFailed once clock() - t0 passes max_answer_seconds,
+        checked after each read and once more after the last. read1 is one socket read of body data, but on a chunked
+        answer http.client also reads the chunk-size lines (with extensions) and the trailer with readline: many socket
+        reads, each up to the socket timeout. Those are not cut short, so a dripped chunked answer can overrun A before
+        it fails here; the job timeout is the backstop (4.4.4 residual, section 8)."""
+        if self.max_answer_seconds is None:
+            return r.read(limit)
+        read = getattr(r, "read1", None) or r.read
+        parts, total = [], 0
+        while total < limit:
+            chunk = read(min(ANSWER_CHUNK, limit - total))
+            if not chunk:
+                break
+            parts.append(chunk)
+            total += len(chunk)
+            if self.clock() - t0 > self.max_answer_seconds:
+                self._too_slow(url)
+        if self.clock() - t0 > self.max_answer_seconds:  # the last (empty) read: a dripped chunked trailer
+            self._too_slow(url)
+        return b"".join(parts)
+
+    def _too_slow(self, url: str):
+        self.log.append({"event": "error", "host": split_url(url).netloc, "url": url, "detail": "answer too slow"})
+        raise FetchFailed(f"{url}: answer slower than {self.max_answer_seconds:g} s")
 
     def _open(self, req):
         if self.opener is not None:
@@ -317,25 +514,42 @@ class PoliteFetcher:
         return ProxyRefused(f"{host}: sandbox egress proxy refused ({detail}); the site did not see it")
 
     # ------------------------------------------------------------ requests
-    def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None) -> tuple[int, bytes, dict]:
+    def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None,
+                 _tenant_ok: bool = True) -> tuple[int, bytes, dict]:
+        """One request. `_tenant_ok=False` (robots.txt and its redirect hops): no answer stops only a tenant; a 403
+        or a hop into an already blocked tenant stops the host (national/tenant-robots-host-block)."""
         host = split_url(url).netloc
         key = site_key(host)
         self.check_host(host)
         self.check_url(url)
+        tenant = tenant_key(url)
         if key in self._blocked:
             raise HostBlocked(f"{host}: {self._blocked[key]}")
+        if tenant in self._tenant_blocked:
+            if not _tenant_ok:
+                self._blocked[key] = f"robots.txt led to blocked tenant {tenant} ({url})"
+                self.log.append({"event": "blocked", "host": host, "url": url, "detail": self._blocked[key]})
+                raise HostBlocked(self._blocked[key])
+            raise TenantBlocked(f"{tenant}: {self._tenant_blocked[tenant]}")
         if self._proxy_refused.get(key, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
             raise ProxyRefused(f"{host}: skipped after {PROXY_REFUSALS_BEFORE_SKIP} proxy refusals this run")
         if self.remaining(host) == 0:
             self.log.append({"event": "cap", "host": host, "url": url, "detail": "request cap used up"})
             raise RequestCapReached(f"{host}: the run's request cap is used up; {url} was not requested")
-        self._wait(host)
+        if tenant is not None and self.remaining_tenant(url) == 0:
+            self.log.append({"event": "cap", "host": host, "url": url, "tenant": tenant,
+                             "detail": "tenant request cap used up"})
+            raise TenantCapReached(f"{tenant}: the run's tenant request cap is used up; {url} was not requested")
+        self._wait(host, url)
+        t0 = self.clock() if self.max_answer_seconds is not None else None
         self._sent[key] = self.sent(host) + 1
+        if tenant is not None:
+            self._tenant_sent[tenant] = self._tenant_sent.get(tenant, 0) + 1
         started = self.wall()
         try:
             req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
             with self._open(req) as r:
-                body = r.read(self.max_bytes + 1)
+                body = self._read_answer(r, self.max_bytes + 1, t0, url)
                 if len(body) > self.max_bytes:
                     limits.trip("fetch.MAX_BYTES", url, f"{len(body)}+ B", f"{self.max_bytes} B")
                     raise FetchFailed(f"{url}: larger than {self.max_bytes} bytes")
@@ -343,19 +557,39 @@ class PoliteFetcher:
                 return r.status, body, dict(r.headers)
         except urllib.error.HTTPError as e:
             if e.code in (403, 429):
-                if e.code == 403 and self._proxy_said_403(host, started):
-                    raise self._note_proxy_refusal(host, url, "HTTP 403 recorded by the proxy") from None
-                snippet = (e.read() or b"")[:200].decode("utf-8", "replace")
-                self._blocked[key] = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
-                                      f"body={snippet!r}")
-                self.log.append({"event": "blocked", "host": host, "url": url, "detail": self._blocked[key]})
-                raise HostBlocked(self._blocked[key]) from None
+                # architecture 4.4.2 (fetch/403-body-*): the decision never raises; the block is recorded and raised
+                # here, outside its guard, so a refusal always leaves a block behind before anything else happens
+                kind, reason = self._refusal_decision(e, e.code, host, key, tenant, url, started, _tenant_ok,
+                                                      t0=t0)
+                if kind == "proxy":
+                    raise self._note_proxy_refusal(host, url, reason) from None
+                if kind == "tenant":
+                    self._tenant_blocked[tenant] = reason
+                    self.log.append({"event": "blocked", "host": host, "url": url, "tenant": tenant,
+                                     "detail": reason})
+                    raise TenantBlocked(f"{tenant}: {reason}") from None
+                self._blocked[key] = reason
+                self.log.append({"event": "blocked", "host": host, "url": url, "detail": reason})
+                raise HostBlocked(reason) from None
             if e.code >= 500 and _retry:
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"HTTP {e.code}"})
-                return self._raw_get(url, _retry=False, _headers=_headers)
+                return self._raw_get(url, _retry=False, _headers=_headers, _tenant_ok=_tenant_ok)
             if e.code == 304:   # a conditional GET's "unchanged": a request like any other, logged as one
                 self.log.append({"event": "get", "host": host, "url": url, "detail": "304"})
-            return e.code, (e.read() or b""), dict(e.headers or {})
+            # fetch/error-body-unbounded (4.4.2 site 8): the same cap and size trip as a 200 answer; a body that
+            # cannot be read fails this one fetch, never with a raw exception
+            try:
+                body = self._read_answer(e, self.max_bytes + 1, t0, url) or b""
+            except FetchFailed:
+                raise                                  # too slow: _read_answer logged it
+            except Exception as x:
+                detail = f"HTTP {e.code} answer body unreadable: {type(x).__name__}"
+                self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
+                raise FetchFailed(f"{url}: {detail}") from None
+            if len(body) > self.max_bytes:
+                limits.trip("fetch.MAX_BYTES", url, f"{len(body)}+ B", f"{self.max_bytes} B")
+                raise FetchFailed(f"{url}: larger than {self.max_bytes} bytes")
+            return e.code, body, dict(e.headers or {})
         except (urllib.error.URLError, OSError) as e:
             if _is_tunnel_refusal(e):
                 raise self._note_proxy_refusal(host, url, str(getattr(e, "reason", e))) from None
@@ -364,7 +598,7 @@ class PoliteFetcher:
                 # exchange): the site sent no refusal, so one retry after the host delay (_wait), like a server error
                 self._resets[key] = self._resets.get(key, 0) + 1
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"connection reset: {e}"})
-                return self._raw_get(url, _retry=False, _headers=_headers)
+                return self._raw_get(url, _retry=False, _headers=_headers, _tenant_ok=_tenant_ok)
             detail = str(e)
             if _is_reset(e) and _retry:
                 detail += f" (not retried: {self.reset_retries} resets already retried on {host} this run)"
@@ -378,6 +612,38 @@ class PoliteFetcher:
             self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
             raise FetchFailed(f"{url!r}: {detail}") from None
 
+    def _refusal_decision(self, e, code: int, host: str, key: str, tenant: str | None, url: str, started,
+                          tenant_ok: bool, t0=None) -> tuple[str, str]:
+        """Architecture 4.4.2 (classify fails closed, fetch/403-body-*): a site's 403/429 answer -> ("proxy" | "tenant"
+        | "host", reason). Every read, decode, parse and the decision itself run inside one guard: any Exception
+        (OSError, ValueError, RecursionError, MemoryError, TypeError, AttributeError, ...) makes the answer a host
+        block. Never raises an Exception, so the caller always records a block before it raises."""
+        try:
+            if code == 403 and self._proxy_said_403(host, started):
+                return "proxy", "HTTP 403 recorded by the proxy"
+            try:
+                body = self._read_answer(e, BLOCK_BODY_BYTES, t0, url) or b""
+            except Exception:
+                body = b""      # fetch/403-body-read-escapes: an unreadable body is not JSON, so a host block
+            if not isinstance(body, (bytes, bytearray)):
+                body = b""
+            snippet = bytes(body[:200]).decode("utf-8", "replace")
+            server = (e.headers or {}).get("Server")
+            reason = f"HTTP {code} from the site on {url} server={server!r} body={snippet!r}"
+            if tenant_ok and self._tenant_only_block(code, key, tenant, bytes(body)):
+                return "tenant", reason
+            return "host", reason
+        except Exception as x:
+            return "host", f"HTTP {code} from the site on {url} (answer not classifiable: {type(x).__name__})"
+
+    def _tenant_only_block(self, code: int, site: str, tenant: str | None, body: bytes) -> bool:
+        """True when a site's 403/429 stops only `tenant`: a 403 on a tenant path (robots.txt never is one) with a JSON
+        object body, while no other tenant of the same site is already blocked. Anything else stops the host."""
+        if code != 403 or tenant is None or not _json_object(body):
+            return False
+        prefix = site + "/"
+        return not any(t.startswith(prefix) and t != tenant for t in self._tenant_blocked)
+
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
         # robots.txt is per exact host (RFC 9309); delay, block, cap per site. The cache key is the plain host name:
         # check_url allows only port 443 or none, so h.example, h.example:443 and h.example:0443 are one host
@@ -386,34 +652,57 @@ class PoliteFetcher:
         if exact not in self._robots:
             rp = urllib.robotparser.RobotFileParser()
             url = f"{scheme}://{host}/robots.txt"
-            status, body, headers = self._raw_get(url)
             hops = 0
             refused = False
-            while status in REDIRECT_CODES and hops < MAX_REDIRECTS:
-                try:
+            status, body, headers = 0, b"", {}
+            try:
+                status, body, headers = self._raw_get(url, _tenant_ok=False)
+                while status in REDIRECT_CODES and hops < MAX_REDIRECTS:
                     nxt = self._location(url, headers)   # HostRefused: a denied/unlisted host, http://, another port
-                except HostRefused as e:
-                    # robots.txt cannot be read: disallow everything on this host for the run, cached, so later
-                    # fetches neither re-request robots.txt nor fetch the host (scheme-refusal-stops-host)
-                    self.log.append({"event": "robots_refused", "host": host, "url": url, "detail": str(e)})
-                    refused = True
-                    break
-                hops += 1
-                url = nxt
-                status, body, headers = self._raw_get(url)
+                    hops += 1
+                    url = nxt
+                    status, body, headers = self._raw_get(url, _tenant_ok=False)
+            except (HostRefused, RequestCapReached) as e:
+                # robots.txt cannot be read: disallow everything on this host for the run, cached, so later fetches
+                # neither re-request robots.txt nor fetch the host (scheme-refusal-stops-host; 4.4.1 consumer 6, a
+                # hop refused or into a capped tenant). Caps only ever lower, so nothing would become fetchable later.
+                self.log.append({"event": "robots_refused", "host": host, "url": url, "detail": str(e)})
+                if isinstance(e, RequestCapReached) and not isinstance(e, TenantCapReached):
+                    self._robots_capped[exact] = str(e)    # a host cap: later get()s report the cap, not robots
+                refused = True
+                self._robots_unreadable[exact] = f"refused: {type(e).__name__}"
+            delay = None
             if refused:
                 rp.disallow_all = True
             elif status == 200:
-                rp.parse(body.decode("utf-8", "replace").splitlines())
+                try:
+                    rp.parse(body.decode("utf-8", "replace").splitlines())
+                    delay = rp.crawl_delay(self.user_agent) or rp.crawl_delay("*")
+                    delay = float(delay) if delay else None
+                except Exception as e:
+                    # architecture 4.4.2 site 9: a robots.txt we cannot parse (e.g. a Crawl-delay of 5,000 digits,
+                    # which int() refuses, or one float() overflows) is unreadable: disallow all, cached, never re-asked
+                    rp = urllib.robotparser.RobotFileParser()
+                    rp.disallow_all = True
+                    delay = None
+                    self._robots_unreadable[exact] = "unparseable"
+                    self.log.append({"event": "robots_refused", "host": host, "url": url,
+                                     "detail": f"robots.txt not parseable: {type(e).__name__}"})
             elif 400 <= status < 500:
                 rp.allow_all = True          # no robots.txt = no rules (RFC 9309)
             else:
                 rp.disallow_all = True       # server error: be conservative
+                self._robots_unreadable[exact] = f"HTTP {int(status)}"
             self._robots[exact] = rp
-            delay = rp.crawl_delay(self.user_agent) or rp.crawl_delay("*")
             if delay:                        # the site's delay is the largest any of its hosts asks for
-                self._delay[key] = max(float(delay), self._delay.get(key, 0.0))
+                self._delay[key] = max(delay, self._delay.get(key, 0.0))
         return self._robots[exact]
+
+    def robots_unreadable(self, host: str) -> str | None:
+        """Why robots.txt of `host` could not be read this run (a refused URL or hop, a cap, a server error or too
+        many redirects), so every path there is disallowed for the run; None when it was read (or not asked yet). A
+        caller tells "the site's rules say no" (RobotsDisallowed with None here) from "we could not read the rules"."""
+        return self._robots_unreadable.get(plain_hostname(host) or host.lower())
 
     def _location(self, url: str, headers: dict) -> str:
         loc = next((v for k, v in (headers or {}).items() if k.lower() == "location"), None)
@@ -438,6 +727,7 @@ class PoliteFetcher:
         self.check_url(nxt)                     # every hop, not only the first URL: no http:// or other port
         self.check_host(host)
         self.check_redirect(urllib.parse.urlsplit(url).netloc, host)
+        self.check_tenant_redirect(url, nxt)    # national/tenant-cap-redirect: robots.txt hops obey it too
         return nxt
 
     def get(self, url: str, _hops: int = 0, _headers: dict | None = None) -> tuple[int, bytes, dict]:
@@ -445,6 +735,9 @@ class PoliteFetcher:
         self.check_host(parts.netloc)
         self.check_url(url)
         rp = self.robots(parts.netloc, parts.scheme)
+        capped = self._robots_capped.get(plain_hostname(parts.netloc) or parts.netloc.lower())
+        if capped is not None:   # robots.txt unread for a cap (disallow_all cached): still reported as the cap
+            raise RequestCapReached(f"{url} not requested: robots.txt ran into a request cap ({capped})")
         if not rp.can_fetch(self.user_agent, url):
             self.log.append({"event": "robots_disallowed", "host": parts.netloc, "url": url, "detail": ""})
             raise RobotsDisallowed(url)

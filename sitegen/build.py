@@ -24,6 +24,7 @@ from . import county_committees as cmx_mod
 from . import rpc as rpc_mod
 from . import freshness as fresh_mod
 from . import morning_page
+from . import national_pages
 from . import budget_views, config, council as council_mod, days as days_mod, dollar_split, feeds as feeds_mod, \
     fin_views, fund_split, property_tax, \
     georef as georef_mod, localdates, morning as morning_mod, unofficial as unofficial_mod, \
@@ -229,7 +230,7 @@ def _clean(out: Path, extra_dirs=(), export: bool = True) -> None:
     for p in out.glob("*.html"):
         p.unlink()
     for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital",
-              feeds_mod.FOLDER, morning_mod.FOLDER, *extra_dirs):
+              feeds_mod.FOLDER, morning_mod.FOLDER, national_pages.FOLDER, *extra_dirs):
         shutil.rmtree(out / d, ignore_errors=True)
 
 
@@ -1044,7 +1045,22 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("review.html.j2", "review.html", "Review (internal)",
                **views.review(ix, read_report(report_path)))
 
-    shutil.copytree(config.STATIC_DIR, out / "static")
+    # Daylight Digest (sitegen/national_pages.py, ADR 0013): only with config/site.yml national.enabled; off, nothing
+    # here runs and the digest-only scripts stay out of static/, so the build is byte-identical (architecture 7a).
+    # national-isolation (architecture 12): run() raises only its load phase's NationalBuildError (reviewed files);
+    # a bad national input degrades that government's page, or the whole digest (`national: degraded`).
+    national, national_states = national_pages.OFF, {}
+    try:
+        national_on = national_pages.enabled()
+        if national_on:
+            nrun = national_pages.run(out, env, site, councils=cixs, county_agendas=ax.data if ax else None,
+                                      built_day=built_day, counter=counter, fixture=fixture)
+            written += nrun.pages
+            national, national_states = nrun.state, nrun.degraded
+            national_pages.apply_to_tree(out, national_pages.fragment_labels())
+    except national_pages.NationalBuildError as exc:
+        raise BuildError(f"national: {exc}") from exc
+    shutil.copytree(config.STATIC_DIR, out / "static", ignore=national_pages.static_ignore(national_on))
     # A script, not a JSON file, so search also works when the site is opened from files or a zip (no fetch).
     index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx, cixs, rpx, cmx, cms),
                                                      separators=(",", ":"), ensure_ascii=True) + ";\n"
@@ -1099,4 +1115,4 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,
             "morning": morning_note, "export": export, "warnings": warnings, "vote_lists": vote_lists,
-            "city_budget": city_bg is not None}
+            "city_budget": city_bg is not None, "national": national, "national_states": national_states}

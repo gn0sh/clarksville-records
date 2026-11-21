@@ -148,6 +148,29 @@ def council_card(cix, m: dict) -> dict:
 _CALLED_OFF = re.compile(r"moved|cancell?ed|postponed", re.I)
 
 
+def calendar_rows(rows, today: date, called_off: set | None = None) -> list[dict]:
+    """The one rule for which rows of a council's calendar listing (council.yml `calendar`) may be shown as coming
+    meetings, shared by the day page (`scheduled_cards`) and the Daylight Digest feed (sitegen/national_clarksville.py):
+    in (date, kind) order (stable), a row without a date or kind is skipped, so is a row before `today`, one whose
+    title says moved, cancelled or postponed, and one listed from another category (D1, `page1_required`: nothing has
+    checked yet that it is this body's meeting); then one row per date and kind, the first. `called_off`, if given,
+    receives the (date, kind) of each called-off row from `today` on."""
+    seen, out = set(), []
+    for row in sorted(rows, key=lambda r: (r.get("date") or "", r.get("kind") or "")):
+        key = (row.get("date"), row.get("kind"))
+        if not all(key) or row["date"] < today.isoformat():
+            continue
+        if _CALLED_OFF.search(row.get("title") or ""):
+            if called_off is not None:
+                called_off.add(key)
+            continue
+        if row.get("page1_required") or key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+    return out
+
+
 def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> list[tuple[str, dict]]:
     """Meetings on the city's calendar (council.yml `calendar`) in the window that the facts file does not hold yet:
     the calendar's own title and date only, linked to the agenda when the calendar has one, else to the council's
@@ -163,16 +186,10 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
     if not p.is_file():
         return []
     held = {(m["date"], m["kind"]) for m in cix.facts["meetings"]}
-    seen, out = set(), []
-    for row in sorted(json.loads(p.read_text(encoding="utf-8")), key=lambda r: (r.get("date") or "", r.get("kind") or "")):
-        key = (row.get("date"), row.get("kind"))
-        if not all(key) or row["date"] < today.isoformat() or _CALLED_OFF.search(row.get("title") or ""):
+    out = []
+    for row in calendar_rows(json.loads(p.read_text(encoding="utf-8")), today):
+        if not _in(row["date"], start, end) or (row["date"], row["kind"]) in held:
             continue
-        if row.get("page1_required"):
-            continue
-        if not _in(row["date"], start, end) or key in held or key in seen:
-            continue
-        seen.add(key)
         out.append((row["date"], {
             "kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{row['date']}-{row['kind']}-scheduled",
             "bkey": getattr(cix, "body_key", None) or DOTS["council"],

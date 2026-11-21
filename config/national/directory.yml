@@ -1,0 +1,59 @@
+# Daylight Digest directory (docs/architecture/daylight-national.md 3.2; ADR 0013 decision 1). One entry per local
+# government we have checked. A government not listed here is "Not covered yet" and has no page. sitegen/national.py
+# load_directory reads this file with yaml.safe_load and refuses to build on any unknown key, bad id, duplicate id,
+# non-https URL or missing field (one test per refusal in tests/test_national_directory.py).
+#
+# Rules that guard people (invariant `privacy-withhold/national-prefix`, architecture section 11):
+# - `items` is `withheld` unless the entry says `items: shown`. `shown` is refused for any school district id (sdu-,
+#   sds-, sde-), and accepted only when the WHOLE entry (every key) equals its readable row in
+#   sitegen/national.py SHOWN_REVIEWED. Any edit to a shown entry stops the build until a reviewed code change updates
+#   the row (the error prints the new row), with the source showing the body is the government's own council or
+#   commission and the review date (a school or youth board listed under a city stays withheld). `withheld` needs
+#   no row. Two covered entries may not share a source (`daylight.body`, or Legistar client and body_id); a
+#   cant-cover entry names no platform or source.
+# - Any platform other than `daylight` needs `host_ok: {date, link}`: the date Brian said yes to that host and the
+#   https link to where he said it (Brian's rule R5; security finding 7). Without it the build and the collector stop.
+#
+# Ids are `<layer>-<Census GEOID>` and never change (3.1). `state` is the USPS code and names the folder digest/<st>/.
+# `checked_url` is the https page where the status was checked; `checked_doc` is a repo file instead.
+schema: daylight-directory/1
+govs:
+  - gov: place-4715160
+    also: []
+    body_name: Clarksville City Council
+    state: TN
+    status: covered
+    official_url: https://clarksvilletn.portal.civicclerk.com/
+    checked: 2026-11-19
+    checked_url: https://clarksvilletn.portal.civicclerk.com/
+    items: shown
+    platform: daylight
+    daylight: {body: city, full_url: city/}
+
+  - gov: county-47125
+    also: []
+    body_name: Montgomery County Commission
+    state: TN
+    status: covered
+    official_url: https://montgomerytn.gov/commission/agenda
+    checked: 2026-11-19
+    checked_url: https://montgomerytn.gov/commission/agenda
+    items: shown
+    platform: daylight
+    daylight: {body: county, full_url: meetings/agendas.html}
+
+  # Checked 2026-11-10 (docs/research/rpc-cmcss-sources.md), county page verified 2026-11-16 (docs/platform-facts.md): every cmcss.net page answers a Cloudflare bot challenge (403).
+  # official_url (2026-11-19, QA national/official-url-not-meetings-page): the board's agendas are posted on the
+  # county's Committee Agendas page, "School System" folder (docs/platform-facts.md "County Committee Agendas page",
+  # verified 2026-11-16); cmcss.net's own board page could not be read (the challenge), so it stays the reason_url.
+  - gov: sdu-4703030
+    also: []
+    body_name: Clarksville-Montgomery County School System Board of Education
+    state: TN
+    status: cant-cover
+    reason: blocks-readers-cmcss
+    reason_url: https://www.cmcss.net/
+    official_url: https://montgomerytn.gov/code/webshare/commission-committees-agendas.php
+    official_label: county-site
+    checked: 2026-11-16
+    checked_doc: docs/platform-facts.md

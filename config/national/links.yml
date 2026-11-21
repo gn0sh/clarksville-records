@@ -1,0 +1,15 @@
+# Daylight Digest outside links (docs/design/daylight-national.md v1.2 section 3, "Outside links"). The lookup page's
+# script reads them from `#digest-config` on digest/index.html (`election_url`, `census_url`) and prints each as the one
+# link of a label: lookup.election and lookup.election-none use election_url, lookup.down-census uses census_url.
+# They are settings, never label text. https only; a key left out leaves that line out whole.
+#
+# sitegen/national_pages.py load_links reads this file with yaml.safe_load and refuses an unknown key or a value that
+# is not a plain https URL. Both pages were fetched by ux-designer on 2026-11-19 (docs/platform-facts.md, "Daylight
+# Digest outside links"). The address a person typed is never put in either link.
+schema: daylight-links/1
+links:
+  # "State and local election offices" on USA.gov (US General Services Administration): a plain directory of
+  # election offices, with no call to register or vote.
+  election_url: https://www.usa.gov/state-election-office
+  # The Census Geocoder's front page: the Census Bureau's own page for the same lookup.
+  census_url: https://geocoding.geo.census.gov/geocoder/
