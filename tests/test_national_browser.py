@@ -4,8 +4,9 @@ Builds the fixture site with national.enabled on into a temp folder and runs tes
 chromium) over it: 12 recorded Census answers, plus a run with webdriver left true and a native-post run with fetch
 removed. The fixture build normally leaves the counter off (sitegen/analytics.py settings returns None for a fixture),
 so this build passes fixture=False to that one call to get the shipped counter tag. Missing node, Playwright or a
-Chromium skips only locally; with CI set or REQUIRE_BROWSER=1 it fails (as CR_ALLOW_NO_DATA in
-tests/test_national_clarksville.py). The run must end with its JSON summary: checks > 0 and "failed":0."""
+Chromium skips, unless the run is required: REQUIRE_BROWSER=1, or CI set while the national switch in the shipped
+config/site.yml (national.enabled) is on, which fails instead. With the switch off (digest pages neither built nor
+deployed) CI skips. The run must end with its JSON summary: checks > 0 and "failed":0."""
 import json
 import os
 import shutil
@@ -61,13 +62,35 @@ def monkeypatch_module():
     mp.undo()
 
 
+def _browser_required(env=None) -> bool:
+    """True when a missing browser must fail: REQUIRE_BROWSER=1, or CI with the national switch on in the shipped
+    config (read as the build does). NOTE: flipping the switch on needs daily-update.yml to install Playwright and
+    Chromium (pinned) first, or every daily deploy fails here."""
+    env = os.environ if env is None else env
+    if env.get("REQUIRE_BROWSER") == "1":
+        return True
+    return bool(env.get("CI")) and bool(config.SITE.get("national", {}).get("enabled"))
+
+
 def _need_browser():
     if _browser_ok():
         return
     why = "Playwright (node) or its Chromium not available"
-    if os.environ.get("CI") or os.environ.get("REQUIRE_BROWSER") == "1":
-        pytest.fail(why + " (CI or REQUIRE_BROWSER=1 set: the browser privacy run is required)")
-    pytest.skip(why)
+    if _browser_required():
+        pytest.fail(why + " (REQUIRE_BROWSER=1, or CI with config/site.yml national.enabled on: the browser run is required)")
+    pytest.skip(why + " (browser run not required: national switch off in config/site.yml, REQUIRE_BROWSER not 1)")
+
+
+@pytest.mark.parametrize("env,switch,required", [
+    ({"CI": "1"}, False, False),
+    ({"CI": "1"}, True, True),
+    ({"REQUIRE_BROWSER": "1"}, False, True),
+    ({}, False, False),
+    ({}, True, False),
+])
+def test_browser_required_gate(monkeypatch, env, switch, required):
+    monkeypatch.setitem(config.SITE, "national", {"enabled": switch})
+    assert _browser_required(env) is required
 
 
 def test_digest_privacy_in_a_browser(request):
