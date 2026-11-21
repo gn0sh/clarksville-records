@@ -93,6 +93,9 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
 }
 gh auth status *> $null
 if ($LASTEXITCODE -ne 0) { Write-Host "Not signed in: run gh auth login (as $owner). Nothing was changed."; exit 1 }
+if (-not (Get-Command git -CommandType Application -ErrorAction SilentlyContinue)) {   # v1pp-probe/tag-git-no-git-precheck
+    Write-Host 'git not found: install it (winget install Git.Git), then run this again. Nothing was changed.'; exit 1
+}
 
 # ---------------------------------------------------------------------------------------------- guard (reads only)
 Write-Host "Guard: scripts\protect-main.ps1 -Check -Apps $Apps (no writes) must print OK first."
@@ -217,22 +220,55 @@ function TagSuite {   # sets tagProof (it proves R-T), else tagWhy (why not) and
     if ($evl.Count -eq 3 -and $evl[0] -ceq 'fail' -and $evl[1] -ceq 'fail' -and $evl[2] -ceq 'active') { $script:tagProof = $detail }
     else { $script:tagWhy = "not shown to be R-T: $detail" }
 }
-function TagGit {   # the same tag by git push from a scratch clone (no hooks, no stored credentials; gh signs it in)
+# TagGit: the same tag by git push from a scratch clone (v1pp-probe/tag-git-*). Only git's own answer counts: no
+# hooks (--no-verify, core.hooksPath = an empty folder), no global config (GIT_CONFIG_GLOBAL = an empty file: no url
+# rewrite, hook path or helper of yours), gh as the only credential helper, no trace, askpass or prompt, and secrets
+# redacted; the process environment is put back afterwards. Each git call's exit code is its own ($LASTEXITCODE is set
+# to 99 first, so a git that did not run never reads 0). PASS needs a line from GitHub ("remote: error: GH013:
+# Repository rule violations found for refs/tags/main") and git's "To https://github.com/<repo>.git" (the push went
+# there); exit 0 with that line is FAIL; "Everything up-to-date" after the REST try created the tag is FAIL (it
+# exists); anything else is INCONCLUSIVE.
+$script:tagRestCreated = $false
+function TGit {   # one git call with the clean settings; returns its output lines, the exit code in $script:gitRc
+    $global:LASTEXITCODE = 99
+    $lines = @(git -c ('core.hooksPath=' + (Join-Path $script:tagDir 'no-hooks')) -c 'credential.helper=' -c 'credential.helper=!gh auth git-credential' @args 2>&1 | ForEach-Object { ([string]$_).TrimEnd("`r") })
+    $script:gitRc = $LASTEXITCODE
+    return ,$lines
+}
+function TagGit {
     $script:tagGitKind = 'INCONCLUSIVE'
-    $g = Join-Path ([IO.Path]::GetTempPath()) ('v1pp-tagpush-' + [Guid]::NewGuid().ToString('N'))
-    $env:GIT_TERMINAL_PROMPT = '0'
-    $gc = @('-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential')
+    $url = "https://github.com/$repo.git"
+    $script:tagDir = Join-Path ([IO.Path]::GetTempPath()) ('v1pp-tagpush-' + [Guid]::NewGuid().ToString('N'))
+    $names = @(@(Get-ChildItem Env: | Where-Object { $_.Name -like 'GIT_TRACE*' } | ForEach-Object { $_.Name }) +
+        @('GIT_TRACE_REDACT', 'GIT_CURL_VERBOSE', 'GIT_ASKPASS', 'SSH_ASKPASS', 'GIT_TERMINAL_PROMPT', 'GIT_CONFIG_GLOBAL') | Where-Object { $_ } | Select-Object -Unique)
+    $saved = @{}
+    foreach ($n in $names) { $saved[$n] = [Environment]::GetEnvironmentVariable($n); [Environment]::SetEnvironmentVariable($n, $null) }
     try {
-        $o = Flat ((@(git init -q $g 2>&1 | ForEach-Object { "$_" })) -join ' ')
-        if ($LASTEXITCODE -eq 0) {
-            $o = Flat ((@(git -C $g @gc fetch -q --depth=1 "https://github.com/$repo.git" $mainBefore 2>&1 | ForEach-Object { "$_" })) -join ' ')
-        }
-        if ($LASTEXITCODE -ne 0) { Mark 'INCONCLUSIVE' 'tag main git' "could not fetch main to push from: $o"; return }
-        $o = Flat ((@(git -C $g @gc push "https://github.com/$repo.git" "${mainBefore}:refs/tags/main" 2>&1 | ForEach-Object { "$_" })) -join ' ')
-        if ($LASTEXITCODE -eq 0) { $script:tagGitKind = 'FAIL'; Mark 'FAIL' 'tag main git' "git push created it: $o" }
-        elseif ($o -match 'GH013|rule violation') { $script:tagGitKind = 'PASS'; Mark 'PASS' 'tag main git' "refused: $o" }
-        else { Mark 'INCONCLUSIVE' 'tag main git' "refused, but not naming 'rule violation': $o" }
-    } finally { Remove-Item -LiteralPath $g -Recurse -Force -ErrorAction SilentlyContinue }
+        $null = New-Item -ItemType Directory -Path (Join-Path $script:tagDir 'no-hooks') -Force
+        [IO.File]::WriteAllText((Join-Path $script:tagDir 'empty.gitconfig'), '')
+        $env:GIT_TRACE_REDACT = '1'; $env:GIT_TERMINAL_PROMPT = '0'; $env:GIT_CONFIG_GLOBAL = (Join-Path $script:tagDir 'empty.gitconfig')
+        $clone = Join-Path $script:tagDir 'clone'
+        $o = TGit init -q $clone
+        if ($script:gitRc -eq 0) { $o = TGit -C $clone fetch -q --depth=1 $url $mainBefore }
+        if ($script:gitRc -ne 0) { Mark 'INCONCLUSIVE' 'tag main git' "could not fetch main to push from: $(Flat ($o -join ' '))"; return }
+        $o = TGit -C $clone push --no-verify $url "${mainBefore}:refs/tags/main"
+        $rc = $script:gitRc
+        $shown = Flat ($o -join ' ')
+        if ($rc -eq 0 -and $script:tagRestCreated -and @($o | Where-Object { $_.Contains('Everything up-to-date') }).Count -gt 0) {
+            $script:tagGitKind = 'FAIL'; Mark 'FAIL' 'tag main git' "tag main exists (git answered up-to-date after the REST try created it): $shown"
+        } elseif (@($o | Where-Object { $_ -ceq "To $url" }).Count -eq 0) {
+            Mark 'INCONCLUSIVE' 'tag main git' "git answered $rc, but not from $url (no 'To $url' line): $shown"
+        } elseif ($rc -eq 0) {
+            $script:tagGitKind = 'FAIL'; Mark 'FAIL' 'tag main git' "git push created it: $shown"
+        } elseif (@($o | Where-Object { $_ -cmatch '^remote: error: GH013: Repository rule violations found for refs/tags/main' }).Count -gt 0) {
+            $script:tagGitKind = 'PASS'; Mark 'PASS' 'tag main git' "refused: $shown"
+        } else { Mark 'INCONCLUSIVE' 'tag main git' "refused, but no 'remote: error: GH013' line from GitHub: $shown" }
+    } catch {
+        Mark 'INCONCLUSIVE' 'tag main git' "could not run git: $(Flat ([string]$_))"
+    } finally {
+        foreach ($n in $saved.Keys) { [Environment]::SetEnvironmentVariable($n, $saved[$n]) }
+        Remove-Item -LiteralPath $script:tagDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 $gBranches = @('probe/v1pp-w', 'probe/v1pp-n', 'probe/v1pp-d0')
@@ -487,7 +523,7 @@ $script:tagT0 = [DateTime]::UtcNow.AddSeconds(-60).ToString('yyyy-MM-ddTHH:mm:ss
 $tagBare = ''
 $out = Flat ((@(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha=$mainBefore --jq '.ref' 2>&1 | ForEach-Object { "$_" })) -join ' ')
 if ($LASTEXITCODE -eq 0) {
-    Mark 'FAIL' 'tag main' "GitHub created it: $out"
+    $script:tagRestCreated = $true; Mark 'FAIL' 'tag main' "GitHub created it: $out"
 } elseif ($out -match 'rule violation') {
     Mark 'PASS' 'tag main' "refused ($out)"
 } elseif ($out -cmatch 'HTTP 422') {

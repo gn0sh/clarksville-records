@@ -295,7 +295,15 @@ runbook `docs/ops/morning-note.md` section 4 item 6a (the line kinds), ADR 0011 
    reads, unreadable, or no start time), when the git line is PASS, because R-T has no bypass actor and is then shown
    refusing the same tag for the same admin account, and `tag main after` reads it absent. A suite that contradicts R-T
    (another ruleset, `evaluate`, result `pass`, two suites) stays INCONCLUSIVE whatever git says. The git line always
-   counts by itself.
+   counts by itself. **Round 2 (security follow-ups, `v1pp-probe/tag-git-*`):** only git's own answer from GitHub
+   counts. Both twins refuse to start without git (a `git` that never ran must not read as exit 0: the .ps1 also sets
+   `$LASTEXITCODE` to 99 before each call); the push uses `--no-verify`, an empty `core.hooksPath`, an empty
+   `GIT_CONFIG_GLOBAL` (no url rewrite, hook path or helper from Brian's config), gh as the only credential helper,
+   no `GIT_TRACE*`, `GIT_CURL_VERBOSE` or askpass, and `GIT_TRACE_REDACT=1` (the .ps1 puts the environment back).
+   PASS needs a `remote: error: GH013: Repository rule violations found for refs/tags/main` line and git's
+   `To https://github.com/gn0sh/clarksville-records.git`; a bare "rule violation" (a local hook could print it) or
+   another `To` is INCONCLUSIVE. "Everything up-to-date" is FAIL only after the REST try created the tag. Requiring
+   R-T's own wording ("creations being restricted") was considered and dropped: it is not in GitHub's docs.
 3. **pages-api on the branch run, "no answer in the run's log": read each job's own log** (`v1pp-probe/run-log-missing`;
    confidence medium on the cause, high on the fix). `gh run view --log` builds its output from the run's log archive
    and the script threw away its error; the same-shaped tag run, read seconds later, worked, so the likely cause is the

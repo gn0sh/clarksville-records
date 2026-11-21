@@ -176,13 +176,14 @@ def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False
     (scripts / "protect-main.sh").write_text(_PM)
     (scripts / "protect-main.ps1").write_text(_PM_PS1)
     (bindir / "gh").write_text(f'#!/bin/sh\nexec python3 "{STUB}" "$@"\n')
-    (bindir / "git").write_text(f'#!/bin/sh\nexec python3 "{STUB}" --git "$@"\n')
+    if not (cfg or {}).get("no_git"):
+        (bindir / "git").write_text(f'#!/bin/sh\nexec python3 "{STUB}" --git "$@"\n')
     (bindir / "sleep").write_text(_SLEEP)
     if (cfg or {}).get("date_no_d"):   # a date without GNU -d (BSD, busybox)
         real = shutil.which("date")
         (bindir / "date").write_text(f'#!/bin/sh\nfor x in "$@"; do [ "$x" = -d ] && exit 1; done\nexec {real} "$@"\n')
         (bindir / "date").chmod(0o755)
-    for f in ("gh", "git", "sleep"):
+    for f in ("gh", "sleep") + (() if (cfg or {}).get("no_git") else ("git",)):
         (bindir / f).chmod(0o755)
     cfg = {"runner_log": runner_log(), **(cfg or {})}
     (tmp / "cfg.json").write_text(json.dumps(cfg))
@@ -193,7 +194,7 @@ def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False
         state.setdefault("prs", {})[str(n)] = {"head": b, "state": "open", "merged": False}
     (tmp / "state.json").write_text(json.dumps(state))
     e = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_CODE_REMOTE", "GITHUB_ACTIONS", "CI")}
-    e.update({"PATH": f"{bindir}:{os.environ['PATH']}", "GH_CFG": str(tmp / "cfg.json"),
+    e.update({"PATH": f"{bindir}:{(env or {}).get('PATH_TAIL') or os.environ['PATH']}", "GH_CFG": str(tmp / "cfg.json"),
               "GH_STATE": str(tmp / "state.json"), "GH_CALLS": str(tmp / "calls"), "RESULTS_DIR": str(tmp),
               "HOME": str(tmp), "STUB_PM": pm, **(env or {})})
     if twin == "sh":
@@ -322,7 +323,8 @@ FAILS = {
                          "PASS after cleanup #90: closed, unmerged"]),
     "rest-push": ({"runner_log": runner_log(PUSH_rest="0 {}"), "on_main": [FILES[3]]}, ["FAIL PUSH rest"]),
     "git-push": ({"runner_log": runner_log(PUSH_git="0 ")}, ["FAIL PUSH git"]),
-    "tag-main-created": ({"tag_main": "create"}, ["FAIL tag main:", "FAIL tag main after"]),
+    "tag-main-created": ({"tag_main": "create"}, ["FAIL tag main:", "FAIL tag main after",
+                                                  "FAIL tag main git: tag main exists (git answered up-to-date"]),
     "tag-main-git-created": ({"git_tag": "create"}, ["PASS tag main: refused", "FAIL tag main git: git push created it",
                                                      "FAIL tag main after"]),
     "env-job-ran": ({"jobs": {"502": [{"id": 603, "name": "github-pages", "status": "completed",
@@ -430,7 +432,13 @@ INCONCLUSIVE = {
                                     "git_tag": "other"},
                                    "INCONCLUSIVE tag main: failed without naming a rule, and no rule suite"),
     # the git push try of the same tag (v1pp-probe/tag-main-unnamed-422, review should-fix)
-    "tag-git-other": ({"git_tag": "other"}, "INCONCLUSIVE tag main git: refused, but not naming 'rule violation'"),
+    "tag-git-other": ({"git_tag": "other"}, "INCONCLUSIVE tag main git: git answered 128, but not from"),
+    # v1pp-probe/tag-git-url-rewrite, tag-git-local-hooks, tag-git-exists-wording: only git's own answer from GitHub
+    "tag-git-rewrite": ({"git_tag": "rewrite"}, "INCONCLUSIVE tag main git: git answered 1, but not from "
+                                               "https://github.com/gn0sh/clarksville-records.git"),
+    "tag-git-hook": ({"git_tag": "hook"}, "INCONCLUSIVE tag main git: refused, but no 'remote: error: GH013' line"),
+    "tag-git-0-no-to": ({"git_tag": "create_no_to"}, "INCONCLUSIVE tag main git: git answered 0, but not from"),
+    "tag-git-uptodate-alone": ({"git_tag": "uptodate"}, "INCONCLUSIVE tag main git: git answered 0, but not from"),
     "tag-git-fetch-failed": ({"git_tag": "fetch_fail"}, "INCONCLUSIVE tag main git: could not fetch main to push from"),
     "tag-main-suite-twice": ({"tag_main": "other", "suite_extra": [{"id": 901}]},
                              "INCONCLUSIVE tag main: refused ("),
@@ -579,6 +587,43 @@ def test_an_unchecked_start_time_reads_no_rule_suite(tmp_path):
     assert not [c for c in run.calls if c["path"].startswith("rulesets/rule-suites")]
     line = next(ln for ln in run.out.splitlines() if ln.startswith("INCONCLUSIVE tag main: refused ("))
     assert "the start time could not be computed" in line, line
+
+
+def test_the_git_push_runs_with_a_clean_git_environment(tmp_path, twin):
+    """v1pp-probe/tag-git-env and tag-git-local-hooks: no trace, askpass or prompt, secrets redacted, no global config,
+    no hooks, gh the only credential helper; and the caller's environment is not changed for anything else."""
+    dirty = {"GIT_TRACE": "1", "GIT_TRACE2_EVENT": str(tmp_path / "t2"), "GIT_TRACE_CURL": "1",
+             "GIT_CURL_VERBOSE": "1", "GIT_ASKPASS": "/bin/false", "SSH_ASKPASS": "/bin/false",
+             "GIT_CONFIG_GLOBAL": str(tmp_path / "mine.gitconfig")}
+    run = probe(tmp_path, twin, env=dirty)
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    gits = [c for c in run.calls if c["method"].startswith("git ")]
+    assert [c["method"] for c in gits] == ["git init", "git fetch", "git push"]
+    for c in gits:
+        e = c["env"]
+        for k in ("GIT_TRACE", "GIT_TRACE2_EVENT", "GIT_TRACE_CURL", "GIT_CURL_VERBOSE", "GIT_ASKPASS", "SSH_ASKPASS"):
+            assert k not in e, (c["method"], k)
+        assert e["GIT_TRACE_REDACT"] == "1" and e["GIT_TERMINAL_PROMPT"] == "0"
+        assert e["GIT_CONFIG_GLOBAL"].endswith("empty.gitconfig") and "mine" not in e["GIT_CONFIG_GLOBAL"]
+        hooks = [x for x in c["argv"] if x.startswith("core.hooksPath=")]
+        assert len(hooks) == 1 and hooks[0].endswith("no-hooks"), c["argv"]
+        assert c["argv"][:6] == ["-c", hooks[0], "-c", "credential.helper=", "-c",
+                                 "credential.helper=!gh auth git-credential"], c["argv"]
+    assert "--no-verify" in gits[2]["argv"]
+
+
+def test_no_git_is_refused_before_any_write(tmp_path):
+    """v1pp-probe/tag-git-no-git-precheck: a missing git must never read as an answer (bash twin here; the .ps1 checks
+    Get-Command git the same way, and sets $LASTEXITCODE to 99 before each git call)."""
+    farm = tmp_path / "farm"
+    farm.mkdir()
+    for d in ("/usr/local/bin", "/usr/bin", "/bin"):
+        for name in (os.listdir(d) if os.path.isdir(d) else []):
+            if not name.startswith("git") and not (farm / name).exists():
+                (farm / name).symlink_to(os.path.join(d, name))
+    run = probe(tmp_path, "sh", {"no_git": True}, env={"PATH_TAIL": str(farm)})
+    assert run.r.returncode == 1 and "git not found" in run.out and "Nothing was changed." in run.out, run.out
+    assert not run.writes() and not run.marks("FAIL")
 
 
 def test_a_named_rule_refusal_of_tag_main_reads_no_rule_suite(tmp_path, twin):
@@ -815,11 +860,16 @@ def test_the_twins_agree():
                      "27685093", "creation", "HTTP 422", "/actions/jobs/$", "/logs", "Unable to find artifact",
                      "'V1PP-RESULT PAGES api exit=[0-9]'", "'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH) '",
                      "NOT-REACHABLE by design", "U-pages", "V1'' try 1 inconclusive",
-                     "tag main git", "credential.helper=!gh auth git-credential", ":refs/tags/main", "GH013|rule violation",
+                     "tag main git", "credential.helper=!gh auth git-credential", ":refs/tags/main",
                      "--depth=1", "GIT_TERMINAL_PROMPT", "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
-                     "shown refusing the same tag on the git line above"):
+                     "shown refusing the same tag on the git line above",
+                     "--no-verify", "core.hooksPath=", "GIT_CONFIG_GLOBAL", "empty.gitconfig", "GIT_TRACE_REDACT",
+                     "GIT_ASKPASS", "SSH_ASKPASS", "GIT_CURL_VERBOSE", "'^remote: error: GH013: Repository rule "
+                     "violations found for refs/tags/main'", "Everything up-to-date", "git not found",
+                     "tag main exists (git answered up-to-date after the REST try created it)"):
             assert part in s, part
         assert "--log" not in s.replace("gh run view --log gave", "")   # v1pp-probe/run-log-missing
+        assert "GH013|rule violation" not in s   # v1pp-probe/tag-git-local-hooks: GitHub's remote line only
         for f in FILES:
             assert f in s, f
         assert "-ExecutionPolicy Bypass" not in s
@@ -851,7 +901,7 @@ def test_the_twins_agree():
     # every guard comes before the first write, in each twin
     for text, first_write in ((sh, '-X POST "repos/$repo/git/refs"'), (ps1, '-X POST "repos/$repo/git/refs"')):
         w = text.index(first_write)
-        for g in ("CLAUDE_CODE_REMOTE", "protect-main", "tags/main", "records-data"):
+        for g in ("CLAUDE_CODE_REMOTE", "protect-main", "tags/main", "records-data", "git not found"):
             assert text.index(g) < w, g
     assert "scripts\\protect-main.ps1" in ps1 and "-Check -Apps $Apps" in ps1
     # Windows PowerShell 5.1: no double quote inside a --jq filter, ASCII only, no BOM

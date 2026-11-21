@@ -39,8 +39,10 @@ def fields():
 if a[:1] == ["--git"]:   # the stub git (tests/test_v1pp_probe.py puts it on PATH as git): init, fetch, push only
     g = a[1:]
     sub = next(x for x in g if x in ("init", "fetch", "push"))
+    seen = {k: v for k, v in os.environ.items()
+            if k.startswith("GIT_") or k in ("SSH_ASKPASS",)}   # what git would see (v1pp-probe/tag-git-env)
     with open(os.environ["GH_CALLS"], "a") as f:
-        f.write(json.dumps({"method": "git " + sub, "path": "", "argv": g}) + "\n")
+        f.write(json.dumps({"method": "git " + sub, "path": "", "argv": g, "env": seen}) + "\n")
     if sub == "init":
         sys.exit(0)
     how = cfg.get("git_tag", "refuse")
@@ -53,17 +55,30 @@ if a[:1] == ["--git"]:   # the stub git (tests/test_v1pp_probe.py puts it on PAT
         sys.exit(0)
     assert g[-1] == st["refs"]["heads/main"] + ":refs/tags/main", g
     assert "credential.helper=!gh auth git-credential" in g, g
-    if how == "create" and "tags/main" not in st["refs"]:
+    url = "https://github.com/gn0sh/clarksville-records.git"
+    if "tags/main" in st["refs"] or how == "uptodate":   # the ref is there at that sha already
+        sys.stderr.write("Everything up-to-date\n")
+        sys.exit(0)
+    if how == "create_no_to":
+        sys.exit(0)
+    if how == "rewrite":   # an insteadOf rewrite sent it elsewhere
+        sys.stderr.write("remote: error: GH013: Repository rule violations found for refs/tags/main.\n"
+                         "To https://example.invalid/other.git\n ! [remote rejected] x -> main\n")
+        sys.exit(1)
+    if how == "hook":      # a local hook's words, not GitHub's
+        sys.stderr.write("To %s\nerror: rule violation (pre-push hook)\nerror: failed to push some refs\n" % url)
+        sys.exit(1)
+    if how == "create":
         st["refs"]["tags/main"] = st["refs"]["heads/main"]
         json.dump(st, open(st_path, "w"))
-        sys.stderr.write("To https://github.com/gn0sh/clarksville-records.git\n * [new tag]  main -> main\n")
+        sys.stderr.write("To %s\n * [new tag]  main -> main\n" % url)
         sys.exit(0)
     if how == "other":
         sys.stderr.write("fatal: the remote end hung up unexpectedly\n")
         sys.exit(128)
     sys.stderr.write("remote: error: GH013: Repository rule violations found for refs/tags/main.\nremote: - Cannot "
-                     "create ref due to creations being restricted.\n ! [remote rejected] %s -> main (push declined "
-                     "due to repository rule violations)\n" % st["refs"]["heads/main"])
+                     "create ref due to creations being restricted.\nTo %s\n ! [remote rejected] %s -> main (push "
+                     "declined due to repository rule violations)\n" % (url, st["refs"]["heads/main"]))
     sys.exit(1)
 
 path = next((x for x in a if x.startswith("repos/")), "")

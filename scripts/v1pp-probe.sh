@@ -91,6 +91,7 @@ for v in CLAUDE_CODE_REMOTE GITHUB_ACTIONS CI; do
   fi
 done
 gh auth status >/dev/null 2>&1 || { echo "Not signed in: run gh auth login (as $owner). Nothing was changed."; exit 1; }
+command -v git >/dev/null 2>&1 || { echo "git not found (v1pp-probe/tag-git-no-git-precheck): install it, then run this again. Nothing was changed."; exit 1; }
 
 # ---------------------------------------------------------------------------------------------- guard (reads only)
 echo "Guard: scripts/protect-main.sh --check --apps $apps (no writes) must print OK first."
@@ -205,19 +206,38 @@ tag_suite() {   # sets tag_proof (it proves R-T), else tag_why (why not) and tag
     tag_proof=$detail
   else tag_why="not shown to be R-T: $detail"; fi
 }
-tag_git() {   # the same tag by git push from a scratch clone (no hooks, no stored credentials; gh signs it in)
-  local g="$work/tagpush" out gc=(-c credential.helper= -c 'credential.helper=!gh auth git-credential')
-  tag_git_kind=INCONCLUSIVE
-  if ! out=$(git init -q "$g" 2>&1 && GIT_TERMINAL_PROMPT=0 git -C "$g" "${gc[@]}" fetch -q --depth=1 \
-       "https://github.com/$repo.git" "$main_before" 2>&1); then
+# tag_git: the same tag by git push from a scratch clone (v1pp-probe/tag-git-*). Only git's own answer counts: no
+# hooks (--no-verify, core.hooksPath = an empty folder), no global config (GIT_CONFIG_GLOBAL = an empty file: no url
+# rewrite, hook path or helper of yours), gh as the only credential helper, no trace, askpass or prompt, and secrets
+# redacted. PASS needs a line from GitHub ("remote: error: GH013: Repository rule violations found for
+# refs/tags/main") and git's "To https://github.com/<repo>.git" (the push went there); exit 0 with that line is FAIL;
+# "Everything up-to-date" after the REST try created the tag is FAIL (it exists); anything else is INCONCLUSIVE.
+tag_rest_created=""
+tgit() {   # git in a subshell with a clean git environment; $tag_dir holds the scratch clone, hooks and config
+  ( unset $(compgen -e | grep -E '^GIT_TRACE') GIT_CURL_VERBOSE GIT_ASKPASS SSH_ASKPASS
+    export GIT_TRACE_REDACT=1 GIT_TERMINAL_PROMPT=0 GIT_CONFIG_GLOBAL="$tag_dir/empty.gitconfig"
+    exec git -c core.hooksPath="$tag_dir/no-hooks" -c credential.helper= \
+      -c 'credential.helper=!gh auth git-credential' "$@" )
+}
+tag_git() {
+  local out rc url="https://github.com/$repo.git"
+  tag_git_kind=INCONCLUSIVE; tag_dir="$work/tagpush"
+  if ! mkdir -p "$tag_dir/no-hooks" || ! : > "$tag_dir/empty.gitconfig"; then
+    mark INCONCLUSIVE "tag main git" "could not make the scratch folder"; return 0
+  fi
+  if ! out=$(tgit init -q "$tag_dir/clone" 2>&1 && tgit -C "$tag_dir/clone" fetch -q --depth=1 "$url" "$main_before" 2>&1); then
     mark INCONCLUSIVE "tag main git" "could not fetch main to push from: $(flat "$out")"; return 0
   fi
-  if out=$(GIT_TERMINAL_PROMPT=0 git -C "$g" "${gc[@]}" push "https://github.com/$repo.git" \
-           "$main_before:refs/tags/main" 2>&1); then
+  out=$(tgit -C "$tag_dir/clone" push --no-verify "$url" "$main_before:refs/tags/main" 2>&1); rc=$?
+  if [ "$rc" = 0 ] && [ -n "$tag_rest_created" ] && grep -q 'Everything up-to-date' <<< "$out"; then
+    tag_git_kind=FAIL; mark FAIL "tag main git" "tag main exists (git answered up-to-date after the REST try created it): $(flat "$out")"
+  elif ! grep -qxF "To $url" <<< "$out"; then
+    mark INCONCLUSIVE "tag main git" "git answered $rc, but not from $url (no 'To $url' line): $(flat "$out")"
+  elif [ "$rc" = 0 ]; then
     tag_git_kind=FAIL; mark FAIL "tag main git" "git push created it: $(flat "$out")"
-  elif grep -qiE 'GH013|rule violation' <<< "$out"; then
+  elif grep -qE '^remote: error: GH013: Repository rule violations found for refs/tags/main' <<< "$out"; then
     tag_git_kind=PASS; mark PASS "tag main git" "refused: $(flat "$out")"
-  else mark INCONCLUSIVE "tag main git" "refused, but not naming 'rule violation': $(flat "$out")"; fi
+  else mark INCONCLUSIVE "tag main git" "refused, but no 'remote: error: GH013' line from GitHub: $(flat "$out")"; fi
 }
 
 g_branches=(probe/v1pp-w probe/v1pp-n probe/v1pp-d0)
@@ -432,7 +452,7 @@ log "Probe pull requests (yours): W #${g_nums[0]}, N #${g_nums[1]}, D0 #${g_nums
 tag_t0=$(date -u -d '-60 seconds' +%FT%TZ 2>/dev/null)   # rule suites of this try are pushed at or after it (skew margin)
 tag_bare=""
 if out=$(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha="$main_before" --jq '.ref' 2>&1); then
-  mark FAIL "tag main" "GitHub created it: $(printf '%s' "$out" | tr '\r\n' '  ')"
+  tag_rest_created=yes; mark FAIL "tag main" "GitHub created it: $(printf '%s' "$out" | tr '\r\n' '  ')"
 elif grep -qi 'rule violation' <<< "$out"; then
   mark PASS "tag main" "refused ($(printf '%s' "$out" | tr '\r\n' '  '))"
 elif grep -q 'HTTP 422' <<< "$out"; then
