@@ -5410,12 +5410,12 @@
       "date": "2026-11-23",
       "documents": [
         {
-          "fetched_at": "2026-11-20",
+          "fetched_at": "2026-11-21",
           "kind": "agenda",
           "name": "Agenda",
-          "sha256": "9254673159fd2a8101b0de445afb9969ed6c7d3a449b09292853d4f123aacf12",
-          "source_id": "src-9254673159fd",
-          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3363,plainText=false)"
+          "sha256": "554c660c742da3910c76d9c9107ed3c013a77818b30b751ecf40db328ba74c60",
+          "source_id": "src-554c660c742d",
+          "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3365,plainText=false)"
         }
       ],
       "event_id": 3064,

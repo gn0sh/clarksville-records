@@ -2614,5 +2614,17 @@
     "meeting_date": "2026-11-23",
     "sha256": "9254673159fd2a8101b0de445afb9969ed6c7d3a449b09292853d4f123aacf12",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3363,plainText=false)"
+  },
+  {
+    "bytes": 217138,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-21T22:17:50+00:00",
+    "kind": "agenda",
+    "label": "Finance Committee: Finance Committee Meeting (agenda)",
+    "last_modified": null,
+    "meeting_date": "2026-11-23",
+    "sha256": "554c660c742da3910c76d9c9107ed3c013a77818b30b751ecf40db328ba74c60",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3365,plainText=false)"
   }
 ]
