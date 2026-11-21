@@ -820,7 +820,9 @@ def test_nested_control_bytes_leave_no_live_control(tmp_path, twin, how):
     run = probe(tmp_path, twin, {"log_fail": {"701": how}})
     assert run.r.returncode == 1, run.out + run.r.stderr
     line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
-    assert "gh exit 1: gh: bad  gateway (HTTP 502)" in line, line
+    # The ps1 twin decodes gh's stderr as UTF-8 first, so the stray outer bytes show as U+FFFD (harmless); the sh twin
+    # strips bytes and leaves "bad  gateway". Either way no live control survives.
+    assert "gh exit 1: gh: bad " in line and " gateway (HTTP 502)" in line, line
     assert line in run.results
     for text in (line, run.results):
         for bad in ("\u009b", "\u202e", "\u0085", "\u202a"):
