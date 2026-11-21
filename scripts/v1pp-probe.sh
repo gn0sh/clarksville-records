@@ -5,9 +5,10 @@
 #
 # Question: after the cutover (R1'' on main: the ruleset maximum of approvals, squash only, bypass = the admin role in
 # pull request mode; R-D; R-T; R2 off), can GITHUB_TOKEN get anything into main, and can a branch or tag other than
-# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after the guard passed), it:
+# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after step 0 passed), it:
 #   0. refuses unless scripts/protect-main.sh --check --apps <answer> prints OK (no writes), main and records-data read
-#      as commits and no tag named main exists;
+#      as commits and no tag named main exists; then, still before any write, reads a finished job's log (the newest
+#      finished daily-update job; v1pp-probe/log-read-selfcheck) and stops, changing nothing, if it can't;
 #   1. pushes three targets, twice, each one commit on main: W (an inert .github/workflows/v1pp-canary.yml), N
 #      (sitegen/v1pp-probe-canary.txt), D0 (data/v1pp-probe-canary.txt, data/ now refused on main too). Set G
 #      (probe/v1pp-w, probe/v1pp-n, probe/v1pp-d0): you open their pull requests into main. Set B (probe/v1pp-w-bot,
@@ -126,11 +127,6 @@ give_back_scope() {   # the workflow scope this run added (a browser may open); 
     gh auth refresh -h github.com --remove-scopes workflow || echo "Could not remove it: run gh auth refresh -h github.com --remove-scopes workflow"
   fi
 }
-if ! gh auth status 2>&1 | grep -q "workflow"; then
-  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
-  gh auth refresh -h github.com -s workflow || { echo "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
-  scope_added=yes
-fi
 work=$(mktemp -d) || { give_back_scope; echo "Could not make a temporary folder. Nothing was changed."; exit 1; }
 out_dir="${RESULTS_DIR:-$HOME}"
 results="$out_dir/v1pp-probe-results-$(date +%Y%m%d-%H%M).txt"
@@ -394,7 +390,107 @@ on_exit() {   # an exit before finish (Ctrl+C, an unexpected stop): clean up qui
 trap on_exit EXIT
 trap 'exit 130' INT TERM
 
+clean_log() {   # untrusted text: ANSI colour codes, then control characters, then (as UTF-8 bytes) the C1 controls
+  # U+0080-U+009F and the bidi controls U+202A-U+202E, U+2066-U+2069 are dropped (v1pp-probe/log-read-diag-controls)
+  # One pass is not enough: removing a byte pair can join the bytes around it into a new one ($'\xc2\xc2\x9b\x9b'
+  # leaves $'\xc2\x9b'), so the three removals repeat until none removes anything (v1pp-probe/log-read-diag-controls-nested)
+  sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' | tr -d '\000-\010\013-\037\177' |
+    LC_ALL=C sed -E $':a\ns/\xc2[\x80-\x9f]//g\ns/\xe2\x80[\xaa-\xae]//g\ns/\xe2\x81[\xa6-\xa9]//g\nta'
+}
+run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclusion; returns 1 when unread
+  gh api "repos/$repo/actions/runs/$1/jobs" \
+    --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null
+}
+# v1pp-probe/job-log-unreadable (docs/architecture/v1pp-job-log-invariant.md, I-log): a job-log read succeeded only
+# when gh exits 0 and its output holds a GitHub log line (log_line, unanchored: a BOM may sit before line 1); a failed
+# read leaves one sanitized line, never its output (v1pp-probe/log-read-diag). GH_DEBUG (or the legacy DEBUG) would
+# put a debug line first (v1pp-probe/gh-debug-legacy).
+unset GH_DEBUG DEBUG
+log_line='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z '
+read_why() {   # $1 gh's exit code, $2 its stderr, $3 lines it printed: "gh exit <rc>: <first stderr line, sanitized>"
+  local l
+  l=$(printf '%s\n' "$2" | clean_log | grep -m 1 '[^[:space:]]')
+  if [ -z "$l" ]; then printf 'gh exit %s: no error text, %s line(s) out' "$1" "$3"; return 0; fi
+  # URLs, also JSON-escaped (https:\/\/), cut to scheme and host, any userinfo dropped (any case: the signed read
+  # token is in the path and query; a closing ")" is kept); then a host/path with no scheme cut to the host; then any
+  # query left cut (v1pp-probe/log-read-diag-query, -userinfo); then long tokens redacted
+  l=$(printf '%s' "$l" | sed -E \
+    -e $'s|(https?:(\\\\?/){2})([^/[:space:]"\'?#@\\\\]*@)?([^/[:space:]"\'?#@\\\\)]+)[^[:space:]"\')]*|\\1\\4/...|gI' \
+    -e $'s|([^/[:space:]"\'?#@\\\\]+@)?(([A-Za-z0-9-]+\\.)+[A-Za-z]{2,}(:[0-9]+)?)\\\\?/[^[:space:]"\')]*|\\2/...|g' \
+    -e $'s|\\?[^[:space:]"\']+|?...|g' -e 's|[A-Za-z0-9%+/=_-]{32,}|<redacted>|g')
+  printf 'gh exit %s: %s' "$1" "${l:0:200}"
+}
+# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
+# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
+# succeeds and holds $2 (an ERE); prints the last log read, cleaned; returns 1 if no read succeeded, and then prints
+# the last failed read's read_why line instead.
+job_log() {
+  local i t text="" got="" rc errf why=""
+  errf=$(mktemp) || { printf 'could not make a temporary file'; return 1; }
+  for i in 1 2 3 4 5 6; do
+    t=$(gh api "repos/$repo/actions/jobs/$1/logs" ${log_flag:+"$log_flag"} 2>"$errf") && rc=0 || rc=$?
+    if [ "$rc" = 0 ] && grep -qE "$log_line" <<< "$t"; then
+      got=yes; text=$(printf '%s\n' "$t" | clean_log)
+      grep -qE "$2" <<< "$text" && break
+    else
+      why=$(read_why "$rc" "$(cat "$errf")" "$(grep -c '[^[:space:]]' <<< "$t")")
+    fi
+    [ "$i" = 6 ] || sleep 10
+  done
+  rm -f "$errf"
+  if [ -z "$got" ]; then printf '%s' "$why"; return 1; fi
+  printf '%s\n' "$text"
+}
+
 log "V1'' probe $(date -u +%FT%TZ). main before: $main_before. records-data before: $rd_before."
+gh_ver=$(gh --version 2>/dev/null) || true
+gh_ver=$(printf '%s\n' "${gh_ver%%$'\n'*}" | clean_log); gh_ver=${gh_ver:0:200}
+log "gh: ${gh_ver:-unread}."
+# v1pp-probe/log-read-escape-flag (I-log 6): gh 2.104 refuses to print a body holding terminal escape sequences (a job
+# log's ANSI colours) unless --allow-escape-sequences is passed; older gh (2.89) has no such flag and rejects it. So
+# ask this gh's own help, once and locally (no network), and pass the flag on the job-log reads only. Safe: clean_log
+# strips ANSI and control characters from the log text before any use, and no log text is ever printed raw.
+log_flag=""
+gh_short=gh
+if [[ "$gh_ver" =~ ^gh\ version\ ([0-9][0-9.]*[0-9]) ]]; then gh_short="gh ${BASH_REMATCH[1]}"; fi
+gh_help=$(gh api --help 2>/dev/null) || true   # read whole first: grep -q in a pipe could SIGPIPE gh (pipefail)
+if [[ "$gh_help" == *--allow-escape-sequences* ]]; then
+  log_flag=--allow-escape-sequences
+  log "$gh_short: log reads pass --allow-escape-sequences (log text is cleaned before any use)."
+else
+  log "$gh_short: log reads do not pass --allow-escape-sequences (this gh does not know it)."
+fi
+gh_help=""
+# v1pp-probe/log-read-selfcheck (I-log 3): every answer is read from job logs, so before the first write (the leftover
+# deletes below are writes) show that this machine can read one: the newest finished daily-update job's, through
+# job_log. Reads only; its text is never shown. Refused here, nothing was changed (started is still empty, and the
+# workflow scope is not asked for yet). The newest 5 completed runs, newest first: the first with a completed
+# success or failure job is used (the newest may have been cancelled).
+sc_runs=$(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=5" \
+          --jq '.workflow_runs[].id' 2>/dev/null) || sc_runs=""
+sc_run=""; sc_jid=""
+while IFS= read -r r; do
+  [[ "$r" =~ ^[0-9]+$ ]] || continue
+  sc_jobs=$(run_jobs "$r") || continue
+  sc_jid=$(awk -F'\t' '$2 ~ /^[0-9]+$/ && $3 == "completed" && ($4 == "success" || $4 == "failure") {print $2; exit}' <<< "$sc_jobs")
+  if [ -n "$sc_jid" ]; then sc_run=$r; break; fi
+done <<< "$sc_runs"
+if [ -z "$sc_jid" ]; then
+  log "REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed."
+  exit 1
+fi
+if ! sc_text=$(job_log "$sc_jid" "$log_line"); then
+  log "REFUSED: could not read the log of finished job $sc_jid (daily-update run $sc_run) after 6 reads (last: $sc_text); every answer is read from job logs, so the probe stops here (v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team."
+  exit 1
+fi
+log "Log read check: job $sc_jid of daily-update run $sc_run read ($(grep -c . <<< "$sc_text") lines)."
+sc_text=""
+# v1pp-probe/selfcheck-before-scope: the workflow scope is asked for only now, after the read-only checks passed
+if ! gh auth status 2>&1 | grep -q "workflow"; then
+  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
+  gh auth refresh -h github.com -s workflow || { log "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
+  scope_added=yes
+fi
 for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try
 started=yes
 
@@ -496,31 +592,10 @@ wait_run() {   # $1 run id: v1pp-probe/unbounded-watch: up to 12 minutes (72 rea
   done
   printf '%s' "$s"
 }
-clean_log() {   # untrusted text: ANSI colour codes, then control characters, are dropped
-  sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' | tr -d '\000-\010\013-\037\177'
-}
-run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclusion; returns 1 when unread
-  gh api "repos/$repo/actions/runs/$1/jobs" \
-    --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null
-}
-# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
-# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
-# succeeds and holds $2 (an ERE); prints the last log read, cleaned; returns 1 if no read succeeded.
-job_log() {
-  local i t text="" got=""
-  for i in 1 2 3 4 5 6; do
-    if t=$(gh api "repos/$repo/actions/jobs/$1/logs" 2>/dev/null); then
-      got=yes; text=$(printf '%s\n' "$t" | clean_log)
-      grep -qE "$2" <<< "$text" && break
-    fi
-    [ "$i" = 6 ] || sleep 10
-  done
-  [ -n "$got" ] || return 1
-  printf '%s\n' "$text"
-}
 run_id=$(run_of "$runner" "$run_head") || run_id=""
 r_ids[0]=$run_id; r_looked[0]=yes
 lines=""
+log_unread=""   # v1pp-probe/unread-not-absent (I-log 2): a runner job's log not read, so no line may read as absent
 if [ -z "$run_id" ]; then
   mark INCONCLUSIVE "runner" "the probe run did not start within 3 minutes"
 else
@@ -531,10 +606,10 @@ else
   log_text=""
   jobs=$(run_jobs "$run_id") || jobs=""
   jids=$(awk -F'\t' '$2 ~ /^[0-9]+$/ {print $2}' <<< "$jobs")
-  [ -n "$jids" ] || mark INCONCLUSIVE "runner log" "could not read the run's jobs"
+  [ -n "$jids" ] || { log_unread=yes; mark INCONCLUSIVE "runner log" "could not read the run's jobs"; }
   for jid in $jids; do
     if t=$(job_log "$jid" 'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH) '); then log_text+="$t"$'\n'
-    else mark INCONCLUSIVE "runner log" "could not read job $jid's log"; fi
+    else log_unread=yes; mark INCONCLUSIVE "runner log" "could not read job $jid's log after 6 reads (last: $t)"; fi
   done
   lines=$(grep -oE "V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH)( .*)?$" <<< "$log_text" || true)
   while IFS= read -r l; do [ -n "$l" ] && log "  $l"; done <<< "$lines"
@@ -548,6 +623,7 @@ judge() {   # $1 target, $2 step, $3 what the refusal must name (an ERE, any cas
   l=$(grep -E "^V1PP-RESULT $1 $2 exit=[0-9]+( |$)" <<< "$lines" | head -n 1)
   if [ -z "$l" ]; then
     if [ -n "$ended" ]; then mark NOT-TRIED "$1 $2" "skipped: an earlier merge or push ended the run"
+    elif [ -n "$log_unread" ]; then mark INCONCLUSIVE "$1 $2" "not judged: the run's log was not read (see the runner log line)"
     else mark INCONCLUSIVE "$1 $2" "no answer in the run's log"; fi
     return 0
   fi
@@ -616,7 +692,7 @@ pages_refused() {   # $1 run label, $2 run id: v1pp-probe/pages-api-coverage, th
   jid=$(awk -F'\t' '$1 == "pages-api" {print $2; exit}' <<< "$jobs")
   if ! [[ "$jid" =~ ^[0-9]+$ ]]; then mark INCONCLUSIVE "$1 pages-api" "could not read the job"; return 0; fi
   if ! t=$(job_log "$jid" 'V1PP-RESULT PAGES api exit=[0-9]'); then
-    mark INCONCLUSIVE "$1 pages-api" "could not read the job's log (job $jid)"; return 0
+    mark INCONCLUSIVE "$1 pages-api" "could not read the job's log (job $jid) after 6 reads (last: $t)"; return 0
   fi
   l=$(grep -oE "V1PP-RESULT PAGES api exit=[0-9]+( .*)?$" <<< "$t" | head -n 1) || l=""
   if [ -z "$l" ]; then mark INCONCLUSIVE "$1 pages-api" "no answer in the job's log"; return 0; fi

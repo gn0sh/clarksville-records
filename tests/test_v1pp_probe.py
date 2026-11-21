@@ -667,6 +667,261 @@ def test_pages_accepted_is_still_fail_when_the_log_lags(tmp_path, twin):
     assert any(ln.startswith("FAIL tag v1pp-probe pages-api: GitHub accepted") for ln in run.out.splitlines())
 
 
+# ------------------------------------------------------------------ the job-log read invariant (I-log)
+# docs/architecture/v1pp-job-log-invariant.md section 5, tests (a)-(h); v1pp-probe/job-log-unreadable
+STORAGE = "https://productionresultssa1.blob.core.windows.net/..."
+NEVER_SHOWN = ("sig=", "SECRETSIG", "?sv", "SECRETBODY", "SELFCHECK-BODY")   # the signed URL, a failed body, the check's log
+NOT_JUDGED = "not judged: the run's log was not read (see the runner log line)"
+JUDGED = re.compile(r"^[A-Z-]+ (W|N|D0|WB|NB|D0B|PUSH) (open|approve|squash|merge|rebase|graphql|rest|git):")
+
+
+def assert_never_shown(run):
+    for where, text in (("out", run.out), ("stderr", run.r.stderr), ("results", run.results)):
+        for s in NEVER_SHOWN:
+            assert s not in text, (where, s)
+
+
+def test_an_unreadable_job_log_refuses_before_any_write(tmp_path, twin):
+    """(a) v1pp-probe/log-read-selfcheck: the PC can't read a finished job's log, so nothing is written (not even the
+    leftover deletes); the reason is in the results file, sanitized; the workflow scope is not even asked for
+    (v1pp-probe/selfcheck-before-scope), so there is nothing to give back."""
+    run = probe(tmp_path, twin, {"log_fail": {"701": "dns"}, "scopes": "Token scopes: 'gist', 'repo'"})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
+    assert line == ("REFUSED: could not read the log of finished job 701 (daily-update run 700) after 6 reads (last: "
+                    'gh exit 1: gh: Get "' + STORAGE + '": dial tcp: lookup productionresultssa1.blob.core.windows.net:'
+                    " no such host); every answer is read from job logs, so the probe stops here "
+                    "(v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team."), line
+    assert line in run.results and "gh exit 1:" in run.results and STORAGE in run.results
+    assert "gh: gh version 2.104.0 (2026-11-10)." in run.results         # the header: gh, and the .ps1's PowerShell
+    assert (". PowerShell " in run.results) == (twin == "ps1")
+    assert not run.writes()
+    assert [c["path"] for c in run.calls if c["path"].startswith("actions/jobs/")] == ["actions/jobs/701/logs"] * 6
+    assert [c["method"] for c in run.calls].count("auth status") == 1   # the sign-in check only
+    assert not [c for c in run.calls if c["method"] == "auth refresh"]
+    assert "workflow scope" not in run.out
+    assert "(V1'')" not in run.out
+    assert_never_shown(run)
+
+
+@pytest.mark.parametrize("cfg", [
+    {"selfcheck_run": "none"},
+    {"jobs": {"700": [{"id": 701, "name": "gate", "status": "completed", "conclusion": "cancelled", "steps": []},
+                      {"id": 702, "name": "push", "status": "in_progress", "conclusion": None, "steps": []}]}},
+], ids=["no-run", "no-finished-job"])
+def test_no_finished_daily_update_job_refuses_before_any_write(tmp_path, twin, cfg):
+    """(b) nothing to test the read on: refused, nothing changed, no log read."""
+    run = probe(tmp_path, twin, cfg)
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed."
+            in run.results)
+    assert not run.writes() and not [c for c in run.calls if c["path"].startswith("actions/jobs/")]
+
+
+def test_the_log_read_check_uses_the_newest_of_5_runs_with_a_finished_job(tmp_path, twin):
+    """v1pp-probe/log-read-selfcheck: the newest completed run was cancelled before any job finished and the next
+    one's jobs can't be read, so the third newest is used; older runs are not read."""
+    jobs = {"698": [{"id": 690, "name": "gate", "status": "completed", "conclusion": "cancelled", "steps": []}]}
+    run = probe(tmp_path, twin, {"selfcheck_runs": [698, 699, 700, 697], "jobs": jobs,
+                                 "fail": {"actions/runs/699/jobs": -1}})
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    assert "Log read check: job 701 of daily-update run 700 read (1 lines)." in run.results
+    read = [c["path"] for c in run.calls if re.fullmatch(r"actions/runs/(69[0-9]|700)/jobs", c["path"])]
+    assert read == ["actions/runs/698/jobs", "actions/runs/699/jobs", "actions/runs/700/jobs"], read
+    assert not [c for c in run.calls if c["path"] in ("actions/jobs/690/logs", "actions/runs/697/jobs")]
+
+
+def test_the_log_read_check_comes_before_the_first_write_and_shows_no_log_text(tmp_path, twin):
+    """(c) the self-check reads before the first DELETE (the leftovers), and only its line count is shown."""
+    run = probe(tmp_path, twin)
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    check = next(i for i, c in enumerate(run.calls) if c["path"] == "actions/jobs/701/logs")
+    assert check < run.calls.index(run.writes()[0]) and run.writes()[0]["method"] == "DELETE"
+    assert "Log read check: job 701 of daily-update run 700 read (1 lines)." in run.results
+    assert_never_shown(run)
+
+
+# ------------------------------------------------------------------ v1pp-probe/log-read-escape-flag (I-log 6)
+ESC_FLAG = "--allow-escape-sequences"
+
+
+def _stub(tmp, gh, *argv):
+    """The stub gh on its own, for what it models: one job-log read or one help call."""
+    (tmp / "cfg.json").write_text(json.dumps({"gh": gh}))
+    (tmp / "state.json").write_text(json.dumps({"refs": {}}))
+    e = {**os.environ, "GH_CFG": str(tmp / "cfg.json"), "GH_STATE": str(tmp / "state.json"),
+         "GH_CALLS": str(tmp / "calls")}
+    return subprocess.run(["python3", str(STUB), *argv], env=e, capture_output=True, text=True, timeout=60)
+
+
+def test_the_stub_models_both_gh_builds(tmp_path):
+    """gh 2.104 (Brian's PC) refuses a log body with escape sequences unless the flag is passed; gh 2.89 (the cloud)
+    has no such flag in its help and rejects it as unknown."""
+    logs = "api repos/gn0sh/clarksville-records/actions/jobs/701/logs".split()
+    r = _stub(tmp_path, "new", *logs)
+    assert r.returncode == 1 and not r.stdout, r
+    assert r.stderr == ("the response contains terminal escape sequences; pass --allow-escape-sequences to output it "
+                        "anyway\n")
+    r = _stub(tmp_path, "new", *logs, ESC_FLAG)
+    assert r.returncode == 0 and "\x1b[" in r.stdout and "SELFCHECK-BODY" in r.stdout, r
+    assert ESC_FLAG in _stub(tmp_path, "new", "api", "--help").stdout
+    r = _stub(tmp_path, "old", *logs)
+    assert r.returncode == 0 and "\x1b[" in r.stdout, r            # 2.89 prints the escapes as they come
+    r = _stub(tmp_path, "old", *logs, ESC_FLAG)
+    assert r.returncode == 1 and r.stderr.startswith("unknown flag: --allow-escape-sequences"), r
+    h = _stub(tmp_path, "old", "api", "--help")
+    assert h.returncode == 0 and "escape" not in h.stdout and "FLAGS" in h.stdout
+
+
+def assert_no_escapes(run):
+    for where, text in (("out", run.out), ("stderr", run.r.stderr), ("results", run.results)):
+        assert "\x1b" not in text and "[36;1m" not in text and "[0m" not in text, where
+
+
+@pytest.mark.parametrize("gh, flag, line", [
+    ("new", True, "gh 2.104.0: log reads pass --allow-escape-sequences (log text is cleaned before any use)."),
+    ("old", False, "gh 2.89.0: log reads do not pass --allow-escape-sequences (this gh does not know it)."),
+], ids=["gh-2.104", "gh-2.89"])
+def test_log_reads_pass_the_escape_flag_only_when_this_gh_knows_it(tmp_path, twin, gh, flag, line):
+    """Every log line has ANSI colours (the stub's default). gh's own help is asked once, before the self-check; the
+    flag goes on every job-log read (self-check, runner, pages-api) and on nothing else; the reads work either way,
+    the verdict is PASS, and no escape sequence reaches the output or the results file."""
+    run = probe(tmp_path, twin, {"gh": gh})
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    assert run.out.rstrip().splitlines()[-1].startswith("PASS (V1''): every step above was refused as expected")
+    assert line in run.results and line in run.out
+    helps = [i for i, c in enumerate(run.calls) if c["method"] == "api --help"]
+    logs = [i for i, c in enumerate(run.calls) if re.fullmatch(r"actions/jobs/[0-9]+/logs", c["path"])]
+    assert len(helps) == 1 and logs and helps[0] < logs[0], (helps, logs)
+    assert {run.calls[i]["path"] for i in logs} == {"actions/jobs/%s/logs" % j for j in (701, 600, 605, 606)}
+    for i in logs:
+        assert (ESC_FLAG in run.calls[i]["argv"]) == flag, run.calls[i]
+        assert run.calls[i]["argv"].count(ESC_FLAG) == int(flag)
+    assert not [c for i, c in enumerate(run.calls) if i not in logs and ESC_FLAG in c["argv"]]
+    assert "Log read check: job 701 of daily-update run 700 read (1 lines)." in run.results
+    assert_no_escapes(run)
+    assert_never_shown(run)
+
+
+def test_the_escape_flag_is_needed_on_gh_2_104(tmp_path, twin):
+    """Without the flag (a help that doesn't list it, but a gh that still checks), the self-check refuses with gh's
+    own line, sanitized: what try 3 would have shown had its stderr been kept."""
+    run = probe(tmp_path, twin, {"gh": "new", "help_without_flag": True})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("(last: gh exit 1: the response contains terminal escape sequences; pass --allow-escape-sequences to "
+            "output it anyway)") in run.results
+    assert not run.writes()
+    assert not [c for c in run.calls if ESC_FLAG in c["argv"]]
+    assert_no_escapes(run)
+
+
+def test_an_unread_runner_log_is_not_judged_and_says_why(tmp_path, twin):
+    """(d) v1pp-probe/unread-not-absent + log-read-diag: 6 reads, then every line that needs the log is 'not
+    judged', never PASS or 'no answer'; the checks without logs still run."""
+    run = probe(tmp_path, twin, {"log_fail": {"600": "dns"}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("INCONCLUSIVE runner log: could not read job 600's log after 6 reads (last: gh exit 1: gh: Get \"" + STORAGE
+            + '": dial tcp: lookup productionresultssa1.blob.core.windows.net: no such host)') in run.out
+    judged = [ln for ln in run.out.splitlines() if JUDGED.match(ln)]
+    assert len(judged) == 3 + 3 * 5 + 2, judged   # bot opens; W, N, D0 x 5; PUSH rest and git
+    assert all(ln.startswith("INCONCLUSIVE ") and ln.endswith(": " + NOT_JUDGED) for ln in judged), judged
+    assert "no answer in the run's log" not in run.out
+    assert [c["path"] for c in run.calls].count("actions/jobs/600/logs") == 6
+    for t, b in zip(B, ("probe/v1pp-w-bot", "probe/v1pp-n-bot", "probe/v1pp-d0-bot")):
+        assert f"PASS {t} pull request: none from {b}" in run.out
+    assert f"PASS main: unchanged at {MAIN}" in run.out and "PASS pull request #77: unmerged" in run.out
+    assert run.out.rstrip().splitlines()[-1].startswith("INCONCLUSIVE (V1''):")
+    assert_never_shown(run)
+
+
+def test_a_storage_403_on_the_pages_log_names_the_status_not_the_body(tmp_path, twin):
+    """(e) the XML error body on stdout is never shown; gh's stderr line, cut to the host, is."""
+    run = probe(tmp_path, twin, {"log_fail": {"605": "s403"}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("INCONCLUSIVE branch probe/v1pp-env pages-api: could not read the job's log (job 605) after 6 reads (last: "
+            "gh exit 1: gh: HTTP 403 (" + STORAGE + "))") in run.out   # the URL's ")" is kept
+    assert "HTTP 403" in run.results
+    assert_never_shown(run)
+
+
+def test_an_empty_log_is_unread_not_absent(tmp_path, twin):
+    """(f) exit 0 with no log line is a failed read (I-log 1)."""
+    run = probe(tmp_path, twin, {"log_fail": {"600": "empty"}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("INCONCLUSIVE runner log: could not read job 600's log after 6 reads (last: gh exit 0: no error text, 0 "
+            "line(s) out)") in run.out
+    judged = [ln for ln in run.out.splitlines() if JUDGED.match(ln)]
+    assert judged and all(ln.endswith(": " + NOT_JUDGED) for ln in judged), judged
+    assert "no answer in the run's log" not in run.out
+
+
+def test_a_log_with_a_bom_still_passes(tmp_path, twin):
+    """(g) F3: GitHub's log body starts with a UTF-8 BOM; the unanchored log-line match is not fooled by it."""
+    run = probe(tmp_path, twin, {"log_fail": {"600": "bom", "701": "bom"}})
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    assert any(ln.startswith("PASS W squash: refused") for ln in run.marks("PASS"))
+
+
+HOST = "productionresultssa1.blob.core.windows.net"
+
+
+@pytest.mark.parametrize("how, env, why", [
+    ("schemeless", None, "gh: error reading " + HOST + "/... (EOF)"),
+    ("jsonesc", None, 'gh: {"message":"Moved","url":"https:\\/\\/' + HOST + '/..."} (HTTP 403)'),
+    ("userinfo", None, 'gh: Get "https://' + HOST + '/...": EOF'),
+    ("controls", None, "gh: 31mbad gateway x (HTTP 502)"),
+    ("dns", {"GH_DEBUG": "api", "DEBUG": "1"}, 'gh: Get "' + STORAGE + '": dial tcp: lookup ' + HOST + ": no such host"),
+], ids=["schemeless-url", "json-escaped-url", "userinfo", "c1-and-bidi", "debug-env"])
+def test_the_reason_keeps_no_path_query_userinfo_or_controls(tmp_path, twin, how, env, why):
+    """v1pp-probe/log-read-diag-query, -userinfo, -controls, gh-debug-legacy: a URL with no scheme, or JSON-escaped,
+    keeps only its host; userinfo is dropped; C1 and bidi controls are dropped; DEBUG is cleared with GH_DEBUG."""
+    run = probe(tmp_path, twin, {"log_fail": {"701": how}}, env=env)
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
+    assert line[line.index("(last: ") + len("(last: "):line.index("); every answer")] == "gh exit 1: " + why, line
+    assert line in run.results
+    for text in (run.out, run.results):
+        for bad in ("SECRETPASS", "gn0sh:", "actions-results", "DEBUGLINE", "\u009b", "\u0085", "\u202a",
+                    "\u202e", "\u2066", "\u2069"):
+            assert bad not in text, bad
+    assert_never_shown(run)
+
+
+@pytest.mark.parametrize("how", ["nested-c1", "nested-bidi"])
+def test_nested_control_bytes_leave_no_live_control(tmp_path, twin, how):
+    """v1pp-probe/log-read-diag-controls-nested: removing the inner control's bytes joins the outer bytes into a new
+    control (xc2 xc2 x9b x9b -> U+009B, xe2 x80 xe2 x80 xae xae -> U+202E); it is removed too."""
+    run = probe(tmp_path, twin, {"log_fail": {"701": how}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
+    # The ps1 twin decodes gh's stderr as UTF-8 first, so the stray outer bytes show as U+FFFD (harmless); the sh twin
+    # strips bytes and leaves "bad  gateway". Either way no live control survives.
+    assert "gh exit 1: gh: bad " in line and " gateway (HTTP 502)" in line, line
+    assert line in run.results
+    for text in (line, run.results):
+        for bad in ("\u009b", "\u202e", "\u0085", "\u202a"):
+            assert bad not in text, bad
+
+
+def test_a_workflow_scope_that_cannot_be_added_is_in_the_results_file(tmp_path, twin):
+    """The refusal is logged, not only shown, so the file Brian sends holds it (nothing was changed)."""
+    run = probe(tmp_path, twin, {"scopes": "Token scopes: 'gist', 'repo'", "refresh_fail": True})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    msg = "Could not add the workflow scope (see above). Nothing was changed."
+    assert msg in run.out and msg in run.results
+    assert not run.writes()
+
+
+def test_a_long_token_is_redacted_and_the_reason_is_capped(tmp_path, twin):
+    """I-log 4: the first non-blank stderr line only; a run of 32+ token characters becomes <redacted>; 200 chars."""
+    run = probe(tmp_path, twin, {"log_fail": {"701": "token"}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
+    why = line[line.index("(last: gh exit 1: ") + len("(last: gh exit 1: "):line.index("); every answer")]
+    assert why.startswith("gh: bad credentials <redacted> word word") and len(why) == 200, why
+    assert "AAAAAAAAAAAAAAAA" not in run.out + run.results and "second line" not in run.out
+
+
 def test_a_run_still_going_at_the_deadline_is_cancelled_before_cleanup(tmp_path, twin):
     """v1pp-probe/unbounded-watch and inflight-run-at-cleanup: 72 reads, 10 s apart, then the cancel, then cleanup."""
     run = probe(tmp_path, twin, {"run_status": {"500": "in_progress"}})
@@ -835,7 +1090,8 @@ def test_the_workflow_scope_is_added_after_the_guard_and_given_back_last(tmp_pat
     refresh = [i for i, c in enumerate(run.calls) if c["method"] == "auth refresh"]
     assert len(refresh) == 2 and "-s" in run.calls[refresh[0]]["argv"] and "--remove-scopes" in run.calls[refresh[1]]["argv"]
     pm = next(i for i, c in enumerate(run.calls) if c["method"] == "SCRIPT")
-    assert pm < refresh[0] < run.calls.index(run.writes()[0])
+    check = next(i for i, c in enumerate(run.calls) if c["path"] == "actions/jobs/701/logs")
+    assert pm < check < refresh[0] < run.calls.index(run.writes()[0])   # v1pp-probe/selfcheck-before-scope
     assert refresh[1] == len(run.calls) - 1
 
 
@@ -872,7 +1128,22 @@ def test_the_twins_agree():
                      "--no-verify", "core.hooksPath=", "GIT_CONFIG_GLOBAL", "empty.gitconfig", "GIT_TRACE_REDACT",
                      "GIT_ASKPASS", "SSH_ASKPASS", "GIT_CURL_VERBOSE", "'^remote: error: GH013: Repository rule "
                      "violations found for refs/tags/main'", "Everything up-to-date", "git not found",
-                     "tag main exists (git answered up-to-date after the REST try created it)"):
+                     "tag main exists (git answered up-to-date after the REST try created it)",
+                     # (h) the job-log read invariant (docs/architecture/v1pp-job-log-invariant.md, I-log)
+                     "'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z '", "log-read-selfcheck",
+                     "not judged: the run's log was not read (see the runner log line)", "GH_DEBUG", "<redacted>",
+                     "[A-Za-z0-9%+/=_-]{32,}", "/...", "daily-update.yml/runs?status=completed&per_page=5",
+                     "could not find a finished daily-update job to test the log read. Nothing was changed.",
+                     "(v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team.",
+                     "after 6 reads (last: ", "no error text, ", "Log read check: job ",
+                     # the try-4 review follow-ups
+                     "log-read-diag-query", "log-read-diag-controls", "gh-debug-legacy", "selfcheck-before-scope",
+                     "DEBUG", "?...",
+                     # v1pp-probe/log-read-escape-flag (I-log 6)
+                     "log-read-escape-flag", "gh api --help 2>", "--allow-escape-sequences",
+                     ": log reads pass --allow-escape-sequences (log text is cleaned before any use).",
+                     ": log reads do not pass --allow-escape-sequences (this gh does not know it).",
+                     "([0-9][0-9.]*[0-9])"):
             assert part in s, part
         assert "--log" not in s.replace("gh run view --log gave", "")   # v1pp-probe/run-log-missing
         assert "GH013|rule violation" not in s   # v1pp-probe/tag-git-local-hooks: GitHub's remote line only
@@ -909,6 +1180,32 @@ def test_the_twins_agree():
         w = text.index(first_write)
         for g in ("CLAUDE_CODE_REMOTE", "protect-main", "tags/main", "records-data", "git not found"):
             assert text.index(g) < w, g
+    # v1pp-probe/log-read-selfcheck: the log read check comes before the leftover deletes, the first write; GH_DEBUG is
+    # cleared before it
+    for text, clear, check, deletes in (
+            (sh, "unset GH_DEBUG", 'job_log "$sc_jid" "$log_line"',
+             'api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try'),
+            (ps1, "Remove-Item Env:GH_DEBUG", "JobLog $scJid $logLine",
+             'Quiet -X DELETE "repos/$repo/git/refs/$r" }   # leftovers of an earlier try')):
+        assert text.index(clear) < text.index(check) < text.index(deletes)
+    # PS 5.1: the job-log read keeps stderr apart by type, never by 2>$null (which lost try 3's reason)
+    assert 'gh api "repos/$repo/actions/jobs/$jid/logs" @logFlag 2>&1)' in ps1
+    assert "[Management.Automation.ErrorRecord]" in ps1
+    # v1pp-probe/log-read-escape-flag: the flag sits only on the one job-log read of each twin, and its one variable
+    # is set from gh's help, once, before the self-check reads anything
+    for text, read, var, check in (
+            (sh, 'gh api "repos/$repo/actions/jobs/$1/logs" ${log_flag:+"$log_flag"} 2>"$errf"', "log_flag",
+             'job_log "$sc_jid" "$log_line"'),
+            (ps1, 'gh api "repos/$repo/actions/jobs/$jid/logs" @logFlag 2>&1', "logFlag", "JobLog $scJid $logLine")):
+        code = [ln.strip() for ln in text.splitlines() if not ln.lstrip().startswith("#")]
+        # the flag's text: the help check, the one assignment, the two log lines; never on a gh call itself
+        flagged = [ln for ln in code if "--allow-escape-sequences" in ln]
+        assert len(flagged) == 4 and not [ln for ln in flagged if re.search(r"\bgh (api|run|auth)\b", ln)], flagged
+        # the variable reaches gh on the job-log read only
+        assert [ln for ln in code if re.search(r"\bgh\b", ln) and var in ln] == [
+            next(ln for ln in code if read in ln)], var
+        assert text.index("gh api --help") < text.index(check)
+    assert "$ErrorActionPreference = 'Continue'" in ps1 and "$ErrorActionPreference = 'Stop'" not in ps1
     assert "scripts\\protect-main.ps1" in ps1 and "-Check -Apps $Apps" in ps1
     # Windows PowerShell 5.1: no double quote inside a --jq filter, ASCII only, no BOM
     assert not re.search(r"--jq '[^']*\"", ps1)

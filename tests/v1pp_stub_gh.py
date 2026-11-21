@@ -9,6 +9,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -17,6 +18,23 @@ cfg = json.load(open(os.environ["GH_CFG"]))
 st_path = os.environ["GH_STATE"]
 st = json.load(open(st_path))
 REPO = "repos/gn0sh/clarksville-records/"
+# a job log's 302 target, as gh would name it in an error: the path and query carry a signed, short-lived read token
+STORAGE_HOST = "productionresultssa1.blob.core.windows.net"
+STORAGE_URL = "https://" + STORAGE_HOST + "/actions-results/x/y.txt?sv=2025-01-05&sig=SECRETSIG%2Babc"
+
+_Q = "/actions-results/x/y.txt?sv=2025-01-05&sig=SECRETSIG%2Babc"
+DIAG = {   # log_fail modes for the sanitizer: a URL with no scheme, a JSON-escaped one, userinfo, C1 and bidi controls
+    "schemeless": "gh: error reading " + STORAGE_HOST + _Q + " (EOF)",
+    "jsonesc": 'gh: {"message":"Moved","url":"https:\\/\\/' + STORAGE_HOST + _Q.replace("/", "\\/") + '"} (HTTP 403)',
+    "userinfo": 'gh: Get "https://gn0sh:SECRETPASS@' + STORAGE_HOST + _Q + '": EOF',
+    "controls": "gh: \u009b31mbad\u202e gate\u0085way\u2066 x\u2069\u202a (HTTP 502)",
+}
+# raw stderr bytes: a control (U+009B, U+202E) nested inside another one's bytes, so one removal pass leaves a live one
+# (v1pp-probe/log-read-diag-controls-nested)
+DIAG_RAW = {
+    "nested-c1": b"gh: bad \xc2\xc2\x9b\x9b gateway (HTTP 502)",
+    "nested-bidi": b"gh: bad \xe2\x80\xe2\x80\xae\xae gateway (HTTP 502)",
+}
 
 
 def save():
@@ -84,7 +102,8 @@ if a[:1] == ["--git"]:   # the stub git (tests/test_v1pp_probe.py puts it on PAT
 path = next((x for x in a if x.startswith("repos/")), "")
 short = path[len(REPO):] if path.startswith(REPO) else path
 with open(os.environ["GH_CALLS"], "a") as f:
-    f.write(json.dumps({"method": method() if a[:1] == ["api"] else " ".join(a[:2]), "path": short, "argv": a,
+    how_called = "api --help" if a[:2] == ["api", "--help"] else method() if a[:1] == ["api"] else " ".join(a[:2])
+    f.write(json.dumps({"method": how_called, "path": short, "argv": a,
                         "gitenv": {k: v for k, v in os.environ.items()
                                    if k.startswith("GIT_") or k == "SSH_ASKPASS"}}) + "\n")
 
@@ -126,10 +145,34 @@ for sub, n in cfg.get("fail", {}).items():
             st["failed"][sub] = used + 1
             err(502, "Server Error")
 
+# v1pp-probe/log-read-escape-flag: which gh this is. "new" (the default, gh 2.104.0 as on Brian's PC) refuses to print
+# a body holding terminal escape sequences unless --allow-escape-sequences is passed; "old" (gh 2.89.0, as in the
+# cloud) has no such flag, and passing it is an unknown-flag error
+GH = cfg.get("gh", "new")
+VERSION = {"new": "2.104.0 (2026-11-10)", "old": "2.89.0 (2026-11-01)"}[GH]
+ESC_FLAG = "--allow-escape-sequences"
+if a[:1] == ["--version"]:   # the results file's header records line 1 (v1pp-probe/log-read-diag)
+    print("gh version %s\nhttps://github.com/cli/cli/releases/tag/v%s" % (VERSION, VERSION.split()[0]))
+    sys.exit(0)
+if a[:2] == ["api", "--help"]:
+    print("Make an authenticated HTTP request to the GitHub API and print the response.\n\nUSAGE\n"
+          "  gh api <endpoint> [flags]\n\nFLAGS")
+    if GH == "new" and not cfg.get("help_without_flag"):   # the knob: a test that the flag is what makes it read
+        print("      --allow-escape-sequences   Output the response even if it contains terminal escape sequences")
+    print("      --cache duration           Cache the response, e.g. \"3600s\", \"60m\", \"1h\"\n"
+          "  -F, --field key=value          Add a typed parameter in key=value format\n"
+          "  -H, --header key:value         Add a HTTP request header in key:value format")
+    sys.exit(0)
+if GH == "old" and ESC_FLAG in a:
+    sys.stderr.write("unknown flag: %s\n\nUsage:  gh api <endpoint> [flags]\n" % ESC_FLAG)
+    sys.exit(1)
 if a[:2] == ["auth", "status"]:
     print(cfg.get("scopes", "Token scopes: 'gist', 'read:org', 'repo', 'workflow'"))
     sys.exit(0)
 if a[:2] == ["auth", "refresh"]:
+    if cfg.get("refresh_fail") and "--remove-scopes" not in a:   # the browser step was not finished
+        sys.stderr.write("gh: authentication failed\n")
+        sys.exit(1)
     sys.exit(0)
 
 RUNS = {"probe/v1pp-runner": 500, "probe/v1pp-env": 501, "v1pp-probe": 502}
@@ -268,6 +311,8 @@ if short.startswith("actions/runs/") and short.endswith("/jobs"):
     rid = short.split("/")[2]
     default = {"501": [("github-pages", 601), ("morning-note", 602)], "502": [("github-pages", 603), ("morning-note", 604)]}
     jobs = cfg.get("jobs", {}).get(rid)
+    if jobs is None and rid == "700":   # the self-check's daily-update run (v1pp-probe/log-read-selfcheck)
+        jobs = [{"id": 701, "name": "gate", "status": "completed", "conclusion": "success", "steps": [{"name": "x"}]}]
     if jobs is None and rid == "500":
         jobs = [{"id": 600, "name": "probe", "status": "completed", "conclusion": "success", "steps": [{"name": "Try"}]}]
     if jobs is None:
@@ -281,7 +326,39 @@ if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text
     reads[jid] = reads.get(jid, 0) + 1
     if reads[jid] <= cfg.get("log_lag", {}).get(jid, 0):            # not ready yet
         err(404, "Not Found")
-    if jid == "600":
+    how = cfg.get("log_fail", {}).get(jid)   # v1pp-probe/job-log-unreadable: ways a read can fail on Brian's PC
+    if how and (os.environ.get("GH_DEBUG") or os.environ.get("DEBUG")):   # v1pp-probe/gh-debug-legacy
+        sys.stderr.write("* Request to https://api.github.com/x DEBUGLINE Authorization: token gho_x\n")
+    if how in DIAG:                          # one stderr line, as gh would print it (v1pp-probe/log-read-diag-*)
+        save()
+        sys.stderr.flush()
+        sys.stderr.buffer.write((DIAG[how] + "\n").encode("utf-8"))
+        sys.exit(1)
+    if how in DIAG_RAW:
+        save()
+        sys.stderr.flush()
+        sys.stderr.buffer.write(DIAG_RAW[how] + b"\n")
+        sys.exit(1)
+    if how == "dns":                         # the 302 to storage, not resolved: stderr carries the signed URL
+        save()
+        sys.stderr.write('gh: Get "%s": dial tcp: lookup %s: no such host\n' % (STORAGE_URL, STORAGE_HOST))
+        sys.exit(1)
+    if how == "s403":                        # storage answers 403 with an XML body that may echo the request
+        save()
+        sys.stdout.write('<?xml version="1.0" encoding="utf-8"?><Error><Code>AuthenticationFailed</Code>SECRETBODY'
+                         '</Error>\n')
+        sys.stderr.write("gh: HTTP 403 (%s)\n" % STORAGE_URL)
+        sys.exit(1)
+    if how == "empty":                       # exit 0 with no body
+        save()
+        sys.exit(0)
+    if how == "token":                       # a long token-like string, and a line past the 200-character cap
+        save()
+        sys.stderr.write("\n  \ngh: bad credentials ghp_" + "A" * 36 + " " + "word " * 60 + "\nsecond line\n")
+        sys.exit(1)
+    if jid == "701":                         # the self-check's log: never shown (I-log 3)
+        text = "2026-11-21T09:07:00.0000000Z SELFCHECK-BODY gate passed\n"
+    elif jid == "600":
         text = cfg.get("runner_log", "")
     elif jid in ("605", "606"):   # the pages-api job's answer, by default refused on branch or environment grounds
         rid = {"605": "501", "606": "502"}[jid]
@@ -292,9 +369,23 @@ if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text
             "deploy to github-pages due to environment protection rules. (HTTP 400)\n" % who))
     else:
         err(404, "Not Found")
+    if cfg.get("ansi", True):   # as GitHub serves a log: ANSI colours on each line (v1pp-probe/log-read-escape-flag)
+        text = re.sub(r"(?m)^([0-9T:.-]+Z )(.*)$", "\\1\x1b[36;1m\\2\x1b[0m", text)
     save()
+    if GH == "new" and "\x1b" in text and ESC_FLAG not in a:   # gh 2.104's check, as Brian's PC showed it
+        sys.stderr.write("the response contains terminal escape sequences; pass %s to output it anyway\n" % ESC_FLAG)
+        sys.exit(1)
+    if how == "bom":                         # the body starts with a UTF-8 BOM, as GitHub serves it (F3)
+        sys.stdout.flush()
+        sys.stdout.buffer.write(b"\xef\xbb\xbf" + text.encode("utf-8"))
+        sys.exit(0)
     sys.stdout.write(text)
     sys.exit(0)
+if short.startswith("actions/workflows/daily-update.yml/runs?"):   # the self-check's run: the newest completed one
+    q = dict(x.split("=", 1) for x in short.split("?", 1)[1].split("&"))
+    assert q == {"status": "completed", "per_page": "5"}, q
+    ids = [] if cfg.get("selfcheck_run") == "none" else cfg.get("selfcheck_runs", [700])   # newest first
+    ok({"total_count": len(ids), "workflow_runs": [{"id": i, "status": "completed", "conclusion": "success"} for i in ids]})
 if short.startswith("rulesets/rule-suites?"):   # GitHub's record of each ref update (fields per its OpenAPI description)
     q = dict(x.split("=", 1) for x in short.split("?", 1)[1].split("&"))
     assert q == {"ref": "refs/tags/main", "time_period": "day", "per_page": "100"}, q

@@ -5,9 +5,10 @@
 #
 # Question: after the cutover (R1'' on main: the ruleset maximum of approvals, squash only, bypass = the admin role in
 # pull request mode; R-D; R-T; R2 off), can GITHUB_TOKEN get anything into main, and can a branch or tag other than
-# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after the guard passed), it:
+# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after step 0 passed), it:
 #   0. refuses unless scripts\protect-main.ps1 -Check -Apps <answer> prints OK (no writes), main and records-data read
-#      as commits and no tag named main exists;
+#      as commits and no tag named main exists; then, still before any write, reads a finished job's log (the newest
+#      finished daily-update job; v1pp-probe/log-read-selfcheck) and stops, changing nothing, if it can't;
 #   1. pushes three targets, twice, each one commit on main: W (an inert .github/workflows/v1pp-canary.yml), N
 #      (sitegen/v1pp-probe-canary.txt), D0 (data/v1pp-probe-canary.txt, data/ now refused on main too). Set G
 #      (probe/v1pp-w, probe/v1pp-n, probe/v1pp-d0): you open their pull requests into main. Set B (probe/v1pp-w-bot,
@@ -135,13 +136,6 @@ function GiveBackScope {   # the workflow scope this run added (a browser may op
         gh auth refresh -h github.com --remove-scopes workflow
         if ($LASTEXITCODE -ne 0) { Write-Host 'Could not remove it: run gh auth refresh -h github.com --remove-scopes workflow' }
     }
-}
-$authText = (@(gh auth status 2>&1 | ForEach-Object { "$_" })) -join "`n"
-if ($authText -notmatch 'workflow') {
-    Write-Host "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
-    gh auth refresh -h github.com -s workflow
-    if ($LASTEXITCODE -ne 0) { Write-Host 'Could not add the workflow scope (see above). Nothing was changed.'; exit 1 }
-    $script:scopeAdded = $true
 }
 $script:started = $false
 $script:finished = $false
@@ -458,7 +452,119 @@ function Finish {   # cancel, cleanup, the reads after it, the verdict; never re
     GiveBackScope; exit 0
 }
 
+function CleanLog($text) {   # untrusted text: ANSI colour codes, then control characters, are dropped; one string per line
+    # the control characters include the C1 controls U+0080-U+009F and the bidi controls U+202A-U+202E, U+2066-U+2069
+    # (v1pp-probe/log-read-diag-controls)
+    return @($text | ForEach-Object { ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F\u0080-\u009F\u202A-\u202E\u2066-\u2069]', '' })
+}
+function RunJobs([string]$id) {   # one line per job, name TAB id TAB status TAB conclusion, joined with `n; $null when unread
+    $x = @(gh api "repos/$repo/actions/runs/$id/jobs" --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>$null)
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ($x -join "`n")
+}
+# v1pp-probe/job-log-unreadable (docs/architecture/v1pp-job-log-invariant.md, I-log): a job-log read succeeded only
+# when gh exits 0 and its output holds a GitHub log line ($logLine, unanchored: a BOM may sit before line 1); a failed
+# read leaves one sanitized line, never its output (v1pp-probe/log-read-diag). GH_DEBUG (or the legacy DEBUG) would
+# put a debug line first (v1pp-probe/gh-debug-legacy).
+Remove-Item Env:GH_DEBUG -ErrorAction SilentlyContinue
+Remove-Item Env:DEBUG -ErrorAction SilentlyContinue
+$logLine = '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z '
+function ReadWhy([string]$rc, $err, [int]$outCount) {   # "gh exit <rc>: <first stderr line, sanitized>"
+    $first = @(CleanLog $err | Where-Object { $_ -match '\S' }) | Select-Object -First 1
+    if (-not $first) { return "gh exit ${rc}: no error text, $outCount line(s) out" }
+    # URLs, also JSON-escaped (https:\/\/), cut to scheme and host, any userinfo dropped (-replace: any case; the signed
+    # read token is in the path and query; a closing ")" is kept); then a host/path with no scheme cut to the host;
+    # then any query left cut (v1pp-probe/log-read-diag-query, -userinfo); then long tokens redacted
+    $s = [string]$first -replace '(https?:(\\?/){2})([^/\s"''?#@\\]*@)?([^/\s"''?#@\\)]+)[^\s"'')]*', '$1$4/...'
+    $s = $s -replace '([^/\s"''?#@\\]+@)?(([A-Za-z0-9-]+\.)+[A-Za-z]{2,}(:[0-9]+)?)\\?/[^\s"'')]*', '$2/...'
+    $s = ($s -replace '\?[^\s"'']+', '?...') -creplace '[A-Za-z0-9%+/=_-]{32,}', '<redacted>'
+    if ($s.Length -gt 200) { $s = $s.Substring(0, 200) }
+    return "gh exit ${rc}: $s"
+}
+# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
+# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
+# succeeds and holds $want (a regex, case-sensitive); returns the last log read, cleaned, joined with `n; $null if no
+# read succeeded, and then $script:jobLogWhy holds the last failed read's ReadWhy line. 2>&1 keeps gh's stderr: in 5.1
+# and 7 each stderr line arrives as an ErrorRecord, so the type splits it from the log text; $LASTEXITCODE is read
+# at once, in this function.
+$script:jobLogWhy = ''
+function JobLog([string]$jid, [string]$want) {
+    $text = $null
+    $script:jobLogWhy = ''
+    for ($k = 1; $k -le 6; $k++) {
+        $all = @(gh api "repos/$repo/actions/jobs/$jid/logs" @logFlag 2>&1)
+        $rc = $LASTEXITCODE
+        $got = @($all | Where-Object { $_ -isnot [Management.Automation.ErrorRecord] })
+        $err = @($all | Where-Object { $_ -is [Management.Automation.ErrorRecord] })
+        $t = (CleanLog $got) -join "`n"
+        if ($rc -eq 0 -and $t -cmatch $logLine) {
+            $text = $t
+            $script:jobLogWhy = ''
+            if ($text -cmatch $want) { break }
+        } else {
+            $n = @($got | Where-Object { [string]$_ -match '\S' }).Count
+            $script:jobLogWhy = ReadWhy $rc $err $n
+        }
+        if ($k -lt 6) { Start-Sleep -Seconds 10 }
+    }
+    return $text
+}
+
 Log ("V1'' probe " + (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') + ". main before: $mainBefore. records-data before: $rdBefore.")
+$ghVer = [string](@(CleanLog ([string](@(gh --version 2>$null) | Select-Object -First 1))) | Select-Object -First 1)
+if ($ghVer.Length -gt 200) { $ghVer = $ghVer.Substring(0, 200) }
+if (-not $ghVer) { $ghVer = 'unread' }
+Log "gh: $ghVer. PowerShell $($PSVersionTable.PSVersion)."
+# v1pp-probe/log-read-escape-flag (I-log 6): gh 2.104 refuses to print a body holding terminal escape sequences (a job
+# log's ANSI colours) unless --allow-escape-sequences is passed; older gh (2.89) has no such flag and rejects it. So
+# ask this gh's own help, once and locally (no network), and pass the flag on the job-log reads only. Safe: CleanLog
+# strips ANSI and control characters from the log text before any use, and no log text is ever printed raw.
+$logFlag = @()
+$ghShort = 'gh'
+if ($ghVer -cmatch '^gh version ([0-9][0-9.]*[0-9])') { $ghShort = "gh $($Matches[1])" }
+$ghHelp = (@(gh api --help 2>$null | ForEach-Object { "$_" })) -join "`n"
+if ($ghHelp.Contains('--allow-escape-sequences')) {
+    $logFlag = @('--allow-escape-sequences')
+    Log "${ghShort}: log reads pass --allow-escape-sequences (log text is cleaned before any use)."
+} else {
+    Log "${ghShort}: log reads do not pass --allow-escape-sequences (this gh does not know it)."
+}
+$ghHelp = ''
+# v1pp-probe/log-read-selfcheck (I-log 3): every answer is read from job logs, so before the first write (the leftover
+# deletes below are writes) show that this machine can read one: the newest finished daily-update job's, through
+# JobLog. Reads only; its text is never shown. Refused here, nothing was changed ($script:started is still false, and
+# the workflow scope is not asked for yet). The newest 5 completed runs, newest first: the first with a completed
+# success or failure job is used (the newest may have been cancelled).
+$scRuns = @(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=5" --jq '.workflow_runs[].id' 2>$null)
+if ($LASTEXITCODE -ne 0) { $scRuns = @() }
+$scRun = ''
+$scJid = ''
+foreach ($r in $scRuns) {
+    if ([string]$r -cnotmatch '^[0-9]+$') { continue }
+    $scJobs = RunJobs ([string]$r)
+    if ($null -eq $scJobs) { continue }
+    $scRow = @($scJobs -split "`n" | Where-Object { [string]$_ -cmatch "^[^`t]*`t[0-9]+`tcompleted`t(success|failure)$" }) | Select-Object -First 1
+    if ($scRow) { $scJid = ([string]$scRow -split "`t")[1]; $scRun = [string]$r; break }
+}
+if (-not $scJid) {
+    Log 'REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed.'
+    exit 1
+}
+$scText = JobLog $scJid $logLine
+if ($null -eq $scText) {
+    Log "REFUSED: could not read the log of finished job $scJid (daily-update run $scRun) after 6 reads (last: $($script:jobLogWhy)); every answer is read from job logs, so the probe stops here (v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team."
+    exit 1
+}
+Log "Log read check: job $scJid of daily-update run $scRun read ($(@($scText -split "`n" | Where-Object { $_ -ne '' }).Count) lines)."
+$scText = ''
+# v1pp-probe/selfcheck-before-scope: the workflow scope is asked for only now, after the read-only checks passed
+$authText = (@(gh auth status 2>&1 | ForEach-Object { "$_" })) -join "`n"
+if ($authText -notmatch 'workflow') {
+    Write-Host "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
+    gh auth refresh -h github.com -s workflow
+    if ($LASTEXITCODE -ne 0) { Log 'Could not add the workflow scope (see above). Nothing was changed.'; exit 1 }
+    $script:scopeAdded = $true
+}
 foreach ($r in $probeRefs) { Quiet -X DELETE "repos/$repo/git/refs/$r" }   # leftovers of an earlier try
 $script:started = $true
 
@@ -575,34 +681,11 @@ function WaitRun([string]$id) {   # v1pp-probe/unbounded-watch: up to 12 minutes
     }
     return $s
 }
-function CleanLog($text) {   # untrusted text: ANSI colour codes, then control characters, are dropped; one string per line
-    return @($text | ForEach-Object { ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
-}
-function RunJobs([string]$id) {   # one line per job, name TAB id TAB status TAB conclusion, joined with `n; $null when unread
-    $x = @(gh api "repos/$repo/actions/runs/$id/jobs" --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>$null)
-    if ($LASTEXITCODE -ne 0) { return $null }
-    return ($x -join "`n")
-}
-# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
-# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
-# succeeds and holds $want (a regex, case-sensitive); returns the last log read, cleaned, joined with `n; $null if no
-# read succeeded.
-function JobLog([string]$jid, [string]$want) {
-    $text = $null
-    for ($k = 1; $k -le 6; $k++) {
-        $got = @(gh api "repos/$repo/actions/jobs/$jid/logs" 2>$null)
-        if ($LASTEXITCODE -eq 0) {
-            $text = (CleanLog $got) -join "`n"
-            if ($text -cmatch $want) { break }
-        }
-        if ($k -lt 6) { Start-Sleep -Seconds 10 }
-    }
-    return $text
-}
 $runId = RunOf $runner $runHead
 $script:rIds[0] = [string]$runId
 $script:rLooked[0] = $true
 $script:lines = @()
+$script:logUnread = $false   # v1pp-probe/unread-not-absent (I-log 2): a runner job's log not read, so no line may read as absent
 if (-not $runId) {
     Mark 'INCONCLUSIVE' 'runner' 'the probe run did not start within 3 minutes'
 } else {
@@ -617,10 +700,10 @@ if (-not $runId) {
     $jobs = RunJobs $runId
     $jids = @()
     if ($null -ne $jobs) { $jids = @($jobs -split "`n" | ForEach-Object { ([string]$_ -split "`t")[1] } | Where-Object { [string]$_ -cmatch '^[0-9]+$' }) }
-    if ($jids.Count -eq 0) { Mark 'INCONCLUSIVE' 'runner log' "could not read the run's jobs" }
+    if ($jids.Count -eq 0) { $script:logUnread = $true; Mark 'INCONCLUSIVE' 'runner log' "could not read the run's jobs" }
     foreach ($jid in $jids) {
         $t = JobLog $jid 'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH) '
-        if ($null -eq $t) { Mark 'INCONCLUSIVE' 'runner log' "could not read job $jid's log" }
+        if ($null -eq $t) { $script:logUnread = $true; Mark 'INCONCLUSIVE' 'runner log' "could not read job $jid's log after 6 reads (last: $($script:jobLogWhy))" }
         else { $logText += @($t -split "`n") }
     }
     $script:lines = @($logText | ForEach-Object {
@@ -635,6 +718,7 @@ function Judge([string]$t, [string]$s, [string]$want) {   # what the refusal mus
     $l = @($script:lines | Where-Object { $_ -cmatch "^V1PP-RESULT $t $s exit=[0-9]+( |$)" }) | Select-Object -First 1
     if (-not $l) {
         if ($script:ended) { Mark 'NOT-TRIED' "$t $s" 'skipped: an earlier merge or push ended the run' }
+        elseif ($script:logUnread) { Mark 'INCONCLUSIVE' "$t $s" "not judged: the run's log was not read (see the runner log line)" }
         else { Mark 'INCONCLUSIVE' "$t $s" "no answer in the run's log" }
         return
     }
@@ -705,7 +789,7 @@ function PagesRefused([string]$label, [string]$id) {   # v1pp-probe/pages-api-co
     }
     if ($jid -cnotmatch '^[0-9]+$') { Mark 'INCONCLUSIVE' "$label pages-api" 'could not read the job'; return }
     $t = JobLog $jid 'V1PP-RESULT PAGES api exit=[0-9]'
-    if ($null -eq $t) { Mark 'INCONCLUSIVE' "$label pages-api" "could not read the job's log (job $jid)"; return }
+    if ($null -eq $t) { Mark 'INCONCLUSIVE' "$label pages-api" "could not read the job's log (job $jid) after 6 reads (last: $($script:jobLogWhy))"; return }
     $l = @($t -split "`n" | ForEach-Object { if ($_ -cmatch 'V1PP-RESULT PAGES api exit=[0-9]+( .*)?$') { $Matches[0] } }) | Select-Object -First 1
     if (-not $l) { Mark 'INCONCLUSIVE' "$label pages-api" "no answer in the job's log"; return }
     $rest = $l.Substring($l.IndexOf('exit=') + 5)
