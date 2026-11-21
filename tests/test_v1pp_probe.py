@@ -46,15 +46,26 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("twin", pwsh_twin.TWINS)
 
 
-# ------------------------------------------------------------------ the runner's log, as GitHub shows it
-# The step's source is in the log too: its echo lines name the target by variable, so they never match.
-_SOURCE = ('probe\tTry\t2026-11-21T15:00:00Z echo "V1PP-RESULT $t $s exit=$code $(flat "$out")"\n'
-           'probe\tTry\t2026-11-21T15:00:00Z if [ "$code" = 0 ]; then echo "V1PP-MERGED $t $s"; exit 0; fi\n'
-           'probe\tTry\t2026-11-21T15:00:00Z echo "V1PP-ERROR: no open pull request from $branch"; exit 1\n')
+# ------------------------------------------------------------------ the runner's job log, as GitHub serves it
+# (GET actions/jobs/<id>/logs: a timestamp per line, CRLF). The step's source is in the log too: its echo lines name
+# the target by variable, so they never match.
+_SOURCE = ('2026-11-21T15:00:00.0000000Z echo "V1PP-RESULT $t $s exit=$code $(flat "$out")"\r\n'
+           '2026-11-21T15:00:00.0000000Z if [ "$code" = 0 ]; then echo "V1PP-MERGED $t $s"; exit 0; fi\r\n'
+           '2026-11-21T15:00:00.0000000Z echo "V1PP-ERROR: no open pull request from $branch"; exit 1\r\n')
 OPEN_NO = "1 gh: GitHub Actions is not permitted to create or approve pull requests. (HTTP 403)"
 APPROVE_NO = "1 gh: GitHub Actions is not permitted to approve pull requests. (HTTP 422)"
 SQUASH_NO = ("1 {\"message\":\"Repository rule violations found  At least 10 approving reviews are required by "
              "reviewers with write access.\"} gh: Repository rule violations found (HTTP 405)")
+# try 1 (2026-11-21), as the job log showed them: the pull_request rule named require_last_push_approval, not the count
+LAST_PUSHER = "New changes require approval from someone other than the last pusher."
+SQUASH_LAST = ('1 {"message":"Repository rule violations found\\n\\n' + LAST_PUSHER + '\\n\\n","documentation_url":'
+               '"https://docs.github.com/articles/about-protected-branches","status":"405"}gh: Repository rule '
+               'violations found  ' + LAST_PUSHER + '   (HTTP 405)')
+GQL_LAST = ('1 {"data":{"mergePullRequest":null},"errors":[{"type":"UNPROCESSABLE","path":["mergePullRequest"],'
+            '"message":"Repository rule violations found\\n\\n' + LAST_PUSHER + '\\n\\n"}]}')
+PAGES_400 = ('V1PP-RESULT PAGES api exit=1 {"message":"Unable to find artifact mathching the id","documentation_url":'
+             '"https://docs.github.com/rest/pages/pages#create-a-github-pages-deployment","status":"400"}gh: Unable to '
+             'find artifact mathching the id (HTTP 400)')
 METHOD_NO = "1 gh: Merge method {m} is not allowed on this repository (HTTP 405)"
 GQL_NO = "1 GraphQL: Repository rule violations found At least 10 approving reviews are required. (mergePullRequest)"
 REST_PUSH_NO = "1 gh: Repository rule violations found  Changes must be made through a pull request. (HTTP 422)"
@@ -64,7 +75,7 @@ GIT_PUSH_NO = ("1 remote: error: GH013: Repository rule violations found for ref
 
 
 def _line(text):
-    return f"probe\tTry\t2026-11-21T15:00:01Z \x1b[36m{text}\x1b[0m\n"
+    return f"2026-11-21T15:00:01.0000000Z \x1b[36m{text}\x1b[0m\r\n"
 
 
 def _pr_steps(t, over):
@@ -165,8 +176,14 @@ def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False
     (scripts / "protect-main.sh").write_text(_PM)
     (scripts / "protect-main.ps1").write_text(_PM_PS1)
     (bindir / "gh").write_text(f'#!/bin/sh\nexec python3 "{STUB}" "$@"\n')
+    if not (cfg or {}).get("no_git"):
+        (bindir / "git").write_text(f'#!/bin/sh\nexec python3 "{STUB}" --git "$@"\n')
     (bindir / "sleep").write_text(_SLEEP)
-    for f in ("gh", "sleep"):
+    if (cfg or {}).get("date_no_d"):   # a date without GNU -d (BSD, busybox)
+        real = shutil.which("date")
+        (bindir / "date").write_text(f'#!/bin/sh\nfor x in "$@"; do [ "$x" = -d ] && exit 1; done\nexec {real} "$@"\n')
+        (bindir / "date").chmod(0o755)
+    for f in ("gh", "sleep") + (() if (cfg or {}).get("no_git") else ("git",)):
         (bindir / f).chmod(0o755)
     cfg = {"runner_log": runner_log(), **(cfg or {})}
     (tmp / "cfg.json").write_text(json.dumps(cfg))
@@ -177,7 +194,7 @@ def probe(tmp, twin, cfg=None, args=("--apps", "claude"), env=None, locked=False
         state.setdefault("prs", {})[str(n)] = {"head": b, "state": "open", "merged": False}
     (tmp / "state.json").write_text(json.dumps(state))
     e = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_CODE_REMOTE", "GITHUB_ACTIONS", "CI")}
-    e.update({"PATH": f"{bindir}:{os.environ['PATH']}", "GH_CFG": str(tmp / "cfg.json"),
+    e.update({"PATH": f"{bindir}:{(env or {}).get('PATH_TAIL') or os.environ['PATH']}", "GH_CFG": str(tmp / "cfg.json"),
               "GH_STATE": str(tmp / "state.json"), "GH_CALLS": str(tmp / "calls"), "RESULTS_DIR": str(tmp),
               "HOME": str(tmp), "STUB_PM": pm, **(env or {})})
     if twin == "sh":
@@ -235,6 +252,7 @@ def test_pass_when_every_try_is_refused(tmp_path, twin):
                        for ln in passes), (label, e)
         assert any(ln.startswith(f"PASS {label} pages-api: refused") for ln in passes), label
     assert any(ln.startswith("PASS tag main: refused") for ln in passes)
+    assert any(ln.startswith("PASS tag main git: refused") and "GH013" in ln for ln in passes)
     assert "PASS tag main after: absent" in run.out and f"PASS main: unchanged at {MAIN}" in run.out
     for f in FILES:
         for ref in ("main", "records-data"):
@@ -305,7 +323,10 @@ FAILS = {
                          "PASS after cleanup #90: closed, unmerged"]),
     "rest-push": ({"runner_log": runner_log(PUSH_rest="0 {}"), "on_main": [FILES[3]]}, ["FAIL PUSH rest"]),
     "git-push": ({"runner_log": runner_log(PUSH_git="0 ")}, ["FAIL PUSH git"]),
-    "tag-main-created": ({"tag_main": "create"}, ["FAIL tag main:", "FAIL tag main after"]),
+    "tag-main-created": ({"tag_main": "create"}, ["FAIL tag main:", "FAIL tag main after",
+                                                  "FAIL tag main git: tag main exists (git answered up-to-date"]),
+    "tag-main-git-created": ({"git_tag": "create"}, ["PASS tag main: refused", "FAIL tag main git: git push created it",
+                                                     "FAIL tag main after"]),
     "env-job-ran": ({"jobs": {"502": [{"id": 603, "name": "github-pages", "status": "completed",
                                        "conclusion": "success", "steps": [{"name": "run"}]},
                                       {"id": 604, "name": "morning-note", "status": "completed",
@@ -378,12 +399,57 @@ INCONCLUSIVE = {
     "tag-run-never-started": ({"no_run": ["v1pp-probe"]}, "INCONCLUSIVE tag v1pp-probe github-pages: the run did not start"),
     "answer-missing": ({"runner_log": runner_log(D0_merge="SKIP")}, "INCONCLUSIVE D0 merge: no answer in the run's log"),
     "squash-other-reason": ({"runner_log": runner_log(W_squash="1 gh: Base branch was modified. (HTTP 405)")},
-                            "INCONCLUSIVE W squash: refused, but not naming 'approving review'"),
+                            "INCONCLUSIVE W squash: refused, but not naming 'approving review|"),
+    # v1pp-probe/squash-last-pusher: the last-pusher phrase counts only with the ruleset header
+    "squash-last-pusher-bare": ({"runner_log": runner_log(N_squash="1 gh: " + LAST_PUSHER + " (HTTP 405)")},
+                                "INCONCLUSIVE N squash: refused, but not naming"),
+    "graphql-header-only": ({"runner_log": runner_log(D0_graphql="1 GraphQL: Repository rule violations found")},
+                            "INCONCLUSIVE D0 graphql: refused, but not naming"),
     "approve-other-reason": ({"runner_log": runner_log(N_approve="1 gh: Server Error (HTTP 502)")},
                              "INCONCLUSIVE N approve: refused, but not naming"),
     "push-other-reason": ({"runner_log": runner_log(PUSH_git="1 fatal: unable to access (HTTP 500)")},
                           "INCONCLUSIVE PUSH git: refused, but not naming 'rule violation'"),
-    "tag-main-other": ({"tag_main": "other"}, "INCONCLUSIVE tag main: failed without naming a rule"),
+    # v1pp-probe/tag-main-unnamed-422: a bare 422 is PASS only with R-T's failing creation rule in the rule suite
+    "tag-main-other": ({"tag_main": "other", "no_suite": True, "git_tag": "other"},
+                       "INCONCLUSIVE tag main: failed without naming a rule, and no rule suite recorded this try"),
+    "tag-main-502": ({"tag_main": "502", "no_suite": True},
+                     "INCONCLUSIVE tag main: failed without naming a rule: "),
+    "tag-main-suite-other-ruleset": (
+        {"tag_main": "other", "suite_evals": [{"rule_source": {"type": "ruleset", "id": 1, "name": "x"},
+                                               "enforcement": "active", "result": "fail", "rule_type": "creation"}]},
+        "INCONCLUSIVE tag main: refused ("),
+    "tag-main-suite-evaluate": (
+        {"tag_main": "other", "suite_evals": [{"rule_source": {"type": "ruleset", "id": 27685093, "name": "x"},
+                                               "enforcement": "evaluate", "result": "fail", "rule_type": "creation"}]},
+        "INCONCLUSIVE tag main: refused"),
+    "tag-main-suite-update-rule": (
+        {"tag_main": "other", "suite_evals": [{"rule_source": {"type": "ruleset", "id": 27685093, "name": "x"},
+                                               "enforcement": "active", "result": "fail", "rule_type": "update"}]},
+        "INCONCLUSIVE tag main: refused"),
+    "tag-main-suite-pass": ({"tag_main": "other", "suite_over": {"result": "pass"}}, "INCONCLUSIVE tag main: refused"),
+    # v1pp-probe/tag-main-t0-unchecked: only the signed-in owner's try counts
+    "tag-main-suite-other-actor": ({"tag_main": "other", "suite_over": {"actor_name": "github-actions[bot]"},
+                                    "git_tag": "other"},
+                                   "INCONCLUSIVE tag main: failed without naming a rule, and no rule suite"),
+    # the git push try of the same tag (v1pp-probe/tag-main-unnamed-422, review should-fix)
+    "tag-git-other": ({"git_tag": "other"}, "INCONCLUSIVE tag main git: git answered 128, but not from"),
+    # v1pp-probe/tag-git-url-rewrite, tag-git-local-hooks, tag-git-exists-wording: only git's own answer from GitHub
+    "tag-git-rewrite": ({"git_tag": "rewrite"}, "INCONCLUSIVE tag main git: git answered 1, but not from "
+                                               "https://github.com/gn0sh/clarksville-records.git"),
+    "tag-git-hook": ({"git_tag": "hook"}, "INCONCLUSIVE tag main git: refused, but no 'remote: error: GH013' line"),
+    "tag-git-0-no-to": ({"git_tag": "create_no_to"}, "INCONCLUSIVE tag main git: git answered 0, but not from"),
+    "tag-git-uptodate-alone": ({"git_tag": "uptodate"}, "INCONCLUSIVE tag main git: git answered 0, but not from"),
+    "tag-git-fetch-failed": ({"git_tag": "fetch_fail"}, "INCONCLUSIVE tag main git: could not fetch main to push from"),
+    "tag-main-suite-twice": ({"tag_main": "other", "suite_extra": [{"id": 901}]},
+                             "INCONCLUSIVE tag main: refused ("),
+    "tag-main-suite-old": ({"tag_main": "other", "suite_over": {"pushed_at": "2026-11-20T01:21:00Z"}, "git_tag": "other"},
+                           "INCONCLUSIVE tag main: failed without naming a rule, and no rule suite"),
+    "tag-main-suite-other-sha": ({"tag_main": "other", "suite_over": {"after_sha": "3" * 40}, "git_tag": "other"},
+                                 "INCONCLUSIVE tag main: failed without naming a rule, and no rule suite"),
+    "tag-main-suite-unreadable": ({"tag_main": "other", "suite_unreadable": True, "git_tag": "other"},
+                                  "INCONCLUSIVE tag main: refused ("),
+    "tag-main-suite-no-pushed-at": ({"tag_main": "other", "suite_over": {"pushed_at": None}, "git_tag": "other"},
+                                    "INCONCLUSIVE tag main: failed without naming a rule, and no rule suite"),
     "tag-main-unread": ({"tag_main_reads_fail": True}, "INCONCLUSIVE tag main after: could not read it"),
     "bot-list-unread": ({"fail": {"head=gn0sh:probe/v1pp-n-bot": 1}}, "INCONCLUSIVE NB pull request: could not list"),
     # v1pp-probe/unobserved-refusal-pass: a merge or rebase refused for another reason is not a PASS
@@ -399,7 +465,28 @@ INCONCLUSIVE = {
     "tag-main-delete-failed": ({"delete_fail": ["tags/main"]},
                                "INCONCLUSIVE after cleanup tags/main: the delete answered 'failed:"),
     "pages-missing": ({"env_logs": {"502": _line("V1PP-ERROR: no OIDC token")}},
-                      "INCONCLUSIVE tag v1pp-probe pages-api: no answer in the run's log"),
+                      "INCONCLUSIVE tag v1pp-probe pages-api: no answer in the job's log"),
+    # v1pp-probe/run-log-missing: each job's own log, bounded
+    "pages-log-never-ready": ({"log_lag": {"605": 99}},
+                              "INCONCLUSIVE branch probe/v1pp-env pages-api: could not read the job's log (job 605)"),
+    "pages-job-missing": ({"jobs": {"501": [
+        {"id": 601, "name": "github-pages", "status": "completed", "conclusion": "failure", "steps": []},
+        {"id": 602, "name": "morning-note", "status": "completed", "conclusion": "failure", "steps": []}]}},
+                          "INCONCLUSIVE branch probe/v1pp-env pages-api: could not read the job"),
+    "runner-log-never-ready": ({"log_lag": {"600": 99}}, "INCONCLUSIVE runner log: could not read job 600's log"),
+    "runner-jobs-unread": ({"fail": {"actions/runs/500/jobs": -1}},
+                           "INCONCLUSIVE runner log: could not read the run's jobs"),
+    # v1pp-probe/pages-api-unreachable: the exemption is GitHub's exact artifact 400 only
+    "pages-artifact-400-other-words": (
+        {"env_logs": {"501": _line("V1PP-RESULT PAGES api exit=1 gh: Artifact expired (HTTP 400)")}},
+        "INCONCLUSIVE branch probe/v1pp-env pages-api: artifact refused first"),
+    "pages-unable-not-400": (
+        {"env_logs": {"501": _line("V1PP-RESULT PAGES api exit=1 gh: Unable to find artifact mathching the id (HTTP 404)")}},
+        "INCONCLUSIVE branch probe/v1pp-env pages-api: artifact refused first"),
+    "pages-unreachable-plus-another": (
+        {"env_logs": {"501": _line(PAGES_400), "502": _line(PAGES_400)},
+         "runner_log": runner_log(W_merge="1 gh: Server Error (HTTP 502)")},
+        "INCONCLUSIVE W merge: refused, but not naming"),
     # v1pp-probe/cleanup-absence-read: a cleanup write that failed is INCONCLUSIVE, even if the re-read agrees
     "close-failed": ({"close_fail": [78]}, "INCONCLUSIVE after cleanup #78: the close answered 'failed:"),
     "delete-failed": ({"delete_fail": ["heads/probe/v1pp-n"]},
@@ -418,6 +505,166 @@ def test_a_failed_read_or_another_refusal_is_inconclusive(tmp_path, twin, case):
     left = [r for r in REFS if r in run.state["refs"]]               # cleanup ran anyway
     assert left == (["heads/probe/v1pp-n"] if case == "delete-failed" else []), left
     assert "nothing was seen to go through" in run.out.rstrip().splitlines()[-1]
+
+
+# ------------------------------------------------------------------ try 1 (2026-11-21): what now counts, and only that
+def test_try_1_answers_now_pass_with_the_pages_api_lines_not_reachable(tmp_path, twin):
+    """The answers try 1 got (docs/architecture/main-protect-invariant.md "V1'' try 1 inconclusive"): the last-pusher
+    refusals PASS, the bare 422 on tag main PASSes on R-T's rule suite, the job logs are read per job, and the two
+    artifact 400s are NOT-REACHABLE (not counted), so the verdict is PASS and says what it does not cover."""
+    over = {f"{t}_{s}": (SQUASH_LAST if s == "squash" else GQL_LAST) for t in G for s in ("squash", "graphql")}
+    run = probe(tmp_path, twin, {"runner_log": runner_log(**over), "tag_main": "other",
+                                 "env_logs": {"501": _line(PAGES_400), "502": _line(PAGES_400)},
+                                 "log_lag": {"605": 2, "600": 1}})
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    for t in G:
+        for s in ("squash", "graphql"):
+            assert any(ln.startswith(f"PASS {t} {s}: refused") and LAST_PUSHER in ln for ln in run.marks("PASS")), (t, s)
+    tm = [ln for ln in run.marks("PASS") if ln.startswith("PASS tag main: refused")]
+    assert len(tm) == 1 and "Reference update failed" in tm[0], tm
+    assert "rule suite 900: result=fail, R-T 27685093 creation=fail enforcement=active" in tm[0]
+    nr = run.marks("NOT-REACHABLE")
+    assert [ln.split(":")[0] for ln in nr] == ["NOT-REACHABLE branch probe/v1pp-env pages-api",
+                                              "NOT-REACHABLE tag v1pp-probe pages-api"], nr
+    last = run.out.rstrip().splitlines()[-1]
+    assert last.startswith("PASS (V1''): every step above was refused as expected")
+    assert "2 pages-api line(s) NOT-REACHABLE by design" in last and "U-pages" in last
+    # the job logs were read per job, retried while not ready, and gh run view --log is never used
+    logs = [c["path"] for c in run.calls if c["path"].startswith("actions/jobs/")]
+    assert logs.count("actions/jobs/605/logs") == 3 and logs.count("actions/jobs/600/logs") == 2
+    assert logs.count("actions/jobs/606/logs") == 1
+    assert not [c for c in run.calls if c["method"] == "run view" and "--log" in c["argv"]]
+    # the rule suite was read after the runs (judged once), and before cleanup deleted tags/main
+    suites = [i for i, c in enumerate(run.calls) if c["path"].startswith("rulesets/rule-suites")]
+    first_close = next(i for i, c in enumerate(run.calls) if c["method"] == "PATCH")
+    assert len(suites) == 2 and suites[-1] < first_close
+    # read before the git push try, whose own suite would be a second match
+    git_push = next(i for i, c in enumerate(run.calls) if c["method"] == "git push")
+    assert suites[-1] < git_push
+    assert any(ln.startswith("PASS tag main git: refused") for ln in run.marks("PASS"))
+    assert_cleaned(run)
+
+
+@pytest.mark.parametrize("case,why", [
+    ("tag-main-suite-other-ruleset", "but not shown to be R-T: rule suite 900: result=fail, R-T 27685093 creation=none"),
+    ("tag-main-suite-evaluate", "but not shown to be R-T: rule suite 900: result=fail, R-T 27685093 creation=fail enforcement=evaluate"),
+    ("tag-main-suite-update-rule", "but not shown to be R-T: rule suite 900: result=fail, R-T 27685093 creation=none"),
+    ("tag-main-suite-pass", "but not shown to be R-T: rule suite 900: result=pass"),
+    ("tag-main-suite-twice", "but 2 rule suites match this try, not one"),
+    ("tag-main-suite-unreadable", "but rule suite 900 could not be read"),
+])
+def test_why_a_rule_suite_does_not_prove_r_t(tmp_path, twin, case, why):
+    run = probe(tmp_path, twin, INCONCLUSIVE[case][0])
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("INCONCLUSIVE tag main: refused ("))
+    assert "Reference update failed" in line and why in line, line
+
+
+@pytest.mark.parametrize("cfg,why", [
+    ({"no_suite": True}, "and no rule suite recorded this try; R-T, which has no bypass actor, is shown refusing"),
+    ({"suite_unreadable": True}, "and rule suite 900 could not be read; R-T, which has no bypass actor"),
+], ids=["no-suite", "suite-unreadable"])
+def test_a_missing_rule_suite_is_settled_by_the_git_line(tmp_path, twin, cfg, why):
+    """Item 2 of the try 1 note: a suite that could not be seen or read is settled by a PASS git push line, so a
+    lagging rule-suite record cannot force a third run; a suite that contradicts R-T never is (table above)."""
+    run = probe(tmp_path, twin, {"tag_main": "other", **cfg})
+    assert run.r.returncode == 0, run.out
+    line = next(ln for ln in run.marks("PASS") if ln.startswith("PASS tag main: refused ("))
+    assert "Reference update failed" in line and why in line, line
+
+
+def test_a_contradicting_rule_suite_is_not_settled_by_the_git_line(tmp_path, twin):
+    run = probe(tmp_path, twin, {"tag_main": "other", "suite_over": {"result": "pass"}})
+    assert run.r.returncode == 1
+    assert any(ln.startswith("PASS tag main git: refused") for ln in run.marks("PASS"))
+    assert any(ln.startswith("INCONCLUSIVE tag main: refused (") for ln in run.out.splitlines())
+
+
+def test_an_unchecked_start_time_reads_no_rule_suite(tmp_path):
+    """v1pp-probe/tag-main-t0-unchecked + t0-gnu-date: a date without GNU -d gives no start time; the rule suite is
+    not read (bash twin only: the .ps1 computes it with .NET)."""
+    run = probe(tmp_path, "sh", {"tag_main": "other", "git_tag": "other", "date_no_d": True})
+    assert run.r.returncode == 1
+    assert not [c for c in run.calls if c["path"].startswith("rulesets/rule-suites")]
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("INCONCLUSIVE tag main: refused ("))
+    assert "the start time could not be computed" in line, line
+
+
+def test_the_git_push_runs_with_a_clean_git_environment(tmp_path, twin):
+    """v1pp-probe/tag-git-env and tag-git-local-hooks: no trace, askpass or prompt, secrets redacted, no global config,
+    no hooks, gh the only credential helper; and the caller's environment is not changed for anything else."""
+    dirty = {"GIT_TRACE": "1", "GIT_TRACE2_EVENT": str(tmp_path / "t2"), "GIT_TRACE_CURL": "1",
+             "GIT_CURL_VERBOSE": "1", "GIT_ASKPASS": "/bin/false", "SSH_ASKPASS": "/bin/false",
+             "GIT_CONFIG_GLOBAL": str(tmp_path / "mine.gitconfig"), "GIT_TERMINAL_PROMPT": "1", "GIT_TRACE_REDACT": "0"}
+    run = probe(tmp_path, twin, env=dirty)
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    gits = [c for c in run.calls if c["method"].startswith("git ")]
+    assert [c["method"] for c in gits] == ["git init", "git fetch", "git push"]
+    for c in gits:
+        e = c["env"]
+        for k in ("GIT_TRACE", "GIT_TRACE2_EVENT", "GIT_TRACE_CURL", "GIT_CURL_VERBOSE", "GIT_ASKPASS", "SSH_ASKPASS"):
+            assert k not in e, (c["method"], k)
+        assert e["GIT_TRACE_REDACT"] == "1" and e["GIT_TERMINAL_PROMPT"] == "0"
+        assert e["GIT_CONFIG_GLOBAL"].endswith("empty.gitconfig") and "mine" not in e["GIT_CONFIG_GLOBAL"]
+        hooks = [x for x in c["argv"] if x.startswith("core.hooksPath=")]
+        assert len(hooks) == 1 and hooks[0].endswith("no-hooks"), c["argv"]
+        assert c["argv"][:6] == ["-c", hooks[0], "-c", "credential.helper=", "-c",
+                                 "credential.helper=!gh auth git-credential"], c["argv"]
+    assert "--no-verify" in gits[2]["argv"]
+    # and put back: every gh call after the git push sees the caller's settings again, nothing more
+    after = [c for c in run.calls[run.calls.index(gits[2]) + 1:] if "gitenv" in c]
+    assert after
+    for c in after:
+        e = c["gitenv"]
+        assert {k: e.get(k) for k in dirty} == dirty, (c["path"], e)
+
+
+def test_no_git_is_refused_before_any_write(tmp_path):
+    """v1pp-probe/tag-git-no-git-precheck: a missing git must never read as an answer (bash twin here; the .ps1 checks
+    Get-Command git the same way, and sets $LASTEXITCODE to 99 before each git call)."""
+    farm = tmp_path / "farm"
+    farm.mkdir()
+    for d in ("/usr/local/bin", "/usr/bin", "/bin"):   # these overlap on merged-/usr systems: first one wins
+        for name in (sorted(os.listdir(d)) if os.path.isdir(d) else []):
+            if not name.startswith("git") and not os.path.lexists(farm / name):
+                (farm / name).symlink_to(os.path.join(d, name))
+    run = probe(tmp_path, "sh", {"no_git": True}, env={"PATH_TAIL": str(farm)})
+    assert run.r.returncode == 1 and "git not found" in run.out and "Nothing was changed." in run.out, run.out
+    assert not run.writes() and not run.marks("FAIL")
+
+
+def test_a_named_rule_refusal_of_tag_main_reads_no_rule_suite(tmp_path, twin):
+    run = probe(tmp_path, twin)
+    assert run.r.returncode == 0, run.out
+    assert not [c for c in run.calls if c["path"].startswith("rulesets/rule-suites")]
+
+
+def test_a_lagging_rule_suite_is_waited_for_within_the_bound(tmp_path, twin):
+    run = probe(tmp_path, twin, {"tag_main": "other", "suite_lag": 2})
+    assert run.r.returncode == 0, run.out
+    assert len([c for c in run.calls if c["path"].startswith("rulesets/rule-suites?")]) == 3
+
+
+def test_a_missing_rule_suite_stops_after_six_reads(tmp_path, twin):
+    run = probe(tmp_path, twin, {"tag_main": "other", "no_suite": True, "git_tag": "other"})
+    assert run.r.returncode == 1
+    assert len([c for c in run.calls if c["path"].startswith("rulesets/rule-suites?")]) == 6
+    assert not [c for c in run.calls if c["path"].startswith("rulesets/rule-suites/")]
+
+
+def test_a_setup_failure_after_the_tag_try_still_judges_it_before_cleanup(tmp_path, twin):
+    run = probe(tmp_path, twin, {"tag_main": "other", "fail": {"ref=refs/tags/v1pp-probe": 1}})
+    assert run.r.returncode == 1 and "INCONCLUSIVE setup: could not create the tag v1pp-probe" in run.out
+    assert any(ln.startswith("PASS tag main: refused") for ln in run.marks("PASS"))
+    suite = max(i for i, c in enumerate(run.calls) if c["path"].startswith("rulesets/rule-suites"))
+    delete_tag = max(i for i, c in enumerate(run.calls) if c["method"] == "DELETE" and c["path"] == "git/refs/tags/main")
+    assert suite < delete_tag
+
+
+def test_pages_accepted_is_still_fail_when_the_log_lags(tmp_path, twin):
+    run = probe(tmp_path, twin, {"log_lag": {"606": 3},
+                                 "env_logs": {"502": _line("V1PP-RESULT PAGES api exit=0 {\"status_url\": \"x\"}")}})
+    assert run.r.returncode == 2
+    assert any(ln.startswith("FAIL tag v1pp-probe pages-api: GitHub accepted") for ln in run.out.splitlines())
 
 
 def test_a_run_still_going_at_the_deadline_is_cancelled_before_cleanup(tmp_path, twin):
@@ -612,11 +859,36 @@ def test_the_twins_agree():
                      "'not allowed|approving review|rule violation'", "V1PP-RESULT PAGES api exit=[0-9]+( .*)?$",
                      "'not allowed to deploy|protection rule'", "artifact refused first; branch check not reached",
                      "Reference does not exist", "/actions/runs/$", "/cancel", "not completed after 12 minutes",
-                     "nothing was seen to go through", "unlock expired after", "pushed, but no run seen yet"):
+                     "nothing was seen to go through", "unlock expired after", "pushed, but no run seen yet",
+                     # try 1 decisions (main-protect-invariant.md "V1'' try 1 inconclusive")
+                     "'approving review|Repository rule violations found.*New changes require approval from someone "
+                     "other than the last pusher'", "rulesets/rule-suites?ref=refs/tags/main&time_period=day&per_page=100",
+                     "27685093", "creation", "HTTP 422", "/actions/jobs/$", "/logs", "Unable to find artifact",
+                     "'V1PP-RESULT PAGES api exit=[0-9]'", "'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH) '",
+                     "NOT-REACHABLE by design", "U-pages", "V1'' try 1 inconclusive",
+                     "tag main git", "credential.helper=!gh auth git-credential", ":refs/tags/main",
+                     "--depth=1", "GIT_TERMINAL_PROMPT", "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+                     "shown refusing the same tag on the git line above",
+                     "--no-verify", "core.hooksPath=", "GIT_CONFIG_GLOBAL", "empty.gitconfig", "GIT_TRACE_REDACT",
+                     "GIT_ASKPASS", "SSH_ASKPASS", "GIT_CURL_VERBOSE", "'^remote: error: GH013: Repository rule "
+                     "violations found for refs/tags/main'", "Everything up-to-date", "git not found",
+                     "tag main exists (git answered up-to-date after the REST try created it)"):
             assert part in s, part
+        assert "--log" not in s.replace("gh run view --log gave", "")   # v1pp-probe/run-log-missing
+        assert "GH013|rule violation" not in s   # v1pp-probe/tag-git-local-hooks: GitHub's remote line only
         for f in FILES:
             assert f in s, f
         assert "-ExecutionPolicy Bypass" not in s
+    # v1pp-probe/pages-api-unreachable: one place makes a NOT-REACHABLE line, in the pages-api judge, and it is not
+    # counted against PASS; nothing else is exempt
+    assert len(re.findall(r"\bmark NOT-REACHABLE\b", sh)) == 1 and len(re.findall(r"Mark 'NOT-REACHABLE'", ps1)) == 1
+    assert sh.index("mark NOT-REACHABLE") > sh.index("pages_refused() {")
+    assert ps1.index("Mark 'NOT-REACHABLE'") > ps1.index("function PagesRefused(")
+    assert "NOT-REACHABLE) unreach=$((unreach + 1)) ;;" in sh
+    # v1pp-probe/pages-jid-pipefail: the jobs are read into a variable first, never piped from the read
+    assert 'jobs=$(run_jobs "$2") || jobs=""   # v1pp-probe/pages-jid-pipefail' in sh
+    assert not re.search(r'run_jobs "[^"]*"\)?\s*\|(?!\|)', sh)
+    assert "elseif ($kind -ceq 'NOT-REACHABLE') { $script:unreach++ }" in ps1
     # the lock: one line flips it, documented in both headers, before anything else runs
     for tw, text in (("sh", sh), ("ps1", ps1)):
         pat = lock_re(tw)
@@ -635,7 +907,7 @@ def test_the_twins_agree():
     # every guard comes before the first write, in each twin
     for text, first_write in ((sh, '-X POST "repos/$repo/git/refs"'), (ps1, '-X POST "repos/$repo/git/refs"')):
         w = text.index(first_write)
-        for g in ("CLAUDE_CODE_REMOTE", "protect-main", "tags/main", "records-data"):
+        for g in ("CLAUDE_CODE_REMOTE", "protect-main", "tags/main", "records-data", "git not found"):
             assert text.index(g) < w, g
     assert "scripts\\protect-main.ps1" in ps1 and "-Check -Apps $Apps" in ps1
     # Windows PowerShell 5.1: no double quote inside a --jq filter, ASCII only, no BOM
@@ -677,6 +949,12 @@ def test_the_probe_workflows_are_inert_and_least_privilege():
     assert '"repos/$GITHUB_REPOSITORY/pages/deployments" -F artifact_id=1' in run and "::add-mask::$tok" in run
     assert 'echo "V1PP-RESULT $t $s exit=$code' in run and "t=PAGES; s=api" in run
     assert not re.search(r"V1PP-RESULT PAGES\b", envwf_text)
+    # v1pp-probe/env-wf-comment-stale: the header says what the probe now does with each answer
+    header = envwf_text[:envwf_text.index("\nname:")]
+    for part in ("NOT-REACHABLE, not counted", "v1pp-probe/pages-api-unreachable", "exit 0 is FAIL",
+                 "own log (v1pp-probe/run-log-missing)"):
+        assert part in header, part
+    assert "refused for the artifact is INCONCLUSIVE" not in header
     for text in (envwf_text, (PROBE_DIR / "v1pp-canary.yml").read_text(encoding="utf-8")):
         assert "secrets." not in text and "uses:" not in text
     text = (PROBE_DIR / "v1pp-probe.yml").read_text(encoding="utf-8")
