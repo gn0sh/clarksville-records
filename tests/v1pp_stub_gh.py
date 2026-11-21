@@ -17,6 +17,9 @@ cfg = json.load(open(os.environ["GH_CFG"]))
 st_path = os.environ["GH_STATE"]
 st = json.load(open(st_path))
 REPO = "repos/gn0sh/clarksville-records/"
+# a job log's 302 target, as gh would name it in an error: the path and query carry a signed, short-lived read token
+STORAGE_HOST = "productionresultssa1.blob.core.windows.net"
+STORAGE_URL = "https://" + STORAGE_HOST + "/actions-results/x/y.txt?sv=2025-01-05&sig=SECRETSIG%2Babc"
 
 
 def save():
@@ -126,6 +129,9 @@ for sub, n in cfg.get("fail", {}).items():
             st["failed"][sub] = used + 1
             err(502, "Server Error")
 
+if a[:1] == ["--version"]:   # the results file's header records line 1 (v1pp-probe/log-read-diag)
+    print("gh version 2.89.0 (2026-11-01)\nhttps://github.com/cli/cli/releases/tag/v2.89.0")
+    sys.exit(0)
 if a[:2] == ["auth", "status"]:
     print(cfg.get("scopes", "Token scopes: 'gist', 'read:org', 'repo', 'workflow'"))
     sys.exit(0)
@@ -268,6 +274,8 @@ if short.startswith("actions/runs/") and short.endswith("/jobs"):
     rid = short.split("/")[2]
     default = {"501": [("github-pages", 601), ("morning-note", 602)], "502": [("github-pages", 603), ("morning-note", 604)]}
     jobs = cfg.get("jobs", {}).get(rid)
+    if jobs is None and rid == "700":   # the self-check's daily-update run (v1pp-probe/log-read-selfcheck)
+        jobs = [{"id": 701, "name": "gate", "status": "completed", "conclusion": "success", "steps": [{"name": "x"}]}]
     if jobs is None and rid == "500":
         jobs = [{"id": 600, "name": "probe", "status": "completed", "conclusion": "success", "steps": [{"name": "Try"}]}]
     if jobs is None:
@@ -281,7 +289,27 @@ if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text
     reads[jid] = reads.get(jid, 0) + 1
     if reads[jid] <= cfg.get("log_lag", {}).get(jid, 0):            # not ready yet
         err(404, "Not Found")
-    if jid == "600":
+    how = cfg.get("log_fail", {}).get(jid)   # v1pp-probe/job-log-unreadable: ways a read can fail on Brian's PC
+    if how == "dns":                         # the 302 to storage, not resolved: stderr carries the signed URL
+        save()
+        sys.stderr.write('gh: Get "%s": dial tcp: lookup %s: no such host\n' % (STORAGE_URL, STORAGE_HOST))
+        sys.exit(1)
+    if how == "s403":                        # storage answers 403 with an XML body that may echo the request
+        save()
+        sys.stdout.write('<?xml version="1.0" encoding="utf-8"?><Error><Code>AuthenticationFailed</Code>SECRETBODY'
+                         '</Error>\n')
+        sys.stderr.write("gh: HTTP 403 (%s)\n" % STORAGE_URL)
+        sys.exit(1)
+    if how == "empty":                       # exit 0 with no body
+        save()
+        sys.exit(0)
+    if how == "token":                       # a long token-like string, and a line past the 200-character cap
+        save()
+        sys.stderr.write("\n  \ngh: bad credentials ghp_" + "A" * 36 + " " + "word " * 60 + "\nsecond line\n")
+        sys.exit(1)
+    if jid == "701":                         # the self-check's log: never shown (I-log 3)
+        text = "2026-11-21T09:07:00.0000000Z SELFCHECK-BODY gate passed\n"
+    elif jid == "600":
         text = cfg.get("runner_log", "")
     elif jid in ("605", "606"):   # the pages-api job's answer, by default refused on branch or environment grounds
         rid = {"605": "501", "606": "502"}[jid]
@@ -293,8 +321,17 @@ if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text
     else:
         err(404, "Not Found")
     save()
+    if how == "bom":                         # the body starts with a UTF-8 BOM, as GitHub serves it (F3)
+        sys.stdout.flush()
+        sys.stdout.buffer.write(b"\xef\xbb\xbf" + text.encode("utf-8"))
+        sys.exit(0)
     sys.stdout.write(text)
     sys.exit(0)
+if short.startswith("actions/workflows/daily-update.yml/runs?"):   # the self-check's run: the newest completed one
+    q = dict(x.split("=", 1) for x in short.split("?", 1)[1].split("&"))
+    assert q == {"status": "completed", "per_page": "1"}, q
+    ok({"total_count": 0, "workflow_runs": []} if cfg.get("selfcheck_run") == "none" else
+       {"total_count": 1, "workflow_runs": [{"id": 700, "status": "completed", "conclusion": "success"}]})
 if short.startswith("rulesets/rule-suites?"):   # GitHub's record of each ref update (fields per its OpenAPI description)
     q = dict(x.split("=", 1) for x in short.split("?", 1)[1].split("&"))
     assert q == {"ref": "refs/tags/main", "time_period": "day", "per_page": "100"}, q

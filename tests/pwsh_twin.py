@@ -127,4 +127,8 @@ PS51_ONLY = (
     "PositionalBinding=$false with -File on 5.1: pwsh 7 refuses a positional argument, and passes each '-Name' "
     "argument of `-File` into a non-advanced script's $args so that `. { [CmdletBinding(PositionalBinding = $false)] "
     "param(...) } @args` binds it by name (cutover-data-off-main.ps1); that 5.1 does both is unproved",
+    "the job-log read (v1pp-probe.ps1 JobLog, v1pp-probe/job-log-unreadable): Brian's PC's network path to the "
+    "storage host the log's 302 points to, and the gh build there, can't be tested here; 5.1's ErrorRecord wrapping "
+    "of gh's stderr under 2>&1 (split by type) is unproved by a 5.1 run. The probe's read-only log self-check "
+    "(v1pp-probe/log-read-selfcheck) is the live check: it refuses, changing nothing, with gh's sanitized error line",
 )

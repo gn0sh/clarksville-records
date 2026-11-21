@@ -667,6 +667,122 @@ def test_pages_accepted_is_still_fail_when_the_log_lags(tmp_path, twin):
     assert any(ln.startswith("FAIL tag v1pp-probe pages-api: GitHub accepted") for ln in run.out.splitlines())
 
 
+# ------------------------------------------------------------------ the job-log read invariant (I-log)
+# docs/architecture/v1pp-job-log-invariant.md section 5, tests (a)-(h); v1pp-probe/job-log-unreadable
+STORAGE = "https://productionresultssa1.blob.core.windows.net/..."
+NEVER_SHOWN = ("sig=", "SECRETSIG", "?sv", "SECRETBODY", "SELFCHECK-BODY")   # the signed URL, a failed body, the check's log
+NOT_JUDGED = "not judged: the run's log was not read (see the runner log line)"
+JUDGED = re.compile(r"^[A-Z-]+ (W|N|D0|WB|NB|D0B|PUSH) (open|approve|squash|merge|rebase|graphql|rest|git):")
+
+
+def assert_never_shown(run):
+    for where, text in (("out", run.out), ("stderr", run.r.stderr), ("results", run.results)):
+        for s in NEVER_SHOWN:
+            assert s not in text, (where, s)
+
+
+def test_an_unreadable_job_log_refuses_before_any_write(tmp_path, twin):
+    """(a) v1pp-probe/log-read-selfcheck: the PC can't read a finished job's log, so nothing is written (not even the
+    leftover deletes); the reason is in the results file, sanitized; the workflow scope is still given back."""
+    run = probe(tmp_path, twin, {"log_fail": {"701": "dns"}, "scopes": "Token scopes: 'gist', 'repo'"})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
+    assert line == ("REFUSED: could not read the log of finished job 701 (daily-update run 700) after 6 reads (last: "
+                    'gh exit 1: gh: Get "' + STORAGE + '": dial tcp: lookup productionresultssa1.blob.core.windows.net:'
+                    " no such host); every answer is read from job logs, so the probe stops here "
+                    "(v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team."), line
+    assert line in run.results and "gh exit 1:" in run.results and STORAGE in run.results
+    assert "gh: gh version 2.89.0 (2026-11-01)." in run.results          # the header: gh, and the .ps1's PowerShell
+    assert (". PowerShell " in run.results) == (twin == "ps1")
+    assert not run.writes()
+    assert [c["path"] for c in run.calls if c["path"].startswith("actions/jobs/")] == ["actions/jobs/701/logs"] * 6
+    refresh = [c for c in run.calls if c["method"] == "auth refresh"]
+    assert len(refresh) == 2 and "--remove-scopes" in refresh[1]["argv"] and run.calls[-1] == refresh[1]
+    assert "(V1'')" not in run.out
+    assert_never_shown(run)
+
+
+@pytest.mark.parametrize("cfg", [
+    {"selfcheck_run": "none"},
+    {"jobs": {"700": [{"id": 701, "name": "gate", "status": "completed", "conclusion": "cancelled", "steps": []},
+                      {"id": 702, "name": "push", "status": "in_progress", "conclusion": None, "steps": []}]}},
+], ids=["no-run", "no-finished-job"])
+def test_no_finished_daily_update_job_refuses_before_any_write(tmp_path, twin, cfg):
+    """(b) nothing to test the read on: refused, nothing changed, no log read."""
+    run = probe(tmp_path, twin, cfg)
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed."
+            in run.results)
+    assert not run.writes() and not [c for c in run.calls if c["path"].startswith("actions/jobs/")]
+
+
+def test_the_log_read_check_comes_before_the_first_write_and_shows_no_log_text(tmp_path, twin):
+    """(c) the self-check reads before the first DELETE (the leftovers), and only its line count is shown."""
+    run = probe(tmp_path, twin)
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    check = next(i for i, c in enumerate(run.calls) if c["path"] == "actions/jobs/701/logs")
+    assert check < run.calls.index(run.writes()[0]) and run.writes()[0]["method"] == "DELETE"
+    assert "Log read check: job 701 of daily-update run 700 read (1 lines)." in run.results
+    assert_never_shown(run)
+
+
+def test_an_unread_runner_log_is_not_judged_and_says_why(tmp_path, twin):
+    """(d) v1pp-probe/unread-not-absent + log-read-diag: 6 reads, then every line that needs the log is 'not
+    judged', never PASS or 'no answer'; the checks without logs still run."""
+    run = probe(tmp_path, twin, {"log_fail": {"600": "dns"}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("INCONCLUSIVE runner log: could not read job 600's log after 6 reads (last: gh exit 1: gh: Get \"" + STORAGE
+            + '": dial tcp: lookup productionresultssa1.blob.core.windows.net: no such host)') in run.out
+    judged = [ln for ln in run.out.splitlines() if JUDGED.match(ln)]
+    assert len(judged) == 3 + 3 * 5 + 2, judged   # bot opens; W, N, D0 x 5; PUSH rest and git
+    assert all(ln.startswith("INCONCLUSIVE ") and ln.endswith(": " + NOT_JUDGED) for ln in judged), judged
+    assert "no answer in the run's log" not in run.out
+    assert [c["path"] for c in run.calls].count("actions/jobs/600/logs") == 6
+    for t, b in zip(B, ("probe/v1pp-w-bot", "probe/v1pp-n-bot", "probe/v1pp-d0-bot")):
+        assert f"PASS {t} pull request: none from {b}" in run.out
+    assert f"PASS main: unchanged at {MAIN}" in run.out and "PASS pull request #77: unmerged" in run.out
+    assert run.out.rstrip().splitlines()[-1].startswith("INCONCLUSIVE (V1''):")
+    assert_never_shown(run)
+
+
+def test_a_storage_403_on_the_pages_log_names_the_status_not_the_body(tmp_path, twin):
+    """(e) the XML error body on stdout is never shown; gh's stderr line, cut to the host, is."""
+    run = probe(tmp_path, twin, {"log_fail": {"605": "s403"}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("INCONCLUSIVE branch probe/v1pp-env pages-api: could not read the job's log (job 605) after 6 reads (last: "
+            "gh exit 1: gh: HTTP 403 (" + STORAGE + ")") in run.out
+    assert "HTTP 403" in run.results
+    assert_never_shown(run)
+
+
+def test_an_empty_log_is_unread_not_absent(tmp_path, twin):
+    """(f) exit 0 with no log line is a failed read (I-log 1)."""
+    run = probe(tmp_path, twin, {"log_fail": {"600": "empty"}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    assert ("INCONCLUSIVE runner log: could not read job 600's log after 6 reads (last: gh exit 0: no error text, 0 "
+            "line(s) out)") in run.out
+    judged = [ln for ln in run.out.splitlines() if JUDGED.match(ln)]
+    assert judged and all(ln.endswith(": " + NOT_JUDGED) for ln in judged), judged
+    assert "no answer in the run's log" not in run.out
+
+
+def test_a_log_with_a_bom_still_passes(tmp_path, twin):
+    """(g) F3: GitHub's log body starts with a UTF-8 BOM; the unanchored log-line match is not fooled by it."""
+    run = probe(tmp_path, twin, {"log_fail": {"600": "bom", "701": "bom"}})
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    assert any(ln.startswith("PASS W squash: refused") for ln in run.marks("PASS"))
+
+
+def test_a_long_token_is_redacted_and_the_reason_is_capped(tmp_path, twin):
+    """I-log 4: the first non-blank stderr line only; a run of 32+ token characters becomes <redacted>; 200 chars."""
+    run = probe(tmp_path, twin, {"log_fail": {"701": "token"}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
+    why = line[line.index("(last: gh exit 1: ") + len("(last: gh exit 1: "):line.index("); every answer")]
+    assert why.startswith("gh: bad credentials <redacted> word word") and len(why) == 200, why
+    assert "AAAAAAAAAAAAAAAA" not in run.out + run.results and "second line" not in run.out
+
+
 def test_a_run_still_going_at_the_deadline_is_cancelled_before_cleanup(tmp_path, twin):
     """v1pp-probe/unbounded-watch and inflight-run-at-cleanup: 72 reads, 10 s apart, then the cancel, then cleanup."""
     run = probe(tmp_path, twin, {"run_status": {"500": "in_progress"}})
@@ -872,7 +988,14 @@ def test_the_twins_agree():
                      "--no-verify", "core.hooksPath=", "GIT_CONFIG_GLOBAL", "empty.gitconfig", "GIT_TRACE_REDACT",
                      "GIT_ASKPASS", "SSH_ASKPASS", "GIT_CURL_VERBOSE", "'^remote: error: GH013: Repository rule "
                      "violations found for refs/tags/main'", "Everything up-to-date", "git not found",
-                     "tag main exists (git answered up-to-date after the REST try created it)"):
+                     "tag main exists (git answered up-to-date after the REST try created it)",
+                     # (h) the job-log read invariant (docs/architecture/v1pp-job-log-invariant.md, I-log)
+                     "'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z '", "log-read-selfcheck",
+                     "not judged: the run's log was not read (see the runner log line)", "GH_DEBUG", "<redacted>",
+                     "[A-Za-z0-9%+/=_-]{32,}", "/...", "daily-update.yml/runs?status=completed&per_page=1",
+                     "could not find a finished daily-update job to test the log read. Nothing was changed.",
+                     "(v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team.",
+                     "after 6 reads (last: ", "no error text, ", "Log read check: job "):
             assert part in s, part
         assert "--log" not in s.replace("gh run view --log gave", "")   # v1pp-probe/run-log-missing
         assert "GH013|rule violation" not in s   # v1pp-probe/tag-git-local-hooks: GitHub's remote line only
@@ -909,6 +1032,17 @@ def test_the_twins_agree():
         w = text.index(first_write)
         for g in ("CLAUDE_CODE_REMOTE", "protect-main", "tags/main", "records-data", "git not found"):
             assert text.index(g) < w, g
+    # v1pp-probe/log-read-selfcheck: the log read check comes before the leftover deletes, the first write; GH_DEBUG is
+    # cleared before it
+    for text, clear, check, deletes in (
+            (sh, "unset GH_DEBUG", 'job_log "$sc_jid" "$log_line"',
+             'api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try'),
+            (ps1, "Remove-Item Env:GH_DEBUG", "JobLog $scJid $logLine",
+             'Quiet -X DELETE "repos/$repo/git/refs/$r" }   # leftovers of an earlier try')):
+        assert text.index(clear) < text.index(check) < text.index(deletes)
+    # PS 5.1: the job-log read keeps stderr apart by type, never by 2>$null (which lost try 3's reason)
+    assert 'gh api "repos/$repo/actions/jobs/$jid/logs" 2>&1)' in ps1 and "[Management.Automation.ErrorRecord]" in ps1
+    assert "$ErrorActionPreference = 'Continue'" in ps1 and "$ErrorActionPreference = 'Stop'" not in ps1
     assert "scripts\\protect-main.ps1" in ps1 and "-Check -Apps $Apps" in ps1
     # Windows PowerShell 5.1: no double quote inside a --jq filter, ASCII only, no BOM
     assert not re.search(r"--jq '[^']*\"", ps1)

@@ -310,7 +310,9 @@ runbook `docs/ops/morning-note.md` section 4 item 6a (the line kinds), ADR 0011 
    archive not ready yet just after completion. Both twins now list the run's jobs and read
    `GET actions/jobs/<id>/logs` (the plain-text job log, GitHub's documented 302 that `gh api` follows), up to 6 reads
    10 s apart until a read holds the expected line; never readable is INCONCLUSIVE with the job id. The runner's
-   answers come the same way. `gh run view --log` is no longer used (a test pins it).
+   answers come the same way. `gh run view --log` is no longer used (a test pins it). Try 3 (2026-11-21) could read
+   none of these logs on Brian's PC and kept no reason: the read rule, a read-only log self-check before any write,
+   and a sanitized reason for each failed read are in `v1pp-job-log-invariant.md` (I-log, `v1pp-probe/job-log-unreadable`).
 4. **pages-api with the made-up artifact: NOT-REACHABLE, not counted** (`v1pp-probe/pages-api-unreachable`; confidence
    medium; reverses part of security finding S1 `pages-api-coverage`, so security re-reviews it). GitHub checks the
    artifact before any branch or environment rule, so the step could never PASS. No safe input reaches the branch

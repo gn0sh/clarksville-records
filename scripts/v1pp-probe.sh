@@ -7,7 +7,8 @@
 # pull request mode; R-D; R-T; R2 off), can GITHUB_TOKEN get anything into main, and can a branch or tag other than
 # main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after the guard passed), it:
 #   0. refuses unless scripts/protect-main.sh --check --apps <answer> prints OK (no writes), main and records-data read
-#      as commits and no tag named main exists;
+#      as commits and no tag named main exists; then, still before any write, reads a finished job's log (the newest
+#      finished daily-update job; v1pp-probe/log-read-selfcheck) and stops, changing nothing, if it can't;
 #   1. pushes three targets, twice, each one commit on main: W (an inert .github/workflows/v1pp-canary.yml), N
 #      (sitegen/v1pp-probe-canary.txt), D0 (data/v1pp-probe-canary.txt, data/ now refused on main too). Set G
 #      (probe/v1pp-w, probe/v1pp-n, probe/v1pp-d0): you open their pull requests into main. Set B (probe/v1pp-w-bot,
@@ -401,23 +402,64 @@ run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclus
   gh api "repos/$repo/actions/runs/$1/jobs" \
     --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null
 }
+# v1pp-probe/job-log-unreadable (docs/architecture/v1pp-job-log-invariant.md, I-log): a job-log read succeeded only
+# when gh exits 0 and its output holds a GitHub log line (log_line, unanchored: a BOM may sit before line 1); a failed
+# read leaves one sanitized line, never its output (v1pp-probe/log-read-diag). GH_DEBUG would put a debug line first.
+unset GH_DEBUG
+log_line='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z '
+read_why() {   # $1 gh's exit code, $2 its stderr, $3 lines it printed: "gh exit <rc>: <first stderr line, sanitized>"
+  local l
+  l=$(printf '%s\n' "$2" | clean_log | grep -m 1 '[^[:space:]]')
+  if [ -z "$l" ]; then printf 'gh exit %s: no error text, %s line(s) out' "$1" "$3"; return 0; fi
+  # URLs cut to scheme and host (any case: the signed read token is in the path and query), long tokens redacted
+  l=$(printf '%s' "$l" | sed -E $'s|(https?://[^/[:space:]"\'?#]+)[^[:space:]"\']*|\\1/...|gI; s|[A-Za-z0-9%+/=_-]{32,}|<redacted>|g')
+  printf 'gh exit %s: %s' "$1" "${l:0:200}"
+}
 # v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
 # each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
-# succeeds and holds $2 (an ERE); prints the last log read, cleaned; returns 1 if no read succeeded.
+# succeeds and holds $2 (an ERE); prints the last log read, cleaned; returns 1 if no read succeeded, and then prints
+# the last failed read's read_why line instead.
 job_log() {
-  local i t text="" got=""
+  local i t text="" got="" rc errf why=""
+  errf=$(mktemp) || { printf 'could not make a temporary file'; return 1; }
   for i in 1 2 3 4 5 6; do
-    if t=$(gh api "repos/$repo/actions/jobs/$1/logs" 2>/dev/null); then
+    t=$(gh api "repos/$repo/actions/jobs/$1/logs" 2>"$errf") && rc=0 || rc=$?
+    if [ "$rc" = 0 ] && grep -qE "$log_line" <<< "$t"; then
       got=yes; text=$(printf '%s\n' "$t" | clean_log)
       grep -qE "$2" <<< "$text" && break
+    else
+      why=$(read_why "$rc" "$(cat "$errf")" "$(grep -c '[^[:space:]]' <<< "$t")")
     fi
     [ "$i" = 6 ] || sleep 10
   done
-  [ -n "$got" ] || return 1
+  rm -f "$errf"
+  if [ -z "$got" ]; then printf '%s' "$why"; return 1; fi
   printf '%s\n' "$text"
 }
 
 log "V1'' probe $(date -u +%FT%TZ). main before: $main_before. records-data before: $rd_before."
+gh_ver=$(gh --version 2>/dev/null | head -n 1) || true
+log "gh: ${gh_ver:-unread}."
+# v1pp-probe/log-read-selfcheck (I-log 3): every answer is read from job logs, so before the first write (the leftover
+# deletes below are writes) show that this machine can read one: the newest finished daily-update job's, through
+# job_log. Reads only; its text is never shown. Refused here, nothing was changed (started is still empty).
+sc_run=$(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=1" \
+         --jq '.workflow_runs[0].id // empty' 2>/dev/null) || sc_run=""
+sc_jid=""
+if [[ "$sc_run" =~ ^[0-9]+$ ]]; then
+  sc_jobs=$(run_jobs "$sc_run") || sc_jobs=""
+  sc_jid=$(awk -F'\t' '$2 ~ /^[0-9]+$/ && $3 == "completed" && ($4 == "success" || $4 == "failure") {print $2; exit}' <<< "$sc_jobs")
+fi
+if [ -z "$sc_jid" ]; then
+  log "REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed."
+  exit 1
+fi
+if ! sc_text=$(job_log "$sc_jid" "$log_line"); then
+  log "REFUSED: could not read the log of finished job $sc_jid (daily-update run $sc_run) after 6 reads (last: $sc_text); every answer is read from job logs, so the probe stops here (v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team."
+  exit 1
+fi
+log "Log read check: job $sc_jid of daily-update run $sc_run read ($(grep -c . <<< "$sc_text") lines)."
+sc_text=""
 for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try
 started=yes
 
@@ -522,6 +564,7 @@ wait_run() {   # $1 run id: v1pp-probe/unbounded-watch: up to 12 minutes (72 rea
 run_id=$(run_of "$runner" "$run_head") || run_id=""
 r_ids[0]=$run_id; r_looked[0]=yes
 lines=""
+log_unread=""   # v1pp-probe/unread-not-absent (I-log 2): a runner job's log not read, so no line may read as absent
 if [ -z "$run_id" ]; then
   mark INCONCLUSIVE "runner" "the probe run did not start within 3 minutes"
 else
@@ -532,10 +575,10 @@ else
   log_text=""
   jobs=$(run_jobs "$run_id") || jobs=""
   jids=$(awk -F'\t' '$2 ~ /^[0-9]+$/ {print $2}' <<< "$jobs")
-  [ -n "$jids" ] || mark INCONCLUSIVE "runner log" "could not read the run's jobs"
+  [ -n "$jids" ] || { log_unread=yes; mark INCONCLUSIVE "runner log" "could not read the run's jobs"; }
   for jid in $jids; do
     if t=$(job_log "$jid" 'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH) '); then log_text+="$t"$'\n'
-    else mark INCONCLUSIVE "runner log" "could not read job $jid's log"; fi
+    else log_unread=yes; mark INCONCLUSIVE "runner log" "could not read job $jid's log after 6 reads (last: $t)"; fi
   done
   lines=$(grep -oE "V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH)( .*)?$" <<< "$log_text" || true)
   while IFS= read -r l; do [ -n "$l" ] && log "  $l"; done <<< "$lines"
@@ -549,6 +592,7 @@ judge() {   # $1 target, $2 step, $3 what the refusal must name (an ERE, any cas
   l=$(grep -E "^V1PP-RESULT $1 $2 exit=[0-9]+( |$)" <<< "$lines" | head -n 1)
   if [ -z "$l" ]; then
     if [ -n "$ended" ]; then mark NOT-TRIED "$1 $2" "skipped: an earlier merge or push ended the run"
+    elif [ -n "$log_unread" ]; then mark INCONCLUSIVE "$1 $2" "not judged: the run's log was not read (see the runner log line)"
     else mark INCONCLUSIVE "$1 $2" "no answer in the run's log"; fi
     return 0
   fi
@@ -617,7 +661,7 @@ pages_refused() {   # $1 run label, $2 run id: v1pp-probe/pages-api-coverage, th
   jid=$(awk -F'\t' '$1 == "pages-api" {print $2; exit}' <<< "$jobs")
   if ! [[ "$jid" =~ ^[0-9]+$ ]]; then mark INCONCLUSIVE "$1 pages-api" "could not read the job"; return 0; fi
   if ! t=$(job_log "$jid" 'V1PP-RESULT PAGES api exit=[0-9]'); then
-    mark INCONCLUSIVE "$1 pages-api" "could not read the job's log (job $jid)"; return 0
+    mark INCONCLUSIVE "$1 pages-api" "could not read the job's log (job $jid) after 6 reads (last: $t)"; return 0
   fi
   l=$(grep -oE "V1PP-RESULT PAGES api exit=[0-9]+( .*)?$" <<< "$t" | head -n 1) || l=""
   if [ -z "$l" ]; then mark INCONCLUSIVE "$1 pages-api" "no answer in the job's log"; return 0; fi
