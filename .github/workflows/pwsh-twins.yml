@@ -1,4 +1,4 @@
-# One-off check (2026-11-21): runs the V1'' probe's .ps1 twin tests (branch claude/v1pp-probe-try2, 9e5e641a) under pwsh 7,
+# One-off check (2026-11-21): runs the V1'' probe's .ps1 twin tests (branch claude/v1pp-probe-try2, 1ab2eb6c) under pwsh 7,
 # which the cloud session lacks. This branch never merges to main; the workflow has no token permissions.
 name: pwsh-twins
 on: push
@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 9e5e641a1c2cf2a92e46d57cf6d8d10f4f94bb30
+          ref: 1ab2eb6cd6ee17169df78ea06c6deeb12930c93e
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
