@@ -47,7 +47,10 @@ nothing. And the script starts writing before it has shown that it can read its 
    to 200 characters. **Never logged:** the stdout of a failed read (an Azure XML error can echo the request), any
    URL path or query (the 302 `Location` carries a signed, short-lived read token), or the text of the self-check
    log. `GH_DEBUG` and the legacy `DEBUG` are cleared for the script's process, so a debug line can't take the place
-   of the error line.
+   of the error line. The URL cut stops at `)`, so path text after a `)` with no `?` can remain; the signatures are
+   only ever in the query, which is always cut (v1pp-probe/log-read-diag-paren-path). In bash, the byte removal for
+   C1 and bidi controls repeats until nothing more is removed, so nested bytes leave no live control
+   (v1pp-probe/log-read-diag-controls-nested).
 5. **What each line tells us.** The diagnostic line sorts the cause: `no such host` / `lookup` means DNS on the PC;
    `connectex`, `i/o timeout`, `connection reset` or `refused` means a firewall, antivirus or network problem;
    `x509` / `certificate` means TLS interception; `HTTP 4xx` from a storage host means a gh redirect problem (upgrade

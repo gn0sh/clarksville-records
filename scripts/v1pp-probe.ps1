@@ -546,7 +546,7 @@ $authText = (@(gh auth status 2>&1 | ForEach-Object { "$_" })) -join "`n"
 if ($authText -notmatch 'workflow') {
     Write-Host "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
     gh auth refresh -h github.com -s workflow
-    if ($LASTEXITCODE -ne 0) { Write-Host 'Could not add the workflow scope (see above). Nothing was changed.'; exit 1 }
+    if ($LASTEXITCODE -ne 0) { Log 'Could not add the workflow scope (see above). Nothing was changed.'; exit 1 }
     $script:scopeAdded = $true
 }
 foreach ($r in $probeRefs) { Quiet -X DELETE "repos/$repo/git/refs/$r" }   # leftovers of an earlier try

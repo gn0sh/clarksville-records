@@ -813,6 +813,29 @@ def test_the_reason_keeps_no_path_query_userinfo_or_controls(tmp_path, twin, how
     assert_never_shown(run)
 
 
+@pytest.mark.parametrize("how", ["nested-c1", "nested-bidi"])
+def test_nested_control_bytes_leave_no_live_control(tmp_path, twin, how):
+    """v1pp-probe/log-read-diag-controls-nested: removing the inner control's bytes joins the outer bytes into a new
+    control (xc2 xc2 x9b x9b -> U+009B, xe2 x80 xe2 x80 xae xae -> U+202E); it is removed too."""
+    run = probe(tmp_path, twin, {"log_fail": {"701": how}})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
+    assert "gh exit 1: gh: bad  gateway (HTTP 502)" in line, line
+    assert line in run.results
+    for text in (line, run.results):
+        for bad in ("\u009b", "\u202e", "\u0085", "\u202a"):
+            assert bad not in text, bad
+
+
+def test_a_workflow_scope_that_cannot_be_added_is_in_the_results_file(tmp_path, twin):
+    """The refusal is logged, not only shown, so the file Brian sends holds it (nothing was changed)."""
+    run = probe(tmp_path, twin, {"scopes": "Token scopes: 'gist', 'repo'", "refresh_fail": True})
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    msg = "Could not add the workflow scope (see above). Nothing was changed."
+    assert msg in run.out and msg in run.results
+    assert not run.writes()
+
+
 def test_a_long_token_is_redacted_and_the_reason_is_capped(tmp_path, twin):
     """I-log 4: the first non-blank stderr line only; a run of 32+ token characters becomes <redacted>; 200 chars."""
     run = probe(tmp_path, twin, {"log_fail": {"701": "token"}})

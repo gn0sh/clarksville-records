@@ -392,8 +392,10 @@ trap 'exit 130' INT TERM
 
 clean_log() {   # untrusted text: ANSI colour codes, then control characters, then (as UTF-8 bytes) the C1 controls
   # U+0080-U+009F and the bidi controls U+202A-U+202E, U+2066-U+2069 are dropped (v1pp-probe/log-read-diag-controls)
+  # One pass is not enough: removing a byte pair can join the bytes around it into a new one ($'\xc2\xc2\x9b\x9b'
+  # leaves $'\xc2\x9b'), so the three removals repeat until none removes anything (v1pp-probe/log-read-diag-controls-nested)
   sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' | tr -d '\000-\010\013-\037\177' |
-    LC_ALL=C sed -E $'s/\xc2[\x80-\x9f]//g; s/\xe2\x80[\xaa-\xae]//g; s/\xe2\x81[\xa6-\xa9]//g'
+    LC_ALL=C sed -E $':a\ns/\xc2[\x80-\x9f]//g\ns/\xe2\x80[\xaa-\xae]//g\ns/\xe2\x81[\xa6-\xa9]//g\nta'
 }
 run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclusion; returns 1 when unread
   gh api "repos/$repo/actions/runs/$1/jobs" \
@@ -470,7 +472,7 @@ sc_text=""
 # v1pp-probe/selfcheck-before-scope: the workflow scope is asked for only now, after the read-only checks passed
 if ! gh auth status 2>&1 | grep -q "workflow"; then
   echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
-  gh auth refresh -h github.com -s workflow || { echo "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
+  gh auth refresh -h github.com -s workflow || { log "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
   scope_added=yes
 fi
 for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try

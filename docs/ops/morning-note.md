@@ -393,11 +393,11 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       powershell -NoProfile -File scripts\v1pp-probe.ps1 -Apps claude
       ```
       It first runs `scripts\protect-main.ps1 -Check` (no changes) and stops, changing nothing, unless that prints
-      "OK: main is protected". A browser may open once to add the `workflow` scope to your GitHub CLI sign-in:
-      approve it. It is given back at the very end (a browser may open again). Then it reads one finished job's log
-      first (the newest finished `daily-update` run); if it can't, it stops with "REFUSED: could not read the log
-      ... Nothing was changed": nothing was changed, so just send the file it names (it says why the read failed;
-      `docs/architecture/v1pp-job-log-invariant.md`).
+      "OK: main is protected". First it reads one finished job's log (the newest finished `daily-update` run); if it
+      can't, it stops with "REFUSED: could not read the log ... Nothing was changed": nothing was changed, so just
+      send the file it names (it says why the read failed; `docs/architecture/v1pp-job-log-invariant.md`). Then a
+      browser may open once to add the `workflow` scope to your GitHub CLI sign-in: approve it. It is given back at
+      the very end (a browser may open again).
    4. Leave it running, about 5 minutes (at most about 20). It makes throwaway branches (`probe/v1pp-...`), three
       pull requests from you, a tag `v1pp-probe`, and three short workflow runs; it tries to create a tag named
       `main`; then it stops any of its runs still going, removes all of them and checks again that they are gone.

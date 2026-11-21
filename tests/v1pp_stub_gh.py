@@ -28,6 +28,12 @@ DIAG = {   # log_fail modes for the sanitizer: a URL with no scheme, a JSON-esca
     "userinfo": 'gh: Get "https://gn0sh:SECRETPASS@' + STORAGE_HOST + _Q + '": EOF',
     "controls": "gh: \u009b31mbad\u202e gate\u0085way\u2066 x\u2069\u202a (HTTP 502)",
 }
+# raw stderr bytes: a control (U+009B, U+202E) nested inside another one's bytes, so one removal pass leaves a live one
+# (v1pp-probe/log-read-diag-controls-nested)
+DIAG_RAW = {
+    "nested-c1": b"gh: bad \xc2\xc2\x9b\x9b gateway (HTTP 502)",
+    "nested-bidi": b"gh: bad \xe2\x80\xe2\x80\xae\xae gateway (HTTP 502)",
+}
 
 
 def save():
@@ -144,6 +150,9 @@ if a[:2] == ["auth", "status"]:
     print(cfg.get("scopes", "Token scopes: 'gist', 'read:org', 'repo', 'workflow'"))
     sys.exit(0)
 if a[:2] == ["auth", "refresh"]:
+    if cfg.get("refresh_fail") and "--remove-scopes" not in a:   # the browser step was not finished
+        sys.stderr.write("gh: authentication failed\n")
+        sys.exit(1)
     sys.exit(0)
 
 RUNS = {"probe/v1pp-runner": 500, "probe/v1pp-env": 501, "v1pp-probe": 502}
@@ -304,6 +313,11 @@ if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text
         save()
         sys.stderr.flush()
         sys.stderr.buffer.write((DIAG[how] + "\n").encode("utf-8"))
+        sys.exit(1)
+    if how in DIAG_RAW:
+        save()
+        sys.stderr.flush()
+        sys.stderr.buffer.write(DIAG_RAW[how] + b"\n")
         sys.exit(1)
     if how == "dns":                         # the 302 to storage, not resolved: stderr carries the signed URL
         save()
