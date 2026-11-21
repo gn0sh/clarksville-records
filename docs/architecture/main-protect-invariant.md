@@ -105,6 +105,50 @@ this is the short form. The trust roots the scripts compare against are in `docs
 | `scripts/protect-main`, `merge-reviewed`, `u3-toggle`, `cutover-data-off-main` | I-main'', I-prov | Trust roots: `data-off-main-trust-roots.md`. |
 | Curated files (CFG), transcripts (TR), map manifest (MP), kept city books (FB), scrub tool (SC), readers that list `data/` (LS) | I-in | `v1-fail-2026-11-18.md` rows CFG, TR, MP, FB, SC, LS; `data-inventory.md`. |
 
+### Workflows on main (note 2026-11-20, software-architect; `main-protect/` 4th hit, loop rule)
+PR #69 (ADR 0013 decision 6) put `.github/workflows/national-update.yml` on `main`, and `protect-main -Check` said
+NOT OK, because S1-7 allowed `daily-update.yml` alone. Why S1-7 existed: any other workflow on `main` could reach the
+`github-pages` or `morning-note` environment (both allow `main`) or a deploy credential without meeting
+`daily-update`'s gate, or could hold a token that writes `main`, `records-data` or a tag, or sign attestations.
+**I-wf.** `main`'s `.github/workflows/` holds exactly `daily-update.yml` and `national-update.yml`, both files, and
+`national-update.yml` keeps these properties (checked by `protect-main`, both twins, both modes; at the strictness of
+the `daily-update.yml` checks): (1) `permissions: {}` at the top, no inline job permissions; (2) its gate step
+"Check the national-data head" in job `gate` only, and `push` needs `gate`; (3) `contents: write`, `id-token: write`
+and `attestations: write` in job `push` only, and no other write but `issues: write` in job `report` (so no
+`pull-requests`, `pages`, `actions` write); (4) no job names an `environment` or calls a reusable workflow (job-level
+`uses:`), and no line reads `secrets`. Also held by tests, not by `protect-main`: the push job pushes only
+`HEAD:refs/heads/national-data` and runs no repository file, and its attestations are verified only with
+`--cert-identity .../national-update.yml@refs/heads/main` (`tests/test_national_workflow.py`, `test_workflow_lock.py`).
+**Why it keeps I-main'', I-run'' and I-prov** (checked at 3b16c66): its push token (`contents: write`, persisted by
+the checkout to push) cannot move `main`: R1'' (`scripts/main-ruleset.json`) needs a PR with 10 approvals and its
+only bypass is the admin role in PR mode; the token has no `pull-requests` permission, and with R2 off it cannot
+approve. It cannot create, move or delete the tag `main` (R-T). It *can* fast-forward `records-data` (R-D blocks only
+deletion and force pushes) or create other tags, but only by running code in that job, which runs inline shell and
+three pinned actions only. A new tree it made carries only a `national-update.yml` attestation, which the gate
+refuses (`daily-update.yml` line 211 pins `daily-update.yml@refs/heads/main`): a held run. But the gate accepts any
+head whose listing matches *any* past `daily-update.yml` attestation, so such a token could also fast-forward
+`records-data` to a commit whose tree is an older attested tree: the site then deploys stale data, not held
+(security review of 8bc835f7, `main-protect/replay-attested-listing`; I-prov already accepts a person's whole-tree
+restore). The same holds for `daily-update.yml`'s own push job and for gn0sh, so this adds no new kind of exposure.
+Every checkout uses a sha; fetches use `refs/heads/...`, except `git fetch ... origin main` in the daily gate
+(`daily-update.yml` ~226) and the national gate (`national-update.yml`:162), which read main's history only: R-T
+blocks a tag named `main`, and the history checks walk from `HEAD` = `github.sha`, not from the fetched ref.
+Since the security review, `protect-main` also pins `national-update.yml`'s blob sha (the shape regexes above are a
+heuristic: `main-protect/nat-shape-heuristic-bypass`): any change to the file is NOT OK until a reviewed PR updates
+the pin in both twins, and a test keeps the pin equal to `git hash-object` of the checkout's file.
+Residuals: replaying an older attested `records-data` tree (stale deploy; pre-existing; no gate change now).
+ `national-data` has no ruleset until U3-0, so any `contents: write` token could move it (the daily
+national lookup reads only attested commits and fails soft); a D3 rollback restores `daily-update.yml` and leaves
+`national-update.yml` on `main`, which I-wf still allows.
+Consumers of the old "only `daily-update.yml`" rule: `scripts/protect-main.sh` and `.ps1` (S1-7 and header; changed);
+`tests/test_protect_main.py` (stub listing, S1-6/S1-7 lines, S1-7 cases, row-10 read order, the 403 list; changed);
+`scripts/v1pp-probe.{sh,ps1}` step 0 and `scripts/cutover-data-off-main.{sh,ps1}` steps 4-5 and rollback (call
+`protect-main`, hold no copy; tests stub it; unchanged); `docs/architecture/data-off-main-trust-roots.md` C18
+(changed); `docs/ops/morning-note.md` 4 item 6/6a (only "prints OK"; unchanged); ADR 0011 S1-5..S1-8 paragraph and
+`docs/reviews/s1-*.md`, `pr66-merged-security.md` (dated records; unchanged). Not consumers: the daily gate (does not
+list the folder), `u3-toggle` (reads `daily-update.yml` runs only). A third workflow on `main` changes I-wf, both
+twins and their tests in one PR, with this note.
+
 ## Every consumer, and how it upholds the invariant
 | # | Consumer | How it upholds it |
 |---|---|---|

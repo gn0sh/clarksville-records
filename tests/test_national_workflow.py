@@ -1290,3 +1290,10 @@ def test_the_report_issue_is_fixed_text_and_job_results_only():
                     'echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its'
                     ' outputs."']
     assert "not affected" not in step["run"].lower()
+
+
+def test_no_job_names_an_environment():
+    """main-protect I-wf (main-protect-invariant.md note 2026-11-20): national-update.yml reaches neither github-pages
+    nor morning-note; protect-main pins the file and checks this shape too."""
+    assert not [n for n, j in NAT["jobs"].items() if "environment" in j]
+    assert all(isinstance(j, dict) and "uses" not in j for j in NAT["jobs"].values())

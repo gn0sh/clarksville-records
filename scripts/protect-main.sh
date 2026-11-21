@@ -24,6 +24,14 @@
 #   may hold pull-requests: write or set its permissions inline, and the workflow's own permissions are {}.
 #   --pre-cutover: cutover step 4 only, before the cutover merge. Main must then still hold the old step
 #   "Open and merge the data pull request", and the post-cutover checks wait for the next run without it.
+# Main's .github/workflows/national-update.yml is read too (ADR 0013 decision 6; main-protect-invariant.md note
+#   2026-11-20), in both modes: the gate step ("Check the national-data head") in job gate and only there, push must
+#   need gate, push must be the only job with attestations: write, contents: write and id-token: write, the only other
+#   write is issues: write in job report, no job may hold pull-requests: write, set its permissions inline, name an
+#   environment or call a reusable workflow, no line may read a secret, and the workflow's own permissions are {}.
+#   Those shape checks are a heuristic (main-protect/nat-shape-heuristic-bypass): what holds is the pin, its blob sha
+#   must equal the reviewed one (a test keeps the pin equal to git hash-object of this checkout's file), so any change
+#   to national-update.yml is NOT OK here until a reviewed PR updates this script.
 # --apps: no token Brian holds can list installed GitHub Apps (user/installations needs a GitHub App token: HTTP 403
 #   for gh's OAuth token, 2026-11-18), so Brian reads https://github.com/settings/installations and passes the Apps
 #   that can write this repository (or none). Without --apps that check is NOT OK, never a silent pass. Only the Claude
@@ -37,7 +45,7 @@
 #   equal the files. R1'' asks for 10 approvals, the ruleset API maximum (S1-1), so gn0sh plus one App can't reach it
 #   either: every merge is a gn0sh bypass, and rule 1 no longer rests on the COMMENT-only rule.
 # Also read (S1-6, S1-7): GitHub Pages must build from a workflow (build_type workflow, so nothing publishes outside
-#   daily-update's gate), and .github/workflows/ on main must hold daily-update.yml and nothing else.
+#   daily-update's gate), and .github/workflows/ on main must hold exactly daily-update.yml and national-update.yml.
 # Needs: gh signed in as gn0sh (gh auth login) and jq.
 # --main <sha>: main's commit as the caller just merged it (cutover step 5): main's ref is read until it is <sha>
 #   (read-after-write row 10), and main's .github/workflows/ files are read at <sha>, never at a lagging ?ref=main (a
@@ -308,11 +316,15 @@ read_at() {   # <cmd...>: one read, or with --main up to 10, 3 s apart, until on
   done
   return 1
 }
-# S1-7 main-protect/wf-shape-heuristic: daily-update.yml is the only workflow on main (any other file there runs with
-# the environments and never meets daily-update's gate)
+# S1-7 main-protect/wf-shape-heuristic: daily-update.yml and national-update.yml are the only workflows on main (any
+# other file there could run with the environments and never meets daily-update's gate). national-update.yml is
+# allowed since 2026-11-20 (main-protect-invariant.md note): it names no environment and reads no secret, and its
+# push job writes national-data only, attested as national-update.yml, which daily-update's gate never accepts for
+# records-data (checked below). The contents API lists a folder in name order; any other order is NOT OK.
 if wfs=$(read_at gh api "repos/$repo/contents/.github/workflows?ref=$wref" --jq '.[] | [.name, .type] | @tsv'); then
   echo "Main's .github/workflows/: $(printf '%s\n' "$wfs" | grep . | tr '\t' ':' | paste -sd, -)"
-  [ "$wfs" = $'daily-update.yml\tfile' ] || problem "main's .github/workflows/ must hold daily-update.yml and nothing else"
+  [ "$wfs" = $'daily-update.yml\tfile\nnational-update.yml\tfile' ] \
+    || problem "main's .github/workflows/ must hold exactly daily-update.yml and national-update.yml"
 else unread "main's .github/workflows/ folder"; fi
 
 # main's daily-update.yml (ADR 0011 row J2, I-prov): the post-cutover shape, or with --pre-cutover the old one
@@ -324,17 +336,24 @@ wf_awk='{ sub(/\r$/, "") }
 { sub(/[ \t]+#.*$/, ""); sub(/[ \t]+$/, "") }
 /^[^ \t]/ { injobs = ($0 ~ /^jobs:$/) }
 /^permissions:/ { top = $0 }
+/(^|[^A-Za-z0-9_])secrets([^A-Za-z0-9_]|$)/ { sec = sec "," ((injobs && job != "") ? job : "top") }
 !injobs { next }
 /^  [A-Za-z0-9_-]+:$/ { job = $0; sub(/^  /, "", job); sub(/:$/, "", job); next }
 /^[ \t]+attestations:[ \t]*write$/ { attw = attw "," job }
 /^[ \t]+contents:[ \t]*write$/ { contw = contw "," job }
 /^[ \t]+pull-requests:[ \t]*write$/ { prw = prw "," job }
+/^[ \t]+id-token:[ \t]*write$/ { idw = idw "," job }
+/^[ \t]+[A-Za-z0-9_-]+:[ \t]*.?write.?$/ { k = $0; sub(/^[ \t]+/, "", k); sub(/:.*$/, "", k); wr = wr "," job ":" k }
+/^    environment:/ { envs = envs "," job }
+/^    uses:/ { juses = juses "," job }
 /^    permissions:[ \t]*[^ \t]/ && !/^    permissions:[ \t]*[{][}]$/ { inl = inl "," job }
 /^[ \t]+(- )?name:/ { n = $0; sub(/^[ \t]+(- )?name:[ \t]*/, "", n)
   if (n == gs) gate = gate "," job; if (n == os) oldpr = oldpr "," job }
 job == "push" && /^    needs:/ { pn = $0; sub(/^    needs:[ \t]*/, "", pn) }
 END { printf "top=%s\ngate=%s\nattw=%s\ncontw=%s\nprw=%s\ninl=%s\noldpr=%s\npn=%s\n", top, substr(gate, 2),
-  substr(attw, 2), substr(contw, 2), substr(prw, 2), substr(inl, 2), substr(oldpr, 2), pn }'
+  substr(attw, 2), substr(contw, 2), substr(prw, 2), substr(inl, 2), substr(oldpr, 2), pn
+  printf "idw=%s\nwr=%s\nenvs=%s\njuses=%s\nsec=%s\n", substr(idw, 2), substr(wr, 2), substr(envs, 2),
+  substr(juses, 2), substr(sec, 2) }'
 if wf=$(read_at gh api "repos/$repo/contents/.github/workflows/daily-update.yml?ref=$wref" -H 'Accept: application/vnd.github.raw') \
    && [ -n "$wf" ] && shape=$(awk -v gs="$gate_step" -v os="$old_step" "$wf_awk" <<< "$wf"); then
   wfget() { sed -n "s/^$1=//p" <<< "$shape"; }
@@ -356,6 +375,41 @@ if wf=$(read_at gh api "repos/$repo/contents/.github/workflows/daily-update.yml?
     [ -z "$op" ] || problem "main's daily-update.yml still opens data pull requests (before the cutover): use --pre-cutover only at cutover step 4, before the cutover merge"
   fi
 else unread "main's .github/workflows/daily-update.yml"; fi
+
+# main's national-update.yml (ADR 0013 decision 6; main-protect-invariant.md note 2026-11-20), in both modes: the
+# properties that let it sit on main beside daily-update.yml. Same reader (wf_awk) and strictness as daily-update.yml.
+nat_step="Check the national-data head"
+if wfn=$(read_at gh api "repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref" -H 'Accept: application/vnd.github.raw') \
+   && [ -n "$wfn" ] && nshape=$(awk -v gs="$nat_step" -v os="$old_step" "$wf_awk" <<< "$wfn"); then
+  nget() { sed -n "s/^$1=//p" <<< "$nshape"; }
+  ntop=$(nget top); ng=$(nget gate); naw=$(nget attw); ncw=$(nget contw); nidw=$(nget idw); npw=$(nget prw)
+  nip=$(nget inl); nwr=$(nget wr); nenv=$(nget envs); nju=$(nget juses); nsec=$(nget sec); npn=$(nget pn)
+  echo "Main's national-update.yml: workflow '$ntop'; gate step in '$ng'; attestations: write in '$naw'; contents: write in '$ncw'; id-token: write in '$nidw'; pull-requests: write in '$npw'; inline job permissions in '$nip'; writes '$nwr'; environments in '$nenv'; reusable workflows in '$nju'; secrets in '$nsec'; push needs '$npn'"
+  [ "$ntop" = "permissions: {}" ] || problem "main's national-update.yml must set permissions: {} at the top (each job then names its own)"
+  [ "$ng" = gate ] || problem "main's national-update.yml must run the step '$nat_step' in job gate, and only there (ADR 0013 decision 6)"
+  [ "$naw" = push ] || problem "in main's national-update.yml only job push may hold attestations: write (its attestations name national-update.yml, never accepted for records-data)"
+  [ "$ncw" = push ] || problem "in main's national-update.yml only job push may hold contents: write"
+  [ "$nidw" = push ] || problem "in main's national-update.yml only job push may hold id-token: write"
+  [ -z "$npw" ] || problem "no job in main's national-update.yml may hold pull-requests: write"
+  [ -z "$nip" ] || problem "no job in main's national-update.yml may set its permissions inline (write-all, read-all or a { } map)"
+  nbad=""
+  for x in ${nwr//,/ }; do
+    case "$x" in push:contents|push:id-token|push:attestations|report:issues) ;; *) nbad="$nbad,$x" ;; esac
+  done
+  [ -z "$nbad" ] || problem "in main's national-update.yml the only writes may be contents, id-token and attestations in job push and issues in job report, not '${nbad#,}'"
+  [ -z "$nenv" ] || problem "no job in main's national-update.yml may name an environment (only daily-update's gated jobs deploy or send)"
+  [ -z "$nju" ] || problem "no job in main's national-update.yml may call a reusable workflow (a job-level uses:)"
+  [ -z "$nsec" ] || problem "main's national-update.yml may read no secret"
+  npnl=",$(tr -d '[] ' <<< "$npn"),"
+  [[ "$npnl" == *,gate,* ]] || problem "job push in main's national-update.yml must need gate"
+else unread "main's .github/workflows/national-update.yml"; fi
+# main-protect/nat-shape-heuristic-bypass: the regexes above can be fooled by YAML they do not model (other indents,
+# quoted keys, flow style), so the file itself is pinned: its blob sha on main must be the reviewed one.
+nat_blob=4bbe6f8844913f4efae601a544f6f747b1ddacd7   # git hash-object .github/workflows/national-update.yml (a test keeps them equal)
+if nsha=$(read_at gh api "repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref" --jq .sha); then
+  echo "Main's national-update.yml blob: ${nsha:-none} (reviewed: $nat_blob)"
+  [ "$nsha" = "$nat_blob" ] || problem "main's national-update.yml is not the reviewed one (blob ${nsha:-none}, reviewed $nat_blob): a changed national-update.yml needs a reviewed protect-main update (main-protect-invariant.md, I-wf)"
+else unread "main's .github/workflows/national-update.yml blob sha"; fi
 
 if [ "$problems" = 0 ]; then
   echo "OK: main is protected (R1'', R-D, R-T as written, R2 off, auto-merge off, $owner the only writer, both environments main only)."
