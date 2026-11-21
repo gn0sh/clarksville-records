@@ -12,7 +12,7 @@
 #      (sitegen/v1pp-probe-canary.txt), D0 (data/v1pp-probe-canary.txt, data/ now refused on main too). Set G
 #      (probe/v1pp-w, probe/v1pp-n, probe/v1pp-d0): you open their pull requests into main. Set B (probe/v1pp-w-bot,
 #      probe/v1pp-n-bot, probe/v1pp-d0-bot): the runner's GITHUB_TOKEN tries to open them, and must be refused;
-#   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2);
+#   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2), by the REST API and by git push;
 #   3. pushes probe/v1pp-env (.github/workflows/v1pp-env.yml: one job per environment, github-pages and morning-note,
 #      each only an echo, and a pages-api job with no environment that calls POST pages/deployments with a made-up
 #      artifact), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments, and the
@@ -45,11 +45,11 @@
 # wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash and GraphQL
 # "approving review", or "Repository rule violations found" with "New changes require approval from someone other
 # than the last pusher" (require_last_push_approval in R1'', seen live in try 1), merge and rebase "not allowed",
-# "approving review" or "rule violation", direct push "rule violation", tag main "rule violation", or a 422 naming no
+# "approving review" or "rule violation", direct push "rule violation", tag main (and its git push) "rule violation", or a 422 naming no
 # rule that GitHub's rule suite for this try records as R-T's creation rule failing (active), environments "not
 # allowed to deploy to <env>", the Pages API "not allowed to deploy" or "protection rule".
 # Writes the result to v1pp-probe-results-<time>.txt in RESULTS_DIR (default: the home folder). Nothing is sent.
-# Needs: gh signed in as gn0sh (gh auth login), GNU base64. Takes about 5 minutes.
+# Needs: gh signed in as gn0sh (gh auth login), git, GNU base64 and date. Takes about 5 minutes.
 # Run: bash scripts/v1pp-probe.sh --apps claude|none   (the same answer protect-main takes)
 #
 # BEGIN-REFUSAL-LOCK (v1pp-probe/run-once, v1pp-probe/lock-window): the probe pushes workflows and tries merges, so it
@@ -167,44 +167,57 @@ read_until() {
   return 1
 }
 
-# v1pp-probe/tag-main-unnamed-422 (try 1: POST git/refs answered a bare 422 "Reference update failed"). A 422 that
-# names no rule is PASS only if GitHub's own record of this try, its rule suite (GET rulesets/rule-suites, fields per
-# GitHub's OpenAPI description), reads: exactly one suite on refs/tags/main with after_sha = main and pushed_at at or
-# after tag_t0, suite result fail, and exactly one evaluation from R-T (ruleset id rt_id) of rule_type creation, with
-# result fail and enforcement active. Any other shape, a second suite, or none within 6 reads 10 s apart: INCONCLUSIVE.
+# v1pp-probe/tag-main-unnamed-422 (try 1: POST git/refs answered a bare 422 "Reference update failed"). Right after
+# the REST try, tag_suite reads GitHub's own record of it, its rule suite (GET rulesets/rule-suites, fields per GitHub's
+# OpenAPI description): exactly one suite on refs/tags/main with after_sha = main, actor_name = owner and pushed_at at
+# or after tag_t0 (checked to be YYYY-MM-DDTHH:MM:SSZ first: v1pp-probe/tag-main-t0-unchecked), suite result fail, and
+# exactly one evaluation from R-T (ruleset id rt_id) of rule_type creation, with result fail and enforcement active.
+# It is read before the git push try, whose own suite would otherwise be a second match. Then tag_git tries the same
+# tag by git push (GH013 names the rule). How the lines combine (main-protect-invariant.md "V1'' try 1 inconclusive"
+# item 2): a bare 422 is PASS on its rule suite; or, only when no suite could be seen or read (tag_soft), when the git
+# push line is PASS; a suite that contradicts R-T, or two suites, stays INCONCLUSIVE whatever git says.
 rt_id=27685093   # R-T "tag main: blocked" (docs/platform-facts.md "Main protection"); a recreated R-T = INCONCLUSIVE
-tag_out=""; tag_t0=""
-judge_tag_main() {
-  local what i ids n sid="" ev evl detail
-  [ -n "$tag_out" ] || return 0
-  what=$tag_out; tag_out=""
-  export V1PP_SHA=$main_before V1PP_T0=$tag_t0 V1PP_RT=$rt_id V1PP_RULE=creation
+tag_t0=""; tag_proof=""; tag_why=""; tag_soft=""; tag_git_kind=""
+tag_suite() {   # sets tag_proof (it proves R-T), else tag_why (why not) and tag_soft (yes: no suite seen or read)
+  local i ids n sid="" ev evl detail
+  tag_proof=""; tag_why=""; tag_soft=""
+  if ! [[ "$tag_t0" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+    tag_why="the rule suite was not read: the start time could not be computed ('$tag_t0')"; tag_soft=yes; return 0
+  fi
+  export V1PP_SHA=$main_before V1PP_T0=$tag_t0 V1PP_RT=$rt_id V1PP_RULE=creation V1PP_ACTOR=$owner
   for i in 1 2 3 4 5 6; do
     ids=$(gh api "repos/$repo/rulesets/rule-suites?ref=refs/tags/main&time_period=day&per_page=100" \
-          --jq '.[] | select(.after_sha == $ENV.V1PP_SHA and .pushed_at >= $ENV.V1PP_T0) | .id' 2>/dev/null) || ids=""
+          --jq '.[] | select(.after_sha == $ENV.V1PP_SHA and .actor_name == $ENV.V1PP_ACTOR and .pushed_at >= $ENV.V1PP_T0) | .id' 2>/dev/null) || ids=""
     n=$(grep -cE '^[0-9]+$' <<< "$ids")
     if [ "$n" = 1 ]; then sid=$(grep -E '^[0-9]+$' <<< "$ids"); break; fi
-    if [ "$n" -gt 1 ]; then
-      mark INCONCLUSIVE "tag main" "refused ($what), but $n rule suites match this try, not one"; return 0
-    fi
+    if [ "$n" -gt 1 ]; then tag_why="$n rule suites match this try, not one"; return 0; fi
     [ "$i" = 6 ] || sleep 10
   done
-  if [ -z "$sid" ]; then
-    mark INCONCLUSIVE "tag main" "failed without naming a rule, and no rule suite recorded this try: $what (see https://github.com/$repo/rules/insights)"
-    return 0
-  fi
+  if [ -z "$sid" ]; then tag_why="no rule suite recorded this try"; tag_soft=yes; return 0; fi
   # line 1: the suite's result; then result and enforcement of each creation evaluation from R-T
   if ! ev=$(gh api "repos/$repo/rulesets/rule-suites/$sid" \
        --jq '.result, (.rule_evaluations[]? | select(.rule_source.id == ($ENV.V1PP_RT | tonumber) and .rule_type == $ENV.V1PP_RULE) | .result, .enforcement)' 2>/dev/null); then
-    mark INCONCLUSIVE "tag main" "refused ($what), but rule suite $sid could not be read"; return 0
+    tag_why="rule suite $sid could not be read"; tag_soft=yes; return 0
   fi
   mapfile -t evl <<< "$ev"
   detail="rule suite $sid: result=${evl[0]:-none}, R-T $rt_id creation=${evl[1]:-none} enforcement=${evl[2]:-none}"
   if [ "${#evl[@]}" = 3 ] && [ "${evl[0]}" = fail ] && [ "${evl[1]}" = fail ] && [ "${evl[2]}" = active ]; then
-    mark PASS "tag main" "refused ($what); $detail"
-  else
-    mark INCONCLUSIVE "tag main" "refused ($what), but not shown to be R-T: $detail"
+    tag_proof=$detail
+  else tag_why="not shown to be R-T: $detail"; fi
+}
+tag_git() {   # the same tag by git push from a scratch clone (no hooks, no stored credentials; gh signs it in)
+  local g="$work/tagpush" out gc=(-c credential.helper= -c 'credential.helper=!gh auth git-credential')
+  tag_git_kind=INCONCLUSIVE
+  if ! out=$(git init -q "$g" 2>&1 && GIT_TERMINAL_PROMPT=0 git -C "$g" "${gc[@]}" fetch -q --depth=1 \
+       "https://github.com/$repo.git" "$main_before" 2>&1); then
+    mark INCONCLUSIVE "tag main git" "could not fetch main to push from: $(flat "$out")"; return 0
   fi
+  if out=$(GIT_TERMINAL_PROMPT=0 git -C "$g" "${gc[@]}" push "https://github.com/$repo.git" \
+           "$main_before:refs/tags/main" 2>&1); then
+    tag_git_kind=FAIL; mark FAIL "tag main git" "git push created it: $(flat "$out")"
+  elif grep -qiE 'GH013|rule violation' <<< "$out"; then
+    tag_git_kind=PASS; mark PASS "tag main git" "refused: $(flat "$out")"
+  else mark INCONCLUSIVE "tag main git" "refused, but not naming 'rule violation': $(flat "$out")"; fi
 }
 
 g_branches=(probe/v1pp-w probe/v1pp-n probe/v1pp-d0)
@@ -311,7 +324,6 @@ settle_runs() {   # v1pp-probe/inflight-run-at-cleanup: no probe run may still b
 finish() {   # cancel, cleanup, the reads after it, the verdict; never returns
   local n r tab=$'\t' x i c d ok
   started=""; finished=yes
-  judge_tag_main   # a pending tag main answer, before cleanup deletes tags/main (no-op once judged)
   for r in "${g_branches[@]}" "${b_branches[@]}"; do   # pull requests whose number this run did not learn
     if x=$(list_prs "$r"); then add_num $x; else mark INCONCLUSIVE "cleanup $r" "could not list its pull requests"; fi
   done
@@ -416,16 +428,26 @@ for i in 0 1 2; do
   g_nums+=("$pr_num")
 done
 log "Probe pull requests (yours): W #${g_nums[0]}, N #${g_nums[1]}, D0 #${g_nums[2]}. Bot branches: ${b_branches[*]}."
-# F2 (R-T): a tag named main must not be creatable, by anyone
-tag_t0=$(date -u -d '-60 seconds' +%FT%TZ)   # rule suites of this try are pushed at or after it (clock skew margin)
+# F2 (R-T): a tag named main must not be creatable, by anyone: by the REST API, then by git push
+tag_t0=$(date -u -d '-60 seconds' +%FT%TZ 2>/dev/null)   # rule suites of this try are pushed at or after it (skew margin)
+tag_bare=""
 if out=$(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha="$main_before" --jq '.ref' 2>&1); then
   mark FAIL "tag main" "GitHub created it: $(printf '%s' "$out" | tr '\r\n' '  ')"
 elif grep -qi 'rule violation' <<< "$out"; then
   mark PASS "tag main" "refused ($(printf '%s' "$out" | tr '\r\n' '  '))"
 elif grep -q 'HTTP 422' <<< "$out"; then
-  tag_out=$(flat "$out")   # judged by judge_tag_main after the runs, from GitHub's rule suite of this try
+  tag_bare=$(flat "$out"); tag_suite   # its rule suite, read now: before the git push adds a second one
 else
   mark INCONCLUSIVE "tag main" "failed without naming a rule: $(printf '%s' "$out" | tr '\r\n' '  ')"
+fi
+tag_git
+if [ -n "$tag_bare" ]; then
+  if [ -n "$tag_proof" ]; then mark PASS "tag main" "refused ($tag_bare); $tag_proof"
+  elif [ -n "$tag_soft" ] && [ "$tag_git_kind" = PASS ]; then
+    mark PASS "tag main" "refused ($tag_bare), naming no rule, and $tag_why; R-T, which has no bypass actor, is shown refusing the same tag on the git line above, and 'tag main after' reads that it is absent"
+  elif [ "$tag_why" = "no rule suite recorded this try" ]; then
+    mark INCONCLUSIVE "tag main" "failed without naming a rule, and no rule suite recorded this try, and the git line is not PASS: $tag_bare (see https://github.com/$repo/rules/insights)"
+  else mark INCONCLUSIVE "tag main" "refused ($tag_bare), but $tag_why"; fi
 fi
 push_file "$envb" "$file_env" "$envwf" "V1pp probe: environment refusal" || setup_failed "could not push $envb"
 env_head=$pushed; r_heads[1]=$env_head
@@ -568,9 +590,10 @@ env_refused() {   # $1 run label, $2 run id: each environment's job refused befo
   done
 }
 pages_refused() {   # $1 run label, $2 run id: v1pp-probe/pages-api-coverage, the pages-api job's answer
-  local l code rest jid t
+  local l code rest jid t jobs
   if [ -z "$2" ]; then mark INCONCLUSIVE "$1 pages-api" "the run did not start within 3 minutes"; return 0; fi
-  jid=$(run_jobs "$2" | awk -F'\t' '$1 == "pages-api" {print $2; exit}') || jid=""
+  jobs=$(run_jobs "$2") || jobs=""   # v1pp-probe/pages-jid-pipefail: read first, then pick the row
+  jid=$(awk -F'\t' '$1 == "pages-api" {print $2; exit}' <<< "$jobs")
   if ! [[ "$jid" =~ ^[0-9]+$ ]]; then mark INCONCLUSIVE "$1 pages-api" "could not read the job"; return 0; fi
   if ! t=$(job_log "$jid" 'V1PP-RESULT PAGES api exit=[0-9]'); then
     mark INCONCLUSIVE "$1 pages-api" "could not read the job's log (job $jid)"; return 0
@@ -597,7 +620,6 @@ r_ids[2]=$tag_run; r_looked[2]=yes
 env_refused "tag $ptag" "$tag_run"
 pages_refused "tag $ptag" "$tag_run"
 
-judge_tag_main   # the tag main answer, if it named no rule: GitHub's rule suite has been written by now
 # every probe pull request's merged flag (yours and any the bot opened)
 for r in "${g_branches[@]}"; do x=$(list_prs "$r") && add_num $x; done
 for n in "${nums[@]}"; do read_merged "$n"; done

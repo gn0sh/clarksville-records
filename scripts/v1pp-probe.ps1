@@ -12,7 +12,7 @@
 #      (sitegen/v1pp-probe-canary.txt), D0 (data/v1pp-probe-canary.txt, data/ now refused on main too). Set G
 #      (probe/v1pp-w, probe/v1pp-n, probe/v1pp-d0): you open their pull requests into main. Set B (probe/v1pp-w-bot,
 #      probe/v1pp-n-bot, probe/v1pp-d0-bot): the runner's GITHUB_TOKEN tries to open them, and must be refused;
-#   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2);
+#   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2), by the REST API and by git push;
 #   3. pushes probe/v1pp-env (.github/workflows/v1pp-env.yml: one job per environment, github-pages and morning-note,
 #      each only an echo, and a pages-api job with no environment that calls POST pages/deployments with a made-up
 #      artifact), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments, and the
@@ -45,10 +45,10 @@
 # wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash and GraphQL
 # "approving review", or "Repository rule violations found" with "New changes require approval from someone other
 # than the last pusher" (require_last_push_approval in R1'', seen live in try 1), merge and rebase "not allowed",
-# "approving review" or "rule violation", direct push "rule violation", tag main "rule violation", or a 422 naming no
+# "approving review" or "rule violation", direct push "rule violation", tag main (and its git push) "rule violation", or a 422 naming no
 # rule that GitHub's rule suite for this try records as R-T's creation rule failing (active), environments "not
 # allowed to deploy to <env>", the Pages API "not allowed to deploy" or "protection rule".
-# Writes the result to Documents\v1pp-probe-results-<time>.txt. Nothing is sent to anyone. Takes about 5 minutes.
+# Writes the result to Documents\v1pp-probe-results-<time>.txt. Nothing is sent to anyone. Needs git. Takes about 5 minutes.
 #
 # Run (PowerShell, in the repository folder):  powershell -NoProfile -File scripts\v1pp-probe.ps1 -Apps claude
 # (-Apps is the same answer protect-main takes: claude or none.) No double quotes are passed to gh (Windows PowerShell
@@ -177,43 +177,62 @@ function ReadUntil([string]$what, [string]$want, [scriptblock]$read) {
     return $false
 }
 
-# v1pp-probe/tag-main-unnamed-422 (try 1: POST git/refs answered a bare 422 "Reference update failed"). A 422 that
-# names no rule is PASS only if GitHub's own record of this try, its rule suite (GET rulesets/rule-suites, fields per
-# GitHub's OpenAPI description), reads: exactly one suite on refs/tags/main with after_sha = main and pushed_at at or
-# after $tagT0, suite result fail, and exactly one evaluation from R-T (ruleset id $rtId) of rule_type creation, with
-# result fail and enforcement active. Any other shape, a second suite, or none within 6 reads 10 s apart: INCONCLUSIVE.
+# v1pp-probe/tag-main-unnamed-422 (try 1: POST git/refs answered a bare 422 "Reference update failed"). Right after
+# the REST try, TagSuite reads GitHub's own record of it, its rule suite (GET rulesets/rule-suites, fields per GitHub's
+# OpenAPI description): exactly one suite on refs/tags/main with after_sha = main, actor_name = owner and pushed_at at
+# or after $tagT0 (checked to be YYYY-MM-DDTHH:MM:SSZ first: v1pp-probe/tag-main-t0-unchecked), suite result fail, and
+# exactly one evaluation from R-T (ruleset id $rtId) of rule_type creation, with result fail and enforcement active.
+# It is read before the git push try, whose own suite would otherwise be a second match. Then TagGit tries the same
+# tag by git push (GH013 names the rule). How the lines combine (main-protect-invariant.md "V1'' try 1 inconclusive"
+# item 2): a bare 422 is PASS on its rule suite; or, only when no suite could be seen or read (tagSoft), when the git
+# push line is PASS; a suite that contradicts R-T, or two suites, stays INCONCLUSIVE whatever git says.
 $rtId = '27685093'   # R-T "tag main: blocked" (docs/platform-facts.md "Main protection"); a recreated R-T = INCONCLUSIVE
-$script:tagOut = ''
 $script:tagT0 = ''
-function JudgeTagMain {
-    if (-not $script:tagOut) { return }
-    $what = $script:tagOut
-    $script:tagOut = ''
-    $env:V1PP_SHA = $mainBefore; $env:V1PP_T0 = $script:tagT0; $env:V1PP_RT = $rtId; $env:V1PP_RULE = 'creation'
+$script:tagProof = ''
+$script:tagWhy = ''
+$script:tagSoft = $false
+$script:tagGitKind = ''
+function TagSuite {   # sets tagProof (it proves R-T), else tagWhy (why not) and tagSoft (no suite seen or read)
+    $script:tagProof = ''; $script:tagWhy = ''; $script:tagSoft = $false
+    if ($script:tagT0 -cnotmatch '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$') {
+        $script:tagWhy = "the rule suite was not read: the start time could not be computed ('$($script:tagT0)')"; $script:tagSoft = $true; return
+    }
+    $env:V1PP_SHA = $mainBefore; $env:V1PP_T0 = $script:tagT0; $env:V1PP_RT = $rtId; $env:V1PP_RULE = 'creation'; $env:V1PP_ACTOR = $owner
     $sid = ''
     for ($k = 1; $k -le 6; $k++) {
-        $ids = @(gh api "repos/$repo/rulesets/rule-suites?ref=refs/tags/main&time_period=day&per_page=100" --jq '.[] | select(.after_sha == $ENV.V1PP_SHA and .pushed_at >= $ENV.V1PP_T0) | .id' 2>$null)
+        $ids = @(gh api "repos/$repo/rulesets/rule-suites?ref=refs/tags/main&time_period=day&per_page=100" --jq '.[] | select(.after_sha == $ENV.V1PP_SHA and .actor_name == $ENV.V1PP_ACTOR and .pushed_at >= $ENV.V1PP_T0) | .id' 2>$null)
         if ($LASTEXITCODE -ne 0) { $ids = @() }
         $ids = @($ids | Where-Object { [string]$_ -cmatch '^[0-9]+$' })
         if ($ids.Count -eq 1) { $sid = [string]$ids[0]; break }
-        if ($ids.Count -gt 1) { Mark 'INCONCLUSIVE' 'tag main' "refused ($what), but $($ids.Count) rule suites match this try, not one"; return }
+        if ($ids.Count -gt 1) { $script:tagWhy = "$($ids.Count) rule suites match this try, not one"; return }
         if ($k -lt 6) { Start-Sleep -Seconds 10 }
     }
-    if (-not $sid) {
-        Mark 'INCONCLUSIVE' 'tag main' "failed without naming a rule, and no rule suite recorded this try: $what (see https://github.com/$repo/rules/insights)"
-        return
-    }
+    if (-not $sid) { $script:tagWhy = 'no rule suite recorded this try'; $script:tagSoft = $true; return }
     # line 1: the suite's result; then result and enforcement of each creation evaluation from R-T
     $evl = @(gh api "repos/$repo/rulesets/rule-suites/$sid" --jq '.result, (.rule_evaluations[]? | select(.rule_source.id == ($ENV.V1PP_RT | tonumber) and .rule_type == $ENV.V1PP_RULE) | .result, .enforcement)' 2>$null)
-    if ($LASTEXITCODE -ne 0) { Mark 'INCONCLUSIVE' 'tag main' "refused ($what), but rule suite $sid could not be read"; return }
+    if ($LASTEXITCODE -ne 0) { $script:tagWhy = "rule suite $sid could not be read"; $script:tagSoft = $true; return }
     $evl = @($evl | ForEach-Object { [string]$_ })
     $shown = @(0, 1, 2) | ForEach-Object { if ($_ -lt $evl.Count -and $evl[$_]) { $evl[$_] } else { 'none' } }
     $detail = "rule suite ${sid}: result=$($shown[0]), R-T $rtId creation=$($shown[1]) enforcement=$($shown[2])"
-    if ($evl.Count -eq 3 -and $evl[0] -ceq 'fail' -and $evl[1] -ceq 'fail' -and $evl[2] -ceq 'active') {
-        Mark 'PASS' 'tag main' "refused ($what); $detail"
-    } else {
-        Mark 'INCONCLUSIVE' 'tag main' "refused ($what), but not shown to be R-T: $detail"
-    }
+    if ($evl.Count -eq 3 -and $evl[0] -ceq 'fail' -and $evl[1] -ceq 'fail' -and $evl[2] -ceq 'active') { $script:tagProof = $detail }
+    else { $script:tagWhy = "not shown to be R-T: $detail" }
+}
+function TagGit {   # the same tag by git push from a scratch clone (no hooks, no stored credentials; gh signs it in)
+    $script:tagGitKind = 'INCONCLUSIVE'
+    $g = Join-Path ([IO.Path]::GetTempPath()) ('v1pp-tagpush-' + [Guid]::NewGuid().ToString('N'))
+    $env:GIT_TERMINAL_PROMPT = '0'
+    $gc = @('-c', 'credential.helper=', '-c', 'credential.helper=!gh auth git-credential')
+    try {
+        $o = Flat ((@(git init -q $g 2>&1 | ForEach-Object { "$_" })) -join ' ')
+        if ($LASTEXITCODE -eq 0) {
+            $o = Flat ((@(git -C $g @gc fetch -q --depth=1 "https://github.com/$repo.git" $mainBefore 2>&1 | ForEach-Object { "$_" })) -join ' ')
+        }
+        if ($LASTEXITCODE -ne 0) { Mark 'INCONCLUSIVE' 'tag main git' "could not fetch main to push from: $o"; return }
+        $o = Flat ((@(git -C $g @gc push "https://github.com/$repo.git" "${mainBefore}:refs/tags/main" 2>&1 | ForEach-Object { "$_" })) -join ' ')
+        if ($LASTEXITCODE -eq 0) { $script:tagGitKind = 'FAIL'; Mark 'FAIL' 'tag main git' "git push created it: $o" }
+        elseif ($o -match 'GH013|rule violation') { $script:tagGitKind = 'PASS'; Mark 'PASS' 'tag main git' "refused: $o" }
+        else { Mark 'INCONCLUSIVE' 'tag main git' "refused, but not naming 'rule violation': $o" }
+    } finally { Remove-Item -LiteralPath $g -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 $gBranches = @('probe/v1pp-w', 'probe/v1pp-n', 'probe/v1pp-d0')
@@ -347,7 +366,6 @@ function SettleRuns {   # v1pp-probe/inflight-run-at-cleanup: no probe run may s
 function Finish {   # cancel, cleanup, the reads after it, the verdict; never returns
     $script:started = $false
     $script:finished = $true
-    JudgeTagMain   # a pending tag main answer, before cleanup deletes tags/main (no-op once judged)
     foreach ($b in ($gBranches + $bBranches)) {   # pull requests whose number this run did not learn
         $x = ListPrs $b
         if ($null -eq $x) { Mark 'INCONCLUSIVE' "cleanup $b" 'could not list its pull requests' } else { AddNum $x }
@@ -464,17 +482,27 @@ for ($k = 0; $k -lt 3; $k++) {
     $gNums += $script:prNum
 }
 Log "Probe pull requests (yours): W #$($gNums[0]), N #$($gNums[1]), D0 #$($gNums[2]). Bot branches: $($bBranches -join ' ')."
-# F2 (R-T): a tag named main must not be creatable, by anyone
-$script:tagT0 = [DateTime]::UtcNow.AddSeconds(-60).ToString('yyyy-MM-ddTHH:mm:ssZ', [Globalization.CultureInfo]::InvariantCulture)   # rule suites of this try are pushed at or after it (clock skew margin)
+# F2 (R-T): a tag named main must not be creatable, by anyone: by the REST API, then by git push
+$script:tagT0 = [DateTime]::UtcNow.AddSeconds(-60).ToString('yyyy-MM-ddTHH:mm:ssZ', [Globalization.CultureInfo]::InvariantCulture)   # rule suites of this try are pushed at or after it (skew margin)
+$tagBare = ''
 $out = Flat ((@(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha=$mainBefore --jq '.ref' 2>&1 | ForEach-Object { "$_" })) -join ' ')
 if ($LASTEXITCODE -eq 0) {
     Mark 'FAIL' 'tag main' "GitHub created it: $out"
 } elseif ($out -match 'rule violation') {
     Mark 'PASS' 'tag main' "refused ($out)"
 } elseif ($out -cmatch 'HTTP 422') {
-    $script:tagOut = $out   # judged by JudgeTagMain after the runs, from GitHub's rule suite of this try
+    $tagBare = $out; TagSuite   # its rule suite, read now: before the git push adds a second one
 } else {
     Mark 'INCONCLUSIVE' 'tag main' "failed without naming a rule: $out"
+}
+TagGit
+if ($tagBare) {
+    if ($script:tagProof) { Mark 'PASS' 'tag main' "refused ($tagBare); $($script:tagProof)" }
+    elseif ($script:tagSoft -and $script:tagGitKind -ceq 'PASS') {
+        Mark 'PASS' 'tag main' "refused ($tagBare), naming no rule, and $($script:tagWhy); R-T, which has no bypass actor, is shown refusing the same tag on the git line above, and 'tag main after' reads that it is absent"
+    } elseif ($script:tagWhy -ceq 'no rule suite recorded this try') {
+        Mark 'INCONCLUSIVE' 'tag main' "failed without naming a rule, and no rule suite recorded this try, and the git line is not PASS: $tagBare (see https://github.com/$repo/rules/insights)"
+    } else { Mark 'INCONCLUSIVE' 'tag main' "refused ($tagBare), but $($script:tagWhy)" }
 }
 if (-not (PushFile $envBranch $fileEnv $envWf 'V1pp probe: environment refusal')) { SetupFailed "could not push $envBranch" }
 $envHead = $script:pushed
@@ -660,7 +688,6 @@ $script:rLooked[2] = $true
 EnvRefused "tag $ptag" $tagRun
 PagesRefused "tag $ptag" $tagRun
 
-JudgeTagMain   # the tag main answer, if it named no rule: GitHub's rule suite has been written by now
 # every probe pull request's merged flag (yours and any the bot opened)
 foreach ($b in $gBranches) { $x = ListPrs $b; if ($null -ne $x) { AddNum $x } }
 foreach ($n in $script:nums) { ReadMerged $n }

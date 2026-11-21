@@ -279,14 +279,23 @@ runbook `docs/ops/morning-note.md` section 4 item 6a (the line kinds), ADR 0011 
 2. **Tag main (bare 422 "Reference update failed"): PASS only on GitHub's rule suite** (`v1pp-probe/tag-main-unnamed-422`;
    confidence medium that GitHub records it, high that the check is sound). A 422 naming no rule could be a refusal R-T
    plays no part in, which would not stop a `git push` of `refs/tags/main`, and "absent after" only shows it was not
-   created this once. So after the runs the script reads `GET rulesets/rule-suites?ref=refs/tags/main&time_period=day`
-   (fields and enums checked against GitHub's OpenAPI description: `after_sha`, `pushed_at`, `result` pass/fail/bypass;
-   `rule_evaluations[].rule_source.id`, `rule_type`, `result` pass/fail, `enforcement` active/evaluate/deleted ruleset)
-   and needs exactly one suite with `after_sha` = main and `pushed_at` no earlier than 60 s before the try, suite result
-   `fail`, and exactly one R-T (27685093) `creation` evaluation with result `fail`, enforcement `active`. Anything else
-   (no suite in 6 reads 10 s apart, two suites, another ruleset, `evaluate`, unreadable) is INCONCLUSIVE. Not verified:
-   that GitHub writes a rule suite for a refused REST ref creation (it does for API merges: U3). If it doesn't, this line
-   stays INCONCLUSIVE and the next step is a `git push` of the tag (GH013 names the rule), not a looser match.
+   created this once. So right after the try the script reads `GET rulesets/rule-suites?ref=refs/tags/main&time_period=day`
+   (fields and enums checked against GitHub's OpenAPI description: `actor_name`, `after_sha`, `pushed_at`, `result`
+   pass/fail/bypass; `rule_evaluations[].rule_source.id`, `rule_type`, `result` pass/fail, `enforcement`
+   active/evaluate/deleted ruleset) and needs exactly one suite with `after_sha` = main, `actor_name` = gn0sh and
+   `pushed_at` no earlier than 60 s before the try, suite result `fail`, and exactly one R-T (27685093) `creation`
+   evaluation with result `fail`, enforcement `active`. Before reading, the start time must read
+   `YYYY-MM-DDTHH:MM:SSZ` (`v1pp-probe/tag-main-t0-unchecked`: the bash twin needs GNU `date -d`; otherwise the suite is
+   not read). Not verified: that GitHub writes a rule suite for a refused REST ref creation (it does for API merges: U3).
+   **Delta after review (same day): the git push line.** Right after the suite read, the script also tries
+   `git push <main>:refs/tags/main` from a scratch clone as gn0sh (`tag main git`): GH013 or "rule violation" is PASS,
+   success is FAIL, anything else INCONCLUSIVE. The suite is read first because the git push makes a second suite for
+   the same sha, which the "exactly one" rule would refuse. **How the two lines combine** (so a missing rule suite cannot
+   force a third run): the REST line is PASS on its own suite; or, only when no suite could be seen or read (none in 6
+   reads, unreadable, or no start time), when the git line is PASS, because R-T has no bypass actor and is then shown
+   refusing the same tag for the same admin account, and `tag main after` reads it absent. A suite that contradicts R-T
+   (another ruleset, `evaluate`, result `pass`, two suites) stays INCONCLUSIVE whatever git says. The git line always
+   counts by itself.
 3. **pages-api on the branch run, "no answer in the run's log": read each job's own log** (`v1pp-probe/run-log-missing`;
    confidence medium on the cause, high on the fix). `gh run view --log` builds its output from the run's log archive
    and the script threw away its error; the same-shaped tag run, read seconds later, worked, so the likely cause is the
@@ -301,12 +310,18 @@ runbook `docs/ops/morning-note.md` section 4 item 6a (the line kinds), ADR 0011 
    validation, and a scratch repository with its own Pages site would be a public site under Brian's account (hard
    stop 4). **Strongest case against:** the step was added because environment refusal of *jobs* does not prove the
    Pages *API* enforces the `github-pages` branch policy for a job that declares no environment; not counting it means
-   V1'' PASS no longer covers that route. **Why it is still the call:** that route needs a workflow file that calls the
-   API without an environment. `GITHUB_TOKEN` cannot create or change a workflow file, and the two workflows on `main`
-   (I-wf, pinned by protect-main) deploy only through the `github-pages` environment, whose main-only policy both env
-   runs PASSed (branch and tag), with Pages build type `workflow`. So the only actor left is a writer with the
-   `workflow` scope, already in "Residual (people)". Recorded there as **U-pages** (unverified: the Pages deployment
-   API requires an OIDC token from a job in the `github-pages` environment). Exactly one answer is exempt: exit
+   V1'' PASS no longer covers that route. **Why it is still the call:** that route needs a *run* of a workflow that
+   calls the API without an environment. A `GITHUB_TOKEN` can put such a file on a branch other than `main` (by a merge;
+   W2), but it cannot start it: GitHub starts no run for a push or merge made with `GITHUB_TOKEN` (only
+   `workflow_dispatch` and `repository_dispatch` are excepted), and no workflow on `main` grants `actions: write`, so no
+   token can dispatch. The runs that do happen are the two workflows on `main` (I-wf, pinned by protect-main), on schedule
+   or a person's dispatch, and both deploy only through the `github-pages` environment, whose main-only policy both env
+   runs PASSed (branch and tag), with Pages build type `workflow`. A person's dispatch at another ref runs that ref's copy
+   of the file, but a person started it. So only a workflow a writer authored or started can reach the Pages API
+   outside `github-pages`, already in "Residual (people)" (corrected 2026-11-21 after security's low finding: the
+   first text said `GITHUB_TOKEN` cannot create or change a workflow file, which W2 contradicts). Recorded there as
+   **U-pages** (unverified: the Pages deployment API requires an OIDC token from a job in the `github-pages` environment).
+   Reopen if any workflow on `main` gains `actions: write`. Exactly one answer is exempt: exit
    non-zero with "Unable to find artifact" and HTTP 400 (try 1's answer). It is marked NOT-REACHABLE and does not count
    against PASS. Exit 0 is still FAIL, and any other artifact wording, a 404, or no answer stays INCONCLUSIVE. The PASS
    line says how many pages-api lines were NOT-REACHABLE and that U-pages is not covered.
@@ -363,9 +378,10 @@ Verdict: **turning Actions off is not needed**; with R2 off nothing below a writ
   `contents: write` and `pull-requests: write` to J2 alone. Reopen if another workflow needs either permission, or if
   the note ever sends without the E2 reviewer.
 - U-pages (2026-11-21, "V1'' try 1 inconclusive" item 4): not shown that the Pages deployment API refuses an OIDC
-  token from a job with no environment on a branch other than `main`. Needs a writer with the `workflow` scope to
-  push such a workflow; `GITHUB_TOKEN` cannot. Reopen if a workflow on `main` ever calls the Pages API outside the
-  `github-pages` environment.
+  token from a job with no environment on a branch other than `main`. Such a job runs only if a person starts it or
+  pushes it: a `GITHUB_TOKEN` can merge the file onto a branch (W2), but its pushes and merges start no run, and no
+  workflow on `main` grants `actions: write` to dispatch one. Reopen if a workflow on `main` gains `actions: write` or
+  ever calls the Pages API outside the `github-pages` environment.
 - zip-slip-residual: a download that could write anywhere on the runner (toolcache, `GITHUB_ENV`) has better targets
   than `NOTE_LIB`; the defence is the pinned `download-artifact` (v4.3.0) and the plan coming only from this run's J1.
 - Unverified GitHub behaviour: U1-U4 of ADR 0010 (code-owner review binds with 0 approvals: V1' probe; data/ unowned

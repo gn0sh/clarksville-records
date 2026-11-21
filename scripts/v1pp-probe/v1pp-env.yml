@@ -5,9 +5,12 @@
 # with the annotation "... is not allowed to deploy to <environment> due to environment protection rules". A job that
 # gets in only prints one line and succeeds, which the probe records as FAIL. Those two grant nothing.
 # The pages-api job (v1pp-probe/pages-api-coverage) declares no environment, so nothing stops it starting: with pages
-# write and an OIDC token it calls POST pages/deployments for a made-up artifact (id 1). PASS only if GitHub refuses on
-# branch or environment grounds; refused for the artifact is INCONCLUSIVE (the branch check was not reached; the
-# artifact stays fake, since a real one could replace the live site). It prints the answer.
+# write and an OIDC token it calls POST pages/deployments for a made-up artifact (id 1). PASS if GitHub refuses on
+# branch or environment grounds; exit 0 is FAIL. GitHub checks the artifact first, so its "Unable to find artifact"
+# HTTP 400 is NOT-REACHABLE, not counted (v1pp-probe/pages-api-unreachable; the artifact stays fake, since a real one
+# could replace the live site; docs/architecture/main-protect-invariant.md "V1'' try 1 inconclusive" item 4); any
+# other answer is INCONCLUSIVE. The probe script reads this job's own log (v1pp-probe/run-log-missing). It prints the
+# answer.
 # No job reads a secret or runs a file from the repository.
 name: V1pp environment probe (one time)
 on:
