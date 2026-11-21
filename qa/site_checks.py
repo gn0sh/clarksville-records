@@ -3045,6 +3045,11 @@ def unofficial_notice(cfg: dict) -> str:
                                                        bodies=joined).split())
 
 
+def digest_unofficial_notice(cfg: dict) -> str:
+    """The notice Daylight Digest pages (digest/) carry instead, restated from config/site.yml unofficial.digest_notice."""
+    return " ".join(cfg["unofficial"]["digest_notice"].format(site_name=cfg["site_name"], operator=cfg["operator"]).split())
+
+
 def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None) -> tuple[list[str], str]:
     """unofficial/notice-on-every-page: the independent-and-unofficial notice (config/site.yml `unofficial:`) is in the
     text of every built HTML page, in its <meta name=description> and og:description, with the tag in its <title> and
@@ -3055,9 +3060,11 @@ def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None
     u = cfg.get("unofficial")
     if not u:
         return ["config/site.yml has no unofficial: block"], ""
-    notice = unofficial_notice(cfg)
+    site_notice = unofficial_notice(cfg)
     problems = [f"static/style.css: {sel!r} hides the unofficial notice" for sel in _hiding_rules(site)]
     for rel in sorted(pages):
+        # digest pages carry the digest notice (no list of Clarksville bodies); every other page the site notice
+        notice = digest_unofficial_notice(cfg) if rel.startswith(DIGEST) else site_notice
         raw = (site / rel).read_text(encoding="utf-8")
         seen = UnofficialText()
         seen.feed(raw)
@@ -3074,6 +3081,7 @@ def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None
                         ("og:title", re.search(r'<meta\s+property="og:title"\s+content="([^"]*)"', raw))):
             if not m or not html.unescape(m.group(1)).strip().startswith(lead):
                 problems.append(f"{rel}: {what} does not start with {lead!r}")
+    notice = site_notice
     feeds = []   # every Atom feed anywhere; any other .xml in feeds/ is a problem, other .xml files are not feeds
     for f in sorted(site.rglob("*.xml")):
         rel = f.relative_to(site).as_posix()

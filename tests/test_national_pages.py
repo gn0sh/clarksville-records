@@ -99,6 +99,33 @@ def test_switch_off_writes_no_digest_file_and_changes_no_page(sites):
     assert off["method.html"].count(npg.METHOD_SENTENCE.encode()) == 1
 
 
+def test_digest_pages_carry_the_digest_notice_and_clarksville_pages_keep_theirs(sites):
+    """unofficial/digest-notice: every digest page's footer and meta tags say Daylight Digest is not affiliated with any
+    government it covers, never the Clarksville bodies list; pages outside digest/ keep the site notice."""
+    u = config.SITE["unofficial"]
+    digest = u["digest_notice"].format(site_name=config.SITE["site_name"], operator=config.SITE["operator"])
+    assert "run by gnoshcodes LLC" in digest and "any government it covers" in digest
+    clarksville = u["notice"].format(site_name=config.SITE["site_name"], operator=config.SITE["operator"],
+                                     bodies="X")
+    bodies = [b["name"] for b in u["bodies"]]
+    on = sites["on"]
+    pages = [p for p in on if p.startswith("digest/") and p.endswith(".html") and b"unofficial-notice" in on[p]]
+    assert pages
+    for p in pages:
+        text = " ".join(html_mod.unescape(re.sub(r"<[^>]+>", " ", on[p].decode())).split())
+        assert digest in text, p
+        foot = re.search(r'<section class="unofficial-notice".*?</section>', on[p].decode(), re.S).group(0)
+        foot = " ".join(html_mod.unescape(re.sub(r"<[^>]+>", " ", foot)).split())
+        assert digest in foot and not any(b in foot for b in bodies), p      # not the Clarksville bodies list
+        assert on[p].decode().count(html_mod.escape(digest)) >= 3, p      # footer, description, og:description
+    for p, body in on.items():
+        if p.endswith(".html") and not p.startswith("digest/"):
+            assert digest.encode() not in body, p
+    assert clarksville != digest
+    for p in ("about.html", "index.html"):
+        assert b"the City of Clarksville" in on[p] and digest.encode() not in on[p]
+
+
 def test_switch_on_writes_the_page_set_and_no_feeds(sites):
     on = sites["on"]
     digest = {p for p in on if p.startswith("digest/")}
