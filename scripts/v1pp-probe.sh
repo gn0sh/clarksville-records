@@ -394,6 +394,29 @@ on_exit() {   # an exit before finish (Ctrl+C, an unexpected stop): clean up qui
 trap on_exit EXIT
 trap 'exit 130' INT TERM
 
+clean_log() {   # untrusted text: ANSI colour codes, then control characters, are dropped
+  sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' | tr -d '\000-\010\013-\037\177'
+}
+run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclusion; returns 1 when unread
+  gh api "repos/$repo/actions/runs/$1/jobs" \
+    --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null
+}
+# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
+# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
+# succeeds and holds $2 (an ERE); prints the last log read, cleaned; returns 1 if no read succeeded.
+job_log() {
+  local i t text="" got=""
+  for i in 1 2 3 4 5 6; do
+    if t=$(gh api "repos/$repo/actions/jobs/$1/logs" 2>/dev/null); then
+      got=yes; text=$(printf '%s\n' "$t" | clean_log)
+      grep -qE "$2" <<< "$text" && break
+    fi
+    [ "$i" = 6 ] || sleep 10
+  done
+  [ -n "$got" ] || return 1
+  printf '%s\n' "$text"
+}
+
 log "V1'' probe $(date -u +%FT%TZ). main before: $main_before. records-data before: $rd_before."
 for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try
 started=yes
@@ -495,28 +518,6 @@ wait_run() {   # $1 run id: v1pp-probe/unbounded-watch: up to 12 minutes (72 rea
     [ "$i" = 72 ] || sleep 10
   done
   printf '%s' "$s"
-}
-clean_log() {   # untrusted text: ANSI colour codes, then control characters, are dropped
-  sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' | tr -d '\000-\010\013-\037\177'
-}
-run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclusion; returns 1 when unread
-  gh api "repos/$repo/actions/runs/$1/jobs" \
-    --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null
-}
-# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
-# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
-# succeeds and holds $2 (an ERE); prints the last log read, cleaned; returns 1 if no read succeeded.
-job_log() {
-  local i t text="" got=""
-  for i in 1 2 3 4 5 6; do
-    if t=$(gh api "repos/$repo/actions/jobs/$1/logs" 2>/dev/null); then
-      got=yes; text=$(printf '%s\n' "$t" | clean_log)
-      grep -qE "$2" <<< "$text" && break
-    fi
-    [ "$i" = 6 ] || sleep 10
-  done
-  [ -n "$got" ] || return 1
-  printf '%s\n' "$text"
 }
 run_id=$(run_of "$runner" "$run_head") || run_id=""
 r_ids[0]=$run_id; r_looked[0]=yes

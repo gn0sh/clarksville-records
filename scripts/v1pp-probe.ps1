@@ -458,6 +458,31 @@ function Finish {   # cancel, cleanup, the reads after it, the verdict; never re
     GiveBackScope; exit 0
 }
 
+function CleanLog($text) {   # untrusted text: ANSI colour codes, then control characters, are dropped; one string per line
+    return @($text | ForEach-Object { ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
+}
+function RunJobs([string]$id) {   # one line per job, name TAB id TAB status TAB conclusion, joined with `n; $null when unread
+    $x = @(gh api "repos/$repo/actions/runs/$id/jobs" --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>$null)
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ($x -join "`n")
+}
+# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
+# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
+# succeeds and holds $want (a regex, case-sensitive); returns the last log read, cleaned, joined with `n; $null if no
+# read succeeded.
+function JobLog([string]$jid, [string]$want) {
+    $text = $null
+    for ($k = 1; $k -le 6; $k++) {
+        $got = @(gh api "repos/$repo/actions/jobs/$jid/logs" 2>$null)
+        if ($LASTEXITCODE -eq 0) {
+            $text = (CleanLog $got) -join "`n"
+            if ($text -cmatch $want) { break }
+        }
+        if ($k -lt 6) { Start-Sleep -Seconds 10 }
+    }
+    return $text
+}
+
 Log ("V1'' probe " + (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') + ". main before: $mainBefore. records-data before: $rdBefore.")
 foreach ($r in $probeRefs) { Quiet -X DELETE "repos/$repo/git/refs/$r" }   # leftovers of an earlier try
 $script:started = $true
@@ -574,30 +599,6 @@ function WaitRun([string]$id) {   # v1pp-probe/unbounded-watch: up to 12 minutes
         if ($k -lt 72) { Start-Sleep -Seconds 10 }
     }
     return $s
-}
-function CleanLog($text) {   # untrusted text: ANSI colour codes, then control characters, are dropped; one string per line
-    return @($text | ForEach-Object { ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
-}
-function RunJobs([string]$id) {   # one line per job, name TAB id TAB status TAB conclusion, joined with `n; $null when unread
-    $x = @(gh api "repos/$repo/actions/runs/$id/jobs" --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>$null)
-    if ($LASTEXITCODE -ne 0) { return $null }
-    return ($x -join "`n")
-}
-# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
-# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
-# succeeds and holds $want (a regex, case-sensitive); returns the last log read, cleaned, joined with `n; $null if no
-# read succeeded.
-function JobLog([string]$jid, [string]$want) {
-    $text = $null
-    for ($k = 1; $k -le 6; $k++) {
-        $got = @(gh api "repos/$repo/actions/jobs/$jid/logs" 2>$null)
-        if ($LASTEXITCODE -eq 0) {
-            $text = (CleanLog $got) -join "`n"
-            if ($text -cmatch $want) { break }
-        }
-        if ($k -lt 6) { Start-Sleep -Seconds 10 }
-    }
-    return $text
 }
 $runId = RunOf $runner $runHead
 $script:rIds[0] = [string]$runId
