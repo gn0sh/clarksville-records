@@ -683,7 +683,8 @@ def assert_never_shown(run):
 
 def test_an_unreadable_job_log_refuses_before_any_write(tmp_path, twin):
     """(a) v1pp-probe/log-read-selfcheck: the PC can't read a finished job's log, so nothing is written (not even the
-    leftover deletes); the reason is in the results file, sanitized; the workflow scope is still given back."""
+    leftover deletes); the reason is in the results file, sanitized; the workflow scope is not even asked for
+    (v1pp-probe/selfcheck-before-scope), so there is nothing to give back."""
     run = probe(tmp_path, twin, {"log_fail": {"701": "dns"}, "scopes": "Token scopes: 'gist', 'repo'"})
     assert run.r.returncode == 1, run.out + run.r.stderr
     line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
@@ -696,8 +697,9 @@ def test_an_unreadable_job_log_refuses_before_any_write(tmp_path, twin):
     assert (". PowerShell " in run.results) == (twin == "ps1")
     assert not run.writes()
     assert [c["path"] for c in run.calls if c["path"].startswith("actions/jobs/")] == ["actions/jobs/701/logs"] * 6
-    refresh = [c for c in run.calls if c["method"] == "auth refresh"]
-    assert len(refresh) == 2 and "--remove-scopes" in refresh[1]["argv"] and run.calls[-1] == refresh[1]
+    assert [c["method"] for c in run.calls].count("auth status") == 1   # the sign-in check only
+    assert not [c for c in run.calls if c["method"] == "auth refresh"]
+    assert "workflow scope" not in run.out
     assert "(V1'')" not in run.out
     assert_never_shown(run)
 
@@ -714,6 +716,19 @@ def test_no_finished_daily_update_job_refuses_before_any_write(tmp_path, twin, c
     assert ("REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed."
             in run.results)
     assert not run.writes() and not [c for c in run.calls if c["path"].startswith("actions/jobs/")]
+
+
+def test_the_log_read_check_uses_the_newest_of_5_runs_with_a_finished_job(tmp_path, twin):
+    """v1pp-probe/log-read-selfcheck: the newest completed run was cancelled before any job finished and the next
+    one's jobs can't be read, so the third newest is used; older runs are not read."""
+    jobs = {"698": [{"id": 690, "name": "gate", "status": "completed", "conclusion": "cancelled", "steps": []}]}
+    run = probe(tmp_path, twin, {"selfcheck_runs": [698, 699, 700, 697], "jobs": jobs,
+                                 "fail": {"actions/runs/699/jobs": -1}})
+    assert run.r.returncode == 0, run.out + run.r.stderr
+    assert "Log read check: job 701 of daily-update run 700 read (1 lines)." in run.results
+    read = [c["path"] for c in run.calls if re.fullmatch(r"actions/runs/(69[0-9]|700)/jobs", c["path"])]
+    assert read == ["actions/runs/698/jobs", "actions/runs/699/jobs", "actions/runs/700/jobs"], read
+    assert not [c for c in run.calls if c["path"] in ("actions/jobs/690/logs", "actions/runs/697/jobs")]
 
 
 def test_the_log_read_check_comes_before_the_first_write_and_shows_no_log_text(tmp_path, twin):
@@ -750,7 +765,7 @@ def test_a_storage_403_on_the_pages_log_names_the_status_not_the_body(tmp_path, 
     run = probe(tmp_path, twin, {"log_fail": {"605": "s403"}})
     assert run.r.returncode == 1, run.out + run.r.stderr
     assert ("INCONCLUSIVE branch probe/v1pp-env pages-api: could not read the job's log (job 605) after 6 reads (last: "
-            "gh exit 1: gh: HTTP 403 (" + STORAGE + ")") in run.out
+            "gh exit 1: gh: HTTP 403 (" + STORAGE + "))") in run.out   # the URL's ")" is kept
     assert "HTTP 403" in run.results
     assert_never_shown(run)
 
@@ -771,6 +786,31 @@ def test_a_log_with_a_bom_still_passes(tmp_path, twin):
     run = probe(tmp_path, twin, {"log_fail": {"600": "bom", "701": "bom"}})
     assert run.r.returncode == 0, run.out + run.r.stderr
     assert any(ln.startswith("PASS W squash: refused") for ln in run.marks("PASS"))
+
+
+HOST = "productionresultssa1.blob.core.windows.net"
+
+
+@pytest.mark.parametrize("how, env, why", [
+    ("schemeless", None, "gh: error reading " + HOST + "/... (EOF)"),
+    ("jsonesc", None, 'gh: {"message":"Moved","url":"https:\\/\\/' + HOST + '/..."} (HTTP 403)'),
+    ("userinfo", None, 'gh: Get "https://' + HOST + '/...": EOF'),
+    ("controls", None, "gh: 31mbad gateway x (HTTP 502)"),
+    ("dns", {"GH_DEBUG": "api", "DEBUG": "1"}, 'gh: Get "' + STORAGE + '": dial tcp: lookup ' + HOST + ": no such host"),
+], ids=["schemeless-url", "json-escaped-url", "userinfo", "c1-and-bidi", "debug-env"])
+def test_the_reason_keeps_no_path_query_userinfo_or_controls(tmp_path, twin, how, env, why):
+    """v1pp-probe/log-read-diag-query, -userinfo, -controls, gh-debug-legacy: a URL with no scheme, or JSON-escaped,
+    keeps only its host; userinfo is dropped; C1 and bidi controls are dropped; DEBUG is cleared with GH_DEBUG."""
+    run = probe(tmp_path, twin, {"log_fail": {"701": how}}, env=env)
+    assert run.r.returncode == 1, run.out + run.r.stderr
+    line = next(ln for ln in run.out.splitlines() if ln.startswith("REFUSED: "))
+    assert line[line.index("(last: ") + len("(last: "):line.index("); every answer")] == "gh exit 1: " + why, line
+    assert line in run.results
+    for text in (run.out, run.results):
+        for bad in ("SECRETPASS", "gn0sh:", "actions-results", "DEBUGLINE", "\u009b", "\u0085", "\u202a",
+                    "\u202e", "\u2066", "\u2069"):
+            assert bad not in text, bad
+    assert_never_shown(run)
 
 
 def test_a_long_token_is_redacted_and_the_reason_is_capped(tmp_path, twin):
@@ -951,7 +991,8 @@ def test_the_workflow_scope_is_added_after_the_guard_and_given_back_last(tmp_pat
     refresh = [i for i, c in enumerate(run.calls) if c["method"] == "auth refresh"]
     assert len(refresh) == 2 and "-s" in run.calls[refresh[0]]["argv"] and "--remove-scopes" in run.calls[refresh[1]]["argv"]
     pm = next(i for i, c in enumerate(run.calls) if c["method"] == "SCRIPT")
-    assert pm < refresh[0] < run.calls.index(run.writes()[0])
+    check = next(i for i, c in enumerate(run.calls) if c["path"] == "actions/jobs/701/logs")
+    assert pm < check < refresh[0] < run.calls.index(run.writes()[0])   # v1pp-probe/selfcheck-before-scope
     assert refresh[1] == len(run.calls) - 1
 
 
@@ -992,10 +1033,13 @@ def test_the_twins_agree():
                      # (h) the job-log read invariant (docs/architecture/v1pp-job-log-invariant.md, I-log)
                      "'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z '", "log-read-selfcheck",
                      "not judged: the run's log was not read (see the runner log line)", "GH_DEBUG", "<redacted>",
-                     "[A-Za-z0-9%+/=_-]{32,}", "/...", "daily-update.yml/runs?status=completed&per_page=1",
+                     "[A-Za-z0-9%+/=_-]{32,}", "/...", "daily-update.yml/runs?status=completed&per_page=5",
                      "could not find a finished daily-update job to test the log read. Nothing was changed.",
                      "(v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team.",
-                     "after 6 reads (last: ", "no error text, ", "Log read check: job "):
+                     "after 6 reads (last: ", "no error text, ", "Log read check: job ",
+                     # the try-4 review follow-ups
+                     "log-read-diag-query", "log-read-diag-controls", "gh-debug-legacy", "selfcheck-before-scope",
+                     "DEBUG", "?..."):
             assert part in s, part
         assert "--log" not in s.replace("gh run view --log gave", "")   # v1pp-probe/run-log-missing
         assert "GH013|rule violation" not in s   # v1pp-probe/tag-git-local-hooks: GitHub's remote line only

@@ -5,7 +5,7 @@
 #
 # Question: after the cutover (R1'' on main: the ruleset maximum of approvals, squash only, bypass = the admin role in
 # pull request mode; R-D; R-T; R2 off), can GITHUB_TOKEN get anything into main, and can a branch or tag other than
-# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after the guard passed), it:
+# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after step 0 passed), it:
 #   0. refuses unless scripts\protect-main.ps1 -Check -Apps <answer> prints OK (no writes), main and records-data read
 #      as commits and no tag named main exists; then, still before any write, reads a finished job's log (the newest
 #      finished daily-update job; v1pp-probe/log-read-selfcheck) and stops, changing nothing, if it can't;
@@ -136,13 +136,6 @@ function GiveBackScope {   # the workflow scope this run added (a browser may op
         gh auth refresh -h github.com --remove-scopes workflow
         if ($LASTEXITCODE -ne 0) { Write-Host 'Could not remove it: run gh auth refresh -h github.com --remove-scopes workflow' }
     }
-}
-$authText = (@(gh auth status 2>&1 | ForEach-Object { "$_" })) -join "`n"
-if ($authText -notmatch 'workflow') {
-    Write-Host "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
-    gh auth refresh -h github.com -s workflow
-    if ($LASTEXITCODE -ne 0) { Write-Host 'Could not add the workflow scope (see above). Nothing was changed.'; exit 1 }
-    $script:scopeAdded = $true
 }
 $script:started = $false
 $script:finished = $false
@@ -460,7 +453,9 @@ function Finish {   # cancel, cleanup, the reads after it, the verdict; never re
 }
 
 function CleanLog($text) {   # untrusted text: ANSI colour codes, then control characters, are dropped; one string per line
-    return @($text | ForEach-Object { ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F]', '' })
+    # the control characters include the C1 controls U+0080-U+009F and the bidi controls U+202A-U+202E, U+2066-U+2069
+    # (v1pp-probe/log-read-diag-controls)
+    return @($text | ForEach-Object { ([string]$_ -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '') -replace '[\x00-\x08\x0B-\x1F\x7F\u0080-\u009F\u202A-\u202E\u2066-\u2069]', '' })
 }
 function RunJobs([string]$id) {   # one line per job, name TAB id TAB status TAB conclusion, joined with `n; $null when unread
     $x = @(gh api "repos/$repo/actions/runs/$id/jobs" --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>$null)
@@ -469,14 +464,20 @@ function RunJobs([string]$id) {   # one line per job, name TAB id TAB status TAB
 }
 # v1pp-probe/job-log-unreadable (docs/architecture/v1pp-job-log-invariant.md, I-log): a job-log read succeeded only
 # when gh exits 0 and its output holds a GitHub log line ($logLine, unanchored: a BOM may sit before line 1); a failed
-# read leaves one sanitized line, never its output (v1pp-probe/log-read-diag). GH_DEBUG would put a debug line first.
+# read leaves one sanitized line, never its output (v1pp-probe/log-read-diag). GH_DEBUG (or the legacy DEBUG) would
+# put a debug line first (v1pp-probe/gh-debug-legacy).
 Remove-Item Env:GH_DEBUG -ErrorAction SilentlyContinue
+Remove-Item Env:DEBUG -ErrorAction SilentlyContinue
 $logLine = '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z '
 function ReadWhy([string]$rc, $err, [int]$outCount) {   # "gh exit <rc>: <first stderr line, sanitized>"
     $first = @(CleanLog $err | Where-Object { $_ -match '\S' }) | Select-Object -First 1
     if (-not $first) { return "gh exit ${rc}: no error text, $outCount line(s) out" }
-    # URLs cut to scheme and host (-replace: any case; the signed read token is in the path and query), long tokens redacted
-    $s = ([string]$first -replace '(https?://[^/\s"''?#]+)[^\s"'']*', '$1/...') -creplace '[A-Za-z0-9%+/=_-]{32,}', '<redacted>'
+    # URLs, also JSON-escaped (https:\/\/), cut to scheme and host, any userinfo dropped (-replace: any case; the signed
+    # read token is in the path and query; a closing ")" is kept); then a host/path with no scheme cut to the host;
+    # then any query left cut (v1pp-probe/log-read-diag-query, -userinfo); then long tokens redacted
+    $s = [string]$first -replace '(https?:(\\?/){2})([^/\s"''?#@\\]*@)?([^/\s"''?#@\\)]+)[^\s"'')]*', '$1$4/...'
+    $s = $s -replace '([^/\s"''?#@\\]+@)?(([A-Za-z0-9-]+\.)+[A-Za-z]{2,}(:[0-9]+)?)\\?/[^\s"'')]*', '$2/...'
+    $s = ($s -replace '\?[^\s"'']+', '?...') -creplace '[A-Za-z0-9%+/=_-]{32,}', '<redacted>'
     if ($s.Length -gt 200) { $s = $s.Substring(0, 200) }
     return "gh exit ${rc}: $s"
 }
@@ -516,16 +517,18 @@ Log "gh: $ghVer. PowerShell $($PSVersionTable.PSVersion)."
 # v1pp-probe/log-read-selfcheck (I-log 3): every answer is read from job logs, so before the first write (the leftover
 # deletes below are writes) show that this machine can read one: the newest finished daily-update job's, through
 # JobLog. Reads only; its text is never shown. Refused here, nothing was changed ($script:started is still false, and
-# finally gives the scope back).
-$scRun = (@(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=1" --jq '.workflow_runs[0].id // empty' 2>$null)) -join ''
-if ($LASTEXITCODE -ne 0 -or $scRun -cnotmatch '^[0-9]+$') { $scRun = '' }
+# the workflow scope is not asked for yet). The newest 5 completed runs, newest first: the first with a completed
+# success or failure job is used (the newest may have been cancelled).
+$scRuns = @(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=5" --jq '.workflow_runs[].id' 2>$null)
+if ($LASTEXITCODE -ne 0) { $scRuns = @() }
+$scRun = ''
 $scJid = ''
-if ($scRun) {
-    $scJobs = RunJobs $scRun
-    if ($null -ne $scJobs) {
-        $scRow = @($scJobs -split "`n" | Where-Object { [string]$_ -cmatch "^[^`t]*`t[0-9]+`tcompleted`t(success|failure)$" }) | Select-Object -First 1
-        if ($scRow) { $scJid = ([string]$scRow -split "`t")[1] }
-    }
+foreach ($r in $scRuns) {
+    if ([string]$r -cnotmatch '^[0-9]+$') { continue }
+    $scJobs = RunJobs ([string]$r)
+    if ($null -eq $scJobs) { continue }
+    $scRow = @($scJobs -split "`n" | Where-Object { [string]$_ -cmatch "^[^`t]*`t[0-9]+`tcompleted`t(success|failure)$" }) | Select-Object -First 1
+    if ($scRow) { $scJid = ([string]$scRow -split "`t")[1]; $scRun = [string]$r; break }
 }
 if (-not $scJid) {
     Log 'REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed.'
@@ -538,6 +541,14 @@ if ($null -eq $scText) {
 }
 Log "Log read check: job $scJid of daily-update run $scRun read ($(@($scText -split "`n" | Where-Object { $_ -ne '' }).Count) lines)."
 $scText = ''
+# v1pp-probe/selfcheck-before-scope: the workflow scope is asked for only now, after the read-only checks passed
+$authText = (@(gh auth status 2>&1 | ForEach-Object { "$_" })) -join "`n"
+if ($authText -notmatch 'workflow') {
+    Write-Host "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
+    gh auth refresh -h github.com -s workflow
+    if ($LASTEXITCODE -ne 0) { Write-Host 'Could not add the workflow scope (see above). Nothing was changed.'; exit 1 }
+    $script:scopeAdded = $true
+}
 foreach ($r in $probeRefs) { Quiet -X DELETE "repos/$repo/git/refs/$r" }   # leftovers of an earlier try
 $script:started = $true
 

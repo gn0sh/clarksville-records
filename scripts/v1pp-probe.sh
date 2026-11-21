@@ -5,7 +5,7 @@
 #
 # Question: after the cutover (R1'' on main: the ruleset maximum of approvals, squash only, bypass = the admin role in
 # pull request mode; R-D; R-T; R2 off), can GITHUB_TOKEN get anything into main, and can a branch or tag other than
-# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after the guard passed), it:
+# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after step 0 passed), it:
 #   0. refuses unless scripts/protect-main.sh --check --apps <answer> prints OK (no writes), main and records-data read
 #      as commits and no tag named main exists; then, still before any write, reads a finished job's log (the newest
 #      finished daily-update job; v1pp-probe/log-read-selfcheck) and stops, changing nothing, if it can't;
@@ -127,11 +127,6 @@ give_back_scope() {   # the workflow scope this run added (a browser may open); 
     gh auth refresh -h github.com --remove-scopes workflow || echo "Could not remove it: run gh auth refresh -h github.com --remove-scopes workflow"
   fi
 }
-if ! gh auth status 2>&1 | grep -q "workflow"; then
-  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
-  gh auth refresh -h github.com -s workflow || { echo "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
-  scope_added=yes
-fi
 work=$(mktemp -d) || { give_back_scope; echo "Could not make a temporary folder. Nothing was changed."; exit 1; }
 out_dir="${RESULTS_DIR:-$HOME}"
 results="$out_dir/v1pp-probe-results-$(date +%Y%m%d-%H%M).txt"
@@ -395,8 +390,10 @@ on_exit() {   # an exit before finish (Ctrl+C, an unexpected stop): clean up qui
 trap on_exit EXIT
 trap 'exit 130' INT TERM
 
-clean_log() {   # untrusted text: ANSI colour codes, then control characters, are dropped
-  sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' | tr -d '\000-\010\013-\037\177'
+clean_log() {   # untrusted text: ANSI colour codes, then control characters, then (as UTF-8 bytes) the C1 controls
+  # U+0080-U+009F and the bidi controls U+202A-U+202E, U+2066-U+2069 are dropped (v1pp-probe/log-read-diag-controls)
+  sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' | tr -d '\000-\010\013-\037\177' |
+    LC_ALL=C sed -E $'s/\xc2[\x80-\x9f]//g; s/\xe2\x80[\xaa-\xae]//g; s/\xe2\x81[\xa6-\xa9]//g'
 }
 run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclusion; returns 1 when unread
   gh api "repos/$repo/actions/runs/$1/jobs" \
@@ -404,15 +401,21 @@ run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclus
 }
 # v1pp-probe/job-log-unreadable (docs/architecture/v1pp-job-log-invariant.md, I-log): a job-log read succeeded only
 # when gh exits 0 and its output holds a GitHub log line (log_line, unanchored: a BOM may sit before line 1); a failed
-# read leaves one sanitized line, never its output (v1pp-probe/log-read-diag). GH_DEBUG would put a debug line first.
-unset GH_DEBUG
+# read leaves one sanitized line, never its output (v1pp-probe/log-read-diag). GH_DEBUG (or the legacy DEBUG) would
+# put a debug line first (v1pp-probe/gh-debug-legacy).
+unset GH_DEBUG DEBUG
 log_line='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z '
 read_why() {   # $1 gh's exit code, $2 its stderr, $3 lines it printed: "gh exit <rc>: <first stderr line, sanitized>"
   local l
   l=$(printf '%s\n' "$2" | clean_log | grep -m 1 '[^[:space:]]')
   if [ -z "$l" ]; then printf 'gh exit %s: no error text, %s line(s) out' "$1" "$3"; return 0; fi
-  # URLs cut to scheme and host (any case: the signed read token is in the path and query), long tokens redacted
-  l=$(printf '%s' "$l" | sed -E $'s|(https?://[^/[:space:]"\'?#]+)[^[:space:]"\']*|\\1/...|gI; s|[A-Za-z0-9%+/=_-]{32,}|<redacted>|g')
+  # URLs, also JSON-escaped (https:\/\/), cut to scheme and host, any userinfo dropped (any case: the signed read
+  # token is in the path and query; a closing ")" is kept); then a host/path with no scheme cut to the host; then any
+  # query left cut (v1pp-probe/log-read-diag-query, -userinfo); then long tokens redacted
+  l=$(printf '%s' "$l" | sed -E \
+    -e $'s|(https?:(\\\\?/){2})([^/[:space:]"\'?#@\\\\]*@)?([^/[:space:]"\'?#@\\\\)]+)[^[:space:]"\')]*|\\1\\4/...|gI' \
+    -e $'s|([^/[:space:]"\'?#@\\\\]+@)?(([A-Za-z0-9-]+\\.)+[A-Za-z]{2,}(:[0-9]+)?)\\\\?/[^[:space:]"\')]*|\\2/...|g' \
+    -e $'s|\\?[^[:space:]"\']+|?...|g' -e 's|[A-Za-z0-9%+/=_-]{32,}|<redacted>|g')
   printf 'gh exit %s: %s' "$1" "${l:0:200}"
 }
 # v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
@@ -442,14 +445,18 @@ gh_ver=$(gh --version 2>/dev/null | head -n 1) || true
 log "gh: ${gh_ver:-unread}."
 # v1pp-probe/log-read-selfcheck (I-log 3): every answer is read from job logs, so before the first write (the leftover
 # deletes below are writes) show that this machine can read one: the newest finished daily-update job's, through
-# job_log. Reads only; its text is never shown. Refused here, nothing was changed (started is still empty).
-sc_run=$(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=1" \
-         --jq '.workflow_runs[0].id // empty' 2>/dev/null) || sc_run=""
-sc_jid=""
-if [[ "$sc_run" =~ ^[0-9]+$ ]]; then
-  sc_jobs=$(run_jobs "$sc_run") || sc_jobs=""
+# job_log. Reads only; its text is never shown. Refused here, nothing was changed (started is still empty, and the
+# workflow scope is not asked for yet). The newest 5 completed runs, newest first: the first with a completed
+# success or failure job is used (the newest may have been cancelled).
+sc_runs=$(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=5" \
+          --jq '.workflow_runs[].id' 2>/dev/null) || sc_runs=""
+sc_run=""; sc_jid=""
+while IFS= read -r r; do
+  [[ "$r" =~ ^[0-9]+$ ]] || continue
+  sc_jobs=$(run_jobs "$r") || continue
   sc_jid=$(awk -F'\t' '$2 ~ /^[0-9]+$/ && $3 == "completed" && ($4 == "success" || $4 == "failure") {print $2; exit}' <<< "$sc_jobs")
-fi
+  if [ -n "$sc_jid" ]; then sc_run=$r; break; fi
+done <<< "$sc_runs"
 if [ -z "$sc_jid" ]; then
   log "REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed."
   exit 1
@@ -460,6 +467,12 @@ if ! sc_text=$(job_log "$sc_jid" "$log_line"); then
 fi
 log "Log read check: job $sc_jid of daily-update run $sc_run read ($(grep -c . <<< "$sc_text") lines)."
 sc_text=""
+# v1pp-probe/selfcheck-before-scope: the workflow scope is asked for only now, after the read-only checks passed
+if ! gh auth status 2>&1 | grep -q "workflow"; then
+  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
+  gh auth refresh -h github.com -s workflow || { echo "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
+  scope_added=yes
+fi
 for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try
 started=yes
 

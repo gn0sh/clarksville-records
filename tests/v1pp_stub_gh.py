@@ -21,6 +21,14 @@ REPO = "repos/gn0sh/clarksville-records/"
 STORAGE_HOST = "productionresultssa1.blob.core.windows.net"
 STORAGE_URL = "https://" + STORAGE_HOST + "/actions-results/x/y.txt?sv=2025-01-05&sig=SECRETSIG%2Babc"
 
+_Q = "/actions-results/x/y.txt?sv=2025-01-05&sig=SECRETSIG%2Babc"
+DIAG = {   # log_fail modes for the sanitizer: a URL with no scheme, a JSON-escaped one, userinfo, C1 and bidi controls
+    "schemeless": "gh: error reading " + STORAGE_HOST + _Q + " (EOF)",
+    "jsonesc": 'gh: {"message":"Moved","url":"https:\\/\\/' + STORAGE_HOST + _Q.replace("/", "\\/") + '"} (HTTP 403)',
+    "userinfo": 'gh: Get "https://gn0sh:SECRETPASS@' + STORAGE_HOST + _Q + '": EOF',
+    "controls": "gh: \u009b31mbad\u202e gate\u0085way\u2066 x\u2069\u202a (HTTP 502)",
+}
+
 
 def save():
     json.dump(st, open(st_path, "w"))
@@ -290,6 +298,13 @@ if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text
     if reads[jid] <= cfg.get("log_lag", {}).get(jid, 0):            # not ready yet
         err(404, "Not Found")
     how = cfg.get("log_fail", {}).get(jid)   # v1pp-probe/job-log-unreadable: ways a read can fail on Brian's PC
+    if how and (os.environ.get("GH_DEBUG") or os.environ.get("DEBUG")):   # v1pp-probe/gh-debug-legacy
+        sys.stderr.write("* Request to https://api.github.com/x DEBUGLINE Authorization: token gho_x\n")
+    if how in DIAG:                          # one stderr line, as gh would print it (v1pp-probe/log-read-diag-*)
+        save()
+        sys.stderr.flush()
+        sys.stderr.buffer.write((DIAG[how] + "\n").encode("utf-8"))
+        sys.exit(1)
     if how == "dns":                         # the 302 to storage, not resolved: stderr carries the signed URL
         save()
         sys.stderr.write('gh: Get "%s": dial tcp: lookup %s: no such host\n' % (STORAGE_URL, STORAGE_HOST))
@@ -329,9 +344,9 @@ if short.startswith("actions/jobs/") and short.endswith("/logs"):   # plain text
     sys.exit(0)
 if short.startswith("actions/workflows/daily-update.yml/runs?"):   # the self-check's run: the newest completed one
     q = dict(x.split("=", 1) for x in short.split("?", 1)[1].split("&"))
-    assert q == {"status": "completed", "per_page": "1"}, q
-    ok({"total_count": 0, "workflow_runs": []} if cfg.get("selfcheck_run") == "none" else
-       {"total_count": 1, "workflow_runs": [{"id": 700, "status": "completed", "conclusion": "success"}]})
+    assert q == {"status": "completed", "per_page": "5"}, q
+    ids = [] if cfg.get("selfcheck_run") == "none" else cfg.get("selfcheck_runs", [700])   # newest first
+    ok({"total_count": len(ids), "workflow_runs": [{"id": i, "status": "completed", "conclusion": "success"} for i in ids]})
 if short.startswith("rulesets/rule-suites?"):   # GitHub's record of each ref update (fields per its OpenAPI description)
     q = dict(x.split("=", 1) for x in short.split("?", 1)[1].split("&"))
     assert q == {"ref": "refs/tags/main", "time_period": "day", "per_page": "100"}, q

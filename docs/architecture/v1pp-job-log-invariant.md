@@ -40,11 +40,14 @@ nothing. And the script starts writing before it has shown that it can read its 
 4. **Diagnosable from the results file alone.** Every failed read records one line: `gh exit <code>: <first
    non-blank stderr line, sanitized>`, plus the number of reads tried. The results file header records the first
    line of `gh --version` and the PowerShell version (bash: `bash --version` is not needed). Sanitizing, in order:
-   strip control characters (CleanLog); reduce every URL to its scheme and host (`https://host/...`), so no path,
-   query or signature remains; replace any run of 32 or more `[A-Za-z0-9%+/=_-]` characters with `<redacted>`; cut
+   strip control characters, C1 controls U+0080-U+009F and bidi controls U+202A-U+202E, U+2066-U+2069 (CleanLog);
+   reduce every URL, also JSON-escaped (`https:\/\/`), to its scheme and host (`https://host/...`), dropping any
+   `user:pass@`, so no path, query or signature remains; cut a `host.name/path` with no scheme to `host.name/...`
+   and any query left to `?...`; a `)` ends a URL; replace any run of 32 or more `[A-Za-z0-9%+/=_-]` characters with `<redacted>`; cut
    to 200 characters. **Never logged:** the stdout of a failed read (an Azure XML error can echo the request), any
    URL path or query (the 302 `Location` carries a signed, short-lived read token), or the text of the self-check
-   log. `GH_DEBUG` is cleared for the script's process, so a debug line can't take the place of the error line.
+   log. `GH_DEBUG` and the legacy `DEBUG` are cleared for the script's process, so a debug line can't take the place
+   of the error line.
 5. **What each line tells us.** The diagnostic line sorts the cause: `no such host` / `lookup` means DNS on the PC;
    `connectex`, `i/o timeout`, `connection reset` or `refused` means a firewall, antivirus or network problem;
    `x509` / `certificate` means TLS interception; `HTTP 4xx` from a storage host means a gh redirect problem (upgrade
@@ -115,8 +118,10 @@ workflows. If logs are readable, try 4 judges normally. If they aren't, try 4 ch
    - `PagesRefused` appends `after 6 reads (last: <why>)` to its existing text.
 5. **Self-check** (`v1pp-probe/log-read-selfcheck`), placed after the header log line and before the leftover
    deletes:
-   - `gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=1" --jq '.workflow_runs[0].id // empty'`.
-   - Then `RunJobs` on that run. Pick the first row with status `completed` and conclusion `success|failure`.
+   - `gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=5" --jq '.workflow_runs[].id'`
+     (try-4 review: the newest run may have been cancelled).
+   - Then `RunJobs` on each run, newest first; use the first run with a row of status `completed` and conclusion
+     `success|failure`.
    - Then `JobLog <jid> $logLine`.
    - If there is no run or job: `REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed.`
    - If the read fails: `REFUSED: could not read the log of finished job <jid> (daily-update run <rid>) after 6 reads (last: <why>); every answer is read from job logs, so the probe stops here (v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team.`
@@ -210,9 +215,9 @@ PC and adds a new code path to a gate script, while a full try 4 also re-proves 
      not zero.
 4. **The self-check placement.** It must come before the leftover deletes. Those deletes *are* writes, on refs left
    by earlier tries, so a self-check placed after them would break "Nothing was changed". Test (c) pins the order.
-5. **The scope round-trip.** The workflow scope is added before the self-check. If the self-check refuses, Brian
-   sees two browser prompts for nothing. This is accepted: moving the scope step after the self-check is a larger
-   reorder, and `finally` still gives the scope back.
+5. **The scope round-trip.** Resolved after the try-4 review (`v1pp-probe/selfcheck-before-scope`): the workflow
+   scope is asked for only after the self-check passes, just before the leftover deletes, so a refusal there opens no
+   browser and has no scope to give back.
 6. **A slow failure.** A blocked host can make each read hang for the length of a TCP timeout, so the self-check
    could take about 3 minutes before it refuses. This is harmless: nothing has been written yet.
 7. **If the self-check refuses in try 4.** Read the line (section 2 item 5).
