@@ -376,7 +376,8 @@ def _council_votes(meetings: int = 4, per: int = 13) -> list[dict]:
             out.append({"id": f"city/vote/rc-{day}-{n:02}", "lists": ["seats"], "kind": "vote", "body": "city",
                         "body_name": "Fixture Council", "meeting_date": day, "meeting": "regular session",
                         "title": f"ORDINANCE {n}-2026-27: Title not read from the minutes", "title_ours": True,
-                        "untitled": True, "recorded": "Recorded in the minutes; not confirmed", "district": None,
+                        "untitled": True, "item_number": f"ORDINANCE {n}-2026-27",
+                        "recorded": "Recorded in the minutes; not confirmed", "district": None,
                         "ward": None, "case": None, "seat_body": "ward", "href": f"city/items/2026.html#o-{n}",
                         "meeting_href": f"city/meetings/2026.html#{day}-regular",
                         "source": {"url": f"https://example.com/fixture/minutes-{day}.pdf#page={n + 2}", "page": n + 2}})
@@ -399,6 +400,7 @@ def test_a_day_of_untitled_council_votes_is_one_line_per_meeting_and_keeps_its_e
     text = built["texts"][ward["key"]]
     assert text.count(render.untitled_words(ctx, 13)) == 4 and "Title not read" not in text
     assert len(text.splitlines()) < 40
+    assert ", ".join(f"ORDINANCE {n}-2026-27" for n in range(13)) in text      # the item numbers stay
     assert plan_mod.build(site_with(tmp_path, note), D, cfg_with()) == built
 
 

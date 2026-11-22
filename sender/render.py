@@ -27,6 +27,7 @@ from .common import (CREDIT_LINE, DATE_RE, DOTS, MARKUP, ZWSP, clean, day_words,
 TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": (), "untitled_votes": ("{n}",)}
 # note/compact-untitled: a meeting's untitled votes stand as one line from this many on (a lone one stays itself)
 COMPACT_MIN = 2
+COMPACT_LIST = "seats"      # the one list whose untitled votes are compacted (morning.LIST_KEYS; a fixed key)
 _INERT = {ord(c): f"&#{ord(c)};" for c in MARKUP}       # common.MARKUP: every markup character
 _LINE_START = re.compile(r"^[-+\s]+")       # a leading "---" (a rule or front matter), a "+" or "-" list mark
 # Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From
@@ -137,13 +138,19 @@ def sections(note: dict, entries: list[dict], under: dict | None = None) -> list
     """[(list label, entries)] in the given order. An entry stands once, under `under[id]` (plan.placed: the first
     of its lists the reader picked and that selected it), else under the first of its lists (the key the note is
     sorted by). The edition key covers both, so an edition reads the same for every subscriber who shares it."""
+    return [(label, rows) for _, label, rows in _keyed(note, entries, under)]
+
+
+def _keyed(note: dict, entries: list[dict], under: dict | None = None) -> list[tuple[str, str, list[dict]]]:
+    """sections(), each with the list key it stands under: [(key, label, entries)]."""
     labels = {x["key"]: x["label"] for x in note["lists"]}
-    out: list[tuple[str, list[dict]]] = []
+    out: list[tuple[str, str, list[dict]]] = []
     for e in entries:
-        label = labels.get(under[e["id"]] if under else e["lists"][0], "")
-        if not out or out[-1][0] != label:
-            out.append((label, []))
-        out[-1][1].append(e)
+        key = under[e["id"]] if under else e["lists"][0]
+        label = labels.get(key, "")
+        if not out or out[-1][1] != label:
+            out.append((key, label, []))
+        out[-1][2].append(e)
     return out
 
 
@@ -172,9 +179,10 @@ def _source_words(ctx: dict, page) -> str:
 
 def untitled_vote(e: dict) -> bool:
     """True for a vote whose record printed no title of its own (the note's `untitled`: our fallback words, a
-    meeting's label, or only the document's kind such as "MINUTES") and that names its meeting's page."""
+    meeting's label, or only the document's kind such as "MINUTES") and that names its meeting's page. Never a
+    zoning case (`case` set): a reader looks for one by its number (note-compact/zoning-case-hidden)."""
     return e.get("kind") == "vote" and e.get("untitled") is True and isinstance(e.get("meeting_href"), str) \
-        and bool(e["meeting_href"])
+        and bool(e["meeting_href"]) and not e.get("case")
 
 
 def _document(e: dict):
@@ -183,13 +191,15 @@ def _document(e: dict):
     return url.split("#", 1)[0] if isinstance(url, str) else None
 
 
-def items(rows: list[dict]) -> list[dict | list[dict]]:
-    """A section's entries as the email prints them (note/compact-untitled): each entry as itself, except that a
-    meeting's untitled votes (untitled_vote), when there are COMPACT_MIN or more of them in the section from one
-    minutes document, stand as one list at the place of the first of them. A pure function of the rows, so two
-    shapes with the same rows (one edition key, plan.edition_key) still read the same."""
+def items(rows: list[dict], list_key: str | None = COMPACT_LIST) -> list[dict | list[dict]]:
+    """A section's entries as the email prints them (note/compact-untitled): each entry as itself, except that in
+    the COMPACT_LIST section a meeting's untitled votes (untitled_vote), when there are COMPACT_MIN or more of them
+    from one minutes document, stand as one list at the place of the first of them. Any other section (a list the
+    reader picked by topic) keeps every entry. A pure function of the rows and their list, so two shapes with the
+    same rows (one edition key, plan.edition_key) still read the same."""
     def key(e):
-        return (e.get("body"), e["meeting_href"], _document(e)) if untitled_vote(e) else None
+        return (e.get("body"), e["meeting_href"], _document(e)) \
+            if list_key == COMPACT_LIST and untitled_vote(e) else None
     groups: dict[tuple, list[dict]] = {}
     for e in rows:
         if key(e):
@@ -209,15 +219,27 @@ def untitled_words(ctx: dict, n: int) -> str:
     return ctx["text"]["untitled_votes"].replace("{n}", str(n))
 
 
+def item_numbers(group: list[dict]) -> str:
+    """The record's own item numbers of a group, each once, in the record's order, joined with ", "
+    (note-compact/hides-item-numbers); "" when none of them has one (a kind-only "MINUTES" item)."""
+    nums = [n for n in (e.get("item_number") for e in group) if isinstance(n, str) and clean(n)]
+    return ", ".join(dict.fromkeys(nums))
+
+
 def _shown(ctx: dict, x) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """What one item of a section shows, the same for both bodies: its lines [(kind, raw text)], kind "who" (the
     meeting line, already clean), "text" or "title" (the record's own title), and its links [(words, URL)]. An
     entry: the meeting line, its `recorded` words, its title, its page and its source. A meeting's untitled votes
-    (items): the meeting line, the count line, the meeting's page and the minutes document, each once."""
+    (items): the meeting line, the count line, the record's item numbers, the meeting's page and the minutes
+    document, each once."""
     hosts = ctx.get("link_hosts", ())
     if isinstance(x, list):
         e = x[0]
-        lines = [("who", who_when(ctx, e)), ("text", untitled_words(ctx, len(x)))]
+        nums = item_numbers(x)
+        # the count line leads into the numbers line; with no number to follow, it ends without its colon
+        words = untitled_words(ctx, len(x))
+        lines = [("who", who_when(ctx, e)), ("text", words if nums else words.rstrip().rstrip(":"))]
+        lines += [("text", nums)] if nums else []
         page_url = site_link(ctx["site_url"], e.get("meeting_href"), hosts)
         src, page = source_link({"source": {"url": _document(e), "page": None}}, hosts)
     else:
@@ -233,9 +255,9 @@ def body_html(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
     """The HTML body. No blank line and no indented line, so a Markdown step sees one HTML block and nothing else."""
     out = [f"<h1>{inert(ctx['site_name'])}</h1>", f"<p>{inert(day_words(note['date']))}</p>",
            f"<p>{inert(ctx['email_line'])}</p>"]
-    for label, rows in sections(note, entries, under):
+    for key, label, rows in _keyed(note, entries, under):
         out += [f"<h2>{inert(label)}</h2>", "<ul>"]
-        for x in items(rows):
+        for x in items(rows, key):
             lines, links = _shown(ctx, x)
             parts = [f"<strong>{inert(t)}</strong>" if kind == "title" else inert(t) for kind, t in lines]
             parts += [" &middot; ".join(f'<a href="{_attr(url)}">{inert(words)}</a>' for words, url in links)] \
@@ -255,9 +277,9 @@ def body_html(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
 def body_text(ctx: dict, note: dict, entries: list[dict], under: dict | None = None) -> str:
     """The same edition as plain text, for a person reading the dry run. It is not what is sent."""
     out = [clean(ctx["site_name"]), day_words(note["date"]), clean(ctx["email_line"]), ""]
-    for label, rows in sections(note, entries, under):
+    for key, label, rows in _keyed(note, entries, under):
         out += [clean(label), ""]
-        for x in items(rows):
+        for x in items(rows, key):
             lines, links = _shown(ctx, x)
             out += [f"  {t if kind == 'who' else clean(t)}" for kind, t in lines]
             out += [f"  {clean(words)}: {url}" for words, url in links]

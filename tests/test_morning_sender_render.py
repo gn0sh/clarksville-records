@@ -146,10 +146,12 @@ def test_own_text_passes_the_neutrality_scan(msite):  # noqa: F811
 def test_every_word_outside_the_record_is_config_text():
     """Change every config text and label: nothing of the old wording is left, so none of it is hard-coded."""
     ctx = {"site_name": "SITE", "site_url": SITE_URL, "source_label": "SRC", "page_label": "PG",
-           "text": {"subject": "{site_name} S {date}", "why": "WHY", "open_site": "OPEN"},
+           "text": {"subject": "{site_name} S {date}", "why": "WHY", "open_site": "OPEN", "untitled_votes": "UNTITLED {n}"},
            "notice": "NOTICE", "email_line": "LINE", "support_label": "TIPS",
            "link_hosts": ("records.example.com", "example.com"), "link_urls": ("https://tips.example.com/x",)}
-    n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"), unplaced_text="UNPLACED",
+    # and one compact group of untitled votes (note-compact/config-text-test): its count line is config text too
+    group = [vote(k, k, body_name="BODY", recorded="REC", title="TITLE", item_number=num) for k, num in ((1, "NUMA"), (2, "NUMB"))]
+    n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"), *group, unplaced_text="UNPLACED",
                 support_line="SUPPORT", support_url="https://tips.example.com/x")
     n["lists"] = [{"key": k, "label": f"L-{k}"} for k in morning.LIST_KEYS]
     html = render.body_html(ctx, n, n["entries"])
@@ -157,8 +159,9 @@ def test_every_word_outside_the_record_is_config_text():
     text = " ".join(t for node in parse(html[:-len(common.CREDIT_LINE) - 1]).walk() for t in node.text)
     words = re.sub(r"November 11, 2026|\d", "", text)
     assert sorted(set(re.findall(r"[A-Za-z-]+", words))) == sorted(
-        ["SITE", "L-budget", "BODY", "REC", "TITLE", "OPEN", "SRC", "PG", "UNPLACED", "WHY", "NOTICE", "LINE",
-         "SUPPORT", "TIPS"])
+        ["SITE", "L-budget", "L-seats", "BODY", "REC", "TITLE", "OPEN", "SRC", "PG", "UNPLACED", "WHY", "NOTICE",
+         "LINE", "SUPPORT", "TIPS", "UNTITLED", "NUMA", "NUMB"])
+    assert "UNTITLED 2" in html and "NUMA, NUMB" in html
     assert render.subject(ctx, "2026-11-11") == "SITE S November 11, 2026"
 
 
@@ -534,13 +537,16 @@ def vote(n: int, page: int, untitled=True, meeting="2026-09-03", **kw) -> dict:
               lists=["seats"], seat_body="ward", meeting_date=meeting, meeting="regular session",
               title=f"ORDINANCE {n}-2026-27: Title not read from the minutes" if untitled else f"ORDINANCE {n}-2026-27: FIXTURE a real title",
               title_ours=untitled, untitled=untitled, recorded="Recorded in the minutes; not confirmed",
+              item_number=f"ORDINANCE {n}-2026-27",
               href=f"city/items/2026.html#ordinance-{n}", meeting_href=f"city/meetings/2026.html#{meeting}-regular",
               source={"url": f"{MINUTES_URL}#page={page}", "page": page}, confirmed=False, outcome=None, tally=None)
     e.update(kw)
     return e
 
 
-SEPT = [vote(1, 2), vote(2, 3), vote(3, 4, untitled=False), vote(4, 5), vote(5, 6, title="MINUTES", title_ours=False)]
+SEPT = [vote(1, 2), vote(2, 3), vote(3, 4, untitled=False), vote(4, 5),
+        vote(5, 6, title="MINUTES", title_ours=False, item_number=None)]
+SEPT_NUMBERS = "ORDINANCE 1-2026-27, ORDINANCE 2-2026-27, ORDINANCE 4-2026-27"
 
 
 def lis(html: str) -> list[str]:
@@ -557,6 +563,7 @@ def test_a_meetings_untitled_votes_stand_as_one_line_with_a_count_and_two_links(
     words = render.untitled_words(CTX, 4)
     assert words == CTX["text"]["untitled_votes"].replace("{n}", "4") and "4" in words
     assert rows[0].startswith("Fixture Council, September 3, 2026 regular session") and words in rows[0]
+    assert SEPT_NUMBERS in rows[0]                      # the record's item numbers, once each, in record order
     assert "Title not read" not in html and "MINUTES" not in html and "not confirmed" not in rows[0]
     assert "FIXTURE a real title" in rows[1]
     assert links(html)[:4] == [SITE_URL + "city/meetings/2026.html#2026-09-03-regular", MINUTES_URL,
@@ -569,6 +576,7 @@ def test_the_text_body_reads_the_same_compact_edition():
     text = render.body_text(CTX, n, n["entries"])
     block = text.split("\n\n")[2].split("\n")
     assert block == ["  Fixture Council, September 3, 2026 regular session", f"  {render.untitled_words(CTX, 4)}",
+                     f"  {SEPT_NUMBERS}",
                      f"  {CTX['text']['open_site']}: {SITE_URL}city/meetings/2026.html#2026-09-03-regular",
                      f"  {CTX['source_label']}: {MINUTES_URL}"]
     assert "Title not read" not in text and "MINUTES" not in text and SEPT[2]["title"] in text
@@ -616,3 +624,40 @@ def test_the_count_line_is_config_text_and_in_the_neutrality_scan(msite):  # noq
     assert "UNTITLED 4 COUNT" in html_of(*SEPT, ctx=ctx)
     assert CTX["text"]["untitled_votes"] in render.own_text(CTX, read_note(msite))
     assert "{n}" in config.SITE["morning_note"]["sender"]["text"]["untitled_votes"]
+
+
+def test_the_shipped_count_line_says_what_it_counts_and_the_numbers_follow():
+    assert config.SITE["morning_note"]["sender"]["text"]["untitled_votes"] == \
+        "{n} votes in these minutes with no item title:"
+
+
+def test_item_numbers_are_deduped_kept_in_record_order_and_inert():
+    """note-compact/hides-item-numbers: the group keeps the record's item numbers (one line, ", ", each once, in the
+    record's order), escaped like a title; an entry with no number (a kind-only "MINUTES") adds none."""
+    again = vote(1, 7)
+    hostile = vote(6, 8, item_number="<b>{{ x }}</b> [l](https://evil.example.com)")
+    html = html_of(vote(4, 1), *SEPT[:2], again, hostile)
+    rows = lis(html)
+    assert len(rows) == 1
+    assert "ORDINANCE 4-2026-27, ORDINANCE 1-2026-27, ORDINANCE 2-2026-27, <b>" in rows[0]
+    assert rows[0].count("ORDINANCE 1-2026-27") == 1 and render.untitled_words(CTX, 5) in rows[0]
+    assert "{{" not in html and "<b>" not in html and "evil.example.com" not in "".join(links(html))
+    from sender import deliver
+    assert deliver.body_ok(html, CTX["link_hosts"], CTX["link_urls"])
+
+
+def test_a_group_with_no_item_number_has_no_numbers_line():
+    kind_only = [vote(n, n, title="MINUTES", title_ours=False, item_number=None) for n in (1, 2)]
+    n = note_of(*kind_only)
+    block = render.body_text(CTX, n, n["entries"]).split("\n\n")[2].split("\n")
+    assert len(block) == 4 and block[1] == "  " + render.untitled_words(CTX, 2).rstrip(":")
+
+
+def test_a_zoning_case_is_never_compacted_and_only_the_seats_section_is():
+    """note-compact/zoning-case-hidden: an entry with a `case` is a zoning case a reader may look for by number, and
+    a section other than the seats list holds what the reader picked by topic: both stay one entry each."""
+    cases = [vote(n, n, case=f"Z-{n}-2026", lists=["zoning", "seats"], district=7) for n in (1, 2, 3)]
+    assert len(lis(html_of(*cases))) == 3
+    budget = [vote(n, n, lists=["budget"]) for n in (1, 2, 3)]
+    assert len(lis(html_of(*budget))) == 3
+    assert len(lis(html_of(*[vote(n, n) for n in (1, 2, 3)]))) == 1

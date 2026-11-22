@@ -813,8 +813,9 @@ def test_vote_entries_say_whether_the_record_printed_a_title_and_name_their_meet
     got = {e["id"]: e for e in entries}
     for item, want in ((no_title["id"], True), (kind_only["id"], True), (titled["id"], False)):
         assert {got[i]["untitled"] for i in by_item[item]} == {want}, item
+        assert {got[i]["item_number"] for i in by_item[item]} == {ix.items[item].get("number")}, item
     for e in entries:
-        assert isinstance(e["untitled"], bool) and "meeting_href" in e
+        assert isinstance(e["untitled"], bool) and "meeting_href" in e and "item_number" in e
         if e["kind"] in ("vote", "agenda_item", "document") and e["body"] == config.SITE["county_key"]:
             m = next(m for m in f["meetings"] if m["date"] == e["meeting_date"] and ix.meeting_href(m["id"]) == e["meeting_href"])
             assert m and e["meeting_href"].startswith("meetings/")

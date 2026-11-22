@@ -356,7 +356,7 @@ def _entry(**kw) -> dict:
     e = {"id": None, "lists": [], "kind": None, "body": None, "body_name": None, "meeting_date": None, "meeting": None,
          "title": None,
          "title_ours": False, "recorded": None, "district": None, "ward": None, "case": None, "seat_body": None,
-         "href": None, "meeting_href": None, "source": {"url": None, "page": None}}
+         "href": None, "meeting_href": None, "item_number": None, "source": {"url": None, "page": None}}
     e.update(kw)
     e["lists"] = [k for k in LIST_KEYS if k in e["lists"]]
     # note/compact-untitled: the record printed no title of its own for this entry (the email gives a meeting's
@@ -476,7 +476,8 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                            if tally else None),
                     href=ix.item_href(it) if it else ix.meeting_href(m["id"]), meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={fact['page']}", "page": fact["page"]},
-                    title_ours=not (it and it.get("title")), untitled=_kind_only(it), **_seat_fields(case)))
+                    title_ours=not (it and it.get("title")), untitled=_kind_only(it),
+                    item_number=(it.get("number") or None) if it else None, **_seat_fields(case)))
         else:   # an agenda: the items printed on it, as the facts record them
             seen = {}
             for e in ix.facts["item_events"]:
@@ -492,6 +493,7 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     title=_number_title(it.get("number"), ix.item_title(it)),
                     lists=["seats"] + (["budget"] if "budget" in views.item_types(it) else [])
                     + (["zoning"] if case else []), title_ours=not it.get("title"), untitled=_kind_only(it),
+                    item_number=it.get("number") or None,
                     recorded=txt["agenda_item"], seat_body=seat_body, href=ix.item_href(it),
                     meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={e['page']}", "page": e["page"]}, **_seat_fields(case)))

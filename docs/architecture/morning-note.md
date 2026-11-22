@@ -117,10 +117,12 @@ T1 additions (additive; T3 and the sender may rely on them):
   agendas) so reads as two meetings, not a duplicate. It is in `own_text`, so the neutrality scan reads it;
 - every zoning entry carries `case`: the case number in its one comparable form (rpc_minutes.link_key), `null` on
   other entries; `unplaced_zoning` counts distinct cases (a case on an agenda and in the minutes is one case);
-- every entry carries `untitled` and `meeting_href` (additive, 2026-11-22, note/compact-untitled): `untitled` is true
+- every entry carries `untitled`, `meeting_href` and `item_number` (additive, 2026-11-22, note/compact-untitled):
+  `untitled` is true
   when the record printed no title of its own (`title_ours`, or a county/council item whose printed title is only a
   document kind, `morning.DOCUMENT_KINDS`: "MINUTES"); `meeting_href` is the site's page of the entry's meeting for
-  county and council entries, else `null`. The email uses both (Body, below); the preview page ignores them.
+  county and council entries, else `null`; `item_number` is the county/council item's own printed number
+  ("ORDINANCE 95-2025-26"), else `null`. The email uses them (Body, below); the preview page ignores them.
 
 `select(day, lists, seats) -> list[entry]` (Python, `sitegen/morning.py`) is the one filter: `seats` and `budget`/
 `contracts` membership is by `lists`; `zoning` and `seats` also need the seat match above. `morning.js` mirrors it;
@@ -251,12 +253,17 @@ and meeting (config `morning_note.text.meeting_line`, "{body}, {date} {meeting}"
 `unplaced_text` when set; then one config line saying why the reader got this; the HTML edition then closes with the
 site footer's gnoshcodes credit (`common.CREDIT_LINE`, note/credit-logo, Brian 2026-11-17: the hook wordmark PNG at
 `https://daylight.gnoshcodes.com/static/brand/gnoshcodes-hook-light.png`, 160x32, alt "gnoshcodes", "A gnoshcodes
-project."), the one image `deliver.body_ok` accepts, as that exact line. A meeting's untitled votes (`kind` vote,
-`untitled` true, a `meeting_href`) stand as one item when a section holds `render.COMPACT_MIN` (2) or more of them from
+project."), the one image `deliver.body_ok` accepts, as that exact line. In the seats section only
+(`render.COMPACT_LIST`), a meeting's untitled votes (`kind` vote, `untitled` true, a `meeting_href`, no `case`: a
+zoning case is never compacted) stand as one item when the section holds `render.COMPACT_MIN` (2) or more of them from
 one minutes document (note/compact-untitled; real data 2026-11-18: four past council meetings' minutes gave a seats
 reader 51 entries, about 320 lines): the meeting line, config `morning_note.sender.text.untitled_votes` with `{n}` the
-count (no outcome, no tally, no name), a link to `site_url` + `meeting_href` and one to the minutes document (its URL
-without `#page=`), at the place of the first of them; a lone untitled vote and every titled entry stand as before.
+count ("{n} votes in these minutes with no item title:"), then one line of the record's own `item_number`s, each once,
+in the record's order, joined with ", " and escaped like a title (none for a kind-only "MINUTES"; with no number at all
+the count line drops its trailing colon), then a link to `site_url` + `meeting_href` and one to the minutes document
+(its URL without `#page=`), at the place of the first of them; a lone untitled vote and every titled entry stand as
+before. The group shows no outcome, tally or name, so a confirmed roll call's outcome, which the preview page shows,
+is not in the email for these votes (the meeting page has it).
 `plan.json` still lists every entry id, and the edition key is unchanged (over every row), since the email is a pure
 function of its rows. Rules:
 - every title and URL is HTML-escaped, and `{{`, `{%` and a leading `---` are neutralised, because the body goes
