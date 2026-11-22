@@ -1060,6 +1060,26 @@ def test_a_degraded_government_is_named_by_id_and_state_word_only(tmp_path):
     assert "governments degraded: 60" in body and body.count(": bad-instant\n") == 50
 
 
+@pytest.mark.skipif(not __import__("shutil").which("jq"), reason="jq not installed")
+@pytest.mark.xfail(strict=True, reason="S2b ruling 5: waits on the D-ISO-9 step diff in daily-update.yml (workflow "
+                   "edits are coordinated with protect-main's pinned blob SHAs); drop this marker with it")
+def test_more_than_twenty_percent_stale_opens_the_issue(tmp_path):
+    """S2b ruling 5 (architecture 6 "Observability"; code review nit 4, national-observability/no-root-silent): the
+    run log's `national_stale.alarm` (sitegen.national_pages.stale_report) opens the D-ISO-9 issue with no degraded
+    state; the body holds the counts and only ids that pass the id check. No alarm: nothing."""
+    sentinel = "SENTINEL-ITEM-TEXT"
+    stale = {"covered": 4, "stale": 3, "alarm": True, "ids": ["place-4799990", f"x {sentinel}\n- injected", "place-1"]}
+    calls, body = _degraded(tmp_path, {"national": "built", "national_states": {}, "national_stale": stale})
+    assert calls[-1].startswith("issue create --repo o/r --title Daily update: national pages degraded")
+    assert "stale: 3 of 4 collected governments" in body and "- place-4799990\n" in body
+    assert body.count("- unknown\n") == 2 and sentinel not in body and "injected" not in body
+    for quiet in ({"covered": 5, "stale": 1, "alarm": False, "ids": ["place-4799990"]}, {"alarm": "true"}, "junk"):
+        calls, _b = _degraded(tmp_path / str(len(str(quiet))), {"national": "built", "national_stale": quiet})
+        assert calls == [], quiet
+    _c, body = _degraded(tmp_path / "odd", {"national": "built", "national_stale": {"covered": "9; x", "alarm": True}})
+    assert "stale: 0 of unknown collected governments" in body
+
+
 # D-ISO-10 (code review findings 2 and 3): the D-ISO-9 step's shell rules against the Python they copy.
 CASE_RE = re.compile(r'case "\$state" in ([a-z|-]+)\) ;; \*\) state=unknown ;; esac')
 ID_TEST_RE = re.compile(r'\[\[ "\$id" =~ (\S+) \]\] \|\| id=unknown')
@@ -1068,7 +1088,8 @@ ID_TEST_RE = re.compile(r'\[\[ "\$id" =~ (\S+) \]\] \|\| id=unknown')
 def _shell_rules():
     run = _steps(DAILY, "update")[DEGRADED_STEP]["run"]
     cases, ids = CASE_RE.findall(run), ID_TEST_RE.findall(run)
-    assert len(cases) == 1 and len(ids) == 1, (cases, ids)
+    # one id rule: the degraded list and (S2b ruling 5) the stale list each check ids with the same regex
+    assert len(cases) == 1 and 1 <= len(ids) <= 2 and len(set(ids)) == 1, (cases, ids)
     return cases[0].split("|"), ids[0]
 
 
@@ -1281,15 +1302,29 @@ def test_the_report_issue_is_fixed_text_and_job_results_only():
     assert len(job["steps"]) == 1 and "uses" not in step and "${{" not in step["run"]
     assert "--app github-actions" in step["run"] and "--body-file" in step["run"]
     assert step["env"]["NATIONAL_TITLE"] == "National update: run failed or flagged"
-    # 12.3 #12 (S2b nit d): the body is fixed text, with no "not affected" claim until 12.3 #1-9 pass on main
     body = [ln.strip() for ln in step["run"].splitlines() if ln.strip().startswith("echo ")]
-    assert body == ['echo "The national update needs a look: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/'
-                    '$GITHUB_RUN_ID"', 'echo ""',
-                    'echo "gate: $(word "$GATE"); collect: $(word "$COLLECT"); push: $(word "$PUSH"); flagged (exit 3):'
-                    ' $flagged."', 'echo ""',
-                    'echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its'
-                    ' outputs."']
-    assert "not affected" not in step["run"].lower()
+    assert body[:4] == ['echo "The national update needs a look: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/'
+                        '$GITHUB_RUN_ID"', 'echo ""',
+                        'echo "gate: $(word "$GATE"); collect: $(word "$COLLECT"); push: $(word "$PUSH"); flagged '
+                        '(exit 3): $flagged."', 'echo ""']
+
+
+RESTORED = ['echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its outputs. '
+            'The"',
+            'echo "Clarksville site is not affected: the daily deploy shows national governments as stale until a good '
+            'run."']
+
+
+@pytest.mark.xfail(strict=True, reason="12.3 #12 restore line: waits on the national-update.yml report-body diff "
+                   "(workflow edits are coordinated with protect-main's pinned blob SHAs); drop this marker with it")
+def test_the_report_issue_restores_the_not_affected_line():
+    """12.3 #12 (S2b nit d, architecture 12.1 row 24): the "not affected" sentence was dropped until 12.3 #1-9 passed
+    on main; they do (tests/test_national_isolation.py, #69), so the body ends with it again, as first written
+    (f683c2a2), and the comment above the step no longer says it is untrue."""
+    step = NAT["jobs"]["report"]["steps"][0]
+    body = [ln.strip() for ln in step["run"].splitlines() if ln.strip().startswith("echo ")]
+    assert body[4:] == RESTORED
+    assert "it is untrue until" not in NAT_PATH.read_text(encoding="utf-8")
 
 
 def test_no_job_names_an_environment():
