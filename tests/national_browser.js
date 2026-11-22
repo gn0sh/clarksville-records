@@ -304,6 +304,22 @@ async function runCase(browser, c) {
   await ctx.close();
 }
 
+// --- the fold: after a lookup the form is hidden and the one-row fold is shown; "Look up another" brings the form back --
+async function runFold(browser) {
+  const c = RECORDED[0], label = 'fold, ' + c.name;
+  const { ctx, page, log } = await session(browser, { webdriverOff: true });
+  log.answer = c.answer;
+  await open(page);
+  await lookUp(page, c.typed);
+  check(`${label}: the address box is hidden after a lookup`, await page.locator('#digest-q').isHidden(), null);
+  check(`${label}: the folded row is visible`, await page.locator('#digest-folded').isVisible(), null);
+  await page.locator('#digest-another').click();
+  check(`${label}: another shows the form`, await page.locator('#digest-q').isVisible(), null);
+  check(`${label}: another moves focus to the address box`,
+    await page.evaluate(() => document.activeElement && document.activeElement.id === 'digest-q'), null);
+  await ctx.close();
+}
+
 // --- webdriver left true: no counter button, nothing sent to GoatCounter ------------------------------------------
 async function runAutomated(browser) {
   const c = RECORDED[0], label = 'automated browser (webdriver true)';
@@ -364,6 +380,7 @@ async function runNativePost(browser) {
   const browser = await chromium.launch();
   try {
     for (const c of RECORDED) { await runCase(browser, c); }
+    await runFold(browser);
     await runAutomated(browser);
     await runNativePost(browser);
   } finally {

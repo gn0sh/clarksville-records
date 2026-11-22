@@ -343,21 +343,22 @@ about officials); public request counts; special districts; Spanish; Android.
   question 12). Default: Can't cover for items, with meeting dates shown and the official agenda linked.
 - A14. Requests are a signal, not a vote. Confirmed email requests are the count that matters; anonymous counts, if
   built, are shown separately. Brian's OK per host still decides every opening.
-- A16. digest-warmth (`docs/design/digest-warmth.md` section 9, changes 1 and 2; applied 2026-11-22 on the manager's
+- A16. digest-warmth (pending Brian's approval at his preview test; switch-on prerequisite) (`docs/design/digest-warmth.md` section 9, changes 1 and 2; applied 2026-11-22 on the manager's
   brief, not yet confirmed by Brian): AC1.9 and AC1.10 no longer say "above the address box". The who-runs-it line
   and the "What we cover" link now follow the address card and its privacy lines, in view without opening anything.
   The words of both lines are unchanged. Assumed: the Brain Trust's reason for "above" was that the reader can see
   who runs the page before typing, and "in view, directly after the card" keeps that. If it was "read before the
   box", the fallback is the design's: both lines between the lede and the card at small size.
-- A17. digest-warmth (section 9, change 3): AC4.1 gains the closed toggle. The first three calendar months that have a
+- A17. digest-warmth (pending Brian's approval at his preview test; switch-on prerequisite) (section 9, change 3): AC4.1 gains the closed toggle. The first three calendar months that have a
   meeting print open (the next meeting's month counts); the rest sit in one native `<details>`, closed, as page text
   in the feed's order. The toggle is used only when the rest is more than one meeting over two or more months,
   because its one fixed label ("Show {n} later meetings, {from} to {to}") has no singular; a smaller rest prints
   open.
-- A18. digest-warmth (section 9, change 4): this spec has no line about orange; the rule was design 0a's ("no orange
+- A18. digest-warmth (pending Brian's approval at his preview test; switch-on prerequisite) (section 9, change 4): this spec has no line about orange; the rule was design 0a's ("no orange
   text, fill or border on a digest page"). It is relaxed there to: orange is decoration (the sun, its rays, the card
   edge) and the focus ring; never text and never a status. Status pills stay navy, and R2 (no red or green) is
   unchanged. A test pins it (`test_orange_is_decoration_only_never_text_and_never_a_status`).
+- A19. digest-warmth: the new labels (lede, how it works, Why look?, greeting, Next meeting, Thinking of going?) are pending Brian's approval at his preview test; switch-on prerequisite. The design's recommended Focus Group is skipped for now: Brian's hands-on preview test comes first; re-decide after it.
 - A19. digest-warmth (section 9, change 5): AC4.8 and AC4.9 are unchanged. The "Next meeting" and "Thinking of
   going?" labels are in `config/national/page-labels.yml` and print on every coming-up page with the same words;
   "Thinking of going?" is left out only where the directory has no checked official link (never an empty link).

@@ -16,8 +16,9 @@ def load(cfg: dict | None = None) -> dict:
                                 bodies=_join([b["name"] for b in u["bodies"]]))
     digest = u["digest_notice"].format(site_name=cfg["site_name"], operator=cfg["operator"])
     short = u["short"].format(bodies=_join([b["short"] for b in u["bodies"]]))
-    return {"tag": u["tag"], "notice": notice, "digest_notice": digest, "short": short, "correction_label": u["correction_label"],
-            "differ": u["differ"], "not_advice": u["not_advice"], "email_line": u["email_line"], "bodies": u["bodies"]}
+    return {"tag": u["tag"], "notice": notice, "digest_notice": digest, "short": short,
+            "correction_label": u["correction_label"], "differ": u["differ"], "not_advice": u["not_advice"],
+            "email_line": u["email_line"], "bodies": u["bodies"]}
 
 
 def problems(cfg: dict | None = None) -> list[str]:
@@ -26,8 +27,9 @@ def problems(cfg: dict | None = None) -> list[str]:
     u = cfg.get("unofficial")
     if not isinstance(u, dict):
         return ["unofficial: block is missing"]
-    bad = [f"unofficial.{k} is missing" for k in ("tag", "notice", "digest_notice", "correction_label", "differ", "not_advice",
-                                                  "email_line", "short", "bodies") if not u.get(k)]
+    keys = ("tag", "notice", "digest_notice", "correction_label", "differ", "not_advice", "email_line", "short",
+            "bodies")
+    bad = [f"unofficial.{k} is missing" for k in keys if not u.get(k)]
     for b in u.get("bodies") or []:
         if not (b.get("name") and b.get("short") and b.get("label") and str(b.get("url", "")).startswith("https://")):
             bad.append(f"unofficial.bodies entry {b!r} needs name, short, label and an https url")

@@ -60,8 +60,8 @@ Order on a phone:
 DAYLIGHT DIGEST                       eyebrow
 Your local government,                h1
 in broad daylight.
-A city council, a county commission   lede
-and a school board meet near you...
+Local governments like city councils, lede
+county commissions and school boards...
 +----------------------------------+
 | Your street address              |  the address card, lifted onto the hero
 | [ 100 Main St, City, State     ] |
@@ -87,7 +87,7 @@ Report an error on this page
 | `index.eyebrow` (new) | none | Daylight Digest |
 | `index.h1` | Find your local governments | Your local government, in broad daylight. |
 | `index.title` | Daylight Digest: Find your local governments | unchanged (the title stays the task, for search and tabs) |
-| `index.lede` | See every local government for your address: city or town, county, township and school district. We show what we cover and say plainly what we don't. | A city council, a county commission and a school board meet near you, in public, and decide things like roads, zoning, schools and local taxes. Type your address to see who they are and what they take up next. |
+| `index.lede` | See every local government for your address: city or town, county, township and school district. We show what we cover and say plainly what we don't. | Local governments like city councils, county commissions and school boards meet in public and decide things like roads, zoning, schools and local taxes. Type your address to see which ones govern you and what they take up next. |
 | `index.input-label` | Your street address | unchanged |
 | `index.placeholder` | 100 Main St, City, State | unchanged |
 | `index.find` | Find | Find my local governments |
@@ -97,9 +97,9 @@ Report an error on this page
 | `index.steps-h` (new) | none | How it works |
 | `index.step-1` (new) | none | **Type your address.** It goes to the Census Bureau, not to us. |
 | `index.step-2` (new) | none | **Meet your local governments.** City or town, county, township and school district, each marked covered, not covered yet or can't cover. |
-| `index.step-3` (new) | none | **See what's coming up.** Their next meetings and agendas, in their own words, each linked to the official document. |
+| `index.step-3` (new) | none | **See what's coming up.** Their next meetings and agendas, in their own words, linked to the official document where we cover them. |
 | `index.why-h` (new) | none | Why look? |
-| `index.why-1` (new) | none | These meetings are where your street, your schools and your local tax bill get decided. The agendas are public records, and most meetings are open to anyone who walks in. |
+| `index.why-1` (new) | none | Meetings like these are where streets, schools and local taxes get decided. The agendas are public records, and most meetings are open to anyone who walks in. |
 | `index.why-2` (new) | none | You don't have to speak. Knowing what's on the agenda is a good place to start. |
 | `index.who` | (who runs and pays) | unchanged, word for word (Brian approves its facts) |
 | `index.toggle-*`, `index.census-notice`, `index.noscript` | | unchanged |

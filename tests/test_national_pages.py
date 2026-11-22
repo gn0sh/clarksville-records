@@ -1145,9 +1145,9 @@ WARM_COPY = {
     "index.eyebrow": "Daylight Digest",
     "index.h1": "Your local government,",
     "index.h1-2": "in broad daylight.",
-    "index.lede": "A city council, a county commission and a school board meet near you, in public, and decide things "
-                  "like roads, zoning, schools and local taxes. Type your address to see who they are and what they "
-                  "take up next.",
+    "index.lede": "Local governments like city councils, county commissions and school boards meet in public and decide "
+                  "things like roads, zoning, schools and local taxes. Type your address to see which ones govern you "
+                  "and what they take up next.",
     "index.find": "Find my local governments",
     "index.steps-h": "How it works",
     "index.step-1-h": "Type your address.",
@@ -1156,9 +1156,9 @@ WARM_COPY = {
     "index.step-2": "City or town, county, township and school district, each marked covered, not covered yet or "
                     "can't cover.",
     "index.step-3-h": "See what's coming up.",
-    "index.step-3": "Their next meetings and agendas, in their own words, each linked to the official document.",
+    "index.step-3": "Their next meetings and agendas, in their own words, linked to the official document where we cover them.",
     "index.why-h": "Why look?",
-    "index.why-1": "These meetings are where your street, your schools and your local tax bill get decided. The "
+    "index.why-1": "Meetings like these are where streets, schools and local taxes get decided. The "
                    "agendas are public records, and most meetings are open to anyone who walks in.",
     "index.why-2": "You don't have to speak. Knowing what's on the agenda is a good place to start.",
     "lookup.greet": "{place}, here's who governs you.",

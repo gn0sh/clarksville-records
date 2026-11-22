@@ -49,7 +49,7 @@ labels:
   # the heading is one sentence in two parts, so the second part can sit on its own line (design section 3)
   index.h1: "Your local government,"
   index.h1-2: in broad daylight.
-  index.lede: A city council, a county commission and a school board meet near you, in public, and decide things like roads, zoning, schools and local taxes. Type your address to see who they are and what they take up next.
+  index.lede: Local governments like city councils, county commissions and school boards meet in public and decide things like roads, zoning, schools and local taxes. Type your address to see which ones govern you and what they take up next.
   index.who: Daylight Digest is run and paid for by gnoshcodes LLC, a small software company in Clarksville, Tennessee. It takes no ads and no political money. [Who runs this]
   index.cover-link: See what we cover first, without typing anything
   index.input-label: Your street address
@@ -69,9 +69,9 @@ labels:
   index.step-2-h: Meet your local governments.
   index.step-2: City or town, county, township and school district, each marked covered, not covered yet or can't cover.
   index.step-3-h: See what's coming up.
-  index.step-3: Their next meetings and agendas, in their own words, each linked to the official document.
+  index.step-3: Their next meetings and agendas, in their own words, linked to the official document where we cover them.
   index.why-h: Why look?
-  index.why-1: These meetings are where your street, your schools and your local tax bill get decided. The agendas are public records, and most meetings are open to anyone who walks in.
+  index.why-1: Meetings like these are where streets, schools and local taxes get decided. The agendas are public records, and most meetings are open to anyone who walks in.
   index.why-2: You don't have to speak. Knowing what's on the agenda is a good place to start.
 
   # Lookup states and the list (design sections 2 and 3), for national.js (F2)
