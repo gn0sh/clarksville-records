@@ -688,26 +688,100 @@ jobs:
           RECORDS_SITE_URL: https://daylight.gnoshcodes.com/   # the editions link site pages from alerts.site_url
         run: python -m sender plan --rehearse --site build/site --out build/morning-send
 
-      # The browser tests (tests/*_browser.js through tests/test_national_browser.py and the others) use Node
-      # Playwright, so this installs exactly tests/playwright/package-lock.json (playwright and playwright-core 1.63.0,
-      # each with its sha512): npm ci refuses a lock that does not match, and --ignore-scripts runs no package script
-      # in this job. Outside the checkout (runner temp), so the tree the tests and the build read is unchanged. Then
-      # that Playwright's own Chromium and its system libraries. No token, no permission: the job's are unchanged.
+      # The browser tests (tests/*_browser.js, run by tests/test_national_browser.py, test_csp.py and the 16 other
+      # browser-gated files) use Node Playwright. This step installs exactly tests/playwright/package-lock.json
+      # (playwright and playwright-core 1.63.0, each with its sha512) into runner temp, outside the checkout, so the tree
+      # the tests and the build read is unchanged: npm ci refuses a lock that does not match, and --ignore-scripts runs
+      # no package script. Then that Playwright's system libraries (apt, signed Ubuntu packages) and its Chromium
+      # (Chrome for Testing 153.0.8010.12 and its headless shell, revision 1243) into $RUNNER_TEMP/pw-browsers.
+      # Security review bbc603a F1 (ci-supply/browser-bytes-unverified): Playwright checks a download's size only, so
+      # before anything runs the browser the installed tree must match tests/playwright/browsers.sha256 file for file
+      # (made by tests/playwright/browsers-sha256.sh): no extra, missing, linked or changed file. The install skips
+      # Playwright's host check (PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: it runs ldd on the downloaded binaries
+      # before they are checked); ffmpeg, which Playwright adds to every chromium install, is used only to record video
+      # (no test does) and is deleted unrun. A mismatch (or an npm EINTEGRITY) fails this step and the job, always.
+      # Code review bbc603a #1 (daily-run/install-step-hard-dependency): a failed download (npm, apt or the browser,
+      # each tried three times, 30 s then 90 s apart) or a runner without Node 20 or newer is a warning instead, the
+      # browser folder is removed and browsers=missing: the Tests step then leaves Playwright off PATH, the browser tests
+      # skip, and Clarksville still publishes, while config/site.yml national.enabled is off. Once it is on,
+      # tests/test_national_browser.py (_browser_required) fails instead of skipping. No token, no permission.
       - name: Install Playwright and Chromium (browser tests)
-        timeout-minutes: 10
+        id: browsers
+        timeout-minutes: 50   # above three tries of each part (each under its own timeout) plus the pauses
+        env:
+          PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: "1"
         run: |
           set -euo pipefail
           pw="$RUNNER_TEMP/playwright"
+          br="$RUNNER_TEMP/pw-browsers"
+          export PLAYWRIGHT_BROWSERS_PATH="$br"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$br" >> "$GITHUB_ENV"
+          missing() {
+            echo "::warning::Browser tests: $1 The browser tests skip this run (they fail instead once national.enabled is on); everything else runs."
+            rm -rf -- "$br"
+            echo "browsers=missing" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          tries() {   # tries <what> <command...>: up to three tries, 30 s then 90 s apart
+            local what=$1 pause
+            shift
+            for pause in 30 90 last; do
+              if "$@"; then return 0; fi
+              [ "$pause" = last ] && return 1
+              echo "::warning::$what failed; trying again in $pause s."
+              sleep "$pause"
+            done
+          }
+          npm_ci() {
+            local rc=0
+            timeout --kill-after=15 180 npm ci --prefix "$pw" --ignore-scripts --no-audit --no-fund > "$pw.npm.log" 2>&1 || rc=$?
+            cat "$pw.npm.log"
+            if grep -q EINTEGRITY "$pw.npm.log"; then
+              echo "::error::npm ci: a package does not match its sha512 in tests/playwright/package-lock.json. Nothing is built."
+              exit 1
+            fi
+            return "$rc"
+          }
+          deps() { timeout --kill-after=15 300 "$pw/node_modules/.bin/playwright" install-deps chromium; }
+          download() { rm -rf -- "$br"; timeout --kill-after=15 420 "$pw/node_modules/.bin/playwright" install chromium; }
+          command -v node > /dev/null || missing "node is not on this runner."
+          echo "node $(node --version)"
+          major=$(node -p 'process.versions.node.split(".")[0]' 2> /dev/null) || major=0
+          [[ "$major" =~ ^[0-9]+$ ]] && [ "$major" -ge 20 ] || missing "Node 20 or newer is needed (Playwright 1.63)."
           mkdir -p "$pw"
           cp tests/playwright/package.json tests/playwright/package-lock.json "$pw/"
-          npm ci --prefix "$pw" --ignore-scripts --no-audit --no-fund
+          tries "npm ci" npm_ci || missing "npm ci failed three times."
           "$pw/node_modules/.bin/playwright" --version
-          "$pw/node_modules/.bin/playwright" install --with-deps chromium
+          tries "The system libraries install" deps || missing "the system libraries install failed three times."
+          tries "The Chromium download" download || missing "the Chromium download failed three times."
+          # browser-tree-check (tests/test_browser_install_step.py runs this step with stubs and tampered trees)
+          man="$PWD/tests/playwright/browsers.sha256"
+          bad() { echo "::error::The installed Chromium does not match tests/playwright/browsers.sha256 ($1). Nothing ran it; nothing is built."; exit 1; }
+          line='^[0-9a-f]{64}  (chromium|chromium_headless_shell)-[0-9]+/[A-Za-z0-9._/@+-]+$'
+          [ -s "$man" ] && ! grep -qvE "$line" "$man" || bad "the list is malformed"
+          rm -rf -- "$br"/ffmpeg-[0-9]*
+          dirs=$(cut -c67- "$man" | cut -d/ -f1 | LC_ALL=C sort -u)
+          [ "$(printf '%s\n' .links $dirs | LC_ALL=C sort)" = "$(cd "$br" && find . -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" ] \
+            || bad "a folder added or missing"
+          [ -z "$(find "$br/.links" -mindepth 1 ! -type f -print -quit)" ] || bad "more than files in .links"
+          [ -z "$(cd "$br" && find $dirs ! -type d ! -type f -print -quit)" ] || bad "a link or special file"
+          [ "$(cd "$br" && find $dirs -type f | LC_ALL=C sort)" = "$(cut -c67- "$man" | LC_ALL=C sort)" ] || bad "a file added or missing"
+          (cd "$br" && sha256sum --quiet --strict -c "$man") || bad "a file's sha256 differs"
+          echo "Chromium checked: $(wc -l < "$man") files match tests/playwright/browsers.sha256."
+          # end browser-tree-check
+          echo "browsers=ok" >> "$GITHUB_OUTPUT"
 
+      # Security review bbc603a F2 (ci-browser/probe-skips-silently): the browser-gated test files (test_csp.py and
+      # the others) look for `playwright` on PATH, so this step (not GITHUB_PATH: no later step sees it) puts the
+      # installed one first, only when the step above checked its Chromium. F3 (ci-test/x-flag-and-rerun): no -x, so
+      # one run shows every failure; one rerun of the failures only (--lf) absorbs a flake, and a real failure fails it.
       - name: Tests (full suite, about 12 min, default settings)
         env:
           NODE_PATH: ${{ runner.temp }}/playwright/node_modules   # where the browser tests find Playwright
-        run: python -m pytest -q -x
+          BROWSERS: ${{ steps.browsers.outputs.browsers }}        # ok: the Chromium above matched its sha256 list
+        run: |
+          if [ "${BROWSERS:-}" = ok ]; then PATH="$RUNNER_TEMP/playwright/node_modules/.bin:$PATH"; fi
+          python -m pytest -q || { echo "::warning::tests failed once; rerunning the failures"; python -m pytest -q --lf; }
 
       # I-pub, the content tripwire (ADR 0011 decision 4 and Amendment (c); collector/tripwire.py): compares the
       # votes, roll calls and outcomes of the tree the live site was built from (named by its build-info.json) with
@@ -1152,8 +1226,16 @@ jobs:
           done < "$rows.stale"
           if [ "$status" != degraded ] && [ "$n" = 0 ] && [ "$alarm" != yes ]; then exit 0; fi
           body="$RUNNER_TEMP/national-degraded-issue.md"
+          # security review bbc603a F6 (national-observability/alarm-says-degraded): the opening line names the cause
+          if [ "$status" != degraded ] && [ "$n" = 0 ]; then
+            cause="More than 20% of the covered national governments were stale in this run (none was built degraded)"
+          elif [ "$alarm" = yes ]; then
+            cause="The national pages were built degraded, and more than 20% of the covered governments were stale, in this run"
+          else
+            cause="The national pages were built degraded in this run"
+          fi
           {
-            echo "The national pages were built degraded in this run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "$cause: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo ""
             echo "national: $status; governments degraded: $n (the first 50 below)."
             echo ""
