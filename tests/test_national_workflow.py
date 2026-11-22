@@ -1061,8 +1061,6 @@ def test_a_degraded_government_is_named_by_id_and_state_word_only(tmp_path):
 
 
 @pytest.mark.skipif(not __import__("shutil").which("jq"), reason="jq not installed")
-@pytest.mark.xfail(strict=True, reason="S2b ruling 5: waits on the D-ISO-9 step diff in daily-update.yml (workflow "
-                   "edits are coordinated with protect-main's pinned blob SHAs); drop this marker with it")
 def test_more_than_twenty_percent_stale_opens_the_issue(tmp_path):
     """S2b ruling 5 (architecture 6 "Observability"; code review nit 4, national-observability/no-root-silent): the
     run log's `national_stale.alarm` (sitegen.national_pages.stale_report) opens the D-ISO-9 issue with no degraded
@@ -1315,8 +1313,6 @@ RESTORED = ['echo "A failed collect or push changes nothing on national-data; a 
             'run."']
 
 
-@pytest.mark.xfail(strict=True, reason="12.3 #12 restore line: waits on the national-update.yml report-body diff "
-                   "(workflow edits are coordinated with protect-main's pinned blob SHAs); drop this marker with it")
 def test_the_report_issue_restores_the_not_affected_line():
     """12.3 #12 (S2b nit d, architecture 12.1 row 24): the "not affected" sentence was dropped until 12.3 #1-9 passed
     on main; they do (tests/test_national_isolation.py, #69), so the body ends with it again, as first written

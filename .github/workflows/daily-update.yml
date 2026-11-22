@@ -688,7 +688,25 @@ jobs:
           RECORDS_SITE_URL: https://daylight.gnoshcodes.com/   # the editions link site pages from alerts.site_url
         run: python -m sender plan --rehearse --site build/site --out build/morning-send
 
+      # The browser tests (tests/*_browser.js through tests/test_national_browser.py and the others) use Node
+      # Playwright, so this installs exactly tests/playwright/package-lock.json (playwright and playwright-core 1.63.0,
+      # each with its sha512): npm ci refuses a lock that does not match, and --ignore-scripts runs no package script
+      # in this job. Outside the checkout (runner temp), so the tree the tests and the build read is unchanged. Then
+      # that Playwright's own Chromium and its system libraries. No token, no permission: the job's are unchanged.
+      - name: Install Playwright and Chromium (browser tests)
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          pw="$RUNNER_TEMP/playwright"
+          mkdir -p "$pw"
+          cp tests/playwright/package.json tests/playwright/package-lock.json "$pw/"
+          npm ci --prefix "$pw" --ignore-scripts --no-audit --no-fund
+          "$pw/node_modules/.bin/playwright" --version
+          "$pw/node_modules/.bin/playwright" install --with-deps chromium
+
       - name: Tests (full suite, about 12 min, default settings)
+        env:
+          NODE_PATH: ${{ runner.temp }}/playwright/node_modules   # where the browser tests find Playwright
         run: python -m pytest -q -x
 
       # I-pub, the content tripwire (ADR 0011 decision 4 and Amendment (c); collector/tripwire.py): compares the
@@ -1084,6 +1102,9 @@ jobs:
       # holds fixed text, the national word, counts, and only ids and state words that pass the checks below (anything
       # else shows as "unknown"): never a line of input text. No run-log (a failed or rebuild-only run), switch off
       # (`off`) or `built` with no state: nothing. main only, like the other national issue.
+      # S2b ruling 5 (architecture 6 "Observability"): also when `national_stale.alarm` is true, i.e. more than 20% of
+      # the covered collected governments are stale in the page directory (sitegen.national_pages.stale_report; no
+      # root or a timed-out lookup makes them all stale: code review nit 4). Counts and checked ids only.
       # D-ISO-13 (S2c nit c, recorded as built): a rebuild-only run ("Rebuild site from committed data") runs sitegen
       # and `collector export`, never `collector run`, so it writes no run-log.json and a degraded rebuild opens no
       # issue here. Its signal is the national step's ::warning::/::error:: lines in its own log; a person started it
@@ -1115,7 +1136,21 @@ jobs:
             case "$state" in withheld-items|bad-date|bad-instant|bad-file|adapter-error|render-error) ;; *) state=unknown ;; esac
             if [ "$n" -le 50 ]; then list="$list- $id: $state"$'\n'; fi
           done < "$rows.raw"
-          if [ "$status" != degraded ] && [ "$n" = 0 ]; then exit 0; fi
+          alarm=$(jq -r 'if (.national_stale | type) == "object" and .national_stale.alarm == true then "yes" else "no" end' \
+                    "$log" 2>/dev/null) || alarm=no
+          covered=$(jq -r '.national_stale | if type == "object" then .covered else null end | tostring' \
+                      "$log" 2>/dev/null) || covered=x
+          [[ "$covered" =~ ^[0-9]{1,6}$ ]] || covered=unknown
+          jq -r '.national_stale | if type == "object" and (.ids | type) == "array" then .ids[] | strings | gsub("[^a-z0-9-]"; "?") else empty end' \
+            "$log" 2>/dev/null > "$rows.stale" || : > "$rows.stale"
+          stale_list=""
+          s=0
+          while IFS= read -r id; do
+            s=$((s + 1))
+            [[ "$id" =~ ^(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})$ ]] || id=unknown
+            if [ "$s" -le 50 ]; then stale_list="$stale_list- $id"$'\n'; fi
+          done < "$rows.stale"
+          if [ "$status" != degraded ] && [ "$n" = 0 ] && [ "$alarm" != yes ]; then exit 0; fi
           body="$RUNNER_TEMP/national-degraded-issue.md"
           {
             echo "The national pages were built degraded in this run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
@@ -1123,6 +1158,10 @@ jobs:
             echo "national: $status; governments degraded: $n (the first 50 below)."
             echo ""
             printf '%s' "$list"
+            echo ""
+            echo "stale: $s of $covered collected governments (more than 20% stale opens this issue; the first 50 below)."
+            echo ""
+            printf '%s' "$stale_list"
             echo ""
             echo "A degraded government's page and JSON show no meetings (stale) until a good build. Its line in the log"
             echo "reads 'National pages: <id>: <state> (<exception type>)'; 'built with no data' means every national page"
