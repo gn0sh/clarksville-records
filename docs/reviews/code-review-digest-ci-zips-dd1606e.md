@@ -26,3 +26,7 @@ tests exercise real zips/unzip, stubbed curl, escapes, retries, no-retry paths.
 |---|---|---|---|
 | 1, 2, 3, 4, 5, 7 | yes, fixed in this PR | small adds | devops-engineer |
 | 6 | no (matches sibling steps; revisit if on-call noise) | none | - |
+
+## Delta re-review (07e9bcc), 2026-11-22
+Findings 1, 2, 3, 4, 5, 7 closed (1 checked against the real playwright-core@1.63.0 browsers.json: passes; 9 mismatch
+cases tested). 67 passed. New nit `tests/import-order` (test file :19, dropped as cosmetic). **Verdict: APPROVE.**
