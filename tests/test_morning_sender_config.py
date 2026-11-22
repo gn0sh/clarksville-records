@@ -36,7 +36,7 @@ def test_the_shipped_block_is_on_and_clean():
     assert s == {"enabled": True, "provider": "buttondown", "api_base": "https://api.buttondown.com/v1",
                  "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 400,
                  "max_recipients": 1000, "canary_only": False, "link_hosts": s["link_hosts"], "text": s["text"]}
-    assert sorted(s["text"]) == ["open_site", "subject", "why"]
+    assert sorted(s["text"]) == ["open_site", "subject", "untitled_votes", "why"]
     assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []
     off = note_off(config.SITE)
     assert morning.problems(off) == [] and site_url_problems(off) == []

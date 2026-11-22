@@ -183,6 +183,9 @@ morning_note:
       subject: "{site_name} morning note, {date}"
       why: You get this note because a record on a list you picked was added to the site since yesterday morning.
       open_site: Open the page on the site
+      # note/compact-untitled: one line for a meeting's votes whose record printed no title of its own (two or more
+      # from one minutes document), under the meeting line, with the meeting's page and the minutes. {n}: the count.
+      untitled_votes: "Minutes posted: {n} recorded votes with no title read"
   # Every word the sign-up section (alerts.html#note) and the preview page (morning/index.html) print around the
   # records' own titles. Neutral connective text only: no summary, no claim about anyone.
   page:

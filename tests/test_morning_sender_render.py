@@ -522,3 +522,97 @@ def test_no_support_link_off_the_link_hosts():
     n = note_of(entry(), support_line="Please help.", support_url="https://tips.elsewhere.example/")
     html = render.body_html(CTX, n, n["entries"])
     assert "tips.elsewhere.example" not in html and "Please help." not in html
+
+
+# ------------------------------------------------------------------ note/compact-untitled
+MINUTES_URL = "https://example.com/fixture/minutes-2026-09-03.pdf"
+
+
+def vote(n: int, page: int, untitled=True, meeting="2026-09-03", **kw) -> dict:
+    """A council vote of the made-up meeting `meeting`; untitled: the record printed no title (our fallback words)."""
+    e = entry(id=f"city/vote/rc-{meeting}-{n}", kind="vote", body="city", body_name="Fixture Council",
+              lists=["seats"], seat_body="ward", meeting_date=meeting, meeting="regular session",
+              title=f"ORDINANCE {n}-2026-27: Title not read from the minutes" if untitled else f"ORDINANCE {n}-2026-27: FIXTURE a real title",
+              title_ours=untitled, untitled=untitled, recorded="Recorded in the minutes; not confirmed",
+              href=f"city/items/2026.html#ordinance-{n}", meeting_href=f"city/meetings/2026.html#{meeting}-regular",
+              source={"url": f"{MINUTES_URL}#page={page}", "page": page}, confirmed=False, outcome=None, tally=None)
+    e.update(kw)
+    return e
+
+
+SEPT = [vote(1, 2), vote(2, 3), vote(3, 4, untitled=False), vote(4, 5), vote(5, 6, title="MINUTES", title_ours=False)]
+
+
+def lis(html: str) -> list[str]:
+    return [n.all_text() for n in parse(html).walk() if n.tag == "li"]
+
+
+def test_a_meetings_untitled_votes_stand_as_one_line_with_a_count_and_two_links():
+    """2026-11-18: four past council meetings' minutes at once gave a seats reader 51 entries, nearly all titled
+    "Title not read from the minutes" or "MINUTES". The email gives a meeting's untitled votes one line: the meeting,
+    a count (config text), its page on the site and the minutes document, once each; a titled vote stays itself."""
+    html = html_of(*SEPT)
+    rows = lis(html)
+    assert len(rows) == 2
+    words = render.untitled_words(CTX, 4)
+    assert words == CTX["text"]["untitled_votes"].replace("{n}", "4") and "4" in words
+    assert rows[0].startswith("Fixture Council, September 3, 2026 regular session") and words in rows[0]
+    assert "Title not read" not in html and "MINUTES" not in html and "not confirmed" not in rows[0]
+    assert "FIXTURE a real title" in rows[1]
+    assert links(html)[:4] == [SITE_URL + "city/meetings/2026.html#2026-09-03-regular", MINUTES_URL,
+                               SITE_URL + "city/items/2026.html#ordinance-3", f"{MINUTES_URL}#page=4"]
+    assert [n.all_text() for n in parse(html).walk() if n.tag == "strong"] == [SEPT[2]["title"]]
+
+
+def test_the_text_body_reads_the_same_compact_edition():
+    n = note_of(*SEPT)
+    text = render.body_text(CTX, n, n["entries"])
+    block = text.split("\n\n")[2].split("\n")
+    assert block == ["  Fixture Council, September 3, 2026 regular session", f"  {render.untitled_words(CTX, 4)}",
+                     f"  {CTX['text']['open_site']}: {SITE_URL}city/meetings/2026.html#2026-09-03-regular",
+                     f"  {CTX['source_label']}: {MINUTES_URL}"]
+    assert "Title not read" not in text and "MINUTES" not in text and SEPT[2]["title"] in text
+
+
+def test_one_line_per_meeting_and_a_lone_untitled_vote_stays_itself():
+    oct_ = [vote(n, n, meeting="2026-10-01") for n in (7, 8, 9)]
+    lone = vote(10, 2, meeting="2026-08-06")
+    rows = lis(html_of(lone, *SEPT, *oct_))
+    assert len(rows) == 4
+    assert lone["title"] in rows[0]                                    # one untitled vote: as it reads today
+    assert render.untitled_words(CTX, 4) in rows[1] and render.untitled_words(CTX, 3) in rows[3]
+    assert "October 1, 2026" in rows[3]
+
+
+def test_untitled_votes_from_two_documents_of_one_meeting_are_two_lines():
+    other = [vote(n, 1, source={"url": f"https://example.com/fixture/other.pdf#page={n}", "page": n}) for n in (11, 12)]
+    rows = lis(html_of(*SEPT[:2], *other))
+    assert len(rows) == 2 and all(render.untitled_words(CTX, 2) in x for x in rows)
+
+
+@pytest.mark.parametrize("gone", ["untitled", "meeting_href"])
+def test_a_note_without_the_untitled_fields_renders_every_entry_as_before(gone):
+    rows = [{k: v for k, v in e.items() if k != gone} for e in SEPT]
+    assert len(lis(html_of(*rows))) == len(SEPT)
+
+
+def test_only_votes_are_compacted():
+    rows = [{**e, "kind": "agenda_item", "recorded": "On the agenda"} for e in SEPT]
+    assert len(lis(html_of(*rows))) == len(SEPT)
+
+
+def test_a_compact_line_passes_the_deliver_check_and_its_links_obey_the_hosts():
+    from sender import deliver
+    assert deliver.body_ok(html_of(*SEPT), CTX["link_hosts"], CTX["link_urls"])
+    off = [{**e, "source": {"url": "https://elsewhere.example.org/m.pdf#page=2", "page": 2},
+            "meeting_href": "../evil.html"} for e in SEPT if e["untitled"]]
+    html = html_of(*off)
+    assert len(lis(html)) == 1 and links(html) == []
+    assert "elsewhere.example.org" not in html and "evil" not in html
+
+
+def test_the_count_line_is_config_text_and_in_the_neutrality_scan(msite):  # noqa: F811
+    ctx = {**CTX, "text": {**CTX["text"], "untitled_votes": "UNTITLED {n} COUNT"}}
+    assert "UNTITLED 4 COUNT" in html_of(*SEPT, ctx=ctx)
+    assert CTX["text"]["untitled_votes"] in render.own_text(CTX, read_note(msite))
+    assert "{n}" in config.SITE["morning_note"]["sender"]["text"]["untitled_votes"]

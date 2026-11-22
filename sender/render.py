@@ -2,7 +2,8 @@
 no connection.
 
 The body is the site name and the date, then per list its config label and that list's entries (body name, the
-connective text, the record's own title, a link to the site's page and a link to the source document), then the
+connective text, the record's own title, a link to the site's page and a link to the source document; a meeting's
+votes with no title of their own as one count line, items()), then the
 note's unplaced line when set, then one config line saying why the reader got this. The site's independence
 line (`unofficial.email_line`) stands under the date and its full notice (`unofficial.notice`) at the foot, then the
 note's support line and link when the note carries them (render/no-independence-line). It adds nothing the preview
@@ -23,7 +24,9 @@ from .common import CUT, MAX_TITLE  # noqa: F401  common's since subject-uncheck
 from .common import (CREDIT_LINE, DATE_RE, DOTS, MARKUP, ZWSP, clean, day_words, exact_url_ok, link_ok, parse_hosts,
                      subject_line)
 
-TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
+TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": (), "untitled_votes": ("{n}",)}
+# note/compact-untitled: a meeting's untitled votes stand as one line from this many on (a lone one stays itself)
+COMPACT_MIN = 2
 _INERT = {ord(c): f"&#{ord(c)};" for c in MARKUP}       # common.MARKUP: every markup character
 _LINE_START = re.compile(r"^[-+\s]+")       # a leading "---" (a rule or front matter), a "+" or "-" list mark
 # Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From
@@ -104,7 +107,8 @@ def own_text(ctx: dict, note: dict) -> list[str]:
     text, the labels it borrows from the page, and the note's own (sitegen.morning.own_text)."""
     from sitegen.morning import own_text as note_text
     support = support_of(ctx, note)
-    return [subject(ctx, note["date"]), ctx["text"]["why"], ctx["text"]["open_site"], ctx["source_label"],
+    return [subject(ctx, note["date"]), ctx["text"]["why"], ctx["text"]["open_site"], ctx["text"]["untitled_votes"],
+            ctx["source_label"],
             ctx["meeting_line"],
             ctx["page_label"], ctx["email_line"], ctx["notice"]] + (list(support[:2]) if support else []) + \
         note_text(note)
@@ -166,19 +170,77 @@ def _source_words(ctx: dict, page) -> str:
     return ctx["source_label"] + (f", {ctx['page_label']} {page}" if page else "")
 
 
+def untitled_vote(e: dict) -> bool:
+    """True for a vote whose record printed no title of its own (the note's `untitled`: our fallback words, a
+    meeting's label, or only the document's kind such as "MINUTES") and that names its meeting's page."""
+    return e.get("kind") == "vote" and e.get("untitled") is True and isinstance(e.get("meeting_href"), str) \
+        and bool(e["meeting_href"])
+
+
+def _document(e: dict):
+    """The entry's source document without its page (`#page=N`): the one link a meeting's untitled votes share."""
+    url = (e.get("source") or {}).get("url")
+    return url.split("#", 1)[0] if isinstance(url, str) else None
+
+
+def items(rows: list[dict]) -> list[dict | list[dict]]:
+    """A section's entries as the email prints them (note/compact-untitled): each entry as itself, except that a
+    meeting's untitled votes (untitled_vote), when there are COMPACT_MIN or more of them in the section from one
+    minutes document, stand as one list at the place of the first of them. A pure function of the rows, so two
+    shapes with the same rows (one edition key, plan.edition_key) still read the same."""
+    def key(e):
+        return (e.get("body"), e["meeting_href"], _document(e)) if untitled_vote(e) else None
+    groups: dict[tuple, list[dict]] = {}
+    for e in rows:
+        if key(e):
+            groups.setdefault(key(e), []).append(e)
+    out: list[dict | list[dict]] = []
+    for e in rows:
+        k = key(e)
+        if k is None or len(groups[k]) < COMPACT_MIN:
+            out.append(e)
+        elif groups[k][0] is e:
+            out.append(groups[k])
+    return out
+
+
+def untitled_words(ctx: dict, n: int) -> str:
+    """Config text `morning_note.sender.text.untitled_votes` with {n} filled in: a count, never an outcome."""
+    return ctx["text"]["untitled_votes"].replace("{n}", str(n))
+
+
+def _shown(ctx: dict, x) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """What one item of a section shows, the same for both bodies: its lines [(kind, raw text)], kind "who" (the
+    meeting line, already clean), "text" or "title" (the record's own title), and its links [(words, URL)]. An
+    entry: the meeting line, its `recorded` words, its title, its page and its source. A meeting's untitled votes
+    (items): the meeting line, the count line, the meeting's page and the minutes document, each once."""
+    hosts = ctx.get("link_hosts", ())
+    if isinstance(x, list):
+        e = x[0]
+        lines = [("who", who_when(ctx, e)), ("text", untitled_words(ctx, len(x)))]
+        page_url = site_link(ctx["site_url"], e.get("meeting_href"), hosts)
+        src, page = source_link({"source": {"url": _document(e), "page": None}}, hosts)
+    else:
+        lines = [("who", who_when(ctx, x)), ("text", x.get("recorded")), ("title", x.get("title"))]
+        page_url = site_link(ctx["site_url"], x.get("href"), hosts)
+        src, page = source_link(x, hosts)
+    links = ([(ctx["text"]["open_site"], page_url)] if page_url else []) + \
+        ([(_source_words(ctx, page), src)] if src else [])
+    return lines, links
+
+
 def body_html(ctx: dict, note: dict, entries: list[dict], under: dict | None = None) -> str:
     """The HTML body. No blank line and no indented line, so a Markdown step sees one HTML block and nothing else."""
     out = [f"<h1>{inert(ctx['site_name'])}</h1>", f"<p>{inert(day_words(note['date']))}</p>",
            f"<p>{inert(ctx['email_line'])}</p>"]
     for label, rows in sections(note, entries, under):
         out += [f"<h2>{inert(label)}</h2>", "<ul>"]
-        for e in rows:
-            page_url = site_link(ctx["site_url"], e.get("href"), ctx.get("link_hosts", ()))
-            src, page = source_link(e, ctx.get("link_hosts", ()))
-            links = ([f'<a href="{_attr(page_url)}">{inert(ctx["text"]["open_site"])}</a>'] if page_url else []) + \
-                    ([f'<a href="{_attr(src)}">{inert(_source_words(ctx, page))}</a>'] if src else [])
-            parts = [inert(who_when(ctx, e)), inert(e.get("recorded")), f"<strong>{inert(e.get('title'))}</strong>"]
-            out.append("<li>" + "<br>".join(parts + ([" &middot; ".join(links)] if links else [])) + "</li>")
+        for x in items(rows):
+            lines, links = _shown(ctx, x)
+            parts = [f"<strong>{inert(t)}</strong>" if kind == "title" else inert(t) for kind, t in lines]
+            parts += [" &middot; ".join(f'<a href="{_attr(url)}">{inert(words)}</a>' for words, url in links)] \
+                if links else []
+            out.append("<li>" + "<br>".join(parts) + "</li>")
         out.append("</ul>")
     if note.get("unplaced_text"):
         out.append(f"<p>{inert(note['unplaced_text'])}</p>")
@@ -195,12 +257,10 @@ def body_text(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
     out = [clean(ctx["site_name"]), day_words(note["date"]), clean(ctx["email_line"]), ""]
     for label, rows in sections(note, entries, under):
         out += [clean(label), ""]
-        for e in rows:
-            page_url = site_link(ctx["site_url"], e.get("href"), ctx.get("link_hosts", ()))
-            src, page = source_link(e, ctx.get("link_hosts", ()))
-            out += [f"  {who_when(ctx, e)}", f"  {clean(e.get('recorded'))}", f"  {clean(e.get('title'))}"]
-            out += [f"  {clean(ctx['text']['open_site'])}: {page_url}"] if page_url else []
-            out += [f"  {clean(_source_words(ctx, page))}: {src}"] if src else []
+        for x in items(rows):
+            lines, links = _shown(ctx, x)
+            out += [f"  {t if kind == 'who' else clean(t)}" for kind, t in lines]
+            out += [f"  {clean(words)}: {url}" for words, url in links]
             out.append("")
     if note.get("unplaced_text"):
         out += [clean(note["unplaced_text"]), ""]

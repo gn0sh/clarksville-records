@@ -175,7 +175,7 @@ def problems(cfg: dict) -> list[str]:
 SENDER_KEYS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions",
                "max_recipients", "canary_only", "link_hosts", "text")
 SENDER_MODES = ("stamp", "ids")
-SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
+SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": (), "untitled_votes": ("{n}",)}
 _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
 
@@ -356,10 +356,23 @@ def _entry(**kw) -> dict:
     e = {"id": None, "lists": [], "kind": None, "body": None, "body_name": None, "meeting_date": None, "meeting": None,
          "title": None,
          "title_ours": False, "recorded": None, "district": None, "ward": None, "case": None, "seat_body": None,
-         "href": None, "source": {"url": None, "page": None}}
+         "href": None, "meeting_href": None, "source": {"url": None, "page": None}}
     e.update(kw)
     e["lists"] = [k for k in LIST_KEYS if k in e["lists"]]
+    # note/compact-untitled: the record printed no title of its own for this entry (the email gives a meeting's
+    # untitled votes one line); a title we make is always one, and _index_documents also marks a kind-only title
+    e["untitled"] = bool(e["title_ours"] or kw.get("untitled"))
     return e
+
+
+# The facts' document kinds (schema/facts.schema.json sources.kind). An item whose printed title is only one of them
+# ("MINUTES": the approval of an earlier meeting's minutes) names no record of its own (note/compact-untitled).
+DOCUMENT_KINDS = ("minutes", "agenda")
+
+
+def _kind_only(it: dict | None) -> bool:
+    title = (it or {}).get("title")
+    return isinstance(title, str) and title.strip().strip(".:").casefold() in DOCUMENT_KINDS
 
 
 def _kind(ix, m: dict, txt: dict) -> str:
@@ -461,9 +474,9 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     outcome=config.OUTCOME_LABELS[fact["outcome"]] if confirmed else None,
                     tally=(f"{tally['yes']}-{tally['no']}" + (f"-{tally['abstain']}" if tally.get("abstain") else "")
                            if tally else None),
-                    href=ix.item_href(it) if it else ix.meeting_href(m["id"]),
+                    href=ix.item_href(it) if it else ix.meeting_href(m["id"]), meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={fact['page']}", "page": fact["page"]},
-                    title_ours=not (it and it.get("title")), **_seat_fields(case)))
+                    title_ours=not (it and it.get("title")), untitled=_kind_only(it), **_seat_fields(case)))
         else:   # an agenda: the items printed on it, as the facts record them
             seen = {}
             for e in ix.facts["item_events"]:
@@ -478,8 +491,9 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     meeting_date=m["date"], meeting=_kind(ix, m, txt),
                     title=_number_title(it.get("number"), ix.item_title(it)),
                     lists=["seats"] + (["budget"] if "budget" in views.item_types(it) else [])
-                    + (["zoning"] if case else []), title_ours=not it.get("title"),
+                    + (["zoning"] if case else []), title_ours=not it.get("title"), untitled=_kind_only(it),
                     recorded=txt["agenda_item"], seat_body=seat_body, href=ix.item_href(it),
+                    meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={e['page']}", "page": e["page"]}, **_seat_fields(case)))
         if not entries:     # nothing itemised: the document itself, once for each meeting naming it
             entries += [_entry(
@@ -487,7 +501,8 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                 meeting_date=m["date"], meeting=_kind(ix, m, txt),
                 title=ix.meeting_label(m), title_ours=True, lists=["seats"],
                 seat_body=seat_body, recorded=txt["minutes"] if s["kind"] == "minutes" else txt["agenda"],
-                href=ix.meeting_href(m["id"]), source={"url": s["url"], "page": None}) for m in named_by]
+                href=ix.meeting_href(m["id"]), meeting_href=ix.meeting_href(m["id"]),
+                source={"url": s["url"], "page": None}) for m in named_by]
         docs.append({"url": s["url"], "entries": entries})
     return docs
 

@@ -791,3 +791,41 @@ def test_a_build_with_a_bad_rpc_source_url_fails_site_checks(inputs, tmp_path):
     missing = [p for p in problems if "has no source link" in p]
     assert missing and all("rpc/item/" in p or "/item/" in p for p in missing)    # ... and QA fails each such entry
     assert any(p.startswith("feeds/topic-rezoning.xml: entry ") for p in missing)
+
+
+# ------------------------------------------------------------------ note/compact-untitled
+def test_vote_entries_say_whether_the_record_printed_a_title_and_name_their_meetings_page():
+    """The email gives a meeting's untitled votes one line (sender/render.py items), so each county or council
+    entry carries `untitled` (our fallback title, a meeting's label, or a title that is only a document kind such as
+    "MINUTES") and `meeting_href` (its meeting's page on the site); a titled record is never untitled."""
+    f = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    ix0 = views.Index(f)
+    voted = list(dict.fromkeys(r["item_id"] for r in f["roll_calls"] if ix0.items.get(r.get("item_id") or "")))
+    no_title, kind_only, titled = (ix0.items[i] for i in voted[:3])
+    assert len({no_title["id"], kind_only["id"], titled["id"]}) == 3 and titled["title"]
+    next(i for i in f["items"] if i["id"] == no_title["id"])["title"] = ""
+    next(i for i in f["items"] if i["id"] == kind_only["id"])["title"] = " Minutes "
+    ix = views.Index(f)
+    entries = [e for d in morning.documents(ix) for e in d["entries"]]
+    by_item = {}
+    for r in f["roll_calls"]:
+        by_item.setdefault(r.get("item_id"), []).append(f"county/vote/{r['id']}")
+    got = {e["id"]: e for e in entries}
+    for item, want in ((no_title["id"], True), (kind_only["id"], True), (titled["id"], False)):
+        assert {got[i]["untitled"] for i in by_item[item]} == {want}, item
+    for e in entries:
+        assert isinstance(e["untitled"], bool) and "meeting_href" in e
+        if e["kind"] in ("vote", "agenda_item", "document") and e["body"] == config.SITE["county_key"]:
+            m = next(m for m in f["meetings"] if m["date"] == e["meeting_date"] and ix.meeting_href(m["id"]) == e["meeting_href"])
+            assert m and e["meeting_href"].startswith("meetings/")
+        if e["kind"] == "vote" and e["title_ours"]:
+            assert e["untitled"]
+
+
+def test_the_untitled_votes_line_keeps_its_count():
+    cfg = copy.deepcopy(config.SITE)
+    assert "{n}" in cfg["morning_note"]["sender"]["text"]["untitled_votes"] and morning.problems(cfg) == []
+    cfg["morning_note"]["sender"]["text"]["untitled_votes"] = "Minutes posted"
+    assert morning.problems(cfg) == ["morning_note.sender.text.untitled_votes must contain {n}"]
+    del cfg["morning_note"]["sender"]["text"]["untitled_votes"]
+    assert morning.problems(cfg) == ["morning_note.sender.text.untitled_votes must be set"]
