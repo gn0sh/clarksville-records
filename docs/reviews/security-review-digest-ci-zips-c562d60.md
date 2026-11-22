@@ -69,3 +69,9 @@ as argv; no output/env writes; runs only after hash-checked `npm ci`; order unch
 Real playwright-core-1.63.0 sha512 = lock, check rc=0. 67 passed.
 Low, pre-existing `ci-browser/code-runs-before-json-check` (daily-update.yml:785): `playwright --version` runs before the
 JSON check; bytes are already sha512-checked with --ignore-scripts. Accepted, no change.
+
+## Delta (9386f35): unzip failure degrades to `missing`, 2026-11-22
+Requested by the Daylight thread. **Verdict: OK.** `missing()` removes `$br` and zips before writing the output; a failed
+`rm` exits non-zero first. Nothing caches/uploads browser dirs. Hard fails unchanged. 69 passed.
+Low, accepted `ci-browser/tamper-signal-softened` (:812): a hash-matching hostile zip (needs pin edit = repo write) now
+gives warning + `missing` instead of error; R3 issue on main still surfaces it.
