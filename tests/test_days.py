@@ -202,6 +202,35 @@ def test_scheduled_meetings_come_from_the_city_calendar_once_per_date_and_kind(t
                                 date(2026, 12, 12), date(2026, 11, 10)) == []
 
 
+def test_a_held_council_meeting_the_calendar_calls_off_is_marked_cancelled(tmp_path, monkeypatch):
+    """note-sunrise/cancelled-council-invited: a meeting already in the facts whose calendar row is now called off
+    (and listed no other way that date and kind) is cancelled on the day page, the rule the Digest uses
+    (national_clarksville.council_meetings), so the morning note never invites to it."""
+    rows = [{"date": "2026-12-03", "kind": "regular", "title": "CANCELLED - Regular Session"},
+            {"date": "2026-12-01", "kind": "executive", "title": "Executive Session"},
+            {"date": "2026-12-17", "kind": "regular", "title": "Meeting moved to December 18"},
+            {"date": "2026-12-17", "kind": "regular", "title": "Regular Session"}]          # listed again: still on
+    cix = _sched(tmp_path, rows)
+    cix.facts = {"meetings": [{"id": m, "date": m[:10], "kind": m[11:]} for m in
+                              ("2026-12-03-regular", "2026-12-01-executive", "2026-12-17-regular")]}
+    monkeypatch.setattr(days, "council_card", lambda c, m: {"id": m["id"], "kind": "council"})
+    got = {c["id"]: c["cancelled"] for _, c in days.council_cards(cix, date(2026, 11, 1), date(2026, 12, 31), date(2026, 11, 10))}
+    assert got == {"2026-12-01-executive": False, "2026-12-03-regular": True, "2026-12-17-regular": False}
+    assert days.called_off([{"date": "2026-12-03", "kind": "regular", "title": "Canceled"}], date(2026, 11, 10)) == {("2026-12-03", "regular")}
+    assert days.called_off(rows, date(2026, 12, 10)) == set()          # before the build day: not a coming meeting
+    fixture = SimpleNamespace(**{**vars(cix), "fixture": True})
+    assert all(not c["cancelled"] for _, c in days.council_cards(fixture, date(2026, 11, 1), date(2026, 12, 31), date(2026, 11, 10)))
+
+
+def test_meeting_rows_are_the_day_pages_meeting_cards():
+    card = {"kind": "council", "body": "B", "title": "Regular session", "href": None, "cancelled": True}
+    rpc = {"kind": "rpc", "body": "R", "title": None, "href": "r.html"}
+    ctx = {"weeks": [{"days": [{"iso": "2026-12-03", "cards": [card, rpc, {"kind": "bids", "body": "x"}]}]}]}
+    assert days.meeting_rows(ctx) == [
+        {"iso": "2026-12-03", "body": "B", "title": "Regular session", "href": None, "cancelled": True},
+        {"iso": "2026-12-03", "body": "R", "title": None, "href": "r.html", "cancelled": False}]
+
+
 def jinja_card(c: dict) -> str:
     from sitegen.build import make_env
     src = (config.TEMPLATE_DIR / "today.html.j2").read_text(encoding="utf-8")      # the card macro, without the page shell

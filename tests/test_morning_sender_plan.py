@@ -176,8 +176,9 @@ def test_plan_shape(built, msite):
     assert p["schema"] == "morning-send/1" and p["date"] == "2026-11-11" and p["timezone"] == "America/Chicago"
     assert p["send"] is True and p["reason"] == "ok"
     assert p["send_at"] == "2026-11-11T07:00:00-06:00" and p["latest_send"] == "2026-11-11T10:00:00-06:00"
-    import hashlib
-    assert p["note_sha256"] == hashlib.sha256((msite / "morning" / "2026-11-11.json").read_bytes()).hexdigest()
+    note = json.loads((msite / "morning" / "2026-11-11.json").read_bytes())
+    assert p["note_sha256"] == common.note_digest(note) == common.note_digest({**note, "coming_up": [{"x": 1}]})
+    assert len(p["note_sha256"]) == 64          # the claim leaves coming_up out (note/sunrise)
     assert p["editions"] and [e["key"] for e in p["editions"]] == sorted(e["key"] for e in p["editions"])
     for e in p["editions"]:
         assert sorted(e) == ["body", "entry_ids", "key", "subject"] and common.KEY_RE.fullmatch(e["key"])
@@ -259,7 +260,7 @@ def test_editions_print_each_entry_under_its_placed_list(built, msite):
         if not rows:
             continue
         body = next(e["body"] for e in p["editions"] if e["key"] == p["signatures"][common.signature(lists, district, ward)])
-        heads = re.findall(r"(?m)^<h2>(.*)</h2>$", body)
+        heads = re.findall("(?m)^" + re.escape(common.TAG["h2"]) + "(.*)</h2>$", body)     # the list headings
         want = [labels[k] for i, (_, k) in enumerate(rows) if i == 0 or rows[i - 1][1] != k]
         assert heads == want and len(heads) == len(set(heads)), (lists, district, ward)
         assert set(heads) <= {labels[k] for k in lists}                # never a list the reader did not pick
@@ -364,6 +365,44 @@ def test_two_runs_write_byte_identical_files(msite, tmp_path):
     files = sorted(p.relative_to(a).as_posix() for p in a.rglob("*") if p.is_file())
     assert files == sorted(p.relative_to(b).as_posix() for p in b.rglob("*") if p.is_file()) and len(files) > 1
     assert all((a / f).read_bytes() == (b / f).read_bytes() for f in files)
+
+
+def _council_votes(meetings: int = 4, per: int = 13) -> list[dict]:
+    """`per` untitled votes from each of `meetings` made-up council meetings' minutes, all posted on one day (real
+    shape: 2026-11-18, four past meetings, 51 votes nearly all "Title not read from the minutes" or "MINUTES")."""
+    out = []
+    for m in range(meetings):
+        day = f"2026-0{m + 6}-0{m + 1}"
+        for n in range(per):
+            out.append({"id": f"city/vote/rc-{day}-{n:02}", "lists": ["seats"], "kind": "vote", "body": "city",
+                        "body_name": "Fixture Council", "meeting_date": day, "meeting": "regular session",
+                        "title": f"ORDINANCE {n}-2026-27: Title not read from the minutes", "title_ours": True,
+                        "untitled": True, "item_number": f"ORDINANCE {n}-2026-27",
+                        "recorded": "Recorded in the minutes; not confirmed", "district": None,
+                        "ward": None, "case": None, "seat_body": "ward", "href": f"city/items/2026.html#o-{n}",
+                        "meeting_href": f"city/meetings/2026.html#{day}-regular",
+                        "source": {"url": f"https://example.com/fixture/minutes-{day}.pdf#page={n + 2}", "page": n + 2}})
+    return out
+
+
+def test_a_day_of_untitled_council_votes_is_one_line_per_meeting_and_keeps_its_edition_keys(msite, tmp_path):
+    """note/compact-untitled: the plan still lists every entry id and keys each edition over every (id, list) row, so
+    the keys are what they were and two runs match; only the body is shorter, and the deliver check accepts it."""
+    note = {**read_note(msite), "entries": _council_votes(), "unplaced_zoning": 0, "unplaced_text": ""}
+    built = plan_mod.build(site_with(tmp_path, note), D, cfg_with())
+    p = built["plan"]
+    ward = next(e for e in p["editions"] if e["key"] == p["signatures"]["seats|-|3"])
+    assert ward["entry_ids"] == [e["id"] for e in note["entries"]]
+    assert ward["key"] == plan_mod.edition_key(D.isoformat(), [(e["id"], "seats") for e in note["entries"]])
+    assert ward["body"].count(common.TAG["card"]) == 4 and "Title not read" not in ward["body"]
+    from sender import render
+    ctx = render.context(cfg_with())
+    assert deliver.body_ok(ward["body"], ctx["link_hosts"], ctx["link_urls"])
+    text = built["texts"][ward["key"]]
+    assert text.count(render.untitled_words(ctx, 13)) == 4 and "Title not read" not in text
+    assert len(text.splitlines()) < 70         # 52 entries: about 320 lines before note/compact-untitled
+    assert ", ".join(f"ORDINANCE {n}-2026-27" for n in range(13)) in text      # the item numbers stay
+    assert plan_mod.build(site_with(tmp_path, note), D, cfg_with()) == built
 
 
 def test_writing_again_removes_an_earlier_runs_edition_files(msite, tmp_path):

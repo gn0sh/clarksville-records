@@ -171,6 +171,37 @@ def calendar_rows(rows, today: date, called_off: set | None = None) -> list[dict
     return out
 
 
+def called_off(rows, today: date) -> set:
+    """The (date, kind) of every coming meeting the calendar listing calls off, and lists no other way that date and
+    kind: the Digest's rule (sitegen/national_clarksville.council_meetings), kept in one place."""
+    off: set = set()
+    listed = calendar_rows(rows, today, off)
+    return off - {(r["date"], r["kind"]) for r in listed}
+
+
+def _calendar(cix) -> list:
+    """The council's calendar listing (council.yml `calendar`), or [] for a fixture, none configured or no file."""
+    path = cix.cfg.get("calendar")
+    if not path or cix.fixture:
+        return []
+    p = config.REPO_ROOT / path
+    return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else []
+
+
+def council_cards(cix, start: date, end: date, today: date) -> list[tuple[str, dict]]:
+    """A council's cards in the window: each meeting the facts hold (`cancelled` when the calendar now calls it off,
+    note-sunrise/cancelled-council-invited: the day page's chip, and the morning note's coming_up leaves it out), then
+    the calendar's meetings the facts do not hold yet (scheduled_cards)."""
+    off = called_off(_calendar(cix), today)
+    out = []
+    for m in sorted(cix.facts["meetings"], key=lambda m: (m["date"], m["id"])):
+        if _in(m["date"], start, end):
+            card = council_card(cix, m)
+            card["cancelled"] = (m["date"], m["kind"]) in off
+            out.append((m["date"], card))
+    return out + scheduled_cards(cix, start, end, today)
+
+
 def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> list[tuple[str, dict]]:
     """Meetings on the city's calendar (council.yml `calendar`) in the window that the facts file does not hold yet:
     the calendar's own title and date only, linked to the agenda when the calendar has one, else to the council's
@@ -179,15 +210,11 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
     `page1_required`: kept only when page 1 of its stored file prints the council's heading) is never shown here,
     since nothing has checked yet that it is this body's meeting (a "One Time Event" may be any board's)."""
     today = today or today_in_zone()
-    path = cix.cfg.get("calendar")
-    if not path or cix.fixture or not views.https_url(cix.cfg.get("record_url")):
-        return []
-    p = config.REPO_ROOT / path
-    if not p.is_file():
+    if not views.https_url(cix.cfg.get("record_url")):
         return []
     held = {(m["date"], m["kind"]) for m in cix.facts["meetings"]}
     out = []
-    for row in calendar_rows(json.loads(p.read_text(encoding="utf-8")), today):
+    for row in calendar_rows(_calendar(cix), today):
         if not _in(row["date"], start, end) or (row["date"], row["kind"]) in held:
             continue
         out.append((row["date"], {
@@ -303,11 +330,7 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
             by_day[m["date"]].append(county_agenda_card(ix, ax, m))
             counts["county"] += 1
     for c in cixs:
-        for m in sorted(c.facts["meetings"], key=lambda m: (m["date"], m["id"])):
-            if _in(m["date"], start, end):
-                by_day[m["date"]].append(council_card(c, m))
-                counts[c.slug] += 1
-        for d, card in scheduled_cards(c, start, end, today):
+        for d, card in council_cards(c, start, end, today):
             by_day[d].append(card)
             counts[c.slug] += 1
     if rpx is not None:
@@ -390,6 +413,15 @@ def chip(card: dict) -> str | None:
     if card.get("state") == "committee":    # a school board or committee agenda (committee_card): an agenda
         return "Agenda"
     return dict(CHIPS[1:]).get(card.get("state"))
+
+
+def meeting_rows(page_ctx: dict) -> list[dict]:
+    """Every meeting card of the day page (page()), soonest first: [{iso, body, title, href, cancelled}]. Bid
+    listings are not meetings and are left out. The morning note's `coming_up` is a selection of these
+    (morning.coming_up)."""
+    return [{"iso": d["iso"], "body": c["body"], "title": c.get("title"), "href": c.get("href"),
+             "cancelled": bool(c.get("cancelled"))}
+            for w in page_ctx["weeks"] for d in w["days"] for c in d["cards"] if c["kind"] != "bids"]
 
 
 def landing_meetings(page_ctx: dict, today: date | None = None, n: int = 3) -> dict:

@@ -175,7 +175,16 @@ def problems(cfg: dict) -> list[str]:
 SENDER_KEYS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions",
                "max_recipients", "canary_only", "link_hosts", "text")
 SENDER_MODES = ("stamp", "ids")
-SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
+SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": (), "untitled_votes": ("{n}",),
+                    # note/sunrise (2026-11-22): the header, greeting, plain words and "Take part" box
+                    "header_day": ("{weekday}", "{place}"), "greeting": ("{place}",), "tagline": (), "intro": (),
+                    "new_on_list": (), "source_meeting": ("{date}",), "source_document": (), "plain_words": (),
+                    "define_ordinance": (), "define_resolution": (), "define_minutes": (), "define_bid_tab": (),
+                    "define_award_letter": (), "define_rfp": (), "take_part": (), "take_part_heading": (),
+                    "take_part_line": (), "invited": (), "coming_up": (),
+                    "coming_meeting": ("{date}", "{body}", "{meeting}"), "coming_body": ("{date}", "{body}"),
+                    "all_meetings": (), "more": ("{n}",)}
+_DEFINITION = re.compile(r"[^.\s][^.]*\. \S.*")        # "Term. Definition.": the term (bold in the email), then its words
 _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
 
@@ -234,6 +243,9 @@ def sender_problems(cfg: dict) -> list[str]:
                 out.append(f"{at}.text.{k} must be set")
             else:
                 out += [f"{at}.text.{k} must contain {m}" for m in marks if m not in v]
+                if k.startswith("define_") and not _DEFINITION.fullmatch(v.strip()):
+                    out.append(f"{at}.text.{k} must read \"Term. Definition.\" (the term, a full stop and a space, "
+                               f"then its words), got {v!r}")
         from sender.render import AUTHORITY      # render/no-independence-line: never a government's name or "official"
         subj = text.get("subject")
         if isinstance(subj, str) and AUTHORITY.search(subj.replace("{site_name}", str(cfg.get("site_name") or ""))):
@@ -356,10 +368,23 @@ def _entry(**kw) -> dict:
     e = {"id": None, "lists": [], "kind": None, "body": None, "body_name": None, "meeting_date": None, "meeting": None,
          "title": None,
          "title_ours": False, "recorded": None, "district": None, "ward": None, "case": None, "seat_body": None,
-         "href": None, "source": {"url": None, "page": None}}
+         "href": None, "meeting_href": None, "item_number": None, "source": {"url": None, "page": None}}
     e.update(kw)
     e["lists"] = [k for k in LIST_KEYS if k in e["lists"]]
+    # note/compact-untitled: the record printed no title of its own for this entry (the email gives a meeting's
+    # untitled votes one line); a title we make is always one, and _index_documents also marks a kind-only title
+    e["untitled"] = bool(e["title_ours"] or kw.get("untitled"))
     return e
+
+
+# The facts' document kinds (schema/facts.schema.json sources.kind). An item whose printed title is only one of them
+# ("MINUTES": the approval of an earlier meeting's minutes) names no record of its own (note/compact-untitled).
+DOCUMENT_KINDS = ("minutes", "agenda")
+
+
+def _kind_only(it: dict | None) -> bool:
+    title = (it or {}).get("title")
+    return isinstance(title, str) and title.strip().strip(".:").casefold() in DOCUMENT_KINDS
 
 
 def _kind(ix, m: dict, txt: dict) -> str:
@@ -461,9 +486,10 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     outcome=config.OUTCOME_LABELS[fact["outcome"]] if confirmed else None,
                     tally=(f"{tally['yes']}-{tally['no']}" + (f"-{tally['abstain']}" if tally.get("abstain") else "")
                            if tally else None),
-                    href=ix.item_href(it) if it else ix.meeting_href(m["id"]),
+                    href=ix.item_href(it) if it else ix.meeting_href(m["id"]), meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={fact['page']}", "page": fact["page"]},
-                    title_ours=not (it and it.get("title")), **_seat_fields(case)))
+                    title_ours=not (it and it.get("title")), untitled=_kind_only(it),
+                    item_number=(it.get("number") or None) if it else None, **_seat_fields(case)))
         else:   # an agenda: the items printed on it, as the facts record them
             seen = {}
             for e in ix.facts["item_events"]:
@@ -478,8 +504,10 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     meeting_date=m["date"], meeting=_kind(ix, m, txt),
                     title=_number_title(it.get("number"), ix.item_title(it)),
                     lists=["seats"] + (["budget"] if "budget" in views.item_types(it) else [])
-                    + (["zoning"] if case else []), title_ours=not it.get("title"),
+                    + (["zoning"] if case else []), title_ours=not it.get("title"), untitled=_kind_only(it),
+                    item_number=it.get("number") or None,
                     recorded=txt["agenda_item"], seat_body=seat_body, href=ix.item_href(it),
+                    meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={e['page']}", "page": e["page"]}, **_seat_fields(case)))
         if not entries:     # nothing itemised: the document itself, once for each meeting naming it
             entries += [_entry(
@@ -487,7 +515,8 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                 meeting_date=m["date"], meeting=_kind(ix, m, txt),
                 title=ix.meeting_label(m), title_ours=True, lists=["seats"],
                 seat_body=seat_body, recorded=txt["minutes"] if s["kind"] == "minutes" else txt["agenda"],
-                href=ix.meeting_href(m["id"]), source={"url": s["url"], "page": None}) for m in named_by]
+                href=ix.meeting_href(m["id"]), meeting_href=ix.meeting_href(m["id"]),
+                source={"url": s["url"], "page": None}) for m in named_by]
         docs.append({"url": s["url"], "entries": entries})
     return docs
 
@@ -677,10 +706,46 @@ def as_of(d: date, fetch_dates) -> str:
     return max(dates, default="")
 
 
+COMING_N = 3        # sender.render.COMING_N: the meetings the email's "Take part" box lists
+
+
+def coming_up(d: date, meetings, n: int = COMING_N) -> list[dict]:
+    """note/sunrise: the next `n` meetings the site lists on or after day `d`, soonest first, the same for every
+    reader: [{date, body, meeting, href}]. `meetings` is days.meeting_rows() (the day page's own cards, bid listings
+    left out), so a council meeting only on the city calendar (no agenda yet) counts. A cancelled meeting is left out
+    (the email invites to it; days.council_cards marks a held council meeting the calendar calls off). Current, not
+    frozen: a later build the same day may list other meetings, and it is the one part of the note the day claim
+    does not read (common.note_digest, deliver.plan_digest). `meeting` is the card's kind label in lower case, as
+    the entries' `meeting` is, without its part before the first ", " when the body's name ends with that part, or
+    None when it has none or the body's name already says it ("Budget Committee" of a "... Budget Committee").
+    `href` is the meeting's day on the day page (a meeting page's part number can move)."""
+    out = []
+    for r in meetings or ():
+        if len(out) == n:
+            break
+        if r.get("cancelled") or not isinstance(r.get("iso"), str) or r["iso"] < d.isoformat():
+            continue
+        body = r.get("body") or ""
+        kind = r["title"].strip().lower() if isinstance(r.get("title"), str) and r["title"].strip() else None
+        head, sep, rest = (kind or "").partition(", ")
+        if sep and body and body.lower().endswith(head):     # "budget committee, special called meeting"
+            kind = rest.strip() or None
+        out.append({"date": r["iso"], "body": body,
+                    "meeting": None if kind is None or kind in body.lower() else kind,
+                    "href": f"{_days_page()}#d-{r['iso']}"})
+    return out
+
+
+def _days_page() -> str:
+    from . import days      # the day page's name (days.PAGE), imported here: days imports much of the site
+    return days.PAGE
+
+
 def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-        data_as_of="", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
+        data_as_of="", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False, meetings=None) -> dict:
     """The note for day `d` (the output contract): every entry of every document first fetched in d's window.
-    `data_as_of`: every source's fetch date (as_of picks the day's), or one string for every day.
+    `data_as_of`: every source's fetch date (as_of picks the day's), or one string for every day. `meetings`: the
+    day page's meetings (days.meeting_rows), for the note's `coming_up` (none: an empty list).
     Backfill guard: a day holding any document from a collector's initial run (`bulk`, bulk_urls) or more than
     morning_note.backfill.max_entries entries is a backfill day: `"backfill": true` and `entries: []` (nothing to
     send), its counts kept in `counts`."""
@@ -719,7 +784,9 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
             "notice": u["notice"], "email_line": u["email_line"],
             # the ask for support, printed in the footer when the support link is on (Brian, 2026-11-10)
             "support_line": (cfg.get("support_line") or "") if support_on else "",
-            "support_url": (cfg.get("support_url") or "") if support_on else ""}
+            "support_url": (cfg.get("support_url") or "") if support_on else "",
+            # note/sunrise: the next meetings in the records on or after this day, for the email's "Take part" box
+            "coming_up": coming_up(d, meetings)}
 
 
 def unplaced_text(n: int, cfg: dict | None = None) -> str:
@@ -740,6 +807,8 @@ def own_text(note: dict) -> list[str]:
         out += [e["meeting"]] if e.get("meeting") else []       # the site's kind label or text.meeting (config)
         out += [e["vote_on"]] if e.get("vote_on") else []       # a fixed config label, never the record's text
         out += [e["watch"]["link"], e["watch"]["label"]] if e.get("watch") else []   # config text
+    for r in note.get("coming_up") or []:       # the site's body names and meeting kind labels
+        out += [r["body"]] + ([r["meeting"]] if r.get("meeting") else [])
     return out
 
 
@@ -763,7 +832,7 @@ def select(note: dict, lists, seats: dict | None = None) -> list[dict]:
 
 # ---------------------------------------------------------------------------------------------- files
 def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-          data_as_of="", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
+          data_as_of="", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False, meetings=None) -> dict:
     """morning/YYYY-MM-DD.json for the last keep_days days and morning/latest.json; returns today's note. Written
     on the pages target only (build.py): the preview may leave sections out (docs/status.md, 2026-11-09)."""
     cfg = config.SITE if cfg is None else cfg
@@ -772,7 +841,7 @@ def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], 
     today_note = None
     for back in range(settings(cfg)["keep_days"]):
         d = today - timedelta(days=back)
-        note = day(d, docs, first, cfg, data_as_of, bulk, data_as_of_utc)
+        note = day(d, docs, first, cfg, data_as_of, bulk, data_as_of_utc, meetings)
         text = json.dumps(note, ensure_ascii=False, indent=1, sort_keys=False) + "\n"
         (folder / f"{d.isoformat()}.json").write_text(text, encoding="utf-8")
         if back == 0:
