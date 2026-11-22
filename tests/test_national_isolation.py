@@ -225,6 +225,55 @@ def test_the_baseline_build_has_the_stale_page_and_a_good_file_is_published(worl
     assert_clean_lines(capsys.readouterr().out)
 
 
+# --- S2b ruling 5: the ">20% stale" count the daily run's issue reads ------------------------------------------------
+
+@pytest.mark.parametrize("covered,stale,alarm", [
+    (0, 0, False), (1, 0, False), (1, 1, True), (5, 1, False), (5, 2, True), (10, 2, False), (10, 3, True),
+    (100, 20, False), (100, 21, True)])
+def test_the_stale_alarm_is_more_than_twenty_percent(covered, stale, alarm):
+    assert npg.STALE_ALARM_PERCENT == 20
+    assert npg.stale_alarm(covered, stale) is alarm
+    ids = [f"place-{1000000 + i}" for i in range(stale)]
+    assert npg.stale_report(covered, reversed(ids)) == {"covered": covered, "stale": stale, "alarm": alarm, "ids": ids}
+
+
+def test_the_stale_count_follows_the_page_directory(world, tmp_path, monkeypatch):
+    """No national root (code review nit 4, national-observability/no-root-silent: every collected page `missing`):
+    the collected government is stale and the alarm is on; a good file clears it; a file whose last good check is
+    older than STALE_AFTER is stale again, with no degraded state. Daylight-platform governments are never
+    counted (never marked stale)."""
+    assert world["result"]["national_stale"] == {"covered": 1, "stale": 1, "alarm": True, "ids": [GOV]}
+    good = build(tmp_path / "good", root=national_root(tmp_path / "g", body_file(world["review"])))
+    assert good["national_stale"] == {"covered": 1, "stale": 0, "alarm": False, "ids": []}
+    old = dict(body_file(world["review"]), last_ok_at="2026-11-14T04:30:00Z")    # checked since, no good check
+    late = build(tmp_path / "late", root=national_root(tmp_path / "o", old))
+    assert late["national_states"] == {} and late["national_stale"]["ids"] == [GOV]
+    assert pagedir(tree(tmp_path / "late")[INDEX])["govs"][GOV]["stale"] is True
+
+
+def test_the_switch_off_and_the_shipped_config_count_nothing_stale(tmp_path, monkeypatch):
+    monkeypatch.delenv(ncopy.ENV, raising=False)
+    none = {"covered": 0, "stale": 0, "alarm": False, "ids": []}
+    assert npg.stale_report() == none
+    assert build(tmp_path / "off", on=False)["national_stale"] == none
+    assert build(tmp_path / "on")["national_stale"] == none       # shipped: daylight-platform entries only
+
+
+def test_the_tier_2_rebuild_counts_every_collected_government_stale(world, tmp_path, monkeypatch):
+    calls = []
+    real = nat.page_directory
+
+    def once(*a, **k):
+        calls.append(1)
+        if len(calls) == 1:
+            raise TypeError("once")
+        return real(*a, **k)
+    monkeypatch.setattr(nat, "page_directory", once)
+    result = build(tmp_path / "site", root=national_root(tmp_path, body_file(world["review"])))
+    assert result["national"] == npg.DEGRADED
+    assert result["national_stale"] == {"covered": 1, "stale": 1, "alarm": True, "ids": [GOV]}
+
+
 # --- 12.3 #1: shipped config, switch on ----------------------------------------------------------------------------
 
 def test_shipped_config_switch_on_builds_every_covered_page(tmp_path, monkeypatch):

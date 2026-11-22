@@ -3,6 +3,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -143,7 +144,11 @@ def test_offline_run_test_is_opt_in_even_with_a_complete_store(monkeypatch, tmp_
     wf = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
     assert OFFLINE_RUN_ENV not in wf
     tests_step = next(s for s in yaml.safe_load(wf)["jobs"]["update"]["steps"] if s.get("name", "").startswith("Tests"))
-    assert "env" not in tests_step and tests_step["run"] == "python -m pytest -q -x"
+    # The Tests step's only env is where the browser tests find Playwright and whether Chromium checked out (digest
+    # switch-on); no opt-in, and its pytest runs are plain (a failing first run reruns only the failures, `--lf`).
+    assert tests_step.get("env", {}).keys() <= {"NODE_PATH", "BROWSERS"}
+    runs = re.findall(r"python -m pytest[^;|}\n]*", tests_step["run"])
+    assert [r.strip() for r in runs] == ["python -m pytest -q", "python -m pytest -q --lf"], runs
 
 
 def test_opted_in_offline_run_never_rebuilds_the_repo_site(sandbox, monkeypatch, tmp_path):

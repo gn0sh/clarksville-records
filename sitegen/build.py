@@ -1052,14 +1052,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     # here runs and the digest-only scripts stay out of static/, so the build is byte-identical (architecture 7a).
     # national-isolation (architecture 12): run() raises only its load phase's NationalBuildError (reviewed files);
     # a bad national input degrades that government's page, or the whole digest (`national: degraded`).
-    national, national_states = national_pages.OFF, {}
+    national, national_states, national_stale = national_pages.OFF, {}, national_pages.stale_report()
     try:
         national_on = national_pages.enabled()
         if national_on:
             nrun = national_pages.run(out, env, site, councils=cixs, county_agendas=ax.data if ax else None,
                                       built_day=built_day, counter=counter, fixture=fixture)
             written += nrun.pages
-            national, national_states = nrun.state, nrun.degraded
+            national, national_states, national_stale = nrun.state, nrun.degraded, nrun.stale_report
             national_pages.apply_to_tree(out, national_pages.fragment_labels())
     except national_pages.NationalBuildError as exc:
         raise BuildError(f"national: {exc}") from exc
@@ -1118,4 +1118,5 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,
             "morning": morning_note, "export": export, "warnings": warnings, "vote_lists": vote_lists,
-            "city_budget": city_bg is not None, "national": national, "national_states": national_states}
+            "city_budget": city_bg is not None, "national": national, "national_states": national_states,
+            "national_stale": national_stale}

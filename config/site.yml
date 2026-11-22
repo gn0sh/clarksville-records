@@ -729,6 +729,8 @@ coming:
 unofficial:
   tag: Independent, unofficial          # next to the site name on every page and in each <title>
   notice: "{site_name} is an independent, unofficial site run by {operator}. It is not affiliated with, endorsed by, or operated by {bodies}. The official record held by each body controls."
+  # the Daylight Digest pages (digest/) say this instead: they cover every government, not only the four above
+  digest_notice: "Daylight Digest is an independent, unofficial site run by {operator}. It is not affiliated with, endorsed by, or operated by any government it covers. The official record held by each body controls."
   correction_label: How to report a correction
   differ: If this site and the official document differ, the official document is right.
   not_advice: Nothing on this site is legal advice.

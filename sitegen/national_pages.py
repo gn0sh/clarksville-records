@@ -97,6 +97,9 @@ REQUIRED_PAGE_LABELS = (
     "index.title", "index.h1", "index.lede", "index.who", "index.cover-link", "index.input-label",
     "index.placeholder", "index.find", "index.privacy", "index.privacy-detail", "index.toggle-summary",
     "index.toggle-body", "index.census-notice", "index.noscript",
+    # digest-warmth (docs/design/digest-warmth.md sections 3 to 5): the warm entry page and the folded-form row
+    "index.eyebrow", "index.h1-2", "index.steps-h", *(f"index.step-{n}{h}" for n in (1, 2, 3) for h in ("-h", "")),
+    "index.why-h", "index.why-1", "index.why-2", "lookup.looked-up", "lookup.another",
     "covered.title", "covered.h1", "covered.count", "covered.count-one", "covered.how", "covered.lookup",
     "covered.h-covered", "covered.h-cant", "covered.row-link", "covered.checked", "covered.official",
     "covered.empty-cant", "covered.closing",
@@ -108,6 +111,7 @@ REQUIRED_PAGE_LABELS = (
     "body.no-time", "body.tz", "body.as-posted", "body.agenda", "body.agenda-for",
     "body.not-posted", "body.incomplete", "body.withheld", "body.cut", "body.item-page", "body.no-meetings",
     "body.full", "body.morning", "body.topic-sr", "body.topic-note",
+    "body.next", "body.later-h", "body.more", "body.no-time-all", "body.going-h", "body.going",
     *(f"body.topic-{k}" for k, _type in TOPICS))
 
 LINK_RE = re.compile(r"\[([^\[\]]+)\]")
@@ -139,6 +143,24 @@ DEGRADED_STATES = (ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, ncop
                    RENDER_ERROR)
 WARNING = "::warning::National pages: "
 ERROR = "::error::National pages: "
+
+# S2b ruling 5 (architecture 6 "Observability", 12.2 D-ISO-9): the daily run opens a fixed-title issue when more than
+# this share of the covered collected governments is `stale` in the page directory (3.4: no good check in
+# STALE_AFTER). A daylight-platform government is never marked stale (M1 records no check run), so it is not counted:
+# counting it would only dilute an outage. No national root or a timed-out lookup makes every collected page stale
+# (code review nit 4, national-observability/no-root-silent), which this catches.
+STALE_ALARM_PERCENT = 20
+
+
+def stale_alarm(covered: int, stale: int) -> bool:
+    """True when more than STALE_ALARM_PERCENT of `covered` collected governments are stale (whole numbers only)."""
+    return covered > 0 and stale * 100 > covered * STALE_ALARM_PERCENT
+
+
+def stale_report(covered: int = 0, stale_ids=()) -> dict:
+    """The build result's and run log's `national_stale` (D-ISO-9 reads it): counts, the alarm and the stale ids."""
+    ids = sorted(stale_ids)
+    return {"covered": covered, "stale": len(ids), "alarm": stale_alarm(covered, len(ids)), "ids": ids}
 
 
 def _warn(gov: Mapping, state: str, exc: BaseException) -> None:
@@ -489,16 +511,9 @@ def build_instant(built_day: date, now: datetime | None = None) -> datetime:
     return datetime.combine(built_day, time(12), tzinfo=tz)
 
 
-def _local_date(t: datetime) -> date:
-    return t.astimezone(ZoneInfo(config.SITE["site_timezone"])).date()
-
-
-def newest_day(checked_at: str | None) -> str | None:
-    """The site_timezone day of a feed's newest record (`checked_at`, see newest_record_at), or None for no record."""
-    when = nat._parse_instant(checked_at)
-    if when is None or when <= EPOCH:
-        return None
-    return _local_date(when).isoformat()
+# The site_timezone day of a feed's newest record (`checked_at`, see newest_record_at), or None for no record. It lives
+# in national_copy (the copy step's B-ISO-13 check reads it), so neither module imports the other at call time.
+newest_day = ncopy.newest_day
 
 
 def long_day(iso: str) -> str:
@@ -566,22 +581,91 @@ def meeting_view(m: dict, gov: Mapping, tz: str, page_labels) -> dict:
                         for it in items]}
 
 
+# digest-warmth section 5 item 3: meetings in the first OPEN_MONTHS calendar months that have a meeting print open;
+# the rest sit in one closed native <details> on the same page (all of them stay page text, AC4.1).
+OPEN_MONTHS = 3
+
+
+def _month_key(iso: str) -> str:
+    return iso[:7]
+
+
+def _month_words(iso: str) -> str:
+    """"2026-12-14" -> "December 2026" (a month heading and the fold's range)."""
+    d = date.fromisoformat(iso)
+    return f"{d.strftime('%B')} {d.year}"
+
+
+def _by_month(meetings: list[dict]) -> list[dict]:
+    """Consecutive meetings of one calendar month as one group, in the order given (never re-sorted)."""
+    groups: list[dict] = []
+    for m in meetings:
+        key = _month_key(m["date"])
+        if not groups or groups[-1]["key"] != key:
+            groups.append({"key": key, "label": _month_words(m["date"]), "meetings": []})
+        groups[-1]["meetings"].append(m)
+    return groups
+
+
+def meeting_layout(meetings: list[dict]) -> dict:
+    """How the coming-up page lays out its meeting views (digest-warmth section 5): the same rule for every
+    government (AC4.9), always in the feed's own order (B-ISO-14: nothing is re-sorted, so the page's data-feed spans
+    stay an in-order subsequence of the JSON's).
+    - `next`: the first meeting, drawn as the "Next meeting" card (None when there is none);
+    - `months`: the meetings after it up to the end of the first OPEN_MONTHS calendar months that have a meeting
+      (the first meeting's month counts), grouped by month;
+    - `more`: the rest, in a closed toggle: {n, from, to, months}, or None. The toggle's one label ("Show {n} later
+      meetings, {from} to {to}") reads right only for more than one meeting over two different months, so a rest of
+      one meeting, or within one month, prints open in `months` instead;
+    - `no_time_all`: no meeting on the page has a start time (the rows then say so once, under the list).
+    Each view gains `dow` and `dom` (its date chip: "Thu", "3"), from the meeting's own date."""
+    for m in meetings:
+        d = date.fromisoformat(m["date"])
+        m["dow"], m["dom"] = d.strftime("%a"), str(d.day)
+    first, later = (meetings[0], meetings[1:]) if meetings else (None, [])
+    seen: list[str] = []
+    cut = len(later)
+    for i, m in enumerate(meetings):
+        key = _month_key(m["date"])
+        if key not in seen:
+            if len(seen) == OPEN_MONTHS:
+                cut = i - 1                     # where, in `later`, the first meeting past the open months sits
+                break
+            seen.append(key)
+    shown, rest = later[:cut], later[cut:]
+    more = None
+    if len(rest) > 1 and _month_key(rest[0]["date"]) != _month_key(rest[-1]["date"]):
+        more = {"n": len(rest), "from": _month_words(rest[0]["date"]), "to": _month_words(rest[-1]["date"]),
+                "months": _by_month(rest)}
+    else:
+        shown = later
+    return {"next": first, "months": _by_month(shown), "more": more,
+            "no_time_all": bool(meetings) and not any(m["time"] for m in meetings)}
+
+
 class Pages:
     """Renders the digest pages with the build's Jinja environment and the site context (switch off: no "Show records
     from" on digest pages, 7a)."""
 
     def __init__(self, env, site: dict, labels: Mapping[str, str], page_labels: Mapping[str, str]):
         self.env = env
-        self.site = dict(site, switch=None)
+        # digest pages print the digest notice wherever the site prints its notice (config/site.yml
+        # unofficial.digest_notice): the site covers every government, not only the four the Clarksville notice names.
+        # No digest template prints `short` (the landing's first-screen line), so it is left as it is.
+        u = dict(site["unofficial"], notice=site["unofficial"]["digest_notice"])
+        self.site = dict(site, switch=None, unofficial=u)
         self.labels = labels
         self.L = page_labels
 
     def html(self, template: str, rel: str, page_name: str, *, csp: str | None = None, crumbs=(),
-             report: bool = True, **ctx) -> str:
+             report: bool = True, own_crumbs: bool = False, **ctx) -> str:
+        """`own_crumbs`: the template prints the "where am I" line itself (`head_crumbs`: the same markup, still above
+        its h1), so base.html.j2 prints none. The coming-up page puts the line under its dawn band."""
         root = "../" * rel.count("/")
         return self.env.get_template(template).render(
             site=self.site, root=root, page_name=page_name, body_current="", report_page=report,
-            crumbs=list(crumbs), official_record=None, csp=csp or self.site["csp"], digest_header=True,
+            crumbs=[] if own_crumbs else list(crumbs), head_crumbs=list(crumbs) if own_crumbs else [],
+            official_record=None, csp=csp or self.site["csp"], digest_header=True,
             digest_place=self.L["digest.place"], L=self.L, card=self.labels, lh=label_html, lt=label_text, **ctx)
 
     def crumbs(self, *keys: str) -> list[dict]:
@@ -599,11 +683,12 @@ def _gov_files(pages: "Pages", g: Mapping, feed: dict, flags: nat.GovFlags, labe
     meetings = [meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"]]
     html = pages.html(
         "digest/body.html.j2", rel, label_text(L["body.title"], name=g["body_name"]),
-        crumbs=pages.crumbs("crumb.home", "crumb.covered"),
+        crumbs=pages.crumbs("crumb.home", "crumb.covered"), own_crumbs=True,
         name=g["body_name"], official=official, state_name=_state_label(L, g["state"]),
         slot=labels[f"slot.{nat.slot_of(g['gov'], flags)}"], host=_host(official),
         newest=newest_day(feed.get("checked_at")),
-        meetings=meetings, topic_note=any(e["topics"] for m in meetings for e in m["entries"]),
+        meetings=meetings, layout=meeting_layout(meetings),
+        topic_note=any(e["topics"] for m in meetings for e in m["entries"]),
         full_href=g["daylight"]["full_url"] if daylight else None, morning=morning if daylight else None)
     return rel, html, rel[:-len(".html")] + ".json", feed_json(feed)
 
@@ -613,7 +698,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
                    built_at: datetime, counter: dict | None,
                    bind_counts: dict[str, BindCounts] | None = None,
                    links: Mapping[str, str | None] | None = None,
-                   states: dict[str, str] | None = None) -> list[str]:
+                   states: dict[str, str] | None = None,
+                   stale_out: dict[str, bool] | None = None) -> list[str]:
     """Writes the digest pages (module docstring) and returns their site paths, the HTML pages first. `counter`: the
     build's analytics settings (analytics.settings()) or None; `site`: the build's site context. `links`: load_links()
     (None: no outside link, both settings null).
@@ -626,7 +712,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     `try`; any exception (a feed for another body, a missing feed, a schema error, an unprintable value) gives that
     government the bound `stale_feed(entry)` instead, state RENDER_ERROR in `states` and one `::warning::` line. The
     stale page depends on reviewed config only (an exception there is not caught here). The page directory is made
-    after, from the feeds actually written."""
+    after, from the feeds actually written; `stale_out`, if given, receives each covered government's `stale` flag
+    in it (for the run log's `national_stale`, S2b ruling 5)."""
     out = Path(out_dir)
     pages = Pages(env, site, labels, page_labels)
     L = page_labels
@@ -663,6 +750,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     for g in covered:
         if g.get("platform") == ncl.PLATFORM:
             pagedir["govs"][g["gov"]]["stale"] = False
+    if stale_out is not None:
+        stale_out.update({g["gov"]: pagedir["govs"][g["gov"]]["stale"] is True for g in covered})
     form_origin = morning_page.form_origin()
     note = morning_page.settings() or {}
     settings = {"schema": "daylight-digest-config/1", "frame": "geo-frame.html", "covered": "covered.html",
@@ -782,10 +871,19 @@ def load_phase(folder: Path = nat.NATIONAL_DIR) -> Loaded:
 @dataclass
 class NationalRun:
     """What the national step did: the HTML pages written (for static/pages.js), the step's state (BUILT, or
-    DEGRADED after a tier-2 rebuild) and each covered government's state word."""
+    DEGRADED after a tier-2 rebuild) and each covered government's state word; `measured`: the covered collected
+    (not daylight-platform) governments, and `stale` the ids of those marked stale in the page directory (S2b ruling
+    5)."""
     pages: list[str]
     state: str = BUILT
     govs: dict[str, str] = field(default_factory=dict)
+    measured: int = 0
+    stale: tuple[str, ...] = ()
+
+    @property
+    def stale_report(self) -> dict:
+        """The `national_stale` of the build result and run log (stale_report())."""
+        return stale_report(self.measured, self.stale)
 
     @property
     def degraded(self) -> dict[str, str]:
@@ -814,13 +912,17 @@ def _data_phase(out_dir: Path, env, site: dict, loaded: Loaded, *, councils, cou
     for gid, c in sorted(copied.items()):
         print(f"sitegen: national: {gid}: national-data {c.summary()}", flush=True)
     binds: dict[str, BindCounts] = {}
+    stale: dict[str, bool] = {}
     written = build_national(out_dir, env, site, d, loaded.flags, loaded.labels, loaded.page_labels, feeds,
-                             built_at=built_at, counter=counter, bind_counts=binds, links=loaded.links, states=states)
+                             built_at=built_at, counter=counter, bind_counts=binds, links=loaded.links, states=states,
+                             stale_out=stale)
     for gid, n in sorted(binds.items()):
         if n.withheld_stripped or n.review_mismatch:
             print(f"sitegen: national: {gid}: bind_feed stripped items: {n.summary()}", flush=True)
+    collected = [g["gov"] for g in d.govs if g["status"] == "covered" and g.get("platform") != ncl.PLATFORM]
     return NationalRun(pages=[r for r in written if r.endswith(".html") and r != FRAME],
-                       state=DEGRADED if no_data else BUILT, govs=states)
+                       state=DEGRADED if no_data else BUILT, govs=states, measured=len(collected),
+                       stale=tuple(sorted(g for g in collected if stale.get(g))))
 
 
 def _clear(folder: Path) -> None:

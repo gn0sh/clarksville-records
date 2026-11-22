@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from sitegen import analytics, build as build_mod, config
+from sitegen import analytics, build as build_mod, config, national_pages
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "site" / "fixtures" / "facts.sample.json"
@@ -64,12 +64,13 @@ def monkeypatch_module():
 
 def _browser_required(env=None) -> bool:
     """True when a missing browser must fail: REQUIRE_BROWSER=1, or CI with the national switch on in the shipped
-    config (read as the build does). NOTE: flipping the switch on needs daily-update.yml to install Playwright and
-    Chromium (pinned) first, or every daily deploy fails here."""
+    config, read by the build's own national_pages.enabled() (strict: a malformed block raises, never skips).
+    NOTE: flipping the switch on needs daily-update.yml to install Playwright and Chromium (pinned) first, or every
+    daily deploy fails here."""
     env = os.environ if env is None else env
     if env.get("REQUIRE_BROWSER") == "1":
         return True
-    return bool(env.get("CI")) and bool(config.SITE.get("national", {}).get("enabled"))
+    return bool(env.get("CI")) and national_pages.enabled()
 
 
 def _need_browser():
@@ -91,6 +92,37 @@ def _need_browser():
 def test_browser_required_gate(monkeypatch, env, switch, required):
     monkeypatch.setitem(config.SITE, "national", {"enabled": switch})
     assert _browser_required(env) is required
+
+
+def test_browser_required_gate_reads_the_switch_strictly(monkeypatch):
+    """Code review b2d55c7 nit 1 (national-gate/divergent-parse): the gate reads the switch as the build does, so a
+    switch the build would refuse (a string, an extra key) fails the gate too instead of reading as off."""
+    monkeypatch.delitem(config.SITE, "national", raising=False)
+    assert _browser_required({"CI": "1"}) is False                        # absent: off, as the build reads it
+    for bad in ({"enabled": "yes"}, {"enabled": True, "x": 1}, "on"):
+        monkeypatch.setitem(config.SITE, "national", bad)
+        with pytest.raises(national_pages.NationalBuildError):
+            _browser_required({"CI": "1"})
+
+
+@pytest.mark.parametrize("ci,require,switch,outcome", [
+    ("1", None, True, "fail"), ("1", None, False, "skip"), (None, "1", False, "fail"), (None, None, True, "skip"),
+    (None, None, False, "skip")])
+def test_need_browser_fails_or_skips_per_the_gate(monkeypatch, ci, require, switch, outcome):
+    """Code review b2d55c7 nit 2 (national-gate/wiring-untested): with the browser probe unavailable, _need_browser
+    fails exactly when _browser_required() says so and skips otherwise; with a browser it returns."""
+    monkeypatch.setitem(config.SITE, "national", {"enabled": switch})
+    for name, value in (("CI", ci), ("REQUIRE_BROWSER", require)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    monkeypatch.setattr(sys.modules[__name__], "_browser_ok", lambda: False)
+    assert _browser_required() is (outcome == "fail")
+    with pytest.raises(pytest.fail.Exception if outcome == "fail" else pytest.skip.Exception):
+        _need_browser()
+    monkeypatch.setattr(sys.modules[__name__], "_browser_ok", lambda: True)
+    assert _need_browser() is None
 
 
 def test_digest_privacy_in_a_browser(request):

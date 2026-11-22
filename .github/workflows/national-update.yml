@@ -232,7 +232,7 @@ jobs:
           N: ${{ needs.gate.outputs.sha }}
         run: |
           set -euo pipefail
-          python -m pip install --quiet --disable-pip-version-check --require-hashes -r requirements.lock
+          python -m pip install --quiet --disable-pip-version-check --require-hashes --only-binary :all: -r requirements.lock
           if ! [[ "$N" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::the gate gave no national-data head. Nothing is collected."; exit 1; fi
           root="$GITHUB_WORKSPACE/national"
           if [ -e "$root" ] || [ -L "$root" ]; then echo "::error::the national folder already exists. Nothing is collected."; exit 1; fi
@@ -432,8 +432,8 @@ jobs:
     steps:
       # Fixed text, the job results (fixed words, checked) and the run's link only: never a log line. The lookup lists
       # only issues opened by GitHub Actions, so an outsider's issue with the same title is never commented on.
-      # No "the Clarksville site is not affected" line (S2b nit d, architecture 12.1 row 24): it is untrue until
-      # architecture 12.3 #1-9 pass on main; the PR that lands them restores it (test 12.3 #12).
+      # "The Clarksville site is not affected" (S2b nit d, architecture 12.1 row 24): dropped until architecture 12.3
+      # #1-9 passed on main (#69), now restored: a national failure degrades only the national pages (test 12.3 #12).
       - name: Open or update the national update issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -453,7 +453,8 @@ jobs:
             echo ""
             echo "gate: $(word "$GATE"); collect: $(word "$COLLECT"); push: $(word "$PUSH"); flagged (exit 3): $flagged."
             echo ""
-            echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its outputs."
+            echo "A failed collect or push changes nothing on national-data; a flagged run still pushed its outputs. The"
+            echo "Clarksville site is not affected: the daily deploy shows national governments as stale until a good run."
           } > "$body"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$NATIONAL_TITLE\" in:title" --json number,title --jq "map(select(.title == \"$NATIONAL_TITLE\")) | .[0].number // empty")
           if [ -z "$open" ]; then

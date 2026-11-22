@@ -405,7 +405,7 @@ if wfn=$(read_at gh api "repos/$repo/contents/.github/workflows/national-update.
 else unread "main's .github/workflows/national-update.yml"; fi
 # main-protect/nat-shape-heuristic-bypass: the regexes above can be fooled by YAML they do not model (other indents,
 # quoted keys, flow style), so the file itself is pinned: its blob sha on main must be the reviewed one.
-nat_blob=4bbe6f8844913f4efae601a544f6f747b1ddacd7   # git hash-object .github/workflows/national-update.yml (a test keeps them equal)
+nat_blob=7ce9473ded75de4dfabb7bac5c29a31655df9e9e   # git hash-object .github/workflows/national-update.yml (a test keeps them equal)
 if nsha=$(read_at gh api "repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref" --jq .sha); then
   echo "Main's national-update.yml blob: ${nsha:-none} (reviewed: $nat_blob)"
   [ "$nsha" = "$nat_blob" ] || problem "main's national-update.yml is not the reviewed one (blob ${nsha:-none}, reviewed $nat_blob): a changed national-update.yml needs a reviewed protect-main update (main-protect-invariant.md, I-wf)"

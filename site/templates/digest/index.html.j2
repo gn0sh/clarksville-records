@@ -1,13 +1,22 @@
 {% extends "base.html.j2" %}
-{# Daylight Digest entry page (docs/design/daylight-national.md section 1; architecture 1a, 3.4, 4.0, 6). Built by
-   sitegen/national_pages.py. Every fixed word is a page label (config/national/page-labels.yml, `L`).
+{% from "digest/_dawn.html.j2" import dawn_band, sun_mark %}
+{# Daylight Digest entry page (docs/design/digest-warmth.md section 3, over docs/design/daylight-national.md section 1;
+   architecture 1a, 3.4, 4.0, 6). Built by sitegen/national_pages.py. Every fixed word is a page label
+   (config/national/page-labels.yml, `L`), the same for every reader and every place.
+   Order: the dawn band and the hero; the address card with its privacy line; the Census line; the "What we cover"
+   link (AC1.10); who runs this (AC1.9); the look-up result and the saved list; "How it works"; "Why look?"; the
+   how-it-works toggle; the Census notice. The drawings are decoration (aria-hidden, no animation).
    Mount points for the page wiring (task F2, site/static/national.js), all empty or hidden until the script runs:
    - #digest-form        the address form (hidden: it needs the script); its input has no `name`, the form no
                          `action`, so a submit without the script sends nothing anywhere
    - #digest-result      the one status line under the input (role="status")
-   - #digest-list        the lookup result: picker, list heading, cards (section 3)
+   - #digest-folded      the row shown in place of the hero and the form while a look-up result is on the page:
+                         "Address looked up. It was not sent to us." and #digest-another, which brings the form back
+   - #digest-list        the lookup result: picker, greeting, cards (digest-warmth section 4)
    - #digest-saved       "Your saved list" from this device (3.8)
    - #digest-noscript    the no-script line; the script hides it
+   The script folds the page by setting data-folded on #digest-entry; digest.css then hides every .digest-fold part.
+   Without the script nothing is folded and nothing is hidden.
    Data for the script, each a <script type="application/json"> written with |tojson escaping (finding 9):
    - #digest-pagedir     the page directory (3.4; `root` is "../", this page's data-root)
    - #digest-strings     the lookup.*, form.* and count.* labels
@@ -16,32 +25,58 @@
 {% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
 {% endblock %}
 {% block main %}
-<div class="digest digest-entry" data-root="{{ root }}">
-  <h1>{{ L["index.h1"] }}</h1>
-  <p class="lede">{{ L["index.lede"] }}</p>
-  <p class="digest-who">{{ lh(L["index.who"], root ~ "who-runs-this.html") }}</p>
-  <p class="digest-cover-link"><a href="covered.html">{{ L["index.cover-link"] }}</a></p>
-  <section class="find digest-find" aria-label="{{ L['index.input-label'] }}">
-    <form class="addr-form" id="digest-form" hidden>
-      <label for="digest-q">{{ L["index.input-label"] }}</label>
-      <div class="search-row">
-        <input id="digest-q" type="text" autocomplete="street-address" maxlength="200" placeholder="{{ L['index.placeholder'] }}" aria-describedby="digest-privacy">
-        <button type="submit">{{ L["index.find"] }}</button>
-      </div>
-      <p class="addr-privacy" id="digest-privacy">{{ L["index.privacy"] }}</p>
-      <p class="addr-result" id="digest-result" role="status" aria-live="polite"></p>
-    </form>
-    <p class="digest-noscript" id="digest-noscript">{{ lh(L["index.noscript"], "covered.html") }}</p>
-  </section>
-  <p class="digest-privacy-detail">{{ lh(L["index.privacy-detail"], site.cfg.geocoder_privacy_url, ext=true) }}</p>
-  <details class="digest-how">
-    <summary>{{ L["index.toggle-summary"] }}</summary>
-    <p>{{ L["index.toggle-body"] }}</p>
-    <p>{{ lh(L["index.how-link"], "how.html") }}</p>
-  </details>
-  <p class="digest-census-notice">{{ L["index.census-notice"] }}</p>
+<div class="digest digest-entry" id="digest-entry" data-root="{{ root }}">
+  <div class="digest-fold digest-top">
+    {{ dawn_band(home=true) }}
+    <div class="digest-hero">
+      <p class="eyebrow">{{ L["index.eyebrow"] }}</p>
+      <h1>{{ L["index.h1"] }} <span class="digest-h1-2">{{ L["index.h1-2"] }}</span></h1>
+      <p class="lede">{{ L["index.lede"] }}</p>
+    </div>
+    <section class="find digest-find" aria-label="{{ L['index.input-label'] }}">
+      <form class="addr-form" id="digest-form" hidden>
+        <label for="digest-q">{{ L["index.input-label"] }}</label>
+        <div class="search-row">
+          <input id="digest-q" type="text" autocomplete="street-address" maxlength="200" placeholder="{{ L['index.placeholder'] }}" aria-describedby="digest-privacy">
+          <button type="submit">{{ L["index.find"] }}</button>
+        </div>
+        <p class="addr-privacy" id="digest-privacy"><svg class="digest-lock" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><rect x="3" y="8" width="12" height="8" rx="2"/><path d="M5.5 8V6a3.5 3.5 0 0 1 7 0v2"/></svg><span>{{ L["index.privacy"] }}</span></p>
+        <p class="addr-result" id="digest-result" role="status" aria-live="polite"></p>
+      </form>
+      <p class="digest-noscript" id="digest-noscript">{{ lh(L["index.noscript"], "covered.html") }}</p>
+    </section>
+    <p class="digest-privacy-detail">{{ lh(L["index.privacy-detail"], site.cfg.geocoder_privacy_url, ext=true) }}</p>
+    <p class="digest-cover-link"><a href="covered.html">{{ L["index.cover-link"] }}</a></p>
+    <p class="digest-who">{{ lh(L["index.who"], root ~ "who-runs-this.html") }}</p>
+  </div>
+  <div id="digest-folded" class="digest-folded" hidden>
+    <div class="digest-folded-row">
+      <p>{{ L["lookup.looked-up"] }}</p>
+      <button type="button" class="more-btn" id="digest-another">{{ L["lookup.another"] }}</button>
+    </div>
+    {{ dawn_band() }}
+  </div>
   <div id="digest-list" class="digest-list" tabindex="-1" hidden></div>
   <section id="digest-saved" class="digest-saved" hidden></section>
+  <div class="digest-fold digest-about">
+    <h2>{{ L["index.steps-h"] }}</h2>
+    <ol class="digest-steps" role="list">
+      {% for n in (1, 2, 3) %}
+      <li><b>{{ L["index.step-" ~ n ~ "-h"] }}</b> {{ L["index.step-" ~ n] }}</li>
+      {% endfor %}
+    </ol>
+    <section class="digest-warm" aria-labelledby="digest-why-h">
+      <h2 id="digest-why-h">{{ sun_mark() }}{{ L["index.why-h"] }}</h2>
+      <p>{{ L["index.why-1"] }}</p>
+      <p>{{ L["index.why-2"] }}</p>
+    </section>
+    <details class="digest-how">
+      <summary>{{ L["index.toggle-summary"] }}</summary>
+      <p>{{ L["index.toggle-body"] }}</p>
+      <p>{{ lh(L["index.how-link"], "how.html") }}</p>
+    </details>
+  </div>
+  <p class="digest-census-notice">{{ L["index.census-notice"] }}</p>
   <script type="application/json" id="digest-pagedir">{{ pagedir_json }}</script>
   <script type="application/json" id="digest-strings">{{ strings_json }}</script>
   <script type="application/json" id="digest-config">{{ config_json }}</script>

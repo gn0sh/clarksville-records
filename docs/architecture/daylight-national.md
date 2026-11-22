@@ -328,6 +328,13 @@ lines.
   (6) status from `govs`, else `not-covered-yet`, (7) order: place, county, cousub, then school districts
   elementary, secondary, unified (sde, sds, sdu; UX section 3).
   Pure; unit-tested with recorded answers.
+  digest-warmth (2026-11-22): it also returns `place`, the one name the result heading greets
+  (`lookup.greet`, else `lookup.greet-none` when it is ""), by `docs/design/digest-warmth.md` section 4 over the
+  kept units: the unit in the city-or-town slot, else the first county subdivision, each by the answer's own
+  `BASENAME` read as given (cleaned like NAME; "" unless it holds a letter and is part of that unit's NAME; the page
+  never trims a NAME itself), else the county's full NAME, else "". `BASENAME` is the only field added to what the
+  script reads from an answer. `place` is drawn with `textContent` and goes nowhere else: not into the device list
+  (still `{id, name}`), the URL, the title, a count or a request.
 - Device list (3.8): `loadList(storage) -> [{id, name}]` (validates, drops bad), `saveList(storage, govs)`,
   `forget(storage)` (removes the three keys), `markRequested(storage, ids)`, `markCounted(storage, id)`. All take the
   storage object as an argument so node tests use a fake; every call is wrapped so a blocked or full storage never
@@ -1317,8 +1324,9 @@ fixture build is byte-identical to 30cb61d2):*
 - B-ISO-13 S2d finding 1b: `date_problem` takes the entry; `checked_at` is also `bad-instant` when
   `newest_day(checked_at)` (the site_timezone day the page prints) is before the entry's `host_ok.date` (the collector
   cannot fetch before Brian's OK). `last_ok_at` keeps the epoch floor (never printed). Load phase (an allowed raise):
-  every collected-platform entry's `host_ok.date` (daylight entries have none) is after `config/site.yml` `lines_effective`, so a valid day is never a
-  `provenance` banned day. Chosen over blanking the day words: they are our label and stay checked.
+  every collected-platform entry's `host_ok.date` (daylight entries have none) is after `config/site.yml`
+  `lines_effective`, so a valid day is never a `provenance` banned day. Chosen over blanking the day words: they are
+  our label and stay checked.
 - B-ISO-14 S2d finding 2 and nit a (`qa/site_checks.py`): `feed_text_removed` applies `FEED_SPAN.sub`, `FEED_ATTR.sub`
   and the words replace only to each `<section class="digest-meeting"[^>]*>.*?</section>` match (`re.S`); the rest of
   the page is returned as is. `check_digest_feed_text`: (iii) becomes exact and ordered: the spans in page order,
@@ -1348,6 +1356,13 @@ fixture build is byte-identical to 30cb61d2):*
   daily issue when `run-log.json` says `national: degraded` or any government is in a degraded state. Code review
   nit 4 (`national-observability/no-root-silent`: no root or a timed-out lookup leaves every page `missing` and opens
   nothing) lands with it, through S2b ruling 5's ">20% stale" issue.
+  *S2b ruling 5, backend half as built (backend-engineer, 2026-11-22):* the build result and `run-log.json` carry
+  `national_stale` = `{covered, stale, alarm, ids}` (`sitegen.national_pages.stale_report`): `covered` counts the
+  covered governments not on the `daylight` platform (those are never marked stale, so counting them would dilute an
+  outage), `ids` the ones the page directory marks `stale` (3.4), and `alarm` is `stale * 100 > covered * 20`
+  (`STALE_ALARM_PERCENT`). Switch off: `{0, 0, false, []}`. No root or a timed-out lookup leaves every collected
+  page stale, so `alarm` is true (nit 4). Workflow half (devops, not built): the D-ISO-9 step also opens its issue
+  when `.national_stale.alarm == true`, listing the stale ids through the same id check.
 
 *v2 tasks (devops-engineer, sonnet/medium; each CI workflow diff goes to a fresh security review):*
 - D-ISO-10 code review findings 2 and 3, workflow half (with B-ISO-9 in one PR, backend commit first): add

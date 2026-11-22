@@ -52,10 +52,12 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Mapping
+from zoneinfo import ZoneInfo
 
 from collector.safe_json import parse_json
 
 from . import config
+from .national import _parse_instant
 from .national_clarksville import feed_errors     # the one schema check
 from .national_guards import BindCounts, GuardCounts, bind_feed, checked_id, clean_feed, host_ok_valid, id_layer
 
@@ -259,12 +261,20 @@ def instant_ok(value, built_at: datetime) -> bool:
     return EPOCH <= t <= built_at + INSTANT_SLACK
 
 
+def newest_day(checked_at: str | None) -> str | None:
+    """The site_timezone day of a feed's newest record (`checked_at`), or None for no record (the epoch or earlier):
+    the day the coming-up page prints (national_pages.newest_day is this function)."""
+    when = _parse_instant(checked_at)
+    if when is None or when <= EPOCH:
+        return None
+    return when.astimezone(ZoneInfo(config.SITE["site_timezone"])).date().isoformat()
+
+
 def date_problem(feed: Mapping, built_at: datetime, entry: Mapping) -> str | None:
     """BAD_DATE or BAD_INSTANT for a text date or instant of a bound feed that the pages could not print, else None.
     `checked_at` is also BAD_INSTANT when the day the page prints for it (site_timezone, `newest_day`) is before the
     entry's `host_ok.date` (B-ISO-13; `last_ok_at` is never printed and keeps the epoch floor). A value of another
     type is left to the schema (`bad-file`)."""
-    from .national_pages import newest_day      # national_pages imports this module: imported at call time
     for m in feed.get("meetings") or ():
         if isinstance(m, dict) and isinstance(m.get("date"), str) and not civil_day(m["date"]):
             return BAD_DATE
