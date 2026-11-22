@@ -781,12 +781,13 @@ def caption_text(raw: str, ac, committees: set) -> str:
 
     A titled name at the end with no bracket ("... sessions Councilperson Karen Reynolds") is cut as a sponsor only
     after a sentence's end ("... Officer. Mayor Joe Pitts") or right before a structural note that was cut or that
-    follows it ("... Services Mayor Pro Tem Smith Page 241", "... R-4 Councilperson Marquis (Requires ...)"), and
-    then not when the word before it is one of sponsor_kept_after. Elsewhere the name may be the caption's own
-    words: the full text is kept when the word before it is one of sponsor_kept_after ("A Resolution electing a
-    Mayor Pro Tem"), else there is no caption ("... supporting Montgomery County Mayor Wes Golden"). A caption that
-    still ends with a committee or board note after the cuts (a name neither configured nor an agenda heading) is no
-    caption either: where that note starts is not known."""
+    follows it ("... housing Councilperson Holleman Page 243", "... R-4 Councilperson Marquis (Requires ...)"), and
+    then not when the word before it is one of sponsor_kept_after; before such a note, a capitalised word before it
+    ("... Montgomery County Mayor Wes Golden Page 9", "... Services Mayor Pro Tem Smith Page 241") gives no caption.
+    Elsewhere the name may be the caption's own words: the full text is kept when the word before it is one of
+    sponsor_kept_after ("A Resolution electing a Mayor Pro Tem"), else there is no caption ("... supporting
+    Montgomery County Mayor Wes Golden"). A caption that still ends with a committee or board note after the cuts (a
+    name neither configured nor an agenda heading) is no caption either: where that note starts is not known."""
     text = _flat(raw)
     noted = False                              # the text now ends right before a structural note that was cut
     for rx in ac.notes:
@@ -805,7 +806,11 @@ def caption_text(raw: str, ac, committees: set) -> str:
         if m and m.group("before"):
             before = m.group("before")
             kept = before.lower().strip(",;:") in ac.sponsor_kept_after
-            if before[-1] in ".;" or ((noted or m.group("note")) and not kept):
+            if before[-1] in ".;":
+                text, cut, noted = text[:m.start() + len(before)], True, True
+            elif (noted or m.group("note")) and not kept:
+                if re.match(r"[A-Z][a-z]", before):
+                    return ""                  # "... Montgomery County Mayor Wes Golden Page 9": whose title, not known
                 text, cut, noted = text[:m.start() + len(before)], True, True
             elif not kept:
                 return ""                      # a sponsor, or the caption's own words: not known
@@ -828,8 +833,10 @@ def agenda_captions(pages: list[str], cfg: AgendaCenterConfig) -> dict:
     raw_pages = [[INVISIBLE.sub("", raw).replace("\u00a0", " ").rstrip() for raw in p.splitlines()] for p in pages]
     per_page = [[t.strip() for t in lines] for lines in raw_pages]
     # the agenda proper ends at its adjournment entry, within its first max_pages pages and before the first page
-    # that opens like a packet document (its first printed line an item number: "ORDINANCE 56-2021-2022"); the packet
-    # (ordinances, earlier minutes, which print numbered items too) is never read. No such line: no caption.
+    # that opens like a packet document (its first printed line an item number as item_number reads it: "ORDINANCE
+    # 77-2016-17", 2017 p. 2). A packet page that prints its number another way ("ORDINANCE 56-2021-2022", 2021 p. 7)
+    # is guarded only by max_pages. The packet (ordinances, earlier minutes, which print numbered items too) is never
+    # read. No such line: no caption.
     end = None
     for n, lines in enumerate(per_page[:ac.max_pages]):
         first = next((t for t in lines if t and not PAGE_MARK_RE.match(t)), "")

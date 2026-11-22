@@ -44,6 +44,7 @@ def test_every_numbered_entry_of_each_fixture_agenda_gives_one_caption(caps):
     assert all(len(v) == 1 for c in caps.values() for v in c.values())       # no number printed twice
     # one entry ends with a titled name that may be its own words: no caption, never a fragment
     assert [(d, k) for d, c in caps.items() for k, v in c.items() if v[0][0] is None] == [
+        ("2021-11-04", ("ordinance", "58-2021-22")), ("2021-11-04", ("resolution", "30-2021-22")),
         ("2023-06-01", ("resolution", "67-2022-23"))]
 
 
@@ -119,9 +120,8 @@ def test_a_page_break_before_the_next_entry_ends_the_caption(caps):
                                                 "updated pay plan for Fiscal Year 2017-18"),
     ("2017-06-29", ("resolution", "38-2016-17"), "Approving a public records policy"),
     # 2021: flush-left lines, the packet page after each entry, a bare sponsor (also before a note in parentheses)
-    ("2021-11-04", ("ordinance", "58-2021-22"), "(First Reading) Authorizing a name change from Department of Housing "
-                                                "and Community Development to Department of Neighborhood and Community "
-                                                "Services"),
+    # "... Neighborhood and Community Services Mayor Pro Tem Smith Page 241": whose title, not known
+    ("2021-11-04", ("ordinance", "58-2021-22"), None),
     ("2021-11-04", ("ordinance", "47-2021-22"), "(First Reading) Amending the Zoning Ordinance and Map of the City of "
                                                 "Clarksville, application of Sandra Sims, Brian Bryant - Agent for Zone "
                                                 "Change on property located at the intersection of Hawkins Rd. & "
@@ -180,6 +180,8 @@ def test_a_committee_note_of_an_unknown_name_leaves_no_caption(cfg):
     ("A Resolution honoring Mayor Joe Pitts Page 12", "A Resolution honoring Mayor Joe Pitts"),
     # not known: no caption, never a fragment ("... supporting Montgomery County")
     ("A Resolution supporting Montgomery County Mayor Wes Golden", None),
+    ("A Resolution in support of Montgomery County Mayor Wes Golden Page 9", None),
+    ("An Ordinance renaming the Department of Community Services Mayor Pro Tem Smith Page 241", None),
     ("A Resolution on vision sessions Councilperson Karen Reynolds", None),
 ])
 def test_a_bare_titled_name_is_never_cut_to_a_fragment(cfg, raw, caption):

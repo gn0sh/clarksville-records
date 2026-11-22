@@ -211,7 +211,8 @@ configured nor an agenda heading (where it starts is not known), or when a page 
 layout (2021) and the next page's first line may or may not go on with it. A titled name with no bracket at the end
 is cut as a sponsor only after a sentence's end or right before a structural note (a cut "Page N", committee or RPC
 note, or a parenthetical after it), and not after a word of `sponsor_kept_after`; with no such mark it is kept whole
-after such a word ("electing a Mayor Pro Tem"), else no caption ("supporting Montgomery County Mayor Wes Golden").
+after such a word ("electing a Mayor Pro Tem"), else no caption ("supporting Montgomery County Mayor Wes Golden");
+before a structural note, a capitalised word before the name also gives no caption ("... County Mayor X Page 9").
 Such an entry is kept as None, so its number counts as ambiguous for that agenda (`ambiguous[].reason`).
 
 **Facts contract (additive):** such an item carries `title_source: {kind: "agenda", source_id, page, meeting_id}`
@@ -235,8 +236,8 @@ cites a source or meeting the keep took out the committed item's title, else non
 
 Tests: `collector/tests/test_city_agenda_titles.py`, on the text layer of six CivicClerk agendas (2024-2026) and
 three Agenda Center agendas (2017, 2021, 2023; three layouts), `collector/tests/fixtures/city/agenda_<date>.txt`. On
-those nine meetings 113 of the 114 untitled items voted there get a caption; the one left is the minutes' misprint
-"ORDINANCE 43-2025-25".
+those nine meetings 109 of the 113 untitled items voted there get a caption; left empty: the minutes' misprint
+"ORDINANCE 43-2025-25" and three entries ending in a titled name whose role is not known (fail closed).
 
 ## Verified-rate plan (problem family `city-verify`, 2026-11-11)
 
