@@ -62,3 +62,10 @@ run (fails the run; cannot run code; hash check still holds).
 L1 closed: both curls carry `--max-filesize 268435456`; T1 + new cap test + lock option-line test, 58 passed. Verdict **OK**.
 New info `ci-supply/lock-option-midline`: the lock test checks only line starts; a mid-line option after a pin would pass it,
 but every file must still match its pinned hash. No fix (accepted).
+
+## Fresh check of the review fixes (07e9bcc), 2026-11-22
+security-engineer (opus, high), new instance. **Verdict: OK.** browsers.json read by `node -e` JSON.parse with path/rev/cftv
+as argv; no output/env writes; runs only after hash-checked `npm ci`; order unchanged; no new permissions/uses/secrets.
+Real playwright-core-1.63.0 sha512 = lock, check rc=0. 67 passed.
+Low, pre-existing `ci-browser/code-runs-before-json-check` (daily-update.yml:785): `playwright --version` runs before the
+JSON check; bytes are already sha512-checked with --ignore-scripts. Accepted, no change.
