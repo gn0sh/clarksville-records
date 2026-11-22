@@ -716,9 +716,9 @@ def coming_up(d: date, meetings, n: int = COMING_N) -> list[dict]:
     (the email invites to it; days.council_cards marks a held council meeting the calendar calls off). Current, not
     frozen: a later build the same day may list other meetings, and it is the one part of the note the day claim
     does not read (common.note_digest, deliver.plan_digest). `meeting` is the card's kind label in lower case, as
-    the entries' `meeting` is, without a leading "<body>, ", or None when it has none or the body's name already says
-    it ("Budget Committee" of a "... Budget Committee"). `href` is the meeting's day on the day page (a meeting
-    page's part number can move)."""
+    the entries' `meeting` is, without its part before the first ", " when the body's name ends with that part, or
+    None when it has none or the body's name already says it ("Budget Committee" of a "... Budget Committee").
+    `href` is the meeting's day on the day page (a meeting page's part number can move)."""
     out = []
     for r in meetings or ():
         if len(out) == n:
@@ -727,8 +727,9 @@ def coming_up(d: date, meetings, n: int = COMING_N) -> list[dict]:
             continue
         body = r.get("body") or ""
         kind = r["title"].strip().lower() if isinstance(r.get("title"), str) and r["title"].strip() else None
-        if kind and body and kind.startswith(body.lower() + ", "):
-            kind = kind[len(body) + 2:].strip() or None
+        head, sep, rest = (kind or "").partition(", ")
+        if sep and body and body.lower().endswith(head):     # "budget committee, special called meeting"
+            kind = rest.strip() or None
         out.append({"date": r["iso"], "body": body,
                     "meeting": None if kind is None or kind in body.lower() else kind,
                     "href": f"{_days_page()}#d-{r['iso']}"})

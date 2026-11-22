@@ -128,7 +128,8 @@ T1 additions (additive; T3 and the sender may rely on them):
   a selection of the day page's own meeting cards (`days.meeting_rows`), so a council meeting only on the city
   calendar (no agenda yet) counts. Bid listings and cancelled meetings are left out; a council meeting the facts
   hold is cancelled when the city calendar now calls it off (`days.called_off`, the Digest's rule). `meeting` is the
-  card's kind label in lower case, without a leading "<body>, ", `null` when it has none or the body's name already
+  card's kind label in lower case, without its part before the first ", " when the body's name ends with that part
+  ("Budget Committee, special called meeting" of "Montgomery County Budget Committee"), `null` when it has none or the body's name already
   says it; `href` is always the meeting's day on `today.html` (`today.html#d-<date>`; a meeting page's part number
   can move). No time or place (neither is collected). `[]` when none; the email reads a missing field as `[]`. Body
   names and kind labels are in `own_text`. **Current, not frozen**: it is the only part of a note that may differ
@@ -350,7 +351,11 @@ Order of work for `deliver --live` (any failed check stops before the first writ
      `TAG["coming_kicker"]` or `TAG["coming"]`, which render writes for nothing else). Safe, because who gets which
      email never depends on them: edition keys are rows only, and the entries, signatures, subjects and every other
      line of every body are still in both digests. A re-run whose build lists other meetings is the same plan for
-     the claim and creates only the editions not yet created, with the newer list; nobody gets two.
+     the claim and creates only the editions not yet created, with the newer list; nobody gets two. Two cases read
+     "other" instead (send nothing more that day, fail safe): a `coming_up` change in an edition near the 80 KB budget
+     (`common.BODY_BUDGET`) can move its card/row cut, so the rest of that body differs; and the first run after the
+     note/sunrise merge, for a day the old code already started, has other digests. So do not merge it between
+     07:00 and 10:00 Central (`send_at` to `latest_send`).
    - the listing fails, is cut short or cannot be read: send nothing, exit non-zero. **Fail closed.**
 4. **Recipients**: page through subscribers, keep `type == "regular"` (confirmed; `unactivated`, `unsubscribed` and
    the rest are never mailed), and reduce each at the adapter boundary to `(id, lists, district, ward)`, read from

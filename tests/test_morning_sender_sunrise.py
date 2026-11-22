@@ -436,6 +436,17 @@ def test_a_kind_label_that_starts_with_the_body_name_drops_it():
     assert got[0] == {"date": "2026-12-09", "body": "Council", "meeting": "regular session", "href": "today.html#d-2026-12-09"}
 
 
+def test_a_kind_label_that_starts_with_the_end_of_the_body_name_drops_it():
+    """coming-kind-repeats-body: "Budget Committee, special called meeting" under "Montgomery County Budget Committee"
+    reads "special called meeting"; a label whose head the body name does not end with stays whole."""
+    rows = [{"iso": "2026-12-02", "body": "Montgomery County Budget Committee", "title": "Budget Committee, special called meeting",
+             "href": None, "cancelled": False},
+            {"iso": "2026-12-03", "body": "Montgomery County Budget Committee", "title": "Audit Committee, joint meeting",
+             "href": None, "cancelled": False}]
+    assert [r["meeting"] for r in morning.coming_up(date(2026, 12, 1), rows)] == \
+        ["special called meeting", "audit committee, joint meeting"]
+
+
 def test_a_calendar_only_meeting_is_listed_and_a_called_off_one_is_not(tmp_path):
     """The owner's goal is the invitation: a council meeting the city calendar lists, with no agenda yet and not in
     the facts (a scheduled card), is in coming_up; one the calendar calls off is not."""
