@@ -709,23 +709,32 @@ def as_of(d: date, fetch_dates) -> str:
 COMING_N = 3        # sender.render.COMING_N: the meetings the email's "Take part" box lists
 
 
-def coming_up(d: date, meetings, n: int = COMING_N) -> list[dict]:
+def coming_up(d: date, meetings, first: dict[str, datetime], end: datetime, n: int = COMING_N) -> list[dict]:
     """note/sunrise: the next `n` meetings in the records on or after day `d`, soonest first, the same for every
     reader: [{date, body, meeting, href}]. `meetings` is days.meeting_rows() (the day page's own cards, bid listings
-    left out); a cancelled meeting is left out (the email invites to it). `meeting` is the card's kind label in lower
-    case, as the entries' `meeting` is, or None when it has none or the body's name already says it ("Budget
-    Committee" of a "... Budget Committee"); `href` is the meeting's page on the site, else its day on the day page."""
+    left out). Frozen at the note's cutoff `end` (note-sunrise/note-not-frozen: note_sha256 is the day's claim, so a
+    later build that day must write the same note): a meeting counts only when one of its documents (`urls`) was
+    first fetched (`first`, the manifests) before `end`; a meeting known from no fetched document (a calendar row
+    with no agenda yet) is left out. A cancelled meeting is left out (the email invites to it). `meeting` is the
+    card's kind label in lower case, as the entries' `meeting` is, without a leading "<body>, ", or None when it has
+    none or the body's name already says it ("Budget Committee" of a "... Budget Committee"). `href` is the
+    meeting's day on the day page, which no later record moves (a meeting page's part number can)."""
     out = []
     for r in meetings or ():
         if len(out) == n:
             break
         if r.get("cancelled") or not isinstance(r.get("iso"), str) or r["iso"] < d.isoformat():
             continue
+        known = [first[u] for u in r.get("urls") or () if u in first]
+        if not known or min(known) >= end:
+            continue
         body = r.get("body") or ""
-        kind = r["title"].lower() if isinstance(r.get("title"), str) and r["title"].strip() else None
+        kind = r["title"].strip().lower() if isinstance(r.get("title"), str) and r["title"].strip() else None
+        if kind and body and kind.startswith(body.lower() + ", "):
+            kind = kind[len(body) + 2:].strip() or None
         out.append({"date": r["iso"], "body": body,
                     "meeting": None if kind is None or kind in body.lower() else kind,
-                    "href": r.get("href") or f"{_days_page()}#d-{r['iso']}"})
+                    "href": f"{_days_page()}#d-{r['iso']}"})
     return out
 
 
@@ -779,7 +788,7 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
             "support_line": (cfg.get("support_line") or "") if support_on else "",
             "support_url": (cfg.get("support_url") or "") if support_on else "",
             # note/sunrise: the next meetings in the records on or after this day, for the email's "Take part" box
-            "coming_up": coming_up(d, meetings)}
+            "coming_up": coming_up(d, meetings, first, end)}
 
 
 def unplaced_text(n: int, cfg: dict | None = None) -> str:

@@ -194,7 +194,7 @@ morning_note:
       header_day: "{weekday} in {place}"
       greeting: "Good morning, {place}."
       tagline: "Your local government, in broad daylight."
-      intro: "Here is what is new on {site_name} for the lists you picked. Every item links to the official document it came from."
+      intro: "Here is what is new on {site_name} for the lists you picked. Each item links to its official source where the source is public."
       new_on_list: New on your list
       # A card's source link. {date}: the meeting's day as the site writes it. A page number follows after page_label.
       source_meeting: "Source document, {date} meeting"
@@ -207,9 +207,9 @@ morning_note:
       define_minutes: Minutes. The official written record of a meeting.
       define_bid_tab: Bid tab. A table of the bids received and their prices.
       define_award_letter: Award letter. The letter that names the bidder chosen.
-      define_rfp: "RFP. A request for proposals: a government asking companies to offer their services."
+      define_rfp: "RFP. A request for proposals: a government asking for offers to provide a service or product."
       take_part: Take part
-      take_part_heading: This is your government. Its meetings are open to you.
+      take_part_heading: This is your government. Its meetings are open to the public.
       take_part_line: "{site_name} lists each meeting by day, with a link to the official video where the body posts one."
       invited: You are invited.
       # The next meetings in the records on or after the note's day (the note's coming_up, the same for every reader;

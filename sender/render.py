@@ -287,7 +287,8 @@ def _item(ctx: dict, x) -> dict:
         src, page = source_link(x, hosts)
     day = _day(e)
     return {"who": who_when(ctx, e), "day": day, "texts": [(k, t) for k, t in texts if clean(t)],
-            "page": page_url, "src": (_source_words(ctx, day, page), src) if src else None}
+            "page": page_url, "src": (_source_words(ctx, day, page), src) if src else None,
+            "entries": x if isinstance(x, list) else [x]}
 
 
 def _a(url: str, words: str, style: str = "ink") -> str:
@@ -410,6 +411,11 @@ def _flat(ctx: dict, note: dict, entries: list[dict], under: dict | None):
     return [(label, [_item(ctx, x) for x in items(rows, key)]) for key, label, rows in _keyed(note, entries, under)]
 
 
+def _shown_entries(secs, shown: int) -> list[dict]:
+    """The entries of the first `shown` items: what the email shows (defs-of-hidden-items)."""
+    return [e for it in [it for _, xs in secs for it in xs][:shown] for e in it["entries"]]
+
+
 def _compose(ctx: dict, note: dict, entries: list[dict], secs, full: int, shown: int) -> str:
     """The HTML body: the first `full` items as cards, the next ones up to `shown` as rows, then "N more"."""
     iso = note["date"]
@@ -444,7 +450,7 @@ def _compose(ctx: dict, note: dict, entries: list[dict], secs, full: int, shown:
         out += [TAG["section"], _p("row", _a(more, _more(ctx, total)) if more else inert(_more(ctx, total))), "</div>"]
     if note.get("unplaced_text"):
         out += [TAG["section"], _p("note", inert(note["unplaced_text"])), "</div>"]
-    defs = definitions(ctx, entries)
+    defs = definitions(ctx, _shown_entries(secs, shown))
     if defs:
         out += [TAG["words"], _p("words_h2", inert(ctx["text"]["plain_words"]), "h2")]
         for term, rest in map(_term, defs):
@@ -532,7 +538,7 @@ def body_text(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
         out += [clean(_more(ctx, total - shown)) + (f": {more}" if more else ""), ""]
     if note.get("unplaced_text"):
         out += [clean(note["unplaced_text"]), ""]
-    defs = definitions(ctx, entries)
+    defs = definitions(ctx, _shown_entries(secs, shown))
     if defs:
         out += [clean(ctx["text"]["plain_words"])] + [f"  {clean(x)}" for x in defs] + [""]
     out += [clean(ctx["text"]["take_part"]), _fill(ctx, "take_part_heading"), _fill(ctx, "take_part_line"),

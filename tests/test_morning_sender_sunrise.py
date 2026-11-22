@@ -5,7 +5,7 @@ invited." line over the next meetings in the records; the exact opening tags del
 and the size rule that keeps an edition under Gmail's clip (common.BODY_BUDGET). FIXTURE notes only."""
 import copy
 import re
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -183,7 +183,16 @@ def test_the_shipped_definitions_are_concept_cs_words():
         "Ordinance. A local law.", "Resolution. A formal decision or statement that is not a law.",
         "Minutes. The official written record of a meeting.", "Bid tab. A table of the bids received and their prices.",
         "Award letter. The letter that names the bidder chosen.",
-        "RFP. A request for proposals: a government asking companies to offer their services."]
+        "RFP. A request for proposals: a government asking for offers to provide a service or product."]
+
+
+def test_the_shipped_intro_and_invitation_promise_only_what_holds():
+    """note-sunrise/intro-every-item-links: some sources are not public; note-sunrise/executive-session-reads-closed:
+    an executive session is not open to anyone, so the heading says the meetings are open to the public."""
+    assert TEXT["intro"] == ("Here is what is new on {site_name} for the lists you picked. Each item links to its "
+                             "official source where the source is public.")
+    assert TEXT["take_part_heading"] == "This is your government. Its meetings are open to the public."
+    assert TEXT["invited"] == "You are invited."
 
 
 # ------------------------------------------------------------------ every new slot: hostile text stays inert
@@ -398,22 +407,98 @@ def test_the_deliver_jobs_reader_still_matches_pyyaml():
 
 
 # ------------------------------------------------------------------ the note's coming_up (build time, from the records)
-ROWS = [{"iso": "2026-11-17", "body": "School Board", "title": "Formal board meeting", "href": "school/a.html", "cancelled": False},
-        {"iso": "2026-11-18", "body": "Montgomery Budget Committee", "title": "Budget Committee", "href": None, "cancelled": False},
-        {"iso": "2026-11-20", "body": "Council", "title": "Special session", "href": "c/x.html", "cancelled": True},
-        {"iso": "2026-12-01", "body": "Council", "title": "Executive session", "href": "c/y.html#e", "cancelled": False},
-        {"iso": "2026-12-03", "body": "Council", "title": None, "href": "c/z.html", "cancelled": False},
-        {"iso": "2026-12-09", "body": "Council", "title": "Regular session", "href": "c/w.html", "cancelled": False}]
+def _rows():
+    """days.meeting_rows() shape: each meeting with the URLs of the documents it is known from."""
+    return [
+        {"iso": "2026-11-17", "body": "School Board", "title": "Formal board meeting", "href": "school/a.html", "cancelled": False, "urls": ["https://x.example/a"]},
+        {"iso": "2026-11-18", "body": "Montgomery Budget Committee", "title": "Budget Committee", "href": None, "cancelled": False, "urls": ["https://x.example/b"]},
+        {"iso": "2026-11-20", "body": "Council", "title": "Special session", "href": "c/x.html", "cancelled": True, "urls": ["https://x.example/c"]},
+        {"iso": "2026-12-01", "body": "Council", "title": "Executive session", "href": "c/y.html#e", "cancelled": False, "urls": ["https://x.example/d", "https://x.example/d2"]},
+        {"iso": "2026-12-03", "body": "Council", "title": None, "href": "c/z.html", "cancelled": False, "urls": ["https://x.example/e"]},
+        {"iso": "2026-12-09", "body": "Council", "title": "Council, regular session", "href": "c/w.html", "cancelled": False, "urls": ["https://x.example/f"]},
+        {"iso": "2026-12-10", "body": "Council", "title": "Work session", "href": None, "cancelled": False, "urls": []}]
+
+
+EARLY = datetime(2026, 11, 1, tzinfo=timezone.utc)
+FIRST = {f"https://x.example/{k}": EARLY for k in ("a", "b", "c", "d", "e", "f")}
+END = datetime(2026, 11, 18, 13, 0, tzinfo=timezone.utc)          # the note's cutoff, 07:00 Central
 
 
 def test_coming_up_is_the_next_three_meetings_on_or_after_the_notes_day():
-    got = morning.coming_up(date(2026, 11, 18), ROWS)
+    got = morning.coming_up(date(2026, 11, 18), _rows(), FIRST, END)
+    # the day page's anchor, never a page whose part number may move (note-sunrise/note-not-frozen)
     assert got == [{"date": "2026-11-18", "body": "Montgomery Budget Committee", "meeting": None,
                     "href": "today.html#d-2026-11-18"},
-                   {"date": "2026-12-01", "body": "Council", "meeting": "executive session", "href": "c/y.html#e"},
-                   {"date": "2026-12-03", "body": "Council", "meeting": None, "href": "c/z.html"}]
-    assert morning.coming_up(date(2027, 1, 1), ROWS) == [] and morning.coming_up(date(2026, 11, 1), None) == []
-    assert [r["date"] for r in morning.coming_up(date(2026, 11, 1), ROWS)] == ["2026-11-17", "2026-11-18", "2026-12-01"]
+                   {"date": "2026-12-01", "body": "Council", "meeting": "executive session", "href": "today.html#d-2026-12-01"},
+                   {"date": "2026-12-03", "body": "Council", "meeting": None, "href": "today.html#d-2026-12-03"}]
+    assert morning.coming_up(date(2027, 1, 1), _rows(), FIRST, END) == []
+    assert morning.coming_up(date(2026, 11, 1), None, FIRST, END) == []
+    assert [r["date"] for r in morning.coming_up(date(2026, 11, 1), _rows(), FIRST, END)] == ["2026-11-17", "2026-11-18", "2026-12-01"]
+
+
+def test_a_kind_label_that_starts_with_the_body_name_drops_it():
+    """coming-kind-repeats-body: "Council, regular session" under the body "Council" reads "regular session"."""
+    got = morning.coming_up(date(2026, 12, 4), _rows(), FIRST, END)
+    assert got[0] == {"date": "2026-12-09", "body": "Council", "meeting": "regular session", "href": "today.html#d-2026-12-09"}
+
+
+def test_a_meeting_known_only_after_the_cutoff_does_not_change_the_note():
+    """note-sunrise/note-not-frozen: note D's coming_up reads only meetings known from a document first fetched before
+    D's cutoff, so a collection later that day (a re-run's build) leaves note D, and its note_sha256, as it was."""
+    before = morning.coming_up(date(2026, 11, 18), _rows(), FIRST, END)
+    late = {**FIRST, "https://x.example/b": END}               # first fetched at the cutoff: after it
+    assert [r["date"] for r in morning.coming_up(date(2026, 11, 18), _rows(), late, END)] == ["2026-12-01", "2026-12-03", "2026-12-09"]
+    newer = _rows() + [{"iso": "2026-11-19", "body": "New Board", "title": "Meeting", "href": None, "cancelled": False,
+                        "urls": ["https://x.example/new"]}]
+    assert morning.coming_up(date(2026, 11, 18), newer, {**FIRST, "https://x.example/new": END + timedelta(hours=3)}, END) == before
+    # the earliest of a meeting's documents counts: a second document fetched later changes nothing
+    assert morning.coming_up(date(2026, 11, 18), _rows(), {**FIRST, "https://x.example/d2": END + timedelta(days=1)}, END) == before
+    # a meeting known from no fetched document (a calendar row with no agenda) is never listed
+    assert all(r["date"] != "2026-12-10" for r in morning.coming_up(date(2026, 12, 10), _rows(), FIRST, END + timedelta(days=30)))
+
+
+def test_the_note_writer_passes_its_window_and_first_fetch_to_coming_up(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(morning, "coming_up", lambda d, rows, first, end: seen.update(d=d, first=first, end=end) or [])
+    note = morning.day(date(2026, 11, 18), [], {"https://x.example/a": EARLY}, meetings=_rows())
+    assert note["coming_up"] == [] and seen["d"] == date(2026, 11, 18)
+    assert seen["first"] == {"https://x.example/a": EARLY}
+    assert seen["end"] == morning.window(date(2026, 11, 18), morning.settings()["cutoff"], config.SITE["site_timezone"])[1]
+
+
+# ------------------------------------------------------------------ definitions only of what is shown
+def test_definitions_come_only_from_items_the_email_shows():
+    """defs-of-hidden-items: past the size cut, a kind only the hidden items have gets no definition."""
+    es = [entry(id=f"county/item/{i}", title=f"FIXTURE item {i} " + "word " * 100) for i in range(300)]
+    es.append(entry(id="county/item/last", title="RESOLUTION 9: the last item"))
+    n = note_of(*es)
+    html = render.body_html(CTX, n, n["entries"])
+    assert "RESOLUTION 9" not in html and TEXT["define_resolution"].split(". ", 1)[1] not in html
+    small = html_of(entry(title="RESOLUTION 9: shown"))
+    assert TEXT["define_resolution"].split(". ", 1)[1] in small
+
+
+# ------------------------------------------------------------------ note-sunrise/budget-unenforced
+def test_the_deliver_check_refuses_a_body_over_the_budget(msite):  # noqa: F811
+    from test_morning_sender_deliver import settings
+    plan = plan_mod.build(msite, D, cfg_with())["plan"]
+    s = settings()
+    deliver.check_plan(copy.deepcopy(plan), s.link_hosts, s.link_urls)
+    body = plan["editions"][0]["body"]
+    pad = common.TAG["intro"] + "x" * 200 + "</p>"
+    big = body.replace(common.TAG["foot"], (pad + "\n") * (common.BODY_BUDGET // 200) + common.TAG["foot"], 1)
+    assert deliver.body_ok(big, s.link_hosts, s.link_urls) and len(big.encode("utf-8")) > common.BODY_BUDGET
+    bad = copy.deepcopy(plan)
+    bad["editions"][0]["body"] = big
+    with pytest.raises(deliver.PlanInvalid, match="body"):
+        deliver.check_plan(bad, s.link_hosts, s.link_urls)
+
+
+def test_the_plan_refuses_a_body_render_wrote_over_the_budget(msite, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(common, "BODY_BUDGET", 1000)
+    monkeypatch.setattr(plan_mod.common, "BODY_BUDGET", 1000)
+    with pytest.raises(plan_mod.PlanError, match="budget"):
+        plan_mod.build(msite, D, cfg_with())
 
 
 def test_every_note_carries_coming_up_the_same_for_every_reader(msite):  # noqa: F811

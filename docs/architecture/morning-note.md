@@ -126,10 +126,14 @@ T1 additions (additive; T3 and the sender may rely on them):
 - the note carries `coming_up` (additive, 2026-11-22, note/sunrise): the next `morning.COMING_N` (3) meetings in the
   records on or after the note's `date`, soonest first, the same for every reader: `[{date, body, meeting, href}]`,
   a selection of the day page's own meeting cards (`days.meeting_rows`: bid listings and cancelled meetings left
-  out). `meeting` is the card's kind label in lower case, `null` when it has none or the body's name already says it;
-  `href` is the meeting's page on the site, else its day on `today.html`. No time or place (neither is collected).
-  Computed at build time from the records, so a note rebuilt later lists the meetings the records then hold. `[]`
-  when none; the email reads a missing field as `[]`. Body names and kind labels are in `own_text`.
+  out; a council meeting the facts hold is cancelled when the city calendar now calls it off, `days.called_off`, the
+  Digest's rule). **Frozen at the cutoff** (note-sunrise/note-not-frozen): a meeting counts only when one of its
+  documents (`meeting_rows` `urls`: its PDFs, a calendar row's agenda) was first fetched (the manifests) before the
+  note's window end, so a meeting known from no fetched document (a calendar row with no agenda yet) is never
+  listed. `meeting` is the card's kind label in lower case, without a leading "<body>, ", `null` when it has none or
+  the body's name already says it; `href` is always the meeting's day on `today.html` (`today.html#d-<date>`),
+  which no later record moves (a meeting page's part number can). No time or place (neither is collected). `[]` when
+  none; the email reads a missing field as `[]`. Body names and kind labels are in `own_text`.
 
 `select(day, lists, seats) -> list[entry]` (Python, `sitegen/morning.py`) is the one filter: `seats` and `budget`/
 `contracts` membership is by `lists`; `zoning` and `seats` also need the seat match above. `morning.js` mirrors it;
@@ -294,7 +298,7 @@ else: body and `recorded` as a kicker, the title as `h3` and link, "Source docum
 plain words." (only the `define_*` texts whose kind is in the edition, `render.KINDS`: the entries' title, item
 number or source file name; a vote means minutes), the navy "Take part" box (`take_part`, `take_part_heading`,
 `take_part_line`, `invited`, then `coming_up` and one line per note `coming_up` row when there is one, and the
-`all_meetings` button to `today.html`), then the footer (`why`, the notice, the support line, `CREDIT_LINE`
+`all_meetings` button to `today.html`; "Read it in plain words." reads only the items shown after the size cut), then the footer (`why`, the notice, the support line, `CREDIT_LINE`
 unchanged). Every word is `morning_note.sender.text` (placeholders checked by `morning.sender_problems`; each
 `define_*` must read "Term. Definition."). `body_text` is the same content in the same order. The one image is still
 the credit logo; the sun, mark and date blocks are text and CSS, so the email reads with images off.
@@ -340,6 +344,11 @@ Order of work for `deliver --live` (any failed check stops before the first writ
      whose key is not among them (finishes a run that died half way);
    - any with a different `note_sha256`: the day belongs to an earlier, different plan. Send nothing, exit 0. (A second
      collection before 7:00 that adds a document changes the note; its additions are on the site and feeds only.)
+     So note D must not change after D's cutoff: its entries are documents first fetched inside the window, and its
+     `coming_up` (note/sunrise) only meetings known from a document first fetched before the cutoff, linked by day.
+     One known gap: a meeting already listed that a later collection the same day finds called off (the city
+     calendar's title, or an RPC or committee cancellation) drops out of `coming_up`, because no fetch time says
+     when it was called off; a re-run after that build sends nothing more that day (fail closed, never twice).
    - the listing fails, is cut short or cannot be read: send nothing, exit non-zero. **Fail closed.**
 4. **Recipients**: page through subscribers, keep `type == "regular"` (confirmed; `unactivated`, `unsubscribed` and
    the rest are never mailed), and reduce each at the adapter boundary to `(id, lists, district, ward)`, read from

@@ -144,6 +144,8 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
         # (the rehearsal's ::warning while the sender is off; a failed run once it is on), never a day lost at 7:00
         if not deliver.body_ok(body, ctx["link_hosts"], ctx["link_urls"]):
             raise PlanError(f"edition {key}: render wrote a body the deliver stage's body check refuses")
+        if len(body.encode("utf-8")) > common.BODY_BUDGET:      # note-sunrise/budget-unenforced: deliver refuses it
+            raise PlanError(f"edition {key}: render wrote a body over the {common.BODY_BUDGET}-byte budget")
         plan["editions"].append({"key": key, "subject": render.subject(ctx, plan["date"]),
                                  "body": body, "entry_ids": [i for i, _ in editions[key]]})
         texts[key] = render.body_text(ctx, note, rows, under)

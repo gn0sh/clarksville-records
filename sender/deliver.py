@@ -45,8 +45,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import unicodedata
 from html import unescape
 
-from .common import (ADDRESS, CONTAINERS, CREDIT_LINE, DATE_RE, EMPTY, INLINE, KEY_RE, LINKS, MARKUP, PLAN_SCHEMA,
-                     REASONS, REFS, SIGNATURE_RE, TAG, exact_url_ok, link_ok, read_tags, signature, subject_line)
+from .common import (ADDRESS, BODY_BUDGET, CONTAINERS, CREDIT_LINE, DATE_RE, EMPTY, INLINE, KEY_RE, LINKS, MARKUP,
+                     PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE, TAG, exact_url_ok, link_ok, read_tags, signature,
+                     subject_line)
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -321,8 +322,10 @@ def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
             raise PlanInvalid("an edition's subject")
         if subject is not None and ed["subject"] != subject:
             raise PlanInvalid("an edition's subject is not the one the config gives")
+        # note-sunrise/budget-unenforced: an edition over common.BODY_BUDGET bytes is clipped by Gmail, hiding the
+        # notice and the provider's unsubscribe link; render never writes one (render.layout), so it is refused
         if not (isinstance(ed["body"], str) and 0 < len(ed["body"]) <= MAX_BODY
-                and body_ok(ed["body"], link_hosts, link_urls)):
+                and len(ed["body"].encode("utf-8")) <= BODY_BUDGET and body_ok(ed["body"], link_hosts, link_urls)):
             raise PlanInvalid("an edition's body")
         if not (isinstance(ed["entry_ids"], list) and ed["entry_ids"]
                 and all(isinstance(i, str) for i in ed["entry_ids"])):
