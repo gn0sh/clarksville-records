@@ -32,8 +32,8 @@
 | 2026-11-21 | manager | n/a | PR #78 merge | merged 35951de |
 | 2026-11-21 | devops (probe) | n/a | V1'' probe try 3 | INCONCLUSIVE (job log unreadable) |
 | 2026-11-21 | manager | n/a | PR #77 merge | merged 70094f6 |
-| 2026-11-21 | security-engineer | opus/high | PR #77/#78/#82 deltas | OK x3 |
-| 2026-11-21 | code-reviewer | opus/high | PR #77/#78/#82 deltas | approve x3; one test-only request changes |
+| 2026-11-21 | security-engineer | opus/high | PR #82 review + 3 deltas | OK (lows fixed), then OK x3 |
+| 2026-11-21 | code-reviewer | opus/high | PR #82 review + 3 deltas | approve; one test-only request changes (fixed dfbf027) |
 | 2026-11-21 | backend-engineer | opus/high | escape flag (v1pp-probe/log-read-escape-flag) aea29a0 | done |
 | 2026-11-21 | backend-engineer | sonnet/high | nits | done |
 | 2026-11-21 | backend-engineer | opus/high | fix 9a083b3, follow-ups 2d91149, 6f0c512 | done |
