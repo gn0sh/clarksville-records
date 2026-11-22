@@ -258,7 +258,7 @@ left out: those people get nothing.
 The plan is a pure function of the note and config: two runs on the same note give byte-identical files. It holds
 no subscriber data, so it is safe as a build artifact in a public repository.
 
-Body (`render.py`; layout since 2026-11-22 is note/sunrise, "Email body forms" below): the site name and date, then per picked list its config label and the entries placed under it: body name
+Body (`render.py`; layout since 2026-11-22 is note/sunrise, "Email body forms" below, with one card per meeting since note-titles round 3, "Subject, kicker and agenda titles"): the site name and date, then per picked list its config label and the entries placed under it: body name
 and meeting (config `morning_note.text.meeting_line`, "{body}, {date} {meeting}": "Montgomery County Commission, November
 9, 2026 formal meeting"; the body alone for an entry with no meeting), `recorded`, the verbatim title, a link to the site page (`alerts.site_url` + `href`) and the source link; then
 `unplaced_text` when set; then one config line saying why the reader got this; the HTML edition then closes with the
@@ -338,15 +338,34 @@ gets a second look because there is nothing letting me know why I should care."
 - **Day claim:** `deliver.plan_digest` reads each subject without its "meeting today" lead (`common.claim_subject`):
   the lead comes from `coming_up`, the one part of a note a later build may change (as the body's "Coming up" lines).
   The lead is added last and never moves a topic out, so the rest of the subject is the same in both builds.
-- **Card:** a kicker of the entry's topic label (config `subject_topics[].label`: Zoning, Alcohol permit, Land,
-  Budget, Parks, Streets, Appointment, Contract, ... else Ordinance / Resolution; no topic: its `recorded` words;
-  a group joins its entries' labels " · " in the card, " / " in a row and the text twin), the headline (`h3`, the
-  link to the site's page) = a verbatim excerpt of the record's title: after the item number and any leading "(...)" / "[...]" labels, a configured leading
-  boilerplate phrase (`morning_note.title_lead_drop`, matched case-insensitively, kept conservative) is shown as
-  "…", then the title is cut at a word boundary to `render.HEADLINE_MAX` (160) with "…" (a meeting's
-  untitled-votes group keeps its meeting line as the headline), then the meeting line and `recorded` (one line,
-  " · "), the group's count and numbers, the source link. The size rule's row and the text twin carry the same
-  parts. The site's page keeps the whole title.
+- **Card, one per meeting** (note-titles round 3, 2026-11-22; the coordinator on the real-captions sample: 401
+  text lines, a 35,000-pixel phone image, headlines cut before the useful part). Within each list section the
+  items of one meeting (same meeting line and day; with no meeting, same body) stand together, in the order the
+  first comes, in one card (`render._card`): the site's date block beside the meeting line (`h3`, linking the
+  meeting's page when the entries name it), the `recorded` words most of its items share (`TAG["said"]`, once),
+  and its documents once each, without a page (`TAG["docs"]`: config `source_document` for each source document,
+  `title_agenda` for the agenda an item's title comes from, or `title_agenda_dated` "Item titles from the {date}
+  meeting's agenda" when that agenda is another meeting's). Then, at the card's full width, one compact line per item
+  (`TAG["item"]`, `render._line_of`): the topic label (`TAG["item_kick"]`, config `subject_topics[].label`; none
+  when no topic matches), the headline linking the item's page, then muted (`TAG["muted"]`) the title's leading
+  labels and any `recorded` words that differ from the card's (only the rest when they extend them: "not confirmed"
+  under "Recorded in the minutes"; the invariant "an unconfirmed vote says so" holds). No per-item "Open the page",
+  source line or `recorded` line. An item with no meeting (a budget book, a solicitation) also links its own source
+  document, muted. One item's several entries of one meeting (two votes on it; the same site page and title) are one
+  line (`render._flat`); `plan.json` still lists every entry id. A meeting's untitled votes (note/compact-untitled)
+  are one line: the count line linking the meeting's page, then their numbers, muted.
+- **Headline** (`render.headline_parts`): a verbatim excerpt of the record's title: the item number, then (the
+  leading "(...)" / "[...]" labels taken out and shown muted after it) the words, where a title starting with a
+  configured pattern (`morning_note.title_lead_drop`, case-insensitive, matched at the start; the build refuses a
+  pattern that does not compile or matches the empty string) shows "…" in its place. The first pattern drops the
+  zoning boilerplate through "application of <applicant> for" before "a zone change", which also keeps applicants'
+  names (often private people) out of the email. Past `render.HEADLINE_MAX` (200) characters the middle is cut at
+  words when the title ends in a "from ... to ..." clause of at most 100 characters (a zone change's districts):
+  start, "… ", that clause; else the end is cut at a word with "…". The site's page keeps the whole title.
+- **Size rule rows** (past `BODY_BUDGET`) keep the previous one-line form per item (kicker, headline, labels, meeting
+  line, `open_site`, source and agenda links). The plain-text twin has the same cards: the meeting line and its
+  page, the shared `recorded` words, the documents, then "  - <label>: <headline> · <labels> · <differing words>
+  <item page>" per item.
 - **Agenda titles** (additive entry field, 2026-11-22): the city build titles an item no minutes printed from its
   meeting's agenda caption, verbatim, and records `item.title_source` {kind "agenda", source_id, page, meeting_id}
   (`claude/note-titles-captions`, schema/facts.schema.json, docs/architecture/city-council.md). Every county or

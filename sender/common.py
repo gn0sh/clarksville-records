@@ -138,6 +138,13 @@ TAG = {
     "line": '<p style="margin:8px 0 0;">',
     "numbers": f'<p style="margin:4px 0 0;{_MONO}font-size:13px;line-height:1.6;color:#4A5470;">',
     "source": '<p style="margin:10px 0 0;font-size:15px;">',
+    # note-titles round 3: one compact line per item of a meeting card, its topic label and the muted labels after
+    "said": '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;color:#4A5470;">',
+    "docs": '<p style="margin:4px 0 0;font-size:14px;line-height:1.4;">',
+    "item": '<p style="margin:8px 0 0;padding:8px 0 0;border-top:1px solid #E9EDF5;font-size:14px;'
+            'line-height:1.35;font-weight:600;">',
+    "item_kick": f'<span style="{_KICK}color:#4A5470;">',
+    "muted": '<span style="font-size:13px;font-weight:400;color:#4A5470;">',
     # the size rule's compact row (render.BUDGET), the "N more" line, and the unplaced zoning line
     "row": '<p style="margin:0 0 10px;font-size:15px;">',
     "note": '<p style="margin:0 0 12px;">',
@@ -174,7 +181,8 @@ LINKS = {
 CONTAINERS = ("page", "sheet", "sky", "table", "tr", "sky_td", "sun_td", "intro_box", "section", "card", "card_td",
               "words", "part_box", "part", "foot")
 EMPTY = ("mark_ring", "mark", "sun_box", "sun_ring", "sun")
-INLINE = ("mark_ring", "mark", "sun_ring", "sun", "day_n", "strong")     # inside a line; every other TAG opens one
+# inside a line; every other TAG opens one
+INLINE = ("mark_ring", "mark", "sun_ring", "sun", "day_n", "strong", "item_kick", "muted")
 # Gmail clips a message at about 102 KB and hides the rest (the notice, the support line and the provider's
 # unsubscribe link) behind "View entire message". An edition's HTML stays under this many bytes (render.layout).
 BODY_BUDGET = 80_000

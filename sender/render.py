@@ -26,6 +26,13 @@ title as the headline, a verbatim excerpt (a configured leading boilerplate phra
 to HEADLINE_MAX). A vote whose minutes printed no title and whose meeting's agenda did (`title_source` kind "agenda")
 shows that caption only beside a link to the agenda (agenda_cite); without one it stays untitled.
 
+note-titles round 3 (2026-11-22, a 35,000-pixel email no busy reader scrolls): one card per meeting (_card: its line
+linking the meeting's page, the `recorded` words its items share, its documents once, without a page), then one
+compact line per item (_line_of: topic label, headline linking the item's page, then muted the title's leading
+"(FIRST READING)" / "[ZONING CASE ...]" labels and any `recorded` words that differ). One item's several entries of
+one meeting are one line. The headline drops a configured lead pattern (the zoning boilerplate through the applicant)
+and, past HEADLINE_MAX, cuts its middle so a closing "from ... to ..." clause stays (_middle_cut).
+
 A record's title is untrusted text (it comes from a parsed PDF) and the body goes through the provider's own
 template and Markdown step, so inert() turns every character either of them could read as markup into an HTML
 character reference. Links are only the site's own pages and source URLs that pass build._is_https_uri; anything
@@ -35,6 +42,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from functools import lru_cache
 
 from .common import CUT, MAX_TITLE  # noqa: F401  common's since subject-unchecked, still importable from here
 from .common import (BODY_BUDGET, COMING_N, CREDIT_LINE, DATE_RE, DOTS, LINKS, MARKUP, TAG, ZWSP, clean, compose,
@@ -53,11 +61,14 @@ TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": (), "
              # subject_<key>_one and _many) and the agenda link of an agenda's title
              "subject_frame": ("{topics}",), "subject_and": (), "subject_records_one": (),
              "subject_records_many": ("{n}",), "subject_today_one": (), "subject_today_many": ("{n}",),
-             "title_agenda": ()}
-HEADLINE_MAX = 160          # note-titles: a card's headline, at most this many characters, cut at a word
+             "title_agenda": (), "title_agenda_dated": ("{date}",)}
+HEADLINE_MAX = 200          # note-titles: a headline, at most this many characters, cut at words
 HEADLINE_CUT = "\u2026"     # "…": where the headline leaves words of the title out
-# a title's leading labels, kept before a dropped lead phrase: "(FIRST READING) [ZONING CASE Z-22-2025] "
+# a title's leading labels, shown after the headline, muted: "(FIRST READING) [ZONING CASE Z-22-2025] "
 _LABELS = re.compile(r"(?:\([^()]{1,80}\)\s*|\[[^\[\]]{1,160}\]\s*)*")
+# a title's closing "from <this> to <that>" (a zone change's districts), kept when the middle is cut
+_FROM_TO = re.compile(r"from\s+\S.{0,90}?\sto\s+\S.{0,90}")
+TAIL_MAX = HEADLINE_MAX // 2
 # note/compact-untitled: a meeting's untitled votes stand as one line from this many on (a lone one stays itself)
 COMPACT_MIN = 2
 COMPACT_LIST = "seats"      # the one list whose untitled votes are compacted (morning.LIST_KEYS; a fixed key)
@@ -136,7 +147,7 @@ def context(cfg: dict) -> dict:
             # name, sitegen.views.item_types) and the leading words a headline leaves out (title_lead_drop)
             "item_types": list(cfg.get("item_types") or []),
             "topics": [dict(t) for t in mn.get("subject_topics") or []],
-            "lead_drop": [clean(x) for x in mn.get("title_lead_drop") or [] if clean(x)],
+            "lead_drop": [x for x in mn.get("title_lead_drop") or [] if isinstance(x, str) and x.strip()],
             "page_label": mn["page"]["page_label"], "notice": u["notice"], "email_line": u["email_line"],
             "support_label": cfg.get("support_label") or "",
             "link_hosts": parse_hosts(mn["sender"]["link_hosts"]),
@@ -265,24 +276,53 @@ def topics(ctx: dict, e: dict) -> tuple[str, ...]:
     return (k,) if k else ()
 
 
-def headline(ctx: dict, e: dict, title: str) -> str:
-    """A card's headline (note-titles): the record's title, verbatim, with a configured leading phrase every such
-    title repeats (config morning_note.title_lead_drop: "An Ordinance amending the zoning code and map of the City
-    of ...,") shown as "…" after the item number and any leading "(FIRST READING)" or "[ZONING CASE ...]" labels,
-    then cut at a word to HEADLINE_MAX characters with "…". Only words are left out; none is added or changed."""
+@lru_cache(maxsize=64)
+def _lead_re(pattern: str) -> re.Pattern:
+    return re.compile(pattern, re.IGNORECASE)
+
+
+def _middle_cut(s: str, most: int = HEADLINE_MAX) -> str:
+    """`s` as at most about `most` characters: when it ends in a "from ... to ..." clause (a zone change's districts),
+    its start cut at a word, "… ", then that clause whole; else cut at a word at the end (common.cut). Verbatim
+    fragments only."""
+    if len(s) <= most:
+        return s
+    for m in reversed([m for m in re.finditer(r"(?<=\s)from\s", s)]):
+        tail = s[m.start():]
+        if len(tail) <= TAIL_MAX and _FROM_TO.fullmatch(tail):
+            start = s[:m.start()].rstrip()
+            return cut(start, most - len(tail) - 2, HEADLINE_CUT) + " " + tail
+        break                       # only the last "from" can open a closing clause
+    return cut(s, most, HEADLINE_CUT)
+
+
+def headline_parts(ctx: dict, e: dict, title: str) -> tuple[str, str]:
+    """(headline, labels) of a record's title (note-titles): its leading "(FIRST READING)" and "[ZONING CASE ...]"
+    labels taken out of the headline (shown after it, muted); a configured leading boilerplate (config
+    morning_note.title_lead_drop, each a case-insensitive pattern matched at the start of the words after the item
+    number and labels, such as the zoning caption's "An Ordinance amending the zoning code and map of ..., application
+    of <applicant> for ") shown as "…"; then the middle cut to HEADLINE_MAX (_middle_cut). Only words are left out;
+    none is added or changed."""
     s = clean(title)
     num = clean(e.get("item_number"))
     head = num + ": " if num and s.startswith(num + ": ") else ""
     rest = s[len(head):]
     labels = _LABELS.match(rest).group(0)
     body = rest[len(labels):]
-    for phrase in ctx.get("lead_drop") or []:
-        if body[:len(phrase)].casefold() == phrase.casefold():
-            tail = body[len(phrase):].lstrip(" ,;:")
-            if tail:
-                s = head + labels + HEADLINE_CUT + tail
-                break
-    return cut(s, HEADLINE_MAX, HEADLINE_CUT)
+    if not body:                    # nothing but labels: they are the title
+        body, labels = rest, ""
+    for pattern in ctx.get("lead_drop") or []:
+        m = _lead_re(pattern).match(body)
+        tail = body[m.end():].lstrip(" ,;:") if m and m.end() else ""
+        if tail:
+            body = HEADLINE_CUT + tail
+            break
+    return _middle_cut(head + body), clean(labels)
+
+
+def headline(ctx: dict, e: dict, title: str) -> str:
+    """headline_parts()' headline."""
+    return headline_parts(ctx, e, title)[0]
 
 
 def _counted_as(e: dict) -> tuple:
@@ -425,18 +465,39 @@ def _labels(ctx: dict, entries: list[dict]) -> list[str]:
     return [t["label"] for t in ctx.get("topics") or [] if t["key"] in got]
 
 
-def _item(ctx: dict, x) -> dict:
+def _agenda_doc(ctx: dict, e: dict, hosts) -> tuple[str, str] | None:
+    """(words, URL) of the agenda an entry's title comes from (agenda_cite), the document without its page: config
+    title_agenda (the entry's own meeting's agenda, or a day not known), else title_agenda_dated with the agenda's
+    meeting day (`title_source.meeting_id` starts with it: an item titled from an earlier meeting's agenda)."""
+    cite = agenda_cite(e, hosts)
+    if not cite:
+        return None
+    t = ctx["text"]
+    mid = str(e["title_source"].get("meeting_id") or "")[:10]
+    try:
+        words = t["title_agenda_dated"].replace("{date}", day_words(mid)) \
+            if DATE_RE.fullmatch(mid) and mid != _day(e) else t["title_agenda"]
+    except ValueError:
+        words = t["title_agenda"]
+    return words, cite[0].split("#", 1)[0]
+
+
+def _item(ctx: dict, x, entries: list[dict] | None = None) -> dict:
     """What one item of a section shows, the same for both bodies and every layout (note-titles): `kick` (the topic
     labels, else the entry's `recorded` words), `head` (the headline: the record's title, else the meeting line),
-    `sub` (the meeting line and `recorded` when the headline and kicker do not already say them), `texts` [(kind,
-    raw text)], kind "text" or "numbers", `day` (ISO or None), `page` (the site's page or ""), `src` and `agenda`
-    ((words, URL) or None). An entry: its title as the headline. A meeting's untitled votes (items): the meeting
-    line as the headline, then the count line and the record's item numbers, the meeting's page and the minutes
-    document, each once."""
+    `tags` (the title's leading labels, shown muted after it), `sub` (the meeting line and `recorded` when the
+    headline and kicker do not already say them; the size rule's rows), `texts` [(kind, raw text)], kind "text" or
+    "numbers", `day` (ISO or None), `page` (the site's page or ""), `src` and `agenda` ((words, URL) or None),
+    `who` (the meeting line), `said` (its entries' `recorded` words, each once), `docs` (the meeting's documents it
+    comes from: (words, URL) without a page) and `meet` (the meeting's page). An entry: its title as the headline. A
+    meeting's untitled votes (items): the count line and the record's item numbers, linking the meeting's page.
+    `entries`: every entry the item stands for (_flat: one item's several entries of one meeting)."""
     hosts = ctx.get("link_hosts", ())
-    agenda = None
+    agenda, tags = None, ""
+    group = entries or (x if isinstance(x, list) else [x])
+    e = group[0]
+    day = _day(e)
     if isinstance(x, list):
-        e = x[0]
         nums = item_numbers(x)
         # the count line leads into the numbers line; with no number to follow, it ends without its colon
         words = untitled_words(ctx, len(x))
@@ -444,27 +505,38 @@ def _item(ctx: dict, x) -> dict:
         page_url = site_link(ctx["site_url"], e.get("meeting_href"), hosts)
         src, page = source_link({"source": {"url": _document(e), "page": None}}, hosts)
         kick, head, sub = _labels(ctx, x), who_when(ctx, e), []
+        labels = kick
     else:
-        e = x
         texts = []
         page_url = site_link(ctx["site_url"], x.get("href"), hosts)
         src, page = source_link(x, hosts)
         kick = _labels(ctx, [x])
         said = clean(x.get("recorded"))
-        title, who = headline(ctx, x, _shown_title(x, hosts)), who_when(ctx, x)
+        (title, tags), who = headline_parts(ctx, x, _shown_title(x, hosts)), who_when(ctx, x)
         head = title or who
         sub = ([who] if title and who else []) + ([said] if kick and said else [])
+        labels = kick
         kick = kick or ([said] if said else [])
         cite = agenda_cite(x, hosts)
         # cited once: an agenda entry whose own source is that agenda page needs no second link
         if cite and title and cite[0] != (x.get("source") or {}).get("url"):
             t = ctx["text"]
             agenda = (t["title_agenda"] + (f", {ctx['page_label']} {cite[1]}" if cite[1] else ""), cite[0])
-    day = _day(e)
-    return {"kick": kick, "head": head, "sub": [t for t in sub if clean(t)], "who": who_when(ctx, e), "day": day,
-            "texts": [(k, t) for k, t in texts if clean(t)], "page": page_url,
+    docs = []
+    for y in group:
+        url, _ = source_link({"source": {"url": _document(y), "page": None}}, hosts)
+        if url:                     # in its meeting's card: the card's date block and line say which meeting
+            docs.append((ctx["text"]["source_document"], url))
+        a = None if isinstance(x, list) else _agenda_doc(ctx, y, hosts)
+        if a:
+            docs.append(a)
+    return {"kick": kick, "labels": labels, "head": head, "tags": tags, "sub": [t for t in sub if clean(t)],
+            "who": who_when(ctx, e),
+            "day": day, "texts": [(k, t) for k, t in texts if clean(t)], "page": page_url,
             "src": (_source_words(ctx, day, page), src) if src else None, "agenda": agenda,
-            "entries": x if isinstance(x, list) else [x]}
+            "said": list(dict.fromkeys(w for w in (clean(y.get("recorded")) for y in group) if w)),
+            "docs": list(dict.fromkeys(docs)), "meet": site_link(ctx["site_url"], e.get("meeting_href"), hosts),
+            "group": isinstance(x, list), "entries": group}
 
 
 def _a(url: str, words: str, style: str = "ink") -> str:
@@ -476,30 +548,88 @@ def _p(name: str, inner: str, close: str = "p") -> str:
     return f"{TAG[name]}{inner}</{close}>"
 
 
-def _card(ctx: dict, it: dict) -> list[str]:
-    """One white card (note-titles): the topic kicker, the headline (the record's title, cut at a word, as the link
-    to the site's page), the meeting line and `recorded`, the record's words, the source link and, for a title from
-    the agenda, the agenda's link. From a meeting, all of it beside the site's date block (month, day, year; hidden
-    from screen readers, the meeting line says the day)."""
-    links = [_p("source", _a(x[1], x[0])) for x in (it["src"], it["agenda"]) if x]
-    inner = [_p("kicker", " &middot; ".join(inert(k) for k in it["kick"]))] if it["kick"] else []
-    head = _a(it["page"], it["head"]) if it["page"] else inert(it["head"])
-    inner.append(_p("h3_after" if it["kick"] else "h3", head, "h3"))
-    inner += [_p("line", " &middot; ".join(inert(t) for t in it["sub"]))] if it["sub"] else []
-    inner += [_p("numbers" if k == "numbers" else "line", inert(t)) for k, t in it["texts"]]
-    inner += links
-    if not it["day"]:
-        return [TAG["card"], *inner, "</div>"]
-    d = date.fromisoformat(it["day"])
+def _groups(units: list[dict]) -> list[list[dict]]:
+    """A section's items, consecutive ones of one meeting (or, with no meeting, one body) together (_flat puts
+    them next to each other)."""
+    out: list[list[dict]] = []
+    for it in units:
+        if out and (out[-1][0]["who"], out[-1][0]["day"]) == (it["who"], it["day"]):
+            out[-1].append(it)
+        else:
+            out.append([it])
+    return out
+
+
+def _shared(units: list[dict]) -> tuple[str, list[list[str]]]:
+    """(the `recorded` words most of these items share, shown once under the meeting line; per item the words it
+    has that differ, shown after it: when they extend the shared words ("Recorded in the minutes; not confirmed"
+    under "Recorded in the minutes"), only the rest, "not confirmed")."""
+    counts: dict[str, int] = {}
+    for it in units:
+        for w in it["said"]:
+            counts[w] = counts.get(w, 0) + 1
+    common = max(counts, key=lambda w: (counts[w], -list(counts).index(w))) if counts else ""
+    flags = [[w[len(common) + 2:] if common and w.startswith(common + "; ") else w for w in it["said"] if w != common]
+             for it in units]
+    return common, flags
+
+
+def _docs(units: list[dict]) -> list[tuple[str, str]]:
+    """The documents a meeting's items come from, each once: (words, URL) without a page (the site's pages give
+    the page). With no meeting (a budget book, a solicitation): none; each item's page carries its source."""
+    if not units[0]["day"]:
+        return []
+    out: dict[str, str] = {}
+    for words, url in (d for it in units for d in it["docs"]):
+        out.setdefault(url, words)          # one link per document: an agenda that is also the entries' source
+    return [(w, u) for u, w in out.items()]
+
+
+def _line_of(ctx: dict, it: dict, flag: list[str]) -> str:
+    """One item of a meeting card (note-titles round 3): its topic label (muted capitals), then the headline linking
+    the site's page, then, muted, the title's leading labels and any `recorded` words that differ from the
+    meeting's. A meeting's untitled votes: the count line linking the meeting's page, then their numbers. An item
+    with no meeting (a budget book, a solicitation) also links its own source document, muted."""
+    inner = f"{TAG['item_kick']}{inert(' / '.join(it['labels']))}</span> " if it["labels"] else ""
+    if it["group"]:
+        words = " ".join(t for _, t in it["texts"][:1])
+        inner += _a(it["page"], words) if it["page"] else inert(words)
+        nums = [t for k, t in it["texts"] if k == "numbers"]
+        return _p("item", inner + (f" {TAG['muted']}{inert(nums[0])}</span>" if nums else ""))
+    inner += _a(it["page"], it["head"]) if it["page"] else inert(it["head"])
+    after = [inert(t) for t in [it["tags"], *flag] if clean(t)]
+    if it["src"] and not it["day"]:     # with no meeting, its own source; a meeting's card links them once, above
+        after.append(_a(it["src"][1], it["src"][0]))
+    return _p("item", inner + (f" {TAG['muted']}{' &middot; '.join(after)}</span>" if after else ""))
+
+
+def _card(ctx: dict, units: list[dict]) -> list[str]:
+    """One white card per meeting (note-titles round 3, the owner: a busy reader will not scroll 35,000 pixels):
+    the meeting line (linking the meeting's page) beside the site's date block, the `recorded` words its items
+    share, the meeting's documents once (the minutes, the agenda an item's title comes from), then, at the card's
+    full width, one compact line per item (_line_of). With no meeting (a budget book, a solicitation), the body's
+    name and its items."""
+    it0 = units[0]
+    said, flags = _shared(units)
+    inner = [_p("h3", _a(it0["meet"], it0["who"]) if it0["meet"] and it0["day"] else inert(it0["who"]), "h3")]
+    inner += [_p("said", inert(said))] if said else []
+    docs = _docs(units)
+    inner += [_p("docs", " &middot; ".join(_a(url, words) for words, url in docs))] if docs else []
+    lines = [_line_of(ctx, it, flag) for it, flag in zip(units, flags)]
+    if not it0["day"]:
+        return [TAG["card"], *inner, *lines, "</div>"]
+    d = date.fromisoformat(it0["day"])
+    # the date block beside the meeting's lines only: the items below take the card's full width (a phone's
+    # narrow column would wrap a headline into twice the lines)
     return [TAG["card"], TAG["table"], TAG["tr"],
             f"{TAG['day_td']}{d:%b}<br>{TAG['day_n']}{d.day}</span><br>{d.year}</td>", TAG["card_td"],
-            *inner, "</td>", "</tr>", "</table>", "</div>"]
+            *inner, "</td>", "</tr>", "</table>", *lines, "</div>"]
 
 
 def _row(ctx: dict, it: dict) -> list[str]:
     """The size rule's compact form of an item: its kicker, headline, words and links on one line."""
     parts = [inert(" / ".join(it["kick"]))] if it["kick"] else []
-    parts += [f"{TAG['strong']}{inert(it['head'])}</strong>"] + [inert(t) for t in it["sub"]]
+    parts += [f"{TAG['strong']}{inert(it['head'])}</strong>"] + [inert(t) for t in [it["tags"], *it["sub"]] if clean(t)]
     parts += [inert(t) for _, t in it["texts"]]
     parts += [_a(it["page"], ctx["text"]["open_site"])] if it["page"] else []
     parts += [_a(x[1], x[0]) for x in (it["src"], it["agenda"]) if x]
@@ -588,10 +718,28 @@ def _more(ctx: dict, n: int) -> str:
 
 
 def _flat(ctx: dict, note: dict, entries: list[dict], under: dict | None):
-    """[(list label, [shown item])] for the edition, each item already _item()."""
+    """[(list label, [shown item])] for the edition, each item already _item(): one item's several entries of one
+    meeting (two votes on it, the same site page) as one, and a list's items of one meeting (or, with no meeting,
+    one body) next to each other, in the order the first of them comes (note-titles round 3)."""
     hosts = ctx.get("link_hosts", ())
-    return [(label, [_item(ctx, x) for x in items(rows, key, hosts)])
-            for key, label, rows in _keyed(note, entries, under)]
+    out = []
+    for key, label, rows in _keyed(note, entries, under):
+        merged: list[tuple] = []
+        at: dict[tuple, int] = {}
+        for x in items(rows, key, hosts):
+            if isinstance(x, dict) and x.get("href"):
+                k = (x.get("body"), x.get("meeting_date"), x.get("meeting"), x["href"], x.get("title"))
+                if k in at:
+                    merged[at[k]][1].append(x)
+                    continue
+                at[k] = len(merged)
+            merged.append((x, x if isinstance(x, list) else [x]))
+        units = [_item(ctx, x, es) for x, es in merged]
+        order: dict[tuple, list[dict]] = {}
+        for it in units:
+            order.setdefault((it["who"], it["day"]), []).append(it)
+        out.append((label, [it for group in order.values() for it in group]))
+    return out
 
 
 def _shown_entries(secs, shown: int) -> list[dict]:
@@ -618,11 +766,14 @@ def _compose(ctx: dict, note: dict, entries: list[dict], secs, full: int, shown:
             break
         out += [TAG["section"]] + ([_p("kicker", inert(ctx["text"]["new_on_list"]))] if n == 0 else [])
         out.append(_p("h2", inert(label), "h2"))
-        for it in xs:
+        for units in _groups(xs):
             if n >= shown:
                 break
-            out += _card(ctx, it) if n < full else _row(ctx, it)
-            n += 1
+            cards = units[:max(0, min(full, shown) - n)]
+            out += _card(ctx, cards) if cards else []
+            for it in units[len(cards):len(cards) + max(0, shown - n - len(cards))]:
+                out += _row(ctx, it)
+            n += min(len(units), shown - n)
         if n >= shown and shown < total:
             more = site_link(ctx["site_url"], ctx.get("note_href"), hosts)
             words = _more(ctx, total - shown)
@@ -708,16 +859,25 @@ def body_text(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
         if n >= shown:
             break
         out += [clean(label), ""]
-        for it in xs:
+        for units in _groups(xs):
             if n >= shown:
                 break
-            out += [f"  {clean(' / '.join(it['kick']))}"] if it["kick"] else []
-            out += [f"  {clean(it['head'])}"] + [f"  {clean(t)}" for t in it["sub"]]
-            out += [f"  {clean(t)}" for _, t in it["texts"]]
-            out += [f"  {clean(ctx['text']['open_site'])}: {it['page']}"] if it["page"] else []
-            out += [f"  {clean(x[0])}: {x[1]}" for x in (it["src"], it["agenda"]) if x]
+            units = units[:shown - n]
+            said, flags = _shared(units)
+            it0 = units[0]
+            out += [f"  {clean(it0['who'])}" + (f": {it0['meet']}" if it0["meet"] and it0["day"] else "")]
+            out += [f"  {said}"] if said else []
+            out += [f"  {clean(w)}: {u}" for w, u in _docs(units)]
+            for it, flag in zip(units, flags):
+                if it["group"]:
+                    parts = [" ".join(clean(t) for _, t in it["texts"])]
+                else:
+                    parts = [clean(it["head"])] + [clean(t) for t in [it["tags"], *flag] if clean(t)]
+                    parts += [f"{clean(it['src'][0])}: {it['src'][1]}"] if it["src"] and not it["day"] else []
+                kick = f"{clean(' / '.join(it['labels']))}: " if it["labels"] else ""
+                out.append(f"  - {kick}{' · '.join(parts)}" + (f" <{it['page']}>" if it["page"] else ""))
             out.append("")
-            n += 1
+            n += len(units)
     if shown < total:
         more = site_link(ctx["site_url"], ctx.get("note_href"), hosts)
         out += [clean(_more(ctx, total - shown)) + (f": {more}" if more else ""), ""]

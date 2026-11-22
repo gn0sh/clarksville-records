@@ -81,15 +81,36 @@ def card_text(card) -> str:
     return (td[0] if td else card).all_text().strip()
 
 
-def titles(html: str) -> list[str]:
-    """Each card's headline (note-titles): the record's title, or a meeting's line for its untitled votes."""
+def meeting_lines(html: str) -> list[str]:
+    """Each card's heading (note-titles round 3): its meeting line, or with no meeting its body's name."""
     return [n.all_text() for c in cards(html) for n in c.walk() if n.tag == "h3"]
 
 
+def items_of(html: str) -> list:
+    """Each item's compact line in the cards (note-titles round 3)."""
+    return styled(html, "item")
+
+
+def headline_of(line) -> str:
+    """An item line's headline: its words without the topic label and the muted labels after it (a meeting's
+    untitled votes: the count line)."""
+    skip = {id(n) for n in line.children if n.tag == "span"}
+    return "".join(x if isinstance(x, str) else ("" if id(x) in skip or x.tag == "br" else x.all_text())
+                   for x in line.parts).strip()
+
+
+def titles(html: str) -> list[str]:
+    """Each item's headline (note-titles): the record's title, or a meeting's untitled votes' count line."""
+    return [headline_of(x) for x in items_of(html)]
+
+
 def head_raw(html: str) -> str:
-    """The first card headline's words as render wrote them (inside the link to the site's page, when it has one)."""
-    line = next(x for x in html.split("\n") if x.startswith((common.TAG["h3"], common.TAG["h3_after"])))
-    inner = line.split(">", 1)[1].rsplit("</h3>", 1)[0]
+    """The first item's headline words as render wrote them (inside the link to the site's page, when it has one)."""
+    line = next(x for x in html.split("\n") if x.startswith(common.TAG["item"]))
+    inner = line[len(common.TAG["item"]):].rsplit("</p>", 1)[0]
+    if inner.startswith(common.TAG["item_kick"]):
+        inner = inner.split("</span> ", 1)[1]
+    inner = inner.split(" " + common.TAG["muted"], 1)[0]
     return inner.split(common.LINKS["ink"], 1)[1].rsplit("</a>", 1)[0] if inner.startswith("<a href=") else inner
 
 
@@ -101,7 +122,8 @@ def head_text(html: str) -> str:
 def test_a_hostile_title_comes_out_inert():
     html = html_of(entry(title=HOSTILE))
     assert tags(html) <= ALL_TAGS                                                       # only the tags we write
-    assert links(html) == [SITE_URL + "items/2026.html#i-x", "https://example.com/fixture/agenda.pdf#page=2"] + TODAY
+    # note-titles round 3: the meeting's document once (no page), then the item's page on its headline
+    assert links(html) == ["https://example.com/fixture/agenda.pdf", SITE_URL + "items/2026.html#i-x"] + TODAY
     title = head_raw(html)
     # nothing the provider's template step or a Markdown step could read as markup is left as a plain character
     assert not re.search(r"[<>{}\[\]()*_`#\\~|!$%@=]", re.sub(r"&#\d+;", "", title)), title
@@ -152,14 +174,14 @@ def test_braces_in_a_source_url_cannot_reach_the_template_step():
 @pytest.mark.parametrize("href", ["https://evil.example.com/", "//evil.example.com/x", "/abs.html", "../up.html",
                                   "a/../../b.html", "javascript:alert(1)", "a b.html", "x.html?next=//evil", None, ""])
 def test_an_href_that_is_not_a_plain_site_path_gives_no_site_link(href):
-    assert links(html_of(entry(href=href))) == ["https://example.com/fixture/agenda.pdf#page=2"] + TODAY
+    assert links(html_of(entry(href=href))) == ["https://example.com/fixture/agenda.pdf"] + TODAY
 
 
 @pytest.mark.parametrize("site_url", ["", "http://records.example.com/", "https://records.example.com",
                                       "javascript:alert(1)//", "https://records.example.com/?x=", None])
 def test_no_site_link_without_a_proper_site_url(site_url):
     ctx = {**CTX, "site_url": site_url}
-    assert links(html_of(entry(), ctx=ctx)) == ["https://example.com/fixture/agenda.pdf#page=2"]
+    assert links(html_of(entry(), ctx=ctx)) == ["https://example.com/fixture/agenda.pdf"]
 
 
 def test_site_links_are_site_url_plus_href_for_every_fixture_entry(msite):  # noqa: F811
@@ -168,9 +190,13 @@ def test_site_links_are_site_url_plus_href_for_every_fixture_entry(msite):  # no
     got = links(html)
     with_href = [e for e in note["entries"] if e["href"]]
     assert with_href and all(SITE_URL + e["href"] in got for e in with_href)        # every real href is linkable
-    assert all(e["source"]["url"] in got for e in note["entries"])
+    # note-titles round 3: a meeting's documents once each, without their page (the site's page gives it); an
+    # entry with no meeting links its own source
+    docs = {e["source"]["url"] if not e.get("meeting_date") else e["source"]["url"].split("#")[0]
+            for e in note["entries"]}
+    assert all(u in got for u in docs)
     assert got[-1] == note["support_url"]                                        # and the support link, last
-    assert all(u.startswith(SITE_URL) or u in {e["source"]["url"] for e in note["entries"]} for u in got[:-1])
+    assert all(u.startswith(SITE_URL) or u in docs for u in got[:-1])
 
 
 # ------------------------------------------------------------------ our own words: config text, neutral
@@ -204,26 +230,35 @@ def test_every_word_outside_the_record_is_config_text():
                   title_ours=False, untitled=False,
                   title_source={"kind": "agenda", "source_id": "src-a", "page": 3, "meeting_id": "m",
                                 "url": "https://example.com/fixture/agenda.pdf#page=3"})
+    # one titled from an earlier meeting's agenda: that agenda's day in the link's words (title_agenda_dated)
+    earlier = vote(8, 8, body_name="BODY", recorded="REC", title="TITLE", item_number="NUMD", lists=["budget"],
+                   title_ours=False, untitled=False,
+                   title_source={"kind": "agenda", "source_id": "src-b", "page": 1, "meeting_id": "2026-11-16-formal",
+                                 "url": "https://example.com/fixture/agenda-b.pdf#page=1"})
     n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"),
                 entry(id="u", meeting_date=None, body_name="BODY", recorded="REC", title="TITLE"), *group, agenda,
+                earlier,
                 unplaced_text="UNPLACED", support_line="SUPPORT", support_url="https://tips.example.com/x", coming_up=rows)
     n["lists"] = [{"key": k, "label": f"L-{k}"} for k in morning.LIST_KEYS]
     html = render.body_html(ctx, n, n["entries"])
     paras(html)                 # the credit is the site footer's fixed wording (note/credit-logo), not config text
     shown = " ".join(t for node in parse(html.replace(common.CREDIT_LINE, "")).walk() for t in node.text)
     words = re.sub(r"November 1[16]|December [12], 2026|September 3, 2026|Wednesday|Nov|Sep|\d", "", shown)
-    used = ["header_day", "greeting", "tagline", "intro", "new_on_list", "source_meeting", "source_document",
+    # note-titles round 3: a meeting's card names its documents "Source document" (its line says the day);
+    # source_meeting stands in the size rule's rows
+    used = ["header_day", "greeting", "tagline", "intro", "new_on_list", "source_document",
             "plain_words", "take_part", "take_part_heading", "take_part_line", "invited", "coming_up",
-            "coming_meeting", "coming_body", "all_meetings", "why", "untitled_votes", "title_agenda"]
+            "coming_meeting", "coming_body", "all_meetings", "why", "untitled_votes", "title_agenda",
+            "title_agenda_dated"]
     assert sorted(set(re.findall(r"[A-Za-z-]+", words))) == sorted(
         ["SITE", "PLATE", "PLACE", "L-budget", "L-seats", "BODY", "REC", "TITLE", "PG", "UNPLACED", "NOTICE",
          "LINE", "SUPPORT", "TIPS", "NUMA", "NUMB", "CBODY", "CMEET", "WTERM", "WMEANS", "KBUDGET"] +
         [f"W{k.replace('_', '').upper()}" for k in used])
     assert "WUNTITLEDVOTES 2" in html and "NUMA, NUMB" in html
-    # the page link's words and the "N more" line stand in the plain text and the size rule's rows
-    assert "WOPENSITE" in render.body_text(ctx, n, n["entries"])
+    # the page link's words stand in the size rule's rows (note-titles round 3: the plain text gives each item's
+    # page after it, the meeting's after its line)
     cut = render.body_html({**ctx, "budget": len(html) - 400}, n, n["entries"])
-    assert "WOPENSITE" in cut and len(cut) <= len(html) - 400
+    assert "WOPENSITE" in cut and "WSOURCEMEETING" in cut and len(cut) <= len(html) - 400
     assert render.subject(ctx, "2026-11-11") == "SITE S November 11, 2026"
 
 
@@ -321,7 +356,7 @@ def test_the_text_version_reads_the_same_edition():
     n = note_of(entry(title="A  title\nover two lines"), unplaced_text="1 zoning case printed no district or ward")
     text = render.body_text(CTX, n, n["entries"])
     assert "A title over two lines" in text and SITE_URL + "items/2026.html#i-x" in text
-    assert "https://example.com/fixture/agenda.pdf#page=2" in text and text.rstrip().endswith(CTX["notice"])
+    assert "https://example.com/fixture/agenda.pdf" in text and text.rstrip().endswith(CTX["notice"])
     assert CTX["text"]["why"] in text and CTX["email_line"] in text
 
 
@@ -495,7 +530,7 @@ def test_a_bare_address_in_a_title_is_not_left_for_the_mail_client_to_link(title
     shown = head_text(html)
     assert not re.search(r"(?i)www\.|[a-z]+://", shown)
     assert shown.replace("\u200b", "") == title and "&#8203;" in strong
-    assert links(html) == [SITE_URL + "items/2026.html#i-x", "https://example.com/fixture/agenda.pdf#page=2"] + TODAY
+    assert links(html) == ["https://example.com/fixture/agenda.pdf", SITE_URL + "items/2026.html#i-x"] + TODAY
 
 
 @pytest.mark.parametrize("title", ["Sign in at evil.example/login", "x@evil.example", "x_https://evil.example",
@@ -570,7 +605,7 @@ def test_a_source_on_a_host_that_is_not_a_link_host_gives_no_link():
 
 def test_no_site_link_when_the_site_host_is_not_a_link_host():
     ctx = {**CTX, "link_hosts": ("example.com",)}
-    assert links(html_of(entry(), ctx=ctx)) == ["https://example.com/fixture/agenda.pdf#page=2"]
+    assert links(html_of(entry(), ctx=ctx)) == ["https://example.com/fixture/agenda.pdf"]
 
 
 def test_the_support_link_is_the_configured_url_exactly():
@@ -613,8 +648,9 @@ SEPT_NUMBERS = "ORDINANCE 1-2026-27, ORDINANCE 2-2026-27, ORDINANCE 4-2026-27"
 
 
 def lis(html: str) -> list[str]:
-    """Each card's words (note/sunrise: one card per item, was one <li>)."""
-    return [card_text(c) for c in cards(html)]
+    """Each item's words (note-titles round 3: one compact line per item in its meeting's card; was one card,
+    before that one <li>)."""
+    return [x.all_text() for x in items_of(html)]
 
 
 def test_a_meetings_untitled_votes_stand_as_one_line_with_a_count_and_two_links():
@@ -626,37 +662,43 @@ def test_a_meetings_untitled_votes_stand_as_one_line_with_a_count_and_two_links(
     assert len(rows) == 2
     words = render.untitled_words(CTX, 4)
     assert words == CTX["text"]["untitled_votes"].replace("{n}", "4") and "4" in words
-    assert rows[0].split("\n")[:2] == ["Ordinance", "Fixture Council, September 3, 2026 regular session"]
-    assert words in rows[0]
+    # note-titles round 3: one card for the meeting (its line, the `recorded` words its items share, the minutes
+    # once), then a line per item: the group's topic label, count line and numbers; the titled vote
+    assert meeting_lines(html) == ["Fixture Council, September 3, 2026 regular session"]
+    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes; not confirmed"]
+    assert rows[0].startswith("Ordinance ") and words in rows[0]
     assert SEPT_NUMBERS in rows[0]                      # the record's item numbers, once each, in record order
     assert "Title not read" not in html and "MINUTES" not in html and "not confirmed" not in rows[0]
     assert "FIXTURE a real title" in rows[1]
     assert links(html)[:4] == [SITE_URL + "city/meetings/2026.html#2026-09-03-regular", MINUTES_URL,
-                               SITE_URL + "city/items/2026.html#ordinance-3", f"{MINUTES_URL}#page=4"]
-    # note-titles: the group's headline is its meeting line; a titled vote's is its own title
-    assert titles(html) == ["Fixture Council, September 3, 2026 regular session", SEPT[2]["title"]]
+                               SITE_URL + "city/meetings/2026.html#2026-09-03-regular",
+                               SITE_URL + "city/items/2026.html#ordinance-3"]
+    # note-titles: the group's headline is its count line; a titled vote's is its own title
+    assert titles(html) == [words, SEPT[2]["title"]]
 
 
 def test_the_text_body_reads_the_same_compact_edition():
     n = note_of(*SEPT)
     text = render.body_text(CTX, n, n["entries"])
     block = text.split("\n\n")[4].split("\n")       # after the header, the greeting, the kicker and the label
-    assert block == ["  Ordinance", "  Fixture Council, September 3, 2026 regular session",
-                     f"  {render.untitled_words(CTX, 4)}",
-                     f"  {SEPT_NUMBERS}",
-                     f"  {CTX['text']['open_site']}: {SITE_URL}city/meetings/2026.html#2026-09-03-regular",
-                     f"  Source document, September 3, 2026 meeting: {MINUTES_URL}"]
+    meeting = f"{SITE_URL}city/meetings/2026.html#2026-09-03-regular"
+    assert block == [f"  Fixture Council, September 3, 2026 regular session: {meeting}",
+                     "  Recorded in the minutes; not confirmed",
+                     f"  Source document: {MINUTES_URL}",
+                     f"  - Ordinance: {render.untitled_words(CTX, 4)} {SEPT_NUMBERS} <{meeting}>",
+                     f"  - Ordinance: {SEPT[2]['title']} <{SITE_URL}city/items/2026.html#ordinance-3>"]
     assert "Title not read" not in text and "MINUTES" not in text and SEPT[2]["title"] in text
 
 
 def test_one_line_per_meeting_and_a_lone_untitled_vote_stays_itself():
     oct_ = [vote(n, n, meeting="2026-10-01") for n in (7, 8, 9)]
     lone = vote(10, 2, meeting="2026-08-06")
-    rows = lis(html_of(lone, *SEPT, *oct_))
-    assert len(rows) == 4
+    html = html_of(lone, *SEPT, *oct_)
+    rows = lis(html)
+    assert len(rows) == 4 and len(cards(html)) == 3                   # one card per meeting
     assert lone["title"] in rows[0]                                    # one untitled vote: as it reads today
     assert render.untitled_words(CTX, 4) in rows[1] and render.untitled_words(CTX, 3) in rows[3]
-    assert "October 1, 2026" in rows[3]
+    assert "October 1, 2026" in meeting_lines(html)[2]
 
 
 def test_untitled_votes_from_two_documents_of_one_meeting_are_two_lines():
@@ -717,7 +759,7 @@ def test_a_group_with_no_item_number_has_no_numbers_line():
     kind_only = [vote(n, n, title="MINUTES", title_ours=False, item_number=None) for n in (1, 2)]
     n = note_of(*kind_only)
     block = render.body_text(CTX, n, n["entries"]).split("\n\n")[4].split("\n")
-    assert len(block) == 4 and block[1] == "  " + render.untitled_words(CTX, 2).rstrip(":")
+    assert len(block) == 4 and block[3].startswith("  - " + render.untitled_words(CTX, 2).rstrip(":") + " <")
 
 
 def test_a_zoning_case_is_never_compacted_and_only_the_seats_section_is():

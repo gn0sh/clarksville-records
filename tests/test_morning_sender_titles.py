@@ -15,7 +15,7 @@ from sender import common, deliver, plan as plan_mod, render
 from sender import settings as settings_mod
 from test_morning import D, inputs  # noqa: F401
 from test_morning_sender_plan import SITE_URL, cfg_with, msite, read_note, site_with  # noqa: F401
-from test_morning_sender_render import CTX, HOSTILE, cards, entry, head_raw, links, note_of, titles, vote
+from test_morning_sender_render import CTX, HOSTILE, entry, head_raw, links, note_of, styled, titles, vote
 from test_site_neutrality import BANNED
 
 TEXT = config.SITE["morning_note"]["sender"]["text"]
@@ -343,19 +343,21 @@ def test_each_card_leads_with_its_topic_kicker_then_the_title_as_headline():
     n = note_of(vote(3, 4, untitled=False), solicitation(1), entry(id="o", lists=["budget"]), date=DAY)
     html = render.body_html(CTX, n, n["entries"])
     assert ok(html)
-    kick = [[p.all_text() for p in c.walk() if p.tag == "p"][0] for c in cards(html)]
+    kick = [k.all_text() for k in styled(html, "item_kick")]
     assert kick == [LABEL["ordinance"], LABEL["contracts"], LABEL["budget"]]       # one each: the first it matches
     assert titles(html) == ["ORDINANCE 3-2026-27: FIXTURE a real title", "FIXTURE bid 1", "FIXTURE: a resolution"]
-    assert links(html)[0] == SITE_URL + "city/items/2026.html#ordinance-3"          # the headline links the site page
+    first = [a.attrs["href"] for a in styled(html, "item")[0].walk() if a.tag == "a"]
+    assert first == [SITE_URL + "city/items/2026.html#ordinance-3"]               # the headline links the site page
     text = render.body_text(CTX, n, n["entries"])
-    assert f"  {LABEL['ordinance']}\n  ORDINANCE 3-2026-27: FIXTURE a real title\n  Fixture Council, September 3, 2026 regular session\n" in text
+    assert "  Fixture Council, September 3, 2026 regular session: " in text
+    assert f"  - {LABEL['ordinance']}: ORDINANCE 3-2026-27: FIXTURE a real title <{SITE_URL}city/items/2026.html#ordinance-3>\n" in text
 
 
 def test_an_entry_with_no_topic_leads_with_its_recorded_words():
     e = entry(lists=["seats"], title="FIXTURE: approval of the agenda", recorded="On the agenda")
     html = render.body_html(CTX, note_of(e), [e])
-    c = cards(html)[0]
-    assert [p.all_text() for p in c.walk() if p.tag == "p"][0] == "On the agenda"
+    # note-titles round 3: no topic label; the `recorded` words stand once, under the meeting line
+    assert not styled(html, "item_kick") and [x.all_text() for x in styled(html, "said")] == ["On the agenda"]
     assert html.count("On the agenda") == 1
 
 
@@ -383,14 +385,15 @@ def test_a_vote_titled_from_its_agenda_stands_as_itself_and_cites_the_agenda():
     n = note_of(*SEPT, titled, date=DAY)
     html = render.body_html(CTX, n, n["entries"])
     assert ok(html)
-    assert titles(html) == ["Fixture Council, September 3, 2026 regular session", SEPT[2]["title"], titled["title"]]
+    assert titles(html) == [render.untitled_words(CTX, 4), SEPT[2]["title"], titled["title"]]
     assert render.untitled_words(CTX, 4) in html              # the group keeps only the votes still untitled
-    assert links(html)[-4:-1] == [SITE_URL + "city/items/2026.html#ordinance-6", f"{MINUTES_URL}#page=7",
-                                  f"{AGENDA_URL}#page=3"]
-    words = f"{TEXT['title_agenda']}, {config.SITE['morning_note']['page']['page_label']} 3"
-    assert words in cards(html)[-1].all_text()
+    # note-titles round 3: the meeting's card links the minutes and the agenda its title comes from, once each
+    docs = styled(html, "docs")[0]
+    assert [(a.all_text(), a.attrs["href"]) for a in docs.walk() if a.tag == "a"] == [
+        (TEXT["source_document"], MINUTES_URL), (TEXT["title_agenda"], AGENDA_URL)]
+    assert links(html)[-2] == SITE_URL + "city/items/2026.html#ordinance-6"
     text = render.body_text(CTX, n, n["entries"])
-    assert f"  {words}: {AGENDA_URL}#page=3" in text and f"  {titled['title']}" in text
+    assert f"  {TEXT['title_agenda']}: {AGENDA_URL}\n" in text and titled["title"] in text
     assert render.topic_counts(CTX, n["entries"]) == {"ordinance": 5}
 
 
@@ -423,7 +426,7 @@ def test_an_agenda_entry_whose_own_source_is_the_cited_page_gets_no_second_link(
     e = entry(lists=["seats"], title="ORDINANCE 6-2026-27: FIXTURE", source={"url": f"{AGENDA_URL}#page=3", "page": 3},
               title_source={"kind": "agenda", "source_id": "s", "page": 3, "meeting_id": "m", "url": f"{AGENDA_URL}#page=3"})
     html = render.body_html(CTX, note_of(e), [e])
-    assert links(html).count(f"{AGENDA_URL}#page=3") == 1 and TEXT["title_agenda"] not in html
+    assert links(html).count(AGENDA_URL) == 1 and TEXT["title_agenda"] not in html
 
 
 def test_the_note_carries_the_facts_title_source_with_the_agenda_pages_url():
@@ -450,20 +453,47 @@ def test_the_note_carries_the_facts_title_source_with_the_agenda_pages_url():
     assert all(e["title_source"] is None for d in morning.documents(views.Index(f)) for e in d["entries"])
 
 
-# ------------------------------------------------------------------ the headline: lead phrase, 160 characters
-def test_a_repeated_lead_phrase_is_shown_as_an_ellipsis_after_the_number_and_labels():
+# ------------------------------------------------------------------ the headline: labels, lead drop, 200 characters
+def test_a_zoning_caption_reads_from_the_zone_change_with_its_districts_and_no_applicant():
+    """note-titles round 3: the labels move after the headline; the zoning boilerplate and the applicant (often a
+    person's name) are left out through "for"; the middle is cut so the "from ... to ..." districts stay."""
     e = city(1, ZONE, "ORDINANCE")
-    head = render.headline(CTX, e, e["title"])
-    assert head.startswith("ORDINANCE 1-2026-27: (FIRST READING) [ZONING CASE Z-22-2025] …application of Youth "
-                           "Realty, LLC for a zone change")
-    assert head.endswith("…") and len(head) <= render.HEADLINE_MAX + 1
+    head, labels = render.headline_parts(CTX, e, e["title"])
+    assert labels == "(FIRST READING) [ZONING CASE Z-22-2025]"
+    assert head.startswith("ORDINANCE 1-2026-27: …a zone change on a parcel of land located on the eastern frontage")
+    assert head.endswith("… from O-1 Office District to C-2 General Commercial District.")
+    assert "Youth Realty" not in head and len(head) <= render.HEADLINE_MAX
     # each run of words shown is the record's own, in its order: the headline is the title with words left out
     runs = [x.strip() for x in head.split("…") if x.strip()]
-    assert all(r in e["title"] for r in runs) and e["title"].index(runs[0]) < e["title"].index(runs[1])
+    assert all(r in e["title"] for r in runs)
+    assert [e["title"].index(r) for r in runs] == sorted(e["title"].index(r) for r in runs)
     lease = city(2, LEASE)
     assert render.headline(CTX, lease, lease["title"]).startswith("RESOLUTION 2-2026-27: …requiring majority council")
     assert render.headline(CTX, city(3, BOARDS), city(3, BOARDS)["title"]) == \
         "RESOLUTION 3-2026-27: …appointments to the Beer Board and Tree Board"
+
+
+def test_without_an_application_clause_only_the_boilerplate_goes():
+    e = city(5, "An Ordinance amending the zoning code and map of the City of Clarksville, FIXTURE parcel rezoned "
+                "from R-1 to R-2", "ORDINANCE")
+    assert render.headline(CTX, e, e["title"]) == "ORDINANCE 5-2026-27: …FIXTURE parcel rezoned from R-1 to R-2"
+
+
+def test_an_applicant_whose_name_holds_for_is_still_left_out():
+    e = city(6, "An Ordinance amending the zoning code and map of the City of Clarksville, application of Friends "
+                "for Parks, LLC for a zone change on FIXTURE land", "ORDINANCE")
+    assert render.headline(CTX, e, e["title"]) == "ORDINANCE 6-2026-27: …a zone change on FIXTURE land"
+
+
+def test_a_long_title_with_no_closing_districts_is_cut_at_its_end():
+    words = "FIXTURE " + " ".join(["word"] * 80)
+    head = render.headline(CTX, entry(), words)
+    assert head.endswith(" word…") and len(head) <= render.HEADLINE_MAX + 1
+
+
+def test_a_title_of_labels_only_keeps_them_as_the_headline():
+    e = entry(title="(FIRST READING) [FIXTURE]")
+    assert render.headline_parts(CTX, e, e["title"]) == ("(FIRST READING) [FIXTURE]", "")
 
 
 @pytest.mark.parametrize("title", [
@@ -481,7 +511,10 @@ def test_the_lead_phrases_come_from_config():
     assert config.SITE["morning_note"]["title_lead_drop"]
     cfg = copy.deepcopy(config.SITE)
     cfg["morning_note"]["title_lead_drop"] = ["ok", 3]
-    assert "morning_note.title_lead_drop must be a list of phrases" in morning.problems(cfg)
+    assert "morning_note.title_lead_drop must be a list of patterns" in morning.problems(cfg)
+    for bad in ("(unclosed", "x*"):                       # not a pattern; matches the empty start of any title
+        cfg["morning_note"]["title_lead_drop"] = [bad]
+        assert any("title_lead_drop" in p for p in morning.problems(cfg)), bad
 
 
 def test_a_real_caption_card_reads_kicker_headline_meeting_and_both_sources():
@@ -490,8 +523,8 @@ def test_a_real_caption_card_reads_kicker_headline_meeting_and_both_sources():
                                                   "url": f"{AGENDA_URL}#page=1"})
     html = render.body_html(CTX, note_of(e), [e])
     assert ok(html)
-    c = cards(html)[0]
-    ps = [p.all_text() for p in c.walk() if p.tag == "p"]
-    assert ps[0] == LABEL["zoning"] and titles(html)[0] == render.headline(CTX, e, e["title"])
-    assert ps[1] == "Fixture Council, September 3, 2026 regular session · Recorded in the minutes; not confirmed"
-    assert links(html)[1:3] == [f"{MINUTES_URL}#page=1", f"{AGENDA_URL}#page=1"]
+    assert [k.all_text() for k in styled(html, "item_kick")] == [LABEL["zoning"]]
+    assert titles(html)[0] == render.headline(CTX, e, e["title"])
+    assert [x.all_text() for x in styled(html, "muted")] == ["(FIRST READING) [ZONING CASE Z-22-2025]"]
+    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes; not confirmed"]
+    assert links(html)[1:3] == [MINUTES_URL, AGENDA_URL]

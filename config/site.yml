@@ -135,10 +135,13 @@ morning_note:
     - {key: contracts, label: Contract, kinds: [solicitation]}
     - {key: ordinance, label: Ordinance, item_types: [ordinance], fallback: true}
     - {key: resolution, label: Resolution, item_types: [resolution], fallback: true}
-  # note-titles: a card's headline is the record's title, cut to 160 characters at a word. A title (after its item
-  # number and any leading "(FIRST READING)" or "[ZONING CASE ...]" labels) that starts with one of these phrases
-  # shows "…" in its place: words every such title repeats, never the part that says what it is about.
+  # note-titles: a headline is the record's title after its item number, its leading "(FIRST READING)" and
+  # "[ZONING CASE ...]" labels shown muted after it, cut to 200 characters at words (sender/render.py
+  # headline_parts). A title whose words then start with one of these patterns (case-insensitive, matched at the
+  # start) shows "…" in their place: words every such title repeats, never the part that says what it is about.
+  # The first also leaves out the applicant (a person's name, often), through "for" before "a zone change".
   title_lead_drop:
+    - "An Ordinance amending the zoning code and map of the City of Clarksville,\\s*application of .{1,160}? for (?=(?:an? )?zone change\\b)"
     - "An Ordinance amending the zoning code and map of the City of Clarksville,"
     - "A Resolution of the City Council of the City of Clarksville, Tennessee,"
     - "A Resolution approving"
@@ -252,7 +255,8 @@ morning_note:
       subject_resolution_many: "{n} resolutions"
       # note-titles: a vote whose minutes printed no title, titled from its meeting's agenda (the entry's
       # title_source "agenda"): the link to that agenda's page, which printed the words. A page number follows.
-      title_agenda: Title from the meeting's agenda
+      title_agenda: Item titles from the meeting's agenda
+      title_agenda_dated: "Item titles from the {date} meeting's agenda"
       why: You get this note because a record on a list you picked was added to the site since yesterday morning.
       open_site: Open the page on the site
       # note/compact-untitled: in the seats section, one line for a meeting's votes whose record printed no title of

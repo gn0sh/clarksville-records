@@ -189,7 +189,7 @@ SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site"
                     # link of a title its meeting's agenda printed
                     "subject_frame": ("{topics}",), "subject_and": (), "subject_records_one": (),
                     "subject_records_many": ("{n}",), "subject_today_one": (), "subject_today_many": ("{n}",),
-                    "title_agenda": ()}
+                    "title_agenda": (), "title_agenda_dated": ("{date}",)}
 TOPIC_RULES = ("words", "lists", "kinds", "item_types")      # sender.render.topic: how a topic matches an entry
 
 
@@ -204,7 +204,7 @@ def topic_text_keys(cfg: dict) -> dict:
 def topic_problems(cfg: dict) -> list[str]:
     """note-titles: morning_note.subject_topics and title_lead_drop. Each topic: a key (lower-case letters, once, not
     records or today), a label, and at least one rule; every `words` pattern compiles; lists, kinds and item_types
-    name what exists. Each lead phrase is text."""
+    name what exists. Each lead drop is a pattern that matches words (never the empty string)."""
     from sender.common import FIXED_COUNTED, TOPIC_KEY
     mn = cfg.get("morning_note") or {}
     at = "morning_note.subject_topics"
@@ -243,7 +243,14 @@ def topic_problems(cfg: dict) -> list[str]:
                 if x not in types]
     lead = mn.get("title_lead_drop", [])
     if not isinstance(lead, list) or not all(isinstance(x, str) and x.strip() for x in lead):
-        out.append("morning_note.title_lead_drop must be a list of phrases")
+        out.append("morning_note.title_lead_drop must be a list of patterns")
+        return out
+    for x in lead:
+        try:
+            if re.compile(x, re.IGNORECASE).match(""):
+                out.append(f"morning_note.title_lead_drop: {x!r} matches nothing at all; it must match words")
+        except re.error:
+            out.append(f"morning_note.title_lead_drop: {x!r} is not a pattern")
     return out
 _DEFINITION = re.compile(r"[^.\s][^.]*\. \S.*")        # "Term. Definition.": the term (bold in the email), then its words
 _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
