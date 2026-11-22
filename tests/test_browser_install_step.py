@@ -311,7 +311,7 @@ def _sysdir(tmp_path: Path, without=("unzip",)) -> Path:
 
 def _install(tmp_path, *, node="22.11.0", npm_fails=0, npm_integrity=False, deps_fails=0, curl_fails=None,
              extra=None, after_zips=None, ziplist=None, curl_extra=False, unzip_absent=False, top_extra=None,
-             manifest=None, tamper=None, browsers_json=None):
+             manifest=None, tamper=None, browsers_json=None, unzip_fail=None):
     """Runs the install step in a fake checkout with stubs; returns (process, outputs, env file, calls, runner)."""
     work, bindir, runner, src = tmp_path / "work", tmp_path / "bin", tmp_path / "runner", tmp_path / "src"
     (work / "tests" / "playwright").mkdir(parents=True)
@@ -370,7 +370,10 @@ def _install(tmp_path, *, node="22.11.0", npm_fails=0, npm_integrity=False, deps
         _stub(bindir / "unzip", 'd=""; z=""; a=("$@")\n'
                                 'for i in "${!a[@]}"; do [ "${a[$i]}" = -d ] && d=${a[$((i+1))]}; z=${a[$i]}; done\n'
                                 f'echo "unzip ${{z##*/}} -> ${{d##*/}}" >> "{calls}"\n'
-                                + hook + '/usr/bin/unzip "$@"\n')
+                                + hook
+                                + (f'[ "${{z##*/}}" = {unzip_fail} ] && {{ echo "write error" >&2; exit 50; }}\n'
+                                   if unzip_fail else "")
+                                + '/usr/bin/unzip "$@"\n')
     out, envf = tmp_path / "out", tmp_path / "envfile"
     path = f"{bindir}:{_sysdir(tmp_path)}" if unzip_absent else f"{bindir}:/usr/bin:/bin"
     env = {"PATH": path, "RUNNER_TEMP": str(runner), "GITHUB_OUTPUT": str(out),
@@ -519,17 +522,23 @@ def _outside_untouched(tmp_path):
     return not outside.exists() or not any(outside.iterdir())
 
 
-@pytest.mark.parametrize("extra", [
-    lambda n, z: _symlink_entry(z, "chrome-linux64/link", "/etc/passwd") if n == ZIPS[0] else None,
-    lambda n, z: (_symlink_entry(z, "chrome-linux64/evil", "../../../outside"),
-                  z.writestr("chrome-linux64/evil/planted", "x\n")) if n == ZIPS[0] else None,
-    lambda n, z: z.writestr("../../outside/planted", "x\n") if n == ZIPS[1] else None,
+@pytest.mark.parametrize("extra,refused_by", [
+    (lambda n, z: _symlink_entry(z, "chrome-linux64/link", "/etc/passwd") if n == ZIPS[0] else None, "tree"),
+    # unzip itself refuses to write through the link ("exists but is not directory"): an unzip failure, so `missing`
+    (lambda n, z: (_symlink_entry(z, "chrome-linux64/evil", "../../../outside"),
+                   z.writestr("chrome-linux64/evil/planted", "x\n")) if n == ZIPS[0] else None, "unzip"),
+    (lambda n, z: z.writestr("../../outside/planted", "x\n") if n == ZIPS[1] else None, "tree"),
 ], ids=["symlink-entry", "symlink-write-through", "dot-dot-entry"])
-def test_t8_a_matching_zip_with_a_link_or_escape_fails_and_writes_nothing_outside(tmp_path, extra):
+def test_t8_a_matching_zip_with_a_link_or_escape_is_never_ok_and_writes_nothing_outside(tmp_path, extra, refused_by):
     (tmp_path / "outside").mkdir()
     r, out, _e, _c, runner = _install(tmp_path, extra=extra)
-    assert r.returncode == 1, r.stdout + r.stderr
-    assert "browsers=" not in out and "::error::" in r.stdout
+    if refused_by == "tree":
+        assert r.returncode == 1, r.stdout + r.stderr
+        assert "browsers=" not in out and "::error::The installed Chromium does not match" in r.stdout
+    else:
+        assert r.returncode == 0 and out == "browsers=missing\n", r.stdout + r.stderr
+        assert "::warning::Browser tests: unzip failed on the checked Chromium zips" in r.stdout
+        assert not (runner / "pw-browsers").exists()
     assert _outside_untouched(tmp_path) and not (runner / "outside").exists()
 
 
@@ -540,15 +549,28 @@ def test_t8_a_folder_beside_the_two_fails_the_tree_check(tmp_path, top):
     assert "browsers.sha256 (a folder added or missing)" in r.stdout and "browsers=" not in out
 
 
-def test_t8_unzip_failing_on_checked_zips_fails_the_step(tmp_path):
+def _not_a_zip(tmp_path):
     def replace(src):   # bytes that match the list (written from them) but are no zip
         (src / ZIPS[1]).write_bytes(b"not a zip\n")
         (tmp_path / "work" / "tests" / "playwright" / "browser-zips.sha256").write_text(_ziplist(src))
-    r, out, _e, calls, runner = _install(tmp_path, after_zips=replace)
-    assert r.returncode == 1, r.stdout + r.stderr
-    assert "::error::unzip failed on the checked Chromium zips" in r.stdout and "browsers=" not in out
-    assert len(_kinds(calls, "unzip")) == 2 and not list(runner.glob("pw-zips.*"))
-    assert not (runner / "pw-browsers").exists()                               # code review dd1606e #4
+    return replace
+
+
+@pytest.mark.parametrize("case", ["disk-full-chrome", "disk-full-shell", "not-a-zip"])
+def test_t8_unzip_failing_on_checked_zips_is_a_warning_and_no_browser(tmp_path, case):
+    """Daylight change request on 5412e94: the bytes already matched their sha256, so an unzip failure is the runner's
+    (a full disk), not the network's: the browser tests skip (browsers=missing) and Clarksville still publishes;
+    nothing half-unpacked is left. Zip, browsers.json and tree mismatches stay hard fails (tests above)."""
+    kw = {"after_zips": _not_a_zip(tmp_path)} if case == "not-a-zip" else \
+        {"unzip_fail": ZIPS[0] if case == "disk-full-chrome" else ZIPS[1]}
+    r, out, _e, calls, runner = _install(tmp_path, **kw)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert out == "browsers=missing\n" and "::error::" not in r.stdout
+    assert ("::warning::Browser tests: unzip failed on the checked Chromium zips (a full runner disk?); nothing ran "
+            "them. The browser tests skip this run") in r.stdout
+    assert len(_kinds(calls, "unzip")) == (1 if case == "disk-full-chrome" else 2)
+    assert not list(runner.glob("pw-zips.*")) and not (runner / "pw-browsers").exists()
+    assert not _kinds(calls, "sleep")                                            # verified bytes: never refetched
 
 
 def _add(rel, text="x\n"):

@@ -47,7 +47,7 @@ replies, records-data and national-data commits, same-run artifacts) is never ru
    exactly the two files. Mismatch = `::error::` naming browser-zips.sha256, `rm -rf "$zips"`, exit 1. Never retried.
 5. Only then: `rm -rf -- "$br"; mkdir -p "$br/chromium-1243" "$br/chromium_headless_shell-1243"`; `unzip -q -d` each zip
    into its folder (`chrome-linux64/`, `chrome-headless-shell-linux64/` land inside); `: > <folder>/INSTALLATION_COMPLETE`
-   (empty, as in browsers.sha256); `rm -rf "$zips"`. An unzip failure on verified bytes = hard fail.
+   (empty, as in browsers.sha256); `rm -rf "$zips"`. An unzip failure on verified bytes = `missing` (see below).
 6. Keep the tree check, tightened: the top level is exactly the manifest's two folders (drop `.links` from the
    expected set and its `find` line; drop `rm -rf ffmpeg-*`, so any ffmpeg or `.links` folder is "a folder added").
 7. Remove every `playwright install chromium`. Keep `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS`, the env, no token.
@@ -71,11 +71,13 @@ comment, `--body-file` only. The job already has `issues: write`; the install st
 (daily 470, national 235), so a missing wheel fails as a download, never builds. Editing national-update.yml moves its
 blob: update `$natBlob` in scripts/protect-main.ps1 (~513) and its twin in protect-main.sh (~408) in the same PR.
 
-**Accepted risk (code review dd1606e #5, `ci-browser/environmental-unzip-hard-fails`):** an unzip failure on bytes that
-already matched browser-zips.sha256 (most likely a full runner disk) fails the job, so that day's Clarksville publish is
-held, not skipped to `missing`. Accepted: the bytes are verified, so the cause is the runner, not the network, and a
-partial unpack must never be read as "no browser"; the next scheduled run retries on a fresh runner. Revisit if it ever
-recurs.
+**Unzip failure on verified bytes (code review dd1606e #5, `ci-browser/environmental-unzip-hard-fails`; Daylight change
+request on 5412e94):** an unzip failure on bytes that already matched browser-zips.sha256 (most likely a full runner
+disk) is `missing`, not a hard fail: the zips folder and `$br` are removed, a `::warning::` is printed, the browser
+tests skip and the Clarksville publish goes ahead (on main the R3 issue says so). Safe because the bytes are the pinned
+ones, so the cause is the runner, not the source, and nothing half-unpacked is left for anything to run. Hard fails stay
+hard: a zip sha256 mismatch, a malformed list, a browsers.json revision/version mismatch, a tree mismatch, an npm
+EINTEGRITY. Once national.enabled is on, `missing` fails tests/test_national_browser.py anyway.
 
 ## Tests (tests/test_browser_install_step.py; update the 28 existing, add these)
 - T1 static: no `install chromium` in either workflow; `install-deps chromium` once; exactly two curl calls, each with
@@ -89,7 +91,7 @@ recurs.
 - T6 hash mismatch on either zip: exit 1, no `browsers=`, unzip never called, `$br` never made, curl not retried.
 - T7 malformed list (3 lines, other name, uppercase hex): exit 1 before any curl. An extra file in `$zips`: exit 1.
 - T8 matching zip with a symlink entry, or `.links` / `ffmpeg-1011` beside the folders: tree check fails; nothing
-  written outside `$br`. Unzip absent: `missing`; unzip failing on verified zips: exit 1.
+  written outside `$br`. Unzip absent: `missing`; unzip failing on verified zips: `missing`, nothing left behind.
 - T9 no `actions/cache` path in either workflow names pw-browsers, pw-zips, ms-playwright or playwright.
 - T10 R2: the sum above, parsed from the step's `timeout` / `--max-time` values, is <= `timeout-minutes` x 60.
 - T11 R3: the step's `if`, env, `--body-file` only; stub gh: no open issue = create, one open = comment.

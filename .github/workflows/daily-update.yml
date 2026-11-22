@@ -704,7 +704,8 @@ jobs:
       # A zip or tree mismatch, a malformed list or an npm EINTEGRITY fails this step and the job, always.
       # PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS stays (Playwright runs ldd on the browser binaries otherwise).
       # Code review bbc603a #1 (daily-run/install-step-hard-dependency): a failed download (npm, apt or a zip, each
-      # tried three times, 30 s then 90 s apart), no unzip, or a runner without Node 20 or newer is a warning instead,
+      # tried three times, 30 s then 90 s apart), no unzip or an unzip failure on the checked zips (a runner fault, such
+      # as a full disk), or a runner without Node 20 or newer is a warning instead,
       # nothing unchecked is left and browsers=missing: the Tests step then leaves Playwright off PATH, the browser tests
       # skip, Clarksville still publishes while config/site.yml national.enabled is off, and on main the step after
       # Tests opens or updates one issue (R3). Once the switch is on, tests/test_national_browser.py (_browser_required)
@@ -808,7 +809,7 @@ jobs:
           mkdir -p "$br/chromium-$rev" "$br/chromium_headless_shell-$rev"
           unzip -q -n -d "$br/chromium-$rev" "$zips/chrome-linux64.zip" \
             && unzip -q -n -d "$br/chromium_headless_shell-$rev" "$zips/chrome-headless-shell-linux64.zip" \
-            || { echo "::error::unzip failed on the checked Chromium zips. Nothing ran them; nothing is built."; rm -rf -- "$zips" "$br"; exit 1; }
+            || missing "unzip failed on the checked Chromium zips (a full runner disk?); nothing ran them."
           : > "$br/chromium-$rev/INSTALLATION_COMPLETE"
           : > "$br/chromium_headless_shell-$rev/INSTALLATION_COMPLETE"
           rm -rf -- "$zips"
