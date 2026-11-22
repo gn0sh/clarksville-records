@@ -1,6 +1,7 @@
-Text layer (pdftotext -layout, pages split by form feed) of six stored City Council agendas, for
-collector/tests/test_city_agenda_titles.py (note-titles). Fetched 2026-11-22 from the CivicClerk API, one GET each,
-10 s apart, with the collector's User-Agent (robots.txt allows /); the PDFs are not kept here.
+Text layer (pdftotext -layout, pages split by form feed) of nine stored City Council agendas, for
+collector/tests/test_city_agenda_titles.py (note-titles). Fetched 2026-11-22, one GET each, with the collector's
+User-Agent: six from the CivicClerk API (robots.txt allows /), 10 s apart; three from the Agenda Center at
+www.clarksvilletn.gov (robots.txt allows /AgendaCenter, Crawl-delay 10), 12 s apart. The PDFs are not kept here.
 
 agenda_2024-01-04.txt  fileId=1860  src-0d828dee6eab
 agenda_2025-07-01.txt  fileId=2542  src-188ccfe77d88
@@ -9,5 +10,13 @@ agenda_2026-01-08.txt  fileId=2848  src-d35036ccb292
 agenda_2026-05-07.txt  fileId=3086  src-070175364628
 agenda_2026-07-02.txt  fileId=3162  src-c283dfeda6df (text supplied with the task; not re-fetched)
 
-URL: https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=<id>,plainText=false)
+agenda_2017-06-29.txt  Agenda/_06292017-67    src-0acdd8e2a9ae  pages 1-2 of 92 (the agenda, then the first
+                                                                  packet page)
+agenda_2021-11-04.txt  Agenda/_11042021-1008  src-5453c3dc98b6  pages 1-6, 213, 226 of 252 (the agenda, then two
+                                                                  packet pages of earlier minutes that print
+                                                                  numbered items)
+agenda_2023-06-01.txt  Agenda/_06012023-1447  src-d363719078d5  all 6 pages
+
+Agenda Center URL: https://www.clarksvilletn.gov/AgendaCenter/ViewFile/<Agenda/_id>
+CivicClerk URL: https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=<id>,plainText=false)
 The source ids are the committed facts' agenda_source_id of each meeting (sha256 prefix of the stored file).

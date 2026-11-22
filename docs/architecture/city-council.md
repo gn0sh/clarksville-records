@@ -198,9 +198,16 @@ agenda (`agenda_source_id`, text layer only) of a meeting that voted on it print
 the first such meeting by date whose agenda has one caption for it. Two entries for the number with different captions
 give nothing for that agenda (run report `agenda_titles.ambiguous`); no entry gives nothing; no fuzzy match
 ("9-2025-26" never matches "09-2025-26"). What counts as an entry, where a caption ends and which trailing notes
-(planning commission, committee or board recommendation, sponsor) are cut is per-locality config,
-`agenda-center.yml agenda_captions`, read by `city_minutes.agenda_captions`; the reading labels "(FIRST READING)" and
-"[ZONING CASE ...]" stay, as the minutes' titles keep "(First Reading)". A title any minutes print is never replaced.
+(planning commission, committee or board recommendation, sponsor, the packet page "Page 76") are cut is per-locality
+config, `agenda-center.yml agenda_captions`, read by `city_minutes.agenda_captions`; the reading labels "(FIRST
+READING)" and "[ZONING CASE ...]" stay, as the minutes' titles keep "(First Reading)". A title any minutes print is
+never replaced. Only entries before the agenda's adjournment entry count (Agenda Center files carry a packet after it
+that reprints earlier minutes with numbered items); an agenda without that line gives none.
+
+Fail closed, never a guess: no caption when a committee or board note is left whose name is neither configured nor
+an agenda heading (where it starts is not known), or when a page break cuts a caption in a flush-left layout (2021)
+and the next page's first line may or may not go on with it. A titled name with no bracket at the end is a sponsor and
+is cut, unless the word before it is in `sponsor_kept_after` ("honoring Mayor X" stays the caption's own).
 
 **Facts contract (additive):** such an item carries `title_source: {kind: "agenda", source_id, page, meeting_id}`
 (schema `item.title_source`); an item without it has the minutes' title (or none). Sites and notes that show an
@@ -217,8 +224,10 @@ cites a source or meeting the keep took out the committed item's title, else non
 | Item types | `sitegen/views.py` `item_types` (words in the title) | an agenda caption with "zoning" makes the item `rezoning` |
 | Run report | `build/city-report.json` `agenda_titles` {untitled, filled, ambiguous, agendas_read} | counts |
 
-Tests: `collector/tests/test_city_agenda_titles.py`, on the text layer of six CivicClerk agendas
-(`collector/tests/fixtures/city/agenda_<date>.txt`). The Agenda Center agendas (2016-2023) are not yet checked.
+Tests: `collector/tests/test_city_agenda_titles.py`, on the text layer of six CivicClerk agendas (2024-2026) and
+three Agenda Center agendas (2017, 2021, 2023; three layouts), `collector/tests/fixtures/city/agenda_<date>.txt`. On
+those nine meetings 113 of the 114 untitled items voted there get a caption; the one left is the minutes' misprint
+"ORDINANCE 43-2025-25".
 
 ## Verified-rate plan (problem family `city-verify`, 2026-11-11)
 

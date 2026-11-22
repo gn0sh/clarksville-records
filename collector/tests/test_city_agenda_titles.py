@@ -1,6 +1,7 @@
 """note-titles: an item the minutes print with only its number takes the caption its meeting's own agenda prints for
 exactly that number (collector/city_minutes.agenda_captions, collector/city_build.agenda_titles). Fixtures: the
-text layer (pdftotext -layout) of six stored CivicClerk agendas, collector/tests/fixtures/city/agenda_<date>.txt."""
+text layer (pdftotext -layout) of six stored CivicClerk agendas and three Agenda Center ones (2017, 2021, 2023; their
+packets trimmed), collector/tests/fixtures/city/agenda_<date>.txt (sources: agendas.SOURCE.txt)."""
 import copy
 import dataclasses
 import json
@@ -17,7 +18,8 @@ from collector.shrink_guard import keep_documents, shrink_guard, vote_content
 ROOT = Path(__file__).resolve().parents[2]
 FIX = Path(__file__).resolve().parent / "fixtures" / "city"
 SCHEMA = json.loads((ROOT / "schema" / "facts.schema.json").read_text())
-DATES = ("2024-01-04", "2025-07-01", "2025-09-04", "2026-01-08", "2026-05-07", "2026-07-02")
+DATES = ("2017-06-29", "2021-11-04", "2023-06-01", "2024-01-04", "2025-07-01", "2025-09-04", "2026-01-08",
+         "2026-05-07", "2026-07-02")
 
 
 @pytest.fixture(scope="module")
@@ -36,7 +38,8 @@ def caps(cfg):
 
 # ------------------------------------------------------------------ reading the agenda
 def test_every_numbered_entry_of_each_fixture_agenda_gives_one_caption(caps):
-    assert {d: len(c) for d, c in caps.items()} == {"2024-01-04": 27, "2025-07-01": 23, "2025-09-04": 27,
+    assert {d: len(c) for d, c in caps.items()} == {"2017-06-29": 3, "2021-11-04": 33, "2023-06-01": 41,
+                                                     "2024-01-04": 27, "2025-07-01": 23, "2025-09-04": 27,
                                                      "2026-01-08": 16, "2026-05-07": 18, "2026-07-02": 14}
     assert all(len(v) == 1 for c in caps.values() for v in c.values())       # no number printed twice
 
@@ -107,6 +110,93 @@ def test_a_page_break_before_the_next_entry_ends_the_caption(caps):
     assert text.endswith("Certificate of Compliance for Planet Liquors (2400 Madison St).")
 
 
+@pytest.mark.parametrize("date,key,caption", [
+    # Agenda Center 2017: sponsor and committee in one parenthesis
+    ("2017-06-29", ("ordinance", "77-2016-17"), "(First Reading) Approving and adopting the Fox Lawson & Associates "
+                                                "updated pay plan for Fiscal Year 2017-18"),
+    ("2017-06-29", ("resolution", "38-2016-17"), "Approving a public records policy"),
+    # 2021: flush-left lines, the packet page after each entry, a bare sponsor (also before a note in parentheses)
+    ("2021-11-04", ("ordinance", "58-2021-22"), "(First Reading) Authorizing a name change from Department of Housing "
+                                                "and Community Development to Department of Neighborhood and Community "
+                                                "Services"),
+    ("2021-11-04", ("ordinance", "47-2021-22"), "(First Reading) Amending the Zoning Ordinance and Map of the City of "
+                                                "Clarksville, application of Sandra Sims, Brian Bryant - Agent for Zone "
+                                                "Change on property located at the intersection of Hawkins Rd. & "
+                                                "Edmondson Ferry Rd. from R-1 Single Family Residential District to R-4 "
+                                                "Multiple Family Residential District"),
+    ("2021-11-04", ("resolution", "31-2021-22"), "Authorizing reapplication for Zone Change for Ben Kimbrough – "
+                                                 "Ringgold Mill Properties, LLC , Bert Singletary – Agent, on the "
+                                                 "property located at the intersection of Ft. Campbell Boulevard and "
+                                                 "Millswood Drive from C-5 and R-2 to R-4"),
+    # 2023: "1." entries under "8) FINANCE COMMITTEE ..." headings; a caption cut by a page break goes on
+    ("2023-06-01", ("ordinance", "129-2022-23"), "(First Reading) Amending the Zoning Ordinance and Map of the City of "
+                                                 "Clarksville, application of Hunter Winn, for Zone Change on property "
+                                                 "fronting on the south frontage of Memorial Dr from R-3 Three Family "
+                                                 "Residential District to C-2 General Commercial District"),
+    ("2023-06-01", ("resolution", "60-2022-23"), "A Resolution authorizing Mayor Pitts to file with the U.S. Department "
+                                                 "of Housing and Urban Development, the City of Clarksville’s FY "
+                                                 "2023-2024 Annual Action Plan, and the FY 2023-2024 application for "
+                                                 "community development block grant funds and home investments "
+                                                 "partnership program funds"),
+    ("2023-06-01", ("resolution", "67-2022-23"), "A Resolution requesting the Mayor to call three sessions of the City "
+                                                 "Council as a “Committee of the Whole” to participate in vision "
+                                                 "sessions"),
+])
+def test_agenda_center_layouts(caps, date, key, caption):
+    assert [c for c, _ in caps[date][key]] == [caption]
+
+
+def test_the_packet_after_the_adjournment_entry_is_never_read(cfg, caps):
+    """2021-11-04: the packet reprints earlier minutes, whose numbered entries print other words ("803 Howard St.")
+    and motion prose (ORDINANCE 45-2021-22, p. 7 of the fixture): only the agenda proper counts."""
+    c = caps["2021-11-04"]
+    assert c[("ordinance", "32-2021-22")] == [("(Second Reading) Authorizing the sale of property located at 803 Howard "
+                                               "Street to Marlon Placid", 3)]
+    assert ("ordinance", "45-2021-22") not in c
+    no_end = [p.replace("16) ADJOURNMENT", "16) ADJOURNED") for p in agenda("2021-11-04")]
+    assert agenda_captions(no_end, cfg) == {}                     # no end line: an unknown layout, no caption
+
+
+def test_a_committee_note_of_an_unknown_name_leaves_no_caption(cfg):
+    """RESOLUTION 18-2025-26 ends "... Memorial Way. Mayor Pitts Designations Committee: Approval". Without
+    "Designations" configured (and no such heading), where the note starts is not known: no caption, never a guess."""
+    names = tuple(n for n in cfg.agenda_captions.committee_names if n != "Designations")
+    c2 = dataclasses.replace(cfg, agenda_captions=dataclasses.replace(cfg.agenda_captions, committee_names=names))
+    caps = agenda_captions(agenda("2025-09-04"), c2)
+    assert ("resolution", "18-2025-26") not in caps and ("resolution", "17-2025-26") in caps
+
+
+@pytest.mark.parametrize("before,kept", [("vision sessions", False), ("Lincoln Homes. ", False),
+                                         ("a resolution honoring", True), ("the service of", True)])
+def test_a_bare_titled_name_is_cut_unless_the_caption_leads_into_it(cfg, before, kept):
+    ac_ = cfg.agenda_captions
+    text = caption_text(f"A Resolution {before} Councilperson Karen Reynolds", ac_, set(ac_.committee_names))
+    assert text.endswith("Karen Reynolds") is kept
+
+
+FLUSH = ["   1.   ORDINANCE 10-2021-22 (First Reading) Amending the Zoning Ordinance and\n"
+         "   Map of the City of Clarksville, application of Some Owner for Zone Change\n\n\n            1\n",
+         "   On Property Located at the intersection of A Rd. and B Rd. Page 9\n\n"
+         "   2.   ORDINANCE 11-2021-22 (First Reading) Authorizing a thing Page 10\n\n16) ADJOURNMENT\n"]
+
+
+def test_a_flush_left_caption_cut_by_a_page_break_is_no_caption(cfg):
+    """A flush-left layout (2021) prints a caption's lines at its label's column, so a capitalised first line on the
+    next page may or may not go on with it: no caption rather than half of one."""
+    caps = agenda_captions(FLUSH, cfg)
+    assert ("ordinance", "10-2021-22") not in caps
+    assert caps[("ordinance", "11-2021-22")] == [("(First Reading) Authorizing a thing", 2)]
+
+
+def test_a_hanging_caption_cut_by_a_page_break_ends_at_a_heading_of_the_label_column(cfg):
+    pages = ["     A.   ORDINANCE 10-2025-26 (FIRST READING) An Ordinance amending the\n"
+             "          Official Code\n\n\n            1\n",
+             "     Planning Commission - No Public Hearing Required\n\n"
+             "     A.   ORDINANCE 11-2025-26 (FIRST READING) An Ordinance\n\n14. Adjournment\n"]
+    caps = agenda_captions(pages, cfg)
+    assert caps[("ordinance", "10-2025-26")] == [("(FIRST READING) An Ordinance amending the Official Code", 1)]
+
+
 def test_labels_alone_are_no_caption(cfg):
     assert caption_text("(FIRST READING) [ZONING CASE Z-1-2026]  RPC: Approval/Approval", cfg.agenda_captions,
                         set(cfg.agenda_captions.committee_names)) == ""
@@ -114,7 +204,7 @@ def test_labels_alone_are_no_caption(cfg):
 
 def test_one_entry_for_two_items_gives_neither_a_caption(cfg):
     page = ("     A.   RESOLUTION 10-2025-26 and RESOLUTION 11-2025-26 Resolutions approving two things\n\n"
-            "     B.   RESOLUTION 12-2025-26 RESOLUTION 13-2025-26 A Resolution\n")
+            "     B.   RESOLUTION 12-2025-26 RESOLUTION 13-2025-26 A Resolution\n\n14. Adjournment\n")
     assert agenda_captions([page], cfg) == {}
 
 
@@ -126,7 +216,9 @@ def test_agenda_captions_config_is_checked():
     raw = ac.yaml.safe_load(ac.config_path("clarksville-tn").read_text(encoding="utf-8"))
     for bad in ({k: v for k, v in raw["agenda_captions"].items() if k != "notes"},
                 {**raw["agenda_captions"], "committee_heading": r"^\d+\.\s+(.+) Committee"},
-                {**raw["agenda_captions"], "entry": "("}):
+                {**raw["agenda_captions"], "entry": "("},
+                {k: v for k, v in raw["agenda_captions"].items() if k != "end"},
+                {**raw["agenda_captions"], "sponsor_kept_after": [True]}):
         with pytest.raises(ac.AgendaCenterConfigError):
             ac.parse_config({**raw, "agenda_captions": bad})
 
@@ -186,6 +278,8 @@ AGENDA_AUG = """     A.   ORDINANCE 96-2025-26 (SECOND READING) An Ordinance app
      C.   ORDINANCE 09-2025-26 (SECOND READING) An Ordinance with a leading zero
 
      D.   RESOLUTION 69-2025-26 A Resolution as the agenda prints it
+
+14. Adjournment
 """
 
 

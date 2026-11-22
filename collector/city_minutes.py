@@ -742,35 +742,50 @@ PAGE_MARK_RE = re.compile(r"^(?:Page\s+)?\d{1,3}(?:\s+of\s+\d{1,3})?$", re.I)   
 # a caption cut by a page break runs on at the next page only when the text before the break cannot end there
 _RUNS_ON_RE = re.compile(r"(?:[,&(/\-–]|\b(?:a|an|and|at|by|for|from|in|of|on|or|the|to|with))$", re.I)
 _LABELS_ONLY_RE = re.compile(r"^(?:\s*(?:\([^()]*\)|\[[^\[\]]*\]))*\s*$")
+STOP, UNSURE = "stop", "unsure"                 # agenda_captions.runs_on: the caption ends / it is not known
 
 
 def _committee_note(ac, names: set) -> re.Pattern:
     """A committee or board recommendation at the caption's end: "Finance Committee: Approval", "Finance and Gas &
     Water Committees: Approval", "Finance Committee and Gas & Water Board: Approval", "/ Public Safety Committee:
-    Approval", "(Gas & Water Board: Approval)". Only the configured and the agenda's own committee names."""
+    Approval", "(Gas & Water Board: Approval)". Only the configured and the agenda's own committee names (any case:
+    the 2021-2023 headings print them in capitals)."""
     one = "|".join(r"\s+".join(map(re.escape, n.split())) for n in sorted(names, key=len, reverse=True))
     unit, word = rf"(?:{one})", rf"(?:{ac.committee_word})"
     return re.compile(rf"\s*/?\s*\(?\s*(?:{unit}(?:\s+{word})?\s*(?:,|\band\b|&)\s*)*{unit}\s+{word}\s*:"
-                      rf"[^:()\[\]]*\)?\s*$")
+                      rf"[^:()\[\]]*\)?\s*$", re.I)
+
+
+def _who(ac) -> str:
+    t, tok = ac.sponsor_titles, r"[A-Z][\w.'’-]*"
+    return rf"(?:{t})\s+{tok}(?:(?:\s+|\s*,\s*|\s+and\s+|\s*&\s*)(?:(?:{t})\s+)?{tok}){{0,6}}"
 
 
 def _sponsor_note(ac) -> re.Pattern:
-    """A sponsor at the caption's end: bracketed ("[Councilman Ambar Marquis]", "(Mayor Pitts)") or bare after the
-    caption's last full stop ("... Officer. Mayor Joe Pitts")."""
-    t, tok = ac.sponsor_titles, r"[A-Z][\w.'’-]*"
-    who = rf"(?:{t})\s+{tok}(?:(?:\s+|\s*,\s*|\s+and\s+|\s*&\s*)(?:(?:{t})\s+)?{tok}){{0,6}}"
-    return re.compile(rf"(?:\s*[\[(]\s*{who}\s*[\])]|(?<=[.;])\s*{who})\s*$")
+    """A bracketed sponsor at the caption's end: "[Councilman Ambar Marquis]", "(Mayor Pitts)", or "(Mayor
+    McMillan;" once its "Finance Committee: Approval)" is cut (2017)."""
+    return re.compile(rf"\s*[\[(]\s*{_who(ac)}\s*[\]);,]?\s*$")
+
+
+def _bare_sponsor(ac) -> re.Pattern:
+    """A sponsor printed with no bracket at the caption's end, with any note in parentheses after it: "... Officer.
+    Mayor Joe Pitts", "... housing Councilperson Holleman", "... to R-4 Councilperson Marquis (Requires 3/4 majority
+    approval ...)" (group `before`: the word printed before it)."""
+    return re.compile(rf"(?:(?P<before>\S+)\s+|^){_who(ac)}\s*(?:\([^()]*\))?\s*$")
 
 
 def caption_text(raw: str, ac, committees: set) -> str:
     """An entry's printed text -> its caption: whitespace collapsed (a line end is a space, invisible characters
-    removed), every trailing note cut (agenda-center.yml agenda_captions). Nothing else is changed."""
+    removed), every trailing note cut (agenda-center.yml agenda_captions). Nothing else is changed. A bare sponsor
+    is cut unless the word before it is one of sponsor_kept_after ("honoring Mayor Joe Pitts": the caption's own
+    words). A caption that still ends with a committee or board note after the cuts (a name not configured and no
+    heading of the agenda) is no caption: "" (where it starts is not known, so nothing is guessed)."""
     text = _flat(raw)
     for rx in ac.notes:
         m = rx.search(text)
         if m:
             text = text[:m.start()]
-    ends = (_committee_note(ac, committees), _sponsor_note(ac))
+    ends, bare = (_committee_note(ac, committees), _sponsor_note(ac)), _bare_sponsor(ac)
     cut = True
     while cut:
         cut = False
@@ -778,14 +793,20 @@ def caption_text(raw: str, ac, committees: set) -> str:
             m = rx.search(text)
             if m and m.start() > 0:
                 text, cut = text[:m.start()], True
+        m = bare.search(text)
+        if m and m.group("before") and m.group("before").lower().strip(",;") not in ac.sponsor_kept_after:
+            text, cut = text[:m.start() + len(m.group("before"))], True
     text = text.rstrip(" /")
+    if re.search(rf"\b(?:{ac.committee_word})\s*:[^:()\[\]]*\)?$", text, re.I):
+        return ""
     return "" if _LABELS_ONLY_RE.match(text) else text
 
 
 def agenda_captions(pages: list[str], cfg: AgendaCenterConfig) -> dict:
     """(kind, number) -> [(caption, page), ...]: every entry of a stored agenda (`pages`, its text layer) that starts
     with agenda_captions.entry and then an item number (item_number), in print order. An entry whose text after the
-    number starts another item ("and RESOLUTION ...") or holds only labels gives none. {} without agenda_captions."""
+    number starts another item ("and RESOLUTION ...") or holds only labels gives none, and so does one cut by a page
+    break where it is not certain whether the next page goes on with it. {} without agenda_captions."""
     ac = cfg.agenda_captions
     if ac is None:
         return {}
@@ -803,51 +824,69 @@ def agenda_captions(pages: list[str], cfg: AgendaCenterConfig) -> dict:
             tops.setdefault(_flat(first), set()).add(n)
     headers = {t for t, ns in tops.items() if len(ns) > 1}
 
+    def item_entry(t: str):
+        m = ac.entry.match(t)
+        return m and cfg.item_number.match(t[m.end():])
+
     def indent(p: int, j: int) -> int:
         return len(raw_pages[p][j]) - len(raw_pages[p][j].lstrip())
 
     def page_rest_blank(p: int, j: int) -> bool:
         return all(not t or PAGE_MARK_RE.match(t) for t in per_page[p][j:])
 
-    def runs_on(p: int, text: str, was: int) -> int | None:
-        """The line of page p where a caption cut at the end of page p - 1 goes on, or None. It goes on when the
-        first line printed there (a page number or a running header aside) is no entry and either sits right of
-        that page's entry labels (or, on a page with none, no left of the caption's last line, `was`), or starts
-        in lower case, a digit or punctuation, or follows text that cannot end there."""
-        labels = [indent(p, j) for j, t in enumerate(per_page[p]) if t and ac.entry.match(t)]
+    def runs_on(p: int, text: str, was: int, hang: bool | None):
+        """Where a caption cut at the end of page p - 1 goes on: the line of page p, STOP or UNSURE. The first line
+        printed there (a page number or a running header aside) ends it when it is an entry, a heading in capitals
+        or missing; continues it when it sits right of that page's item entry labels (or, on a page with none, no left of
+        the caption's last line, `was`), starts in lower case, a digit or punctuation, or follows text that cannot
+        end there; else ends it when the caption hangs right of its own label (`hang`), and is UNSURE otherwise."""
+        if p >= len(per_page):
+            return STOP
+        labels = [indent(p, j) for j, t in enumerate(per_page[p]) if item_entry(t)]
         for j, t in enumerate(per_page[p]):
             if not t or PAGE_MARK_RE.match(t) or _flat(t) in headers:
                 continue
-            if ac.entry.match(t):
-                return None
+            if ac.entry.match(t) or not re.search(r"[a-z]", t):
+                return STOP
             placed = indent(p, j) > min(labels) if labels else indent(p, j) >= was
-            return j if placed or not t[0].isupper() or _RUNS_ON_RE.search(text.rstrip()) else None
-        return None
+            if placed or not t[0].isupper() or _RUNS_ON_RE.search(text.rstrip()):
+                return j
+            return STOP if hang else UNSURE
+        return STOP
 
+    # the agenda proper ends at its adjournment entry; what follows is the packet (ordinances, earlier minutes, which
+    # print item numbers too). An agenda without that line gives no caption.
+    end = next(((n, j) for n, lines in enumerate(per_page) for j, t in enumerate(lines) if ac.end.match(t)), None)
+    if end is None:
+        return {}
     out: dict = {}
-    for p0, lines in enumerate(per_page):
-        for j0, t in enumerate(lines):
+    for p0, lines in enumerate(per_page[:end[0] + 1]):
+        for j0, t in enumerate(lines if p0 < end[0] else lines[:end[1]]):
             m = ac.entry.match(t)
             num = cfg.item_number.match(t[m.end():]) if m else None
             if not num:
                 continue
             parts, p, j, was = [t[m.end() + num.end():]], p0, j0 + 1, indent(p0, j0)
+            hang, sure = None, True                   # hang: its 2nd line sits right of its label (CivicClerk)
             while True:
                 if page_rest_blank(p, j):
-                    nxt = runs_on(p + 1, " ".join(parts), was) if p + 1 < len(per_page) else None
-                    if nxt is None:
+                    nxt = runs_on(p + 1, " ".join(parts), was, hang)
+                    if nxt is STOP or nxt is UNSURE:
+                        sure = nxt is STOP
                         break
                     p, j = p + 1, nxt
                     continue
                 s = per_page[p][j]
                 if not s or ac.entry.match(s):
                     break
+                if hang is None and p == p0:
+                    hang = indent(p, j) > indent(p0, j0)
                 parts.append(s)
                 was = indent(p, j)
                 j += 1
             raw = " ".join(parts)
-            if re.match(r"\s*(?:,|&|and\b)", raw) or cfg.item_number.match(raw.strip()):
-                continue                              # one entry for several items: no caption for any of them
+            if not sure or re.match(r"\s*(?:,|&|and\b)", raw) or cfg.item_number.match(raw.strip()):
+                continue                              # unsure, or one entry for several items: no caption
             caption = caption_text(raw, ac, committees)
             if caption:
                 out.setdefault((num.group(1).lower(), num.group(2)), []).append((caption, p0 + 1))
