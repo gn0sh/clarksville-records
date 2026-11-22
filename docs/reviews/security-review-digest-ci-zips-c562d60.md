@@ -57,3 +57,8 @@ run (fails the run; cannot run code; hash check still holds).
 | L1 size cap | yes (add flag) | adds 2 flags + 1 test | devops-engineer |
 | Suggestion: test lock has no option lines | yes | adds 1 test | devops-engineer |
 | I1-I3 | no (accepted, documented) | none | - |
+
+## Delta re-check (0dcaced), 2026-11-22
+L1 closed: both curls carry `--max-filesize 268435456`; T1 + new cap test + lock option-line test, 58 passed. Verdict **OK**.
+New info `ci-supply/lock-option-midline`: the lock test checks only line starts; a mid-line option after a pin would pass it,
+but every file must still match its pinned hash. No fix (accepted).
