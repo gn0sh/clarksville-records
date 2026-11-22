@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup: Daylight Digest, "Your local government, in broad daylight"</title>
+<!-- Static design mockup for docs/design/digest-warmth.md. Not product code. Self-contained: inline CSS and SVG,
+     system fonts, no external requests. Example data is the Clarksville test address from the preview screenshots
+     (meeting list shortened; counts are illustrative). Light and dark follow prefers-color-scheme. -->
+<style>
+  :root {
+    /* existing Daylight tokens (site/static/style.css), unchanged */
+    --bg: #F7F8FC; --sky: #D5DFF0; --surface: #FFFFFF; --surface-2: #E9EDF5; --fg: #141A2E; --muted: #4A5470;
+    --border: #D5DAE8; --link: #0F1F3D; --blue: #0F1F3D; --blue-hover: #33497A; --on-blue: #FFFFFF;
+    --sun: #D2561B; --halo: #EFC4AF; --focus: #D2561B; --mark: #2E3A57; --mark-soft: #7C86A3;
+    --radius: 8px; --radius-lg: 12px; --radius-xl: 20px;
+    --t-eyebrow: .75rem; --t-sm: .9rem; --t-md: 1rem; --t-lg: 1.25rem; --t-xl: 1.56rem; --t-2xl: 1.95rem;
+    --font-head: Outfit, "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    --font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    /* proposed: three warm tokens, digest pages only (digest.css) */
+    --dawn: #FFF3E4;        /* morning paper: the hero, the next-meeting card, the "thinking of going" card */
+    --dawn-2: #FFE3C7;      /* the glow at the horizon */
+    --dawn-line: #F0C9A6;   /* decorative edge of a dawn surface */
+    --frame: #C9CEDB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
+      --border: #2C3552; --link: #A9BDE6; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
+      --sun: #D2561B; --halo: #703420; --focus: #D2561B; --mark: #D5DAE8; --mark-soft: #7C86A3;
+      --dawn: #231A22; --dawn-2: #3A2420; --dawn-line: #5A3A2C;
+      --frame: #2C3552;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--surface-2); color: var(--fg); font-family: var(--font-body); line-height: 1.55; }
+  a { color: var(--link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
+  h1, h2, h3, h4 { font-family: var(--font-head); line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
+  p { margin: 0 0 10px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---- mockup scaffolding (not part of the design) ---- */
+  .screens { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; align-items: flex-start; padding: 0; }
+  .screen { width: 390px; max-width: 100%; }
+  .screen > .cap { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; padding: 10px 16px 6px; }
+  .phone { background: var(--bg); border-top: 1px solid var(--frame); border-bottom: 1px solid var(--frame); overflow: hidden; }
+  @media (min-width: 500px) { .screens { padding: 24px; } .phone { border: 1px solid var(--frame); border-radius: 24px; } }
+
+  /* ---- header: the existing Daylight header, simplified here, unchanged in the proposal ---- */
+  .hdr { background: var(--sky); padding: 12px 16px 0; }
+  .hdr-row { display: flex; align-items: center; gap: 12px; }
+  .menu-btn { min-height: 44px; padding: 0 14px; font: 600 var(--t-md) var(--font-body); color: var(--fg); background: var(--surface); border: 2px solid var(--fg); border-radius: var(--radius-lg); display: inline-flex; align-items: center; gap: 8px; }
+  .menu-btn span { display: inline-block; width: 16px; height: 2px; background: currentColor; box-shadow: 0 5px 0 currentColor, 0 -5px 0 currentColor; }
+  .plate { display: flex; align-items: center; gap: 8px; }
+  .plate i { width: 26px; height: 26px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 0 4px var(--halo); }
+  .plate b { display: block; font: 700 1.35rem/1 var(--font-head); }
+  .plate small { display: block; font: 500 var(--t-eyebrow)/1.4 var(--font-mono); letter-spacing: .14em; color: var(--muted); }
+  .hdr .tag { text-align: center; font-weight: 600; font-size: var(--t-sm); margin: 6px 0 0; }
+  .hdr .date { margin: 2px 0 0; padding-bottom: 6px; font-family: var(--font-head); }
+  .hdr .date b { font-size: var(--t-xl); border-bottom: 3px solid var(--sun); }
+
+  /* ---- the dawn band: sky to horizon glow, a rising sun, a plain ground line ---- */
+  .dawn-band { display: block; width: 100%; height: 96px; background: linear-gradient(180deg, var(--sky) 0%, var(--dawn-2) 88%); }
+  .dawn-band .rays { stroke: var(--sun); stroke-width: 3; opacity: .55; }
+  .dawn-band .halo { fill: var(--halo); opacity: .7; }
+  .dawn-band .sun { fill: var(--sun); }
+  .dawn-band .roofs { fill: var(--mark-soft); opacity: .45; }
+  .dawn-band .ground { fill: var(--dawn); }
+  .dawn-band.onto-bg .ground { fill: var(--bg); }
+  .dawn-band.short { height: 56px; }
+
+  .hero { background: var(--dawn); padding: 4px 16px 20px; border-bottom: 1px solid var(--dawn-line); }
+  .eyebrow { font: 500 var(--t-eyebrow)/1.4 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+  .hero h1 { font-size: 2.1rem; font-weight: 800; letter-spacing: -.01em; }
+  .hero h1 em { font-style: normal; display: block; box-shadow: inset 0 -.32em 0 var(--dawn-2); width: fit-content; }
+  .lede { font-size: 1.125rem; margin: 12px 0 0; }
+
+  .main { padding: 16px; }
+  .main > h2 { font-size: var(--t-xl); margin: 24px 0 8px; }
+  .small { font-size: var(--t-sm); color: var(--muted); }
+  .row-link { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+
+  /* ---- address card ---- */
+  .find { background: var(--surface); border: 2px solid var(--fg); border-radius: var(--radius-xl); padding: 16px; margin: -36px 0 14px; position: relative; box-shadow: 0 6px 0 var(--dawn-2); }
+  .find label { display: block; font: 700 var(--t-lg) var(--font-head); margin: 0 0 8px; }
+  .find input { display: block; width: 100%; min-height: 52px; padding: 8px 14px; font: inherit; font-size: 1.0625rem; color: var(--fg); background: var(--surface); border: 2px solid var(--fg); border-radius: var(--radius-lg); }
+  .find input::placeholder { color: var(--muted); opacity: 1; }
+  .btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; margin: 10px 0 0; padding: 8px 14px; font: 700 1.0625rem var(--font-head); border-radius: var(--radius-lg); border: 2px solid var(--blue); background: var(--blue); color: var(--on-blue); text-decoration: none; cursor: pointer; }
+  .btn:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
+  .btn.ghost { background: var(--surface); border-color: var(--link); color: var(--link); }
+  .btn.ghost:hover { background: var(--surface-2); }
+  .find .privacy { margin: 10px 0 0; font-weight: 600; display: flex; gap: 8px; align-items: flex-start; }
+  .find .privacy svg { flex: none; margin-top: 3px; }
+  .hero-pad { padding-bottom: 52px; }
+
+  /* ---- three steps ---- */
+  ol.steps { list-style: none; margin: 0 0 8px; padding: 0; counter-reset: s; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  ol.steps li:last-child { border-bottom: 0; }
+  ol.steps li::before { content: counter(s); width: 36px; height: 36px; border-radius: 50%; background: var(--dawn-2); border: 1px solid var(--dawn-line); color: var(--fg); font: 700 1.05rem/34px var(--font-head); text-align: center; }
+  ol.steps b { display: block; font-family: var(--font-head); font-size: 1.0625rem; }
+
+  .warm { background: var(--dawn); border: 1px solid var(--dawn-line); border-radius: var(--radius-xl); padding: 16px; margin: 20px 0; }
+  .warm h2 { font-size: var(--t-lg); margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+  .warm p:last-child { margin-bottom: 0; }
+  .sunmark { flex: none; }
+  .sunmark .s { fill: var(--sun); } .sunmark .r { stroke: var(--sun); stroke-width: 2; stroke-linecap: round; } .sunmark .h { stroke: var(--fg); stroke-width: 2; stroke-linecap: round; }
+
+  details.how > summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 600; }
+
+  /* ---- footer notice: unchanged ---- */
+  .foot { border-top: 1px solid var(--border); padding: 16px; }
+  .notice { background: var(--surface-2); border-left: 4px solid var(--mark); border-radius: var(--radius); padding: 12px 14px; font-size: var(--t-md); }
+  .foot .small { margin: 10px 0 0; }
+
+  /* ---- result ---- */
+  .greet { background: var(--dawn); border-bottom: 1px solid var(--dawn-line); padding: 0 16px 18px; }
+  .greet h2 { font-size: 1.85rem; font-weight: 800; letter-spacing: -.01em; }
+  .greet .matched { font: 500 var(--t-eyebrow)/1.5 var(--font-mono); letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; overflow-wrap: anywhere; }
+  .greet .sum { font-size: 1.0625rem; margin: 10px 0 0; }
+  .collapsed-form { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .collapsed-form p { margin: 0; font-size: var(--t-sm); color: var(--muted); }
+  .cards { display: grid; gap: 14px; margin: 0 0 14px; padding: 0; list-style: none; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 0 16px 14px; overflow: hidden; }
+  /* the same edge on every card, whatever its status: an edge never carries status */
+  .card::before { content: ""; display: block; height: 5px; margin: 0 -16px 12px; background: linear-gradient(90deg, var(--sun), var(--halo)); }
+  .card h3 { font-size: var(--t-xl); }
+  .card .board { margin: 2px 0 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: var(--t-sm); font-weight: 600; white-space: nowrap; }
+  .pill.covered { background: var(--blue); border: 2px solid var(--blue); color: var(--on-blue); }
+  .pill.cant { background: var(--surface); border: 2px dashed var(--link); color: var(--link); }
+  .card p.links { margin: 0; }
+  .card .hint { font-size: var(--t-sm); color: var(--muted); margin: 6px 0 0; }
+  .device { background: var(--surface-2); border-radius: var(--radius-lg); padding: 12px 14px; margin: 14px 0; }
+  .device .btn { width: auto; display: inline-flex; min-height: 44px; }
+
+  /* ---- coming up ---- */
+  .crumb { font: 500 var(--t-eyebrow)/1.4 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; margin: 0 0 4px; }
+  .crumb a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); }
+  .bodyhead { background: var(--dawn); border-bottom: 1px solid var(--dawn-line); padding: 0 16px 16px; }
+  .bodyhead h1 { font-size: 1.85rem; font-weight: 800; }
+  .subject { font: 600 var(--t-lg) var(--font-head); margin: 2px 0 10px; }
+  .record { font-size: var(--t-md); margin: 0; overflow-wrap: anywhere; }
+  .record + .record { color: var(--muted); font-size: var(--t-sm); margin-top: 4px; }
+  .next { background: var(--surface); border: 2px solid var(--fg); border-radius: var(--radius-xl); padding: 14px 16px; margin: 0 0 16px; box-shadow: 0 6px 0 var(--dawn-2); }
+  .next .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--fg); }
+  .next h2 { font-size: var(--t-xl); }
+  .next .title { font-weight: 600; margin: 2px 0 6px; }
+  .next p { margin: 0 0 4px; }
+  .month { font: 500 var(--t-eyebrow)/1.4 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 20px 0 0; padding-bottom: 6px; border-bottom: 2px solid var(--fg); }
+  ul.mtgs { list-style: none; margin: 0; padding: 0; }
+  ul.mtgs li { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .datechip { width: 52px; height: 52px; border-radius: var(--radius-lg); background: var(--dawn); border: 1px solid var(--dawn-line); text-align: center; padding-top: 6px; }
+  .datechip small { display: block; font: 500 .75rem/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .datechip b { display: block; font: 800 1.35rem/1.2 var(--font-head); }
+  ul.mtgs h4 { font-size: 1.0625rem; }
+  ul.mtgs p { margin: 0; }
+  ul.mtgs .row-link { min-height: 44px; }
+  details.later { margin: 14px 0 0; }
+  details.later > summary { cursor: pointer; min-height: 48px; padding: 10px 14px; font-weight: 700; border: 2px solid var(--link); color: var(--link); border-radius: var(--radius-lg); background: var(--surface); }
+  .follow { margin: 20px 0 0; }
+</style>
+</head>
+<body>
+
+<!-- one sun mark, reused -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="sunmark" viewBox="0 0 32 20">
+    <path class="s" d="M8 17a8 8 0 0 1 16 0z"/>
+    <path class="r" d="M16 2v3M5.4 6.4l2.1 2.1M26.6 6.4l-2.1 2.1"/>
+    <path class="h" d="M2 18h28"/>
+  </symbol>
+</svg>
+
+<div class="screens">
+
+<!-- ============================== 1. HOME / LOOK-UP ============================== -->
+<section class="screen" id="screen-home" aria-label="Screen 1: home and look-up">
+  <p class="cap">1. Home and look-up (digest/index.html)</p>
+  <div class="phone">
+    <div class="hdr">
+      <div class="hdr-row">
+        <span class="menu-btn"><span></span> Menu</span>
+        <div class="plate"><i></i><div><b>Daylight</b><small>UNITED STATES</small></div></div>
+      </div>
+      <p class="tag">Independent, unofficial</p>
+      <p class="date">Saturday <b>November 21</b></p>
+    </div>
+    <svg class="dawn-band" viewBox="0 0 390 96" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+      <g class="rays" stroke-linecap="round">
+        <path d="M339 78.9L357.8 72.1M327.4 60.6L341.5 46.5M309.1 49L315.9 30.2M292 46V26M274.9 49L268.1 30.2M256.6 60.6L242.5 46.5M245 78.9L226.2 72.1"/>
+      </g>
+      <circle class="halo" cx="292" cy="96" r="44"/>
+      <circle class="sun" cx="292" cy="96" r="36"/>
+      <path class="roofs" d="M30 90V72h16v-7l10-7 10 7v7h12V60h9v-9l5-6 5 6v9h9v12h14v-9l11-7 11 7v9h12v18z"/>
+      <path class="ground" d="M0 96V86C90 72 180 74 250 82S350 86 390 78V96z"/>
+    </svg>
+    <div class="hero hero-pad">
+      <p class="eyebrow">Daylight Digest</p>
+      <h1>Your local government, <em>in broad daylight.</em></h1>
+      <p class="lede">A city council, a county commission and a school board meet near you, in public, and decide things like roads, zoning, schools and local taxes. Type your address to see who they are and what they take up next.</p>
+    </div>
+    <div class="main">
+      <form class="find" onsubmit="return false">
+        <label for="q">Your street address</label>
+        <input id="q" type="text" placeholder="100 Main St, City, State" aria-describedby="priv">
+        <button class="btn" type="submit">Find my local governments</button>
+        <p class="privacy" id="priv">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><rect x="3" y="8" width="12" height="8" rx="2" fill="currentColor"/><path d="M5.5 8V6a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <span>We never get your address and never sell anything.</span>
+        </p>
+      </form>
+      <p>Your address goes from your browser straight to the US Census Bureau, which finds your area. Daylight Digest never sees or keeps it. <a href="#">Census privacy policy</a></p>
+      <p><a class="row-link" href="#">See what we cover first, without typing anything</a></p>
+
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li><div><b>Type your address.</b>It goes to the Census Bureau, not to us.</div></li>
+        <li><div><b>Meet your local governments.</b>City or town, county, township and school district, each marked covered, not covered yet or can't cover.</div></li>
+        <li><div><b>See what's coming up.</b>Their next meetings and agendas, in their own words, each linked to the official document.</div></li>
+      </ol>
+
+      <div class="warm">
+        <h2><svg class="sunmark" width="32" height="20" aria-hidden="true" focusable="false"><use href="#sunmark"/></svg>Why look?</h2>
+        <p>These meetings are where your street, your schools and your local tax bill get decided. The agendas are public records, and most meetings are open to anyone who walks in.</p>
+        <p>You don't have to speak. Knowing what's on the agenda is a good place to start.</p>
+      </div>
+
+      <p>Daylight Digest is run and paid for by gnoshcodes LLC, a small software company in Clarksville, Tennessee. It takes no ads and no political money. <a href="#">Who runs this</a></p>
+      <details class="how"><summary>How this works, and what is saved</summary><p>The Census Bureau answers with the names of the city or town, county, township and school districts for that spot. Only that list of governments is kept, and only on this device.</p></details>
+      <p class="small">This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.</p>
+      <p><a class="row-link small" href="#">Report an error on this page</a></p>
+    </div>
+    <div class="foot">
+      <p class="notice"><b>Independent, unofficial</b> &nbsp;Daylight Digest is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by any government it covers. The official record held by each body controls. <a href="#">How to report a correction</a>.</p>
+      <p class="small">Provided as a free service by <a href="#">gnoshcodes LLC</a>. Footer links and page list unchanged.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== 2. LOOK-UP RESULT ============================== -->
+<section class="screen" id="screen-result" aria-label="Screen 2: look-up result">
+  <p class="cap">2. Look-up result (same page, after Find)</p>
+  <div class="phone">
+    <div class="hdr">
+      <div class="hdr-row">
+        <span class="menu-btn"><span></span> Menu</span>
+        <div class="plate"><i></i><div><b>Daylight</b><small>UNITED STATES</small></div></div>
+      </div>
+      <p class="tag">Independent, unofficial</p>
+      <p class="date">Friday <b>November 20</b></p>
+    </div>
+    <div class="collapsed-form">
+      <p>Address looked up. It was not sent to us.</p>
+      <a class="row-link" href="#">Look up another</a>
+    </div>
+    <svg class="dawn-band short" viewBox="0 0 390 56" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+      <g class="rays" stroke-linecap="round"><path d="M335 44L350 38M322 28L333 17M306 19L311 5M258 28L247 17M245 44L230 38"/></g>
+      <circle class="halo" cx="290" cy="58" r="36"/>
+      <circle class="sun" cx="290" cy="58" r="28"/>
+      <path class="ground" d="M0 56V50C90 40 180 42 250 47S350 50 390 44V56z"/>
+    </svg>
+    <div class="greet" tabindex="-1">
+      <p class="matched">Census matched: 1 PUBLIC SQ, CLARKSVILLE, TN, 37040</p>
+      <h2>Clarksville, here's who governs you.</h2>
+      <p class="sum">We found 3 local governments. 2 covered, 1 we can't cover.</p>
+    </div>
+    <div class="main">
+      <ul class="cards">
+        <li class="card">
+          <p class="eyebrow">City or town</p>
+          <h3>Clarksville city</h3>
+          <p class="board">Clarksville City Council</p>
+          <p><span class="pill covered"><span aria-hidden="true">&#10003;</span> Covered</span></p>
+          <a class="btn" href="#">See what's coming up</a>
+          <p class="links"><a class="row-link" href="#">Full Daylight pages (votes and past meetings)</a></p>
+          <p class="links"><a class="row-link" href="#">Get the morning note</a></p>
+        </li>
+        <li class="card">
+          <p class="eyebrow">County</p>
+          <h3>Montgomery County</h3>
+          <p class="board">Montgomery County Commission</p>
+          <p><span class="pill covered"><span aria-hidden="true">&#10003;</span> Covered</span></p>
+          <a class="btn" href="#">See what's coming up</a>
+          <p class="links"><a class="row-link" href="#">Full Daylight pages (votes and past meetings)</a></p>
+          <p class="links"><a class="row-link" href="#">Get the morning note</a></p>
+        </li>
+        <li class="card">
+          <p class="eyebrow">School district</p>
+          <h3>Clarksville-Montgomery County School System</h3>
+          <p class="board">Clarksville-Montgomery County School System Board of Education</p>
+          <p><span class="pill cant"><span aria-hidden="true">&#8856;</span> Can't cover</span></p>
+          <p>The school system's own records site, cmcss.net, blocks automated readers.</p>
+          <p class="hint">Checked November 16, 2026. <a href="#">Source</a></p>
+          <p class="links"><a class="row-link" href="#">Official agenda page (opens the county's site, which posts the school board's agendas)</a></p>
+          <button class="btn ghost" type="button">Request it</button>
+          <p class="hint">We'll email you if it opens.</p>
+        </li>
+      </ul>
+      <p>Some governments, such as water or transit boards, can't be found by address yet.</p>
+      <p>Not sure this list is right? It is the Census Bureau's answer, shown as the Census gives it. Your state or local election office can tell you which city or town, county and school district your address is in. <a href="#">Find an election office on USA.gov</a></p>
+      <div class="device">
+        <p class="small">This list is kept on this device only, with a note of which governments you requested or counted here. "Forget this list" removes all of it.</p>
+        <button class="btn ghost" type="button">Forget this list</button>
+      </div>
+      <p><a class="row-link small" href="#">Report an error on this page</a></p>
+    </div>
+    <div class="foot">
+      <p class="notice"><b>Independent, unofficial</b> &nbsp;Daylight Digest is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by any government it covers. The official record held by each body controls. <a href="#">How to report a correction</a>.</p>
+      <p class="small">Footer links and page list unchanged.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== 3. COMING UP ============================== -->
+<section class="screen" id="screen-body" aria-label="Screen 3: a government's coming-up page">
+  <p class="cap">3. Coming up (digest/tn/place-4715160.html)</p>
+  <div class="phone">
+    <div class="hdr">
+      <div class="hdr-row">
+        <span class="menu-btn"><span></span> Menu</span>
+        <div class="plate"><i></i><div><b>Daylight</b><small>UNITED STATES</small></div></div>
+      </div>
+      <p class="tag">Independent, unofficial</p>
+      <p class="date">Saturday <b>November 21</b></p>
+    </div>
+    <svg class="dawn-band short" viewBox="0 0 390 56" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+      <g class="rays" stroke-linecap="round"><path d="M335 44L350 38M322 28L333 17M306 19L311 5M258 28L247 17M245 44L230 38"/></g>
+      <circle class="halo" cx="290" cy="58" r="36"/>
+      <circle class="sun" cx="290" cy="58" r="28"/>
+      <path class="ground" d="M0 56V50C90 40 180 42 250 47S350 50 390 44V56z"/>
+    </svg>
+    <div class="bodyhead">
+      <p class="crumb"><a href="#">Daylight Digest</a> / <a href="#">What we cover</a></p>
+      <p class="eyebrow">Tennessee &middot; City or town</p>
+      <h1>Clarksville City Council</h1>
+      <p class="subject">Coming up</p>
+      <p class="record">Unofficial copy. Official record: <a href="#">clarksvilletn.portal.civicclerk.com</a>.</p>
+      <p class="record">We got our newest record on November 17, 2026.</p>
+    </div>
+    <div class="main">
+      <section class="next" aria-labelledby="next-h">
+        <p class="eyebrow"><svg class="sunmark" width="32" height="20" aria-hidden="true" focusable="false"><use href="#sunmark"/></svg>Next meeting</p>
+        <h2 id="next-h"><time datetime="2026-12-01">Tuesday, December 1, 2026</time></h2>
+        <p class="title">Executive session</p>
+        <p class="small">We don't have a start time for this meeting.</p>
+        <p>Agenda not posted yet. <a class="row-link" href="#">Official meetings page</a></p>
+      </section>
+
+      <div class="warm">
+        <h2>Thinking of going?</h2>
+        <p>Most local government meetings are open to the public, and you can sit in without speaking. Where it meets and how to speak are set by the government. Start at its <a href="#">official meetings page</a>.</p>
+      </div>
+
+      <h2 class="sr-only">Later meetings</h2>
+      <h3 class="month">December 2026</h3>
+      <ul class="mtgs">
+        <li>
+          <div class="datechip" aria-hidden="true"><small>Thu</small><b>3</b></div>
+          <div><h4><time datetime="2026-12-03">Thursday, December 3, 2026</time></h4><p>Regular session</p><p>Agenda not posted yet. <a class="row-link" href="#">Official meetings page</a></p></div>
+        </li>
+      </ul>
+      <h3 class="month">January 2027</h3>
+      <ul class="mtgs">
+        <li>
+          <div class="datechip" aria-hidden="true"><small>Tue</small><b>5</b></div>
+          <div><h4><time datetime="2027-01-05">Tuesday, January 5, 2027</time></h4><p>Executive session</p><p>Agenda not posted yet. <a class="row-link" href="#">Official meetings page</a></p></div>
+        </li>
+        <li>
+          <div class="datechip" aria-hidden="true"><small>Thu</small><b>7</b></div>
+          <div><h4><time datetime="2027-01-07">Thursday, January 7, 2027</time></h4><p>Regular session</p><p>Agenda not posted yet. <a class="row-link" href="#">Official meetings page</a></p></div>
+        </li>
+        <li>
+          <div class="datechip" aria-hidden="true"><small>Thu</small><b>28</b></div>
+          <div><h4><time datetime="2027-01-28">Thursday, January 28, 2027</time></h4><p>Executive session</p><p>Agenda not posted yet. <a class="row-link" href="#">Official meetings page</a></p></div>
+        </li>
+      </ul>
+      <details class="later"><summary>Show 40 later meetings, February 2027 to November 2029</summary><p class="small">Same rows, grouped by month. Still page text.</p></details>
+      <p class="small" style="margin-top:10px">We don't have start times for this government's meetings.</p>
+
+      <div class="follow">
+        <p>Votes and past meetings are on the <a href="#">full Daylight pages</a>.</p>
+        <a class="btn ghost" href="#">Get the morning note</a>
+        <p style="margin-top:10px"><a class="row-link small" href="#">Report an error on this page</a></p>
+      </div>
+    </div>
+    <div class="foot">
+      <p class="notice"><b>Independent, unofficial</b> &nbsp;Daylight Digest is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by any government it covers. The official record held by each body controls. <a href="#">How to report a correction</a>.</p>
+      <p class="small">Footer links and page list unchanged.</p>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>
