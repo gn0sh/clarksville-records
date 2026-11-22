@@ -345,7 +345,7 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
 
 ## Main protection (V1 probe, T4.10.1)
-- **V1'' probe: PASS, 2026-11-21 6:02 PM CT (2026-11-22 00:0x UTC)** (Brian's PC, try 4 of `scripts/v1pp-probe.ps1`): `main` ee4af9f, gh 2.104.0; 2 `pages-api` checks NOT-REACHABLE by design (U-pages). Results file on Brian's PC: `Documents\v1pp-probe-results-20261121-1802.txt` (summary: `v1pp/try4-results-20261121-1802.md` in the project files). Earlier try 3 was INCONCLUSIVE (job log unreadable: gh 2.104 refuses logs with escape sequences, fixed by PR #82). The one-run unlock is back to `none` in both scripts.
+- **V1'' probe: PASS, 2026-11-21 6:02 PM CT (~2026-11-22 00:05 UTC)** (Brian's PC, try 4 of `scripts/v1pp-probe.ps1`): `main` ee4af9f, gh 2.104.0; 2 `pages-api` checks NOT-REACHABLE by design (U-pages). Results file on Brian's PC: `Documents\v1pp-probe-results-20261121-1802.txt` (summary: `v1pp/try4-results-20261121-1802.md` in the project files). Earlier try 3 was INCONCLUSIVE (job log unreadable: gh 2.104 refuses logs with escape sequences, fixed by PR #82). The one-run unlock is back to `none` in both scripts.
 - **V1 probe: FAIL, 2026-11-18 08:50 UTC** (Brian's run of `scripts/v1-probe.ps1`; run
   https://github.com/gn0sh/clarksville-records/actions/runs/44270476748). The runner's first try, REST
   `PUT pulls/40/merge` with `merge_method=squash` pinned to head 912b0fb, **merged** PR #40 ("V1 probe (do not
