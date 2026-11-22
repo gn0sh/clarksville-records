@@ -1078,6 +1078,25 @@ def test_more_than_twenty_percent_stale_opens_the_issue(tmp_path):
     assert "stale: 0 of unknown collected governments" in body
 
 
+@pytest.mark.skipif(not __import__("shutil").which("jq"), reason="jq not installed")
+@pytest.mark.parametrize("run_log,first", [
+    ({"national": "built", "national_stale": {"covered": 4, "alarm": True, "ids": []}},
+     "More than 20% of the covered national governments were stale in this run (none was built degraded): "),
+    ({"national": "degraded"}, "The national pages were built degraded in this run: "),
+    ({"national": "built", "national_states": {"place-4715160": "bad-date"}},
+     "The national pages were built degraded in this run: "),
+    ({"national": "degraded", "national_stale": {"covered": 4, "alarm": True, "ids": []}},
+     "The national pages were built degraded, and more than 20% of the covered governments were stale, in this run: ")],
+    ids=["stale-only", "degraded", "degraded-government", "both"])
+def test_the_issue_s_opening_line_names_its_cause(tmp_path, run_log, first):
+    """Security review bbc603a F6 / code review #7 (national-observability/alarm-says-degraded): an issue the stale
+    alarm alone opened never says "built degraded"."""
+    _c, body = _degraded(tmp_path, run_log)
+    assert body.splitlines()[0] == first + "https://x/o/r/actions/runs/1"
+    if "none was built degraded" in first:
+        assert "pages were built degraded" not in body
+
+
 # D-ISO-10 (code review findings 2 and 3): the D-ISO-9 step's shell rules against the Python they copy.
 CASE_RE = re.compile(r'case "\$state" in ([a-z|-]+)\) ;; \*\) state=unknown ;; esac')
 ID_TEST_RE = re.compile(r'\[\[ "\$id" =~ (\S+) \]\] \|\| id=unknown')
