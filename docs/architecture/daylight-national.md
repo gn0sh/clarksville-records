@@ -1348,6 +1348,13 @@ fixture build is byte-identical to 30cb61d2):*
   daily issue when `run-log.json` says `national: degraded` or any government is in a degraded state. Code review
   nit 4 (`national-observability/no-root-silent`: no root or a timed-out lookup leaves every page `missing` and opens
   nothing) lands with it, through S2b ruling 5's ">20% stale" issue.
+  *S2b ruling 5, backend half as built (backend-engineer, 2026-11-22):* the build result and `run-log.json` carry
+  `national_stale` = `{covered, stale, alarm, ids}` (`sitegen.national_pages.stale_report`): `covered` counts the
+  covered governments not on the `daylight` platform (those are never marked stale, so counting them would dilute an
+  outage), `ids` the ones the page directory marks `stale` (3.4), and `alarm` is `stale * 100 > covered * 20`
+  (`STALE_ALARM_PERCENT`). Switch off: `{0, 0, false, []}`. No root or a timed-out lookup leaves every collected
+  page stale, so `alarm` is true (nit 4). Workflow half (devops, not built): the D-ISO-9 step also opens its issue
+  when `.national_stale.alarm == true`, listing the stale ids through the same id check.
 
 *v2 tasks (devops-engineer, sonnet/medium; each CI workflow diff goes to a fresh security review):*
 - D-ISO-10 code review findings 2 and 3, workflow half (with B-ISO-9 in one PR, backend commit first): add

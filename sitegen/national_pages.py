@@ -140,6 +140,24 @@ DEGRADED_STATES = (ncopy.WITHHELD_ITEMS, ncopy.BAD_DATE, ncopy.BAD_INSTANT, ncop
 WARNING = "::warning::National pages: "
 ERROR = "::error::National pages: "
 
+# S2b ruling 5 (architecture 6 "Observability", 12.2 D-ISO-9): the daily run opens a fixed-title issue when more than
+# this share of the covered collected governments is `stale` in the page directory (3.4: no good check in
+# STALE_AFTER). A daylight-platform government is never marked stale (M1 records no check run), so it is not counted:
+# counting it would only dilute an outage. No national root or a timed-out lookup makes every collected page stale
+# (code review nit 4, national-observability/no-root-silent), which this catches.
+STALE_ALARM_PERCENT = 20
+
+
+def stale_alarm(covered: int, stale: int) -> bool:
+    """True when more than STALE_ALARM_PERCENT of `covered` collected governments are stale (whole numbers only)."""
+    return covered > 0 and stale * 100 > covered * STALE_ALARM_PERCENT
+
+
+def stale_report(covered: int = 0, stale_ids=()) -> dict:
+    """The build result's and run log's `national_stale` (D-ISO-9 reads it): counts, the alarm and the stale ids."""
+    ids = sorted(stale_ids)
+    return {"covered": covered, "stale": len(ids), "alarm": stale_alarm(covered, len(ids)), "ids": ids}
+
 
 def _warn(gov: Mapping, state: str, exc: BaseException) -> None:
     """The one annotation of a tier-1 degrade: the id, the fixed word and the exception's type name, never its text."""
@@ -616,7 +634,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
                    built_at: datetime, counter: dict | None,
                    bind_counts: dict[str, BindCounts] | None = None,
                    links: Mapping[str, str | None] | None = None,
-                   states: dict[str, str] | None = None) -> list[str]:
+                   states: dict[str, str] | None = None,
+                   stale_out: dict[str, bool] | None = None) -> list[str]:
     """Writes the digest pages (module docstring) and returns their site paths, the HTML pages first. `counter`: the
     build's analytics settings (analytics.settings()) or None; `site`: the build's site context. `links`: load_links()
     (None: no outside link, both settings null).
@@ -629,7 +648,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     `try`; any exception (a feed for another body, a missing feed, a schema error, an unprintable value) gives that
     government the bound `stale_feed(entry)` instead, state RENDER_ERROR in `states` and one `::warning::` line. The
     stale page depends on reviewed config only (an exception there is not caught here). The page directory is made
-    after, from the feeds actually written."""
+    after, from the feeds actually written; `stale_out`, if given, receives each covered government's `stale` flag
+    in it (for the run log's `national_stale`, S2b ruling 5)."""
     out = Path(out_dir)
     pages = Pages(env, site, labels, page_labels)
     L = page_labels
@@ -666,6 +686,8 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     for g in covered:
         if g.get("platform") == ncl.PLATFORM:
             pagedir["govs"][g["gov"]]["stale"] = False
+    if stale_out is not None:
+        stale_out.update({g["gov"]: pagedir["govs"][g["gov"]]["stale"] is True for g in covered})
     form_origin = morning_page.form_origin()
     note = morning_page.settings() or {}
     settings = {"schema": "daylight-digest-config/1", "frame": "geo-frame.html", "covered": "covered.html",
@@ -785,10 +807,18 @@ def load_phase(folder: Path = nat.NATIONAL_DIR) -> Loaded:
 @dataclass
 class NationalRun:
     """What the national step did: the HTML pages written (for static/pages.js), the step's state (BUILT, or
-    DEGRADED after a tier-2 rebuild) and each covered government's state word."""
+    DEGRADED after a tier-2 rebuild) and each covered government's state word; `measured`: the covered collected (not daylight-platform) governments, and `stale` the
+    ids of those marked stale in the page directory (S2b ruling 5)."""
     pages: list[str]
     state: str = BUILT
     govs: dict[str, str] = field(default_factory=dict)
+    measured: int = 0
+    stale: tuple[str, ...] = ()
+
+    @property
+    def stale_report(self) -> dict:
+        """The `national_stale` of the build result and run log (stale_report())."""
+        return stale_report(self.measured, self.stale)
 
     @property
     def degraded(self) -> dict[str, str]:
@@ -817,13 +847,17 @@ def _data_phase(out_dir: Path, env, site: dict, loaded: Loaded, *, councils, cou
     for gid, c in sorted(copied.items()):
         print(f"sitegen: national: {gid}: national-data {c.summary()}", flush=True)
     binds: dict[str, BindCounts] = {}
+    stale: dict[str, bool] = {}
     written = build_national(out_dir, env, site, d, loaded.flags, loaded.labels, loaded.page_labels, feeds,
-                             built_at=built_at, counter=counter, bind_counts=binds, links=loaded.links, states=states)
+                             built_at=built_at, counter=counter, bind_counts=binds, links=loaded.links, states=states,
+                             stale_out=stale)
     for gid, n in sorted(binds.items()):
         if n.withheld_stripped or n.review_mismatch:
             print(f"sitegen: national: {gid}: bind_feed stripped items: {n.summary()}", flush=True)
+    collected = [g["gov"] for g in d.govs if g["status"] == "covered" and g.get("platform") != ncl.PLATFORM]
     return NationalRun(pages=[r for r in written if r.endswith(".html") and r != FRAME],
-                       state=DEGRADED if no_data else BUILT, govs=states)
+                       state=DEGRADED if no_data else BUILT, govs=states, measured=len(collected),
+                       stale=tuple(sorted(g for g in collected if stale.get(g))))
 
 
 def _clear(folder: Path) -> None:
