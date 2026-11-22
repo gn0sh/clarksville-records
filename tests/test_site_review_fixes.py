@@ -181,6 +181,19 @@ def test_dangling_reference_fails_the_build(tmp_path, facts, mutate, missing):
         build_pages(tmp_path, f)
 
 
+@pytest.mark.parametrize("field,missing", [("source_id", "src-000000000000"), ("meeting_id", "2099-01-01-formal")])
+def test_dangling_title_source_fails_the_build(facts, field, missing):
+    """note-titles: an item's title read from an agenda (title_source) cites a source and a meeting in the file."""
+    from sitegen.build import check_references
+    f = copy.deepcopy(facts)
+    src = {"kind": "agenda", "source_id": f["sources"][0]["id"], "page": 1, "meeting_id": f["meetings"][0]["id"]}
+    f["items"][0]["title_source"] = src
+    check_references(f)                                  # both cited: fine
+    f["items"][0]["title_source"] = {**src, field: missing}
+    with pytest.raises(BuildError, match=re.escape(repr(missing))):
+        check_references(f)
+
+
 # --- test gaps: unverified text never public; escaping ------------------------------------------------------------
 
 

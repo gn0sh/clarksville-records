@@ -189,6 +189,37 @@ None may re-resolve a printed name; each reads `official_id` (null when held).
 | One-vote check | `collector/invariants.py` `one_vote_violations` | votes per (item, roll call) |
 | QA spot check | `qa/spot_check.py` `candidates` | the names shown to the checker |
 
+## Item titles from the agenda (note-titles, 2026-11-22)
+
+Most minutes print a vote's item with only its number ("ORDINANCE 95-2025-26"), so those items had `title: ""`. The
+meeting's own stored agenda prints the caption under each number. **Rule:** after every meeting is read
+(`city_build.agenda_titles`), an item linked by number whose title is still empty takes, verbatim, the caption that the
+agenda (`agenda_source_id`, text layer only) of a meeting that voted on it prints for exactly that kind and number:
+the first such meeting by date whose agenda has one caption for it. Two entries for the number with different captions
+give nothing for that agenda (run report `agenda_titles.ambiguous`); no entry gives nothing; no fuzzy match
+("9-2025-26" never matches "09-2025-26"). What counts as an entry, where a caption ends and which trailing notes
+(planning commission, committee or board recommendation, sponsor) are cut is per-locality config,
+`agenda-center.yml agenda_captions`, read by `city_minutes.agenda_captions`; the reading labels "(FIRST READING)" and
+"[ZONING CASE ...]" stay, as the minutes' titles keep "(First Reading)". A title any minutes print is never replaced.
+
+**Facts contract (additive):** such an item carries `title_source: {kind: "agenda", source_id, page, meeting_id}`
+(schema `item.title_source`); an item without it has the minutes' title (or none). Sites and notes that show an
+agenda-sourced title cite `title_source` for its words, not the item's first event (which is the minutes).
+
+Unchanged: ids, roll calls, votes, motions, events, verification checks and counts, the gates. The shrink guard keys
+items by number (`item_key`), so titles appearing is no loss; `keep_documents` gives an item whose `title_source`
+cites a source or meeting the keep took out the committed item's title, else none (as for `zoning`).
+
+| Consumer | Where | Reads |
+|---|---|---|
+| Reference check | `sitegen/build.py` `check_references` | `title_source.source_id` and `.meeting_id` exist |
+| CSV export | `collector/export.py` `items.csv` `title_source_url`, `title_source_page` | the agenda page that prints the title |
+| Item types | `sitegen/views.py` `item_types` (words in the title) | an agenda caption with "zoning" makes the item `rezoning` |
+| Run report | `build/city-report.json` `agenda_titles` {untitled, filled, ambiguous, agendas_read} | counts |
+
+Tests: `collector/tests/test_city_agenda_titles.py`, on the text layer of six CivicClerk agendas
+(`collector/tests/fixtures/city/agenda_<date>.txt`). The Agenda Center agendas (2016-2023) are not yet checked.
+
 ## Verified-rate plan (problem family `city-verify`, 2026-11-11)
 
 Baseline (committed facts at 255039b): 1,756 of 2,235 city roll calls verified (78.6%); 2026 14 of 83. AC-P1 needs 90%.

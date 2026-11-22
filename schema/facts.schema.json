@@ -151,7 +151,19 @@
       "properties": {
         "id": { "type": "string", "description": "normalised number (e.g. 24-12-1, AB-4-2024) or t-<sha1(normalised title)[:10]>" },
         "number": { "type": ["string", "null"] },
-        "title": { "type": "string", "description": "verbatim from first appearance" },
+        "title": { "type": "string", "description": "verbatim from first appearance; without title_source, as the minutes print it" },
+        "title_source": {
+          "type": "object",
+          "description": "city council (note-titles): present only when no minutes printed the item's title and the title is the caption that the stored agenda of meeting_id prints for exactly this number (collector/city_build.agenda_titles); cite this source for the title's words",
+          "additionalProperties": false,
+          "required": ["kind", "source_id", "page", "meeting_id"],
+          "properties": {
+            "kind": { "const": "agenda" },
+            "source_id": { "$ref": "#/$defs/source_id" },
+            "page": { "$ref": "#/$defs/page" },
+            "meeting_id": { "type": "string" }
+          }
+        },
         "link_basis": { "enum": ["number", "title"] },
         "year": { "type": "integer", "description": "year of first appearance; selects items/<year>.html" },
         "zoning": {

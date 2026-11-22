@@ -65,6 +65,32 @@ item_number: '\b(ORDINANCE|RESOLUTION)\s+(\d{1,3}-\d{4}-\d{2})\b'
 # The item kinds as the minutes name them in a sentence ("adopt this ordinance", "these resolutions"; any case).
 # A vote is linked to a numbered item only when what it is on agrees with the item: see collector/city_minutes.py.
 item_kinds: [ordinance, resolution]
+# Agenda captions (note-titles; docs/architecture/city-council.md "Item titles from the agenda"). Most minutes print a
+# vote's item with only its number; the meeting's own stored agenda prints the caption under that number:
+#   A.   ORDINANCE 95-2025-26 (FIRST READING) [ZONING CASE Z-22-2025]
+#        An Ordinance amending the zoning code and map of the City of Clarksville, ... District. RPC: Approval/Approval
+# An item the minutes leave untitled takes, verbatim, the caption of the one entry of that meeting's agenda that
+# starts with `entry` and then exactly the item's number (item_number above). The caption is the rest of that line
+# and the lines under it, joined with single spaces, up to a blank line or the next entry. A caption cut by a page
+# break runs on at the next page's first line (a page number or running header aside) when that line is no entry and
+# sits right of that page's entry labels, or starts in lower case, a digit or punctuation. The reading and case
+# labels printed with it ("(FIRST READING)", "[ZONING CASE Z-22-2025]") stay, as the minutes' own titles keep
+# "(First Reading)". Trailing notes are not the caption and are cut: the planning commission's recommendation
+# (`notes`, from its first match to the end), a committee or board recommendation ("Finance Committee: Approval";
+# the committees are the agenda's own section headings matching committee_heading, plus committee_names) and a
+# sponsor ("[Councilman Ambar Marquis]", "(Mayor Pitts)", or "Mayor Joe Pitts" after the caption's last full stop).
+# Two entries for one number with different captions, or none: no title. Checked on the CivicClerk agendas of
+# 2024-01-04, 2025-07-01, 2025-09-04, 2026-01-08, 2026-05-07 and 2026-07-02 (collector/tests/fixtures/city/
+# agenda_<date>.txt). The Agenda Center agendas (2016-2023) are not checked against this rule yet.
+agenda_captions:
+  entry: '^(?:[A-Z]\.\s{2,}|\d{1,2}\.\s+)(?=\S)'
+  committee_heading: '^\d{1,2}\.\s+(?P<name>[A-Z][^:]*?)\s+Committee\s*:'
+  committee_names: [Designations, Finance, Gas & Water, Neighborhood & Community Services, Parks & Recreation,
+                    Public Safety, Transportation-Streets-Garage]
+  # "Finance Committe: Approval" is printed too (2025-09-04), and "(Gas & Water Board: Approval)" (2026-01-08)
+  committee_word: 'Committe{1,2}s?|Boards?'
+  notes: ['\bRPC\s*:']
+  sponsor_titles: 'Council(?:man|woman|member|person|lady|or)s?|Mayor(?:\s+Pro\s+Tem)?'
 # Votes that are never on one numbered item, whatever item they follow: the motion, the lead-in to the vote or the
 # outcome sentence says so (case-insensitive). They are linked to their section heading.
 not_item_votes: '\badjourn|\bconsent\s+agenda\b|\bappoint'

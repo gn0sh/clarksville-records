@@ -18,8 +18,8 @@ from collections import Counter, defaultdict
 
 from . import limits
 from .agenda_center import AgendaCenterConfig
-from .city_minutes import (NAME_RE, ParsedCityMinutes, page_has, page_has_line, parse_minutes_pdf, pdf_layer, read_pages,
-                           short_hash)
+from .city_minutes import (NAME_RE, ParsedCityMinutes, agenda_captions, page_has, page_has_line, parse_minutes_pdf,
+                           pdf_layer, read_pages, short_hash)
 from .extract import extract_pages
 from .store import Store
 from .verify import gates
@@ -430,6 +430,10 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
                      problems, unresolved, book.for_meeting(meeting["date"]), word_breaks)
         book.add(printed_full_names(cfg, officials, pm, meeting["date"]))
 
+    # note-titles: an item no minutes printed a title for takes the caption its meeting's own agenda prints for it.
+    # After every meeting is read, so a title any minutes print always wins; nothing but items[].title changes
+    titles_report = agenda_titles(cfg, items, roll_calls, meetings, sources, store, pages, problems)
+
     kept = {x["source_id"] for x in meetings}
     if any(f"src-{m['entry']['sha256'][:12]}" not in kept for m in members):
         if _kept is not None:         # cannot happen (cited_members left them out): never publish on trust
@@ -490,6 +494,8 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         "printing_corrections": corrections_report(cfg, meetings),
         # W2 (path N9): every name read by its break-free key, for QA's AC-P2 sample
         "word_break_matches": word_breaks,
+        # note-titles: untitled items given their agenda's caption (city_build.agenda_titles)
+        "agenda_titles": titles_report,
         # AC-P1 verified rate and G4 skew, the county's gate code as is (collector/verify.gates, architecture
         # "Invariant: held-back counts"; city-verify/no-skew-gate). No city check marks a hold as an error of the
         # source document itself (the county's `source_consistent`), so none is left out of the rates.
@@ -497,6 +503,60 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     }
     summary["pass"] = summary["gates"]["verified_rate_gate"]["pass"] and summary["gates"]["g4"]["pass"]
     return {**facts, "_wards": wards}, summary
+
+
+def agenda_titles(cfg: AgendaCenterConfig, items: dict, roll_calls: list[dict], meetings: list[dict],
+                  sources: dict, store: Store, pages=read_pages, problems: list | None = None) -> dict:
+    """note-titles: each item linked by number that no minutes printed a title for (title "") takes, verbatim, the
+    caption the stored agenda of a meeting that voted on it prints for exactly its number (city_minutes.
+    agenda_captions): the first such meeting, in build order (by date), whose agenda has one caption for it. An agenda
+    that prints the number in two entries with different captions gives nothing (it is named in `ambiguous`); one that
+    prints no entry for it gives nothing. The item records where its words come from: title_source {kind: "agenda",
+    source_id, page, meeting_id}. Only agendas with a text layer are read, once each; a file that cannot be read gives
+    nothing and is named in `problems`. Votes, roll calls, checks and ids do not change. Returns the run report's
+    agenda_titles: {untitled, filled, ambiguous: [{item_id, meeting_id, source_id, pages}], agendas_read}."""
+    problems = [] if problems is None else problems
+    want = sorted(i["id"] for i in items.values() if i["link_basis"] == "number" and i["number"] and not i["title"])
+    report = {"untitled": len(want), "filled": 0, "ambiguous": [], "agendas_read": 0}
+    if not want or cfg.agenda_captions is None:
+        return report
+    by_id = {m["id"]: m for m in meetings}
+    voted_in: dict[str, list] = {}
+    for r in roll_calls:
+        ms = voted_in.setdefault(r["item_id"], [])
+        if r["meeting_id"] not in ms:
+            ms.append(r["meeting_id"])
+    read: dict = {}
+
+    def captions(sid: str):
+        if sid not in read:
+            s, read[sid] = sources.get(sid), None
+            if s and s["kind"] == "agenda" and s["text_layer"] == "text" and store.has_bytes(s["sha256"]):
+                try:
+                    read[sid] = agenda_captions(pages(store.path_for(s["sha256"])), cfg)
+                    report["agendas_read"] += 1
+                except Exception as ex:                # one bad file must not stop the build: no captions from it
+                    problems.append({"url": s["url"], "sha256": s["sha256"],
+                                     "problem": f"agenda captions not read ({type(ex).__name__}): no titles from it"})
+        return read[sid]
+
+    for iid in want:
+        item = items[iid]
+        kind, number = item["number"].split(" ", 1)
+        for mid in voted_in.get(iid, []):
+            sid = by_id[mid].get("agenda_source_id")
+            found = (captions(sid) or {}).get((kind.lower(), number)) if sid else None
+            if not found:
+                continue
+            if len({c for c, _ in found}) > 1:
+                report["ambiguous"].append({"item_id": iid, "meeting_id": mid, "source_id": sid,
+                                            "pages": sorted({p for _, p in found})})
+                continue
+            item["title"] = found[0][0]
+            item["title_source"] = {"kind": "agenda", "source_id": sid, "page": found[0][1], "meeting_id": mid}
+            report["filled"] += 1
+            break
+    return report
 
 
 def corrections_report(cfg, meetings: list[dict]) -> list[dict]:
