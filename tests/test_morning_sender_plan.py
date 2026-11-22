@@ -176,8 +176,9 @@ def test_plan_shape(built, msite):
     assert p["schema"] == "morning-send/1" and p["date"] == "2026-11-11" and p["timezone"] == "America/Chicago"
     assert p["send"] is True and p["reason"] == "ok"
     assert p["send_at"] == "2026-11-11T07:00:00-06:00" and p["latest_send"] == "2026-11-11T10:00:00-06:00"
-    import hashlib
-    assert p["note_sha256"] == hashlib.sha256((msite / "morning" / "2026-11-11.json").read_bytes()).hexdigest()
+    note = json.loads((msite / "morning" / "2026-11-11.json").read_bytes())
+    assert p["note_sha256"] == common.note_digest(note) == common.note_digest({**note, "coming_up": [{"x": 1}]})
+    assert len(p["note_sha256"]) == 64          # the claim leaves coming_up out (note/sunrise)
     assert p["editions"] and [e["key"] for e in p["editions"]] == sorted(e["key"] for e in p["editions"])
     for e in p["editions"]:
         assert sorted(e) == ["body", "entry_ids", "key", "subject"] and common.KEY_RE.fullmatch(e["key"])

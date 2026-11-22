@@ -123,17 +123,16 @@ T1 additions (additive; T3 and the sender may rely on them):
   document kind, `morning.DOCUMENT_KINDS`: "MINUTES"); `meeting_href` is the site's page of the entry's meeting for
   county and council entries, else `null`; `item_number` is the county/council item's own printed number
   ("ORDINANCE 95-2025-26"), else `null`. The email uses them (Body, below); the preview page ignores them;
-- the note carries `coming_up` (additive, 2026-11-22, note/sunrise): the next `morning.COMING_N` (3) meetings in the
-  records on or after the note's `date`, soonest first, the same for every reader: `[{date, body, meeting, href}]`,
-  a selection of the day page's own meeting cards (`days.meeting_rows`: bid listings and cancelled meetings left
-  out; a council meeting the facts hold is cancelled when the city calendar now calls it off, `days.called_off`, the
-  Digest's rule). **Frozen at the cutoff** (note-sunrise/note-not-frozen): a meeting counts only when one of its
-  documents (`meeting_rows` `urls`: its PDFs, a calendar row's agenda) was first fetched (the manifests) before the
-  note's window end, so a meeting known from no fetched document (a calendar row with no agenda yet) is never
-  listed. `meeting` is the card's kind label in lower case, without a leading "<body>, ", `null` when it has none or
-  the body's name already says it; `href` is always the meeting's day on `today.html` (`today.html#d-<date>`),
-  which no later record moves (a meeting page's part number can). No time or place (neither is collected). `[]` when
-  none; the email reads a missing field as `[]`. Body names and kind labels are in `own_text`.
+- the note carries `coming_up` (additive, 2026-11-22, note/sunrise): the next `morning.COMING_N` (3) meetings the
+  site lists on or after the note's `date`, soonest first, the same for every reader: `[{date, body, meeting, href}]`,
+  a selection of the day page's own meeting cards (`days.meeting_rows`), so a council meeting only on the city
+  calendar (no agenda yet) counts. Bid listings and cancelled meetings are left out; a council meeting the facts
+  hold is cancelled when the city calendar now calls it off (`days.called_off`, the Digest's rule). `meeting` is the
+  card's kind label in lower case, without a leading "<body>, ", `null` when it has none or the body's name already
+  says it; `href` is always the meeting's day on `today.html` (`today.html#d-<date>`; a meeting page's part number
+  can move). No time or place (neither is collected). `[]` when none; the email reads a missing field as `[]`. Body
+  names and kind labels are in `own_text`. **Current, not frozen**: it is the only part of a note that may differ
+  between two builds of one day, and the day claim does not read it (Deliver stage, Day claim).
 
 `select(day, lists, seats) -> list[entry]` (Python, `sitegen/morning.py`) is the one filter: `seats` and `budget`/
 `contracts` membership is by `lists`; `zoning` and `seats` also need the seat match above. `morning.js` mirrors it;
@@ -344,11 +343,14 @@ Order of work for `deliver --live` (any failed check stops before the first writ
      whose key is not among them (finishes a run that died half way);
    - any with a different `note_sha256`: the day belongs to an earlier, different plan. Send nothing, exit 0. (A second
      collection before 7:00 that adds a document changes the note; its additions are on the site and feeds only.)
-     So note D must not change after D's cutoff: its entries are documents first fetched inside the window, and its
-     `coming_up` (note/sunrise) only meetings known from a document first fetched before the cutoff, linked by day.
-     One known gap: a meeting already listed that a later collection the same day finds called off (the city
-     calendar's title, or an RPC or committee cancellation) drops out of `coming_up`, because no fetch time says
-     when it was called off; a re-run after that build sends nothing more that day (fail closed, never twice).
+     So note D must not change after D's cutoff, except `coming_up` (note/sunrise): the next meetings stay current
+     (a calendar change between the morning's builds), so the claim leaves them out. `note_sha256` is
+     `common.note_digest`, sha256 over the note as canonical JSON without `common.CLAIM_FREE` (`coming_up`), and
+     `deliver.plan_digest` reads each body without its "Coming up" lines (the lines that open with
+     `TAG["coming_kicker"]` or `TAG["coming"]`, which render writes for nothing else). Safe, because who gets which
+     email never depends on them: edition keys are rows only, and the entries, signatures, subjects and every other
+     line of every body are still in both digests. A re-run whose build lists other meetings is the same plan for
+     the claim and creates only the editions not yet created, with the newer list; nobody gets two.
    - the listing fails, is cut short or cannot be read: send nothing, exit non-zero. **Fail closed.**
 4. **Recipients**: page through subscribers, keep `type == "regular"` (confirmed; `unactivated`, `unsubscribed` and
    the rest are never mailed), and reduce each at the adapter boundary to `(id, lists, district, ward)`, read from

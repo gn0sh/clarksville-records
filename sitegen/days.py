@@ -416,16 +416,11 @@ def chip(card: dict) -> str | None:
 
 
 def meeting_rows(page_ctx: dict) -> list[dict]:
-    """Every meeting card of the day page (page()), soonest first: [{iso, body, title, href, cancelled, urls}]. Bid
-    listings are not meetings and are left out. `urls`: the documents the card is known from (its PDFs, its own
-    record when that is a document, a calendar row's agenda), each once, so the morning note can tell when the
-    meeting was first known (morning.coming_up, note-sunrise/note-not-frozen)."""
-    def urls(c: dict) -> list[str]:
-        rec = c.get("record") or {}
-        got = [x.get("url") for x in c.get("docs") or []] + ([rec.get("url")] if rec and not rec.get("ext") else [])
-        return list(dict.fromkeys(u for u in got + [c.get("agenda_url")] if isinstance(u, str) and u))
+    """Every meeting card of the day page (page()), soonest first: [{iso, body, title, href, cancelled}]. Bid
+    listings are not meetings and are left out. The morning note's `coming_up` is a selection of these
+    (morning.coming_up)."""
     return [{"iso": d["iso"], "body": c["body"], "title": c.get("title"), "href": c.get("href"),
-             "cancelled": bool(c.get("cancelled")), "urls": urls(c)}
+             "cancelled": bool(c.get("cancelled"))}
             for w in page_ctx["weeks"] for d in w["days"] for c in d["cards"] if c["kind"] != "bids"]
 
 

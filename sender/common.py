@@ -186,6 +186,21 @@ _HOST = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a
 _URL_CHARS = re.compile(r"[!#-&(-;=?-\[\]-_a-z|~]+", re.IGNORECASE)     # printable ASCII but " ' < > \ ` { }
 
 
+# note/sunrise, the day claim: the note's digest (plan.note_sha256) leaves out `coming_up`, the next meetings, which a
+# later build the same day may list differently (a calendar change). Everything else in the note is read.
+CLAIM_FREE = ("coming_up",)
+
+
+def note_digest(note: dict) -> str:
+    """sha256 over the note as canonical JSON without CLAIM_FREE, so two builds of one day whose notes differ only in
+    their coming meetings give one digest, and a re-run still claims the day (deliver._claim)."""
+    import hashlib
+    import json
+    rest = {k: v for k, v in note.items() if k not in CLAIM_FREE}
+    return hashlib.sha256(json.dumps(rest, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+                          .encode("utf-8")).hexdigest()
+
+
 def exact_url_ok(url) -> bool:
     """True for an https URL that may be allowed exactly (the support link, Low (a)): link_ok's characters and a
     lower-case host with no user and no port."""

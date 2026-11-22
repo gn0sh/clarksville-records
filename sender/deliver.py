@@ -489,12 +489,23 @@ def _call(sleep, fn, *args):
             sleep(min(max(float(wait), 0.0), MAX_WAIT))
 
 
+_COMING = (TAG["coming_kicker"], TAG["coming"])     # the "Coming up" lines render writes, and nothing else
+
+
+def _claimed_body(body: str) -> str:
+    """A body as the claim reads it: without its "Coming up" lines (note/sunrise: the note's coming_up, the one part
+    of a day's note a later build may change; who gets which email does not depend on it)."""
+    return "\n".join(line for line in body.split("\n") if not line.startswith(_COMING))
+
+
 def plan_digest(plan: dict) -> str:
-    """sha256 over what decides who gets which email: the note's digest, every edition (key, subject, body, entry
-    ids) and every signature. Two plans of one note made by different code or config differ here, so a re-run of
-    another plan can never take this plan's created editions as its own (sender/claim-plan-identity)."""
+    """sha256 over what decides who gets which email: the note's digest, every edition (key, subject, body without
+    its "Coming up" lines, entry ids) and every signature. Two plans of one note made by different code or config
+    differ here, so a re-run of another plan can never take this plan's created editions as its own
+    (sender/claim-plan-identity); two builds of one day that differ only in their coming meetings do not."""
     canon = {"note_sha256": plan["note_sha256"], "signatures": plan["signatures"],
-             "editions": sorted(([e["key"], e["subject"], e["body"], e["entry_ids"]] for e in plan["editions"]))}
+             "editions": sorted(([e["key"], e["subject"], _claimed_body(e["body"]), e["entry_ids"]]
+                                 for e in plan["editions"]))}
     return hashlib.sha256(json.dumps(canon, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
                           .encode("ascii")).hexdigest()
 

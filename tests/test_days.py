@@ -222,18 +222,13 @@ def test_a_held_council_meeting_the_calendar_calls_off_is_marked_cancelled(tmp_p
     assert all(not c["cancelled"] for _, c in days.council_cards(fixture, date(2026, 11, 1), date(2026, 12, 31), date(2026, 11, 10)))
 
 
-def test_meeting_rows_carry_the_documents_each_meeting_is_known_from():
-    card = {"kind": "council", "body": "B", "title": "Regular session", "href": None, "cancelled": True,
-            "docs": [{"url": "https://x.example/agenda.pdf"}], "record": {"url": "https://x.example/portal", "ext": True},
-            "agenda_url": "https://x.example/cal-agenda.pdf"}
-    rpc = {"kind": "rpc", "body": "R", "title": None, "href": "r.html", "docs": [],
-           "record": {"url": "https://x.example/rpc.pdf", "ext": False}}
+def test_meeting_rows_are_the_day_pages_meeting_cards():
+    card = {"kind": "council", "body": "B", "title": "Regular session", "href": None, "cancelled": True}
+    rpc = {"kind": "rpc", "body": "R", "title": None, "href": "r.html"}
     ctx = {"weeks": [{"days": [{"iso": "2026-12-03", "cards": [card, rpc, {"kind": "bids", "body": "x"}]}]}]}
     assert days.meeting_rows(ctx) == [
-        {"iso": "2026-12-03", "body": "B", "title": "Regular session", "href": None, "cancelled": True,
-         "urls": ["https://x.example/agenda.pdf", "https://x.example/cal-agenda.pdf"]},
-        {"iso": "2026-12-03", "body": "R", "title": None, "href": "r.html", "cancelled": False,
-         "urls": ["https://x.example/rpc.pdf"]}]
+        {"iso": "2026-12-03", "body": "B", "title": "Regular session", "href": None, "cancelled": True},
+        {"iso": "2026-12-03", "body": "R", "title": None, "href": "r.html", "cancelled": False}]
 
 
 def jinja_card(c: dict) -> str:

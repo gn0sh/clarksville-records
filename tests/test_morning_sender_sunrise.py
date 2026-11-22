@@ -5,7 +5,7 @@ invited." line over the next meetings in the records; the exact opening tags del
 and the size rule that keeps an edition under Gmail's clip (common.BODY_BUDGET). FIXTURE notes only."""
 import copy
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 
 import pytest
 
@@ -408,62 +408,102 @@ def test_the_deliver_jobs_reader_still_matches_pyyaml():
 
 # ------------------------------------------------------------------ the note's coming_up (build time, from the records)
 def _rows():
-    """days.meeting_rows() shape: each meeting with the URLs of the documents it is known from."""
+    """days.meeting_rows() shape: the day page's meeting cards, soonest first."""
     return [
-        {"iso": "2026-11-17", "body": "School Board", "title": "Formal board meeting", "href": "school/a.html", "cancelled": False, "urls": ["https://x.example/a"]},
-        {"iso": "2026-11-18", "body": "Montgomery Budget Committee", "title": "Budget Committee", "href": None, "cancelled": False, "urls": ["https://x.example/b"]},
-        {"iso": "2026-11-20", "body": "Council", "title": "Special session", "href": "c/x.html", "cancelled": True, "urls": ["https://x.example/c"]},
-        {"iso": "2026-12-01", "body": "Council", "title": "Executive session", "href": "c/y.html#e", "cancelled": False, "urls": ["https://x.example/d", "https://x.example/d2"]},
-        {"iso": "2026-12-03", "body": "Council", "title": None, "href": "c/z.html", "cancelled": False, "urls": ["https://x.example/e"]},
-        {"iso": "2026-12-09", "body": "Council", "title": "Council, regular session", "href": "c/w.html", "cancelled": False, "urls": ["https://x.example/f"]},
-        {"iso": "2026-12-10", "body": "Council", "title": "Work session", "href": None, "cancelled": False, "urls": []}]
-
-
-EARLY = datetime(2026, 11, 1, tzinfo=timezone.utc)
-FIRST = {f"https://x.example/{k}": EARLY for k in ("a", "b", "c", "d", "e", "f")}
-END = datetime(2026, 11, 18, 13, 0, tzinfo=timezone.utc)          # the note's cutoff, 07:00 Central
+        {"iso": "2026-11-17", "body": "School Board", "title": "Formal board meeting", "href": "school/a.html", "cancelled": False},
+        {"iso": "2026-11-18", "body": "Montgomery Budget Committee", "title": "Budget Committee", "href": None, "cancelled": False},
+        {"iso": "2026-11-20", "body": "Council", "title": "Special session", "href": "c/x.html", "cancelled": True},
+        {"iso": "2026-12-01", "body": "Council", "title": "Executive session", "href": None, "cancelled": False},
+        {"iso": "2026-12-03", "body": "Council", "title": None, "href": "c/z.html", "cancelled": False},
+        {"iso": "2026-12-09", "body": "Council", "title": "Council, regular session", "href": "c/w.html", "cancelled": False}]
 
 
 def test_coming_up_is_the_next_three_meetings_on_or_after_the_notes_day():
-    got = morning.coming_up(date(2026, 11, 18), _rows(), FIRST, END)
-    # the day page's anchor, never a page whose part number may move (note-sunrise/note-not-frozen)
+    got = morning.coming_up(date(2026, 11, 18), _rows())
+    # always the day page's anchor (a meeting page's part number may move)
     assert got == [{"date": "2026-11-18", "body": "Montgomery Budget Committee", "meeting": None,
                     "href": "today.html#d-2026-11-18"},
                    {"date": "2026-12-01", "body": "Council", "meeting": "executive session", "href": "today.html#d-2026-12-01"},
                    {"date": "2026-12-03", "body": "Council", "meeting": None, "href": "today.html#d-2026-12-03"}]
-    assert morning.coming_up(date(2027, 1, 1), _rows(), FIRST, END) == []
-    assert morning.coming_up(date(2026, 11, 1), None, FIRST, END) == []
-    assert [r["date"] for r in morning.coming_up(date(2026, 11, 1), _rows(), FIRST, END)] == ["2026-11-17", "2026-11-18", "2026-12-01"]
+    assert morning.coming_up(date(2027, 1, 1), _rows()) == [] and morning.coming_up(date(2026, 11, 1), None) == []
+    # a called-off meeting (11-20) is never listed
+    assert [r["date"] for r in morning.coming_up(date(2026, 11, 19), _rows())] == ["2026-12-01", "2026-12-03", "2026-12-09"]
 
 
 def test_a_kind_label_that_starts_with_the_body_name_drops_it():
     """coming-kind-repeats-body: "Council, regular session" under the body "Council" reads "regular session"."""
-    got = morning.coming_up(date(2026, 12, 4), _rows(), FIRST, END)
+    got = morning.coming_up(date(2026, 12, 4), _rows())
     assert got[0] == {"date": "2026-12-09", "body": "Council", "meeting": "regular session", "href": "today.html#d-2026-12-09"}
 
 
-def test_a_meeting_known_only_after_the_cutoff_does_not_change_the_note():
-    """note-sunrise/note-not-frozen: note D's coming_up reads only meetings known from a document first fetched before
-    D's cutoff, so a collection later that day (a re-run's build) leaves note D, and its note_sha256, as it was."""
-    before = morning.coming_up(date(2026, 11, 18), _rows(), FIRST, END)
-    late = {**FIRST, "https://x.example/b": END}               # first fetched at the cutoff: after it
-    assert [r["date"] for r in morning.coming_up(date(2026, 11, 18), _rows(), late, END)] == ["2026-12-01", "2026-12-03", "2026-12-09"]
-    newer = _rows() + [{"iso": "2026-11-19", "body": "New Board", "title": "Meeting", "href": None, "cancelled": False,
-                        "urls": ["https://x.example/new"]}]
-    assert morning.coming_up(date(2026, 11, 18), newer, {**FIRST, "https://x.example/new": END + timedelta(hours=3)}, END) == before
-    # the earliest of a meeting's documents counts: a second document fetched later changes nothing
-    assert morning.coming_up(date(2026, 11, 18), _rows(), {**FIRST, "https://x.example/d2": END + timedelta(days=1)}, END) == before
-    # a meeting known from no fetched document (a calendar row with no agenda) is never listed
-    assert all(r["date"] != "2026-12-10" for r in morning.coming_up(date(2026, 12, 10), _rows(), FIRST, END + timedelta(days=30)))
+def test_a_calendar_only_meeting_is_listed_and_a_called_off_one_is_not(tmp_path):
+    """The owner's goal is the invitation: a council meeting the city calendar lists, with no agenda yet and not in
+    the facts (a scheduled card), is in coming_up; one the calendar calls off is not."""
+    import json as json_mod
+    from types import SimpleNamespace
+
+    from sitegen import days
+    cal = tmp_path / "calendar.json"
+    cal.write_text(json_mod.dumps([{"date": "2026-12-01", "kind": "executive", "title": "Executive Session"},
+                                   {"date": "2026-12-03", "kind": "regular", "title": "Regular Session"},
+                                   {"date": "2026-12-17", "kind": "regular", "title": "CANCELLED - Regular Session"}]),
+                   encoding="utf-8")
+    cix = SimpleNamespace(cfg={"calendar": str(cal), "record_url": "https://example.gov/portal", "record_label": "portal"},
+                          fixture=False, slug="city", body_name="Fixture Council",
+                          kind_labels={"regular": "Regular session", "executive": "Executive session"},
+                          facts={"meetings": []})
+    cards = days.council_cards(cix, date(2026, 11, 1), date(2026, 12, 31), date(2026, 11, 22))
+    ctx = {"weeks": [{"days": [{"iso": d, "cards": [c]} for d, c in cards]}]}
+    got = morning.coming_up(date(2026, 11, 22), days.meeting_rows(ctx))
+    assert got == [{"date": "2026-12-01", "body": "Fixture Council", "meeting": "executive session", "href": "today.html#d-2026-12-01"},
+                   {"date": "2026-12-03", "body": "Fixture Council", "meeting": "regular session", "href": "today.html#d-2026-12-03"}]
 
 
-def test_the_note_writer_passes_its_window_and_first_fetch_to_coming_up(monkeypatch):
+def test_the_note_writer_passes_its_meetings_to_coming_up(monkeypatch):
     seen = {}
-    monkeypatch.setattr(morning, "coming_up", lambda d, rows, first, end: seen.update(d=d, first=first, end=end) or [])
-    note = morning.day(date(2026, 11, 18), [], {"https://x.example/a": EARLY}, meetings=_rows())
-    assert note["coming_up"] == [] and seen["d"] == date(2026, 11, 18)
-    assert seen["first"] == {"https://x.example/a": EARLY}
-    assert seen["end"] == morning.window(date(2026, 11, 18), morning.settings()["cutoff"], config.SITE["site_timezone"])[1]
+    monkeypatch.setattr(morning, "coming_up", lambda d, rows: seen.update(d=d, rows=rows) or [])
+    note = morning.day(date(2026, 11, 18), [], {}, meetings=_rows())
+    assert note["coming_up"] == [] and seen == {"d": date(2026, 11, 18), "rows": _rows()}
+
+
+# ------------------------------------------------------------------ the day claim leaves coming_up out
+def _two_plans(msite, tmp_path):  # noqa: F811
+    """Two plans of one day whose notes differ only in coming_up (a calendar change between the morning's builds)."""
+    base = read_note(msite)
+    one = {**base, "coming_up": []}
+    two = {**base, "coming_up": [{"date": "2026-12-03", "body": "Fixture Council", "meeting": "regular session",
+                                  "href": "today.html#d-2026-12-03"}]}
+    p1 = plan_mod.build(site_with(tmp_path / "a", one), D, cfg_with())["plan"]
+    p2 = plan_mod.build(site_with(tmp_path / "b", two), D, cfg_with())["plan"]
+    return p1, p2
+
+
+def test_coming_up_is_the_one_part_of_a_note_the_claim_does_not_read(msite, tmp_path):  # noqa: F811
+    p1, p2 = _two_plans(msite, tmp_path)
+    assert [e["body"] for e in p1["editions"]] != [e["body"] for e in p2["editions"]]
+    assert TEXT["coming_up"] in p2["editions"][0]["body"] and TEXT["coming_up"] not in p1["editions"][0]["body"]
+    assert p1["note_sha256"] == p2["note_sha256"] and deliver.plan_digest(p1) == deliver.plan_digest(p2)
+    assert [e["key"] for e in p1["editions"]] == [e["key"] for e in p2["editions"]]          # keys: rows only
+    # anything else in the note still changes both digests
+    note = read_note(msite)
+    assert common.note_digest(note) != common.note_digest({**note, "notice": note["notice"] + " x"})
+    other = copy.deepcopy(p2)
+    other["editions"][0]["body"] = other["editions"][0]["body"].replace(TEXT["why"], TEXT["why"] + " x")
+    assert deliver.plan_digest(other) != deliver.plan_digest(p2)
+
+
+def test_a_rerun_with_a_changed_coming_up_still_claims_the_day_and_sends_the_rest(msite, tmp_path):  # noqa: F811
+    """A run stopped after its first email; the re-run's build lists another coming meeting. The re-run's plan is the
+    same plan for the claim, so it creates the other editions and none twice."""
+    from test_morning_sender_deliver import Fake, go, people
+    p1, p2 = _two_plans(msite, tmp_path)
+    fake = Fake(people(p1), fail={"create_email": [None] + [deliver.ProviderError("email create")]})
+    res, _ = go(p1, fake)
+    assert (res.status, res.editions, len(fake.created)) == ("failed", 1, 1)
+    res, _ = go(p2, fake)
+    assert (res.code, res.status, res.editions, len(fake.created)) == (0, "sent", 2, 3)
+    editions = [x["metadata"]["note_edition"] for x in fake.created]
+    assert len(editions) == len(set(editions)) == 3
 
 
 # ------------------------------------------------------------------ definitions only of what is shown

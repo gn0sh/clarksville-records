@@ -113,8 +113,8 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
     if not on and not rehearse:
         return {"plan": plan, "texts": {}}
     plan["send_at"], plan["latest_send"] = _at(day, s["send_at"], tz), _at(day, s["latest_send"], tz)
-    note, raw = read_note(site, day)
-    plan["note_sha256"] = hashlib.sha256(raw).hexdigest()
+    note, _raw = read_note(site, day)
+    plan["note_sha256"] = common.note_digest(note)       # without coming_up (note/sunrise, the day claim)
     if note["backfill"]:
         plan["reason"] = "backfill"
         return {"plan": plan, "texts": {}}
