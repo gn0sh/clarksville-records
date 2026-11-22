@@ -99,7 +99,7 @@
       "&benchmark=Public_AR_Current&vintage=Current_Current&layers=" + layers + "&format=jsonp&callback=" + CALLBACK;
   }
 
-  /* The Census's own short name of a unit (its BASENAME: "Clarksville" for NAME "Clarksville city"; recorded in
+  /* The Census's own short name of a unit (its BASENAME: "Salem" for NAME "Salem city"; recorded in
      docs/platform-facts.md "Census geocoder"), or "" when the answer has none we can print as a name. It is used
      only as given: cleaned like every Census string, and kept only when it holds a letter and is a part of the
      unit's own NAME, which the card already prints. This page never trims a name itself ("" means no name is
@@ -289,7 +289,7 @@
      (docs/design/digest-warmth.md section 4). `kept` is the list in its fixed slot order; school districts never
      decide. In order: (1) the government in the city-or-town slot (an incorporated place, or a town the directory
      moves there), else (2) the township or town, each by the Census's own short name (its BASENAME, as given);
-     else (3) the county, by its Census name in full ("Montgomery County"); else (4) "". When the government that
+     else (3) the county, by its Census name in full ("Marion County"); else (4) "". When the government that
      decides has no short name in the Census answer the result is "" too, and the next one is not tried: the page
      then greets no name and never makes one up. The name is page text only: it is not stored, and never reaches
      the URL or the title. */
