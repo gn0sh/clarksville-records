@@ -6,13 +6,17 @@
 #
 # Regenerate it whenever package-lock.json moves Playwright to a new browser revision, never from `playwright install`
 # (security re-check a84d19d R1; docs/architecture/ci-download-verify-invariant.md). Use the daily update's own steps:
-# curl the two Chrome for Testing linux64 zips for that Playwright's version (2026-11-22: 153.0.8010.12, from
-# https://storage.googleapis.com/chrome-for-testing-public/<version>/linux64/) into a new, empty folder, check them
-# against their source, write their sha256sum lines to tests/playwright/browser-zips.sha256 (chrome-linux64.zip, then
+# read <rev> (`revision`) and <version> (`browserVersion`) of chromium and chromium-headless-shell from the new
+# node_modules/playwright-core/browsers.json; curl the two Chrome for Testing linux64 zips for <version> (2026-11-22:
+# 153.0.8010.12, from https://storage.googleapis.com/chrome-for-testing-public/<version>/linux64/) into a new, empty
+# folder. Google publishes no sha256 for them, so the first fetch is trusted on first use: fetch them a second time
+# from a different network (another machine or connection, not the same proxy or cache) and record both sha256 sets
+# and where each came from in the pull request; they must be equal. Then write their sha256sum lines to
+# tests/playwright/browser-zips.sha256 (chrome-linux64.zip, then
 # chrome-headless-shell-linux64.zip), unzip -q each into <folder>/chromium-<rev> and <folder>/chromium_headless_shell-<rev>
 # of an empty folder, create an empty INSTALLATION_COMPLETE in each, then run this before anything launches the browser.
-# The bump is one pull request: the version in the step's URL, <rev> in its two folder names, both .sha256 files, and
-# REVISIONS in tests/test_browser_install_step.py. The list covers the chromium* folders only (no ffmpeg, no .links).
+# The bump is one pull request: rev and cftv in the daily update's install step (it checks them against browsers.json
+# after npm ci), both .sha256 files, and REVISIONS in tests/test_browser_install_step.py. The list covers the chromium* folders only (no ffmpeg, no .links).
 set -euo pipefail
 dir=${1:?usage: browsers-sha256.sh <browsers folder>}
 cd "$dir"

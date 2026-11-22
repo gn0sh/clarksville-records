@@ -709,9 +709,12 @@ jobs:
       # skip, Clarksville still publishes while config/site.yml national.enabled is off, and on main the step after
       # Tests opens or updates one issue (R3). Once the switch is on, tests/test_national_browser.py (_browser_required)
       # fails instead of skipping. No token, no permission. Nothing here is cached: no cache may hold pw-browsers,
-      # pw-zips or ms-playwright. Version bump (package-lock.json moves Playwright to a new browser): the new Chrome for
-      # Testing version in the URL below, the new revision in both folder names, browser-zips.sha256, browsers.sha256
-      # and REVISIONS in tests/test_browser_install_step.py, all in one pull request (tests/playwright/browsers-sha256.sh).
+      # pw-zips or ms-playwright. Code review dd1606e #1 (ci-browser/revision-not-bound-to-lock): right after npm ci the
+      # installed playwright-core/browsers.json must name chromium and chromium-headless-shell at exactly rev and cftv
+      # below, else the step fails (a lock bump that forgot them would otherwise only fail at launch). Version bump
+      # (package-lock.json moves Playwright): read the new `revision` and `browserVersion` of both entries from the new
+      # playwright-core's browsers.json, then set rev and cftv below, browser-zips.sha256, browsers.sha256 and REVISIONS
+      # in tests/test_browser_install_step.py, all in one pull request (how: tests/playwright/browsers-sha256.sh).
       - name: Install Playwright and Chromium (browser tests)
         id: browsers
         # R2: worst case 3,990 s (66.5 min) = npm 3x(180+15) + deps 3x(300+15) + download 3x(2x300)
@@ -760,7 +763,9 @@ jobs:
             return "$rc"
           }
           deps() { timeout --kill-after=15 300 "$pw/node_modules/.bin/playwright" install-deps chromium; }
-          cft="https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.12/linux64"
+          rev="1243"              # Playwright 1.63.0's chromium revision (playwright-core/browsers.json `revision`)
+          cftv="153.0.8010.12"    # its Chrome for Testing version (browsers.json `browserVersion`)
+          cft="https://storage.googleapis.com/chrome-for-testing-public/$cftv/linux64"
           download() {   # each try starts empty, so a failed try's partial file is never checked or unzipped
             rm -f -- "$zips"/*
             curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --max-filesize 268435456 --silent --show-error -o "$zips/chrome-linux64.zip" "$cft/chrome-linux64.zip" \
@@ -778,6 +783,17 @@ jobs:
           cp tests/playwright/package.json tests/playwright/package-lock.json "$pw/"
           tries "npm ci" npm_ci || missing "npm ci failed three times."
           "$pw/node_modules/.bin/playwright" --version
+          # browsers-json-check: the locked Playwright expects exactly this revision and version (read as data, never run)
+          node -e '
+            const [f, rev, ver] = process.argv.slice(1);
+            const b = JSON.parse(require("fs").readFileSync(f, "utf8")).browsers;
+            for (const name of ["chromium", "chromium-headless-shell"]) {
+              const e = b.filter((x) => x.name === name);
+              if (e.length !== 1 || e[0].revision !== rev || e[0].browserVersion !== ver || e[0].revisionOverrides) {
+                console.log(name + ": " + JSON.stringify(e)); process.exit(1);
+              }
+            }' "$pw/node_modules/playwright-core/browsers.json" "$rev" "$cftv" \
+            || { echo "::error::The locked Playwright's browsers.json does not name chromium $rev / $cftv (rev and cftv in this step): update both with the lock. Nothing is built."; exit 1; }
           tries "The system libraries install" deps || missing "the system libraries install failed three times."
           rm -rf -- "$br"
           zips=$(mktemp -d "$RUNNER_TEMP/pw-zips.XXXXXXXXXX")
@@ -789,12 +805,12 @@ jobs:
           (cd "$zips" && sha256sum --quiet --strict -c "$zl") || zbad "a zip's sha256 differs"
           echo "Chromium zips checked: 2 files match tests/playwright/browser-zips.sha256."
           # only now, the checked zips are unpacked (-n: never overwrite, so unzip never stops to ask)
-          mkdir -p "$br/chromium-1243" "$br/chromium_headless_shell-1243"
-          unzip -q -n -d "$br/chromium-1243" "$zips/chrome-linux64.zip" \
-            && unzip -q -n -d "$br/chromium_headless_shell-1243" "$zips/chrome-headless-shell-linux64.zip" \
-            || { echo "::error::unzip failed on the checked Chromium zips. Nothing ran them; nothing is built."; rm -rf -- "$zips"; exit 1; }
-          : > "$br/chromium-1243/INSTALLATION_COMPLETE"
-          : > "$br/chromium_headless_shell-1243/INSTALLATION_COMPLETE"
+          mkdir -p "$br/chromium-$rev" "$br/chromium_headless_shell-$rev"
+          unzip -q -n -d "$br/chromium-$rev" "$zips/chrome-linux64.zip" \
+            && unzip -q -n -d "$br/chromium_headless_shell-$rev" "$zips/chrome-headless-shell-linux64.zip" \
+            || { echo "::error::unzip failed on the checked Chromium zips. Nothing ran them; nothing is built."; rm -rf -- "$zips" "$br"; exit 1; }
+          : > "$br/chromium-$rev/INSTALLATION_COMPLETE"
+          : > "$br/chromium_headless_shell-$rev/INSTALLATION_COMPLETE"
           rm -rf -- "$zips"
           # browser-tree-check (tests/test_browser_install_step.py runs this step with stubs, test zips and tampered trees)
           man="$PWD/tests/playwright/browsers.sha256"

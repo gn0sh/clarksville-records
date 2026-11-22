@@ -71,6 +71,12 @@ comment, `--body-file` only. The job already has `issues: write`; the install st
 (daily 470, national 235), so a missing wheel fails as a download, never builds. Editing national-update.yml moves its
 blob: update `$natBlob` in scripts/protect-main.ps1 (~513) and its twin in protect-main.sh (~408) in the same PR.
 
+**Accepted risk (code review dd1606e #5, `ci-browser/environmental-unzip-hard-fails`):** an unzip failure on bytes that
+already matched browser-zips.sha256 (most likely a full runner disk) fails the job, so that day's Clarksville publish is
+held, not skipped to `missing`. Accepted: the bytes are verified, so the cause is the runner, not the network, and a
+partial unpack must never be read as "no browser"; the next scheduled run retries on a fresh runner. Revisit if it ever
+recurs.
+
 ## Tests (tests/test_browser_install_step.py; update the 28 existing, add these)
 - T1 static: no `install chromium` in either workflow; `install-deps chromium` once; exactly two curl calls, each with
   the five flags, only the fixed https base; no `-k`, `--insecure`, `http://`.

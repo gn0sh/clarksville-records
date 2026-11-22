@@ -16,6 +16,8 @@ import subprocess
 import zipfile
 from pathlib import Path
 
+import shutil
+
 import pytest
 import yaml
 
@@ -39,7 +41,9 @@ ZIPS = ("chrome-linux64.zip", "chrome-headless-shell-linux64.zip")
 PINNED_ZIPS = ("8aac35011c18f6e2d10696154af89a5728ac2ddd6dc6fad24ffdf243c3fcfd5a  chrome-linux64.zip\n"
                "a9da028861a0cf789ff25c2fed45f5f1aaf969ed9247835b6a7821a4f7af9d1d  chrome-headless-shell-linux64.zip\n")
 CURL_FLAGS = "--fail --location --proto '=https' --proto-redir '=https' --max-time 300 --max-filesize 268435456"
-BASH = ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c"]   # a run step's default shell on GitHub
+# a run step with no `shell:` runs as `bash -e {0}` on GitHub's Linux runners (the step itself sets -uo pipefail)
+BASH = ["bash", "-e", "-c"]
+NODE = shutil.which("node")   # the step's browsers.json check runs on node; the stub hands it to the real one
 LINE = re.compile(r"[0-9a-f]{64}  (chromium|chromium_headless_shell)-[0-9]+/[A-Za-z0-9._/@+-]+")
 
 
@@ -94,8 +98,8 @@ def test_t1_no_playwright_install_and_exactly_two_pinned_curls():
     assert DAILY_PATH.read_text(encoding="utf-8").count("install-deps chromium") == 1
     assert "install-deps" not in NATIONAL_PATH.read_text(encoding="utf-8")
     run = _steps()[INSTALL]["run"]
-    base = CFT.format(REVISIONS["1.63.0"][1])
-    assert f'cft="{base}"' in run
+    assert 'cftv="153.0.8010.12"' in run and 'rev="1243"' in run
+    assert 'cft="https://storage.googleapis.com/chrome-for-testing-public/$cftv/linux64"' in run
     curls = [ln for ln in _all_run_lines(DAILY) + _all_run_lines(NATIONAL) if re.search(r"\bcurl\b", ln)]
     assert len(curls) == 2 and sum(len(re.findall(r"\bcurl\b", ln)) for ln in curls) == 2
     for ln, name in zip(curls, ZIPS):
@@ -120,8 +124,11 @@ def test_t2_the_bytes_are_checked_before_they_are_unpacked_and_the_tree_before_o
     assert run.index("download() {") < run.index("# browser-zips-shape")
     assert run.count("download() {") == 1 and run.count('download || missing') == 1   # defined once, called once
     # the folders are made fresh, only after the zip check
-    assert run.index('rm -rf -- "$br"\n') < run.index("zips=$(mktemp") < run.index('mkdir -p "$br/chromium-1243"')
-    assert run.index('mkdir -p "$br/chromium-1243"') > run.index('sha256sum --quiet --strict -c "$zl"')
+    assert run.index('rm -rf -- "$br"\n') < run.index("zips=$(mktemp") < run.index('mkdir -p "$br/chromium-$rev"')
+    assert run.index('mkdir -p "$br/chromium-$rev"') > run.index('sha256sum --quiet --strict -c "$zl"')
+    # code review dd1606e #1: the lock's browsers.json is checked right after npm ci, before apt and any fetch
+    i_json = run.index("# browsers-json-check")
+    assert run.index('tries "npm ci" npm_ci') < i_json < run.index('tries "The system libraries install" deps')
 
 
 def test_t3_the_zip_list_is_the_two_pinned_lines_and_agrees_with_the_lock_and_step():
@@ -131,14 +138,17 @@ def test_t3_the_zip_list_is_the_two_pinned_lines_and_agrees_with_the_lock_and_st
     assert lock["packages"]["node_modules/playwright"]["version"] == version and version in REVISIONS
     rev, cft = REVISIONS[version]
     run = _steps()[INSTALL]["run"]
-    assert f'cft="{CFT.format(cft)}"' in run
-    for folder, name in ((f"chromium-{rev}", "chrome-linux64.zip"),
-                         (f"chromium_headless_shell-{rev}", "chrome-headless-shell-linux64.zip")):
+    # code review dd1606e #3: the revision and version are set once; everything else uses rev and cftv
+    assert run.count(f'rev="{rev}"') == 1 and run.count(f'cftv="{cft}"') == 1
+    assert run.count(rev) == 1 and run.count(cft) == 1
+    assert 'cft="https://storage.googleapis.com/chrome-for-testing-public/$cftv/linux64"' in run
+    for folder, name in (("chromium-$rev", "chrome-linux64.zip"),
+                         ("chromium_headless_shell-$rev", "chrome-headless-shell-linux64.zip")):
         assert f'unzip -q -n -d "$br/{folder}" "$zips/{name}"' in run
         assert f': > "$br/{folder}/INSTALLATION_COMPLETE"' in run
-    assert set(re.findall(r"chromium(?:_headless_shell)?-\d+", run)) == {f"chromium-{rev}",
-                                                                          f"chromium_headless_shell-{rev}"}
-    assert cft in _steps()[INSTALL]["run"] and cft in DAILY_PATH.read_text(encoding="utf-8").split(INSTALL)[0]
+    assert not re.findall(r"chromium(?:_headless_shell)?-\d+", run)
+    assert '"$pw/node_modules/playwright-core/browsers.json" "$rev" "$cftv"' in run
+    assert cft in DAILY_PATH.read_text(encoding="utf-8").split(INSTALL)[0]
 
 
 def test_the_install_step_comes_right_before_the_tests_and_after_the_site_checks():
@@ -301,7 +311,7 @@ def _sysdir(tmp_path: Path, without=("unzip",)) -> Path:
 
 def _install(tmp_path, *, node="22.11.0", npm_fails=0, npm_integrity=False, deps_fails=0, curl_fails=None,
              extra=None, after_zips=None, ziplist=None, curl_extra=False, unzip_absent=False, top_extra=None,
-             manifest=None, tamper=None):
+             manifest=None, tamper=None, browsers_json=None):
     """Runs the install step in a fake checkout with stubs; returns (process, outputs, env file, calls, runner)."""
     work, bindir, runner, src = tmp_path / "work", tmp_path / "bin", tmp_path / "runner", tmp_path / "src"
     (work / "tests" / "playwright").mkdir(parents=True)
@@ -319,6 +329,8 @@ def _install(tmp_path, *, node="22.11.0", npm_fails=0, npm_integrity=False, deps
         after_zips(src)
     calls, count = tmp_path / "calls", tmp_path / "count"
     count.mkdir()
+    bjson = tmp_path / "browsers.json"
+    bjson.write_text(browsers_json if browsers_json is not None else _browsers_json())
     # a stub fails its first N calls: count/<name> holds the calls so far
     fail_first = ('n=$(( $(cat "{c}/$1" 2>/dev/null || echo 0) + 1 )); echo "$n" > "{c}/$1"; '
                   '[ "$n" -gt "$2" ]').format(c=count)
@@ -333,10 +345,12 @@ def _install(tmp_path, *, node="22.11.0", npm_fails=0, npm_integrity=False, deps
     _stub(bindir / "npm", f'echo "npm $*" >> "{calls}"\n'
                           + ('echo "npm error code EINTEGRITY"; exit 1\n' if npm_integrity else "")
                           + f'{bindir}/attempt npm {npm_fails} || {{ echo "npm error network"; exit 1; }}\n'
-                          'mkdir -p "$3/node_modules/.bin"\n'
+                          'mkdir -p "$3/node_modules/.bin" "$3/node_modules/playwright-core"\n'
+                          f'cp "{bjson}" "$3/node_modules/playwright-core/browsers.json"\n'
                           f"cat > \"$3/node_modules/.bin/playwright\" <<'EOF'\n{pwbin}EOF\n"
                           'chmod +x "$3/node_modules/.bin/playwright"\n')
-    _stub(bindir / "node", f'if [ "$1" = --version ]; then echo "v{node}"; else echo "{node.split(".")[0]}"; fi\n')
+    _stub(bindir / "node", f'case "$1" in --version) echo "v{node}" ;; -p) echo "{node.split(".")[0]}" ;; '
+                           f'*) exec "{NODE}" "$@" ;; esac\n')
     _stub(bindir / "sleep", f'echo "sleep $*" >> "{calls}"\n')
     # curl: serves the test zips by the URL's last part; a failing try leaves a partial file behind
     fails = curl_fails or {}
@@ -364,6 +378,16 @@ def _install(tmp_path, *, node="22.11.0", npm_fails=0, npm_integrity=False, deps
     r = subprocess.run([*BASH, _steps()[INSTALL]["run"]], cwd=work, env=env, capture_output=True,
                        text=True, timeout=120)
     return r, _read(out), _read(envf), _read(calls).splitlines(), runner
+
+
+def _browsers_json(chromium=None, shell=None, extra=()) -> str:
+    """A playwright-core browsers.json like 1.63.0's; chromium / shell override the two entries' fields."""
+    rev, ver = REVISIONS["1.63.0"]
+    entries = [{"name": "chromium", "revision": rev, "installByDefault": True, "browserVersion": ver, **(chromium or {})},
+               {"name": "chromium-headless-shell", "revision": rev, "installByDefault": True, "browserVersion": ver,
+                **(shell or {})},
+               {"name": "firefox", "revision": "1543", "installByDefault": True, "browserVersion": "155.0"}, *extra]
+    return json.dumps({"comment": "Do not edit this file", "browsers": [e for e in entries if e.get("name")]})
 
 
 def _read(f: Path) -> str:
@@ -524,6 +548,7 @@ def test_t8_unzip_failing_on_checked_zips_fails_the_step(tmp_path):
     assert r.returncode == 1, r.stdout + r.stderr
     assert "::error::unzip failed on the checked Chromium zips" in r.stdout and "browsers=" not in out
     assert len(_kinds(calls, "unzip")) == 2 and not list(runner.glob("pw-zips.*"))
+    assert not (runner / "pw-browsers").exists()                               # code review dd1606e #4
 
 
 def _add(rel, text="x\n"):
@@ -565,6 +590,28 @@ def test_any_difference_from_the_sha256_list_fails_the_step(tmp_path, tamper):
 def test_a_malformed_sha256_list_fails_the_step(tmp_path):
     r, out, _e, _c, _rt = _install(tmp_path, manifest="not a list\n")
     assert r.returncode == 1 and "browsers.sha256 (the list is malformed)" in r.stdout and "browsers=" not in out
+
+
+@pytest.mark.parametrize("bj", [
+    _browsers_json(chromium={"revision": "1244"}),
+    _browsers_json(shell={"revision": "1244"}),
+    _browsers_json(chromium={"browserVersion": "154.0.8100.4"}),
+    _browsers_json(shell={"browserVersion": "154.0.8100.4"}),
+    _browsers_json(shell={"name": None}),
+    _browsers_json(extra=[{"name": "chromium", "revision": "1244", "browserVersion": "154.0.8100.4"}]),
+    _browsers_json(chromium={"revisionOverrides": {"ubuntu20.04-x64": "1200"}}),
+    _browsers_json(chromium={"revision": 1243}),
+    "not json",
+], ids=["chromium-rev", "shell-rev", "chromium-version", "shell-version", "shell-missing", "duplicate", "override",
+        "number-rev", "unparseable"])
+def test_a_locked_playwright_that_wants_another_browser_fails_before_any_fetch(tmp_path, bj):
+    """Code review dd1606e #1 (ci-browser/revision-not-bound-to-lock): a lock bump that forgot rev / cftv fails here,
+    after npm ci and before apt or any zip is fetched, instead of at launch."""
+    r, out, _e, calls, runner = _install(tmp_path, browsers_json=bj)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "::error::The locked Playwright's browsers.json does not name chromium 1243 / 153.0.8010.12" in r.stdout
+    assert "browsers=" not in out and not (runner / "pw-browsers").exists()
+    assert not _kinds(calls, "playwright install-deps") and not _kinds(calls, "curl")
 
 
 def test_an_npm_integrity_failure_fails_the_step(tmp_path):
