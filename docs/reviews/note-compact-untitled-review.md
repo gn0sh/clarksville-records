@@ -31,3 +31,35 @@ Edition keys unchanged.
   clean on changed files.
 
 Samples: /mnt/project-files/clarksville-records/morning-note-sample/2026-11-22/ (project files).
+
+# Sunrise redesign (Brian, Nov 22: "celebrate civic pride... Your Local Government, in Broad Daylight")
+
+Brian picked a blend of three concepts (/mnt/project-files/clarksville-records/morning-note-design/): concept A
+"Sunrise" layout, C's plain-word definitions, and "You are invited." with the next meetings. Built 5f7e36d5..552c17a.
+
+## Code review (code-reviewer, opus/high), fresh then delta
+- At 75093b0: REQUEST CHANGES. must-fix `note-sunrise/cancelled-council-invited` (a council meeting called off on the
+  city calendar stayed in "Coming up"); should-fix `note-sunrise/note-not-frozen` (coming_up changed the day-claim
+  hash), `note-sunrise/intro-every-item-links`, `note-sunrise/executive-session-reads-closed`; nits
+  `coming-kind-repeats-body`, `defs-of-hidden-items`, RFP wording. tests/test_morning*.py 1436 passed.
+- Fix round 1 (f159fa2) froze coming_up at the cutoff, which emptied the list (defeats the invite); round 2 (0da3abc)
+  keeps it current and takes it out of the day claim (common.note_digest, deliver.plan_digest strip only the two
+  "Coming up" line forms).
+- Delta at 0da3abc: **APPROVE**. All closed except nit `coming-kind-repeats-body`; 774 tests passed. Low notes: a
+  coming_up change near the 80 KB budget can move the cut and make the claim read "other" (fails safe); first run after
+  merge reads "other" for a day the old code started: don't merge 07:00-10:00 CT.
+- Round 3 (552c17a): the nit fixed (label head the body name ends with is dropped; tested) and both low notes written
+  into docs/architecture/morning-note.md. Manager read the 3-file diff; 1473 tests passed (engineer).
+
+## Security review (security-engineer, opus/high), fresh then delta
+- At 75093b0: **OK with follow-ups**. body_ok accepts only exact shared opening-tag strings; ~50 crafted bodies refused;
+  deliver uses its own digest-checked copy of the constants. Low `note-sunrise/budget-unenforced` (check_plan didn't
+  enforce BODY_BUDGET); info `note-sunrise/placement-unchecked` (body_ok checks nesting, not which block sits where).
+- Delta at 0da3abc: **OK**. Budget enforced in check_plan and the plan stage; stripping removes only coming-up line
+  forms; no double send (edition keys, subjects, entry ids, signatures still in the digest). Low, optional:
+  `note-sunrise/claim-strip-placement` (strip by line form, not position). Not taken: unsent editions still pass body_ok.
+
+## Tests
+- Full suite at f159fa2: 8482 passed, 547 skipped. At 552c17a: tests/test_morning*.py + tests/test_days.py 1473 passed.
+- Open before go-live (not code): whether Buttondown keeps inline styles; a person confirms the six definitions.
+Samples: /mnt/project-files/clarksville-records/morning-note-sample/2026-11-22-sunrise/.
