@@ -1317,8 +1317,9 @@ fixture build is byte-identical to 30cb61d2):*
 - B-ISO-13 S2d finding 1b: `date_problem` takes the entry; `checked_at` is also `bad-instant` when
   `newest_day(checked_at)` (the site_timezone day the page prints) is before the entry's `host_ok.date` (the collector
   cannot fetch before Brian's OK). `last_ok_at` keeps the epoch floor (never printed). Load phase (an allowed raise):
-  every collected-platform entry's `host_ok.date` (daylight entries have none) is after `config/site.yml` `lines_effective`, so a valid day is never a
-  `provenance` banned day. Chosen over blanking the day words: they are our label and stay checked.
+  every collected-platform entry's `host_ok.date` (daylight entries have none) is after `config/site.yml`
+  `lines_effective`, so a valid day is never a `provenance` banned day. Chosen over blanking the day words: they are
+  our label and stay checked.
 - B-ISO-14 S2d finding 2 and nit a (`qa/site_checks.py`): `feed_text_removed` applies `FEED_SPAN.sub`, `FEED_ATTR.sub`
   and the words replace only to each `<section class="digest-meeting"[^>]*>.*?</section>` match (`re.S`); the rest of
   the page is returned as is. `check_digest_feed_text`: (iii) becomes exact and ordered: the spans in page order,

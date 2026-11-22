@@ -507,16 +507,9 @@ def build_instant(built_day: date, now: datetime | None = None) -> datetime:
     return datetime.combine(built_day, time(12), tzinfo=tz)
 
 
-def _local_date(t: datetime) -> date:
-    return t.astimezone(ZoneInfo(config.SITE["site_timezone"])).date()
-
-
-def newest_day(checked_at: str | None) -> str | None:
-    """The site_timezone day of a feed's newest record (`checked_at`, see newest_record_at), or None for no record."""
-    when = nat._parse_instant(checked_at)
-    if when is None or when <= EPOCH:
-        return None
-    return _local_date(when).isoformat()
+# The site_timezone day of a feed's newest record (`checked_at`, see newest_record_at), or None for no record. It lives
+# in national_copy (the copy step's B-ISO-13 check reads it), so neither module imports the other at call time.
+newest_day = ncopy.newest_day
 
 
 def long_day(iso: str) -> str:
@@ -808,8 +801,9 @@ def load_phase(folder: Path = nat.NATIONAL_DIR) -> Loaded:
 @dataclass
 class NationalRun:
     """What the national step did: the HTML pages written (for static/pages.js), the step's state (BUILT, or
-    DEGRADED after a tier-2 rebuild) and each covered government's state word; `measured`: the covered collected (not daylight-platform) governments, and `stale` the
-    ids of those marked stale in the page directory (S2b ruling 5)."""
+    DEGRADED after a tier-2 rebuild) and each covered government's state word; `measured`: the covered collected
+    (not daylight-platform) governments, and `stale` the ids of those marked stale in the page directory (S2b ruling
+    5)."""
     pages: list[str]
     state: str = BUILT
     govs: dict[str, str] = field(default_factory=dict)

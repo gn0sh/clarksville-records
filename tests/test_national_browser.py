@@ -64,8 +64,9 @@ def monkeypatch_module():
 
 def _browser_required(env=None) -> bool:
     """True when a missing browser must fail: REQUIRE_BROWSER=1, or CI with the national switch on in the shipped
-    config, read by the build's own national_pages.enabled() (strict: a malformed block raises, never skips). NOTE: flipping the switch on needs daily-update.yml to install Playwright and
-    Chromium (pinned) first, or every daily deploy fails here."""
+    config, read by the build's own national_pages.enabled() (strict: a malformed block raises, never skips).
+    NOTE: flipping the switch on needs daily-update.yml to install Playwright and Chromium (pinned) first, or every
+    daily deploy fails here."""
     env = os.environ if env is None else env
     if env.get("REQUIRE_BROWSER") == "1":
         return True
