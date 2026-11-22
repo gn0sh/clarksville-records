@@ -308,14 +308,19 @@ The owner on the Sunrise sample: "I love the look, but we need to do better with
 gets a second look because there is nothing letting me know why I should care."
 - **Subject, per edition** (`common.compose`, `render.subject(ctx, day, entries, coming_up)`): a count per topic of
   the edition's own entries in config phrases, by what the items are about, not their record kind: "9 zone changes,
-  4 street items and 2 land deals: your Clarksville morning note" (config `subject_frame` "{topics}: your {place}
+  4 street items and 2 property items: your Clarksville morning note" (config `subject_frame` "{topics}: your {place}
   morning note", `{place}` = top-level `today_place`). Topics are the config list `morning_note.subject_topics`
   (owner feedback round 2, 2026-11-22), each `{key, label, words?, lists?, kinds?, item_types?, fallback?}`, checked
   in list order, first match wins per item (`render.topic`): `words` are case-insensitive regexes matched at a word
   start on the record's own verbatim title (never a title we made: `title_ours` false), `lists` the entry's lists,
-  `kinds` its record kind, `item_types` the item type rule (`views.item_types`). The shipped order: zoning,
-  annexation, appointments, alcohol, property, budget, safety, parks, streets, contracts (kind `solicitation`), then
-  `ordinance` and `resolution` marked `fallback: true`, used only when no other topic counted in the edition. Words
+  `kinds` its record kind, `item_types` the item type rule (`views.item_types`). The shipped order: zonechange,
+  zoning, annexation, annexitem, appointments, alcohol, property, budget, safety, parks, streets, contracts (kind
+  `solicitation`), then `ordinance` and `resolution` marked `fallback: true`, used only when no other topic counted
+  in the edition. A phrase claims no more than its match proves (PR #90 review,
+  neutrality/topic-phrase-overclaims): "a zone change" only for a title that says "zone change" (any other zoning
+  case or zoning-list item is "a zoning item"), "an annexation" only for an act "annexing" / "annexation of" (else
+  "an annexation item"); every other phrase is a noun about the item ("a property item", "a budget item", "an
+  alcohol item", "a street item"), never an action or outcome. Words
   are kept narrow on purpose (no bare "street" or "road": an address such as "953 Clark Street" would match). The
   two phrases of topic `k` are `sender.text.subject_<k>_one` / `subject_<k>_many` ("{n} ..."), kept in
   `sender.text` so deliver reads them without PyYAML. Each item counts once (a zoning case by `case`, a
@@ -334,7 +339,18 @@ gets a second look because there is nothing letting me know why I should care."
   `text.subject_*` key, the fixed `common.SUBJECT_KEYS` and each topic's two phrases, `_TOP` reads `today_place`) and re-render to exactly the same text, within `SUBJECT_CAP`,
   each topic once, at most 3, the counts' sum at most the edition's entries, a records count exactly its entries, at
   most `COMING_N` meetings. A compromised plan can choose a count, never a word. The plan stage applies the same
-  reading, so a gap fails the plan, not the morning.
+  reading, so a gap fails the plan, not the morning. Any subject `render.AUTHORITY` matches is refused here too,
+  even one the repository's own config would make (sender/subject-config-trust; `AUTHORITY` lives in
+  `sender/common.py` so the stdlib-only deliver job applies the same rule).
+- **Accepted risk: the counts are not re-derived** (sender/plan-untrusted/subject-count-unverified, LOW, PR #90
+  security review). The deliver stage bounds each count (the sum at most the edition's entries, a records count
+  exactly its entries, at most `COMING_N` meetings) but does not re-count topics, because that needs the note,
+  sitegen and the topic rules, which the key-holding job deliberately does not load. A compromised plan job could
+  therefore send, for example, "3 zone changes" for an edition of three budget items: wrong numbers in our own
+  fixed words, never a word of its choosing, a link or a body change (bodies are checked tag for tag). Accepted
+  because the plan job is our own workflow on the same repository, the body under the subject is unchanged and
+  correct, and a wrong count is visible to every reader of that edition. Revisit if the plan ever comes from
+  outside this repository's workflows.
 - **Day claim:** `deliver.plan_digest` reads each subject without its "meeting today" lead (`common.claim_subject`):
   the lead comes from `coming_up`, the one part of a note a later build may change (as the body's "Coming up" lines).
   The lead is added last and never moves a topic out, so the rest of the subject is the same in both builds.
@@ -345,11 +361,14 @@ gets a second look because there is nothing letting me know why I should care."
   meeting's page when the entries name it), the `recorded` words most of its items share (`TAG["said"]`, once),
   and its documents once each, without a page (`TAG["docs"]`: config `source_document` for each source document,
   `title_agenda` for the agenda an item's title comes from, or `title_agenda_dated` "Item titles from the {date}
-  meeting's agenda" when that agenda is another meeting's). Then, at the card's full width, one compact line per item
+  meeting's agenda" when that agenda is another meeting's). The words of an entry not confirmed are never the
+  card's shared words (note/unconfirmed-unflagged): they always stand on that item's own line. Then, at the card's full width, one compact line per item
   (`TAG["item"]`, `render._line_of`): the topic label (`TAG["item_kick"]`, config `subject_topics[].label`; none
   when no topic matches), the headline linking the item's page, then muted (`TAG["muted"]`) the title's leading
   labels and any `recorded` words that differ from the card's (only the rest when they extend them: "not confirmed"
-  under "Recorded in the minutes"; the invariant "an unconfirmed vote says so" holds). No per-item "Open the page",
+  under "Recorded in the minutes"; the invariant "an unconfirmed vote says so" holds) and, for a title an agenda
+  printed, that agenda page ("title from the agenda, p. N", config `title_agenda_page`, or `title_agenda_page_dated`
+  for another meeting's agenda; docs/architecture/agenda-title-cite-invariant.md). No per-item "Open the page",
   source line or `recorded` line. An item with no meeting (a budget book, a solicitation) also links its own source
   document, muted. One item's several entries of one meeting (two votes on it; the same site page and title) are one
   line (`render._flat`); `plan.json` still lists every entry id. A meeting's untitled votes (note/compact-untitled)
@@ -357,9 +376,13 @@ gets a second look because there is nothing letting me know why I should care."
 - **Headline** (`render.headline_parts`): a verbatim excerpt of the record's title: the item number, then (the
   leading "(...)" / "[...]" labels taken out and shown muted after it) the words, where a title starting with a
   configured pattern (`morning_note.title_lead_drop`, case-insensitive, matched at the start; the build refuses a
-  pattern that does not compile or matches the empty string) shows "…" in its place. The first pattern drops the
-  zoning boilerplate through "application of <applicant> for" before "a zone change", which also keeps applicants'
-  names (often private people) out of the email. Past `render.HEADLINE_MAX` (200) characters the middle is cut at
+  pattern that does not compile or matches the empty string) shows "…" in its place. The patterns drop the city's
+  zoning boilerplate ("An Ordinance amending the zoning code and map ..." and the older and minutes form "Amending
+  the Zoning Ordinance and Map ...") through "application of <applicant> for" before "zone change", and a county
+  "Application of <applicant>" through "from <district> to" or "for the <act>". This is best effort, not a
+  guarantee, that an applicant's name (often a private person's) stays out of the headline: a test runs every
+  fixture agenda caption and every facts title holding "application of" through it (one facts title where those
+  words name no applicant is listed), but a new wording may still show a name, as the site's pages do. Past `render.HEADLINE_MAX` (200) characters the middle is cut at
   words when the title ends in a "from ... to ..." clause of at most 100 characters (a zone change's districts):
   start, "… ", that clause; else the end is cut at a word with "…". The site's page keeps the whole title.
 - **Size rule rows** (past `BODY_BUDGET`) keep the previous one-line form per item (kicker, headline, labels, meeting

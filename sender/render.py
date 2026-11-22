@@ -17,7 +17,7 @@ no person's name outside a verbatim title, no summary. Every word that is ours i
 never names a government body or says "official" (AUTHORITY).
 
 note-titles (2026-11-22): each edition's subject says what is inside, a count per topic in config phrases
-("9 zone changes, 4 street items and 2 land deals: your {place} morning note", common.compose). The topics are the
+("9 zone changes, 4 street items and 2 property items: your {place} morning note", common.compose). The topics are the
 config list morning_note.subject_topics, checked in its order, first match wins per item (topic()): fixed words
 matched on the record's own verbatim title (never a title we made), the zoning, budget and contracts lists, the
 record kind, the item type rule; ordinance and resolution only when no other topic counted. A fixed match, never a
@@ -45,7 +45,7 @@ from datetime import date
 from functools import lru_cache
 
 from .common import CUT, MAX_TITLE  # noqa: F401  common's since subject-unchecked, still importable from here
-from .common import (BODY_BUDGET, COMING_N, CREDIT_LINE, DATE_RE, DOTS, LINKS, MARKUP, TAG, ZWSP, clean, compose,
+from .common import (AUTHORITY, BODY_BUDGET, COMING_N, CREDIT_LINE, DATE_RE, DOTS, LINKS, MARKUP, TAG, ZWSP, clean, compose,
                      cut, day_words, exact_url_ok, link_ok, parse_hosts, subject_line)
 
 # sitegen.morning.SENDER_TEXT_KEYS (a test keeps them equal): each key of morning_note.sender.text, the
@@ -61,7 +61,8 @@ TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": (), "
              # subject_<key>_one and _many) and the agenda link of an agenda's title
              "subject_frame": ("{topics}",), "subject_and": (), "subject_records_one": (),
              "subject_records_many": ("{n}",), "subject_today_one": (), "subject_today_many": ("{n}",),
-             "title_agenda": (), "title_agenda_dated": ("{date}",)}
+             "title_agenda": (), "title_agenda_dated": ("{date}",), "title_agenda_page": ("{page}",),
+             "title_agenda_page_dated": ("{date}", "{page}")}
 HEADLINE_MAX = 200          # note-titles: a headline, at most this many characters, cut at words
 HEADLINE_CUT = "\u2026"     # "…": where the headline leaves words of the title out
 # a title's leading labels, shown after the headline, muted: "(FIRST READING) [ZONING CASE Z-22-2025] "
@@ -74,9 +75,6 @@ COMPACT_MIN = 2
 COMPACT_LIST = "seats"      # the one list whose untitled votes are compacted (morning.LIST_KEYS; a fixed key)
 _INERT = {ord(c): f"&#{ord(c)};" for c in MARKUP}       # common.MARKUP: every markup character
 _LINE_START = re.compile(r"^[-+\s]+")       # a leading "---" (a rule or front matter), a "+" or "-" list mark
-# Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From
-# name, which is the provider account's setting: the site name). "official" also catches "unofficial".
-AUTHORITY = re.compile(r"city of|county|cmcss|\brpc\b|official", re.IGNORECASE)
 # common.ADDRESS, broken: a zero-width space after the colon of "://", inside "www.", after a dot between words
 _SCHEME = re.compile(r":(?=//)")
 _WWW = re.compile(r"(?i)(www)\.")
@@ -341,7 +339,7 @@ def _counted_as(e: dict) -> tuple:
 
 def topic_counts(ctx: dict, entries: list[dict]) -> dict[str, int]:
     """{topic: distinct items} over the edition's entries, each item counted once, under the topic it matches
-    first (an ordinance that amends the budget is one budget change, not also an ordinance): the subject's
+    first (an ordinance that amends the budget is one budget item, not also an ordinance): the subject's
     numbers."""
     under: dict[tuple, str] = {}
     for e in entries:
@@ -361,16 +359,19 @@ def _from_agenda(e: dict) -> bool:
     return isinstance(ts, dict) and ts.get("kind") == "agenda"
 
 
-def agenda_cite(e: dict, hosts=None) -> tuple[str, int | None] | None:
-    """(the agenda's URL, its page) when the entry's title is its meeting's agenda caption (_from_agenda; the
-    minutes printed none) and the agenda's link passes the https rule (and, given
-    `hosts`, is on one of them); else None. Words from the agenda are never shown without a link to it."""
+def agenda_cite(e: dict, hosts=None) -> tuple[str, int] | None:
+    """(the agenda page's URL, its page) when the entry's title is an agenda's caption (_from_agenda; the minutes
+    printed none), the agenda's link passes the https rule (and, given `hosts`, is on one of them) and the page is
+    known; else None. Words from the agenda are never shown without a link to the page that prints them
+    (docs/architecture/agenda-title-cite-invariant.md)."""
     if not _from_agenda(e):
         return None
     url, page = e["title_source"].get("url"), e["title_source"].get("page")
     if not (_https(url) and (hosts is None or link_ok(url, hosts))):
         return None
-    return url, page if isinstance(page, int) and not isinstance(page, bool) and page > 0 else None
+    if not (isinstance(page, int) and not isinstance(page, bool) and page > 0):
+        return None
+    return url, page
 
 
 def _shown_title(e: dict, hosts=None) -> str:
@@ -465,21 +466,28 @@ def _labels(ctx: dict, entries: list[dict]) -> list[str]:
     return [t["label"] for t in ctx.get("topics") or [] if t["key"] in got]
 
 
+def _agenda_words(ctx: dict, e: dict, key: str, page: int | None = None) -> str:
+    """Config text `key` for the agenda an entry's title comes from: `key` itself for the entry's own meeting's
+    agenda (or a day not known), else `key`_dated with that agenda's meeting day (`title_source.meeting_id` starts
+    with it: an item titled from another meeting's agenda); {page} filled in."""
+    t = ctx["text"]
+    mid = str(e["title_source"].get("meeting_id") or "")[:10]
+    words = t[key]
+    if DATE_RE.fullmatch(mid) and mid != _day(e):
+        try:
+            words = t[key + "_dated"].replace("{date}", day_words(mid))
+        except ValueError:
+            pass
+    return words.replace("{page}", str(page)) if page else words
+
+
 def _agenda_doc(ctx: dict, e: dict, hosts) -> tuple[str, str] | None:
-    """(words, URL) of the agenda an entry's title comes from (agenda_cite), the document without its page: config
-    title_agenda (the entry's own meeting's agenda, or a day not known), else title_agenda_dated with the agenda's
-    meeting day (`title_source.meeting_id` starts with it: an item titled from an earlier meeting's agenda)."""
+    """(words, URL) of the agenda an entry's title comes from (agenda_cite), the document without its page, for the
+    meeting's card: title_agenda or title_agenda_dated (_agenda_words)."""
     cite = agenda_cite(e, hosts)
     if not cite:
         return None
-    t = ctx["text"]
-    mid = str(e["title_source"].get("meeting_id") or "")[:10]
-    try:
-        words = t["title_agenda_dated"].replace("{date}", day_words(mid)) \
-            if DATE_RE.fullmatch(mid) and mid != _day(e) else t["title_agenda"]
-    except ValueError:
-        words = t["title_agenda"]
-    return words, cite[0].split("#", 1)[0]
+    return _agenda_words(ctx, e, "title_agenda"), cite[0].split("#", 1)[0]
 
 
 def _item(ctx: dict, x, entries: list[dict] | None = None) -> dict:
@@ -493,7 +501,7 @@ def _item(ctx: dict, x, entries: list[dict] | None = None) -> dict:
     meeting's untitled votes (items): the count line and the record's item numbers, linking the meeting's page.
     `entries`: every entry the item stands for (_flat: one item's several entries of one meeting)."""
     hosts = ctx.get("link_hosts", ())
-    agenda, tags = None, ""
+    agenda, tags, line_cite = None, "", None
     group = entries or (x if isinstance(x, list) else [x])
     e = group[0]
     day = _day(e)
@@ -518,10 +526,11 @@ def _item(ctx: dict, x, entries: list[dict] | None = None) -> dict:
         labels = kick
         kick = kick or ([said] if said else [])
         cite = agenda_cite(x, hosts)
-        # cited once: an agenda entry whose own source is that agenda page needs no second link
+        # the size rule's row: cited once (an agenda entry whose own source is that agenda page needs no second link)
         if cite and title and cite[0] != (x.get("source") or {}).get("url"):
-            t = ctx["text"]
-            agenda = (t["title_agenda"] + (f", {ctx['page_label']} {cite[1]}" if cite[1] else ""), cite[0])
+            agenda = (_agenda_words(ctx, x, "title_agenda") + f", {ctx['page_label']} {cite[1]}", cite[0])
+        # the card's line: always, next to the words (captions/uncited-title/card-level-only)
+        line_cite = (_agenda_words(ctx, x, "title_agenda_page", cite[1]), cite[0]) if cite and title else None
     docs = []
     for y in group:
         url, _ = source_link({"source": {"url": _document(y), "page": None}}, hosts)
@@ -535,6 +544,9 @@ def _item(ctx: dict, x, entries: list[dict] | None = None) -> dict:
             "day": day, "texts": [(k, t) for k, t in texts if clean(t)], "page": page_url,
             "src": (_source_words(ctx, day, page), src) if src else None, "agenda": agenda,
             "said": list(dict.fromkeys(w for w in (clean(y.get("recorded")) for y in group) if w)),
+            # the words of entries not confirmed: never the card's shared words (note/unconfirmed-unflagged)
+            "unsure": [clean(y.get("recorded")) for y in group if y.get("confirmed") is False],
+            "cite": line_cite,
             "docs": list(dict.fromkeys(docs)), "meet": site_link(ctx["site_url"], e.get("meeting_href"), hosts),
             "group": isinstance(x, list), "entries": group}
 
@@ -563,14 +575,16 @@ def _groups(units: list[dict]) -> list[list[dict]]:
 def _shared(units: list[dict]) -> tuple[str, list[list[str]]]:
     """(the `recorded` words most of these items share, shown once under the meeting line; per item the words it
     has that differ, shown after it: when they extend the shared words ("Recorded in the minutes; not confirmed"
-    under "Recorded in the minutes"), only the rest, "not confirmed")."""
+    under "Recorded in the minutes"), only the rest, "not confirmed"). The words of an entry not confirmed are never
+    the shared words: they always stand on that item's own line (note/unconfirmed-unflagged)."""
     counts: dict[str, int] = {}
     for it in units:
         for w in it["said"]:
-            counts[w] = counts.get(w, 0) + 1
+            if w not in it["unsure"]:
+                counts[w] = counts.get(w, 0) + 1
     common = max(counts, key=lambda w: (counts[w], -list(counts).index(w))) if counts else ""
-    flags = [[w[len(common) + 2:] if common and w.startswith(common + "; ") else w for w in it["said"] if w != common]
-             for it in units]
+    flags = [[w[len(common) + 2:] if common and w.startswith(common + "; ") else w for w in it["said"]
+              if w != common or w in it["unsure"]] for it in units]
     return common, flags
 
 
@@ -588,16 +602,20 @@ def _docs(units: list[dict]) -> list[tuple[str, str]]:
 def _line_of(ctx: dict, it: dict, flag: list[str]) -> str:
     """One item of a meeting card (note-titles round 3): its topic label (muted capitals), then the headline linking
     the site's page, then, muted, the title's leading labels and any `recorded` words that differ from the
-    meeting's. A meeting's untitled votes: the count line linking the meeting's page, then their numbers. An item
-    with no meeting (a budget book, a solicitation) also links its own source document, muted."""
+    meeting's, and for a title from an agenda that agenda page ("title from the agenda, p. 3", config
+    title_agenda_page[_dated]). A meeting's untitled votes: the count line linking the meeting's page, then their
+    numbers and any differing words. An item with no meeting (a budget book, a solicitation) also links its own
+    source document, muted."""
     inner = f"{TAG['item_kick']}{inert(' / '.join(it['labels']))}</span> " if it["labels"] else ""
     if it["group"]:
         words = " ".join(t for _, t in it["texts"][:1])
         inner += _a(it["page"], words) if it["page"] else inert(words)
-        nums = [t for k, t in it["texts"] if k == "numbers"]
-        return _p("item", inner + (f" {TAG['muted']}{inert(nums[0])}</span>" if nums else ""))
+        after = [inert(t) for t in [*(t for k, t in it["texts"] if k == "numbers"), *flag] if clean(t)]
+        return _p("item", inner + (f" {TAG['muted']}{' &middot; '.join(after)}</span>" if after else ""))
     inner += _a(it["page"], it["head"]) if it["page"] else inert(it["head"])
     after = [inert(t) for t in [it["tags"], *flag] if clean(t)]
+    if it["cite"]:                      # a title from an agenda: that agenda page, next to its words
+        after.append(_a(it["cite"][1], it["cite"][0]))
     if it["src"] and not it["day"]:     # with no meeting, its own source; a meeting's card links them once, above
         after.append(_a(it["src"][1], it["src"][0]))
     return _p("item", inner + (f" {TAG['muted']}{' &middot; '.join(after)}</span>" if after else ""))
@@ -870,9 +888,10 @@ def body_text(ctx: dict, note: dict, entries: list[dict], under: dict | None = N
             out += [f"  {clean(w)}: {u}" for w, u in _docs(units)]
             for it, flag in zip(units, flags):
                 if it["group"]:
-                    parts = [" ".join(clean(t) for _, t in it["texts"])]
+                    parts = [" ".join(clean(t) for _, t in it["texts"])] + [clean(t) for t in flag if clean(t)]
                 else:
                     parts = [clean(it["head"])] + [clean(t) for t in [it["tags"], *flag] if clean(t)]
+                    parts += [f"{clean(it['cite'][0])}: {it['cite'][1]}"] if it["cite"] else []
                     parts += [f"{clean(it['src'][0])}: {it['src'][1]}"] if it["src"] and not it["day"] else []
                 kick = f"{clean(' / '.join(it['labels']))}: " if it["labels"] else ""
                 out.append(f"  - {kick}{' · '.join(parts)}" + (f" <{it['page']}>" if it["page"] else ""))

@@ -88,7 +88,8 @@ def test_each_list_is_a_section_and_each_meeting_a_card_with_the_date_block():
     # the meeting line links the meeting's page when the entries name it
     assert [a.attrs["href"] for h in parse(html).walk() if h.tag == "h3" for a in h.walk() if a.tag == "a"] == [
         SITE_URL + "city/meetings/2026.html#2026-09-03-regular"]
-    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes; not confirmed", "On the agenda"]
+    # the council's votes are not confirmed: never the card's shared words, each line says so (below)
+    assert [x.all_text() for x in styled(html, "said")] == ["On the agenda"]
     assert [x.all_text() for x in styled(html, "docs")] == [TEXT["source_document"]] * 2
     assert [a.attrs["href"] for d in styled(html, "docs") for a in d.walk() if a.tag == "a"] == [
         "https://example.com/fixture/minutes-2026-09-03.pdf", "https://example.com/fixture/agenda.pdf"]
@@ -99,27 +100,40 @@ def test_each_list_is_a_section_and_each_meeting_a_card_with_the_date_block():
     assert item_links == [[SITE_URL + "city/meetings/2026.html#2026-09-03-regular"], [SITE_URL + titled["href"]],
                           [SITE_URL + "items/2026.html#i-x"]]
     assert TEXT["open_site"] not in html and not styled(html, "source")
-    assert [x.all_text() for x in styled(html, "muted")] == ["ORDINANCE 1-2026-27, ORDINANCE 2-2026-27, ORDINANCE 4-2026-27"]
+    assert [x.all_text() for x in styled(html, "muted")] == [
+        "ORDINANCE 1-2026-27, ORDINANCE 2-2026-27, ORDINANCE 4-2026-27 · Recorded in the minutes; not confirmed",
+        "Recorded in the minutes; not confirmed"]
     assert ok(html)
 
 
 def test_a_meetings_card_names_a_different_recorded_and_the_title_labels_muted_after_the_headline():
-    first = vote(3, 4, untitled=False, title="ORDINANCE 3-2026-27: (FIRST READING) [ZONING CASE Z-1-2026] FIXTURE a title")
+    first = vote(3, 4, untitled=False, title="ORDINANCE 3-2026-27: (FIRST READING) [ZONING CASE Z-1-2026] FIXTURE a title",
+                 recorded="Recorded in the minutes", confirmed=True)
     sure = vote(5, 6, untitled=False, recorded="Recorded in the minutes", confirmed=True)
     n = note_of(first, vote(4, 5, untitled=False), sure, date="2026-11-18")
     html = render.body_html(CTX, n, n["entries"])
-    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes; not confirmed"]
+    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes"]
     muted = [x.all_text() for x in styled(html, "muted")]
-    assert muted == ["(FIRST READING) [ZONING CASE Z-1-2026]", "Recorded in the minutes"]
+    # under "Recorded in the minutes" a vote not confirmed says only the rest, on its own line
+    assert muted == ["(FIRST READING) [ZONING CASE Z-1-2026]", "not confirmed"]
     line = styled(html, "item")[0]
     head = [a.all_text() for a in line.walk() if a.tag == "a"]
     assert head == ["ORDINANCE 3-2026-27: FIXTURE a title"]
-    # under "Recorded in the minutes" a vote not confirmed says only the rest
-    n = note_of(sure, vote(6, 7, untitled=False, recorded="Recorded in the minutes", confirmed=True),
-                vote(4, 5, untitled=False), date="2026-11-18")
+    assert ok(html)
+
+
+def test_a_vote_not_confirmed_is_flagged_on_its_own_line_even_when_most_are():
+    """note/unconfirmed-unflagged: the words of a vote not confirmed are never the card's shared words, so a
+    confirmed vote never reads as one under them and each unconfirmed one says so itself."""
+    sure = vote(5, 6, untitled=False, recorded="Recorded in the minutes", confirmed=True)
+    n = note_of(sure, vote(3, 4, untitled=False), vote(4, 5, untitled=False), date="2026-11-18")
     html = render.body_html(CTX, n, n["entries"])
     assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes"]
-    assert [x.all_text() for x in styled(html, "muted")] == ["not confirmed"]
+    assert [x.all_text() for x in styled(html, "muted")] == ["not confirmed", "not confirmed"]
+    alone = note_of(vote(3, 4, untitled=False), vote(4, 5, untitled=False), date="2026-11-18")
+    html = render.body_html(CTX, alone, alone["entries"])
+    assert not styled(html, "said")
+    assert [x.all_text() for x in styled(html, "muted")] == ["Recorded in the minutes; not confirmed"] * 2
     assert ok(html)
 
 

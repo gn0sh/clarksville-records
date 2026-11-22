@@ -88,13 +88,15 @@ def city(n: int, caption: str, kind="RESOLUTION", **kw) -> dict:
 
 # ------------------------------------------------------------------ what each record is about
 @pytest.mark.parametrize("e, want", [
-    (city(1, ZONE, "ORDINANCE"), "zoning"),
+    (city(1, ZONE, "ORDINANCE"), "zonechange"),        # the title says "zone change"
+    (city(13, "FIXTURE [ZONING CASE Z-1-2026] text amendment to the Zoning Ordinance", "ORDINANCE"), "zoning"),
     (city(2, WINE), "alcohol"),
-    (city(3, BOARDS), "appointments"),                  # the first topic it matches: not "beer", an alcohol permit
+    (city(3, BOARDS), "appointments"),                  # the first topic it matches: not "beer", an alcohol item
     (city(4, DONATE, "ORDINANCE"), "property"),
     (city(5, BUDGET, "ORDINANCE"), "budget"),            # budget comes before police
     (city(6, K9), "safety"),
-    (city(7, ANNEX), "annexation"),
+    (city(7, ANNEX), "annexation"),                      # an act "annexing"
+    (city(14, "A Resolution adopting a Final Plan of Services for annexed territory"), "annexitem"),
     (city(8, SKATE), "parks"),
     (city(9, LEASE), "resolution"),                     # "953 Clark Street" is an address, not a streets item
     (city(10, "A Resolution for a sign at 100 Professional Park Dr"), "resolution"),   # nor "Park Dr" a park
@@ -121,7 +123,7 @@ def test_each_item_counts_once_under_the_topic_it_first_matches():
     two_readings = [city(1, ZONE, "ORDINANCE"), city(1, ZONE.replace("FIRST", "SECOND"), "ORDINANCE", id="city/vote/b")]
     on_both = [rpc_case(4), rpc_case(4, kind="vote", id="rpc/vote/4b")]            # agenda and minutes: one case
     got = render.topic_counts(CTX, two_readings + on_both + [city(2, WINE), solicitation(1), solicitation(2)])
-    assert got == {"zoning": 2, "alcohol": 1, "contracts": 2}
+    assert got == {"zonechange": 1, "zoning": 1, "alcohol": 1, "contracts": 2}
     docs = [entry(id=f"contracts/document/7/{d}", kind="document", lists=["contracts"], title="FIXTURE: Bid Tab")
             for d in (1, 2)]
     assert render.topic_counts(CTX, docs + [solicitation(1)]) == {"contracts": 1}
@@ -130,7 +132,7 @@ def test_each_item_counts_once_under_the_topic_it_first_matches():
 # ------------------------------------------------------------------ the subject
 def test_the_subject_says_what_the_records_are_about_most_first_with_plurals():
     es = [city(n, ZONE, "ORDINANCE") for n in (1, 2)] + [city(5, DONATE, "ORDINANCE"), solicitation(1)]
-    assert subj(*es) == f"2 zone changes, a land deal and a new bid{TAIL}"
+    assert subj(*es) == f"2 zone changes, a property item and a new bid{TAIL}"
     assert subj(solicitation(1)) == f"A new bid{TAIL}"                      # one: the _one phrase, upper case first
     assert subj(city(1, K9), city(2, K9)) == f"2 public safety items{TAIL}"
 
@@ -138,20 +140,20 @@ def test_the_subject_says_what_the_records_are_about_most_first_with_plurals():
 def test_ordinance_and_resolution_are_named_only_when_nothing_else_is():
     kinds = [vote(n, n, untitled=False) for n in (1, 2, 3)] + [city(4, LEASE)]
     assert subj(*kinds) == f"3 ordinances and a resolution{TAIL}"
-    assert subj(*kinds, city(5, WINE)) == f"An alcohol permit{TAIL}"
+    assert subj(*kinds, city(5, WINE)) == f"An alcohol item{TAIL}"
 
 
 def test_ties_go_in_the_configs_order_and_at_most_three_topics():
     es = [solicitation(1), city(2, K9), city(3, ANNEX), city(4, DONATE, "ORDINANCE")]
-    # a 1-1-1-1 tie in the config's order: annexation, land, public safety (past the cap: left out), the bid
-    assert subj(*es) == f"An annexation, a land deal and a new bid{TAIL}"
+    # a 1-1-1-1 tie in the config's order: annexation, property, public safety (past the cap: left out), the bid
+    assert subj(*es) == f"An annexation, a property item and a new bid{TAIL}"
 
 
 def test_a_phrase_that_would_pass_the_cap_is_left_out_whole_and_a_shorter_one_may_follow():
     es = [city(n, ZONE, "ORDINANCE") for n in range(3)] + [city(20 + n, WINE) for n in range(2)] + \
         [city(40 + n, K9) for n in range(2)] + [solicitation(1)]
     s = subj(*es)           # "and 2 public safety items" would pass the cap: left out, the shorter bid fits
-    assert s == f"3 zone changes, 2 alcohol permits and a new bid{TAIL}" and len(s) <= common.SUBJECT_CAP
+    assert s == f"3 zone changes, 2 alcohol items and a new bid{TAIL}" and len(s) <= common.SUBJECT_CAP
     ctx = {**CTX, "place": "Clarksville Area"}
     for n in range(1, 30):          # whatever the counts, never over the cap and never a cut word
         r = random.Random(n)
@@ -175,7 +177,7 @@ def test_a_meeting_today_leads_when_it_fits_and_never_moves_a_topic_out():
     later = [today_row("2026-12-03")]
     assert subj(*es, coming=later) == subj(*es)
     s = subj(*es, coming=[today_row()])
-    assert s == f"A meeting today · 2 zone changes{TAIL}"
+    assert s == f"A meeting today · 2 zoning items{TAIL}"
     assert subj(*es, coming=[today_row(), today_row()]).startswith("2 meetings today · ")
     assert common.claim_subject(s) == subj(*es)
     full = [city(n, ZONE, "ORDINANCE") for n in range(12)] + [city(20 + n, K9) for n in range(11)]
@@ -271,21 +273,21 @@ def test_deliver_accepts_what_render_writes():
 
 
 @pytest.mark.parametrize("subject, entries", [
-    (f"2 zone changes and a budget change{TAIL}", 2),                         # more items than the edition's entries
+    (f"2 zone changes and a budget item{TAIL}", 2),                         # more items than the edition's entries
     (f"12 new records{TAIL}", 11),                                          # a record count that is not its entries
     (f"2 zone changes and 2 zone changes{TAIL}", 9),                        # a topic twice
     (f"A zone change and 3 new records{TAIL}", 9),                          # records with a topic
-    (f"2 zone changes, a budget change, an ordinance and a resolution{TAIL}", 9),     # four topics
-    ("2 zone changes and a budget change: your Elsewhere morning note", 9),  # not the repository's place
-    (f"2 zone changes and a budget change{TAIL} - URGENT: reply with your password", 9),
-    (f"2 Zoning cases and a budget change{TAIL}", 9),                         # not exactly as render writes it
-    (f"2 zone changes and a budget change {TAIL}", 9),
+    (f"2 zone changes, a budget item, an ordinance and a resolution{TAIL}", 9),     # four topics
+    ("2 zone changes and a budget item: your Elsewhere morning note", 9),  # not the repository's place
+    (f"2 zone changes and a budget item{TAIL} - URGENT: reply with your password", 9),
+    (f"2 Zoning cases and a budget item{TAIL}", 9),                         # not exactly as render writes it
+    (f"2 zone changes and a budget item {TAIL}", 9),
     (f"02 zone changes{TAIL}", 9),
     (f"2 lawsuits{TAIL}", 9),                                               # a phrase that is not config
-    (f"4 public meetings today · a budget change{TAIL}", 9),                  # more meetings than coming_up holds
-    (f"Official notice · a budget change{TAIL}", 9),
+    (f"4 public meetings today · a budget item{TAIL}", 9),                  # more meetings than coming_up holds
+    (f"Official notice · a budget item{TAIL}", 9),
     ("Official notice from the City", 9),
-    (f"{'2 zone changes, ' * 6}a budget change{TAIL}", 99),
+    (f"{'2 zone changes, ' * 6}a budget item{TAIL}", 99),
 ])
 def test_deliver_refuses_a_subject_that_is_not_made_of_config_phrases(subject, entries):
     assert not deliver.subject_ok(SETTINGS, DAY, subject, entries)
@@ -350,7 +352,9 @@ def test_each_card_leads_with_its_topic_kicker_then_the_title_as_headline():
     assert first == [SITE_URL + "city/items/2026.html#ordinance-3"]               # the headline links the site page
     text = render.body_text(CTX, n, n["entries"])
     assert "  Fixture Council, September 3, 2026 regular session: " in text
-    assert f"  - {LABEL['ordinance']}: ORDINANCE 3-2026-27: FIXTURE a real title <{SITE_URL}city/items/2026.html#ordinance-3>\n" in text
+    # the vote is not confirmed: its own line says so (note/unconfirmed-unflagged)
+    assert f"  - {LABEL['ordinance']}: ORDINANCE 3-2026-27: FIXTURE a real title · Recorded in the minutes; not confirmed " \
+           f"<{SITE_URL}city/items/2026.html#ordinance-3>\n" in text
 
 
 def test_an_entry_with_no_topic_leads_with_its_recorded_words():
@@ -391,9 +395,14 @@ def test_a_vote_titled_from_its_agenda_stands_as_itself_and_cites_the_agenda():
     docs = styled(html, "docs")[0]
     assert [(a.all_text(), a.attrs["href"]) for a in docs.walk() if a.tag == "a"] == [
         (TEXT["source_document"], MINUTES_URL), (TEXT["title_agenda"], AGENDA_URL)]
-    assert links(html)[-2] == SITE_URL + "city/items/2026.html#ordinance-6"
+    # and its own line cites the agenda page next to the caption's words (captions/uncited-title/card-level-only)
+    line = styled(html, "item")[-1]
+    assert [(a.all_text(), a.attrs["href"]) for a in line.walk() if a.tag == "a"] == [
+        (titled["title"], SITE_URL + "city/items/2026.html#ordinance-6"),
+        (TEXT["title_agenda_page"].replace("{page}", "3"), f"{AGENDA_URL}#page=3")]
     text = render.body_text(CTX, n, n["entries"])
     assert f"  {TEXT['title_agenda']}: {AGENDA_URL}\n" in text and titled["title"] in text
+    assert f"{TEXT['title_agenda_page'].replace('{page}', '3')}: {AGENDA_URL}#page=3" in text
     assert render.topic_counts(CTX, n["entries"]) == {"ordinance": 5}
 
 
@@ -523,8 +532,99 @@ def test_a_real_caption_card_reads_kicker_headline_meeting_and_both_sources():
                                                   "url": f"{AGENDA_URL}#page=1"})
     html = render.body_html(CTX, note_of(e), [e])
     assert ok(html)
-    assert [k.all_text() for k in styled(html, "item_kick")] == [LABEL["zoning"]]
+    assert [k.all_text() for k in styled(html, "item_kick")] == [LABEL["zonechange"]]
     assert titles(html)[0] == render.headline(CTX, e, e["title"])
-    assert [x.all_text() for x in styled(html, "muted")] == ["(FIRST READING) [ZONING CASE Z-22-2025]"]
-    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes; not confirmed"]
-    assert links(html)[1:3] == [MINUTES_URL, AGENDA_URL]
+    # muted after it: its labels, that it is not confirmed (never only in the card's shared words), its agenda page
+    cite = TEXT["title_agenda_page"].replace("{page}", "1")
+    assert [x.all_text() for x in styled(html, "muted")] == [
+        f"(FIRST READING) [ZONING CASE Z-22-2025] · Recorded in the minutes; not confirmed · {cite}"]
+    assert not styled(html, "said")
+    assert links(html)[1:3] == [MINUTES_URL, AGENDA_URL] and links(html)[4] == f"{AGENDA_URL}#page=1"
+
+
+# ------------------------------------------------------------------ PR #90 review: cite, wording, privacy, subject
+def test_a_row_names_the_agenda_of_the_meeting_that_printed_the_title_with_its_page():
+    """captions/uncited-title/row-wrong-agenda: the size rule's row says which meeting's agenda, and its page."""
+    other = agenda_vote(6, 7, "FIXTURE an ordinance on parking")
+    other["title_source"]["meeting_id"] = "2026-08-06-regular"           # titled from an earlier meeting's agenda
+    row = render._row(CTX, render._item(CTX, other))[0]
+    dated = TEXT["title_agenda_dated"].replace("{date}", "August 6, 2026")
+    assert render.inert(f"{dated}, {config.SITE['morning_note']['page']['page_label']} 3") in row
+    assert render.inert(TEXT["title_agenda"]) not in row
+    line = render._line_of(CTX, render._item(CTX, other), [])
+    assert render.inert(TEXT["title_agenda_page_dated"].replace("{date}", "August 6, 2026").replace("{page}", "3")) in line
+    own = render._row(CTX, render._item(CTX, agenda_vote(6, 7, "FIXTURE an ordinance on parking")))[0]
+    assert render.inert(f"{TEXT['title_agenda']}, {config.SITE['morning_note']['page']['page_label']} 3") in own
+
+
+def test_an_agenda_title_with_no_page_is_not_shown():
+    e = agenda_vote(6, 7, "FIXTURE CAPTION WORDS")
+    e["title_source"]["page"] = None
+    assert render.agenda_cite(e) is None
+    html = render.body_html(CTX, note_of(e), [e])
+    assert "CAPTION WORDS" not in html and "CAPTION WORDS" not in render.body_text(CTX, note_of(e), [e])
+
+
+def _application_titles() -> list[str]:
+    """Every caption the fixture agendas give (collector/tests/fixtures/city/agenda_*.txt, read by the captions
+    reader) and every facts title (data/facts.json, when fetched) that holds "application of"."""
+    from pathlib import Path
+    import json
+    from collector import agenda_center as ac
+    from collector.city_minutes import agenda_captions
+    root = config.REPO_ROOT
+    cfg = ac.load_config(ac.config_path("clarksville-tn"))
+    out = []
+    for f in sorted((root / "collector" / "tests" / "fixtures" / "city").glob("agenda_*.txt")):
+        for (kind, num), found in agenda_captions(f.read_text(encoding="utf-8").split("\f"), cfg).items():
+            if found[0][0]:
+                out.append(f"{kind.upper()} {num}: {found[0][0]}")
+    facts = Path(root / "data" / "facts.json")
+    if facts.exists():
+        out += [f"{i['number']}: {i['title']}" if i.get("number") else i["title"]
+                for i in json.loads(facts.read_text(encoding="utf-8"))["items"] if i.get("title")]
+    return [t for t in out if "application of" in t.lower()]
+
+
+# A title where "application of" is no applicant: the county's beer law resolution (facts item 20-3-7).
+NO_APPLICANT = ("Distance Rules for Application of",)
+
+
+def test_no_applicant_survives_into_a_headline():
+    """note-privacy/lead-drop-misses-wording (best effort): every agenda caption and facts title of a zoning case or
+    an application leaves out "application of <applicant>" in the email's headline."""
+    titles_ = _application_titles()
+    assert len(titles_) >= 60                       # the 2021 and 2026 agendas alone hold more than 60
+    left = []
+    for t in titles_:
+        num = t.split(": ", 1)[0]
+        head, _ = render.headline_parts(CTX, {"item_number": num}, t)
+        if "application of" in head.lower() and not any(x in t for x in NO_APPLICANT):
+            left.append(t)
+    assert left == []
+
+
+@pytest.mark.parametrize("title, want", [
+    ("ORDINANCE 47-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, "
+     "application of Sandra Sims, Brian Bryant - Agent for Zone Change on FIXTURE property from R-1 to C-5",
+     "ORDINANCE 47-2021-22: …Zone Change on FIXTURE property from R-1 to C-5"),
+    ("ORDINANCE 1-2025-26: An Ordinance amending the zoning ordinance and map of the City of Clarksville, "
+     "application of FIXTURE Person for a zone change on FIXTURE land", "ORDINANCE 1-2025-26: …a zone change on FIXTURE land"),
+    ("CZ-7-2025: Application of FIXTURE Person from AG to M-2", "CZ-7-2025: …from AG to M-2"),
+    ("AB-2-2025: Application of FIXTURE Dept. for the Abandonment of FIXTURE Road", "AB-2-2025: …the Abandonment of FIXTURE Road"),
+])
+def test_each_application_wording_reads_from_the_act(title, want):
+    assert render.headline(CTX, {"item_number": title.split(": ", 1)[0]}, title) == want
+
+
+def test_deliver_refuses_a_subject_naming_authority_even_from_config():
+    """sender/subject-config-trust: a subject the repository's own config would make (its template, its place) is
+    still refused when AUTHORITY matches it; the build refuses such config first."""
+    s = dataclasses.replace(SETTINGS, subject_template="{site_name} county note, {date}")
+    bad = deliver.expected_subject(s, DAY)
+    assert bad == "Daylight county note, November 11, 2026" and not deliver.subject_ok(s, DAY, bad, 1)
+    s = dataclasses.replace(SETTINGS, place="Montgomery County")
+    subject = common.compose(TEXT, config.SITE["site_name"], "Montgomery County", DAY, {"zoning": 1}, 3, 0)
+    assert common.subject_parse(subject, dict(s.subject_text), s.place) is not None
+    assert not deliver.subject_ok(s, DAY, subject, 3)
+    assert deliver.subject_ok(SETTINGS, DAY, common.compose(TEXT, config.SITE["site_name"], PLACE, DAY, {"zoning": 1}, 3, 0), 3)

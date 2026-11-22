@@ -249,7 +249,7 @@ def test_every_word_outside_the_record_is_config_text():
     used = ["header_day", "greeting", "tagline", "intro", "new_on_list", "source_document",
             "plain_words", "take_part", "take_part_heading", "take_part_line", "invited", "coming_up",
             "coming_meeting", "coming_body", "all_meetings", "why", "untitled_votes", "title_agenda",
-            "title_agenda_dated"]
+            "title_agenda_dated", "title_agenda_page", "title_agenda_page_dated"]
     assert sorted(set(re.findall(r"[A-Za-z-]+", words))) == sorted(
         ["SITE", "PLATE", "PLACE", "L-budget", "L-seats", "BODY", "REC", "TITLE", "PG", "UNPLACED", "NOTICE",
          "LINE", "SUPPORT", "TIPS", "NUMA", "NUMB", "CBODY", "CMEET", "WTERM", "WMEANS", "KBUDGET"] +
@@ -665,10 +665,12 @@ def test_a_meetings_untitled_votes_stand_as_one_line_with_a_count_and_two_links(
     # note-titles round 3: one card for the meeting (its line, the `recorded` words its items share, the minutes
     # once), then a line per item: the group's topic label, count line and numbers; the titled vote
     assert meeting_lines(html) == ["Fixture Council, September 3, 2026 regular session"]
-    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes; not confirmed"]
+    # none of the votes is confirmed: no shared words; each line says so itself (note/unconfirmed-unflagged)
+    assert not styled(html, "said")
     assert rows[0].startswith("Ordinance ") and words in rows[0]
     assert SEPT_NUMBERS in rows[0]                      # the record's item numbers, once each, in record order
-    assert "Title not read" not in html and "MINUTES" not in html and "not confirmed" not in rows[0]
+    assert "Title not read" not in html and "MINUTES" not in html
+    assert all(x.endswith("Recorded in the minutes; not confirmed") for x in rows)
     assert "FIXTURE a real title" in rows[1]
     assert links(html)[:4] == [SITE_URL + "city/meetings/2026.html#2026-09-03-regular", MINUTES_URL,
                                SITE_URL + "city/meetings/2026.html#2026-09-03-regular",
@@ -682,11 +684,11 @@ def test_the_text_body_reads_the_same_compact_edition():
     text = render.body_text(CTX, n, n["entries"])
     block = text.split("\n\n")[4].split("\n")       # after the header, the greeting, the kicker and the label
     meeting = f"{SITE_URL}city/meetings/2026.html#2026-09-03-regular"
+    flag = "Recorded in the minutes; not confirmed"
     assert block == [f"  Fixture Council, September 3, 2026 regular session: {meeting}",
-                     "  Recorded in the minutes; not confirmed",
                      f"  Source document: {MINUTES_URL}",
-                     f"  - Ordinance: {render.untitled_words(CTX, 4)} {SEPT_NUMBERS} <{meeting}>",
-                     f"  - Ordinance: {SEPT[2]['title']} <{SITE_URL}city/items/2026.html#ordinance-3>"]
+                     f"  - Ordinance: {render.untitled_words(CTX, 4)} {SEPT_NUMBERS} · {flag} <{meeting}>",
+                     f"  - Ordinance: {SEPT[2]['title']} · {flag} <{SITE_URL}city/items/2026.html#ordinance-3>"]
     assert "Title not read" not in text and "MINUTES" not in text and SEPT[2]["title"] in text
 
 
@@ -759,7 +761,7 @@ def test_a_group_with_no_item_number_has_no_numbers_line():
     kind_only = [vote(n, n, title="MINUTES", title_ours=False, item_number=None) for n in (1, 2)]
     n = note_of(*kind_only)
     block = render.body_text(CTX, n, n["entries"]).split("\n\n")[4].split("\n")
-    assert len(block) == 4 and block[3].startswith("  - " + render.untitled_words(CTX, 2).rstrip(":") + " <")
+    assert len(block) == 3 and block[2].startswith("  - " + render.untitled_words(CTX, 2).rstrip(":") + " · ")
 
 
 def test_a_zoning_case_is_never_compacted_and_only_the_seats_section_is():

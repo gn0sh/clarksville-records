@@ -174,6 +174,21 @@ def _when(stamp: str) -> str:
     return f"{t:%B} {t.day}, {hour}:{t:%M} {'AM' if t.hour < 12 else 'PM'}"
 
 
+def _title_cite(e: dict, cfg: dict) -> tuple[dict | None, str]:
+    """captions/uncited-title/preview-page: (the agenda cite shown by the title, the title shown). An entry whose
+    title its agenda printed (`title_source` kind "agenda", sitegen.morning._title_source) shows it with a link to
+    that agenda page (config.https_link) and config `title_source_text`, as the site's item pages do
+    (_macros.title_cite); with no such link, or no page, its item number instead of the agenda's words
+    (docs/architecture/agenda-title-cite-invariant.md). Any other entry: its title, no cite."""
+    ts = e.get("title_source")
+    if not (isinstance(ts, dict) and ts.get("kind") == "agenda"):
+        return None, e.get("title") or ""
+    url, page = config.https_link(ts.get("url")), ts.get("page")
+    if url and isinstance(page, int) and not isinstance(page, bool) and page > 0:
+        return {"url": url, "text": cfg["title_source_text"].format(page=page)}, e.get("title") or ""
+    return None, e.get("item_number") or ""
+
+
 def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
     """Context for morning.html.j2 from one day of the digest (the contract's day dict, as in latest.json: the note
     sitegen/morning.py write() returns). The unplaced line is the note's own `unplaced_text`; a backfill day (no
@@ -195,7 +210,9 @@ def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
         url = config.https_link(src.get("url"))
         # CR7: the meeting day in the same words as the email ("November 9, 2026", sender/common.day_words)
         words = _meeting_words(e.get("meeting_date"))
+        cite, title = _title_cite(e, cfg)
         entries.append({**e, "href": e.get("href") or "", "meeting_words": words, "meeting": e.get("meeting"),
+                        "title": title, "title_src": cite,
                         "lists_attr": " ".join(e.get("lists") or []), "seat_body": e.get("seat_body"),
                         "vote_on": e.get("vote_on"),
                         "watch": e["watch"] if (e.get("watch") or {}).get("url") and config.https_link(

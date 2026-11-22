@@ -121,11 +121,16 @@ morning_note:
   # subject names a fallback topic only when the edition has no other. `label` is the card's
   # kicker; the subject's words are morning_note.sender.text.subject_<key>_one and _many.
   subject_topics:
-    - {key: zoning, label: Zoning, words: ["zone change", "zoning case", "rezon"], lists: [zoning]}
-    - {key: annexation, label: Annexation, words: ["annex"]}
+    # A phrase claims no more than its match proves (neutrality/topic-phrase-overclaims): "a zone change" only for a
+    # title that says "zone change", "an annexation" only for an act "annexing" or "annexation of"; anything else
+    # on those subjects is "a zoning item" / "an annexation item". Every other phrase is "<subject> item".
+    - {key: zonechange, label: Zone change, words: ["zone change"]}
+    - {key: zoning, label: Zoning, words: ["zoning", "rezon"], lists: [zoning]}
+    - {key: annexation, label: Annexation, words: ["annexing", "annexation of"]}
+    - {key: annexitem, label: Annexation, words: ["annex"]}
     - {key: appointments, label: Appointment, words: ["appoint"]}
-    - {key: alcohol, label: Alcohol permit, words: ["wine", "beer", "liquor", "certificate of compliance"]}
-    - {key: property, label: Land, words: ["real property", "donation of", "acquisition", "easements?\\b"]}
+    - {key: alcohol, label: Alcohol, words: ["wine", "beer", "liquor", "certificate of compliance"]}
+    - {key: property, label: Property, words: ["real property", "donation of", "acquisition", "easements?\\b"]}
     - {key: budget, label: Budget, words: ["budgets?\\b", "appropriat", "tax lev"], lists: [budget]}
     - {key: safety, label: Public safety, words: ["police", "fire department", "k-9", "emergency"]}
     # a street address ("953 Clark Street", "Bel Aire Park Dr") is not a parks or streets item: no bare "street"
@@ -139,10 +144,15 @@ morning_note:
   # "[ZONING CASE ...]" labels shown muted after it, cut to 200 characters at words (sender/render.py
   # headline_parts). A title whose words then start with one of these patterns (case-insensitive, matched at the
   # start) shows "…" in their place: words every such title repeats, never the part that says what it is about.
-  # The first also leaves out the applicant (a person's name, often), through "for" before "a zone change".
+  # Best effort, not a guarantee: the zoning and application patterns also leave out the applicant (often a
+  # person's name) in the wordings the fixtures and facts hold; a new wording may still print one, as the site does.
   title_lead_drop:
-    - "An Ordinance amending the zoning code and map of the City of Clarksville,\\s*application of .{1,160}? for (?=(?:an? )?zone change\\b)"
-    - "An Ordinance amending the zoning code and map of the City of Clarksville,"
+    - "(?:An Ordinance )?amending the zoning (?:code|ordinance) and map of the City of Clarksville,\\s*application of .{1,160}? for (?=(?:an? )?zone change\\b)"
+    - "(?:An Ordinance )?amending the zoning (?:code|ordinance) and map of the City of Clarksville,"
+    # a county zoning case ("Application of <applicant> from AG to R-1") and an application for an act
+    # ("Application of <applicant> for the Abandonment of ..."): from the districts, or from the act
+    - "application of\\s*.{1,160}? (?=from\\s+\\S.{0,60}\\sto\\s)"
+    - "application of\\s*.{1,160}? for (?=(?:the|an?|partial)\\s)"
     - "A Resolution of the City Council of the City of Clarksville, Tennessee,"
     - "A Resolution approving"
   # Backfill guard: a day holding a document from a collector's initial run (first fetched within initial_run_hours of
@@ -229,20 +239,24 @@ morning_note:
       subject_records_many: "{n} new records"
       subject_today_one: "a meeting today"
       subject_today_many: "{n} meetings today"
-      subject_zoning_one: "a zone change"
-      subject_zoning_many: "{n} zone changes"
+      subject_zonechange_one: "a zone change"
+      subject_zonechange_many: "{n} zone changes"
+      subject_zoning_one: "a zoning item"
+      subject_zoning_many: "{n} zoning items"
       subject_annexation_one: "an annexation"
       subject_annexation_many: "{n} annexations"
+      subject_annexitem_one: "an annexation item"
+      subject_annexitem_many: "{n} annexation items"
       subject_safety_one: "a public safety item"
       subject_safety_many: "{n} public safety items"
       subject_appointments_one: "an appointment"
       subject_appointments_many: "{n} appointments"
-      subject_alcohol_one: "an alcohol permit"
-      subject_alcohol_many: "{n} alcohol permits"
-      subject_property_one: "a land deal"
-      subject_property_many: "{n} land deals"
-      subject_budget_one: "a budget change"
-      subject_budget_many: "{n} budget changes"
+      subject_alcohol_one: "an alcohol item"
+      subject_alcohol_many: "{n} alcohol items"
+      subject_property_one: "a property item"
+      subject_property_many: "{n} property items"
+      subject_budget_one: "a budget item"
+      subject_budget_many: "{n} budget items"
       subject_parks_one: "a park item"
       subject_parks_many: "{n} park items"
       subject_streets_one: "a street item"
@@ -257,6 +271,9 @@ morning_note:
       # title_source "agenda"): the link to that agenda's page, which printed the words. A page number follows.
       title_agenda: Item titles from the meeting's agenda
       title_agenda_dated: "Item titles from the {date} meeting's agenda"
+      # next to each title from an agenda, linking that page (docs/architecture/agenda-title-cite-invariant.md)
+      title_agenda_page: "title from the agenda, p. {page}"
+      title_agenda_page_dated: "title from the {date} agenda, p. {page}"
       why: You get this note because a record on a list you picked was added to the site since yesterday morning.
       open_site: Open the page on the site
       # note/compact-untitled: in the seats section, one line for a meeting's votes whose record printed no title of

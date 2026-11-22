@@ -45,7 +45,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import unicodedata
 from html import unescape
 
-from .common import (ADDRESS, BODY_BUDGET, CONTAINERS, CREDIT_LINE, DATE_RE, EMPTY, INLINE, KEY_RE, LINKS, MARKUP,
+from .common import (ADDRESS, AUTHORITY, BODY_BUDGET, CONTAINERS, CREDIT_LINE, DATE_RE, EMPTY, INLINE, KEY_RE, LINKS, MARKUP,
                      COMING_N, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE, SUBJECT_CAP, SUBJECT_KEYS, TAG, claim_subject,
                      exact_url_ok, link_ok, read_tags, signature, subject_line, subject_parse)
 from .settings import Settings
@@ -298,7 +298,9 @@ def subject_ok(settings: Settings, day: str, subject: str, entries: int) -> bool
     (expected_subject), or a topics subject read back into the config's own phrases (common.subject_parse) within
     SUBJECT_CAP, whose numbers the edition can hold: each topic's items and their sum at most its entries, a
     "{n} new records" form exactly its entries, at most COMING_N meetings today. So the plan, which comes from the
-    job that parses untrusted PDFs, can choose a count but never a word."""
+    job that parses untrusted PDFs, can choose a count but never a word. Never one AUTHORITY matches."""
+    if AUTHORITY.search(subject or ""):         # sender/subject-config-trust: even from the repository's own config
+        return False
     if subject == expected_subject(settings, day):
         return True
     text = dict(settings.subject_text)

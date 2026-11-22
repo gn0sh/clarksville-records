@@ -244,6 +244,10 @@ def signature(lists, district, ward) -> str:
 
 # sender/plan-untrusted/subject-unchecked: one rule for the subject, so the deliver stage can rebuild it from the
 # repository's config and refuse a plan whose subject is anything else.
+# Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From
+# name, which is the provider account's setting: the site name). "official" also catches "unofficial". Here, not in
+# render, so the deliver stage (stdlib only) checks the subject with the same rule (sender/subject-config-trust).
+AUTHORITY = re.compile(r"city of|county|cmcss|\brpc\b|official", re.IGNORECASE)
 MAX_TITLE = 600         # a longer title is cut here and marked with CUT; the site's page carries all of it
 CUT = "..."
 
@@ -283,7 +287,7 @@ def subject_line(template: str, site_name: str, iso: str) -> str:
 # note-titles (2026-11-22, the owner: "nothing letting me know why I should care"): the subject says what is inside,
 # counted from the edition's own entries by what each record is about (config `morning_note.subject_topics`, matched
 # on the record's own words, render.topic) and written only in config words (`morning_note.sender.text`): "3 zone
-# changes, an alcohol permit and a land deal: your {place} morning note". One rule here for render, which writes it,
+# changes, an alcohol item and a property item: your {place} morning note". One rule here for render, which writes it,
 # and the deliver stage, which reads it back (subject_parse) and refuses a plan whose subject is not made of the
 # repository's config phrases.
 MAX_TOPICS = 3          # the most topics a subject names

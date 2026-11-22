@@ -189,7 +189,8 @@ SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site"
                     # link of a title its meeting's agenda printed
                     "subject_frame": ("{topics}",), "subject_and": (), "subject_records_one": (),
                     "subject_records_many": ("{n}",), "subject_today_one": (), "subject_today_many": ("{n}",),
-                    "title_agenda": (), "title_agenda_dated": ("{date}",)}
+                    "title_agenda": (), "title_agenda_dated": ("{date}",), "title_agenda_page": ("{page}",),
+                    "title_agenda_page_dated": ("{date}", "{page}")}
 TOPIC_RULES = ("words", "lists", "kinds", "item_types")      # sender.render.topic: how a topic matches an entry
 
 
