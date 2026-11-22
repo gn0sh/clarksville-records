@@ -303,6 +303,49 @@ unchanged). Every word is `morning_note.sender.text` (placeholders checked by `m
 `define_*` must read "Term. Definition."). `body_text` is the same content in the same order. The one image is still
 the credit logo; the sun, mark and date blocks are text and CSS, so the email reads with images off.
 
+### Subject, kicker and agenda titles (note-titles, 2026-11-22)
+The owner on the Sunrise sample: "I love the look, but we need to do better with titles. If I'm busy, this never
+gets a second look because there is nothing letting me know why I should care."
+- **Subject, per edition** (`common.compose`, `render.subject(ctx, day, entries, coming_up)`): a count per topic of
+  the edition's own entries in config phrases, "3 zoning cases and 2 contract listings: your Clarksville morning
+  note" (config `subject_topics` "{topics}: your {place} morning note", `{place}` = top-level `today_place`). Topics
+  (`common.TOPICS`, also the tie order: rezoning, budget, contracts, ordinance, resolution, appointment) come from
+  `render.topics`, the site's own mechanical rules only: on the zoning list or the item type rule's `rezoning`
+  (`views.item_types`: number prefix, else fixed words of the record's own title, never a title we made); on the
+  budget list or `budget`; on the contracts list; `ordinance`, `resolution`, `appointment` by the item type rule.
+  Each item counts once (a zoning case by `case`, a numbered item by body and `item_number`, else the entry), under
+  its first topic. The top `MAX_TOPICS` (3) by count, ties in the fixed order, `subject_<topic>_one` for one and
+  `subject_<topic>_many` ("{n} ...") otherwise, joined with ", " and `subject_and`; a phrase that would take the
+  subject past `SUBJECT_CAP` (78 characters) is left out whole, with the rest. No topic: `subject_records_*` ("{n}
+  new records", the edition's entries). Nothing fits: the day's template `subject` as before. Then, only if it still
+  fits, the lead `subject_today_*` ("a meeting today") + " · " when the note's `coming_up` holds a meeting on the
+  note's day. A count only: never an outcome. The subject never matches `render.AUTHORITY`; the build refuses a phrase
+  that would (`morning.sender_problems`), or that holds ", ", " and " or "·", or whose two forms could read as
+  another phrase (`common.subject_problems`).
+- **The deliver stage reads it back** (`deliver.subject_ok`, sender/plan-untrusted/subject-unchecked): the plan's
+  subject must be the day's template exactly, or parse into the repository's own phrases
+  (`common.subject_parse`, read without PyYAML: `settings._SUB_READ` reads `text.subject` and every
+  `common.SUBJECT_KEYS`, `_TOP` reads `today_place`) and re-render to exactly the same text, within `SUBJECT_CAP`,
+  each topic once, at most 3, the counts' sum at most the edition's entries, a records count exactly its entries, at
+  most `COMING_N` meetings. A compromised plan can choose a count, never a word. The plan stage applies the same
+  reading, so a gap fails the plan, not the morning.
+- **Day claim:** `deliver.plan_digest` reads each subject without its "meeting today" lead (`common.claim_subject`):
+  the lead comes from `coming_up`, the one part of a note a later build may change (as the body's "Coming up" lines).
+  The lead is added last and never moves a topic out, so the rest of the subject is the same in both builds.
+- **Card:** a kicker of the entry's topic labels (config `topic_<topic>`, joined " · " in the fixed order; no topic:
+  its `recorded` words), the headline (`h3`, the link to the site's page) = the record's title cut at a word boundary
+  to `common.MAX_TITLE` with "..." (`common.cut`; a meeting's untitled-votes group keeps its meeting line as the
+  headline), then the meeting line and `recorded` (one line, " · "), the group's count and numbers, the source link.
+  The size rule's row and the text twin carry the same parts.
+- **Agenda titles** (the shape `claude/note-titles-captions` writes; additive entry fields): `title_source`
+  ("agenda" when `title` is the verbatim caption from the meeting's agenda because the minutes printed none, else
+  absent or null), `title_source_id` (the agenda's source id), `title_source_url` (the agenda's https URL with
+  `#page=N`) and `title_source_page` (N or null). Such a card adds a second source line, config `title_agenda` ("Title
+  from the meeting's agenda") + ", page N", linking the agenda. The caption is shown only with that link
+  (`render.agenda_cite`: https and on `link_hosts`); without it the vote stays untitled (compacted with its meeting's
+  untitled votes, or alone with its item number). Untitled-vote compaction applies only to votes still without a
+  title. The caption is the record's words: not in `own_text`, always through `inert()`.
+
 **Size rule.** Gmail clips a message at about 102 KB, which hides the notice, the support line and the provider's
 unsubscribe link. `render.layout` keeps every edition's HTML at or under `common.BODY_BUDGET` (80,000 bytes): all
 cards when they fit; else the first items as cards and the rest as one-line rows (`TAG["row"]`: the item's words,
@@ -638,7 +681,8 @@ Notes for the security review (each is a judgment call unless marked):
     filter answered 200 and kept all of the day's emails; that it drops older rows is unproven. Ignored, it is the
     whole history: still correct, bounded by `MAX_PAGES`.
   - *sender/claim-plan-identity (CR9):* every email's claim metadata carries `note_plan`, `deliver.plan_digest`
-    (sha256 over the note digest, every edition's key, subject, body and entry ids, and the signatures). An email
+    (sha256 over the note digest, every edition's key, subject without its "meeting today" lead, body without its
+    "Coming up" lines and entry ids, and the signatures). An email
     of the day is ours only with both digests, so another plan of the same note claims nothing of ours.
   - *sender/tags-seat-change (CR5):* the Method page says how to change lists or seats (unsubscribe, sign up
     again; config `page.method_change`), which depends on runbook check 4a.

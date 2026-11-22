@@ -183,7 +183,16 @@ SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site"
                     "define_award_letter": (), "define_rfp": (), "take_part": (), "take_part_heading": (),
                     "take_part_line": (), "invited": (), "coming_up": (),
                     "coming_meeting": ("{date}", "{body}", "{meeting}"), "coming_body": ("{date}", "{body}"),
-                    "all_meetings": (), "more": ("{n}",)}
+                    "all_meetings": (), "more": ("{n}",),
+                    # note-titles (2026-11-22): the subject's phrases (sender.common.SUBJECT_KEYS), the cards' topic
+                    # kickers (sender.common.TOPICS) and the agenda link of a title its meeting's agenda printed
+                    "subject_topics": ("{topics}",), "subject_and": (),
+                    **{f"subject_{k}_{form}": ("{n}",) if form == "many" else ()
+                       for k in ("records", "rezoning", "budget", "contracts", "ordinance", "resolution",
+                                 "appointment", "today") for form in ("one", "many")},
+                    **{f"topic_{k}": () for k in ("rezoning", "budget", "contracts", "ordinance", "resolution",
+                                                   "appointment")},
+                    "title_agenda": ()}
 _DEFINITION = re.compile(r"[^.\s][^.]*\. \S.*")        # "Term. Definition.": the term (bold in the email), then its words
 _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
@@ -250,6 +259,14 @@ def sender_problems(cfg: dict) -> list[str]:
         subj = text.get("subject")
         if isinstance(subj, str) and AUTHORITY.search(subj.replace("{site_name}", str(cfg.get("site_name") or ""))):
             out.append(f"{at}.text.subject must not name a government body or say official, got {subj!r}")
+        # note-titles: the subject's phrases make subjects the deliver stage can read back, none of them names a
+        # government body or says official, and neither does the place they print
+        from sender.common import SUBJECT_KEYS, subject_problems
+        place = str(cfg.get("today_place") or "")
+        out += subject_problems(text, place)
+        out += [f"{at}.text.{k} must not name a government body or say official, got {text[k]!r}"
+                for k in SUBJECT_KEYS if isinstance(text.get(k), str)
+                and AUTHORITY.search(text[k].replace("{place}", place))]
     from sender.common import exact_url_ok, parse_hosts     # plan-untrusted/body-unchecked: what an email links
     if cfg.get("support_url") not in (None, "") and not exact_url_ok(cfg["support_url"]):
         out.append(f"support_url must be one https URL on a lower-case host, with no user or port (the deliver "

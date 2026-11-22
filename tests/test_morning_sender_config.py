@@ -10,6 +10,7 @@ import yaml
 from conftest import note_off
 from sitegen import config, morning
 from sitegen.build import site_url_problems
+from sender import common
 from sender import settings as settings_mod
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -121,9 +122,12 @@ def test_the_stdlib_reader_agrees_with_yaml_on_the_shipped_file():
     full = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))
     sender = full["morning_note"]["sender"]
     assert got["sender"] == {**{k: v for k, v in sender.items() if k != "text"},
-                             "text.subject": sender["text"]["subject"]}      # text: its subject line only
+                             "text.subject": sender["text"]["subject"],      # text: its subject lines only
+                             **{f"text.{k}": sender["text"][k] for k in common.SUBJECT_KEYS}}
     assert got["top"] == {k: full[k] for k in ("site_timezone", "district_count", "ward_count", "support_url",
-                                               "site_name")}
+                                               "site_name", "today_place")}
+    assert settings_mod.load(SITE_YML).subject_text == tuple((k, sender["text"][k]) for k in common.SUBJECT_KEYS)
+    assert settings_mod.load(SITE_YML).place == full["today_place"]
     s = settings_mod.load(SITE_YML)
     assert (s.enabled, s.canary_only, s.mode, s.max_recipients, s.timezone) == \
         (sender["enabled"], sender["canary_only"], "stamp", 1000, "America/Chicago")

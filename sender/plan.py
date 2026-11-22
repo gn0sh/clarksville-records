@@ -132,13 +132,20 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
             raise PlanError(f"two different selections share the edition key {key}")
         plan["signatures"][signature(lists, district, ward)] = key
     ctx = render.context(cfg)
-    try:
-        render.subject(ctx, plan["date"])
-    except ValueError as exc:
-        raise PlanError(str(exc)) from None
     texts = {}
     for key in sorted(editions):
         rows, under = [by_id[i] for i, _ in editions[key]], dict(editions[key])
+        try:        # note-titles: each edition's subject counts its own entries; the day's template stays checked
+            day_subject = render.subject(ctx, plan["date"])
+            subject = render.subject(ctx, plan["date"], rows, note.get("coming_up"))
+        except ValueError as exc:
+            raise PlanError(str(exc)) from None
+        # the deliver stage's reading of a subject, here too (as for the body below): a subject it cannot read
+        # back into the config's phrases fails the plan, never the morning
+        if not (subject == day_subject or (
+                len(subject) <= common.SUBJECT_CAP
+                and common.subject_parse(subject, ctx["text"], ctx.get("place") or "") is not None)):
+            raise PlanError(f"edition {key}: render wrote a subject the deliver stage's subject check refuses")
         body = render.body_html(ctx, note, rows, under)
         # render/clean-order: the deliver stage's own body check, here too, so any render/deliver gap fails the plan
         # (the rehearsal's ::warning while the sender is off; a failed run once it is on), never a day lost at 7:00
@@ -146,7 +153,7 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
             raise PlanError(f"edition {key}: render wrote a body the deliver stage's body check refuses")
         if len(body.encode("utf-8")) > common.BODY_BUDGET:      # note-sunrise/budget-unenforced: deliver refuses it
             raise PlanError(f"edition {key}: render wrote a body over the {common.BODY_BUDGET}-byte budget")
-        plan["editions"].append({"key": key, "subject": render.subject(ctx, plan["date"]),
+        plan["editions"].append({"key": key, "subject": subject,
                                  "body": body, "entry_ids": [i for i, _ in editions[key]]})
         texts[key] = render.body_text(ctx, note, rows, under)
     plan["signatures"] = dict(sorted(plan["signatures"].items()))

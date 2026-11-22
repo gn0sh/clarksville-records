@@ -14,14 +14,16 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
-from .common import MODES, TIME_RE, exact_url_ok, parse_hosts
+from .common import MODES, SUBJECT_KEYS, TIME_RE, exact_url_ok, parse_hosts
 
 SCALARS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions", "max_recipients",
            "canary_only", "link_hosts")
-_TOP = ("site_timezone", "district_count", "ward_count", "support_url", "site_name")    # support_url may be left out
-# the one line read inside a sub-block of sender: text.subject (sender/plan-untrusted/subject-unchecked: the deliver
-# stage rebuilds each edition's subject from it and site_name, and refuses a plan whose subject differs)
-_SUB_READ = {"text": ("subject",)}
+# support_url may be left out; today_place is the subject's {place} (note-titles)
+_TOP = ("site_timezone", "district_count", "ward_count", "support_url", "site_name", "today_place")
+# the lines read inside a sub-block of sender: text.subject and the subject's phrases (common.SUBJECT_KEYS;
+# sender/plan-untrusted/subject-unchecked: the deliver stage reads each edition's subject back into these config
+# phrases, deliver.subject_ok, and refuses a plan whose subject is anything else)
+_SUB_READ = {"text": ("subject",) + SUBJECT_KEYS}
 _LINE = re.compile(r"( *)([A-Za-z_][A-Za-z0-9_]*):(?: +(.*))?")
 _INT = re.compile(r"0|[1-9][0-9]*")                    # no leading zero: PyYAML reads 0100 as octal 64
 _PLAIN = re.compile(r"[A-Za-z][A-Za-z0-9_./:~-]*")     # a word or URL; no space, no ": ", nothing PyYAML resolves
@@ -56,6 +58,10 @@ class Settings:
     link_urls: tuple = ()       # URLs an email may link to exactly: the support link (Low (a))
     site_name: str = ""         # with subject_template: the subject every edition must carry (subject-unchecked)
     subject_template: str = ""
+    # note-titles: the subject's config phrases ((key, text) pairs of common.SUBJECT_KEYS) and its {place}; a
+    # phrase left out of the config means a topics subject cannot be read back, so only the day's template passes
+    subject_text: tuple = ()
+    place: str = ""
 
 
 def _closed(v: str) -> bool:
@@ -127,8 +133,9 @@ def parse(text: str) -> dict:
     (`site_timezone`, `district_count`, `ward_count`, `support_url`, `site_name`), and the `morning_note:` ->
     `sender:` block, whose direct lines must each be one plain `key: value` (or a `key:` with a sub-block, such as
     `text:`), at one indent, each key once, with no line continuing a value. Inside a sub-block only the lines
-    _SUB_READ names are read (`text.subject`, at the sub-block's own indent, once); a `subject:` nested deeper or
-    under another key is not. The `subject` key comes back as `"text.subject"` in `sender`.
+    _SUB_READ names are read (`text.subject` and the subject's phrases, common.SUBJECT_KEYS, each at the sub-block's
+    own indent, once); a `subject:` nested deeper or under another key is not. Each comes back as `"text.<key>"` in
+    `sender`.
     Everywhere else any valid YAML is accepted unread, apart from two checks: no top-level key twice and no second
     `sender:` under `morning_note:`. parity() then compares the values with PyYAML's, and the site build and
     `python -m sender plan` fail on any difference, so the commit the deliver job reads has passed it."""
@@ -327,7 +334,9 @@ def from_values(top: dict, sender: dict) -> Settings:
         canary_only=sender["canary_only"], link_hosts=hosts, timezone=top["site_timezone"],
         district_count=_whole(top["district_count"], "district_count", 0),
         ward_count=_whole(top["ward_count"], "ward_count", 0), link_urls=urls, site_name=top["site_name"],
-        subject_template=sender["text.subject"])
+        subject_template=sender["text.subject"],
+        subject_text=tuple((k, sender[f"text.{k}"]) for k in SUBJECT_KEYS if isinstance(sender.get(f"text.{k}"), str)),
+        place=top["today_place"] if isinstance(top.get("today_place"), str) else "")
 
 
 def load(path) -> Settings:

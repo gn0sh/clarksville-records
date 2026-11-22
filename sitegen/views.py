@@ -1870,10 +1870,11 @@ def _word_start(word: str) -> re.Pattern:
     return re.compile(r"(?<!\w)" + re.escape(word.casefold()))
 
 
-def item_types(item: dict) -> list[str]:
-    """Design 5.4: number prefix, else fixed words in the verbatim title; can match several; else "other"."""
+def item_types(item: dict, types: list | None = None) -> list[str]:
+    """Design 5.4: number prefix, else fixed words in the verbatim title; can match several; else "other".
+    `types`: config item_types (default: the site's; the morning note's sender passes its own config's)."""
     number, title = (item.get("number") or "").upper(), (item.get("title") or "").casefold()
-    out = [t["key"] for t in config.SITE["item_types"]
+    out = [t["key"] for t in (config.SITE["item_types"] if types is None else types)
            if any(number.startswith(p.upper()) for p in t["prefixes"])
            or any(_word_start(w).search(title) for w in t["words"])]
     return out or ["other"]

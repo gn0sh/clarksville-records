@@ -82,26 +82,33 @@ def card_text(card) -> str:
 
 
 def titles(html: str) -> list[str]:
-    """Each card's record title: in bold under a meeting's headline, else the headline itself."""
-    out = []
-    for c in cards(html):
-        strong = [n.all_text() for n in c.walk() if n.tag == "strong"]
-        out += strong if any(n.tag == "td" for n in c.walk()) else [n.all_text() for n in c.walk() if n.tag == "h3"]
-    return out
+    """Each card's headline (note-titles): the record's title, or a meeting's line for its untitled votes."""
+    return [n.all_text() for c in cards(html) for n in c.walk() if n.tag == "h3"]
+
+
+def head_raw(html: str) -> str:
+    """The first card headline's words as render wrote them (inside the link to the site's page, when it has one)."""
+    line = next(x for x in html.split("\n") if x.startswith((common.TAG["h3"], common.TAG["h3_after"])))
+    inner = line.split(">", 1)[1].rsplit("</h3>", 1)[0]
+    return inner.split(common.LINKS["ink"], 1)[1].rsplit("</a>", 1)[0] if inner.startswith("<a href=") else inner
+
+
+def head_text(html: str) -> str:
+    return titles(html)[0]
 
 
 # ------------------------------------------------------------------ untrusted titles come out inert
 def test_a_hostile_title_comes_out_inert():
     html = html_of(entry(title=HOSTILE))
-    assert tags(html) == ALL_TAGS                                                       # only the tags we write
+    assert tags(html) <= ALL_TAGS                                                       # only the tags we write
     assert links(html) == [SITE_URL + "items/2026.html#i-x", "https://example.com/fixture/agenda.pdf#page=2"] + TODAY
-    title = html.split("<strong>")[1].split("</strong>")[0]
+    title = head_raw(html)
     # nothing the provider's template step or a Markdown step could read as markup is left as a plain character
     assert not re.search(r"[<>{}\[\]()*_`#\\~|!$%@=]", re.sub(r"&#\d+;", "", title)), title
     assert not title.startswith("-") and "\n" not in title and "  " not in title
     assert "{{" not in html and "{%" not in html and "---" not in html and "](" not in html
     # and a reader still sees the record's own words, unchanged apart from the whitespace
-    shown = next(n for n in parse(html).walk() if n.tag == "strong").all_text()
+    shown = head_text(html)
     assert shown.replace("\u200b", "") == " ".join(HOSTILE.split())
 
 
@@ -186,8 +193,12 @@ def test_every_word_outside_the_record_is_config_text():
     group = [vote(k, k, body_name="BODY", recorded="REC", title="TITLE", item_number=num) for k, num in ((1, "NUMA"), (2, "NUMB"))]
     rows = [{"date": "2026-12-01", "body": "CBODY", "meeting": "CMEET", "href": "a.html"},
             {"date": "2026-12-02", "body": "CBODY", "meeting": None, "href": "b.html"}]
+    # and a vote titled from its meeting's agenda (note-titles): the agenda link's words are config text too
+    agenda = vote(9, 9, body_name="BODY", recorded="REC", title="TITLE", item_number="NUMC", lists=["budget"],
+                  title_ours=False, untitled=True, title_source="agenda", title_source_id="src-a",
+                  title_source_url="https://example.com/fixture/agenda.pdf#page=3", title_source_page=3)
     n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"),
-                entry(id="u", meeting_date=None, body_name="BODY", recorded="REC", title="TITLE"), *group,
+                entry(id="u", meeting_date=None, body_name="BODY", recorded="REC", title="TITLE"), *group, agenda,
                 unplaced_text="UNPLACED", support_line="SUPPORT", support_url="https://tips.example.com/x", coming_up=rows)
     n["lists"] = [{"key": k, "label": f"L-{k}"} for k in morning.LIST_KEYS]
     html = render.body_html(ctx, n, n["entries"])
@@ -196,7 +207,7 @@ def test_every_word_outside_the_record_is_config_text():
     words = re.sub(r"November 1[16]|December [12], 2026|September 3, 2026|Wednesday|Nov|Sep|\d", "", shown)
     used = ["header_day", "greeting", "tagline", "intro", "new_on_list", "source_meeting", "source_document",
             "plain_words", "take_part", "take_part_heading", "take_part_line", "invited", "coming_up",
-            "coming_meeting", "coming_body", "all_meetings", "why", "untitled_votes"]
+            "coming_meeting", "coming_body", "all_meetings", "why", "untitled_votes", "topic_budget", "title_agenda"]
     assert sorted(set(re.findall(r"[A-Za-z-]+", words))) == sorted(
         ["SITE", "PLATE", "PLACE", "L-budget", "L-seats", "BODY", "REC", "TITLE", "PG", "UNPLACED", "NOTICE",
          "LINE", "SUPPORT", "TIPS", "NUMA", "NUMB", "CBODY", "CMEET", "WTERM", "WMEANS"] +
@@ -473,8 +484,8 @@ def test_a_bare_address_in_a_title_is_not_left_for_the_mail_client_to_link(title
     """A mail client turns a bare www. or scheme:// into a link; a zero-width space after it keeps the record's words
     on screen and leaves nothing to link."""
     html = html_of(entry(title=title))
-    strong = html.split("<strong>")[1].split("</strong>")[0]
-    shown = next(n for n in parse(html).walk() if n.tag == "strong").all_text()
+    strong = head_raw(html)
+    shown = head_text(html)
     assert not re.search(r"(?i)www\.|[a-z]+://", shown)
     assert shown.replace("\u200b", "") == title and "&#8203;" in strong
     assert links(html) == [SITE_URL + "items/2026.html#i-x", "https://example.com/fixture/agenda.pdf#page=2"] + TODAY
@@ -488,7 +499,7 @@ def test_a_bare_domain_in_a_title_is_broken_and_the_body_passes_the_deliver_chec
     two word characters (and after the colon of "://"), and deliver refuses a body that still has one."""
     from sender import deliver
     html = html_of(entry(title=title))
-    shown = next(n for n in parse(html).walk() if n.tag == "strong").all_text()
+    shown = head_text(html)
     assert shown.replace("\u200b", "") == title
     assert not re.search(r"(?i)www\.|://|[\w-][.\u3002\uff0e\uff61]\w", shown), shown
     assert deliver.body_ok(html, CTX["link_hosts"], CTX["link_urls"])
@@ -608,20 +619,23 @@ def test_a_meetings_untitled_votes_stand_as_one_line_with_a_count_and_two_links(
     assert len(rows) == 2
     words = render.untitled_words(CTX, 4)
     assert words == CTX["text"]["untitled_votes"].replace("{n}", "4") and "4" in words
-    assert rows[0].startswith("Fixture Council, September 3, 2026 regular session") and words in rows[0]
+    assert rows[0].split("\n")[:2] == [CTX["text"]["topic_ordinance"], "Fixture Council, September 3, 2026 regular session"]
+    assert words in rows[0]
     assert SEPT_NUMBERS in rows[0]                      # the record's item numbers, once each, in record order
     assert "Title not read" not in html and "MINUTES" not in html and "not confirmed" not in rows[0]
     assert "FIXTURE a real title" in rows[1]
     assert links(html)[:4] == [SITE_URL + "city/meetings/2026.html#2026-09-03-regular", MINUTES_URL,
                                SITE_URL + "city/items/2026.html#ordinance-3", f"{MINUTES_URL}#page=4"]
-    assert [n.all_text() for c in cards(html) for n in c.walk() if n.tag == "strong"] == [SEPT[2]["title"]]
+    # note-titles: the group's headline is its meeting line; a titled vote's is its own title
+    assert titles(html) == ["Fixture Council, September 3, 2026 regular session", SEPT[2]["title"]]
 
 
 def test_the_text_body_reads_the_same_compact_edition():
     n = note_of(*SEPT)
     text = render.body_text(CTX, n, n["entries"])
     block = text.split("\n\n")[4].split("\n")       # after the header, the greeting, the kicker and the label
-    assert block == ["  Fixture Council, September 3, 2026 regular session", f"  {render.untitled_words(CTX, 4)}",
+    assert block == ["  Ordinance", "  Fixture Council, September 3, 2026 regular session",
+                     f"  {render.untitled_words(CTX, 4)}",
                      f"  {SEPT_NUMBERS}",
                      f"  {CTX['text']['open_site']}: {SITE_URL}city/meetings/2026.html#2026-09-03-regular",
                      f"  Source document, September 3, 2026 meeting: {MINUTES_URL}"]

@@ -74,13 +74,17 @@ def test_each_list_is_a_section_and_each_entry_a_card_with_the_date_block():
     n = note_of(*SEPT, entry(), date="2026-11-18")
     html = render.body_html(CTX, n, n["entries"])
     assert node_texts(html, "h2")[:2] == ["My two seats", "Budget"]
-    assert len(styled(html, "kicker")) == 1 and styled(html, "kicker")[0].all_text() == TEXT["new_on_list"]
+    # note-titles: the section's "New on your list", then each card's topic kicker (all three are ordinances, or
+    # the fixture's "a resolution" on the budget entry)
+    assert [k.all_text() for k in styled(html, "kicker")] == [TEXT["new_on_list"], TEXT["topic_ordinance"],
+                                                              TEXT["topic_ordinance"], f"{TEXT['topic_budget']} · {TEXT['topic_resolution']}"]
     cards = styled(html, "card")
     assert len(cards) == 3                                  # the compact group, the titled vote, the budget entry
     day = [c.all_text() for c in styled(html, "day_td")]
     assert day == ["Sep32026", "Sep32026", "Nov162026"]
     heads = [h.all_text() for h in parse(html).walk() if h.tag == "h3"]
-    assert heads[0] == "Fixture Council, September 3, 2026 regular session"
+    # note-titles: a group's headline is its meeting line; an entry's is its own title
+    assert heads == ["Fixture Council, September 3, 2026 regular session", titled["title"], "FIXTURE: a resolution"]
     # the headline is the link to the site's page; "Open the page on the site" is no longer printed in HTML
     assert [a.attrs["href"] for h in parse(html).walk() if h.tag == "h3" for a in h.walk() if a.tag == "a"] == [
         SITE_URL + "city/meetings/2026.html#2026-09-03-regular", SITE_URL + titled["href"], SITE_URL + "items/2026.html#i-x"]
@@ -95,7 +99,9 @@ def test_an_entry_with_no_meeting_has_a_kicker_line_and_its_title_as_the_headlin
     n = note_of(*CONTRACTS)
     html = render.body_html(CTX, n, n["entries"])
     assert not styled(html, "day_td")
-    assert [x.all_text() for x in styled(html, "kicker")][1:] == ["Fixture County · New document"] * 2 + \
+    # note-titles: the topic kicker, then the body and `recorded` under the headline
+    assert [x.all_text() for x in styled(html, "kicker")][1:] == [TEXT["topic_contracts"]] * 3
+    assert [x.all_text() for x in styled(html, "line")] == ["Fixture County · New document"] * 2 + \
         ["Fixture County · New on the purchasing archive"]
     assert [h.all_text() for h in styled(html, "h3_after")] == [e["title"] for e in CONTRACTS]
     assert [x.all_text() for x in styled(html, "source")] == [TEXT["source_document"]] * 3

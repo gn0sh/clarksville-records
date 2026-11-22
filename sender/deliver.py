@@ -46,8 +46,8 @@ import unicodedata
 from html import unescape
 
 from .common import (ADDRESS, BODY_BUDGET, CONTAINERS, CREDIT_LINE, DATE_RE, EMPTY, INLINE, KEY_RE, LINKS, MARKUP,
-                     PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE, TAG, exact_url_ok, link_ok, read_tags, signature,
-                     subject_line)
+                     COMING_N, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE, SUBJECT_CAP, SUBJECT_KEYS, TAG, claim_subject,
+                     exact_url_ok, link_ok, read_tags, signature, subject_line, subject_parse)
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -292,11 +292,38 @@ def expected_subject(settings: Settings, day: str) -> str | None:
         return None
 
 
+def subject_ok(settings: Settings, day: str, subject: str, entries: int) -> bool:
+    """True when `subject` is one render can write for an edition of `day` with `entries` entries, from the
+    repository's config alone (sender/plan-untrusted/subject-unchecked; note-titles): the day's template exactly
+    (expected_subject), or a topics subject read back into the config's own phrases (common.subject_parse) within
+    SUBJECT_CAP, whose numbers the edition can hold: each topic's items and their sum at most its entries, a
+    "{n} new records" form exactly its entries, at most COMING_N meetings today. So the plan, which comes from the
+    job that parses untrusted PDFs, can choose a count but never a word."""
+    if subject == expected_subject(settings, day):
+        return True
+    text = dict(settings.subject_text)
+    if sorted(text) != sorted(SUBJECT_KEYS) or len(subject) > SUBJECT_CAP or not settings.place:
+        return False
+    try:
+        got = subject_parse(subject, text, settings.place)
+    except (TypeError, ValueError, KeyError):
+        return False
+    if got is None:
+        return False
+    counts, meetings = got
+    if meetings > COMING_N:
+        return False
+    if counts[0][0] == "records":
+        return counts[0][1] == entries
+    return sum(n for _, n in counts) <= entries
+
+
 def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
     """The plan as the plan stage writes it, or PlanInvalid. The file crosses from the job that parses untrusted
     documents to the job that holds the key, so every field deliver reads is checked here first, each body
     against the tags render writes and `link_hosts` (from the repository's config, not the plan), and, when
-    `subject` is given, each subject against exactly that text (sender/plan-untrusted/subject-unchecked)."""
+    `subject` is given, each subject against it (sender/plan-untrusted/subject-unchecked): exactly that text, or,
+    when it is a callable (subject, number of entry ids) -> bool, one it accepts (subject_ok)."""
     if not isinstance(plan, dict) or plan.get("schema") != PLAN_SCHEMA:
         raise PlanInvalid("schema")
     if not (isinstance(plan.get("date"), str) and DATE_RE.fullmatch(plan["date"])):
@@ -320,8 +347,6 @@ def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
         if not (isinstance(ed["subject"], str) and 0 < len(ed["subject"]) <= MAX_SUBJECT and ed["subject"].isprintable()
                 and ed["subject"] == ed["subject"].strip()):
             raise PlanInvalid("an edition's subject")
-        if subject is not None and ed["subject"] != subject:
-            raise PlanInvalid("an edition's subject is not the one the config gives")
         # note-sunrise/budget-unenforced: an edition over common.BODY_BUDGET bytes is clipped by Gmail, hiding the
         # notice and the provider's unsubscribe link; render never writes one (render.layout), so it is refused
         if not (isinstance(ed["body"], str) and 0 < len(ed["body"]) <= MAX_BODY
@@ -330,6 +355,9 @@ def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
         if not (isinstance(ed["entry_ids"], list) and ed["entry_ids"]
                 and all(isinstance(i, str) for i in ed["entry_ids"])):
             raise PlanInvalid("an edition's entry_ids")
+        if subject is not None and not (subject(ed["subject"], len(ed["entry_ids"])) if callable(subject)
+                                        else ed["subject"] == subject):
+            raise PlanInvalid("an edition's subject is not one the config gives")
         keys.append(ed["key"])
     if len(set(keys)) != len(keys):
         raise PlanInvalid("an edition key is used twice")
@@ -499,12 +527,13 @@ def _claimed_body(body: str) -> str:
 
 
 def plan_digest(plan: dict) -> str:
-    """sha256 over what decides who gets which email: the note's digest, every edition (key, subject, body without
-    its "Coming up" lines, entry ids) and every signature. Two plans of one note made by different code or config
+    """sha256 over what decides who gets which email: the note's digest, every edition (key, subject without its
+    "meeting today" lead, body without its "Coming up" lines, entry ids; both come from coming_up) and every
+    signature. Two plans of one note made by different code or config
     differ here, so a re-run of another plan can never take this plan's created editions as its own
     (sender/claim-plan-identity); two builds of one day that differ only in their coming meetings do not."""
     canon = {"note_sha256": plan["note_sha256"], "signatures": plan["signatures"],
-             "editions": sorted(([e["key"], e["subject"], _claimed_body(e["body"]), e["entry_ids"]]
+             "editions": sorted(([e["key"], claim_subject(e["subject"]), _claimed_body(e["body"]), e["entry_ids"]]
                                  for e in plan["editions"]))}
     return hashlib.sha256(json.dumps(canon, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
                           .encode("ascii")).hexdigest()
@@ -556,10 +585,10 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
     mode. `clock`: a callable giving the current time (default: `now` when given, else the system clock)."""
     try:
         day = plan.get("date") if isinstance(plan, dict) else None
-        subject = expected_subject(settings, day) if isinstance(day, str) and DATE_RE.fullmatch(day) else None
-        if subject is None:
+        if not (isinstance(day, str) and DATE_RE.fullmatch(day)) or expected_subject(settings, day) is None:
             raise PlanInvalid("date, or the config's site_name and text.subject")
-        plan = check_plan(plan, settings.link_hosts, settings.link_urls, subject=subject)
+        plan = check_plan(plan, settings.link_hosts, settings.link_urls,
+                          subject=lambda s, n: subject_ok(settings, day, s, n))
     except PlanInvalid as exc:
         out(f"morning note: the plan file is not valid ({exc}); nothing sent")
         return Outcome(2, "bad-plan")
