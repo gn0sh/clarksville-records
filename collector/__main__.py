@@ -512,6 +512,10 @@ def cmd_run(args) -> int:
         # withheld-items, bad-date, bad-instant, bad-file, adapter-error, render-error; national_pages.DEGRADED_STATES)
         log["national"] = (res or {}).get("national", "off")
         log["national_states"] = dict((res or {}).get("national_states") or {})
+        # S2b ruling 5: {covered, stale, alarm, ids} of the covered collected governments the page directory marks
+        # stale (sitegen.national_pages.stale_report); alarm: more than 20% stale. Off or absent: none, no alarm.
+        log["national_stale"] = dict((res or {}).get("national_stale") or
+                                     {"covered": 0, "stale": 0, "alarm": False, "ids": []})
     res = res if site_build else None
     if res is None or res.get("export", True):   # a preview over its cap was built without the export: add none
         export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)

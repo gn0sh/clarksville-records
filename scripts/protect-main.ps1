@@ -510,7 +510,7 @@ if (-not $wfnOk -or $wfn.Count -eq 0) { Unread "main's .github/workflows/nationa
 }
 # main-protect/nat-shape-heuristic-bypass: the regexes above can be fooled by YAML they do not model (other indents,
 # quoted keys, flow style), so the file itself is pinned: its blob sha on main must be the reviewed one.
-$natBlob = '4bbe6f8844913f4efae601a544f6f747b1ddacd7'   # git hash-object .github/workflows/national-update.yml (a test keeps them equal)
+$natBlob = '7ce9473ded75de4dfabb7bac5c29a31655df9e9e'   # git hash-object .github/workflows/national-update.yml (a test keeps them equal)
 $nsha = $null
 for ($i = 1; $i -le $tries; $i++) {
     $nsha = Lines "repos/$repo/contents/.github/workflows/national-update.yml?ref=$wref" '.sha'

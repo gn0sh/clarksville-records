@@ -3045,6 +3045,11 @@ def unofficial_notice(cfg: dict) -> str:
                                                        bodies=joined).split())
 
 
+def digest_unofficial_notice(cfg: dict) -> str:
+    """The notice Daylight Digest pages (digest/) carry instead, restated from config/site.yml unofficial.digest_notice."""
+    return " ".join(cfg["unofficial"]["digest_notice"].format(site_name=cfg["site_name"], operator=cfg["operator"]).split())
+
+
 def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None) -> tuple[list[str], str]:
     """unofficial/notice-on-every-page: the independent-and-unofficial notice (config/site.yml `unofficial:`) is in the
     text of every built HTML page, in its <meta name=description> and og:description, with the tag in its <title> and
@@ -3058,16 +3063,18 @@ def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None
     notice = unofficial_notice(cfg)
     problems = [f"static/style.css: {sel!r} hides the unofficial notice" for sel in _hiding_rules(site)]
     for rel in sorted(pages):
+        # digest pages carry the digest notice (no list of Clarksville bodies); every other page the site notice
+        want = digest_unofficial_notice(cfg) if rel.startswith(DIGEST) else notice
         raw = (site / rel).read_text(encoding="utf-8")
         seen = UnofficialText()
         seen.feed(raw)
         seen.close()
-        if notice not in " ".join("".join(seen.footer).split()):
+        if want not in " ".join("".join(seen.footer).split()):
             problems.append(f"{rel}: the unofficial notice is not in the page text (visible, in the footer)")
         if not seen.tags or any(" ".join("".join(t).split()) != u["tag"] for t in seen.tags):
             problems.append(f"{rel}: no visible '{u['tag']}' tag by the site name")
         meta = re.findall(r'<meta\s+(?:name="description"|property="og:description")\s+content="([^"]*)"', raw)
-        if len(meta) != 2 or any(" ".join(html.unescape(m).split()) != notice for m in meta):
+        if len(meta) != 2 or any(" ".join(html.unescape(m).split()) != want for m in meta):
             problems.append(f"{rel}: description and og:description meta tags do not both carry the notice")
         lead = f"{cfg['site_name']} ({u['tag'].lower()}) | "   # the tag leads the title and the share card
         for what, m in (("<title>", re.search(r"<title>(.*?)</title>", raw, re.S)),

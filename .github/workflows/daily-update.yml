@@ -467,7 +467,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils tesseract-ocr
-          python -m pip install --require-hashes -r requirements.lock
+          python -m pip install --require-hashes --only-binary :all: -r requirements.lock
 
       # The text and OCR caches below are only valid for the tesseract and poppler (pdftotext) that wrote them: their
       # version lines, hashed, are part of that cache's key, so an image update starts a fresh cache.
@@ -688,8 +688,184 @@ jobs:
           RECORDS_SITE_URL: https://daylight.gnoshcodes.com/   # the editions link site pages from alerts.site_url
         run: python -m sender plan --rehearse --site build/site --out build/morning-send
 
+      # The browser tests (tests/*_browser.js, run by tests/test_national_browser.py, test_csp.py and the 16 other
+      # browser-gated files) use Node Playwright. This step installs exactly tests/playwright/package-lock.json
+      # (playwright and playwright-core 1.63.0, each with its sha512) into runner temp, outside the checkout, so the tree
+      # the tests and the build read is unchanged: npm ci refuses a lock that does not match, and --ignore-scripts runs
+      # no package script. Then that Playwright's system libraries (apt, signed Ubuntu packages) and its Chromium.
+      # Security re-check a84d19d R1 (ci-supply/browser-bytes-unverified, hit 2; docs/architecture/
+      # ci-download-verify-invariant.md): no byte is unpacked or run before its hash is checked, so the browser is not
+      # fetched by `playwright install` (its extractor unpacks unchecked zips). curl fetches the two Chrome for Testing
+      # 153.0.8010.12 linux64 zips into a new, empty folder; they must match tests/playwright/browser-zips.sha256; only
+      # then are they unzipped into the folders Playwright 1.63.0 expects (chromium-1243 and chromium_headless_shell-1243
+      # in $RUNNER_TEMP/pw-browsers, each with an empty INSTALLATION_COMPLETE). The unpacked tree must then match
+      # tests/playwright/browsers.sha256 file for file (security review bbc603a F1; made by
+      # tests/playwright/browsers-sha256.sh): no extra, missing, linked or changed file or folder (no ffmpeg, no .links).
+      # A zip or tree mismatch, a malformed list or an npm EINTEGRITY fails this step and the job, always.
+      # PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS stays (Playwright runs ldd on the browser binaries otherwise).
+      # Code review bbc603a #1 (daily-run/install-step-hard-dependency): a failed download (npm, apt or a zip, each
+      # tried three times, 30 s then 90 s apart), no unzip or an unzip failure on the checked zips (a runner fault, such
+      # as a full disk), or a runner without Node 20 or newer is a warning instead,
+      # nothing unchecked is left and browsers=missing: the Tests step then leaves Playwright off PATH, the browser tests
+      # skip, Clarksville still publishes while config/site.yml national.enabled is off, and on main the step after
+      # Tests opens or updates one issue (R3). Once the switch is on, tests/test_national_browser.py (_browser_required)
+      # fails instead of skipping. No token, no permission. Nothing here is cached: no cache may hold pw-browsers,
+      # pw-zips or ms-playwright. Code review dd1606e #1 (ci-browser/revision-not-bound-to-lock): right after npm ci the
+      # installed playwright-core/browsers.json must name chromium and chromium-headless-shell at exactly rev and cftv
+      # below, else the step fails (a lock bump that forgot them would otherwise only fail at launch). Version bump
+      # (package-lock.json moves Playwright): read the new `revision` and `browserVersion` of both entries from the new
+      # playwright-core's browsers.json, then set rev and cftv below, browser-zips.sha256, browsers.sha256 and REVISIONS
+      # in tests/test_browser_install_step.py, all in one pull request (how: tests/playwright/browsers-sha256.sh).
+      - name: Install Playwright and Chromium (browser tests)
+        id: browsers
+        # R2: worst case 3,990 s (66.5 min) = npm 3x(180+15) + deps 3x(300+15) + download 3x(2x300)
+        # + pauses 3x(30+90) + 300 s for unzip and both checks
+        timeout-minutes: 70
+        env:
+          PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: "1"
+        run: |
+          set -euo pipefail
+          pw="$RUNNER_TEMP/playwright"
+          br="$RUNNER_TEMP/pw-browsers"
+          zl="$PWD/tests/playwright/browser-zips.sha256"
+          zips=""
+          export PLAYWRIGHT_BROWSERS_PATH="$br"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$br" >> "$GITHUB_ENV"
+          missing() {
+            echo "::warning::Browser tests: $1 The browser tests skip this run (they fail instead once national.enabled is on); everything else runs."
+            rm -rf -- "$br"
+            if [ -n "$zips" ]; then rm -rf -- "$zips"; fi
+            echo "browsers=missing" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          zbad() {
+            echo "::error::The downloaded Chromium does not match tests/playwright/browser-zips.sha256 ($1). Nothing unpacked or ran it; nothing is built."
+            if [ -n "$zips" ]; then rm -rf -- "$zips"; fi
+            exit 1
+          }
+          tries() {   # tries <what> <command...>: up to three tries, 30 s then 90 s apart
+            local what=$1 pause
+            shift
+            for pause in 30 90 last; do
+              if "$@"; then return 0; fi
+              [ "$pause" = last ] && return 1
+              echo "::warning::$what failed; trying again in $pause s."
+              sleep "$pause"
+            done
+          }
+          npm_ci() {
+            local rc=0
+            timeout --kill-after=15 180 npm ci --prefix "$pw" --ignore-scripts --no-audit --no-fund > "$pw.npm.log" 2>&1 || rc=$?
+            cat "$pw.npm.log"
+            if grep -q EINTEGRITY "$pw.npm.log"; then
+              echo "::error::npm ci: a package does not match its sha512 in tests/playwright/package-lock.json. Nothing is built."
+              exit 1
+            fi
+            return "$rc"
+          }
+          deps() { timeout --kill-after=15 300 "$pw/node_modules/.bin/playwright" install-deps chromium; }
+          rev="1243"              # Playwright 1.63.0's chromium revision (playwright-core/browsers.json `revision`)
+          cftv="153.0.8010.12"    # its Chrome for Testing version (browsers.json `browserVersion`)
+          cft="https://storage.googleapis.com/chrome-for-testing-public/$cftv/linux64"
+          download() {   # each try starts empty, so a failed try's partial file is never checked or unzipped
+            rm -f -- "$zips"/*
+            curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --max-filesize 268435456 --silent --show-error -o "$zips/chrome-linux64.zip" "$cft/chrome-linux64.zip" \
+              && curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --max-filesize 268435456 --silent --show-error -o "$zips/chrome-headless-shell-linux64.zip" "$cft/chrome-headless-shell-linux64.zip"
+          }
+          # browser-zips-shape: exactly the two pinned lines, checked before anything is fetched
+          [ "$(wc -l < "$zl")" = 2 ] && ! grep -qvE '^[0-9a-f]{64}  chrome(-headless-shell)?-linux64\.zip$' "$zl" \
+            && [ "$(cut -c67- "$zl")" = $'chrome-linux64.zip\nchrome-headless-shell-linux64.zip' ] || zbad "the list is malformed"
+          command -v node > /dev/null || missing "node is not on this runner."
+          echo "node $(node --version)"
+          major=$(node -p 'process.versions.node.split(".")[0]' 2> /dev/null) || major=0
+          [[ "$major" =~ ^[0-9]+$ ]] && [ "$major" -ge 20 ] || missing "Node 20 or newer is needed (Playwright 1.63)."
+          command -v unzip > /dev/null || missing "unzip is not on this runner."
+          mkdir -p "$pw"
+          cp tests/playwright/package.json tests/playwright/package-lock.json "$pw/"
+          tries "npm ci" npm_ci || missing "npm ci failed three times."
+          "$pw/node_modules/.bin/playwright" --version
+          # browsers-json-check: the locked Playwright expects exactly this revision and version (read as data, never run)
+          node -e '
+            const [f, rev, ver] = process.argv.slice(1);
+            const b = JSON.parse(require("fs").readFileSync(f, "utf8")).browsers;
+            for (const name of ["chromium", "chromium-headless-shell"]) {
+              const e = b.filter((x) => x.name === name);
+              if (e.length !== 1 || e[0].revision !== rev || e[0].browserVersion !== ver || e[0].revisionOverrides) {
+                console.log(name + ": " + JSON.stringify(e)); process.exit(1);
+              }
+            }' "$pw/node_modules/playwright-core/browsers.json" "$rev" "$cftv" \
+            || { echo "::error::The locked Playwright's browsers.json does not name chromium $rev / $cftv (rev and cftv in this step): update both with the lock. Nothing is built."; exit 1; }
+          tries "The system libraries install" deps || missing "the system libraries install failed three times."
+          rm -rf -- "$br"
+          zips=$(mktemp -d "$RUNNER_TEMP/pw-zips.XXXXXXXXXX")
+          tries "The Chromium download" download || missing "the Chromium download failed three times."
+          # browser-zips-check: the folder holds exactly the two listed files, and each matches its sha256. Never retried.
+          [ -z "$(find "$zips" -mindepth 1 ! -type f -print -quit)" ] \
+            && [ "$(cd "$zips" && find . -mindepth 1 -printf '%f\n' | LC_ALL=C sort)" = "$(cut -c67- "$zl" | LC_ALL=C sort)" ] \
+            || zbad "a file added or missing"
+          (cd "$zips" && sha256sum --quiet --strict -c "$zl") || zbad "a zip's sha256 differs"
+          echo "Chromium zips checked: 2 files match tests/playwright/browser-zips.sha256."
+          # only now, the checked zips are unpacked (-n: never overwrite, so unzip never stops to ask)
+          mkdir -p "$br/chromium-$rev" "$br/chromium_headless_shell-$rev"
+          unzip -q -n -d "$br/chromium-$rev" "$zips/chrome-linux64.zip" \
+            && unzip -q -n -d "$br/chromium_headless_shell-$rev" "$zips/chrome-headless-shell-linux64.zip" \
+            || missing "unzip failed on the checked Chromium zips (a full runner disk?); nothing ran them."
+          : > "$br/chromium-$rev/INSTALLATION_COMPLETE"
+          : > "$br/chromium_headless_shell-$rev/INSTALLATION_COMPLETE"
+          rm -rf -- "$zips"
+          # browser-tree-check (tests/test_browser_install_step.py runs this step with stubs, test zips and tampered trees)
+          man="$PWD/tests/playwright/browsers.sha256"
+          bad() { echo "::error::The installed Chromium does not match tests/playwright/browsers.sha256 ($1). Nothing ran it; nothing is built."; exit 1; }
+          line='^[0-9a-f]{64}  (chromium|chromium_headless_shell)-[0-9]+/[A-Za-z0-9._/@+-]+$'
+          [ -s "$man" ] && ! grep -qvE "$line" "$man" || bad "the list is malformed"
+          dirs=$(cut -c67- "$man" | cut -d/ -f1 | LC_ALL=C sort -u)
+          [ "$(printf '%s\n' $dirs | LC_ALL=C sort)" = "$(cd "$br" && find . -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" ] \
+            || bad "a folder added or missing"
+          [ -z "$(cd "$br" && find $dirs ! -type d ! -type f -print -quit)" ] || bad "a link or special file"
+          [ "$(cd "$br" && find $dirs -type f | LC_ALL=C sort)" = "$(cut -c67- "$man" | LC_ALL=C sort)" ] || bad "a file added or missing"
+          (cd "$br" && sha256sum --quiet --strict -c "$man") || bad "a file's sha256 differs"
+          echo "Chromium checked: $(wc -l < "$man") files match tests/playwright/browsers.sha256."
+          # end browser-tree-check
+          echo "browsers=ok" >> "$GITHUB_OUTPUT"
+
+      # Security review bbc603a F2 (ci-browser/probe-skips-silently): the browser-gated test files (test_csp.py and
+      # the others) look for `playwright` on PATH, so this step (not GITHUB_PATH: no later step sees it) puts the
+      # installed one first, only when the step above checked its Chromium. F3 (ci-test/x-flag-and-rerun): no -x, so
+      # one run shows every failure; one rerun of the failures only (--lf) absorbs a flake, and a real failure fails it.
       - name: Tests (full suite, about 12 min, default settings)
-        run: python -m pytest -q -x
+        env:
+          NODE_PATH: ${{ runner.temp }}/playwright/node_modules   # where the browser tests find Playwright
+          BROWSERS: ${{ steps.browsers.outputs.browsers }}        # ok: the Chromium above matched its sha256 list
+        run: |
+          if [ "${BROWSERS:-}" = ok ]; then PATH="$RUNNER_TEMP/playwright/node_modules/.bin:$PATH"; fi
+          python -m pytest -q || { echo "::warning::tests failed once; rerunning the failures"; python -m pytest -q --lf; }
+
+      # Security re-check a84d19d R3 (ci-browser/probe-skips-silently): browsers=missing is more than a warning on
+      # main: one open issue with a fixed title, a comment each later day instead of a new issue. Fixed text, passed
+      # with --body-file; the token is this step's only (the install step stays token-free).
+      - name: Open or update the browser-tests-skipped issue
+        if: always() && github.ref == 'refs/heads/main' && steps.browsers.outputs.browsers == 'missing'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BR_TITLE: "Daily update: browser tests skipped (Chromium not installed)"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/browser-issue.md"
+          {
+            echo "The browser tests were skipped: Chromium was not installed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "A download (npm, the system libraries or the Chrome for Testing zips) failed three times, or the runner"
+            echo "lacked Node 20 or unzip. Everything else was tested and published as usual. Read the 'Install Playwright"
+            echo "and Chromium (browser tests)' step's warnings in the run log. Once national.enabled is on, this fails the run."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$BR_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.BR_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$BR_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
 
       # I-pub, the content tripwire (ADR 0011 decision 4 and Amendment (c); collector/tripwire.py): compares the
       # votes, roll calls and outcomes of the tree the live site was built from (named by its build-info.json) with
@@ -1084,6 +1260,9 @@ jobs:
       # holds fixed text, the national word, counts, and only ids and state words that pass the checks below (anything
       # else shows as "unknown"): never a line of input text. No run-log (a failed or rebuild-only run), switch off
       # (`off`) or `built` with no state: nothing. main only, like the other national issue.
+      # S2b ruling 5 (architecture 6 "Observability"): also when `national_stale.alarm` is true, i.e. more than 20% of
+      # the covered collected governments are stale in the page directory (sitegen.national_pages.stale_report; no
+      # root or a timed-out lookup makes them all stale: code review nit 4). Counts and checked ids only.
       # D-ISO-13 (S2c nit c, recorded as built): a rebuild-only run ("Rebuild site from committed data") runs sitegen
       # and `collector export`, never `collector run`, so it writes no run-log.json and a degraded rebuild opens no
       # issue here. Its signal is the national step's ::warning::/::error:: lines in its own log; a person started it
@@ -1115,14 +1294,40 @@ jobs:
             case "$state" in withheld-items|bad-date|bad-instant|bad-file|adapter-error|render-error) ;; *) state=unknown ;; esac
             if [ "$n" -le 50 ]; then list="$list- $id: $state"$'\n'; fi
           done < "$rows.raw"
-          if [ "$status" != degraded ] && [ "$n" = 0 ]; then exit 0; fi
+          alarm=$(jq -r 'if (.national_stale | type) == "object" and .national_stale.alarm == true then "yes" else "no" end' \
+                    "$log" 2>/dev/null) || alarm=no
+          covered=$(jq -r '.national_stale | if type == "object" then .covered else null end | tostring' \
+                      "$log" 2>/dev/null) || covered=x
+          [[ "$covered" =~ ^[0-9]{1,6}$ ]] || covered=unknown
+          jq -r '.national_stale | if type == "object" and (.ids | type) == "array" then .ids[] | strings | gsub("[^a-z0-9-]"; "?") else empty end' \
+            "$log" 2>/dev/null > "$rows.stale" || : > "$rows.stale"
+          stale_list=""
+          s=0
+          while IFS= read -r id; do
+            s=$((s + 1))
+            [[ "$id" =~ ^(place-[0-9]{7}|county-[0-9]{5}|cousub-[0-9]{10}|(sdu|sds|sde)-[0-9]{7})$ ]] || id=unknown
+            if [ "$s" -le 50 ]; then stale_list="$stale_list- $id"$'\n'; fi
+          done < "$rows.stale"
+          if [ "$status" != degraded ] && [ "$n" = 0 ] && [ "$alarm" != yes ]; then exit 0; fi
           body="$RUNNER_TEMP/national-degraded-issue.md"
+          # security review bbc603a F6 (national-observability/alarm-says-degraded): the opening line names the cause
+          if [ "$status" != degraded ] && [ "$n" = 0 ]; then
+            cause="More than 20% of the covered national governments were stale in this run (none was built degraded)"
+          elif [ "$alarm" = yes ]; then
+            cause="The national pages were built degraded, and more than 20% of the covered governments were stale, in this run"
+          else
+            cause="The national pages were built degraded in this run"
+          fi
           {
-            echo "The national pages were built degraded in this run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "$cause: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo ""
             echo "national: $status; governments degraded: $n (the first 50 below)."
             echo ""
             printf '%s' "$list"
+            echo ""
+            echo "stale: $s of $covered collected governments (more than 20% stale opens this issue; the first 50 below)."
+            echo ""
+            printf '%s' "$stale_list"
             echo ""
             echo "A degraded government's page and JSON show no meetings (stale) until a good build. Its line in the log"
             echo "reads 'National pages: <id>: <state> (<exception type>)'; 'built with no data' means every national page"

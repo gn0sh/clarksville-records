@@ -1,6 +1,8 @@
 {% extends "base.html.j2" %}
+{% from "digest/_dawn.html.j2" import dawn_band, sun_mark %}
 {# `name` and `official` come from the directory entry (official re-checked against its platform's hosts; None
-   when it fails, and then no link is printed). A covered government's coming-up page (docs/design/daylight-national.md section 5; architecture 3.5, 11). Built by
+   when it fails, and then no link is printed). A covered government's coming-up page (docs/design/digest-warmth.md
+   section 5, over docs/design/daylight-national.md section 5; architecture 3.5, 11). Built by
    sitegen/national_pages.py, which passes `meetings` made from the government's JSON only (meeting_view): item text
    is printed only from the JSON's `items`, and a withheld government's meetings print the fixed withheld label
    (privacy-withhold/national-prefix, consumer 3). Every fixed word is a page label (`L`); every other word is the
@@ -9,54 +11,118 @@
    <section class="digest-meeting">, in the JSON's own order (row 6s, B-ISO-14): qa/site_checks.py exempts that text,
    and only that text (plus the meeting's own ids, dates and links, inside that section only), from the checks that
    judge our own words. A title with `title_ours` is printed unwrapped: the copy step admits only the platform's fixed
-   title (B-ISO-12). Everything outside the sections is read raw. #}
+   title (B-ISO-12). Everything outside the sections is read raw.
+
+   Layout (`layout`, national_pages.meeting_layout; the same for every government, AC4.9): the first meeting is the
+   "Next meeting" card; the meetings after it are rows under month headings; meetings past the first three months
+   that have a meeting sit in one closed native <details>, still page text and still in order (AC4.1). Every meeting,
+   card or row, is the same <section class="digest-meeting"> with the same fields in the same order; the section tag
+   is written exactly so (no second class, no nested section), because the site checks find a meeting by it. The date
+   chip repeats a row's date for the eye only (aria-hidden); the full date is the row's heading. Headings: h1 the
+   government, h2 the next meeting's date, h2 "Later meetings" (screen readers only), h3 each month, h4 each later
+   meeting's date; an agenda item is one level under its meeting (h3 in the card, h5 in a row). #}
 {# the digest pages' own stylesheet (design 0a): linked here only, copied only while the switch is on #}
 {% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
 {% endblock %}
+{# One meeting. `h`: its heading level; an item's is `h + 1`. `own_time`: print "no start time" for this meeting
+   itself (the card always; a row only when some meeting on the page has a time, else the page says it once). #}
+{% macro meeting(m, h, own_time) %}
+<section class="digest-meeting" id="m-{{ m.id }}" aria-labelledby="m-{{ m.id }}-h">
+  <h{{ h }} id="m-{{ m.id }}-h"><time datetime="{{ m.date }}">{{ m.day }}</time>{% if m.time %}, <span data-feed>{{ m.time }}</span>{% endif %}</h{{ h }}>
+  <p class="digest-meeting-title">{% if m.title_ours %}{{ m.title }}{% else %}<span data-feed>{{ m.title }}</span> {{ L["body.as-posted"] }}{% endif %}</p>
+  {% if m.time %}
+  <p class="digest-time">{{ lt(L["body.tz"], tz=m.tz) }}</p>
+  {% elif own_time %}
+  <p class="digest-time">{{ L["body.no-time"] }}</p>
+  {% endif %}
+  {% if m.posted %}
+  <p class="digest-agenda">{{ lh(L["body.agenda"], m.agenda_url, ext=true, sr=lt(L["body.agenda-for"], date=(m.date | day_words))) }}</p>
+  {% else %}
+  <p class="digest-not-posted">{{ lh(L["body.not-posted"], official, ext=true) }}</p>
+  {% endif %}
+  {% if m.withheld %}
+  <p class="digest-withheld">{{ lh(L["body.withheld"], m.agenda_url, ext=true) }}</p>
+  {% elif m.incomplete %}
+  <p class="digest-incomplete">{{ lh(L["body.incomplete"], m.agenda_url, ext=true) }}</p>
+  {% endif %}
+  {% if m.entries %}
+  <ol class="digest-items">
+    {% for it in m.entries %}
+    <li>
+      <h{{ h + 1 }}>{% if it.number %}<span class="item-num"><span data-feed>{{ it.number }}</span></span> {% endif %}<span data-feed>{{ it.text }}</span></h{{ h + 1 }}>
+      {% if it.topics %}<p class="digest-topics">{% for t in it.topics %}<span class="chip digest-topic"><span class="sr-only">{{ L["body.topic-sr"] }} </span>{{ L[t] }}</span>{% if not loop.last %} {% endif %}{% endfor %}</p>{% endif %}
+      {% if it.cut %}<p class="digest-cut">{{ lh(L["body.cut"], m.agenda_url, ext=true) }}</p>{% endif %}
+      {% if it.page %}<p class="digest-item-src">{{ lh(L["body.item-page"], it.url, ext=true, page=it.page) }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</section>
+{% endmacro %}
+{# The rows of one run of months: a month heading, then one row per meeting. #}
+{% macro months(groups) %}
+{% for g in groups %}
+<h3 class="digest-month">{{ g.label }}</h3>
+<ul class="digest-mtgs" role="list">
+  {% for m in g.meetings %}
+  <li>
+    <div class="digest-datechip" aria-hidden="true"><small>{{ m.dow }}</small><b>{{ m.dom }}</b></div>
+    {{ meeting(m, 4, not layout.no_time_all) }}
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% endmacro %}
 {% block main %}
 <div class="digest digest-body">
-  <p class="eyebrow">{{ lt(L["body.eyebrow"], state=state_name, slot=slot) }}</p>
-  <h1>{{ name }}</h1>
-  <p class="digest-subject">{{ L["body.coming-up"] }}</p>
-  {% if official %}<p class="official-record">{{ lh(L["body.official-record"], official, ext=true, host=host) }}</p>{% endif %}
-  {# M1 records no check run, so the page says only how new our newest record is (national-freshness/
-     checked-at-is-first-fetch); `newest` is the feed's checked_at day, None when we hold no record #}
-  {% if newest %}
-  <p class="digest-checked">{{ lt(L["body.newest"], date=(newest | day_words)) }}</p>
-  {% else %}
-  <p class="digest-checked">{{ L["body.no-records"] }}</p>
-  {% endif %}
-  {% for m in meetings %}
-  <section class="digest-meeting" id="m-{{ m.id }}" aria-labelledby="m-{{ m.id }}-h">
-    <h2 id="m-{{ m.id }}-h"><time datetime="{{ m.date }}">{{ m.day }}</time>{% if m.time %}, <span data-feed>{{ m.time }}</span>{% endif %}</h2>
-    <p class="digest-meeting-title">{% if m.title_ours %}{{ m.title }}{% else %}<span data-feed>{{ m.title }}</span> {{ L["body.as-posted"] }}{% endif %}</p>
-    <p class="digest-time">{% if m.time %}{{ lt(L["body.tz"], tz=m.tz) }}{% else %}{{ L["body.no-time"] }}{% endif %}</p>
-    {% if m.posted %}
-    <p class="digest-agenda">{{ lh(L["body.agenda"], m.agenda_url, ext=true, sr=lt(L["body.agenda-for"], date=(m.date | day_words))) }}</p>
+  {{ dawn_band() }}
+  <div class="digest-bodyhead">
+    {# the "where am I" line, as base.html.j2 prints it on every other page (Pages.html own_crumbs) #}
+    {% if head_crumbs %}
+    <nav class="crumb" aria-label="You are in">{% for c in head_crumbs %}{% if not loop.first %} <span class="crumb-sep" aria-hidden="true">/</span> {% endif %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>{% endfor %}</nav>
+    {% endif %}
+    <p class="eyebrow">{{ lt(L["body.eyebrow"], state=state_name, slot=slot) }}</p>
+    <h1>{{ name }}</h1>
+    <p class="digest-subject">{{ L["body.coming-up"] }}</p>
+    {% if official %}<p class="official-record">{{ lh(L["body.official-record"], official, ext=true, host=host) }}</p>{% endif %}
+    {# M1 records no check run, so the page says only how new our newest record is (national-freshness/
+       checked-at-is-first-fetch); `newest` is the feed's checked_at day, None when we hold no record #}
+    {% if newest %}
+    <p class="digest-checked">{{ lt(L["body.newest"], date=(newest | day_words)) }}</p>
     {% else %}
-    <p class="digest-not-posted">{{ lh(L["body.not-posted"], official, ext=true) }}</p>
+    <p class="digest-checked">{{ L["body.no-records"] }}</p>
     {% endif %}
-    {% if m.withheld %}
-    <p class="digest-withheld">{{ lh(L["body.withheld"], m.agenda_url, ext=true) }}</p>
-    {% elif m.incomplete %}
-    <p class="digest-incomplete">{{ lh(L["body.incomplete"], m.agenda_url, ext=true) }}</p>
-    {% endif %}
-    {% if m.entries %}
-    <ol class="digest-items">
-      {% for it in m.entries %}
-      <li>
-        <h3>{% if it.number %}<span class="item-num"><span data-feed>{{ it.number }}</span></span> {% endif %}<span data-feed>{{ it.text }}</span></h3>
-        {% if it.topics %}<p class="digest-topics">{% for t in it.topics %}<span class="chip digest-topic"><span class="sr-only">{{ L["body.topic-sr"] }} </span>{{ L[t] }}</span>{% if not loop.last %} {% endif %}{% endfor %}</p>{% endif %}
-        {% if it.cut %}<p class="digest-cut">{{ lh(L["body.cut"], m.agenda_url, ext=true) }}</p>{% endif %}
-        {% if it.page %}<p class="digest-item-src">{{ lh(L["body.item-page"], it.url, ext=true, page=it.page) }}</p>{% endif %}
-      </li>
-      {% endfor %}
-    </ol>
-    {% endif %}
-  </section>
+  </div>
+  {% if layout.next %}
+  <div class="digest-next">
+    <p class="eyebrow digest-next-label">{{ sun_mark() }}{{ L["body.next"] }}</p>
+    {{ meeting(layout.next, 2, true) }}
+  </div>
   {% else %}
-  <p class="digest-none">{{ lh(L["body.no-meetings"], official, ext=true) }}</p>
-  {% endfor %}
+  <div class="digest-next digest-next-empty">
+    <p class="digest-none">{{ sun_mark() }}<span>{{ lh(L["body.no-meetings"], official, ext=true) }}</span></p>
+  </div>
+  {% endif %}
+  {# the same card on every coming-up page; left out, like the official line, when the directory has no checked link #}
+  {% if official %}
+  <section class="digest-warm digest-going" aria-labelledby="digest-going-h">
+    <h2 id="digest-going-h">{{ L["body.going-h"] }}</h2>
+    <p>{{ lh(L["body.going"], official, ext=true) }}</p>
+  </section>
+  {% endif %}
+  {% if layout.months or layout.more %}
+  <h2 class="sr-only">{{ L["body.later-h"] }}</h2>
+  {{ months(layout.months) }}
+  {% if layout.more %}
+  <details class="digest-later">
+    <summary>{{ lt(L["body.more"], n=layout.more.n, from=layout.more.from, to=layout.more.to) }}</summary>
+    {{ months(layout.more.months) }}
+  </details>
+  {% endif %}
+  {% if layout.no_time_all %}
+  <p class="digest-time digest-time-all">{{ L["body.no-time-all"] }}</p>
+  {% endif %}
+  {% endif %}
   {% if topic_note %}
   <p class="digest-topic-note">{{ lh(L["body.topic-note"], root ~ "about.html#item-types") }}</p>
   {% endif %}

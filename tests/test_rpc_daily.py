@@ -566,7 +566,17 @@ def test_run_log_carries_the_national_result_d_iso_9_reads(county_run, monkeypat
     assert M.main(["run", "--offline"]) == 0
     log = json.loads((tmp_path / "build" / "run-log.json").read_text())
     assert log["national"] == national and log["national_states"] == states
+    assert log["national_stale"] == {"covered": 0, "stale": 0, "alarm": False, "ids": []}   # none in these results
     assert county_run["order"][-1] == "site"
+
+
+def test_run_log_carries_the_national_stale_count(county_run, monkeypatch, tmp_path):
+    """S2b ruling 5: `collector run` copies the site build's `national_stale` into build/run-log.json."""
+    import sitegen.build
+    stale = {"covered": 4, "stale": 2, "alarm": True, "ids": ["county-47001", "place-4799990"]}
+    monkeypatch.setattr(sitegen.build, "build", lambda *a, **k: {"national": "built", "national_stale": stale})
+    assert M.main(["run", "--offline"]) == 0
+    assert json.loads((tmp_path / "build" / "run-log.json").read_text())["national_stale"] == stale
 
 
 def test_an_rpc_failure_with_a_good_county_run_still_commits_the_county_data(county_run, tmp_path):
