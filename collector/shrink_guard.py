@@ -219,6 +219,7 @@ def keep_documents(new: dict, old: dict, kept: list[dict]) -> dict:
     def cited(i: dict) -> bool:
         t = i.get("title_source")
         return not t or (t.get("source_id") in published and t.get("meeting_id") in shown)
+
     for n, it in enumerate(out["items"]):
         if cited(it):
             continue

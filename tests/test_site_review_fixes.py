@@ -194,6 +194,41 @@ def test_dangling_title_source_fails_the_build(facts, field, missing):
         check_references(f)
 
 
+def test_every_rendered_agenda_title_carries_its_agenda_link(tmp_path, facts):
+    """captions/uncited-title: a title the minutes do not print (item.title_source) is shown, on every page, in the
+    search index and in the feeds, beside a link to the agenda page that prints it."""
+    f = copy.deepcopy(facts)
+    url = "https://example.gov/AgendaCenter/ViewFile/Agenda/_qq"
+    f["sources"].append({"id": "src-aaaaaaaaaaaa", "url": url, "sha256": "a" * 64, "kind": "agenda",
+                         "meeting_date": "2024-12-09", "fetched_at": "2024-12-10", "pages": 3, "text_layer": "text"})
+    title = "Qq An Ordinance amending the zoning code, as the agenda prints it"
+    it = by_id(f, "items", "AB-91-2024")
+    it.update(title=title, title_source={"kind": "agenda", "source_id": "src-aaaaaaaaaaaa", "page": 2,
+                                         "meeting_id": MEETING_DEC})
+    pages = build_pages(tmp_path, f)
+    link = f'href="{url}#page=2"'
+    shown = 0
+    for name, html in pages.items():
+        at = 0
+        while (k := html.find(title, at)) >= 0:
+            shown += 1
+            assert link in html[k:k + 700] and "title as printed in the agenda, p. 2" in html[k:k + 700], name
+            at = k + len(title)
+    assert shown >= 2                                                          # the item page and a meeting page
+    out = tmp_path / "build" / "site"
+    index = (out / "static" / "search-index.js").read_text(encoding="utf-8")
+    recs = [r for r in json.loads(index.split("=", 1)[1].rstrip().rstrip(";"))["records"] if r.get("t") == title]
+    assert recs and all(r["ts"] == {"u": f"{url}#page=2", "p": 2, "l": "title as printed in the agenda, p. 2"}
+                        for r in recs)
+    feeds = [p for p in out.rglob("*.xml") if title in p.read_text(encoding="utf-8")]
+    assert feeds                                                               # the rezoning topic feed
+    for p in feeds:
+        xml = p.read_text(encoding="utf-8")
+        assert xml.count(title) == xml.count(f"Title as printed in the agenda, page 2: {url}#page=2"), p
+    other = by_id(f, "items", "24-11-91")
+    assert views.Index(f).title_src(other) is None                         # a minutes title carries no agenda cite
+
+
 # --- test gaps: unverified text never public; escaping ------------------------------------------------------------
 
 

@@ -201,17 +201,23 @@ give nothing for that agenda (run report `agenda_titles.ambiguous`); no entry gi
 (planning commission, committee or board recommendation, sponsor, the packet page "Page 76") are cut is per-locality
 config, `agenda-center.yml agenda_captions`, read by `city_minutes.agenda_captions`; the reading labels "(FIRST
 READING)" and "[ZONING CASE ...]" stay, as the minutes' titles keep "(First Reading)". A title any minutes print is
-never replaced. Only entries before the agenda's adjournment entry count (Agenda Center files carry a packet after it
-that reprints earlier minutes with numbered items); an agenda without that line gives none.
+never replaced. Only entries before the agenda's adjournment entry count, and that entry must be on one of the first
+`max_pages` pages, before any page that opens like a packet document (Agenda Center files carry a packet after it
+that reprints earlier minutes with numbered items); an agenda without it gives none. Committee headings are read only
+up to it.
 
-Fail closed, never a guess: no caption when a committee or board note is left whose name is neither configured nor
-an agenda heading (where it starts is not known), or when a page break cuts a caption in a flush-left layout (2021)
-and the next page's first line may or may not go on with it. A titled name with no bracket at the end is a sponsor and
-is cut, unless the word before it is in `sponsor_kept_after` ("honoring Mayor X" stays the caption's own).
+Fail closed, never a guess or a fragment: no caption when a committee or board note is left whose name is neither
+configured nor an agenda heading (where it starts is not known), or when a page break cuts a caption in a flush-left
+layout (2021) and the next page's first line may or may not go on with it. A titled name with no bracket at the end
+is cut as a sponsor only after a sentence's end or right before a structural note (a cut "Page N", committee or RPC
+note, or a parenthetical after it), and not after a word of `sponsor_kept_after`; with no such mark it is kept whole
+after such a word ("electing a Mayor Pro Tem"), else no caption ("supporting Montgomery County Mayor Wes Golden").
+Such an entry is kept as None, so its number counts as ambiguous for that agenda (`ambiguous[].reason`).
 
 **Facts contract (additive):** such an item carries `title_source: {kind: "agenda", source_id, page, meeting_id}`
-(schema `item.title_source`); an item without it has the minutes' title (or none). Sites and notes that show an
-agenda-sourced title cite `title_source` for its words, not the item's first event (which is the minutes).
+(schema `item.title_source`; `page` is where the entry starts); an item without it has the minutes' title (or none).
+Wherever such a title is shown it carries the cite "title as printed in the agenda, p. N" (site.yml
+`title_source_text`) linked to that page (`views.Index.title_src`), never the item's first event (the minutes).
 
 Unchanged: ids, roll calls, votes, motions, events, verification checks and counts, the gates. The shrink guard keys
 items by number (`item_key`), so titles appearing is no loss; `keep_documents` gives an item whose `title_source`
@@ -220,6 +226,9 @@ cites a source or meeting the keep took out the committed item's title, else non
 | Consumer | Where | Reads |
 |---|---|---|
 | Reference check | `sitegen/build.py` `check_references` | `title_source.source_id` and `.meeting_id` exist |
+| Pages | `views.Index.title_src` -> `item_ref` (`_macros` `item_link`: meeting, member, vote, today and history pages), `items_year` (`items_year.html.j2` under the heading; council lede `council.yml items_lede`) | the cite beside the title |
+| Search | `views.body_records` `ts` -> `static/search.js` | the cite beside the result title |
+| Feeds | `feeds._topic_entries` summary (site.yml `title_source_feed`) | the agenda page link |
 | CSV export | `collector/export.py` `items.csv` `title_source_url`, `title_source_page` | the agenda page that prints the title |
 | Item types | `sitegen/views.py` `item_types` (words in the title) | an agenda caption with "zoning" makes the item `rezoning` |
 | Run report | `build/city-report.json` `agenda_titles` {untitled, filled, ambiguous, agendas_read} | counts |

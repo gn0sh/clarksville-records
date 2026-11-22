@@ -160,7 +160,7 @@
           "properties": {
             "kind": { "const": "agenda" },
             "source_id": { "$ref": "#/$defs/source_id" },
-            "page": { "$ref": "#/$defs/page" },
+            "page": { "$ref": "#/$defs/page", "description": "the page the agenda entry starts on (a caption may run on to the next page)" },
             "meeting_id": { "type": "string" }
           }
         },

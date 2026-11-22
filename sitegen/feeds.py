@@ -228,6 +228,13 @@ def _item_title(ix: views.Index, it: dict) -> str:
     return f"{it['number']}: {title}" if it.get("number") and title != it["number"] else title
 
 
+def _title_note(ix: views.Index, it: dict) -> str:
+    """note-titles: a title the minutes do not print is cited to the agenda page that prints it (site.yml
+    title_source_feed), after the entry's own source."""
+    ts = ix.title_src(it)
+    return " " + config.SITE["title_source_feed"].format(page=ts["page"], url=ts["url"]) if ts else ""
+
+
 def _topic_entries(topic: str, key: str, ix: views.Index, first: dict | None = None) -> list[dict]:
     out = []
     for it in ix.facts["items"]:
@@ -250,7 +257,7 @@ def _topic_entries(topic: str, key: str, ix: views.Index, first: dict | None = N
                 "href": ix.item_href(it),
                 "source": src["url"],
                 "summary": f"{m['body']}, {ix.meeting_label(m)}. Recorded: {', '.join(labels)}. "
-                           f"Source: {src['kind']}, page {src['page']}.",
+                           f"Source: {src['kind']}, page {src['page']}." + _title_note(ix, it),
                 "sort": (m["date"], mid, -min(e["page"] for e in evs), it["id"]),
             })
     return out

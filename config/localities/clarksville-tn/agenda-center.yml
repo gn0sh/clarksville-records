@@ -91,6 +91,9 @@ agenda_captions:
   # the agenda proper ends at its adjournment entry ("16) ADJOURNMENT", "14. Adjournment"; any case); a packet of
   # ordinances and earlier minutes follows it in Agenda Center files (2017: 92 pages, 2021: 252), never read
   end: '^\d{1,2}[.)]\s+Adjournment\b'
+  # ... on one of the first max_pages pages, before the first page that opens like a packet document (its first line
+  # an item number); else no caption (the agendas here print 1-6 pages before the packet)
+  max_pages: 10
   committee_heading: '^\d{1,2}[.)]\s+(?P<name>[A-Z][^:]*?)\s+(?:Committee|COMMITTEE)\b'
   committee_names: [Designations, Finance, Gas & Water, Neighborhood & Community Services, Parks & Recreation,
                     Public Safety, Transportation-Streets-Garage]
@@ -100,12 +103,14 @@ agenda_captions:
   # ("... District RPC: Approval/Approval Page 76", "... Pages 213- 240", 2021)
   notes: ['\bRPC\s*:', '\s+Pages?\s+\d{1,3}(?:\s*-\s*\d{1,3})?\s*$']
   sponsor_titles: 'Council(?:man|woman|member|person|lady|or)s?|Mayor(?:\s+Pro\s+Tem)?'
-  # a titled name at the end with no bracket is a sponsor and is cut ("... housing Councilperson Holleman", 2021),
-  # unless the word printed before it is one of these: then the name is the caption's own ("honoring Mayor X";
-  # quoted: YAML reads a bare on/or as true)
+  # a titled name at the end with no bracket is cut as a sponsor only after a sentence's end or right before a
+  # structural note ("... housing Councilperson Holleman Page 243", 2021), and not after one of these words; with no
+  # such mark it is kept as the caption's own after one of these words ("electing a Mayor Pro Tem"), else the entry
+  # gives no caption (city_minutes.caption_text). Quoted: YAML reads a bare on/or as true.
   sponsor_kept_after: ["about", "after", "and", "appoint", "appointing", "as", "at", "before", "by",
                       "congratulating", "for", "former", "from", "honor", "honoring", "in", "late", "memory",
-                      "naming", "of", "on", "or", "recognize", "recognizing", "the", "thanking", "to", "upon", "with"]
+                      "naming", "of", "on", "or", "recognize", "recognizing", "the", "thanking", "to", "upon", "with",
+                      "a", "an", "elect", "electing", "incoming", "new", "outgoing", "retiring"]
 # Votes that are never on one numbered item, whatever item they follow: the motion, the lead-in to the vote or the
 # outcome sentence says so (case-insensitive). They are linked to their section heading.
 not_item_votes: '\badjourn|\bconsent\s+agenda\b|\bappoint'

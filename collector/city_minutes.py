@@ -770,21 +770,29 @@ def _sponsor_note(ac) -> re.Pattern:
 def _bare_sponsor(ac) -> re.Pattern:
     """A sponsor printed with no bracket at the caption's end, with any note in parentheses after it: "... Officer.
     Mayor Joe Pitts", "... housing Councilperson Holleman", "... to R-4 Councilperson Marquis (Requires 3/4 majority
-    approval ...)" (group `before`: the word printed before it)."""
-    return re.compile(rf"(?:(?P<before>\S+)\s+|^){_who(ac)}\s*(?:\([^()]*\))?\s*$")
+    approval ...)" (group `before`: the word printed before it; `note`: the note in parentheses)."""
+    return re.compile(rf"(?:(?P<before>\S+)\s+|^){_who(ac)}\s*(?P<note>\([^()]*\))?\s*$")
 
 
 def caption_text(raw: str, ac, committees: set) -> str:
     """An entry's printed text -> its caption: whitespace collapsed (a line end is a space, invisible characters
-    removed), every trailing note cut (agenda-center.yml agenda_captions). Nothing else is changed. A bare sponsor
-    is cut unless the word before it is one of sponsor_kept_after ("honoring Mayor Joe Pitts": the caption's own
-    words). A caption that still ends with a committee or board note after the cuts (a name not configured and no
-    heading of the agenda) is no caption: "" (where it starts is not known, so nothing is guessed)."""
+    removed), every trailing note cut (agenda-center.yml agenda_captions). Nothing else is changed, and never a
+    fragment: "" (no caption) wherever it is not certain where the caption ends.
+
+    A titled name at the end with no bracket ("... sessions Councilperson Karen Reynolds") is cut as a sponsor only
+    after a sentence's end ("... Officer. Mayor Joe Pitts") or right before a structural note that was cut or that
+    follows it ("... Services Mayor Pro Tem Smith Page 241", "... R-4 Councilperson Marquis (Requires ...)"), and
+    then not when the word before it is one of sponsor_kept_after. Elsewhere the name may be the caption's own
+    words: the full text is kept when the word before it is one of sponsor_kept_after ("A Resolution electing a
+    Mayor Pro Tem"), else there is no caption ("... supporting Montgomery County Mayor Wes Golden"). A caption that
+    still ends with a committee or board note after the cuts (a name neither configured nor an agenda heading) is no
+    caption either: where that note starts is not known."""
     text = _flat(raw)
+    noted = False                              # the text now ends right before a structural note that was cut
     for rx in ac.notes:
         m = rx.search(text)
         if m:
-            text = text[:m.start()]
+            text, noted = text[:m.start()], True
     ends, bare = (_committee_note(ac, committees), _sponsor_note(ac)), _bare_sponsor(ac)
     cut = True
     while cut:
@@ -792,10 +800,15 @@ def caption_text(raw: str, ac, committees: set) -> str:
         for rx in ends:
             m = rx.search(text)
             if m and m.start() > 0:
-                text, cut = text[:m.start()], True
+                text, cut, noted = text[:m.start()], True, True
         m = bare.search(text)
-        if m and m.group("before") and m.group("before").lower().strip(",;") not in ac.sponsor_kept_after:
-            text, cut = text[:m.start() + len(m.group("before"))], True
+        if m and m.group("before"):
+            before = m.group("before")
+            kept = before.lower().strip(",;:") in ac.sponsor_kept_after
+            if before[-1] in ".;" or ((noted or m.group("note")) and not kept):
+                text, cut, noted = text[:m.start() + len(before)], True, True
+            elif not kept:
+                return ""                      # a sponsor, or the caption's own words: not known
     text = text.rstrip(" /")
     if re.search(rf"\b(?:{ac.committee_word})\s*:[^:()\[\]]*\)?$", text, re.I):
         return ""
@@ -804,14 +817,32 @@ def caption_text(raw: str, ac, committees: set) -> str:
 
 def agenda_captions(pages: list[str], cfg: AgendaCenterConfig) -> dict:
     """(kind, number) -> [(caption, page), ...]: every entry of a stored agenda (`pages`, its text layer) that starts
-    with agenda_captions.entry and then an item number (item_number), in print order. An entry whose text after the
-    number starts another item ("and RESOLUTION ...") or holds only labels gives none, and so does one cut by a page
-    break where it is not certain whether the next page goes on with it. {} without agenda_captions."""
+    with agenda_captions.entry and then an item number (item_number), in print order; page is the page the entry
+    starts on. caption is None for an entry that gives none: its text after the number starts another item ("and
+    RESOLUTION ..."), holds only labels, ends with a note or name whose end is not known (caption_text), or is cut by
+    a page break where it is not certain whether the next page goes on with it. {} without agenda_captions or without
+    an end line."""
     ac = cfg.agenda_captions
     if ac is None:
         return {}
     raw_pages = [[INVISIBLE.sub("", raw).replace("\u00a0", " ").rstrip() for raw in p.splitlines()] for p in pages]
     per_page = [[t.strip() for t in lines] for lines in raw_pages]
+    # the agenda proper ends at its adjournment entry, within its first max_pages pages and before the first page
+    # that opens like a packet document (its first printed line an item number: "ORDINANCE 56-2021-2022"); the packet
+    # (ordinances, earlier minutes, which print numbered items too) is never read. No such line: no caption.
+    end = None
+    for n, lines in enumerate(per_page[:ac.max_pages]):
+        first = next((t for t in lines if t and not PAGE_MARK_RE.match(t)), "")
+        if n and cfg.item_number.match(first):
+            break
+        j = next((j for j, t in enumerate(lines) if ac.end.match(t)), None)
+        if j is not None:
+            end = (n, j)
+            break
+    if end is None:
+        return {}
+    per_page = per_page[:end[0] + 1]
+    per_page[-1] = per_page[-1][:end[1] + 1]
     committees = set(ac.committee_names)
     tops: dict = {}                                  # a page's first printed line -> pages (a running header)
     for n, lines in enumerate(per_page):
@@ -854,14 +885,9 @@ def agenda_captions(pages: list[str], cfg: AgendaCenterConfig) -> dict:
             return STOP if hang else UNSURE
         return STOP
 
-    # the agenda proper ends at its adjournment entry; what follows is the packet (ordinances, earlier minutes, which
-    # print item numbers too). An agenda without that line gives no caption.
-    end = next(((n, j) for n, lines in enumerate(per_page) for j, t in enumerate(lines) if ac.end.match(t)), None)
-    if end is None:
-        return {}
     out: dict = {}
-    for p0, lines in enumerate(per_page[:end[0] + 1]):
-        for j0, t in enumerate(lines if p0 < end[0] else lines[:end[1]]):
+    for p0, lines in enumerate(per_page):
+        for j0, t in enumerate(lines):
             m = ac.entry.match(t)
             num = cfg.item_number.match(t[m.end():]) if m else None
             if not num:
@@ -885,9 +911,11 @@ def agenda_captions(pages: list[str], cfg: AgendaCenterConfig) -> dict:
                 was = indent(p, j)
                 j += 1
             raw = " ".join(parts)
+            # unsure, one entry for several items, or no caption it can be sure of: the entry is kept as None, so a
+            # number with such an entry is never titled from this agenda (city_build.agenda_titles: ambiguous)
             if not sure or re.match(r"\s*(?:,|&|and\b)", raw) or cfg.item_number.match(raw.strip()):
-                continue                              # unsure, or one entry for several items: no caption
-            caption = caption_text(raw, ac, committees)
-            if caption:
-                out.setdefault((num.group(1).lower(), num.group(2)), []).append((caption, p0 + 1))
+                caption = None
+            else:
+                caption = caption_text(raw, ac, committees) or None
+            out.setdefault((num.group(1).lower(), num.group(2)), []).append((caption, p0 + 1))
     return out

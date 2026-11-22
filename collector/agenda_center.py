@@ -114,6 +114,7 @@ class AgendaCaptions:
     the caption's joined text; nothing here is a guess about what a caption says."""
     entry: re.Pattern                 # a lettered or numbered agenda entry at the start of a line ("A.   ", "7. ")
     end: re.Pattern                   # the entry that ends the agenda proper ("16) ADJOURNMENT"); the packet follows
+    max_pages: int                    # the end entry is on one of the first max_pages pages, or there is no caption
     committee_heading: re.Pattern     # a section heading naming a committee (group `name`)
     committee_names: tuple            # committees a recommendation note may name, besides the agenda's own headings
     committee_word: str               # the word (regex) that ends a recommendation note's committee names
@@ -123,11 +124,11 @@ class AgendaCaptions:
 
 
 def _agenda_captions(raw) -> AgendaCaptions | None:
-    """agenda_captions: {entry, end, committee_heading, committee_names, committee_word, notes, sponsor_titles,
+    """agenda_captions: {entry, end, max_pages, committee_heading, committee_names, committee_word, notes, sponsor_titles,
     sponsor_kept_after}, all required when the key is present; absent, no caption is read."""
     if raw is None:
         return None
-    keys = {"entry", "end", "committee_heading", "committee_names", "committee_word", "notes", "sponsor_titles",
+    keys = {"entry", "end", "max_pages", "committee_heading", "committee_names", "committee_word", "notes", "sponsor_titles",
             "sponsor_kept_after"}
     if not isinstance(raw, dict) or set(raw) != keys:
         raise AgendaCenterConfigError(f"agenda-center.yml: agenda_captions needs exactly {', '.join(sorted(keys))}")
@@ -138,13 +139,15 @@ def _agenda_captions(raw) -> AgendaCaptions | None:
         raise AgendaCenterConfigError("agenda-center.yml: agenda_captions.committee_names must be a list of names")
     if not (isinstance(notes, list) and notes):
         raise AgendaCenterConfigError("agenda-center.yml: agenda_captions.notes must be a list of regexes")
+    if type(raw["max_pages"]) is not int or raw["max_pages"] < 1:
+        raise AgendaCenterConfigError("agenda-center.yml: agenda_captions.max_pages must be a whole number, 1 or more")
     heading = _rx(raw["committee_heading"], "agenda_captions.committee_heading", 0)
     if "name" not in heading.groupindex:
         raise AgendaCenterConfigError("agenda-center.yml: agenda_captions.committee_heading needs a group (?P<name>)")
     for key in ("committee_word", "sponsor_titles"):
         _rx(raw[key], f"agenda_captions.{key}", 0)            # checked here; used inside larger patterns
     return AgendaCaptions(entry=_rx(raw["entry"], "agenda_captions.entry", 0), end=_rx(raw["end"], "agenda_captions.end"),
-                          committee_heading=heading,
+                          max_pages=raw["max_pages"], committee_heading=heading,
                           committee_names=tuple(n.strip() for n in names), committee_word=raw["committee_word"],
                           notes=tuple(_rx(n, f"agenda_captions.notes[{i}]", 0) for i, n in enumerate(notes)),
                           sponsor_titles=raw["sponsor_titles"], sponsor_kept_after=frozenset(kept))

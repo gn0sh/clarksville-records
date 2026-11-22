@@ -42,6 +42,9 @@ def test_every_numbered_entry_of_each_fixture_agenda_gives_one_caption(caps):
                                                      "2024-01-04": 27, "2025-07-01": 23, "2025-09-04": 27,
                                                      "2026-01-08": 16, "2026-05-07": 18, "2026-07-02": 14}
     assert all(len(v) == 1 for c in caps.values() for v in c.values())       # no number printed twice
+    # one entry ends with a titled name that may be its own words: no caption, never a fragment
+    assert [(d, k) for d, c in caps.items() for k, v in c.items() if v[0][0] is None] == [
+        ("2023-06-01", ("resolution", "67-2022-23"))]
 
 
 def test_caption_is_verbatim_with_its_labels_and_without_the_planning_commission_note(caps):
@@ -138,9 +141,8 @@ def test_a_page_break_before_the_next_entry_ends_the_caption(caps):
                                                  "2023-2024 Annual Action Plan, and the FY 2023-2024 application for "
                                                  "community development block grant funds and home investments "
                                                  "partnership program funds"),
-    ("2023-06-01", ("resolution", "67-2022-23"), "A Resolution requesting the Mayor to call three sessions of the City "
-                                                 "Council as a “Committee of the Whole” to participate in vision "
-                                                 "sessions"),
+    # "... vision sessions Councilperson Karen Reynolds": a sponsor or the caption's own words, not known
+    ("2023-06-01", ("resolution", "67-2022-23"), None),
 ])
 def test_agenda_center_layouts(caps, date, key, caption):
     assert [c for c, _ in caps[date][key]] == [caption]
@@ -163,15 +165,48 @@ def test_a_committee_note_of_an_unknown_name_leaves_no_caption(cfg):
     names = tuple(n for n in cfg.agenda_captions.committee_names if n != "Designations")
     c2 = dataclasses.replace(cfg, agenda_captions=dataclasses.replace(cfg.agenda_captions, committee_names=names))
     caps = agenda_captions(agenda("2025-09-04"), c2)
-    assert ("resolution", "18-2025-26") not in caps and ("resolution", "17-2025-26") in caps
+    assert caps[("resolution", "18-2025-26")] == [(None, 5)] and caps[("resolution", "17-2025-26")][0][0]
 
 
-@pytest.mark.parametrize("before,kept", [("vision sessions", False), ("Lincoln Homes. ", False),
-                                         ("a resolution honoring", True), ("the service of", True)])
-def test_a_bare_titled_name_is_cut_unless_the_caption_leads_into_it(cfg, before, kept):
+@pytest.mark.parametrize("raw,caption", [
+    # cut: after a sentence's end, or right before a structural note (cut, or in parentheses after the name)
+    ("A Resolution approving Lincoln Homes. Councilperson Karen Reynolds", "A Resolution approving Lincoln Homes."),
+    ("An Ordinance on housing Councilperson Holleman Page 243", "An Ordinance on housing"),
+    ("A Resolution on zoning to R-4 Councilperson Marquis (Requires 3/4 majority)", "A Resolution on zoning to R-4"),
+    # the caption's own words: kept whole
+    ("A Resolution electing a Mayor Pro Tem", "A Resolution electing a Mayor Pro Tem"),
+    ("A Resolution recognizing outgoing Councilman Joe Smith", "A Resolution recognizing outgoing Councilman Joe Smith"),
+    ("A resolution honoring Councilperson Karen Reynolds", "A resolution honoring Councilperson Karen Reynolds"),
+    ("A Resolution honoring Mayor Joe Pitts Page 12", "A Resolution honoring Mayor Joe Pitts"),
+    # not known: no caption, never a fragment ("... supporting Montgomery County")
+    ("A Resolution supporting Montgomery County Mayor Wes Golden", None),
+    ("A Resolution on vision sessions Councilperson Karen Reynolds", None),
+])
+def test_a_bare_titled_name_is_never_cut_to_a_fragment(cfg, raw, caption):
     ac_ = cfg.agenda_captions
-    text = caption_text(f"A Resolution {before} Councilperson Karen Reynolds", ac_, set(ac_.committee_names))
-    assert text.endswith("Karen Reynolds") is kept
+    assert (caption_text(raw, ac_, set(ac_.committee_names)) or None) == caption
+
+
+def test_the_end_line_must_come_before_the_packet(cfg):
+    """captions/packet-read: an agenda that prints no adjournment entry of its own is not read, even when a packet
+    page after it (a reprinted ordinance or minutes) prints one; nor past max_pages."""
+    agenda_page = "1) CALL TO ORDER\n\n   1. ORDINANCE 5-2021-22 (First Reading) Amending a thing Page 7\n"
+    packet = "                    ORDINANCE 5-2021-22\n\nAN ORDINANCE AMENDING A THING\n\n16) ADJOURNMENT\n"
+    assert agenda_captions([agenda_page, packet], cfg) == {}
+    late = [agenda_page] + ["   (continued)\n"] * cfg.agenda_captions.max_pages + ["16) ADJOURNMENT\n"]
+    assert agenda_captions(late, cfg) == {}
+    assert agenda_captions([agenda_page, "16) ADJOURNMENT\n"], cfg) == {
+        ("ordinance", "5-2021-22"): [("(First Reading) Amending a thing", 1)]}
+
+
+def test_committee_headings_after_the_end_line_are_not_read(cfg):
+    """A committee named only by a heading in the packet is unknown: its note leaves the entry with no caption."""
+    agenda_page = ("1) CALL TO ORDER\n\n   1. ORDINANCE 6-2021-22 (First Reading) Buying a boat. Harbor Committee: "
+                   "Approval\n\n16) ADJOURNMENT\n")
+    packet = "9) HARBOR COMMITTEE Councilperson A Person\n"
+    assert agenda_captions([agenda_page, packet], cfg) == {("ordinance", "6-2021-22"): [(None, 1)]}
+    assert agenda_captions([agenda_page.replace("16) ADJOURNMENT", "9) HARBOR COMMITTEE Chair\n\n16) ADJOURNMENT")],
+                           cfg) == {("ordinance", "6-2021-22"): [("(First Reading) Buying a boat.", 1)]}
 
 
 FLUSH = ["   1.   ORDINANCE 10-2021-22 (First Reading) Amending the Zoning Ordinance and\n"
@@ -184,7 +219,7 @@ def test_a_flush_left_caption_cut_by_a_page_break_is_no_caption(cfg):
     """A flush-left layout (2021) prints a caption's lines at its label's column, so a capitalised first line on the
     next page may or may not go on with it: no caption rather than half of one."""
     caps = agenda_captions(FLUSH, cfg)
-    assert ("ordinance", "10-2021-22") not in caps
+    assert caps[("ordinance", "10-2021-22")] == [(None, 1)]
     assert caps[("ordinance", "11-2021-22")] == [("(First Reading) Authorizing a thing", 2)]
 
 
@@ -205,7 +240,8 @@ def test_labels_alone_are_no_caption(cfg):
 def test_one_entry_for_two_items_gives_neither_a_caption(cfg):
     page = ("     A.   RESOLUTION 10-2025-26 and RESOLUTION 11-2025-26 Resolutions approving two things\n\n"
             "     B.   RESOLUTION 12-2025-26 RESOLUTION 13-2025-26 A Resolution\n\n14. Adjournment\n")
-    assert agenda_captions([page], cfg) == {}
+    assert agenda_captions([page], cfg) == {("resolution", "10-2025-26"): [(None, 1)],
+                                            ("resolution", "12-2025-26"): [(None, 1)]}
 
 
 def test_no_captions_without_the_config_key(cfg):
@@ -218,7 +254,8 @@ def test_agenda_captions_config_is_checked():
                 {**raw["agenda_captions"], "committee_heading": r"^\d+\.\s+(.+) Committee"},
                 {**raw["agenda_captions"], "entry": "("},
                 {k: v for k, v in raw["agenda_captions"].items() if k != "end"},
-                {**raw["agenda_captions"], "sponsor_kept_after": [True]}):
+                {**raw["agenda_captions"], "sponsor_kept_after": [True]},
+                {**raw["agenda_captions"], "max_pages": 0}):
         with pytest.raises(ac.AgendaCenterConfigError):
             ac.parse_config({**raw, "agenda_captions": bad})
 
@@ -360,7 +397,23 @@ def test_two_different_captions_for_one_number_give_no_title(built):
     assert it["title"] == "" and "title_source" not in it
     assert summary["agenda_titles"]["ambiguous"] == [{"item_id": "ordinance-96-2025-26",
                                                       "meeting_id": "2026-08-06-regular",
-                                                      "source_id": f"src-{sha(3)[:12]}", "pages": [1]}]
+                                                      "source_id": f"src-{sha(3)[:12]}", "pages": [1],
+                                                      "reason": "its entries print different captions"}]
+
+
+def test_an_entry_with_no_sure_caption_makes_the_number_ambiguous(cfg):
+    """captions/ambiguous-miss: one entry of the number gives no caption (None), another one does: no title, and
+    the report says why."""
+    rows, store, of = setup()
+    unsure = AGENDA_AUG.replace("An Ordinance approving another thing", "An Ordinance approving one thing") \
+        .replace("     C.   ORDINANCE 09-2025-26", "     C.   ORDINANCE 96-2025-26 and RESOLUTION 1-2025-26 Two\n\n"
+                                                    "     E.   ORDINANCE 09-2025-26")
+    text = {sha(1): agenda("2026-07-02"), sha(2): [MINUTES_JUL], sha(3): [unsure], sha(4): [MINUTES_AUG]}
+    of2 = lambda path: text[Path(path).stem]                                         # noqa: E731
+    facts, summary = build(cfg, rows, store, parse=lambda p, c: parse_text(of2(p), c), inspect=lambda p: (3, "text"),
+                           pages=of2)
+    assert items_of(facts)["ordinance-96-2025-26"]["title"] == ""
+    assert [a["reason"] for a in summary["agenda_titles"]["ambiguous"]] == ["an entry for it gives no caption"]
 
 
 def test_only_the_exact_number_matches(built):
