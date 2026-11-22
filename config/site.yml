@@ -412,6 +412,12 @@ swapped_districts: [19, 20]
 # PDF prints them the other way round). Cited by the map caption and the seat 19/20 pages.
 swap_source: "https://montgomerytn.gov/storage/departments/election/Elected%20Officials%20List.pdf#page=9"
 
+# note-titles: an item title the minutes do not print is the caption its meeting's agenda prints (facts
+# item.title_source). Wherever such a title is shown it carries this cite, linked to that agenda page ({page}).
+title_source_text: "title as printed in the agenda, p. {page}"
+# The same in a feed entry's summary ({url}: the agenda page).
+title_source_feed: "Title as printed in the agenda, page {page}: {url}."
+
 # Item type rule (design 5.4), mechanical and the same for every item; rendered on the About page. An item matches a
 # type when its number starts with one of the prefixes, or its verbatim title contains one of the words (any case).
 # AB- is not mapped: its meaning is still to be confirmed from the agendas (design Q4). "ORDINANCE " and "RESOLUTION "

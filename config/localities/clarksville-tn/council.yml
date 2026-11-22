@@ -39,8 +39,13 @@ kind_labels:
   public-hearing: Public hearing
   other: Other meeting
 
-# Shown for an item whose title the minutes reader could not take from the minutes (its number is still shown).
+# Shown for an item whose title the minutes reader could not take from the minutes or its meeting's agenda (its
+# number is still shown).
 untitled_item: Title not read from the minutes
+
+# The lede of the items pages (council_items_year.html.j2), after the council's name. A title the minutes do not print
+# is the agenda's caption (note-titles) and carries its agenda cite (site.yml title_source_text).
+items_lede: "Each item shows every appearance in the minutes, oldest first. A title the minutes do not print is shown as its meeting's agenda prints it, linked to that agenda page. Items are linked by their official number; items without a number are linked only when the title matches exactly, and say so."
 
 # Why a held roll call is not confirmed (city-verify V5, docs/architecture/city-council.md "Launch treatment"): one
 # fixed sentence per check, the same for every member, shown in place of "this page was hard to read" (most city

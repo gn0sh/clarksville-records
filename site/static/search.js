@@ -168,7 +168,9 @@
     }
     var html = '<li class="result"><p class="r-kind">' + esc(parts.join(" · ")) + "</p>";
     html += '<p class="r-title"><a href="' + esc(r.h) + '">' + (r.n ? "<strong>" + mark(r.n, toks) + "</strong> " : "") +
-      mark(r.k === "meeting" ? String(r.t).replace(/^\d{4}-\d{2}-\d{2}(?=, )/, dayWords) : r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="' + esc(officialHref(r.ho)) + '">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
+      mark(r.k === "meeting" ? String(r.t).replace(/^\d{4}-\d{2}-\d{2}(?=, )/, dayWords) : r.t, toks) + "</a>" +
+      (r.ts ? ' <span class="title-cite">(<a href="' + esc(r.ts.u) + '" target="_blank" rel="noopener noreferrer" data-title-source>' +
+        esc(r.ts.l) + '<span class="sr-only"> (opens the agenda PDF in a new tab)</span></a>)</span>' : "") + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="' + esc(officialHref(r.ho)) + '">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
       (r.z ? '<p class="r-zoning">' + mark(r.z, toks) + "</p>" : "") +
       (r.x ? '<p class="r-zoning">' + mark(r.x, toks) + "</p>" : "");
     var meta = "";

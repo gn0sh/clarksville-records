@@ -385,7 +385,8 @@ def meetings_year(year: str, cix: CouncilIndex) -> dict:
 
 
 def items_year(year: int, cix: CouncilIndex) -> dict:
-    return {**views.items_year(year, cix), "years": cix.item_years(), "body": cix.body_name}
+    return {**views.items_year(year, cix), "years": cix.item_years(), "body": cix.body_name,
+            "lede": cix.cfg["items_lede"]}
 
 
 def member(official_id: str, cix: CouncilIndex) -> dict:

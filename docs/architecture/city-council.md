@@ -189,6 +189,56 @@ None may re-resolve a printed name; each reads `official_id` (null when held).
 | One-vote check | `collector/invariants.py` `one_vote_violations` | votes per (item, roll call) |
 | QA spot check | `qa/spot_check.py` `candidates` | the names shown to the checker |
 
+## Item titles from the agenda (note-titles, 2026-11-22)
+
+Most minutes print a vote's item with only its number ("ORDINANCE 95-2025-26"), so those items had `title: ""`. The
+meeting's own stored agenda prints the caption under each number. **Rule:** after every meeting is read
+(`city_build.agenda_titles`), an item linked by number whose title is still empty takes, verbatim, the caption that the
+agenda (`agenda_source_id`, text layer only) of a meeting that voted on it prints for exactly that kind and number:
+the first such meeting by date whose agenda has one caption for it. Two entries for the number with different captions
+give nothing for that agenda (run report `agenda_titles.ambiguous`); no entry gives nothing; no fuzzy match
+("9-2025-26" never matches "09-2025-26"). What counts as an entry, where a caption ends and which trailing notes
+(planning commission, committee or board recommendation, sponsor, the packet page "Page 76") are cut is per-locality
+config, `agenda-center.yml agenda_captions`, read by `city_minutes.agenda_captions`; the reading labels "(FIRST
+READING)" and "[ZONING CASE ...]" stay, as the minutes' titles keep "(First Reading)". A title any minutes print is
+never replaced. Only entries before the agenda's adjournment entry count, and that entry must be on one of the first
+`max_pages` pages, before any page that opens like a packet document (Agenda Center files carry a packet after it
+that reprints earlier minutes with numbered items); an agenda without it gives none. Committee headings are read only
+up to it.
+
+Fail closed, never a guess or a fragment: no caption when a committee or board note is left whose name is neither
+configured nor an agenda heading (where it starts is not known), or when a page break cuts a caption in a flush-left
+layout (2021) and the next page's first line may or may not go on with it. A titled name with no bracket at the end
+is cut as a sponsor only after a sentence's end or right before a structural note (a cut "Page N", committee or RPC
+note, or a parenthetical after it), and not after a word of `sponsor_kept_after`; with no such mark it is kept whole
+after such a word ("electing a Mayor Pro Tem"), else no caption ("supporting Montgomery County Mayor Wes Golden");
+before a structural note, a capitalised word before the name also gives no caption ("... County Mayor X Page 9").
+Such an entry is kept as None, so its number counts as ambiguous for that agenda (`ambiguous[].reason`).
+
+**Facts contract (additive):** such an item carries `title_source: {kind: "agenda", source_id, page, meeting_id}`
+(schema `item.title_source`; `page` is where the entry starts); an item without it has the minutes' title (or none).
+Wherever such a title is shown it carries the cite "title as printed in the agenda, p. N" (site.yml
+`title_source_text`) linked to that page (`views.Index.title_src`), never the item's first event (the minutes).
+
+Unchanged: ids, roll calls, votes, motions, events, verification checks and counts, the gates. The shrink guard keys
+items by number (`item_key`), so titles appearing is no loss; `keep_documents` gives an item whose `title_source`
+cites a source or meeting the keep took out the committed item's title, else none (as for `zoning`).
+
+| Consumer | Where | Reads |
+|---|---|---|
+| Reference check | `sitegen/build.py` `check_references` | `title_source.source_id` and `.meeting_id` exist |
+| Pages | `views.Index.title_src` -> `item_ref` (`_macros` `item_link`: meeting, member, vote, today and history pages), `items_year` (`items_year.html.j2` under the heading; council lede `council.yml items_lede`) | the cite beside the title |
+| Search | `views.body_records` `ts` -> `static/search.js` | the cite beside the result title |
+| Feeds | `feeds._topic_entries` summary (site.yml `title_source_feed`) | the agenda page link |
+| CSV export | `collector/export.py` `items.csv` `title_source_url`, `title_source_page` | the agenda page that prints the title |
+| Item types | `sitegen/views.py` `item_types` (words in the title) | an agenda caption with "zoning" makes the item `rezoning` |
+| Run report | `build/city-report.json` `agenda_titles` {untitled, filled, ambiguous, agendas_read} | counts |
+
+Tests: `collector/tests/test_city_agenda_titles.py`, on the text layer of six CivicClerk agendas (2024-2026) and
+three Agenda Center agendas (2017, 2021, 2023; three layouts), `collector/tests/fixtures/city/agenda_<date>.txt`. On
+those nine meetings 109 of the 113 untitled items voted there get a caption; left empty: the minutes' misprint
+"ORDINANCE 43-2025-25" and three entries ending in a titled name whose role is not known (fail closed).
+
 ## Verified-rate plan (problem family `city-verify`, 2026-11-11)
 
 Baseline (committed facts at 255039b): 1,756 of 2,235 city roll calls verified (78.6%); 2026 14 of 83. AC-P1 needs 90%.

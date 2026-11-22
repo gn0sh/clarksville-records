@@ -212,7 +212,23 @@ def keep_documents(new: dict, old: dict, kept: list[dict]) -> dict:
                 o = oz.get(name)
                 fixed[name] = o if o is not None and o.get("source_id") in published else None
         out["items"][n] = {**it, "zoning": fixed}
-    dates = [m["date"] for m in out["meetings"] if m.get("date")]
+    # note-titles, the same rule for a title read from an agenda (title_source): it may cite a source or meeting the
+    # keep dropped; it then takes the committed item's title (when its own citation is published), else none
+    shown = {m["id"] for m in out["meetings"]}
+
+    def cited(i: dict) -> bool:
+        t = i.get("title_source")
+        return not t or (t.get("source_id") in published and t.get("meeting_id") in shown)
+
+    for n, it in enumerate(out["items"]):
+        if cited(it):
+            continue
+        o = was.get(it["id"])
+        base = {k: v for k, v in it.items() if k != "title_source"}
+        out["items"][n] = ({**base, "title": o["title"], **({"title_source": o["title_source"]}
+                                                             if o.get("title_source") else {})}
+                           if o is not None and cited(o) else {**base, "title": ""})
+    dates =[m["date"] for m in out["meetings"] if m.get("date")]
     if dates and isinstance(new.get("coverage"), dict):       # the published meetings' range, kept ones included
         out["coverage"] = {**new["coverage"], "from": min(dates), "to": max(dates)}
     return out

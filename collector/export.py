@@ -63,6 +63,10 @@ PROVENANCE: dict[str, str] = {
     "motions.seconded_by_raw": "stated",
     "items.id": "derived: id", "items.number": "stated", "items.title": "stated",
     "items.link_basis": "derived: item linking rule", "items.year": "derived: year the item is first seen",
+    # note-titles: a title the minutes do not print, read from that meeting's agenda (the source of its words)
+    "items.title_source": "derived: the agenda that prints the title, when no minutes print it",
+    "items.title_source_url": "derived: link to the agenda page that prints the title",
+    "items.title_source_page": _CITE["page"],
     "item_events.id": "derived: content position", "item_events.item_id": "derived: item linking rule",
     "item_events.meeting_id": "derived: id", "item_events.date": "stated",
     "item_events.type": "derived: fixed patterns", "item_events.label": "stated", "item_events.ref": "derived: id",
@@ -121,7 +125,7 @@ _J = {
                 "confirmed": _VER},
     "items": {**{k: PROVENANCE[f"items.{k}"] for k in ("id", "link_basis", "number", "title", "year")},
               # rezoning cases (collector/zoning.py): each field as printed on one cited page, or null
-              "zoning": "stated"},
+              "zoning": "stated", "title_source": PROVENANCE["items.title_source"]},
     # items.zoning.<field>: the value as the minutes print it (applicant, location verbatim; acreage the number with
     # `printed` its printed form; from/to zoning the printed district codes), with the cited source page
     **{f"items.zoning.{f}": {"value": "stated", "source_id": "derived: id", "page": _CITE["page"],
@@ -143,6 +147,8 @@ _J.update({
     "items.zoning": {f: "stated" for f in ("applicant", "location", "acreage", "from_zoning", "to_zoning")},
     "roll_calls.stated_tally": {k: "stated" for k in ("yes", "no", "abstain")},
     "officials.name_source": {"source_id": "derived: id", "page": _CITE["page"], "quote": "stated"},
+    "items.title_source": {"kind": "derived: the kind of document cited", "source_id": "derived: id",
+                           "page": _CITE["page"], "meeting_id": "derived: id"},
     "meetings.also_listed": {"source": "derived: the other listing", "title": "stated",
                              "agenda_url": "derived: link to the listed agenda file",
                              "minutes_url": "derived: link to the listed minutes file",
@@ -312,9 +318,16 @@ def tables(facts: dict, all_facts: dict, internal: bool = False, seats: list[dic
     first = {}
     for e in sorted(facts["item_events"], key=lambda e: (e["date"], e["page"], e["order"])):
         first.setdefault(e["item_id"], e)
+    def title_source(i):
+        ts = i.get("title_source")
+        if not ts:
+            return {}
+        return {"title_source_url": f"{src[ts['source_id']]['url']}#page={ts['page']}", "title_source_page": ts["page"]}
+
     out["items"] = _csv([dict(i, **(cite(first[i["id"]]["source_id"], first[i["id"]]["page"]) if i["id"] in first
-                                    else {})) for i in facts["items"]],
-                        ["id", "number", "title", "link_basis", "year"] + SRC_COLS)
+                                    else {}), **title_source(i)) for i in facts["items"]],
+                        ["id", "number", "title", "link_basis", "year", "title_source_url", "title_source_page"]
+                        + SRC_COLS)
     out["item_events"] = _csv([dict(e, **cite(e["source_id"], e["page"])) for e in facts["item_events"]],
                               ["id", "item_id", "meeting_id", "date", "type", "label", "ref", "order"] + SRC_COLS)
     out["sources"] = _csv([dict(s, source_url=s["url"], source_sha256=s["sha256"]) for s in facts["sources"]],

@@ -65,6 +65,54 @@ item_number: '\b(ORDINANCE|RESOLUTION)\s+(\d{1,3}-\d{4}-\d{2})\b'
 # The item kinds as the minutes name them in a sentence ("adopt this ordinance", "these resolutions"; any case).
 # A vote is linked to a numbered item only when what it is on agrees with the item: see collector/city_minutes.py.
 item_kinds: [ordinance, resolution]
+# Agenda captions (note-titles; docs/architecture/city-council.md "Item titles from the agenda"). Most minutes print a
+# vote's item with only its number; the meeting's own stored agenda prints the caption under that number:
+#   A.   ORDINANCE 95-2025-26 (FIRST READING) [ZONING CASE Z-22-2025]
+#        An Ordinance amending the zoning code and map of the City of Clarksville, ... District. RPC: Approval/Approval
+# An item the minutes leave untitled takes, verbatim, the caption of the one entry of that meeting's agenda that
+# starts with `entry` and then exactly the item's number (item_number above). The caption is the rest of that line
+# and the lines under it, joined with single spaces, up to a blank line or the next entry. A caption cut by a page
+# break runs on at the next page's first line (a page number or running header aside) when that line is no entry and
+# sits right of that page's entry labels, or starts in lower case, a digit or punctuation. The reading and case
+# labels printed with it ("(FIRST READING)", "[ZONING CASE Z-22-2025]") stay, as the minutes' own titles keep
+# "(First Reading)". Trailing notes are not the caption and are cut: the planning commission's recommendation
+# (`notes`, from its first match to the end), a committee or board recommendation ("Finance Committee: Approval";
+# the committees are the agenda's own section headings matching committee_heading, plus committee_names) and a
+# sponsor ("[Councilman Ambar Marquis]", "(Mayor McMillan; ...)", or a bare "Mayor Joe Pitts" at the end; see
+# sponsor_kept_after). No title, never a guess, when: two entries print one number with different captions; none
+# does; the caption still ends with a committee or board note whose name is not known (configured or a heading); or
+# a page break cuts it and the next page's first line may or may not go on with it (a flush-left layout, 2021).
+# Checked on the CivicClerk agendas of 2024-01-04, 2025-07-01, 2025-09-04, 2026-01-08, 2026-05-07, 2026-07-02 and
+# the Agenda Center agendas of 2017-06-29, 2021-11-04 and 2023-06-01 (collector/tests/fixtures/city/agenda_<date>.txt).
+agenda_captions:
+  # CivicClerk "A.   ORDINANCE ..." under "7. Finance Committee: ..."; Agenda Center "1.   ORDINANCE ..." (2017,
+  # 2021, 2023) under "8) FINANCE COMMITTEE Chairperson ..."
+  entry: '^(?:[A-Z]\.\s{2,}|\d{1,2}[.)]\s+)(?=\S)'
+  # the agenda proper ends at its adjournment entry ("16) ADJOURNMENT", "14. Adjournment"; any case); a packet of
+  # ordinances and earlier minutes follows it in Agenda Center files (2017: 92 pages, 2021: 252), never read
+  end: '^\d{1,2}[.)]\s+Adjournment\b'
+  # ... on one of the first max_pages pages, before the first page that opens like a packet document (its first line
+  # an item number as item_number reads it, "ORDINANCE 77-2016-17"); else no caption. A packet page that prints its
+  # number another way ("ORDINANCE 56-2021-2022") is guarded only by max_pages (the agendas here print 1-6 pages)
+  max_pages: 10
+  committee_heading: '^\d{1,2}[.)]\s+(?P<name>[A-Z][^:]*?)\s+(?:Committee|COMMITTEE)\b'
+  committee_names: [Designations, Finance, Gas & Water, Neighborhood & Community Services, Parks & Recreation,
+                    Public Safety, Transportation-Streets-Garage]
+  # "Finance Committe: Approval" is printed too (2025-09-04), and "(Gas & Water Board: Approval)" (2026-01-08)
+  committee_word: 'Committe{1,2}s?|Boards?'
+  # the planning commission's recommendation; the packet page an Agenda Center agenda prints after an entry
+  # ("... District RPC: Approval/Approval Page 76", "... Pages 213- 240", 2021)
+  notes: ['\bRPC\s*:', '\s+Pages?\s+\d{1,3}(?:\s*-\s*\d{1,3})?\s*$']
+  sponsor_titles: 'Council(?:man|woman|member|person|lady|or)s?|Mayor(?:\s+Pro\s+Tem)?'
+  # a titled name at the end with no bracket is cut as a sponsor only after a sentence's end or right before a
+  # structural note ("... housing Councilperson Holleman Page 243", 2021; not after a capitalised word, "... County
+  # Mayor Pitts Page 250": then no caption), and not after one of these words; with no
+  # such mark it is kept as the caption's own after one of these words ("electing a Mayor Pro Tem"), else the entry
+  # gives no caption (city_minutes.caption_text). Quoted: YAML reads a bare on/or as true.
+  sponsor_kept_after: ["about", "after", "and", "appoint", "appointing", "as", "at", "before", "by",
+                      "congratulating", "for", "former", "from", "honor", "honoring", "in", "late", "memory",
+                      "naming", "of", "on", "or", "recognize", "recognizing", "the", "thanking", "to", "upon", "with",
+                      "a", "an", "elect", "electing", "incoming", "new", "outgoing", "retiring"]
 # Votes that are never on one numbered item, whatever item they follow: the motion, the lead-in to the vote or the
 # outcome sentence says so (case-insensitive). They are linked to their section heading.
 not_item_votes: '\badjourn|\bconsent\s+agenda\b|\bappoint'

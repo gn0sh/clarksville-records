@@ -123,6 +123,9 @@ def check_references(facts: dict) -> None:
         for name, f in (it.get("zoning") or {}).items():
             if f is not None:
                 need("sources", f["source_id"], f"item {it['id']} zoning {name}")
+        if it.get("title_source"):                      # note-titles: a title read from that meeting's agenda
+            need("sources", it["title_source"]["source_id"], f"item {it['id']} title_source")
+            need("meetings", it["title_source"]["meeting_id"], f"item {it['id']} title_source")
 
 
 def load_facts(facts_path: Path) -> dict:
