@@ -73,11 +73,14 @@ test('classify: recorded 1 Public Sq answer -> one match, the four layers presen
   assert.strictEqual(r.kind, 'one');
   assert.strictEqual(r.matched, '1 PUBLIC SQ, CLARKSVILLE, TN, 37040');
   assert.deepStrictEqual(plain(r.units), [
-    { id: 'place-4715160', layer: 'place', name: 'Clarksville city', funcstat: 'A', state: '47', cc: 'C1' },
-    { id: 'county-47125', layer: 'county', name: 'Montgomery County', funcstat: 'A', state: '47', cc: 'H1' },
-    { id: 'cousub-4712590886', layer: 'cousub', name: 'District 5', funcstat: 'N', state: '47', cc: 'Z1' },
-    { id: 'sdu-4703030', layer: 'sdu', name: 'Clarksville-Montgomery County School System', funcstat: 'E',
-      state: '47', cc: '' },
+    { id: 'place-4715160', layer: 'place', name: 'Clarksville city', base: 'Clarksville', funcstat: 'A', state: '47',
+      cc: 'C1' },
+    { id: 'county-47125', layer: 'county', name: 'Montgomery County', base: 'Montgomery', funcstat: 'A', state: '47',
+      cc: 'H1' },
+    // BASENAME "5" holds no letter: it is not a name this page would greet
+    { id: 'cousub-4712590886', layer: 'cousub', name: 'District 5', base: '', funcstat: 'N', state: '47', cc: 'Z1' },
+    { id: 'sdu-4703030', layer: 'sdu', name: 'Clarksville-Montgomery County School System',
+      base: 'Clarksville-Montgomery County School System', funcstat: 'E', state: '47', cc: '' },
   ]);
 });
 
@@ -96,6 +99,7 @@ test('governments: 1 Public Sq -> city, county, school district; District 5 (FUN
         official_label: 'county-site', reason: 'blocks-readers-cmcss', checked: '2026-11-16', reason_url: 'https://www.cmcss.net/' },
     ],
     notes: [],
+    place: 'Clarksville',
   });
   assert.strictEqual(N.label(PAGEDIR, 'reason.blocks-readers'), 'Its records site blocks automated readers.');
   // national/official-link-label-wrong-site: the CMCSS link is on the county's site, and its label says so
@@ -368,7 +372,60 @@ test('nothing listable: govs empty (RI county hidden by rule, cousub nonfunction
     unit('cousub', '4400759000', 'Providence city', 'N', 'C5')).units);
   assert.deepStrictEqual(r.govs, []);
   assert.deepStrictEqual(r.notes, ['note.no-city', 'note.no-county']);
-  assert.deepStrictEqual(plain(govsOf([])), { govs: [], notes: ['note.no-city'] });
+  assert.deepStrictEqual(plain(govsOf([])), { govs: [], notes: ['note.no-city'], place: '' });
+});
+
+// --- the greeting's name (docs/design/digest-warmth.md section 4) ----------------------------------------------------
+const placeOf = (...units) => govsOf(one(...units).units).place;
+
+test('greeting: city or town, else township or town (their BASENAME), else the county in full, else no name', () => {
+  // 1. an incorporated place: the Census's short name, as given
+  assert.strictEqual(placeOf(unit('place', '4164900', 'Salem city', 'A', 'C1', 'Salem'),
+    unit('county', '41047', 'Marion County', 'A', 'H1', 'Marion'),
+    unit('sdu', '4110820', 'Salem-Keizer School District 24J', 'E', undefined, 'Salem-Keizer School District 24J')), 'Salem');
+  // 2. no place: the township or town
+  assert.strictEqual(placeOf(unit('county', '42091', 'Montgomery County', 'A', 'H1', 'Montgomery'),
+    unit('cousub', '4209144976', 'Lower Merion township', 'A', 'T1', 'Lower Merion')), 'Lower Merion');
+  // a New England town moved to the city-or-town slot is listed first and greets the same way (AC2.11)
+  assert.strictEqual(placeOf(unit('cousub', '2501501325', 'Amherst town', 'A', 'T1', 'Amherst'),
+    unit('county', '25015', 'Hampshire County', 'N', 'H4', 'Hampshire')), 'Amherst');
+  // 3. no place and no town: the county, with its Census name in full (never its BASENAME alone)
+  assert.strictEqual(placeOf(unit('county', '41047', 'Marion County', 'A', 'H1', 'Marion'),
+    unit('sdu', '4110820', 'Salem-Keizer School District 24J', 'E')), 'Marion County');
+  // 4. only school districts, or nothing: no name
+  assert.strictEqual(placeOf(unit('sdu', '4110820', 'Salem-Keizer School District 24J', 'E', undefined, 'Salem-Keizer')), '');
+  assert.strictEqual(govsOf([]).place, '');
+  // a school district is never the greeting, whatever the answer's order
+  assert.strictEqual(placeOf(unit('sde', '3600003', 'Elm Elementary District', 'E', undefined, 'Elm'),
+    unit('place', '3651000', 'New York city', 'A', 'C1', 'New York')), 'New York');
+});
+
+test('greeting: the name is the Census BASENAME as given, never one this page trims; without it no name is greeted', () => {
+  const place = (name, base) => placeOf(unit('place', '4164900', name, 'A', 'C1', base),
+    unit('county', '41047', 'Marion County', 'A', 'H1', 'Marion'));
+  // no BASENAME in the answer: the place is first, so no name at all (the county is not greeted in its stead)
+  assert.strictEqual(place('Salem city', undefined), '');
+  for (const bad of ['', '   ', 7, null, {}, ['Salem']]) { assert.strictEqual(place('Salem city', bad), '', JSON.stringify(bad)); }
+  // a BASENAME that is not a part of the unit's own NAME is not printed
+  assert.strictEqual(place('Salem city', 'Portland'), '');
+  assert.strictEqual(place('Salem city', 'salem'), '');             // the case is the Census's, compared exactly
+  // a BASENAME with no letter is not a name ("District 5" has BASENAME "5")
+  assert.strictEqual(place('District 5', '5'), '');
+  // as given: case, spaces, hyphens and accents kept; controls and bidi marks cleaned like every Census string
+  assert.strictEqual(place('Winston-Salem city', 'Winston-Salem'), 'Winston-Salem');
+  assert.strictEqual(place('Española city', 'Española'), 'Española');
+  assert.strictEqual(place('St. Louis city', 'St. Louis'), 'St. Louis');
+  assert.strictEqual(place('Salem city', 'Sa\u202elem'), 'Salem');
+  assert.strictEqual(place('La Cañada Flintridge city', 'La Cañada Flintridge'), 'La Cañada Flintridge');
+  // the name is never cut from NAME here: a NAME with no BASENAME stays ungreeted even when it ends in " city"
+  assert.strictEqual(N.baseName(undefined, 'Salem city'), '');
+  assert.strictEqual(N.baseName('Salem', 'Salem city'), 'Salem');
+  // an alias target keeps the answering unit's own names
+  const r = govsOf([{ id: 'place-4715160', layer: 'place', name: 'Clarksville city', base: 'Clarksville', funcstat: 'A',
+    state: '47', cc: 'C1' }]);
+  assert.strictEqual(r.place, 'Clarksville');
+  // the cards carry no base name, so nothing new can be saved on the device
+  assert.ok(r.govs.every((g) => !('base' in g) && !('place' in g)));
 });
 
 test('order is place, county, cousub, then elementary, secondary, unified (UX) whatever the answer order', () => {

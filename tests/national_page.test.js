@@ -28,7 +28,7 @@ const BLOCKS = JSON.parse(execFileSync(process.env.PYTHON || 'python3', ['-c', [
   '       "requested": "requested.html", "form_action": note.get("form_action"),',
   '       "privacy_url": note.get("privacy_url"), "morning": "alerts.html#note"}',
   'print(json.dumps({"pagedir": n.embed_json(pd), "strings": n.embed_json(st), "config": n.embed_json(cfg),',
-  '                  "find": L["index.find"]}))',
+  '                  "find": L["index.find"], "lookedUp": L["lookup.looked-up"]}))',
 ].join('\n')], { cwd: ROOT, encoding: 'utf8' }));
 const STR = JSON.parse(BLOCKS.strings);
 const CFG = JSON.parse(BLOCKS.config);
@@ -140,7 +140,8 @@ function makePage(o) {
     Object.entries(attrs || {}).forEach(([k, v]) => n.setAttribute(k, v));
     return n;
   };
-  const wrap = mk(doc.body, 'div', null, { class: 'digest digest-entry', 'data-root': '../' });
+  // o.noFold: a page without the fold's parts (#digest-entry, #digest-folded, #digest-another): nothing folds
+  const wrap = mk(doc.body, 'div', o.noFold ? null : 'digest-entry', { class: 'digest digest-entry', 'data-root': '../' });
   const form = mk(wrap, 'form', 'digest-form', { class: 'addr-form' });
   form.hidden = true;
   mk(form, 'label', null, { for: 'digest-q' }).textContent = 'Your street address';
@@ -151,6 +152,14 @@ function makePage(o) {
   mk(form, 'p', 'digest-privacy');
   const result = mk(form, 'p', 'digest-result', { role: 'status', 'aria-live': 'polite' });
   const noscript = mk(wrap, 'p', 'digest-noscript');
+  let folded = null, another = null;
+  if (!o.noFold) {
+    folded = mk(wrap, 'div', 'digest-folded', { class: 'digest-folded' });
+    folded.hidden = true;
+    mk(folded, 'p').textContent = BLOCKS.lookedUp;
+    another = mk(folded, 'button', 'digest-another', { type: 'button', class: 'more-btn' });
+    another.textContent = STR['lookup.another'];
+  }
   const list = mk(wrap, 'div', 'digest-list', { tabindex: '-1' });
   list.hidden = true;
   const saved = mk(wrap, 'section', 'digest-saved');
@@ -186,7 +195,7 @@ function makePage(o) {
     clearTimeout(t) { if (t) { t.cleared = true; } } };
   const api = N.mount(env);
   const page = { doc, win, env, api, form, input, find, result, noscript, list, saved, storage, posts, counts, timers,
-    listeners, locationWrites };
+    listeners, locationWrites, wrap, folded, another };
   page.frames = () => tags(doc.body, 'iframe');
   page.submit = (address) => { if (address !== undefined) { input.value = address; } return fire(form, 'submit'); };
   /* The frame says "ready", then the parent's {address} is answered with `ans` (an object, or a word). */
@@ -208,7 +217,12 @@ function makePage(o) {
 // synthetic answers (same builders as tests/national.test.js)
 const LAYER = { place: 'Incorporated Places', county: 'Counties', cousub: 'County Subdivisions',
   sdu: 'Unified School Districts', sds: 'Secondary School Districts', sde: 'Elementary School Districts' };
-function unit(layer, geoid, name, funcstat) { return [layer, { GEOID: geoid, NAME: name, STATE: geoid.slice(0, 2), FUNCSTAT: funcstat }]; }
+// `cc`: unused here (kept so the calls read like tests/national_answers.js); `basename`: the unit's Census BASENAME
+function unit(layer, geoid, name, funcstat, cc, basename) {
+  const u = { GEOID: geoid, NAME: name, STATE: geoid.slice(0, 2), FUNCSTAT: funcstat };
+  if (basename !== undefined) { u.BASENAME = basename; }
+  return [layer, u];
+}
 function match(addr, ...units) {
   const geographies = {};
   for (const [layer, u] of units) { (geographies[LAYER[layer]] = geographies[LAYER[layer]] || []).push(u); }
@@ -372,7 +386,7 @@ test('several matches: "Which one is yours?" focused once, one button per match,
   fire(cls(p.list, 'digest-pick-btn')[1], 'click');
   none(p.frames());
   const h2 = tags(p.list, 'h2')[0];
-  assert.strictEqual(h2.textContent, STR['lookup.list-h']);
+  assert.strictEqual(h2.textContent, STR['lookup.greet-none']);     // this answer carries no BASENAME: no name greeted
   focusedOnce(p, m, h2);
   assert.ok(p.list.textContent.includes('Census matched: 100 MAIN ST, SALEM, MA, 01970'));
   // and "None of these" from a fresh picker
@@ -394,7 +408,8 @@ test('found (1 Public Sq): drawn on this page, URL and title never written, the 
   assert.deepStrictEqual(fr.posted, [[{ address: ADDRESS }, '*']]);   // the address went to the frame only
   assert.strictEqual(p.list.hidden, false);
   const h = tags(p.list, 'h2')[0];
-  assert.strictEqual(h.textContent, STR['lookup.list-h']);
+  assert.strictEqual(h.textContent, "Clarksville, here's who governs you.");
+  assert.strictEqual(h.textContent, STR['lookup.greet'].replace('{place}', 'Clarksville'));
   focusedOnce(p, n, h);                       // exactly one focus move
   none(p.doc.titleWrites);
   none(p.locationWrites);
@@ -424,6 +439,14 @@ test('cards: slot, Census name (h3), board, pill text, and each status\'s action
   const hrefs = tags(city, 'a').map((a) => [a.textContent, a.getAttribute('href')]);
   assert.deepStrictEqual(hrefs, [[STR['lookup.coming-up'], '../digest/tn/place-4715160.html'],
     [STR['lookup.full'], '../city/'], [STR['lookup.morning'], '../alerts.html#note']]);
+  // "See what's coming up" is the card's one primary action: the same button-styled link on every Covered card
+  for (const c of cards.slice(0, 2)) {
+    const primary = cls(c, 'digest-primary');
+    assert.strictEqual(primary.length, 1);
+    assert.strictEqual(primary[0].tagName, 'A');
+    assert.strictEqual(primary[0].textContent, STR['lookup.coming-up']);
+  }
+  none(cls(cards[2], 'digest-primary'));
   none(buttonNamed(city, STR['lookup.request']));   // no Request it on a covered card
   const school = cards[2];
   assert.ok(cls(school, 'digest-pill')[0].textContent.endsWith(STR['lookup.status-cant']));
@@ -447,7 +470,9 @@ test('nothing covered: the "None are covered yet" summary; not covered yet cards
   const p = makePage();
   p.submit('555 Court St NE, Salem, OR');
   p.answer(SALEM);
-  assert.strictEqual(cls(p.list, 'coverage')[0].textContent, 'We found 3 local governments. ' + STR['lookup.summary-none']);
+  // no card here carries an official link, so the sentence that says the cards link one is left out
+  assert.strictEqual(cls(p.list, 'coverage')[0].textContent,
+    "We found 3 local governments. We don't read any of these yet. Request the ones you want and we'll email you if one opens.");
   for (const c of p.cards()) {
     assert.strictEqual(c.getAttribute('data-status'), 'not-covered-yet');
     assert.ok(c.textContent.includes(STR['lookup.not-yet-line']));
@@ -963,7 +988,7 @@ test('summary: one government reads in the singular; with no email form the "Req
   p.submit('x');
   p.answer(one);
   assert.strictEqual(cls(p.list, 'coverage')[0].textContent,
-    STR['lookup.summary-found-one'] + ' ' + STR['lookup.summary-none-one']);
+    STR['lookup.summary-found-one'] + " We don't read this one yet. Request it and we'll email you if it opens.");
   const q = makePage();
   q.submit(ADDRESS);
   q.answer(answer(match('1 PUBLIC SQ', unit('place', '4715160', 'Clarksville city', 'A'))));
@@ -974,8 +999,151 @@ test('summary: one government reads in the singular; with no email form the "Req
     r.answer(ans);
     const t = cls(r.list, 'coverage')[0].textContent;
     assert.ok(!/Request/.test(t), t);
-    assert.ok(t === head + ' None are covered yet.' || t === head + ' It is not covered.', t);
+    assert.ok(t === head + " We don't read any of these yet." || t === head + " We don't read this one yet.", t);
   }
+});
+
+test('summary, nothing covered: three sentences; the "links" one only when every card has an official link', () => {
+  // the two labels have the shape the script reads: exactly three sentences, each ending in a full stop
+  for (const k of ['lookup.summary-none', 'lookup.summary-none-one']) {
+    assert.strictEqual((STR[k].match(/[^.]+\./g) || []).length, 3, k);
+    assert.ok(/\.$/.test(STR[k]) && !/\.\S/.test(STR[k]), k);
+  }
+  // one government we can't cover, with its official link: the whole label, word for word
+  const cant = answer(match('1 X ST', unit('sdu', '4703030', 'Clarksville-Montgomery County School System', 'E')));
+  const p = makePage();
+  p.submit('x');
+  p.answer(cant);
+  assert.strictEqual(tags(p.cards()[0], 'a').some((a) => /^https:/.test(a.getAttribute('href'))), true);
+  assert.strictEqual(cls(p.list, 'coverage')[0].textContent,
+    STR['lookup.summary-found-one'] + ' ' + STR['lookup.summary-none-one']);
+  // the same answer with no email form: the request sentence goes, the links sentence stays
+  const q = makePage({ config: { form_action: null, privacy_url: null } });
+  q.submit('x');
+  q.answer(cant);
+  assert.strictEqual(cls(q.list, 'coverage')[0].textContent, STR['lookup.summary-found-one'] +
+    " We don't read this one yet. Its card links to the government's own agenda page where we have the link.");
+  // several, one of them without a link: the links sentence is not said
+  const mixed = answer(match('1 X ST', unit('county', '41047', 'Marion County', 'A'),
+    unit('sdu', '4703030', 'Clarksville-Montgomery County School System', 'E')));
+  const r = makePage();
+  r.submit('x');
+  r.answer(mixed);
+  assert.strictEqual(cls(r.list, 'coverage')[0].textContent,
+    "We found 2 local governments. We don't read any of these yet. Request the ones you want and we'll email you if one opens.");
+});
+
+// --- the greeting and the fold (docs/design/digest-warmth.md section 4) ---------------------------------------------
+test('greeting: the Census matched line, then the h2 with the place by the rule, then the summary, in one block', () => {
+  const p = makePage();
+  p.submit(ADDRESS);
+  p.answer(PUBLIC_SQ);
+  const greet = cls(p.list, 'digest-greet');
+  assert.strictEqual(greet.length, 1);
+  assert.strictEqual(p.list.children[0], greet[0]);                      // the list starts with the greeting
+  assert.deepStrictEqual(greet[0].children.map((c) => [c.tagName, c.getAttribute('class')]),
+    [['P', 'addr-matched'], ['H2', null], ['P', 'coverage']]);
+  assert.strictEqual(greet[0].children[0].textContent, 'Census matched: 1 PUBLIC SQ, CLARKSVILLE, TN, 37040');
+  assert.strictEqual(greet[0].children[1].textContent, "Clarksville, here's who governs you.");
+  assert.strictEqual(tags(p.list, 'h2').length, 1);                      // one heading for the list
+  none(byText(p.list, STR['lookup.list-h']));                            // the old heading is not drawn
+  // the place name is page text only: never the title, the URL or storage (the saved list keeps the Census NAME)
+  none(p.doc.titleWrites);
+  none(p.locationWrites);
+  assert.deepStrictEqual([...p.storage.m.keys()], [LIST]);
+  assert.deepStrictEqual(JSON.parse(p.storage.m.get(LIST)).govs.map((g) => Object.keys(g)), [['id', 'name'], ['id', 'name'], ['id', 'name']]);
+  for (const [, v] of p.storage.writes) { assert.ok(!/"Clarksville"/.test(v) && !/governs/.test(v), v); }
+});
+
+test('greeting: the same sentence for every place; a county in full; no BASENAME or no government -> the fixed line', () => {
+  const heading = (ans) => { const p = makePage(); p.submit('x'); p.answer(ans); return tags(p.list, 'h2')[0].textContent; };
+  const said = (place) => STR['lookup.greet'].replace('{place}', place);
+  assert.strictEqual(STR['lookup.greet'], "{place}, here's who governs you.");
+  assert.strictEqual(STR['lookup.greet-none'], "Here's who governs this address.");
+  assert.strictEqual(heading(answer(match('1 X ST', unit('place', '4164900', 'Salem city', 'A', 'C1', 'Salem'),
+    unit('county', '41047', 'Marion County', 'A', 'H1', 'Marion')))), said('Salem'));
+  assert.strictEqual(heading(answer(match('1 X ST', unit('place', '2507000', 'Boston city', 'A', 'C5', 'Boston')))), said('Boston'));
+  assert.strictEqual(heading(answer(match('1 X ST', unit('county', '42091', 'Montgomery County', 'A', 'H1', 'Montgomery'),
+    unit('cousub', '4209144976', 'Lower Merion township', 'A', 'T1', 'Lower Merion')))), said('Lower Merion'));
+  assert.strictEqual(heading(answer(match('1 X ST', unit('county', '41047', 'Marion County', 'A', 'H1', 'Marion')))),
+    said('Marion County'));
+  // no BASENAME in the answer: no name, and never one cut from "Salem city" here
+  const none_ = heading(answer(match('1 X ST', unit('place', '4164900', 'Salem city', 'A', 'C1'),
+    unit('county', '41047', 'Marion County', 'A', 'H1', 'Marion'))));
+  assert.strictEqual(none_, STR['lookup.greet-none']);
+  // only a school district; and nothing listable at all
+  assert.strictEqual(heading(answer(match('1 X ST', unit('sdu', '4110820', 'Salem-Keizer School District 24J', 'E', undefined,
+    'Salem-Keizer School District 24J')))), STR['lookup.greet-none']);
+  assert.strictEqual(heading(answer(match('1 LAKE RD, X, RI', unit('cousub', '4400100000', 'Nowhere', 'N')))),
+    STR['lookup.greet-none']);
+  // markup in a BASENAME is text, like every Census string
+  const p = makePage();
+  p.submit('x');
+  p.answer(answer(match('1 X ST', unit('place', '4164900', '<b>Salem</b> city', 'A', 'C1', '<b>Salem</b>'))));
+  assert.strictEqual(tags(p.list, 'h2')[0].textContent, said('<b>Salem</b>'));
+  none(tags(p.list, 'b'));
+});
+
+test('fold: a result folds the page to one row; "Look up another address" (either button) and Forget bring the form back', () => {
+  const p = makePage();
+  assert.strictEqual(p.folded.hidden, true);
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), false);
+  p.submit(ADDRESS);
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), false);          // looking: not folded
+  p.answer(PUBLIC_SQ);
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), true);
+  assert.strictEqual(p.folded.hidden, false);
+  assert.strictEqual(p.folded.textContent.includes(BLOCKS.lookedUp), true);
+  // the folded row's button: unfolds, clears the list, focus to the input (once)
+  let n = p.doc.focusLog.length;
+  fire(p.another, 'click');
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), false);
+  assert.strictEqual(p.folded.hidden, true);
+  assert.strictEqual(p.list.hidden, true);
+  focusedOnce(p, n, p.input);
+  // the button under the list does the same
+  p.submit(ADDRESS);
+  p.answer(PUBLIC_SQ);
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), true);
+  n = p.doc.focusLog.length;
+  fire(buttonNamed(p.list, STR['lookup.another'])[0], 'click');
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), false);
+  assert.strictEqual(p.folded.hidden, true);
+  focusedOnce(p, n, p.input);
+  // Forget this list
+  p.submit(ADDRESS);
+  p.answer(PUBLIC_SQ);
+  fire(buttonNamed(p.list, STR['lookup.forget'])[0], 'click');
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), false);
+  assert.strictEqual(p.folded.hidden, true);
+});
+
+test('fold: the picker, the saved list and every look-up state but a result leave the page unfolded; no parts, no fold', () => {
+  const p = makePage();
+  p.submit('100 Main St');
+  p.answer(answer(match('A ST', unit('place', '4164900', 'Salem city', 'A')), match('B ST', unit('place', '2559105', 'Salem city', 'A'))));
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), false);          // the picker
+  fire(cls(p.list, 'digest-pick-btn')[0], 'click');
+  assert.strictEqual(p.wrap.hasAttribute('data-folded'), true);           // a picked match is a result
+  const s = makePage({ storage: new FakeStorage({ [LIST]: JSON.stringify({ v: 1, govs: [{ id: 'place-4715160', name: 'Clarksville city' }] }) }) });
+  assert.strictEqual(s.saved.hidden, false);
+  assert.strictEqual(s.wrap.hasAttribute('data-folded'), false);          // the saved list on arrival
+  assert.strictEqual(tags(s.saved, 'h2')[0].textContent, STR['lookup.saved-h']);   // and it greets no place
+  for (const ans of ['blocked', answer()]) {
+    const q = makePage();
+    q.submit('x');
+    q.answer(ans);
+    assert.strictEqual(q.wrap.hasAttribute('data-folded'), false);
+    assert.strictEqual(q.folded.hidden, true);
+  }
+  // a page without the fold's parts: the list is drawn the same, nothing throws
+  const bare = makePage({ noFold: true });
+  bare.submit(ADDRESS);
+  bare.answer(PUBLIC_SQ);
+  assert.strictEqual(tags(bare.list, 'h2')[0].textContent, "Clarksville, here's who governs you.");
+  assert.strictEqual(bare.wrap.hasAttribute('data-folded'), false);
+  fire(buttonNamed(bare.list, STR['lookup.another'])[0], 'click');
+  assert.strictEqual(bare.list.hidden, true);
 });
 
 test('election-office lines link election_url (under the list; nothing-listable has its own); missing -> no line', () => {

@@ -89,10 +89,12 @@ it out myself.
 - AC1.7 The page shows the Census notice word for word: "This product uses the Census Bureau Data API but is not
   endorsed or certified by the Census Bureau."
 - AC1.8 No account and no sign-in are needed to look up an address.
-- AC1.9 Above the address box, one or two plain sentences say who runs Daylight Digest and who pays for it, and that
-  it takes no ads and no political money. Brian confirms each fact in that line before M1 goes live. The line says
+- AC1.9 On the entry page, in view without opening anything, directly after the address card and its privacy lines,
+  one or two plain sentences say who runs Daylight Digest and who pays for it, and that it takes no ads and no
+  political money (changed by digest-warmth, 2026-11-22: was "above the address box"; see A16). Brian confirms each fact in that line before M1 goes live. The line says
   nothing about the operator's personal roles.
-- AC1.10 The address page links to the "What we cover" list (US12) above the address box.
+- AC1.10 The address page links to the "What we cover" list (US12) next to the address card: the line directly
+  under its privacy detail (changed by digest-warmth, 2026-11-22: was "above the address box"; see A16).
 
 ### US2. The list of bodies for that spot (M1)
 As a resident, I want one list of every body that governs my address, each with a plain status, so that I know what
@@ -150,7 +152,9 @@ In M1, a Covered Clarksville or Montgomery County body links to the existing mor
 As a resident, I want to see what a body will take up next, in its own words, so that I can follow it or show up.
 - AC4.1 The page lists every meeting from today on that the body has posted, soonest first, each with date and
   meeting name as posted. Neither Clarksville City Council nor County Commission data stores a meeting time today, so
-  M1 shows no time; the page shows a time only where the source posts one (never guessed).
+  M1 shows no time; the page shows a time only where the source posts one (never guessed). Meetings beyond the first
+  three months shown may sit in a closed native toggle on the same page (added by digest-warmth, 2026-11-22; every
+  meeting stays page text, in the same order; see A17).
 - AC4.2 Agenda items show only when the source marks the agenda final or published. In M1, County Commission shows
   its stored items. Clarksville City Council upcoming agenda items are not stored today, so M1 shows each city meeting
   with a link to its official agenda and no items; the items come in task B9 (architecture task list), and until
@@ -339,6 +343,31 @@ about officials); public request counts; special districts; Spanish; Android.
   question 12). Default: Can't cover for items, with meeting dates shown and the official agenda linked.
 - A14. Requests are a signal, not a vote. Confirmed email requests are the count that matters; anonymous counts, if
   built, are shown separately. Brian's OK per host still decides every opening.
+- A16. digest-warmth (`docs/design/digest-warmth.md` section 9, changes 1 and 2; applied 2026-11-22 on the manager's
+  brief, not yet confirmed by Brian): AC1.9 and AC1.10 no longer say "above the address box". The who-runs-it line
+  and the "What we cover" link now follow the address card and its privacy lines, in view without opening anything.
+  The words of both lines are unchanged. Assumed: the Brain Trust's reason for "above" was that the reader can see
+  who runs the page before typing, and "in view, directly after the card" keeps that. If it was "read before the
+  box", the fallback is the design's: both lines between the lede and the card at small size.
+- A17. digest-warmth (section 9, change 3): AC4.1 gains the closed toggle. The first three calendar months that have a
+  meeting print open (the next meeting's month counts); the rest sit in one native `<details>`, closed, as page text
+  in the feed's order. The toggle is used only when the rest is more than one meeting over two or more months,
+  because its one fixed label ("Show {n} later meetings, {from} to {to}") has no singular; a smaller rest prints
+  open.
+- A18. digest-warmth (section 9, change 4): this spec has no line about orange; the rule was design 0a's ("no orange
+  text, fill or border on a digest page"). It is relaxed there to: orange is decoration (the sun, its rays, the card
+  edge) and the focus ring; never text and never a status. Status pills stay navy, and R2 (no red or green) is
+  unchanged. A test pins it (`test_orange_is_decoration_only_never_text_and_never_a_status`).
+- A19. digest-warmth (section 9, change 5): AC4.8 and AC4.9 are unchanged. The "Next meeting" and "Thinking of
+  going?" labels are in `config/national/page-labels.yml` and print on every coming-up page with the same words;
+  "Thinking of going?" is left out only where the directory has no checked official link (never an empty link).
+- A20. The greeting's place name (digest-warmth section 4) is the Census answer's own `BASENAME`, read as given: the
+  geocoder's geographies answer carries it for Incorporated Places ("Clarksville") and County Subdivisions
+  (`docs/platform-facts.md`, "Census geocoder, geographies", verified 2026-11-19 from one live answer; not
+  re-checked on raw bytes on 2026-11-22, because this build environment cannot reach the geocoder). The page never
+  trims a Census NAME itself: a unit whose `BASENAME` is missing, holds no letter ("5" for "District 5") or is not
+  part of its NAME gets `lookup.greet-none`; a county is named in full by its NAME. The name is drawn in the page
+  only, never in a URL, title, cookie or storage.
 
 ## Open questions (recommended answers are the defaults)
 1. Front door: does the national address page replace Clarksville's front page? **Default: no. New page, linked from

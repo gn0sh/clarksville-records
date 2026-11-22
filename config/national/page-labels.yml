@@ -20,6 +20,11 @@
 # Added in v1.2, not yet read by national.js (the frontend wires them; design sections 2 and 3):
 # lookup.summary-found-one, lookup.summary-none-one, lookup.election, lookup.election-none, lookup.down-census.
 # Their link targets are settings, never label text (design section 3, "Outside links").
+# digest-warmth (docs/design/digest-warmth.md, 2026-11-22): the warm copy below is fixed text, the same for every
+# place and government; no label names or describes one. New keys: index.eyebrow, index.h1-2, index.steps-h,
+# index.step-<n>-h and index.step-<n>, index.why-*, lookup.greet, lookup.greet-none, lookup.looked-up, body.next,
+# body.later-h, body.more, body.no-time-all, body.going-h, body.going. lookup.greet's {place} is the Census's own
+# name for the place (national.js greetingPlace), drawn in the page only.
 schema: daylight-pagelabels/1
 labels:
   digest.place: United States
@@ -40,13 +45,16 @@ labels:
 
   # Entry page (design section 1)
   index.title: "Daylight Digest: Find your local governments"
-  index.h1: Find your local governments
-  index.lede: "See every local government for your address: city or town, county, township and school district. We show what we cover and say plainly what we don't."
+  index.eyebrow: Daylight Digest
+  # the heading is one sentence in two parts, so the second part can sit on its own line (design section 3)
+  index.h1: "Your local government,"
+  index.h1-2: in broad daylight.
+  index.lede: A city council, a county commission and a school board meet near you, in public, and decide things like roads, zoning, schools and local taxes. Type your address to see who they are and what they take up next.
   index.who: Daylight Digest is run and paid for by gnoshcodes LLC, a small software company in Clarksville, Tennessee. It takes no ads and no political money. [Who runs this]
   index.cover-link: See what we cover first, without typing anything
   index.input-label: Your street address
   index.placeholder: 100 Main St, City, State
-  index.find: Find
+  index.find: Find my local governments
   index.privacy: We never get your address and never sell anything.
   index.privacy-detail: Your address goes from your browser straight to the US Census Bureau, which finds your area. Daylight Digest never sees or keeps it. [Census privacy policy]
   index.toggle-summary: How this works, and what is saved
@@ -54,6 +62,17 @@ labels:
   index.how-link: "[How Daylight Digest works, in full]"
   index.census-notice: This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.
   index.noscript: The address lookup needs JavaScript. You can still browse [What we cover].
+  # How it works: three steps, each a bold lead (-h) and one sentence (design section 3)
+  index.steps-h: How it works
+  index.step-1-h: Type your address.
+  index.step-1: It goes to the Census Bureau, not to us.
+  index.step-2-h: Meet your local governments.
+  index.step-2: City or town, county, township and school district, each marked covered, not covered yet or can't cover.
+  index.step-3-h: See what's coming up.
+  index.step-3: Their next meetings and agendas, in their own words, each linked to the official document.
+  index.why-h: Why look?
+  index.why-1: These meetings are where your street, your schools and your local tax bill get decided. The agendas are public records, and most meetings are open to anyone who walks in.
+  index.why-2: You don't have to speak. Knowing what's on the agenda is a good place to start.
 
   # Lookup states and the list (design sections 2 and 3), for national.js (F2)
   lookup.empty: Type a street address with its city and state.
@@ -71,14 +90,20 @@ labels:
   lookup.pick-none: None of these
   lookup.matched: "Census matched: {line}"
   lookup.nothing-listable: The Census found this address, but we can't list a local government for it yet.
+  # lookup.list-h is no longer drawn: lookup.greet (or lookup.greet-none) is the list's heading (digest-warmth 4)
   lookup.list-h: Local governments for this address
+  lookup.greet: "{place}, here's who governs you."
+  lookup.greet-none: Here's who governs this address.
+  lookup.looked-up: Address looked up. It was not sent to us.
   lookup.summary-found: We found {n} local governments.
   lookup.summary-found-one: We found 1 local government.
   lookup.summary-covered: "{n} covered"
   lookup.summary-not-yet: "{n} not covered yet"
   lookup.summary-cant: "{n} we can't cover"
-  lookup.summary-none: None are covered yet. Request the ones you want and we'll email you if one opens.
-  lookup.summary-none-one: It is not covered. Request it and we'll email you if it opens.
+  # Three sentences each: national.js prints the first always, the second only when every listed card carries an
+  # official link, the third only while the email form is on (tests/national_page.test.js holds the shape).
+  lookup.summary-none: We don't read any of these yet. Each card links to the government's own agenda page, so you can still see what's coming up there. Request the ones you want and we'll email you if one opens.
+  lookup.summary-none-one: We don't read this one yet. Its card links to the government's own agenda page where we have the link. Request it and we'll email you if it opens.
   lookup.status-covered: Covered
   lookup.status-not-yet: Not covered yet
   lookup.status-cant: Can't cover
@@ -169,6 +194,7 @@ labels:
   body.newest: "We got our newest record on {date}."
   body.no-records: We have no records for this government yet.
   body.no-time: We don't have a start time for this meeting.
+  body.no-time-all: We don't have start times for this government's meetings.
   body.tz: "{tz}, as the government posts it."
   body.as-posted: (as posted)
   body.agenda: "[Official agenda]"
@@ -178,7 +204,13 @@ labels:
   body.withheld: We don't list this meeting's agenda items here. The official agenda is the full record. [Official agenda]
   body.cut: This item is cut short here. The rest is in the official agenda. [Official agenda]
   body.item-page: "[Official agenda, page {page}]"
-  body.no-meetings: No upcoming meetings are posted. [Official meetings page]
+  body.no-meetings: No upcoming meetings are posted. New ones show here after the government posts them and we read them. [Official meetings page]
+  # digest-warmth section 5: the first meeting's card, the month groups, the fold and the fixed card
+  body.next: Next meeting
+  body.later-h: Later meetings
+  body.more: "Show {n} later meetings, {from} to {to}"
+  body.going-h: Thinking of going?
+  body.going: Most local government meetings are open to the public, and you can sit in without speaking. Where it meets and how to speak are set by the government. Start at its [official meetings page].
   body.full: Votes and past meetings are on the [full Daylight pages].
   body.morning: "[Get the morning note]"
   # Topic labels (AC4.7; design section 5): a chip after an item whose verbatim number or text matches the item type
