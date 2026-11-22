@@ -45,11 +45,12 @@ def solicitation(n: int) -> dict:
 
 
 def agenda_vote(n: int, page: int, caption: str, url=AGENDA_URL, apage=3, **kw) -> dict:
-    """A council vote whose minutes printed no title, titled from its meeting's agenda (the shape
-    claude/note-titles-captions writes: title_source "agenda", the agenda's source id, link and page)."""
-    return vote(n, page, title=f"ORDINANCE {n}-2026-27: {caption}", title_ours=False, untitled=True,
-                title_source="agenda", title_source_id="src-agenda-fixture",
-                title_source_url=f"{url}#page={apage}" if url else url, title_source_page=apage, **kw)
+    """A council vote whose minutes printed no title, titled from its meeting's agenda: the facts' item.title_source
+    (claude/note-titles-captions, aca44d8d: {kind "agenda", source_id, page, meeting_id}) as the note carries it,
+    with the agenda page's URL (sitegen.morning._title_source)."""
+    return vote(n, page, title=f"ORDINANCE {n}-2026-27: {caption}", title_ours=False, untitled=False,
+                title_source={"kind": "agenda", "source_id": "src-agenda-fixture", "page": apage,
+                              "meeting_id": "2026-09-03-regular", "url": f"{url}#page={apage}" if url else url}, **kw)
 
 
 def today_row(day=DAY) -> dict:
@@ -352,3 +353,34 @@ def test_the_agenda_link_stays_in_a_row_when_the_size_rule_applies():
     assert f"{AGENDA_URL}#page=3" in row and render.inert(TEXT["title_agenda"]) in row
     html = render._compose(CTX, note_of(titled), [titled], render._flat(CTX, note_of(titled), [titled], None), 0, 1)
     assert ok(html) and f"{AGENDA_URL}#page=3" in links(html)
+
+
+def test_an_agenda_entry_whose_own_source_is_the_cited_page_gets_no_second_link():
+    e = entry(lists=["seats"], title="ORDINANCE 6-2026-27: FIXTURE", source={"url": f"{AGENDA_URL}#page=3", "page": 3},
+              title_source={"kind": "agenda", "source_id": "s", "page": 3, "meeting_id": "m", "url": f"{AGENDA_URL}#page=3"})
+    html = render.body_html(CTX, note_of(e), [e])
+    assert links(html).count(f"{AGENDA_URL}#page=3") == 1 and TEXT["title_agenda"] not in html
+
+
+def test_the_note_carries_the_facts_title_source_with_the_agenda_pages_url():
+    """sitegen.morning: an item the city build titled from its meeting's agenda (facts item.title_source) gives
+    every entry of it `title_source` with that agenda page's URL; any other entry carries null."""
+    import json
+    from sitegen import views
+    from conftest import FIXTURE
+    f = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    ix0 = views.Index(f)
+    item_id = next(r["item_id"] for r in f["roll_calls"] if ix0.items.get(r.get("item_id") or ""))
+    agenda = next(s for s in f["sources"] if s["id"] != next(r["source_id"] for r in f["roll_calls"]))
+    it = next(i for i in f["items"] if i["id"] == item_id)
+    it["title"] = "FIXTURE caption from the agenda"
+    it["title_source"] = {"kind": "agenda", "source_id": agenda["id"], "page": 4, "meeting_id": "m-fixture"}
+    entries = [e for d in morning.documents(views.Index(f)) for e in d["entries"]]
+    mine = [e for e in entries if e["kind"] == "vote" and e["href"] and item_id in e["href"]]
+    others = [e for e in entries if e not in mine]
+    assert mine and all(e["title_source"] == {"kind": "agenda", "source_id": agenda["id"], "page": 4,
+                                              "meeting_id": "m-fixture", "url": f"{agenda['url']}#page=4"}
+                        and e["title"].endswith("FIXTURE caption from the agenda") and not e["untitled"] for e in mine)
+    assert others and all(e["title_source"] is None for e in others)
+    it["title_source"]["source_id"] = "src-not-in-the-facts"
+    assert all(e["title_source"] is None for d in morning.documents(views.Index(f)) for e in d["entries"])

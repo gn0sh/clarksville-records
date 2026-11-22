@@ -385,7 +385,8 @@ def _entry(**kw) -> dict:
     e = {"id": None, "lists": [], "kind": None, "body": None, "body_name": None, "meeting_date": None, "meeting": None,
          "title": None,
          "title_ours": False, "recorded": None, "district": None, "ward": None, "case": None, "seat_body": None,
-         "href": None, "meeting_href": None, "item_number": None, "source": {"url": None, "page": None}}
+         "href": None, "meeting_href": None, "item_number": None, "source": {"url": None, "page": None},
+         "title_source": None}
     e.update(kw)
     e["lists"] = [k for k in LIST_KEYS if k in e["lists"]]
     # note/compact-untitled: the record printed no title of its own for this entry (the email gives a meeting's
@@ -410,6 +411,23 @@ def _kind(ix, m: dict, txt: dict) -> str:
     agendas of one item (an informal and a formal meeting) then never read as a duplicate (note/entry-meeting)."""
     label = (getattr(ix, "kind_labels", None) or {}).get(m.get("kind"))
     return label.lower() if isinstance(label, str) and label.strip() else txt["meeting"]
+
+
+def _title_source(ix, it: dict | None) -> dict | None:
+    """note-titles: where an item's title came from when no minutes printed it, the caption its meeting's agenda
+    prints (the facts' `item.title_source`, collector/city_build agenda_titles), with that agenda page's URL so the
+    email can cite it: {kind "agenda", source_id, page, meeting_id, url}. None for any other item, or one whose
+    agenda is not among the facts' sources."""
+    ts = (it or {}).get("title_source")
+    if not (isinstance(ts, dict) and ts.get("kind") == "agenda"):
+        return None
+    s = ix.sources.get(ts.get("source_id") or "")
+    page = ts.get("page")
+    if s is None or not s.get("url"):
+        return None
+    ok = isinstance(page, int) and not isinstance(page, bool) and page > 0
+    return {"kind": "agenda", "source_id": ts["source_id"], "page": page if ok else None,
+            "meeting_id": ts.get("meeting_id"), "url": f"{s['url']}#page={page}" if ok else s["url"]}
 
 
 def _number_title(number: str | None, title: str) -> str:
@@ -506,7 +524,8 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     href=ix.item_href(it) if it else ix.meeting_href(m["id"]), meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={fact['page']}", "page": fact["page"]},
                     title_ours=not (it and it.get("title")), untitled=_kind_only(it),
-                    item_number=(it.get("number") or None) if it else None, **_seat_fields(case)))
+                    item_number=(it.get("number") or None) if it else None, title_source=_title_source(ix, it),
+                    **_seat_fields(case)))
         else:   # an agenda: the items printed on it, as the facts record them
             seen = {}
             for e in ix.facts["item_events"]:
@@ -522,7 +541,7 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     title=_number_title(it.get("number"), ix.item_title(it)),
                     lists=["seats"] + (["budget"] if "budget" in views.item_types(it) else [])
                     + (["zoning"] if case else []), title_ours=not it.get("title"), untitled=_kind_only(it),
-                    item_number=it.get("number") or None,
+                    item_number=it.get("number") or None, title_source=_title_source(ix, it),
                     recorded=txt["agenda_item"], seat_body=seat_body, href=ix.item_href(it),
                     meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={e['page']}", "page": e["page"]}, **_seat_fields(case)))

@@ -337,14 +337,17 @@ gets a second look because there is nothing letting me know why I should care."
   to `common.MAX_TITLE` with "..." (`common.cut`; a meeting's untitled-votes group keeps its meeting line as the
   headline), then the meeting line and `recorded` (one line, " · "), the group's count and numbers, the source link.
   The size rule's row and the text twin carry the same parts.
-- **Agenda titles** (the shape `claude/note-titles-captions` writes; additive entry fields): `title_source`
-  ("agenda" when `title` is the verbatim caption from the meeting's agenda because the minutes printed none, else
-  absent or null), `title_source_id` (the agenda's source id), `title_source_url` (the agenda's https URL with
-  `#page=N`) and `title_source_page` (N or null). Such a card adds a second source line, config `title_agenda` ("Title
-  from the meeting's agenda") + ", page N", linking the agenda. The caption is shown only with that link
-  (`render.agenda_cite`: https and on `link_hosts`); without it the vote stays untitled (compacted with its meeting's
-  untitled votes, or alone with its item number). Untitled-vote compaction applies only to votes still without a
-  title. The caption is the record's words: not in `own_text`, always through `inert()`.
+- **Agenda titles** (additive entry field, 2026-11-22): the city build titles an item no minutes printed from its
+  meeting's agenda caption, verbatim, and records `item.title_source` {kind "agenda", source_id, page, meeting_id}
+  (`claude/note-titles-captions`, schema/facts.schema.json, docs/architecture/city-council.md). Every county or
+  council entry carries `title_source`: that object plus `url`, the agenda source's URL with `#page=N`
+  (`morning._title_source`), or `null` (any other item, or an agenda not among the facts' sources). The entry's
+  title is then the caption (`title_ours` false, `untitled` false). Its card adds a second source line, config
+  `title_agenda` ("Title from the meeting's agenda") + ", page N", linking that page, unless the entry's own source
+  is that very page. The caption is shown only with that link (`render.agenda_cite`: https and on `link_hosts`);
+  without it the vote stays untitled (compacted with its meeting's untitled votes, or alone with its item number).
+  Untitled-vote compaction applies only to votes still without a title. The caption is the record's words: not in
+  `own_text`, always through `inert()`.
 
 **Size rule.** Gmail clips a message at about 102 KB, which hides the notice, the support line and the provider's
 unsubscribe link. `render.layout` keeps every edition's HTML at or under `common.BODY_BUDGET` (80,000 bytes): all

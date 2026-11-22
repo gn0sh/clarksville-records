@@ -195,8 +195,9 @@ def test_every_word_outside_the_record_is_config_text():
             {"date": "2026-12-02", "body": "CBODY", "meeting": None, "href": "b.html"}]
     # and a vote titled from its meeting's agenda (note-titles): the agenda link's words are config text too
     agenda = vote(9, 9, body_name="BODY", recorded="REC", title="TITLE", item_number="NUMC", lists=["budget"],
-                  title_ours=False, untitled=True, title_source="agenda", title_source_id="src-a",
-                  title_source_url="https://example.com/fixture/agenda.pdf#page=3", title_source_page=3)
+                  title_ours=False, untitled=False,
+                  title_source={"kind": "agenda", "source_id": "src-a", "page": 3, "meeting_id": "m",
+                                "url": "https://example.com/fixture/agenda.pdf#page=3"})
     n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"),
                 entry(id="u", meeting_date=None, body_name="BODY", recorded="REC", title="TITLE"), *group, agenda,
                 unplaced_text="UNPLACED", support_line="SUPPORT", support_url="https://tips.example.com/x", coming_up=rows)

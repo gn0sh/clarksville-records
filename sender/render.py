@@ -20,8 +20,8 @@ note-titles (2026-11-22): each edition's subject says what is inside, a count pe
 ("3 zoning cases and a budget item: your {place} morning note", common.compose); the topics are the site's own
 mechanical rules (topics(): the zoning, budget and contracts lists and the item type rule), never a reading of the
 words. Each card leads with its topics' config labels (else its `recorded` words) over the record's title as the
-headline. A vote whose minutes printed no title and whose meeting's agenda did (`title_source` "agenda") shows that
-caption only beside a link to the agenda (agenda_cite); without one it stays untitled.
+headline. A vote whose minutes printed no title and whose meeting's agenda did (`title_source` kind "agenda")
+shows that caption only beside a link to the agenda (agenda_cite); without one it stays untitled.
 
 A record's title is untrusted text (it comes from a parsed PDF) and the body goes through the provider's own
 template and Markdown step, so inert() turns every character either of them could read as markup into an HTML
@@ -256,13 +256,20 @@ def topic_counts(ctx: dict, entries: list[dict]) -> dict[str, int]:
     return {k: len(v) for k, v in seen.items()}
 
 
+def _from_agenda(e: dict) -> bool:
+    """The entry's title is its meeting's agenda caption: `title_source` {kind "agenda", source_id, page, meeting_id,
+    url} (sitegen.morning._title_source, from the facts' item.title_source)."""
+    ts = e.get("title_source")
+    return isinstance(ts, dict) and ts.get("kind") == "agenda"
+
+
 def agenda_cite(e: dict, hosts=None) -> tuple[str, int | None] | None:
-    """(the agenda's URL, its page) when the entry's title is its meeting's agenda caption (`title_source`
-    "agenda", sitegen.morning; the minutes printed none) and the agenda's link passes the https rule (and, given
+    """(the agenda's URL, its page) when the entry's title is its meeting's agenda caption (_from_agenda; the
+    minutes printed none) and the agenda's link passes the https rule (and, given
     `hosts`, is on one of them); else None. Words from the agenda are never shown without a link to it."""
-    if e.get("title_source") != "agenda":
+    if not _from_agenda(e):
         return None
-    url, page = e.get("title_source_url"), e.get("title_source_page")
+    url, page = e["title_source"].get("url"), e["title_source"].get("page")
     if not (_https(url) and (hosts is None or link_ok(url, hosts))):
         return None
     return url, page if isinstance(page, int) and not isinstance(page, bool) and page > 0 else None
@@ -271,7 +278,7 @@ def agenda_cite(e: dict, hosts=None) -> tuple[str, int | None] | None:
 def _shown_title(e: dict, hosts=None) -> str:
     """The title the email may show: the record's, or its agenda's caption only with a link to that agenda; else
     the item's own number, or nothing."""
-    if e.get("title_source") == "agenda" and agenda_cite(e, hosts) is None:
+    if _from_agenda(e) and agenda_cite(e, hosts) is None:
         return e.get("item_number") or ""
     return e.get("title") or ""
 
@@ -284,7 +291,7 @@ def untitled_vote(e: dict, hosts=None) -> bool:
     untitled."""
     if agenda_cite(e, hosts) is not None:
         return False
-    untitled = e.get("untitled") is True or e.get("title_source") == "agenda"
+    untitled = e.get("untitled") is True or _from_agenda(e)
     return e.get("kind") == "vote" and untitled and isinstance(e.get("meeting_href"), str) \
         and bool(e["meeting_href"]) and not e.get("case")
 
@@ -390,7 +397,8 @@ def _item(ctx: dict, x) -> dict:
         sub = ([who] if title and who else []) + ([said] if kick and said else [])
         kick = kick or ([said] if said else [])
         cite = agenda_cite(x, hosts)
-        if cite and title:
+        # cited once: an agenda entry whose own source is that agenda page needs no second link
+        if cite and title and cite[0] != (x.get("source") or {}).get("url"):
             t = ctx["text"]
             agenda = (t["title_agenda"] + (f", {ctx['page_label']} {cite[1]}" if cite[1] else ""), cite[0])
     day = _day(e)
