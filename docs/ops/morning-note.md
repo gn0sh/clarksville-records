@@ -393,12 +393,18 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
       powershell -NoProfile -File scripts\v1pp-probe.ps1 -Apps claude
       ```
       It first runs `scripts\protect-main.ps1 -Check` (no changes) and stops, changing nothing, unless that prints
-      "OK: main is protected". A browser may open once to add the `workflow` scope to your GitHub CLI sign-in:
-      approve it. It is given back at the very end (a browser may open again).
+      "OK: main is protected". First it reads one finished job's log (the newest finished `daily-update` run); if it
+      can't, it stops with "REFUSED: could not read the log ... Nothing was changed": nothing was changed, so just
+      send the file it names (it says why the read failed; `docs/architecture/v1pp-job-log-invariant.md`). On a gh
+      that knows `--allow-escape-sequences` (2.104 does; try 3 failed for want of it), the log reads pass that flag
+      by themselves, and the file says so near the top. Then a
+      browser may open once to add the `workflow` scope to your GitHub CLI sign-in: approve it. It is given back at
+      the very end (a browser may open again).
    4. Leave it running, about 5 minutes (at most about 20). It makes throwaway branches (`probe/v1pp-...`), three
       pull requests from you, a tag `v1pp-probe`, and three short workflow runs; it tries to create a tag named
       `main`; then it stops any of its runs still going, removes all of them and checks again that they are gone.
-      Every step prints one line: PASS, FAIL, NOT-TRIED or INCONCLUSIVE.
+      Every step prints one line: PASS, FAIL, NOT-TRIED, NOT-REACHABLE (only the two Pages API lines, by design and
+      not counted: `docs/architecture/main-protect-invariant.md` "V1'' try 1 inconclusive") or INCONCLUSIVE.
    5. Send the team the file it names at the end, `Documents\v1pp-probe-results-<time>.txt`. The last line is the
       verdict:
       - **PASS (V1'')**: every try was refused. The team records it in `docs/platform-facts.md` "Main

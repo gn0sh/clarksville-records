@@ -5,18 +5,20 @@
 #
 # Question: after the cutover (R1'' on main: the ruleset maximum of approvals, squash only, bypass = the admin role in
 # pull request mode; R-D; R-T; R2 off), can GITHUB_TOKEN get anything into main, and can a branch or tag other than
-# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after the guard passed), it:
+# main reach an environment? Signed in as gn0sh (the workflow scope is asked for only after step 0 passed), it:
 #   0. refuses unless scripts/protect-main.sh --check --apps <answer> prints OK (no writes), main and records-data read
-#      as commits and no tag named main exists;
+#      as commits and no tag named main exists; then, still before any write, reads a finished job's log (the newest
+#      finished daily-update job; v1pp-probe/log-read-selfcheck) and stops, changing nothing, if it can't;
 #   1. pushes three targets, twice, each one commit on main: W (an inert .github/workflows/v1pp-canary.yml), N
 #      (sitegen/v1pp-probe-canary.txt), D0 (data/v1pp-probe-canary.txt, data/ now refused on main too). Set G
 #      (probe/v1pp-w, probe/v1pp-n, probe/v1pp-d0): you open their pull requests into main. Set B (probe/v1pp-w-bot,
 #      probe/v1pp-n-bot, probe/v1pp-d0-bot): the runner's GITHUB_TOKEN tries to open them, and must be refused;
-#   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2);
+#   2. tries to create a tag named main (R-T must refuse it: PR #54 finding 2), by the REST API and by git push;
 #   3. pushes probe/v1pp-env (.github/workflows/v1pp-env.yml: one job per environment, github-pages and morning-note,
 #      each only an echo, and a pages-api job with no environment that calls POST pages/deployments with a made-up
 #      artifact), then the tag v1pp-probe at the same commit: GitHub must refuse both runs both environments, and the
-#      Pages API on branch or environment grounds (refused for the artifact = branch check not reached = INCONCLUSIVE);
+#      Pages API on branch or environment grounds (v1pp-probe/pages-api-unreachable: GitHub's own "Unable to find
+#      artifact" 400 is NOT-REACHABLE, not counted: the fake artifact is refused before the branch check, by design);
 #   4. pushes probe/v1pp-runner (.github/workflows/v1pp-probe.yml): its GITHUB_TOKEN run tries steps 1-3 of section 4
 #      (bot pull requests, then per pull request a bot APPROVE, REST squash, merge, rebase, GraphQL squash, then a
 #      direct push to main by the REST ref update and by git push); a merge or push that goes through ends the run;
@@ -28,22 +30,27 @@
 # Waits are bounded: 3 minutes for a run to start, 12 minutes for it to finish (then it is cancelled, INCONCLUSIVE).
 # Run it again after an INCONCLUSIVE: it deletes the probe branches and tag of an earlier try first.
 # Every step prints one line: PASS (the expected refusal), FAIL (it went through), NOT-TRIED (skipped because an
-# earlier merge or push ended the run) or INCONCLUSIVE (a read failed, or a refusal for another reason). Verdict: FAIL
+# earlier merge or push ended the run), NOT-REACHABLE (only the pages-api step, on GitHub's artifact 400: nothing was
+# deployed, and the branch check behind it cannot be reached without a real artifact; not counted) or INCONCLUSIVE (a
+# read failed, or a refusal for another reason). Verdict: FAIL
 # if any line is FAIL (a probe pull request merged, a probe file on main or records-data, a push to main, a tag main,
 # a bot pull request or approval, a job inside an environment): then "Allow GitHub Actions to create and approve pull
-# requests" is turned off at once, before cleanup. Else INCONCLUSIVE if any line is not PASS. Else PASS.
+# requests" is turned off at once, before cleanup. Else INCONCLUSIVE if any line is not PASS or NOT-REACHABLE. Else PASS.
+# Decisions after try 1 (2026-11-21): docs/architecture/main-protect-invariant.md "V1'' try 1 inconclusive".
 # Exit 0 PASS, 1 INCONCLUSIVE or refused, 2 FAIL.
 # A PASS gates MORNING_NOTE_SEND only (ADR 0011 Amendment (c) item 6). A FAIL that put a commit on main makes the gate
 # refuse every later run until a person moves MAIN_PR_BASELINE past that commit.
 # Not here (section 4): item 5, an unattested push to records-data, is a gate unit test on a fixture repo; item 7 is the
 # first scheduled run after the cutover (D3 step 8).
 # Expected refusal wordings (read from GitHub's docs and the U3 control, not yet seen live for every step; any other
-# wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash "approving
-# review", merge and rebase "not allowed", "approving review" or "rule violation", direct push "rule violation", tag
-# main "rule violation", environments "not allowed to deploy to <env>", the Pages API "not allowed to deploy" or
-# "protection rule".
+# wording is INCONCLUSIVE, never PASS): bot open and approve "not permitted to ... pull requests", squash and GraphQL
+# "approving review", or "Repository rule violations found" with "New changes require approval from someone other
+# than the last pusher" (require_last_push_approval in R1'', seen live in try 1), merge and rebase "not allowed",
+# "approving review" or "rule violation", direct push "rule violation", tag main (and its git push) "rule violation", or a 422 naming no
+# rule that GitHub's rule suite for this try records as R-T's creation rule failing (active), environments "not
+# allowed to deploy to <env>", the Pages API "not allowed to deploy" or "protection rule".
 # Writes the result to v1pp-probe-results-<time>.txt in RESULTS_DIR (default: the home folder). Nothing is sent.
-# Needs: gh signed in as gn0sh (gh auth login), GNU base64. Takes about 5 minutes.
+# Needs: gh signed in as gn0sh (gh auth login), git, GNU base64 and date. Takes about 5 minutes.
 # Run: bash scripts/v1pp-probe.sh --apps claude|none   (the same answer protect-main takes)
 #
 # BEGIN-REFUSAL-LOCK (v1pp-probe/run-once, v1pp-probe/lock-window): the probe pushes workflows and tries merges, so it
@@ -52,7 +59,7 @@
 #   scripts/v1pp-probe.sh:   v1pp_unlocked_until=none   ->   v1pp_unlocked_until=YYYY-MM-DD
 #   scripts/v1pp-probe.ps1:  $v1ppUnlockedUntil = 'none'   ->   $v1ppUnlockedUntil = 'YYYY-MM-DD'
 # Nothing below runs while it is locked, or after that day (an unlock left in place expires by itself).
-v1pp_unlocked_until=2026-11-22
+v1pp_unlocked_until=none
 if ! [[ "$v1pp_unlocked_until" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
   echo "REFUSED: the V1'' probe is locked (v1pp-probe/run-once). The team enables it for one run by a reviewed PR. Nothing was changed."
   exit 1
@@ -85,6 +92,7 @@ for v in CLAUDE_CODE_REMOTE GITHUB_ACTIONS CI; do
   fi
 done
 gh auth status >/dev/null 2>&1 || { echo "Not signed in: run gh auth login (as $owner). Nothing was changed."; exit 1; }
+command -v git >/dev/null 2>&1 || { echo "git not found (v1pp-probe/tag-git-no-git-precheck): install it, then run this again. Nothing was changed."; exit 1; }
 
 # ---------------------------------------------------------------------------------------------- guard (reads only)
 echo "Guard: scripts/protect-main.sh --check --apps $apps (no writes) must print OK first."
@@ -119,11 +127,6 @@ give_back_scope() {   # the workflow scope this run added (a browser may open); 
     gh auth refresh -h github.com --remove-scopes workflow || echo "Could not remove it: run gh auth refresh -h github.com --remove-scopes workflow"
   fi
 }
-if ! gh auth status 2>&1 | grep -q "workflow"; then
-  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
-  gh auth refresh -h github.com -s workflow || { echo "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
-  scope_added=yes
-fi
 work=$(mktemp -d) || { give_back_scope; echo "Could not make a temporary folder. Nothing was changed."; exit 1; }
 out_dir="${RESULTS_DIR:-$HOME}"
 results="$out_dir/v1pp-probe-results-$(date +%Y%m%d-%H%M).txt"
@@ -131,10 +134,15 @@ if ! : > "$results"; then give_back_scope; rm -rf "$work"; echo "Could not write
 
 # ---------------------------------------------------------------------------------------------- the record
 log() { printf '%s\n' "$1"; printf '%s\n' "$1" >> "$results"; }
-fails=0; others=0
-mark() {   # $1 PASS|FAIL|NOT-TRIED|INCONCLUSIVE, $2 the step, $3 what was seen
+fails=0; others=0; unreach=0
+mark() {   # $1 PASS|FAIL|NOT-TRIED|NOT-REACHABLE|INCONCLUSIVE, $2 the step, $3 what was seen
   log "$1 $2: $3"
-  case "$1" in PASS) ;; FAIL) fails=$((fails + 1)); turn_r2_off ;; *) others=$((others + 1)) ;; esac
+  case "$1" in
+    PASS) ;;
+    NOT-REACHABLE) unreach=$((unreach + 1)) ;;   # pages_refused only (v1pp-probe/pages-api-unreachable)
+    FAIL) fails=$((fails + 1)); turn_r2_off ;;
+    *) others=$((others + 1)) ;;
+  esac
 }
 api_quiet() { gh api "$@" --silent >/dev/null 2>&1 || true; }
 # read-after-write (docs/architecture/read-after-write-invariant.md): after a write to GitHub, its confirming read may
@@ -154,6 +162,78 @@ read_until() {
   if [ "$rrc" = 0 ]; then echo "$what reads '$rlast', not '$want', after 10 reads."
   else echo "$what: could not read the state, not '$want', after 10 reads."; fi
   return 1
+}
+
+# v1pp-probe/tag-main-unnamed-422 (try 1: POST git/refs answered a bare 422 "Reference update failed"). Right after
+# the REST try, tag_suite reads GitHub's own record of it, its rule suite (GET rulesets/rule-suites, fields per GitHub's
+# OpenAPI description): exactly one suite on refs/tags/main with after_sha = main, actor_name = owner and pushed_at at
+# or after tag_t0 (checked to be YYYY-MM-DDTHH:MM:SSZ first: v1pp-probe/tag-main-t0-unchecked), suite result fail, and
+# exactly one evaluation from R-T (ruleset id rt_id) of rule_type creation, with result fail and enforcement active.
+# It is read before the git push try, whose own suite would otherwise be a second match. Then tag_git tries the same
+# tag by git push (GH013 names the rule). How the lines combine (main-protect-invariant.md "V1'' try 1 inconclusive"
+# item 2): a bare 422 is PASS on its rule suite; or, only when no suite could be seen or read (tag_soft), when the git
+# push line is PASS; a suite that contradicts R-T, or two suites, stays INCONCLUSIVE whatever git says.
+rt_id=27685093   # R-T "tag main: blocked" (docs/platform-facts.md "Main protection"); a recreated R-T = INCONCLUSIVE
+tag_t0=""; tag_proof=""; tag_why=""; tag_soft=""; tag_git_kind=""
+tag_suite() {   # sets tag_proof (it proves R-T), else tag_why (why not) and tag_soft (yes: no suite seen or read)
+  local i ids n sid="" ev evl detail
+  tag_proof=""; tag_why=""; tag_soft=""
+  if ! [[ "$tag_t0" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+    tag_why="the rule suite was not read: the start time could not be computed ('$tag_t0')"; tag_soft=yes; return 0
+  fi
+  export V1PP_SHA=$main_before V1PP_T0=$tag_t0 V1PP_RT=$rt_id V1PP_RULE=creation V1PP_ACTOR=$owner
+  for i in 1 2 3 4 5 6; do
+    ids=$(gh api "repos/$repo/rulesets/rule-suites?ref=refs/tags/main&time_period=day&per_page=100" \
+          --jq '.[] | select(.after_sha == $ENV.V1PP_SHA and .actor_name == $ENV.V1PP_ACTOR and .pushed_at >= $ENV.V1PP_T0) | .id' 2>/dev/null) || ids=""
+    n=$(grep -cE '^[0-9]+$' <<< "$ids")
+    if [ "$n" = 1 ]; then sid=$(grep -E '^[0-9]+$' <<< "$ids"); break; fi
+    if [ "$n" -gt 1 ]; then tag_why="$n rule suites match this try, not one"; return 0; fi
+    [ "$i" = 6 ] || sleep 10
+  done
+  if [ -z "$sid" ]; then tag_why="no rule suite recorded this try"; tag_soft=yes; return 0; fi
+  # line 1: the suite's result; then result and enforcement of each creation evaluation from R-T
+  if ! ev=$(gh api "repos/$repo/rulesets/rule-suites/$sid" \
+       --jq '.result, (.rule_evaluations[]? | select(.rule_source.id == ($ENV.V1PP_RT | tonumber) and .rule_type == $ENV.V1PP_RULE) | .result, .enforcement)' 2>/dev/null); then
+    tag_why="rule suite $sid could not be read"; tag_soft=yes; return 0
+  fi
+  mapfile -t evl <<< "$ev"
+  detail="rule suite $sid: result=${evl[0]:-none}, R-T $rt_id creation=${evl[1]:-none} enforcement=${evl[2]:-none}"
+  if [ "${#evl[@]}" = 3 ] && [ "${evl[0]}" = fail ] && [ "${evl[1]}" = fail ] && [ "${evl[2]}" = active ]; then
+    tag_proof=$detail
+  else tag_why="not shown to be R-T: $detail"; fi
+}
+# tag_git: the same tag by git push from a scratch clone (v1pp-probe/tag-git-*). Only git's own answer counts: no
+# hooks (--no-verify, core.hooksPath = an empty folder), no global config (GIT_CONFIG_GLOBAL = an empty file: no url
+# rewrite, hook path or helper of yours), gh as the only credential helper, no trace, askpass or prompt, and secrets
+# redacted. PASS needs a line from GitHub ("remote: error: GH013: Repository rule violations found for
+# refs/tags/main") and git's "To https://github.com/<repo>.git" (the push went there); exit 0 with that line is FAIL;
+# "Everything up-to-date" after the REST try created the tag is FAIL (it exists); anything else is INCONCLUSIVE.
+tag_rest_created=""
+tgit() {   # git in a subshell with a clean git environment; $tag_dir holds the scratch clone, hooks and config
+  ( unset $(compgen -e | grep -E '^GIT_TRACE') GIT_CURL_VERBOSE GIT_ASKPASS SSH_ASKPASS
+    export GIT_TRACE_REDACT=1 GIT_TERMINAL_PROMPT=0 GIT_CONFIG_GLOBAL="$tag_dir/empty.gitconfig"
+    exec git -c core.hooksPath="$tag_dir/no-hooks" -c credential.helper= \
+      -c 'credential.helper=!gh auth git-credential' "$@" )
+}
+tag_git() {
+  local out rc url="https://github.com/$repo.git"
+  tag_git_kind=INCONCLUSIVE; tag_dir="$work/tagpush"
+  if ! mkdir -p "$tag_dir/no-hooks" || ! : > "$tag_dir/empty.gitconfig"; then
+    mark INCONCLUSIVE "tag main git" "could not make the scratch folder"; return 0
+  fi
+  if ! out=$(tgit init -q "$tag_dir/clone" 2>&1 && tgit -C "$tag_dir/clone" fetch -q --depth=1 "$url" "$main_before" 2>&1); then
+    mark INCONCLUSIVE "tag main git" "could not fetch main to push from: $(flat "$out")"; return 0
+  fi
+  out=$(tgit -C "$tag_dir/clone" push --no-verify "$url" "$main_before:refs/tags/main" 2>&1); rc=$?
+  if [ "$rc" = 0 ] && [ -n "$tag_rest_created" ] && grep -q 'Everything up-to-date' <<< "$out"; then
+    tag_git_kind=FAIL; mark FAIL "tag main git" "tag main exists (git answered up-to-date after the REST try created it): $(flat "$out")"
+  elif ! grep -qxF "To $url" <<< "$out"; then
+    mark INCONCLUSIVE "tag main git" "git answered $rc, but not from $url (no 'To $url' line): $(flat "$out")"
+  elif [ "$rc" = 0 ]; then
+    tag_git_kind=FAIL; mark FAIL "tag main git" "git push created it: $(flat "$out")"
+  elif grep -qE '^remote: error: GH013: Repository rule violations found for refs/tags/main' <<< "$out"; then
+    tag_git_kind=PASS; mark PASS "tag main git" "refused: $(flat "$out")"
+  else mark INCONCLUSIVE "tag main git" "refused, but no 'remote: error: GH013' line from GitHub: $(flat "$out")"; fi
 }
 
 g_branches=(probe/v1pp-w probe/v1pp-n probe/v1pp-d0)
@@ -299,7 +379,7 @@ finish() {   # cancel, cleanup, the reads after it, the verdict; never returns
     log "INCONCLUSIVE (V1''): $others step(s) above are not PASS (a read failed, a refusal for another reason, or a step not tried); nothing was seen to go through. MORNING_NOTE_SEND stays unset. Send this output to the team. Saved to $results"
     give_back_scope; exit 1
   fi
-  log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment or Pages deployment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. Send this output to the team. Saved to $results"
+  log "PASS (V1''): every step above was refused as expected: no pull request or push from GITHUB_TOKEN reached main, the bot could not open or approve a pull request, no tag main, no environment job and no Pages deployment for a branch or tag other than main, main unchanged, no probe file on main or records-data, and every probe pull request, branch and tag is gone. $unreach pages-api line(s) NOT-REACHABLE by design: the Pages API's own branch check is not covered (U-pages in the invariant note). Send this output to the team. Saved to $results"
   give_back_scope; exit 0
 }
 on_exit() {   # an exit before finish (Ctrl+C, an unexpected stop): clean up quietly
@@ -310,7 +390,107 @@ on_exit() {   # an exit before finish (Ctrl+C, an unexpected stop): clean up qui
 trap on_exit EXIT
 trap 'exit 130' INT TERM
 
+clean_log() {   # untrusted text: ANSI colour codes, then control characters, then (as UTF-8 bytes) the C1 controls
+  # U+0080-U+009F and the bidi controls U+202A-U+202E, U+2066-U+2069 are dropped (v1pp-probe/log-read-diag-controls)
+  # One pass is not enough: removing a byte pair can join the bytes around it into a new one ($'\xc2\xc2\x9b\x9b'
+  # leaves $'\xc2\x9b'), so the three removals repeat until none removes anything (v1pp-probe/log-read-diag-controls-nested)
+  sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' | tr -d '\000-\010\013-\037\177' |
+    LC_ALL=C sed -E $':a\ns/\xc2[\x80-\x9f]//g\ns/\xe2\x80[\xaa-\xae]//g\ns/\xe2\x81[\xa6-\xa9]//g\nta'
+}
+run_jobs() {   # $1 run id: one line per job, name TAB id TAB status TAB conclusion; returns 1 when unread
+  gh api "repos/$repo/actions/runs/$1/jobs" \
+    --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null
+}
+# v1pp-probe/job-log-unreadable (docs/architecture/v1pp-job-log-invariant.md, I-log): a job-log read succeeded only
+# when gh exits 0 and its output holds a GitHub log line (log_line, unanchored: a BOM may sit before line 1); a failed
+# read leaves one sanitized line, never its output (v1pp-probe/log-read-diag). GH_DEBUG (or the legacy DEBUG) would
+# put a debug line first (v1pp-probe/gh-debug-legacy).
+unset GH_DEBUG DEBUG
+log_line='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z '
+read_why() {   # $1 gh's exit code, $2 its stderr, $3 lines it printed: "gh exit <rc>: <first stderr line, sanitized>"
+  local l
+  l=$(printf '%s\n' "$2" | clean_log | grep -m 1 '[^[:space:]]')
+  if [ -z "$l" ]; then printf 'gh exit %s: no error text, %s line(s) out' "$1" "$3"; return 0; fi
+  # URLs, also JSON-escaped (https:\/\/), cut to scheme and host, any userinfo dropped (any case: the signed read
+  # token is in the path and query; a closing ")" is kept); then a host/path with no scheme cut to the host; then any
+  # query left cut (v1pp-probe/log-read-diag-query, -userinfo); then long tokens redacted
+  l=$(printf '%s' "$l" | sed -E \
+    -e $'s|(https?:(\\\\?/){2})([^/[:space:]"\'?#@\\\\]*@)?([^/[:space:]"\'?#@\\\\)]+)[^[:space:]"\')]*|\\1\\4/...|gI' \
+    -e $'s|([^/[:space:]"\'?#@\\\\]+@)?(([A-Za-z0-9-]+\\.)+[A-Za-z]{2,}(:[0-9]+)?)\\\\?/[^[:space:]"\')]*|\\2/...|g' \
+    -e $'s|\\?[^[:space:]"\']+|?...|g' -e 's|[A-Za-z0-9%+/=_-]{32,}|<redacted>|g')
+  printf 'gh exit %s: %s' "$1" "${l:0:200}"
+}
+# v1pp-probe/run-log-missing (try 1: gh run view --log gave nothing for a finished run whose job log held the line):
+# each job's own log (GET actions/jobs/<id>/logs), read up to 6 times, 10 s apart (never after the last), until a read
+# succeeds and holds $2 (an ERE); prints the last log read, cleaned; returns 1 if no read succeeded, and then prints
+# the last failed read's read_why line instead.
+job_log() {
+  local i t text="" got="" rc errf why=""
+  errf=$(mktemp) || { printf 'could not make a temporary file'; return 1; }
+  for i in 1 2 3 4 5 6; do
+    t=$(gh api "repos/$repo/actions/jobs/$1/logs" ${log_flag:+"$log_flag"} 2>"$errf") && rc=0 || rc=$?
+    if [ "$rc" = 0 ] && grep -qE "$log_line" <<< "$t"; then
+      got=yes; text=$(printf '%s\n' "$t" | clean_log)
+      grep -qE "$2" <<< "$text" && break
+    else
+      why=$(read_why "$rc" "$(cat "$errf")" "$(grep -c '[^[:space:]]' <<< "$t")")
+    fi
+    [ "$i" = 6 ] || sleep 10
+  done
+  rm -f "$errf"
+  if [ -z "$got" ]; then printf '%s' "$why"; return 1; fi
+  printf '%s\n' "$text"
+}
+
 log "V1'' probe $(date -u +%FT%TZ). main before: $main_before. records-data before: $rd_before."
+gh_ver=$(gh --version 2>/dev/null) || true
+gh_ver=$(printf '%s\n' "${gh_ver%%$'\n'*}" | clean_log); gh_ver=${gh_ver:0:200}
+log "gh: ${gh_ver:-unread}."
+# v1pp-probe/log-read-escape-flag (I-log 6): gh 2.104 refuses to print a body holding terminal escape sequences (a job
+# log's ANSI colours) unless --allow-escape-sequences is passed; older gh (2.89) has no such flag and rejects it. So
+# ask this gh's own help, once and locally (no network), and pass the flag on the job-log reads only. Safe: clean_log
+# strips ANSI and control characters from the log text before any use, and no log text is ever printed raw.
+log_flag=""
+gh_short=gh
+if [[ "$gh_ver" =~ ^gh\ version\ ([0-9][0-9.]*[0-9]) ]]; then gh_short="gh ${BASH_REMATCH[1]}"; fi
+gh_help=$(gh api --help 2>/dev/null) || true   # read whole first: grep -q in a pipe could SIGPIPE gh (pipefail)
+if [[ "$gh_help" == *--allow-escape-sequences* ]]; then
+  log_flag=--allow-escape-sequences
+  log "$gh_short: log reads pass --allow-escape-sequences (log text is cleaned before any use)."
+else
+  log "$gh_short: log reads do not pass --allow-escape-sequences (this gh does not know it)."
+fi
+gh_help=""
+# v1pp-probe/log-read-selfcheck (I-log 3): every answer is read from job logs, so before the first write (the leftover
+# deletes below are writes) show that this machine can read one: the newest finished daily-update job's, through
+# job_log. Reads only; its text is never shown. Refused here, nothing was changed (started is still empty, and the
+# workflow scope is not asked for yet). The newest 5 completed runs, newest first: the first with a completed
+# success or failure job is used (the newest may have been cancelled).
+sc_runs=$(gh api "repos/$repo/actions/workflows/daily-update.yml/runs?status=completed&per_page=5" \
+          --jq '.workflow_runs[].id' 2>/dev/null) || sc_runs=""
+sc_run=""; sc_jid=""
+while IFS= read -r r; do
+  [[ "$r" =~ ^[0-9]+$ ]] || continue
+  sc_jobs=$(run_jobs "$r") || continue
+  sc_jid=$(awk -F'\t' '$2 ~ /^[0-9]+$/ && $3 == "completed" && ($4 == "success" || $4 == "failure") {print $2; exit}' <<< "$sc_jobs")
+  if [ -n "$sc_jid" ]; then sc_run=$r; break; fi
+done <<< "$sc_runs"
+if [ -z "$sc_jid" ]; then
+  log "REFUSED: could not find a finished daily-update job to test the log read. Nothing was changed."
+  exit 1
+fi
+if ! sc_text=$(job_log "$sc_jid" "$log_line"); then
+  log "REFUSED: could not read the log of finished job $sc_jid (daily-update run $sc_run) after 6 reads (last: $sc_text); every answer is read from job logs, so the probe stops here (v1pp-probe/job-log-unreadable). Nothing was changed. Send this file to the team."
+  exit 1
+fi
+log "Log read check: job $sc_jid of daily-update run $sc_run read ($(grep -c . <<< "$sc_text") lines)."
+sc_text=""
+# v1pp-probe/selfcheck-before-scope: the workflow scope is asked for only now, after the read-only checks passed
+if ! gh auth status 2>&1 | grep -q "workflow"; then
+  echo "Your GitHub CLI sign-in needs the workflow scope to push the probe's workflow files: a browser opens."
+  gh auth refresh -h github.com -s workflow || { log "Could not add the workflow scope (see above). Nothing was changed."; exit 1; }
+  scope_added=yes
+fi
 for r in "${probe_refs[@]}"; do api_quiet -X DELETE "repos/$repo/git/refs/$r"; done   # leftovers of an earlier try
 started=yes
 
@@ -364,13 +544,26 @@ for i in 0 1 2; do
   g_nums+=("$pr_num")
 done
 log "Probe pull requests (yours): W #${g_nums[0]}, N #${g_nums[1]}, D0 #${g_nums[2]}. Bot branches: ${b_branches[*]}."
-# F2 (R-T): a tag named main must not be creatable, by anyone
+# F2 (R-T): a tag named main must not be creatable, by anyone: by the REST API, then by git push
+tag_t0=$(date -u -d '-60 seconds' +%FT%TZ 2>/dev/null)   # rule suites of this try are pushed at or after it (skew margin)
+tag_bare=""
 if out=$(gh api -X POST "repos/$repo/git/refs" -f ref=refs/tags/main -f sha="$main_before" --jq '.ref' 2>&1); then
-  mark FAIL "tag main" "GitHub created it: $(printf '%s' "$out" | tr '\r\n' '  ')"
+  tag_rest_created=yes; mark FAIL "tag main" "GitHub created it: $(printf '%s' "$out" | tr '\r\n' '  ')"
 elif grep -qi 'rule violation' <<< "$out"; then
   mark PASS "tag main" "refused ($(printf '%s' "$out" | tr '\r\n' '  '))"
+elif grep -q 'HTTP 422' <<< "$out"; then
+  tag_bare=$(flat "$out"); tag_suite   # its rule suite, read now: before the git push adds a second one
 else
   mark INCONCLUSIVE "tag main" "failed without naming a rule: $(printf '%s' "$out" | tr '\r\n' '  ')"
+fi
+tag_git
+if [ -n "$tag_bare" ]; then
+  if [ -n "$tag_proof" ]; then mark PASS "tag main" "refused ($tag_bare); $tag_proof"
+  elif [ -n "$tag_soft" ] && [ "$tag_git_kind" = PASS ]; then
+    mark PASS "tag main" "refused ($tag_bare), naming no rule, and $tag_why; R-T, which has no bypass actor, is shown refusing the same tag on the git line above, and 'tag main after' reads that it is absent"
+  elif [ "$tag_why" = "no rule suite recorded this try" ]; then
+    mark INCONCLUSIVE "tag main" "failed without naming a rule, and no rule suite recorded this try, and the git line is not PASS: $tag_bare (see https://github.com/$repo/rules/insights)"
+  else mark INCONCLUSIVE "tag main" "refused ($tag_bare), but $tag_why"; fi
 fi
 push_file "$envb" "$file_env" "$envwf" "V1pp probe: environment refusal" || setup_failed "could not push $envb"
 env_head=$pushed; r_heads[1]=$env_head
@@ -399,13 +592,10 @@ wait_run() {   # $1 run id: v1pp-probe/unbounded-watch: up to 12 minutes (72 rea
   done
   printf '%s' "$s"
 }
-run_log() {   # $1 run id: the run's log; untrusted text, so ANSI colour codes, then control characters, are dropped
-  gh run view "$1" --repo "$repo" --log 2>/dev/null | sed -E $'s|\x1b\\[[0-9;?]*[ -/]*[@-~]||g' \
-    | tr -d '\000-\010\013-\037\177'
-}
 run_id=$(run_of "$runner" "$run_head") || run_id=""
 r_ids[0]=$run_id; r_looked[0]=yes
 lines=""
+log_unread=""   # v1pp-probe/unread-not-absent (I-log 2): a runner job's log not read, so no line may read as absent
 if [ -z "$run_id" ]; then
   mark INCONCLUSIVE "runner" "the probe run did not start within 3 minutes"
 else
@@ -413,7 +603,14 @@ else
   st=$(wait_run "$run_id")
   if [ "$st" = completed ]; then mark PASS "runner" "the run completed"
   else mark INCONCLUSIVE "runner" "the run reads '${st:-unread}', not completed after 12 minutes, so its answers are not final (it is cancelled before cleanup)"; fi
-  log_text=$(run_log "$run_id") || log_text=""
+  log_text=""
+  jobs=$(run_jobs "$run_id") || jobs=""
+  jids=$(awk -F'\t' '$2 ~ /^[0-9]+$/ {print $2}' <<< "$jobs")
+  [ -n "$jids" ] || { log_unread=yes; mark INCONCLUSIVE "runner log" "could not read the run's jobs"; }
+  for jid in $jids; do
+    if t=$(job_log "$jid" 'V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH) '); then log_text+="$t"$'\n'
+    else log_unread=yes; mark INCONCLUSIVE "runner log" "could not read job $jid's log after 6 reads (last: $t)"; fi
+  done
   lines=$(grep -oE "V1PP-(RESULT|MERGED|NOPR) (W|N|D0|WB|NB|D0B|PUSH)( .*)?$" <<< "$log_text" || true)
   while IFS= read -r l; do [ -n "$l" ] && log "  $l"; done <<< "$lines"
   errs=$(grep -v 'echo "V1PP-ERROR' <<< "$log_text" | grep -oE "V1PP-ERROR: .*" || true)
@@ -426,6 +623,7 @@ judge() {   # $1 target, $2 step, $3 what the refusal must name (an ERE, any cas
   l=$(grep -E "^V1PP-RESULT $1 $2 exit=[0-9]+( |$)" <<< "$lines" | head -n 1)
   if [ -z "$l" ]; then
     if [ -n "$ended" ]; then mark NOT-TRIED "$1 $2" "skipped: an earlier merge or push ended the run"
+    elif [ -n "$log_unread" ]; then mark INCONCLUSIVE "$1 $2" "not judged: the run's log was not read (see the runner log line)"
     else mark INCONCLUSIVE "$1 $2" "no answer in the run's log"; fi
     return 0
   fi
@@ -434,12 +632,15 @@ judge() {   # $1 target, $2 step, $3 what the refusal must name (an ERE, any cas
   elif [ -z "$3" ] || grep -qiE "$3" <<< "$rest"; then mark PASS "$1 $2" "refused: $rest"
   else mark INCONCLUSIVE "$1 $2" "refused, but not naming '$3': $rest"; fi
 }
+# v1pp-probe/squash-last-pusher: the pull_request rule of R1'' may name its require_last_push_approval condition, not
+# the approval count; both are that one rule, so both count, the last-pusher one only with the ruleset header
+pr_rule='approving review|Repository rule violations found.*New changes require approval from someone other than the last pusher'
 judge_pr() {   # $1 target: the bot approval and every merge try on its pull request
   judge "$1" approve 'not permitted to (create or )?approve pull requests'
-  judge "$1" squash 'approving review'
+  judge "$1" squash "$pr_rule"
   judge "$1" merge 'not allowed|approving review|rule violation'    # v1pp-probe/unobserved-refusal-pass
   judge "$1" rebase 'not allowed|approving review|rule violation'
-  judge "$1" graphql 'approving review'
+  judge "$1" graphql "$pr_rule"
 }
 i=0
 for t in WB NB D0B; do
@@ -465,8 +666,7 @@ env_refused() {   # $1 run label, $2 run id: each environment's job refused befo
   fi
   log "Environment run ($1): https://github.com/$repo/actions/runs/$2"
   wait_run "$2" >/dev/null
-  jobs=$(gh api "repos/$repo/actions/runs/$2/jobs" \
-         --jq '.jobs[] | [.name, (.id|tostring), .status, (.conclusion|tostring)] | @tsv' 2>/dev/null) || jobs=""
+  jobs=$(run_jobs "$2") || jobs=""
   for e in github-pages morning-note; do
     row=$(awk -F'\t' -v n="$e" '$1 == n' <<< "$jobs" | head -n 1)
     if [ -z "$row" ]; then mark INCONCLUSIVE "$1 $e" "could not read the job"; continue; fi
@@ -486,14 +686,24 @@ env_refused() {   # $1 run label, $2 run id: each environment's job refused befo
   done
 }
 pages_refused() {   # $1 run label, $2 run id: v1pp-probe/pages-api-coverage, the pages-api job's answer
-  local l code rest
+  local l code rest jid t jobs
   if [ -z "$2" ]; then mark INCONCLUSIVE "$1 pages-api" "the run did not start within 3 minutes"; return 0; fi
-  l=$(run_log "$2" | grep -oE "V1PP-RESULT PAGES api exit=[0-9]+( .*)?$" | head -n 1) || l=""
-  if [ -z "$l" ]; then mark INCONCLUSIVE "$1 pages-api" "no answer in the run's log"; return 0; fi
+  jobs=$(run_jobs "$2") || jobs=""   # v1pp-probe/pages-jid-pipefail: read first, then pick the row
+  jid=$(awk -F'\t' '$1 == "pages-api" {print $2; exit}' <<< "$jobs")
+  if ! [[ "$jid" =~ ^[0-9]+$ ]]; then mark INCONCLUSIVE "$1 pages-api" "could not read the job"; return 0; fi
+  if ! t=$(job_log "$jid" 'V1PP-RESULT PAGES api exit=[0-9]'); then
+    mark INCONCLUSIVE "$1 pages-api" "could not read the job's log (job $jid) after 6 reads (last: $t)"; return 0
+  fi
+  l=$(grep -oE "V1PP-RESULT PAGES api exit=[0-9]+( .*)?$" <<< "$t" | head -n 1) || l=""
+  if [ -z "$l" ]; then mark INCONCLUSIVE "$1 pages-api" "no answer in the job's log"; return 0; fi
   rest=${l#*exit=}; code=${rest%% *}
   if [ "$code" = 0 ]; then mark FAIL "$1 pages-api" "GitHub accepted a Pages deployment: $rest"
   elif grep -qiE 'not allowed to deploy|protection rule' <<< "$rest"; then mark PASS "$1 pages-api" "refused: $rest"
-  elif grep -qi 'artifact' <<< "$rest"; then   # the fake artifact stays: a real one could replace the live site
+  elif grep -qF 'Unable to find artifact' <<< "$rest" && grep -qE '\(HTTP 400\)|"status":"400"' <<< "$rest"; then
+    # v1pp-probe/pages-api-unreachable: GitHub's own answer to the made-up artifact (try 1); the fake artifact stays,
+    # since a real one could replace the live site, so the branch check behind it is never reached: not counted
+    mark NOT-REACHABLE "$1 pages-api" "by design, not counted: the made-up artifact was refused (HTTP 400) before any branch check, so nothing was deployed and the Pages API's own branch check is not covered: $rest"
+  elif grep -qi 'artifact' <<< "$rest"; then
     mark INCONCLUSIVE "$1 pages-api" "artifact refused first; branch check not reached: $rest"
   else mark INCONCLUSIVE "$1 pages-api" "refused, but not on branch or environment grounds: $rest"; fi
 }
