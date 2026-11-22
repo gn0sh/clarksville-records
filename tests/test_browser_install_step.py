@@ -38,7 +38,7 @@ CFT = "https://storage.googleapis.com/chrome-for-testing-public/{}/linux64"
 ZIPS = ("chrome-linux64.zip", "chrome-headless-shell-linux64.zip")
 PINNED_ZIPS = ("8aac35011c18f6e2d10696154af89a5728ac2ddd6dc6fad24ffdf243c3fcfd5a  chrome-linux64.zip\n"
                "a9da028861a0cf789ff25c2fed45f5f1aaf969ed9247835b6a7821a4f7af9d1d  chrome-headless-shell-linux64.zip\n")
-CURL_FLAGS = "--fail --location --proto '=https' --proto-redir '=https' --max-time 300"
+CURL_FLAGS = "--fail --location --proto '=https' --proto-redir '=https' --max-time 300 --max-filesize 268435456"
 BASH = ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c"]   # a run step's default shell on GitHub
 LINE = re.compile(r"[0-9a-f]{64}  (chromium|chromium_headless_shell)-[0-9]+/[A-Za-z0-9._/@+-]+")
 
@@ -219,6 +219,25 @@ def test_t10_the_step_timeout_covers_the_worst_case():
     worst = 3 * npm[0] + 3 * deps[0] + 3 * sum(curl) + 3 * sum(pauses) + 300
     assert worst == 3990 and worst <= step["timeout-minutes"] * 60
     assert "3,990 s" in DAILY_PATH.read_text(encoding="utf-8")
+
+
+def test_each_zip_download_is_capped_at_256_mib():
+    """Security review c562d60 L1 (ci-supply/download-size-unbounded): curl stops a download above 256 MiB (both zips
+    were 196 MB and 120 MB on 2026-11-22), so a bad mirror cannot fill the runner's disk before the hash check."""
+    curls = [ln for ln in _run_lines(_steps()[INSTALL]) if re.search(r"\bcurl\b", ln)]
+    assert len(curls) == 2 and all(ln.count(" --max-filesize 268435456 ") == 1 for ln in curls)
+    assert 268435456 == 256 * 1024 * 1024
+
+
+def test_requirements_lock_holds_no_option_lines():
+    """An option line in the lock (--index-url, --extra-index-url, --trusted-host, --no-binary, -e, -r ...) would change
+    where or how pip fetches, past the workflows' --require-hashes --only-binary :all: (F-pip, L1)."""
+    lines = (ROOT / "requirements.lock").read_text(encoding="utf-8").splitlines()
+    assert lines and not [ln for ln in lines if ln.startswith("-")]
+    # the only indented options are the per-file hashes pip-compile writes under each pin
+    hashes = re.compile(r"\s+--hash=sha256:[0-9a-f]{64}( \\)?")
+    opts = [ln for ln in lines if ln.lstrip().startswith("-")]
+    assert opts and all(hashes.fullmatch(ln) for ln in opts), [ln for ln in opts if not hashes.fullmatch(ln)]
 
 
 def test_t12_both_pip_installs_take_hashed_wheels_only():

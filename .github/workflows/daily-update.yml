@@ -763,8 +763,8 @@ jobs:
           cft="https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.12/linux64"
           download() {   # each try starts empty, so a failed try's partial file is never checked or unzipped
             rm -f -- "$zips"/*
-            curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --silent --show-error -o "$zips/chrome-linux64.zip" "$cft/chrome-linux64.zip" \
-              && curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --silent --show-error -o "$zips/chrome-headless-shell-linux64.zip" "$cft/chrome-headless-shell-linux64.zip"
+            curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --max-filesize 268435456 --silent --show-error -o "$zips/chrome-linux64.zip" "$cft/chrome-linux64.zip" \
+              && curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --max-filesize 268435456 --silent --show-error -o "$zips/chrome-headless-shell-linux64.zip" "$cft/chrome-headless-shell-linux64.zip"
           }
           # browser-zips-shape: exactly the two pinned lines, checked before anything is fetched
           [ "$(wc -l < "$zl")" = 2 ] && ! grep -qvE '^[0-9a-f]{64}  chrome(-headless-shell)?-linux64\.zip$' "$zl" \
