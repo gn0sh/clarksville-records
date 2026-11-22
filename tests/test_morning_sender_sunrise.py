@@ -53,6 +53,8 @@ def styled(html: str, name: str) -> list:
 
 
 # ------------------------------------------------------------------ A's layout, top to bottom
+LABEL = {t["key"]: t["label"] for t in config.SITE["morning_note"]["subject_topics"]}
+
 def test_the_edition_opens_with_the_sky_header_greeting_and_unofficial_line():
     n = note_of(*SEPT, date="2026-11-18")
     html = render.body_html(CTX, n, n["entries"])
@@ -74,10 +76,10 @@ def test_each_list_is_a_section_and_each_entry_a_card_with_the_date_block():
     n = note_of(*SEPT, entry(), date="2026-11-18")
     html = render.body_html(CTX, n, n["entries"])
     assert node_texts(html, "h2")[:2] == ["My two seats", "Budget"]
-    # note-titles: the section's "New on your list", then each card's topic kicker (all three are ordinances, or
-    # the fixture's "a resolution" on the budget entry)
-    assert [k.all_text() for k in styled(html, "kicker")] == [TEXT["new_on_list"], TEXT["topic_ordinance"],
-                                                              TEXT["topic_ordinance"], f"{TEXT['topic_budget']} · {TEXT['topic_resolution']}"]
+    # note-titles: the section's "New on your list", then each card's topic kicker, a config label of
+    # morning_note.subject_topics (first match wins: the budget entry is on the budget list)
+    assert [k.all_text() for k in styled(html, "kicker")] == [TEXT["new_on_list"], LABEL["ordinance"],
+                                                              LABEL["ordinance"], LABEL["budget"]]
     cards = styled(html, "card")
     assert len(cards) == 3                                  # the compact group, the titled vote, the budget entry
     day = [c.all_text() for c in styled(html, "day_td")]
@@ -99,8 +101,9 @@ def test_an_entry_with_no_meeting_has_a_kicker_line_and_its_title_as_the_headlin
     n = note_of(*CONTRACTS)
     html = render.body_html(CTX, n, n["entries"])
     assert not styled(html, "day_td")
-    # note-titles: the topic kicker, then the body and `recorded` under the headline
-    assert [x.all_text() for x in styled(html, "kicker")][1:] == [TEXT["topic_contracts"]] * 3
+    # note-titles: the topic kicker (by what the title says first: the two "Paving" documents are street items,
+    # the solicitation a contract), then the body and `recorded` under the headline
+    assert [x.all_text() for x in styled(html, "kicker")][1:] == [LABEL["streets"]] * 2 + [LABEL["contracts"]]
     assert [x.all_text() for x in styled(html, "line")] == ["Fixture County · New document"] * 2 + \
         ["Fixture County · New on the purchasing archive"]
     assert [h.all_text() for h in styled(html, "h3_after")] == [e["title"] for e in CONTRACTS]
@@ -388,9 +391,9 @@ def test_the_shipped_budget_leaves_room_under_gmails_clip():
 
 # ------------------------------------------------------------------ config: every new word, checked
 def test_every_new_word_is_config_text_and_passes_the_neutrality_scan(msite):  # noqa: F811
-    assert set(TEXT) == set(render.TEXT_KEYS) == set(morning.SENDER_TEXT_KEYS)
+    assert set(TEXT) - set(morning.topic_text_keys(config.SITE)) == set(render.TEXT_KEYS) == set(morning.SENDER_TEXT_KEYS)
     ours = render.own_text(CTX, {**read_note(msite), "coming_up": COMING})
-    for k in render.TEXT_KEYS:
+    for k in [*render.TEXT_KEYS, *morning.topic_text_keys(config.SITE)]:
         assert TEXT[k] in ours or render.subject(CTX, D.isoformat()) in ours, k
     assert "Fixture County Budget Committee" in ours and "executive session" in ours
     assert not [t for t in ours if BANNED.search(t)]

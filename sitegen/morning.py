@@ -184,15 +184,67 @@ SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site"
                     "take_part_line": (), "invited": (), "coming_up": (),
                     "coming_meeting": ("{date}", "{body}", "{meeting}"), "coming_body": ("{date}", "{body}"),
                     "all_meetings": (), "more": ("{n}",),
-                    # note-titles (2026-11-22): the subject's phrases (sender.common.SUBJECT_KEYS), the cards' topic
-                    # kickers (sender.common.TOPICS) and the agenda link of a title its meeting's agenda printed
-                    "subject_topics": ("{topics}",), "subject_and": (),
-                    **{f"subject_{k}_{form}": ("{n}",) if form == "many" else ()
-                       for k in ("records", "rezoning", "budget", "contracts", "ordinance", "resolution",
-                                 "appointment", "today") for form in ("one", "many")},
-                    **{f"topic_{k}": () for k in ("rezoning", "budget", "contracts", "ordinance", "resolution",
-                                                   "appointment")},
+                    # note-titles (2026-11-22): the subject's fixed phrases (sender.common.SUBJECT_KEYS; each topic of
+                    # morning_note.subject_topics adds subject_<key>_one and _many, topic_text_keys) and the agenda
+                    # link of a title its meeting's agenda printed
+                    "subject_frame": ("{topics}",), "subject_and": (), "subject_records_one": (),
+                    "subject_records_many": ("{n}",), "subject_today_one": (), "subject_today_many": ("{n}",),
                     "title_agenda": ()}
+TOPIC_RULES = ("words", "lists", "kinds", "item_types")      # sender.render.topic: how a topic matches an entry
+
+
+def topic_text_keys(cfg: dict) -> dict:
+    """{text key: placeholders} the topics of morning_note.subject_topics add to morning_note.sender.text."""
+    topics = (cfg.get("morning_note") or {}).get("subject_topics")
+    keys = [t.get("key") for t in topics if isinstance(t, dict)] if isinstance(topics, list) else []
+    return {f"subject_{k}_{f}": ("{n}",) if f == "many" else () for k in keys if isinstance(k, str)
+            for f in ("one", "many")}
+
+
+def topic_problems(cfg: dict) -> list[str]:
+    """note-titles: morning_note.subject_topics and title_lead_drop. Each topic: a key (lower-case letters, once, not
+    records or today), a label, and at least one rule; every `words` pattern compiles; lists, kinds and item_types
+    name what exists. Each lead phrase is text."""
+    from sender.common import FIXED_COUNTED, TOPIC_KEY
+    mn = cfg.get("morning_note") or {}
+    at = "morning_note.subject_topics"
+    topics = mn.get("subject_topics")
+    if not isinstance(topics, list) or not topics:
+        return [f"{at} must be a list of {{key, label, words, lists, kinds, item_types}}"]
+    out, seen = [], set()
+    types = {t.get("key") for t in cfg.get("item_types") or [] if isinstance(t, dict)}
+    for t in topics:
+        if not isinstance(t, dict) or set(t) - {"key", "label", "fallback", *TOPIC_RULES} \
+                or not isinstance(t.get("fallback", False), bool):
+            out.append(f"{at}: each topic is a mapping of key, label, its rules ({', '.join(TOPIC_RULES)}) and "
+                       f"fallback (true or false)")
+            continue
+        k = t.get("key")
+        if not (isinstance(k, str) and TOPIC_KEY.fullmatch(k)) or k in FIXED_COUNTED or k in seen:
+            out.append(f"{at}: key {k!r} must be lower-case letters, used once, and not {' or '.join(FIXED_COUNTED)}")
+        seen.add(k)
+        if not (isinstance(t.get("label"), str) and t["label"].strip()):
+            out.append(f"{at} {k!r} needs a label")
+        rules = {r: t.get(r) for r in TOPIC_RULES if r in t}
+        if not rules or not all(isinstance(v, list) and v and all(isinstance(x, str) and x for x in v)
+                                for v in rules.values()):
+            out.append(f"{at} {k!r} needs at least one rule, each a non-empty list of text")
+            continue
+        for w in rules.get("words", []):
+            try:
+                re.compile(w)
+            except re.error:
+                out.append(f"{at} {k!r}: {w!r} is not a pattern")
+        out += [f"{at} {k!r}: list {x!r} is not one of {', '.join(LIST_KEYS)}" for x in rules.get("lists", [])
+                if x not in LIST_KEYS]
+        out += [f"{at} {k!r}: kind {x!r} is not one of {', '.join(KINDS)}" for x in rules.get("kinds", [])
+                if x not in KINDS]
+        out += [f"{at} {k!r}: item type {x!r} is not an item_types key" for x in rules.get("item_types", [])
+                if x not in types]
+    lead = mn.get("title_lead_drop", [])
+    if not isinstance(lead, list) or not all(isinstance(x, str) and x.strip() for x in lead):
+        out.append("morning_note.title_lead_drop must be a list of phrases")
+    return out
 _DEFINITION = re.compile(r"[^.\s][^.]*\. \S.*")        # "Term. Definition.": the term (bold in the email), then its words
 _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
@@ -245,8 +297,9 @@ def sender_problems(cfg: dict) -> list[str]:
     if "text" in s and not isinstance(text, dict):
         out.append(f"{at}.text must be a mapping")
     elif isinstance(text, dict):
-        out += [f"{at}.text.{k} is not a known key" for k in text if k not in SENDER_TEXT_KEYS]
-        for k, marks in SENDER_TEXT_KEYS.items():
+        known = {**SENDER_TEXT_KEYS, **topic_text_keys(cfg)}
+        out += [f"{at}.text.{k} is not a known key" for k in text if k not in known]
+        for k, marks in known.items():
             v = text.get(k)
             if not (isinstance(v, str) and v.strip()):
                 out.append(f"{at}.text.{k} must be set")
@@ -265,8 +318,9 @@ def sender_problems(cfg: dict) -> list[str]:
         place = str(cfg.get("today_place") or "")
         out += subject_problems(text, place)
         out += [f"{at}.text.{k} must not name a government body or say official, got {text[k]!r}"
-                for k in SUBJECT_KEYS if isinstance(text.get(k), str)
+                for k in (*SUBJECT_KEYS, *topic_text_keys(cfg)) if isinstance(text.get(k), str)
                 and AUTHORITY.search(text[k].replace("{place}", place))]
+        out += topic_problems(cfg)
     from sender.common import exact_url_ok, parse_hosts     # plan-untrusted/body-unchecked: what an email links
     if cfg.get("support_url") not in (None, "") and not exact_url_ok(cfg["support_url"]):
         out.append(f"support_url must be one https URL on a lower-case host, with no user or port (the deliver "

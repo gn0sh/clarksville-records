@@ -335,8 +335,8 @@ def test_a_subject_that_is_not_one_printable_line_sends_nothing(plan, subject):
     "Daylight morning note, November 11, 2026 - URGENT: reply with your password",
     "Official notice from the City", "Daylight morning note,  November 11, 2026", "Daylight",
     # note-titles: topics subjects too, read back into the config's phrases and checked against the edition
-    "2 lawsuits: your Clarksville morning note", "999 zoning cases: your Clarksville morning note",
-    "A zoning case: your Clarksville morning note - URGENT", "a zoning case: your Clarksville morning note"])
+    "2 lawsuits: your Clarksville morning note", "999 zone changes: your Clarksville morning note",
+    "A zone change: your Clarksville morning note - URGENT", "a zone change: your Clarksville morning note"])
 @pytest.mark.parametrize("mode", ["stamp", "ids"])
 def test_a_subject_other_than_the_one_the_config_gives_sends_nothing(plan, subject, mode):
     """sender/plan-untrusted/subject-unchecked: each subject is rebuilt from the repository's site_name and
@@ -356,7 +356,7 @@ def test_a_subject_other_than_the_one_the_config_gives_sends_nothing(plan, subje
 def test_the_expected_subject_comes_from_the_repository_config_not_the_plan(plan):
     fake = Fake(people(plan))
     # note-titles: the plan's subjects are topics subjects, read back with the repository's phrases and place
-    other = tuple((k, v.replace("zoning case", "rezoning")) for k, v in settings().subject_text)
+    other = tuple((k, v.replace("morning note", "evening note")) for k, v in settings().subject_text)
     res, _ = go(copy.deepcopy(plan), fake, s=settings(subject_text=other))
     assert (res.code, res.status) == (2, "bad-plan") and fake.calls == []
     res, _ = go(copy.deepcopy(plan), Fake(people(plan)), s=settings(place="Elsewhere"))

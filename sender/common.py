@@ -249,15 +249,15 @@ def clean(text) -> str:
     return cut(" ".join(s.split()))
 
 
-def cut(s: str, most: int = MAX_TITLE) -> str:
-    """`s` (one clean line) as at most `most` characters and CUT: cut at the last word break that keeps it in, so no
-    word is split (note-titles, 2026-11-22: a card's headline is the record's title), or mid-word when the first
+def cut(s: str, most: int = MAX_TITLE, mark: str = CUT) -> str:
+    """`s` (one clean line) as at most `most` characters and `mark`: cut at the last word break that keeps it in, so
+    no word is split (note-titles, 2026-11-22: a card's headline is the record's title), or mid-word when the first
     half holds no break (one long run with no space, as a garbled PDF line can be)."""
     if len(s) <= most:
         return s
     head = s[:most + 1]
     at = head.rfind(" ")
-    return (head[:at] if at > most // 2 else s[:most]).rstrip() + CUT
+    return (head[:at] if at > most // 2 else s[:most]).rstrip(" ,;:") + mark
 
 
 def day_words(iso: str) -> str:
@@ -273,22 +273,35 @@ def subject_line(template: str, site_name: str, iso: str) -> str:
 
 
 # note-titles (2026-11-22, the owner: "nothing letting me know why I should care"): the subject says what is inside,
-# counted from the edition's own entries by the site's mechanical topic rule (render.topics) and written only in
-# config words (`morning_note.sender.text`): "3 zoning cases, 2 ordinances and a budget item: your {place}
-# morning note". One rule here for render, which writes it, and the deliver stage, which reads it back
-# (subject_parse) and refuses a plan whose subject is not made of the repository's config phrases.
-TOPICS = ("rezoning", "budget", "contracts", "ordinance", "resolution", "appointment")    # the fixed tie order
+# counted from the edition's own entries by what each record is about (config `morning_note.subject_topics`, matched
+# on the record's own words, render.topic) and written only in config words (`morning_note.sender.text`): "3 zone
+# changes, an alcohol permit and a land deal: your {place} morning note". One rule here for render, which writes it,
+# and the deliver stage, which reads it back (subject_parse) and refuses a plan whose subject is not made of the
+# repository's config phrases.
 MAX_TOPICS = 3          # the most topics a subject names
 SUBJECT_CAP = 78        # characters; past it the subject drops whole phrases, never part of one
-SUBJECT_SEP = " \u00b7 "     # " · ": after the "meeting today" phrase, which leads when it fits
+SUBJECT_SEP = " · "     # " · ": after the "meeting today" phrase, which leads when it fits
 COMING_N = 3            # the meetings a note's coming_up lists (sitegen.morning.COMING_N; a test keeps them equal)
-COUNTED = ("records",) + TOPICS     # a "{n} new records" form, then one phrase pair per topic
-# The config text the subject is made of, `subject_<key>_one` and `_many` for each of COUNTED and "today" (each is
-# in render.TEXT_KEYS and sitegen.morning.SENDER_TEXT_KEYS, and the deliver stage's reader reads every one:
-# settings._SUB_READ)
-SUBJECT_KEYS = ("subject_topics", "subject_and") + \
-    tuple(f"subject_{k}_{form}" for k in COUNTED + ("today",) for form in ("one", "many"))
+# The fixed config text of the subject (each in render.TEXT_KEYS and sitegen.morning.SENDER_TEXT_KEYS). Each topic
+# adds `subject_<key>_one` and `subject_<key>_many` (topic_keys); the deliver stage's reader reads every
+# `text.subject*` line (settings._SUB_PREFIX).
+SUBJECT_KEYS = ("subject_frame", "subject_and", "subject_records_one", "subject_records_many", "subject_today_one",
+                "subject_today_many")
+FIXED_COUNTED = ("records", "today")
+TOPIC_KEY = re.compile(r"[a-z]{1,24}")
+_TOPIC_PHRASE = re.compile(r"subject_([a-z]{1,24})_one")
 _N = "{n}"
+
+
+def topic_keys(text: dict) -> tuple[str, ...]:
+    """The topics the config's subject phrases name: each `subject_<key>_one` with its `_many`, in the text's order,
+    neither "records" nor "today"."""
+    out = []
+    for k in text:
+        m = _TOPIC_PHRASE.fullmatch(k)
+        if m and m.group(1) not in FIXED_COUNTED and f"subject_{m.group(1)}_many" in text:
+            out.append(m.group(1))
+    return tuple(out)
 
 
 def _upper_first(s: str) -> str:
@@ -296,8 +309,8 @@ def _upper_first(s: str) -> str:
 
 
 def _counted(text: dict, key: str, n: int) -> str:
-    """Config text `subject_<key>_one` for one, else `subject_<key>_many` with {n} filled in ("a zoning case",
-    "3 zoning cases")."""
+    """Config text `subject_<key>_one` for one, else `subject_<key>_many` with {n} filled in ("a zone change",
+    "3 zone changes")."""
     return clean(text[f"subject_{key}_one"] if n == 1 else text[f"subject_{key}_many"].replace(_N, str(n)))
 
 
@@ -309,28 +322,33 @@ def _listed(text: dict, phrases: list[str]) -> str:
 
 
 def subject_text(text: dict, place: str, counts: list[tuple[str, int]], meetings: int = 0) -> str:
-    """The subject for exactly these (key, n) phrases (a key of COUNTED) and `meetings` today (0: no lead):
-    config subject_topics with {place} and {topics} filled in, first letter upper case. No choice is made here:
+    """The subject for exactly these (key, n) phrases (a topic key or "records") and `meetings` today (0: no lead):
+    config subject_frame with {place} and {topics} filled in, first letter upper case. No choice is made here:
     compose() chooses, subject_parse() reads back."""
     topics = _listed(text, [_counted(text, k, n) for k, n in counts])
-    s = clean(text["subject_topics"].replace("{place}", clean(place)).replace("{topics}", topics))
+    s = clean(text["subject_frame"].replace("{place}", clean(place)).replace("{topics}", topics))
     if meetings:
         s = _counted(text, "today", meetings) + SUBJECT_SEP + s
     return _upper_first(s)
 
 
-def compose(text: dict, site_name: str, place: str, iso: str, counts: dict, records: int, meetings: int) -> str:
+def compose(text: dict, site_name: str, place: str, iso: str, counts: dict, records: int, meetings: int,
+            order=()) -> str:
     """The subject of one edition: `counts` {topic: distinct items}, `records` its entries, `meetings` the note's
-    meetings on its own day. The topics with the most items (ties in TOPICS order), up to MAX_TOPICS and only while
-    the subject stays within SUBJECT_CAP (whole phrases); with no topic, "{n} new records"; failing both (no entry,
-    or a cap too short), the day's template (subject_line). Then, when it still fits, the "meeting today" lead: last,
-    so it never moves a topic out (the day claim reads the subject without it, claim_subject)."""
-    ranked = sorted((k for k in TOPICS if counts.get(k)), key=lambda k: (-counts[k], TOPICS.index(k)))
+    meetings on its own day, `order` the topics' fixed order (config morning_note.subject_topics). The topics with
+    the most items (ties in that order), up to MAX_TOPICS, each only when the subject stays within SUBJECT_CAP with
+    it (a phrase that does not fit is left out whole; a later, shorter one may fit); with no topic, "{n} new
+    records"; failing both (no entry, or a cap too short), the day's template (subject_line). Then, when it still
+    fits, the "meeting today" lead: last, so it never moves a topic out (the day claim reads the subject without it,
+    claim_subject)."""
+    order = list(order) or list(topic_keys(text))
+    ranked = sorted((k for k in order if counts.get(k)), key=lambda k: (-counts[k], order.index(k)))
     chosen: list[tuple[str, int]] = []
-    for k in ranked[:MAX_TOPICS]:
-        if len(subject_text(text, place, chosen + [(k, counts[k])])) > SUBJECT_CAP:
+    for k in ranked:
+        if len(chosen) == MAX_TOPICS:
             break
-        chosen.append((k, counts[k]))
+        if len(subject_text(text, place, chosen + [(k, counts[k])])) <= SUBJECT_CAP:
+            chosen.append((k, counts[k]))       # else that phrase is left out whole; a shorter one may still fit
     if not chosen and records > 0:
         chosen = [("records", records)]
     if not chosen or len(subject_text(text, place, chosen)) > SUBJECT_CAP:
@@ -363,15 +381,15 @@ def _count_of(text: dict, key: str, piece: str) -> int | None:
 
 def subject_parse(subject: str, text: dict, place: str) -> tuple[list[tuple[str, int]], int] | None:
     """(the (key, n) phrases, the meetings) a topics subject is made of, or None when it is not one that
-    subject_text() writes from this config: every phrase one of COUNTED's, each once, "records" only alone. The
-    deliver stage then checks the numbers against the edition (deliver.subject_ok)."""
+    subject_text() writes from this config: every phrase "records" or a topic of topic_keys(), each once, "records"
+    only alone. The deliver stage then checks the numbers against the edition (deliver.subject_ok)."""
     meetings, rest = 0, subject
     if SUBJECT_SEP in subject:
         lead, rest = subject.split(SUBJECT_SEP, 1)
         meetings = _count_of(text, "today", lead) or 0
         if not meetings:
             return None
-    frame = clean(text["subject_topics"].replace("{place}", clean(place)))
+    frame = clean(text["subject_frame"].replace("{place}", clean(place)))
     if frame.count("{topics}") != 1:
         return None
     before, after = frame.split("{topics}")
@@ -381,9 +399,10 @@ def subject_parse(subject: str, text: dict, place: str) -> tuple[list[tuple[str,
     joined, sep = m.group(1), f" {clean(text['subject_and'])} "
     head, _, last = joined.rpartition(sep)
     pieces = (head.split(", ") if head else []) + [last]
+    counted = ("records",) + topic_keys(text)
     counts: list[tuple[str, int]] = []
     for piece in pieces:
-        hit = [(k, n) for k in COUNTED for n in [_count_of(text, k, piece)] if n]
+        hit = [(k, n) for k in counted for n in [_count_of(text, k, piece)] if n]
         if len(hit) != 1 or hit[0][0] in {k for k, _ in counts}:
             return None
         counts.append(hit[0])
@@ -398,31 +417,36 @@ def subject_problems(text: dict, place: str) -> list[str]:
     """Why these config phrases could not make subjects the deliver stage reads back the way render writes them
     (the site build refuses the config, so a plan never fails on it at 7:00): [] when they can. Each phrase is one
     line with no ", ", " and " or SUBJECT_SEP (the joins), the two forms of one phrase read as that phrase only,
-    subject_topics holds {topics} once, and its {place} needs a place."""
+    subject_frame holds {topics} once, and its {place} needs a place."""
     out = []
-    keys = [k for k in SUBJECT_KEYS if not isinstance(text.get(k), str) or not clean(text[k])]
-    if keys:
+    if [k for k in SUBJECT_KEYS if not isinstance(text.get(k), str) or not clean(text[k])]:
         return []           # sitegen.morning.sender_problems says which must be set
+    keys = list(SUBJECT_KEYS) + [f"subject_{k}_{f}" for k in topic_keys(text) for f in ("one", "many")]
     joins = (", ", f" {clean(text['subject_and'])} ", SUBJECT_SEP.strip())
-    for k in SUBJECT_KEYS:
-        if k != "subject_and" and any(j in clean(text[k]) for j in joins):
+    for k in keys:
+        if not isinstance(text.get(k), str) or not clean(text[k]):
+            out.append(f"morning_note.sender.text.{k} must be set")
+        elif k != "subject_and" and any(j in clean(text[k]) for j in joins):
             out.append(f"morning_note.sender.text.{k} must not hold \", \", \" {clean(text['subject_and'])} \" or "
                        f"\"{SUBJECT_SEP.strip()}\" (the subject joins its phrases with them)")
+        elif k.endswith("_many") and _N not in text[k]:
+            out.append(f"morning_note.sender.text.{k} must contain {_N}")
     if " " in clean(text["subject_and"]) or SUBJECT_SEP.strip() in text["subject_and"]:
         out.append("morning_note.sender.text.subject_and must be one word")
-    frame = text["subject_topics"]
+    frame = text["subject_frame"]
     if frame.count("{topics}") != 1:
-        out.append("morning_note.sender.text.subject_topics must hold {topics} once")
+        out.append("morning_note.sender.text.subject_frame must hold {topics} once")
     if "{place}" in frame and not clean(place):
-        out.append("morning_note.sender.text.subject_topics has {place}, so today_place must be set")
+        out.append("morning_note.sender.text.subject_frame has {place}, so today_place must be set")
     if SUBJECT_SEP.strip() in clean(place) or ", " in clean(place):
         out.append("today_place must not hold \", \" or the subject's \"" + SUBJECT_SEP.strip() + "\"")
     if out:
         return out
-    for k in COUNTED + ("today",):
+    every = ("records", "today") + topic_keys(text)
+    for k in every:
         for n in (1, 2, 10):
             piece = _counted(text, k, n)
-            hits = [x for x in COUNTED + ("today",) if _count_of(text, x, piece) is not None]
+            hits = [x for x in every if _count_of(text, x, piece) is not None]
             if hits != [k] or _count_of(text, k, piece) != n:
                 out.append(f"morning_note.sender.text.subject_{k}_one and _many must read as that phrase only "
                            f"(\"{piece}\" reads as {', '.join(hits) or 'nothing'})")

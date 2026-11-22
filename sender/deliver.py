@@ -302,7 +302,7 @@ def subject_ok(settings: Settings, day: str, subject: str, entries: int) -> bool
     if subject == expected_subject(settings, day):
         return True
     text = dict(settings.subject_text)
-    if sorted(text) != sorted(SUBJECT_KEYS) or len(subject) > SUBJECT_CAP or not settings.place:
+    if not set(SUBJECT_KEYS) <= set(text) or len(subject) > SUBJECT_CAP or not settings.place:
         return False
     try:
         got = subject_parse(subject, text, settings.place)

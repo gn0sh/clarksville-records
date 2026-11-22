@@ -307,36 +307,46 @@ the credit logo; the sun, mark and date blocks are text and CSS, so the email re
 The owner on the Sunrise sample: "I love the look, but we need to do better with titles. If I'm busy, this never
 gets a second look because there is nothing letting me know why I should care."
 - **Subject, per edition** (`common.compose`, `render.subject(ctx, day, entries, coming_up)`): a count per topic of
-  the edition's own entries in config phrases, "3 zoning cases and 2 contract listings: your Clarksville morning
-  note" (config `subject_topics` "{topics}: your {place} morning note", `{place}` = top-level `today_place`). Topics
-  (`common.TOPICS`, also the tie order: rezoning, budget, contracts, ordinance, resolution, appointment) come from
-  `render.topics`, the site's own mechanical rules only: on the zoning list or the item type rule's `rezoning`
-  (`views.item_types`: number prefix, else fixed words of the record's own title, never a title we made); on the
-  budget list or `budget`; on the contracts list; `ordinance`, `resolution`, `appointment` by the item type rule.
-  Each item counts once (a zoning case by `case`, a numbered item by body and `item_number`, else the entry), under
-  its first topic. The top `MAX_TOPICS` (3) by count, ties in the fixed order, `subject_<topic>_one` for one and
-  `subject_<topic>_many` ("{n} ...") otherwise, joined with ", " and `subject_and`; a phrase that would take the
-  subject past `SUBJECT_CAP` (78 characters) is left out whole, with the rest. No topic: `subject_records_*` ("{n}
-  new records", the edition's entries). Nothing fits: the day's template `subject` as before. Then, only if it still
-  fits, the lead `subject_today_*` ("a meeting today") + " · " when the note's `coming_up` holds a meeting on the
-  note's day. A count only: never an outcome. The subject never matches `render.AUTHORITY`; the build refuses a phrase
-  that would (`morning.sender_problems`), or that holds ", ", " and " or "·", or whose two forms could read as
-  another phrase (`common.subject_problems`).
+  the edition's own entries in config phrases, by what the items are about, not their record kind: "9 zone changes,
+  4 street items and 2 land deals: your Clarksville morning note" (config `subject_frame` "{topics}: your {place}
+  morning note", `{place}` = top-level `today_place`). Topics are the config list `morning_note.subject_topics`
+  (owner feedback round 2, 2026-11-22), each `{key, label, words?, lists?, kinds?, item_types?, fallback?}`, checked
+  in list order, first match wins per item (`render.topic`): `words` are case-insensitive regexes matched at a word
+  start on the record's own verbatim title (never a title we made: `title_ours` false), `lists` the entry's lists,
+  `kinds` its record kind, `item_types` the item type rule (`views.item_types`). The shipped order: zoning,
+  annexation, appointments, alcohol, property, budget, safety, parks, streets, contracts (kind `solicitation`), then
+  `ordinance` and `resolution` marked `fallback: true`, used only when no other topic counted in the edition. Words
+  are kept narrow on purpose (no bare "street" or "road": an address such as "953 Clark Street" would match). The
+  two phrases of topic `k` are `sender.text.subject_<k>_one` / `subject_<k>_many` ("{n} ..."), kept in
+  `sender.text` so deliver reads them without PyYAML. Each item counts once (a zoning case by `case`, a
+  solicitation by its id, a numbered item by body and `item_number`, else the entry), under its first entry's
+  topic. The top `MAX_TOPICS` (3) by count, ties in list order, joined with ", " and `subject_and`; a phrase that
+  would take the subject past `SUBJECT_CAP` (78 characters) is left out whole, and a shorter one may still fit. No
+  topic: `subject_records_*` ("{n} new records", the edition's entries). Nothing fits: the day's template `subject`
+  as before. Then, only if it still fits, the lead `subject_today_*` ("a meeting today") + " · " when the note's
+  `coming_up` holds a meeting on the note's day. A count only: never an outcome. The subject never matches
+  `render.AUTHORITY`; the build refuses a phrase that would (`morning.sender_problems`), or that holds ", ", " and "
+  or "·", or whose two forms could read as another phrase (`common.subject_problems`), and a topic with a bad key,
+  no rule, a bad regex, an unknown list, kind or item type, or missing phrases (`morning.topic_problems`).
 - **The deliver stage reads it back** (`deliver.subject_ok`, sender/plan-untrusted/subject-unchecked): the plan's
   subject must be the day's template exactly, or parse into the repository's own phrases
   (`common.subject_parse`, read without PyYAML: `settings._SUB_READ` reads `text.subject` and every
-  `common.SUBJECT_KEYS`, `_TOP` reads `today_place`) and re-render to exactly the same text, within `SUBJECT_CAP`,
+  `text.subject_*` key, the fixed `common.SUBJECT_KEYS` and each topic's two phrases, `_TOP` reads `today_place`) and re-render to exactly the same text, within `SUBJECT_CAP`,
   each topic once, at most 3, the counts' sum at most the edition's entries, a records count exactly its entries, at
   most `COMING_N` meetings. A compromised plan can choose a count, never a word. The plan stage applies the same
   reading, so a gap fails the plan, not the morning.
 - **Day claim:** `deliver.plan_digest` reads each subject without its "meeting today" lead (`common.claim_subject`):
   the lead comes from `coming_up`, the one part of a note a later build may change (as the body's "Coming up" lines).
   The lead is added last and never moves a topic out, so the rest of the subject is the same in both builds.
-- **Card:** a kicker of the entry's topic labels (config `topic_<topic>`, joined " · " in the fixed order; no topic:
-  its `recorded` words), the headline (`h3`, the link to the site's page) = the record's title cut at a word boundary
-  to `common.MAX_TITLE` with "..." (`common.cut`; a meeting's untitled-votes group keeps its meeting line as the
-  headline), then the meeting line and `recorded` (one line, " · "), the group's count and numbers, the source link.
-  The size rule's row and the text twin carry the same parts.
+- **Card:** a kicker of the entry's topic label (config `subject_topics[].label`: Zoning, Alcohol permit, Land,
+  Budget, Parks, Streets, Appointment, Contract, ... else Ordinance / Resolution; no topic: its `recorded` words;
+  a group joins its entries' labels " · " in the card, " / " in a row and the text twin), the headline (`h3`, the
+  link to the site's page) = a verbatim excerpt of the record's title: after the item number and any leading "(...)" / "[...]" labels, a configured leading
+  boilerplate phrase (`morning_note.title_lead_drop`, matched case-insensitively, kept conservative) is shown as
+  "…", then the title is cut at a word boundary to `render.HEADLINE_MAX` (160) with "…" (a meeting's
+  untitled-votes group keeps its meeting line as the headline), then the meeting line and `recorded` (one line,
+  " · "), the group's count and numbers, the source link. The size rule's row and the text twin carry the same
+  parts. The site's page keeps the whole title.
 - **Agenda titles** (additive entry field, 2026-11-22): the city build titles an item no minutes printed from its
   meeting's agenda caption, verbatim, and records `item.title_source` {kind "agenda", source_id, page, meeting_id}
   (`claude/note-titles-captions`, schema/facts.schema.json, docs/architecture/city-council.md). Every county or

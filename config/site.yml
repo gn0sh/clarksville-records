@@ -113,6 +113,35 @@ morning_note:
   cutoff: "07:00"
   keep_days: 7
   zoning_prefixes: [Z, ZO, CZ, CZO, HZ]   # rpc.yml City/County/Historic zoning case types
+  # note-titles (2026-11-22): what each record is about, for the email's subject and each card's kicker
+  # (sender/render.py topic). Checked in this order; an item takes the first topic it matches. A topic matches by
+  # `words` (each a case-insensitive pattern that must start a word of the record's own title, never a title we
+  # made), `lists` (the note's list keys), `kinds` (the entry kinds) or `item_types` (the site's item type rule:
+  # number prefix, else its fixed words). The kind-based ordinance and resolution come last, as `fallback`: the
+  # subject names a fallback topic only when the edition has no other. `label` is the card's
+  # kicker; the subject's words are morning_note.sender.text.subject_<key>_one and _many.
+  subject_topics:
+    - {key: zoning, label: Zoning, words: ["zone change", "zoning case", "rezon"], lists: [zoning]}
+    - {key: annexation, label: Annexation, words: ["annex"]}
+    - {key: appointments, label: Appointment, words: ["appoint"]}
+    - {key: alcohol, label: Alcohol permit, words: ["wine", "beer", "liquor", "certificate of compliance"]}
+    - {key: property, label: Land, words: ["real property", "donation of", "acquisition", "easements?\\b"]}
+    - {key: budget, label: Budget, words: ["budgets?\\b", "appropriat", "tax lev"], lists: [budget]}
+    - {key: safety, label: Public safety, words: ["police", "fire department", "k-9", "emergency"]}
+    # a street address ("953 Clark Street", "Bel Aire Park Dr") is not a parks or streets item: no bare "street"
+    # or "road", and "park" not before a street suffix
+    - {key: parks, label: Parks, words: ["greenways?\\b", "parks?\\b(?!\\s+(?:dr|drive|rd|road|ln|lane|ave|avenue|blvd|st|street|way|pl|place|ct|cir|circle)\\b)"]}
+    - {key: streets, label: Streets, words: ["paving", "traffic", "sidewalks?\\b", "drainage", "parking", "streets and other public ways", "road improvements?\\b", "rights? of way"]}
+    - {key: contracts, label: Contract, kinds: [solicitation]}
+    - {key: ordinance, label: Ordinance, item_types: [ordinance], fallback: true}
+    - {key: resolution, label: Resolution, item_types: [resolution], fallback: true}
+  # note-titles: a card's headline is the record's title, cut to 160 characters at a word. A title (after its item
+  # number and any leading "(FIRST READING)" or "[ZONING CASE ...]" labels) that starts with one of these phrases
+  # shows "…" in its place: words every such title repeats, never the part that says what it is about.
+  title_lead_drop:
+    - "An Ordinance amending the zoning code and map of the City of Clarksville,"
+    - "A Resolution of the City Council of the City of Clarksville, Tennessee,"
+    - "A Resolution approving"
   # Backfill guard: a day holding a document from a collector's initial run (first fetched within initial_run_hours of
   # the earliest row of its manifest) or more than max_entries entries is written with "backfill": true and no
   # entries (its counts kept), so a first collection never becomes a mail.
@@ -183,39 +212,44 @@ morning_note:
       # The day's subject when an edition names no topic and no record (render.subject; deliver.subject_ok).
       subject: "{site_name} morning note, {date}"
       # note-titles (2026-11-22, the owner: "nothing letting me know why I should care"): the subject says what is
-      # inside, counted from the edition's own entries by the site's topic rule (render.topics: the item_types
-      # rule, the zoning list, the contracts list). {topics}: up to three of the phrases below, most items first
-      # (ties: zoning, budget, contracts, ordinance, resolution, appointment), joined with ", " and subject_and,
-      # while the subject stays within 78 characters (common.SUBJECT_CAP); none: "{n} new records". {place}:
-      # top-level today_place. The "today" phrase leads, then " · ", when the note's next meetings hold one on its
-      # own day and it still fits. A count only: never an outcome. Each phrase is quoted (the deliver stage reads
-      # these lines without PyYAML) and holds no ", ", no " and " and no "·".
-      subject_topics: "{topics}: your {place} morning note"
+      # inside, counted from the edition's own entries by what each record is about (morning_note.subject_topics
+      # below: each item counts once, under the first topic it matches). {topics}: up to three of the phrases below,
+      # most items first (ties in the list's order), joined with ", " and subject_and, while the subject stays within
+      # 78 characters (common.SUBJECT_CAP); none: "{n} new records". {place}: top-level today_place. The "today"
+      # phrase leads, then " · ", when the note's next meetings hold one on its own day and it still fits. A count
+      # only: never an outcome. Each topic of subject_topics needs subject_<key>_one and _many here. Each phrase is
+      # quoted (the deliver stage reads every text.subject* line without PyYAML) and holds no ", ", no " and " and
+      # no "·".
+      subject_frame: "{topics}: your {place} morning note"
       subject_and: "and"
       subject_records_one: "a new record"
       subject_records_many: "{n} new records"
-      subject_rezoning_one: "a zoning case"
-      subject_rezoning_many: "{n} zoning cases"
-      subject_budget_one: "a budget item"
-      subject_budget_many: "{n} budget items"
-      subject_contracts_one: "a contract listing"
-      subject_contracts_many: "{n} contract listings"
+      subject_today_one: "a meeting today"
+      subject_today_many: "{n} meetings today"
+      subject_zoning_one: "a zone change"
+      subject_zoning_many: "{n} zone changes"
+      subject_annexation_one: "an annexation"
+      subject_annexation_many: "{n} annexations"
+      subject_safety_one: "a public safety item"
+      subject_safety_many: "{n} public safety items"
+      subject_appointments_one: "an appointment"
+      subject_appointments_many: "{n} appointments"
+      subject_alcohol_one: "an alcohol permit"
+      subject_alcohol_many: "{n} alcohol permits"
+      subject_property_one: "a land deal"
+      subject_property_many: "{n} land deals"
+      subject_budget_one: "a budget change"
+      subject_budget_many: "{n} budget changes"
+      subject_parks_one: "a park item"
+      subject_parks_many: "{n} park items"
+      subject_streets_one: "a street item"
+      subject_streets_many: "{n} street items"
+      subject_contracts_one: "a new bid"
+      subject_contracts_many: "{n} new bids"
       subject_ordinance_one: "an ordinance"
       subject_ordinance_many: "{n} ordinances"
       subject_resolution_one: "a resolution"
       subject_resolution_many: "{n} resolutions"
-      subject_appointment_one: "an appointment"
-      subject_appointment_many: "{n} appointments"
-      subject_today_one: "a meeting today"
-      subject_today_many: "{n} meetings today"
-      # note-titles: the kicker over each card's headline, one per topic of the entry (render.topics), in the
-      # order above; an entry with no topic leads with its `recorded` words instead.
-      topic_rezoning: Zoning
-      topic_budget: Budget
-      topic_contracts: Contracts
-      topic_ordinance: Ordinance
-      topic_resolution: Resolution
-      topic_appointment: Appointment
       # note-titles: a vote whose minutes printed no title, titled from its meeting's agenda (the entry's
       # title_source "agenda"): the link to that agenda's page, which printed the words. A page number follows.
       title_agenda: Title from the meeting's agenda

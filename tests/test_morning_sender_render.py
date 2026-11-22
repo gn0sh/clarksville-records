@@ -107,9 +107,11 @@ def test_a_hostile_title_comes_out_inert():
     assert not re.search(r"[<>{}\[\]()*_`#\\~|!$%@=]", re.sub(r"&#\d+;", "", title)), title
     assert not title.startswith("-") and "\n" not in title and "  " not in title
     assert "{{" not in html and "{%" not in html and "---" not in html and "](" not in html
-    # and a reader still sees the record's own words, unchanged apart from the whitespace
-    shown = head_text(html)
-    assert shown.replace("\u200b", "") == " ".join(HOSTILE.split())
+    # and a reader still sees the record's own words, unchanged apart from the whitespace, cut at a word to the
+    # headline's length (note-titles; the site's page carries all of it)
+    shown = head_text(html).replace("\u200b", "")
+    assert shown.endswith("…") and " ".join(HOSTILE.split()).startswith(shown[:-1])
+    assert len(shown) <= render.HEADLINE_MAX + 1
 
 
 def test_every_field_of_an_entry_is_escaped_not_only_the_title():
@@ -176,7 +178,9 @@ def test_own_text_passes_the_neutrality_scan(msite):  # noqa: F811
     note = read_note(msite)
     ours = render.own_text(CTX, note)
     assert ours and not [t for t in ours if BANNED.search(t)]
-    assert set(config.SITE["morning_note"]["sender"]["text"]) == set(render.TEXT_KEYS) == set(morning.SENDER_TEXT_KEYS)
+    # note-titles: each topic of morning_note.subject_topics adds its two subject phrases
+    assert set(config.SITE["morning_note"]["sender"]["text"]) - set(morning.topic_text_keys(config.SITE)) == set(render.TEXT_KEYS) == \
+        set(morning.SENDER_TEXT_KEYS)
     assert render.subject(CTX, "2026-11-11") == "Daylight morning note, November 11, 2026" == ours[0]
 
 
@@ -185,7 +189,9 @@ def test_every_word_outside_the_record_is_config_text():
     text = {k: " ".join([f"W{k.replace('_', '').upper()}", *marks]) for k, marks in render.TEXT_KEYS.items()}
     text["subject"] = "{site_name} S {date}"
     text["define_minutes"] = "WTERM. WMEANS"
+    # note-titles: the kicker is a topic's config label (morning_note.subject_topics)
     ctx = {"site_name": "SITE", "site_url": SITE_URL, "source_label": "SRC", "page_label": "PG", "text": text,
+           "topics": [{"key": "budget", "label": "KBUDGET", "lists": ["budget"]}],
            "notice": "NOTICE", "email_line": "LINE", "support_label": "TIPS", "place": "PLACE", "site_place": "PLATE",
            "today_href": "today.html", "note_href": "morning/index.html",
            "link_hosts": ("records.example.com", "example.com"), "link_urls": ("https://tips.example.com/x",)}
@@ -208,10 +214,10 @@ def test_every_word_outside_the_record_is_config_text():
     words = re.sub(r"November 1[16]|December [12], 2026|September 3, 2026|Wednesday|Nov|Sep|\d", "", shown)
     used = ["header_day", "greeting", "tagline", "intro", "new_on_list", "source_meeting", "source_document",
             "plain_words", "take_part", "take_part_heading", "take_part_line", "invited", "coming_up",
-            "coming_meeting", "coming_body", "all_meetings", "why", "untitled_votes", "topic_budget", "title_agenda"]
+            "coming_meeting", "coming_body", "all_meetings", "why", "untitled_votes", "title_agenda"]
     assert sorted(set(re.findall(r"[A-Za-z-]+", words))) == sorted(
         ["SITE", "PLATE", "PLACE", "L-budget", "L-seats", "BODY", "REC", "TITLE", "PG", "UNPLACED", "NOTICE",
-         "LINE", "SUPPORT", "TIPS", "NUMA", "NUMB", "CBODY", "CMEET", "WTERM", "WMEANS"] +
+         "LINE", "SUPPORT", "TIPS", "NUMA", "NUMB", "CBODY", "CMEET", "WTERM", "WMEANS", "KBUDGET"] +
         [f"W{k.replace('_', '').upper()}" for k in used])
     assert "WUNTITLEDVOTES 2" in html and "NUMA, NUMB" in html
     # the page link's words and the "N more" line stand in the plain text and the size rule's rows
@@ -620,7 +626,7 @@ def test_a_meetings_untitled_votes_stand_as_one_line_with_a_count_and_two_links(
     assert len(rows) == 2
     words = render.untitled_words(CTX, 4)
     assert words == CTX["text"]["untitled_votes"].replace("{n}", "4") and "4" in words
-    assert rows[0].split("\n")[:2] == [CTX["text"]["topic_ordinance"], "Fixture Council, September 3, 2026 regular session"]
+    assert rows[0].split("\n")[:2] == ["Ordinance", "Fixture Council, September 3, 2026 regular session"]
     assert words in rows[0]
     assert SEPT_NUMBERS in rows[0]                      # the record's item numbers, once each, in record order
     assert "Title not read" not in html and "MINUTES" not in html and "not confirmed" not in rows[0]

@@ -17,10 +17,13 @@ no person's name outside a verbatim title, no summary. Every word that is ours i
 never names a government body or says "official" (AUTHORITY).
 
 note-titles (2026-11-22): each edition's subject says what is inside, a count per topic in config phrases
-("3 zoning cases and a budget item: your {place} morning note", common.compose); the topics are the site's own
-mechanical rules (topics(): the zoning, budget and contracts lists and the item type rule), never a reading of the
-words. Each card leads with its topics' config labels (else its `recorded` words) over the record's title as the
-headline. A vote whose minutes printed no title and whose meeting's agenda did (`title_source` kind "agenda")
+("9 zone changes, 4 street items and 2 land deals: your {place} morning note", common.compose). The topics are the
+config list morning_note.subject_topics, checked in its order, first match wins per item (topic()): fixed words
+matched on the record's own verbatim title (never a title we made), the zoning, budget and contracts lists, the
+record kind, the item type rule; ordinance and resolution only when no other topic counted. A fixed match, never a
+reading of the words. Each card leads with its topic's config label (else its `recorded` words) over the record's
+title as the headline, a verbatim excerpt (a configured leading boilerplate phrase shown as "…", then cut at a word
+to HEADLINE_MAX). A vote whose minutes printed no title and whose meeting's agenda did (`title_source` kind "agenda")
 shows that caption only beside a link to the agenda (agenda_cite); without one it stays untitled.
 
 A record's title is untrusted text (it comes from a parsed PDF) and the body goes through the provider's own
@@ -34,8 +37,8 @@ import re
 from datetime import date
 
 from .common import CUT, MAX_TITLE  # noqa: F401  common's since subject-unchecked, still importable from here
-from .common import (BODY_BUDGET, COMING_N, CREDIT_LINE, DATE_RE, DOTS, LINKS, MARKUP, SUBJECT_KEYS, TAG,
-                     TOPICS, ZWSP, clean, compose, day_words, exact_url_ok, link_ok, parse_hosts, subject_line)
+from .common import (BODY_BUDGET, COMING_N, CREDIT_LINE, DATE_RE, DOTS, LINKS, MARKUP, TAG, ZWSP, clean, compose,
+                     cut, day_words, exact_url_ok, link_ok, parse_hosts, subject_line)
 
 # sitegen.morning.SENDER_TEXT_KEYS (a test keeps them equal): each key of morning_note.sender.text, the
 # placeholders it must keep
@@ -46,10 +49,15 @@ TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": (), "
              "define_award_letter": (), "define_rfp": (), "take_part": (), "take_part_heading": (),
              "take_part_line": (), "invited": (), "coming_up": (), "coming_meeting": ("{date}", "{body}", "{meeting}"),
              "coming_body": ("{date}", "{body}"), "all_meetings": (), "more": ("{n}",),
-             # note-titles: the subject's phrases, the cards' topic kickers, the agenda link of an agenda's title
-             **{k: ("{topics}",) if k == "subject_topics" else ("{n}",) if k.endswith("_many") else ()
-                for k in SUBJECT_KEYS},
-             **{f"topic_{k}": () for k in TOPICS}, "title_agenda": ()}
+             # note-titles: the subject's fixed phrases (each topic of morning_note.subject_topics adds its own
+             # subject_<key>_one and _many) and the agenda link of an agenda's title
+             "subject_frame": ("{topics}",), "subject_and": (), "subject_records_one": (),
+             "subject_records_many": ("{n}",), "subject_today_one": (), "subject_today_many": ("{n}",),
+             "title_agenda": ()}
+HEADLINE_MAX = 160          # note-titles: a card's headline, at most this many characters, cut at a word
+HEADLINE_CUT = "\u2026"     # "…": where the headline leaves words of the title out
+# a title's leading labels, kept before a dropped lead phrase: "(FIRST READING) [ZONING CASE Z-22-2025] "
+_LABELS = re.compile(r"(?:\([^()]{1,80}\)\s*|\[[^\[\]]{1,160}\]\s*)*")
 # note/compact-untitled: a meeting's untitled votes stand as one line from this many on (a lone one stays itself)
 COMPACT_MIN = 2
 COMPACT_LIST = "seats"      # the one list whose untitled votes are compacted (morning.LIST_KEYS; a fixed key)
@@ -124,8 +132,11 @@ def context(cfg: dict) -> dict:
             "today_href": days.PAGE, "note_href": morning_page.PAGE,
             "text": dict(mn["sender"]["text"]), "source_label": mn["page"]["source_label"],
             "meeting_line": mn["text"]["meeting_line"],
-            # note-titles: the site's item type rule (sitegen.views.item_types), read for the cards' topics
+            # note-titles: what each record is about (morning_note.subject_topics; the item type rule it may
+            # name, sitegen.views.item_types) and the leading words a headline leaves out (title_lead_drop)
             "item_types": list(cfg.get("item_types") or []),
+            "topics": [dict(t) for t in mn.get("subject_topics") or []],
+            "lead_drop": [clean(x) for x in mn.get("title_lead_drop") or [] if clean(x)],
             "page_label": mn["page"]["page_label"], "notice": u["notice"], "email_line": u["email_line"],
             "support_label": cfg.get("support_label") or "",
             "link_hosts": parse_hosts(mn["sender"]["link_hosts"]),
@@ -142,7 +153,7 @@ def own_text(ctx: dict, note: dict) -> list[str]:
         [v for k, v in ctx["text"].items() if k != "subject"] + \
         [ctx["source_label"], ctx["meeting_line"], ctx["page_label"], ctx["email_line"], ctx["notice"],
          ctx.get("place") or "", ctx.get("site_place") or ""] + (list(support[:2]) if support else []) + \
-        note_text(note)
+        [t["label"] for t in ctx.get("topics") or []] + note_text(note)
 
 
 def subject(ctx: dict, iso: str, entries: list[dict] | None = None, coming_up=None) -> str:
@@ -154,8 +165,13 @@ def subject(ctx: dict, iso: str, entries: list[dict] | None = None, coming_up=No
         s = subject_line(ctx["text"]["subject"], ctx["site_name"], iso)
     else:
         today = sum(1 for r in _coming_rows(coming_up) if r["date"] == iso)
-        s = compose(ctx["text"], ctx["site_name"], ctx.get("place") or "", iso, topic_counts(ctx, entries),
-                    len(entries), today)
+        counts = topic_counts(ctx, entries)
+        # a kind-based topic (`fallback`: ordinance, resolution) is named only when the edition has no other
+        last = {t["key"] for t in ctx.get("topics") or [] if t.get("fallback") is True}
+        if any(n and k not in last for k, n in counts.items()):
+            counts = {k: n for k, n in counts.items() if k not in last}
+        s = compose(ctx["text"], ctx["site_name"], ctx.get("place") or "", iso, counts, len(entries), today,
+                    [t["key"] for t in ctx.get("topics") or []])
     if AUTHORITY.search(s):
         raise ValueError("the subject would name a government body or say official")
     return s
@@ -216,19 +232,57 @@ def _source_words(ctx: dict, page) -> str:
 
 
 # ------------------------------------------------------------------------------------------------ note-titles
-def topics(ctx: dict, e: dict) -> tuple[str, ...]:
-    """The entry's topics, in common.TOPICS order, by the site's own mechanical rules (nothing is read for meaning):
-    "rezoning" when it is on the zoning list (an RPC zoning case of morning_note.zoning_prefixes, a county item
-    linked to one) or the item type rule (config item_types, sitegen.views.item_types: the number's prefix, else
-    fixed words in the title) says rezoning; "budget" on the budget list or by the rule; "contracts" on the
-    contracts list (a purchasing solicitation and its documents); "ordinance", "resolution", "appointment" by the
-    rule. The rule reads the record's item number and its own title, never a title we made (`title_ours`)."""
+def _word_re(w: str) -> re.Pattern:
+    return re.compile(rf"(?<!\w)(?:{w})", re.IGNORECASE)
+
+
+def topic(ctx: dict, e: dict) -> str | None:
+    """What the entry is about (note-titles): the key of the first topic of config morning_note.subject_topics it
+    matches, else None. A topic matches by `words` (patterns that start a word of the record's own title, never a
+    title we made: `title_ours`, or an agenda caption that cannot be cited), `lists` (the note's list keys, such as
+    the zoning list's RPC cases), `kinds` (a solicitation) or `item_types` (the site's item type rule, Search's and
+    the topic feeds': the number's prefix, else its fixed words). Mechanical: nothing is read for meaning."""
     from sitegen.views import item_types     # the one rule (Search, the topic feeds)
-    lists = set(e.get("lists") or [])
     title = "" if e.get("title_ours") else clean(_shown_title(e, ctx.get("link_hosts")))
-    typed = set(item_types({"number": clean(e.get("item_number")), "title": title}, ctx.get("item_types") or []))
-    on = {"rezoning": "zoning" in lists, "budget": "budget" in lists, "contracts": "contracts" in lists}
-    return tuple(k for k in TOPICS if on.get(k) or (k != "contracts" and k in typed))
+    lists = set(e.get("lists") or [])
+    typed = None
+    for t in ctx.get("topics") or []:
+        if any(_word_re(w).search(title) for w in t.get("words") or []) or lists & set(t.get("lists") or []) \
+                or e.get("kind") in (t.get("kinds") or []):
+            return t["key"]
+        if t.get("item_types"):
+            if typed is None:
+                typed = set(item_types({"number": clean(e.get("item_number")), "title": title},
+                                       ctx.get("item_types") or []))
+            if typed & set(t["item_types"]):
+                return t["key"]
+    return None
+
+
+def topics(ctx: dict, e: dict) -> tuple[str, ...]:
+    """topic() as a tuple: () or (key,)."""
+    k = topic(ctx, e)
+    return (k,) if k else ()
+
+
+def headline(ctx: dict, e: dict, title: str) -> str:
+    """A card's headline (note-titles): the record's title, verbatim, with a configured leading phrase every such
+    title repeats (config morning_note.title_lead_drop: "An Ordinance amending the zoning code and map of the City
+    of ...,") shown as "…" after the item number and any leading "(FIRST READING)" or "[ZONING CASE ...]" labels,
+    then cut at a word to HEADLINE_MAX characters with "…". Only words are left out; none is added or changed."""
+    s = clean(title)
+    num = clean(e.get("item_number"))
+    head = num + ": " if num and s.startswith(num + ": ") else ""
+    rest = s[len(head):]
+    labels = _LABELS.match(rest).group(0)
+    body = rest[len(labels):]
+    for phrase in ctx.get("lead_drop") or []:
+        if body[:len(phrase)].casefold() == phrase.casefold():
+            tail = body[len(phrase):].lstrip(" ,;:")
+            if tail:
+                s = head + labels + HEADLINE_CUT + tail
+                break
+    return cut(s, HEADLINE_MAX, HEADLINE_CUT)
 
 
 def _counted_as(e: dict) -> tuple:
@@ -246,14 +300,18 @@ def _counted_as(e: dict) -> tuple:
 
 
 def topic_counts(ctx: dict, entries: list[dict]) -> dict[str, int]:
-    """{topic: distinct items} over the edition's entries, each item counted once, under its first topic (an
-    ordinance that amends the budget is one budget item, not also an ordinance): the subject's numbers."""
-    seen: dict[str, set] = {}
+    """{topic: distinct items} over the edition's entries, each item counted once, under the topic it matches
+    first (an ordinance that amends the budget is one budget change, not also an ordinance): the subject's
+    numbers."""
+    under: dict[tuple, str] = {}
     for e in entries:
-        got = topics(ctx, e)
-        if got:
-            seen.setdefault(got[0], set()).add(_counted_as(e))
-    return {k: len(v) for k, v in seen.items()}
+        k = topic(ctx, e)
+        if k:
+            under.setdefault(_counted_as(e), k)      # an item under the topic of its first entry
+    out: dict[str, int] = {}
+    for k in under.values():
+        out[k] = out.get(k, 0) + 1
+    return out
 
 
 def _from_agenda(e: dict) -> bool:
@@ -361,9 +419,10 @@ def _source_words(ctx: dict, day: str | None, page) -> str:
 
 
 def _labels(ctx: dict, entries: list[dict]) -> list[str]:
-    """The config kicker labels (`topic_<key>`) of the topics of these entries, each once, in TOPICS order."""
-    got = {k for e in entries for k in topics(ctx, e)}
-    return [ctx["text"][f"topic_{k}"] for k in TOPICS if k in got]
+    """The config kicker labels (morning_note.subject_topics `label`) of the topics of these entries, each once, in
+    the list's order."""
+    got = {topic(ctx, e) for e in entries}
+    return [t["label"] for t in ctx.get("topics") or [] if t["key"] in got]
 
 
 def _item(ctx: dict, x) -> dict:
@@ -392,7 +451,7 @@ def _item(ctx: dict, x) -> dict:
         src, page = source_link(x, hosts)
         kick = _labels(ctx, [x])
         said = clean(x.get("recorded"))
-        title, who = clean(_shown_title(x, hosts)), who_when(ctx, x)
+        title, who = headline(ctx, x, _shown_title(x, hosts)), who_when(ctx, x)
         head = title or who
         sub = ([who] if title and who else []) + ([said] if kick and said else [])
         kick = kick or ([said] if said else [])
