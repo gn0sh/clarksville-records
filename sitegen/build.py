@@ -1027,7 +1027,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                     *(fx.fin["sources"] if fx else [])]
             fetch_days, exact = localdates.days(srcs) or ([], True)
             morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=fetch_days, bulk=bulk,
-                                             data_as_of_utc=not exact)
+                                             data_as_of_utc=not exact, meetings=days_mod.meeting_rows(day_ctx))
         except morning_mod.MorningError as exc:
             raise BuildError(str(exc)) from exc
     if site["alerts"]:

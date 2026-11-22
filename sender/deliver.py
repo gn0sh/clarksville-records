@@ -45,8 +45,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import unicodedata
 from html import unescape
 
-from .common import (ADDRESS, CREDIT_LINE, DATE_RE, KEY_RE, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
-                     exact_url_ok, link_ok, read_tags, signature, subject_line)
+from .common import (ADDRESS, CONTAINERS, CREDIT_LINE, DATE_RE, EMPTY, INLINE, KEY_RE, LINKS, MARKUP, PLAN_SCHEMA,
+                     REASONS, REFS, SIGNATURE_RE, TAG, exact_url_ok, link_ok, read_tags, signature, subject_line)
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -169,33 +169,80 @@ class Outcome:
 
 
 # ------------------------------------------------------------------------------------------------ the plan file
-# plan-untrusted/body-unchecked (M3): the body is held to the exact lines render.body_html writes, not parsed as
-# HTML. Text is any character but a markup one, a newline and "&", which stands only in a reference render writes.
+# plan-untrusted/body-unchecked (M3), note/sunrise (2026-11-22; architecture "Email body forms"): the body is held
+# to the exact tags render.body_html writes, not parsed as HTML. Every opening tag must be one of common.TAG's
+# strings character for character (with its fixed inline style), or a link: `<a href="` + a checked URL + one of
+# common.LINKS' fixed endings. No attribute or style is parsed. The sets are made here once, at import, so changing
+# common.TAG later widens nothing. Text is any character but a markup one, a newline and "&", which stands only in a
+# reference render writes.
 _CHAR = "[^" + re.escape(MARKUP) + "\\n]"
 _REF = "&(?:#[0-9]{1,7}|middot);"
-_TEXT = f"(?:{_CHAR}|{_REF})*"
-_LINK = f'<a href="[^"<>\\s]*">{_TEXT}</a>'
-_INLINE = f"(?:{_CHAR}|{_REF}|<br>|<strong>{_TEXT}</strong>|{_LINK})*"
-_LINE = re.compile(f"<h1>{_TEXT}</h1>|<h2>{_TEXT}</h2>|<p>{_INLINE}</p>|<ul>|</ul>|<li>{_INLINE}</li>")
+_TEXT = re.compile(f"(?:{_CHAR}|{_REF})+")
+_NAME_OF = {s: re.match(r"<([a-z0-9]+)", s).group(1) for s in TAG.values()}     # exact opening tag -> its name
+_CONTAINER = frozenset(TAG[k] for k in CONTAINERS)
+_INLINE_TAGS = frozenset(TAG[k] for k in INLINE)
+_EMPTY_TAGS = frozenset(TAG[k] for k in EMPTY)
+_BLOCK = frozenset(v for k, v in TAG.items() if k not in CONTAINERS and k not in INLINE)
+_FIRST, _H1 = TAG["page"], TAG["h1"]
+_LINK = re.compile('<a href="([^"<>\\s]*)(?:' + "|".join(re.escape(v) for v in LINKS.values()) + ")")
+_CLOSE = re.compile(r"</([a-z0-9]+)>")
+_TOKEN = re.compile(r"<[^<>]*>|[^<>]+|[<>]")
 _TAG = re.compile(r"<[^<>]*>")
-_HREF_OF = re.compile(r'<a href="([^"]*)">')
+
+
+def _href_ok(href: str, hosts, urls) -> bool:
+    """render writes "&" in a URL as "&amp;" and nothing else as a reference; the URL is on one of `hosts` or
+    exactly one of `urls`."""
+    url = href.replace("&amp;", "&")
+    return not re.search(r"&(?!amp;)", href) and (link_ok(url, hosts) or (url in urls and exact_url_ok(url)))
+
+
+def _block_ok(line: str, hosts, urls) -> bool:
+    """One line holding one block, as render writes it: an opening tag from TAG that is not a container or an inline
+    tag, then text, references, <br>, TAG's inline tags and links (text only inside a link), every one closed in
+    order, the block's own close last. No text inside the sun or the name's mark (EMPTY)."""
+    tokens = _TOKEN.findall(line)
+    if not tokens or tokens[0] not in _BLOCK:
+        return False
+    open_ = [(_NAME_OF[tokens[0]], tokens[0] in _EMPTY_TAGS)]
+    for tok in tokens[1:]:
+        if not open_:
+            return False                                # something after the block closed
+        in_link, empty = open_[-1][0] == "a", any(e for _, e in open_)
+        if not tok.startswith("<"):
+            if empty or not _TEXT.fullmatch(tok):
+                return False
+            continue
+        close = _CLOSE.fullmatch(tok)
+        if close:
+            if open_.pop()[0] != close.group(1):
+                return False
+        elif in_link:
+            return False                                # a link holds text only
+        elif tok == "<br>":
+            if empty:
+                return False
+        elif tok in _INLINE_TAGS:
+            open_.append((_NAME_OF[tok], tok in _EMPTY_TAGS))
+        else:
+            link = _LINK.fullmatch(tok)
+            if not link or empty or not _href_ok(link.group(1), hosts, urls):
+                return False
+            open_.append(("a", False))
+    return not open_
 
 
 def _line_ok(line: str, hosts, urls=()) -> bool:
-    """One line of the body as render writes it: one of its forms, only its references, every link to one of
-    `hosts` or exactly one of `urls`, and no text a mail client could link (common.ADDRESS) once the references
-    are read. The footer credit (common.CREDIT_LINE, note/credit-logo) is the one line with an image, accepted
-    exactly as render writes it: any other <img>, or that image with another URL, size or alt, is refused."""
+    """A line that is not a lone container tag: one block (_block_ok), only render's references, and no text a mail
+    client could link (common.ADDRESS) once the references are read. The footer credit (common.CREDIT_LINE,
+    note/credit-logo) is the one line with an image, accepted exactly as render writes it: any other <img>, or that
+    image with another URL, size or alt, is refused."""
     if line == CREDIT_LINE:
         return True
-    if not _LINE.fullmatch(line) or "  " in line:
+    if "  " in line or not _block_ok(line, hosts, urls):
         return False
     if any(int(n) not in REFS for n in re.findall(r"&#([0-9]+);", line)):
         return False
-    for href in _HREF_OF.findall(line):     # render writes "&" in a URL as "&amp;" and nothing else as a reference
-        url = href.replace("&amp;", "&")
-        if re.search(r"&(?!amp;)", href) or not (link_ok(url, hosts) or (url in urls and exact_url_ok(url))):
-            return False
     raw = _TAG.sub("", line)
     if any(unicodedata.category(c) in ("Cc", "Cf") or (c.isspace() and c != " ") for c in raw):
         return False
@@ -204,22 +251,33 @@ def _line_ok(line: str, hosts, urls=()) -> bool:
 
 
 def body_ok(body: str, hosts, urls=()) -> bool:
-    """True when `body` could have come from render.body_html with these link hosts: the site name's <h1> first,
-    every line one of render's forms, lists closed, and the body ending in a complete line and a newline. Anything
-    else (an unclosed tag at the end, an attribute, a comment, a raw bracket, a bare address) is refused."""
-    if not (isinstance(body, str) and body.startswith("<h1>") and body.endswith(">\n")):
+    """True when `body` could have come from render.body_html with these link hosts: the page's own <div> first,
+    then one construct per line (a lone container tag from TAG, its lone closing tag, or one block, _line_ok), the
+    containers closed in order and nothing after the last, exactly one <h1>, and the body ending in a newline.
+    Anything else (an attribute or style not in TAG, a tag left open, a comment, a raw bracket, a bare address, a
+    blank or indented line) is refused."""
+    if not (isinstance(body, str) and body.endswith(">\n")):
         return False
-    in_list = False
-    for line in body[:-1].split("\n"):
+    lines = body[:-1].split("\n")
+    if lines[0] != _FIRST:
+        return False
+    stack: list[str] = []
+    h1 = 0
+    for i, line in enumerate(lines):
+        if i and not stack:
+            return False                                # anything before the page opens or after it closes
+        if line in _CONTAINER:
+            stack.append(_NAME_OF[line])
+            continue
+        close = _CLOSE.fullmatch(line)
+        if close:
+            if not stack or stack.pop() != close.group(1):
+                return False
+            continue
         if not _line_ok(line, hosts, urls):
             return False
-        if line in ("<ul>", "</ul>"):
-            if in_list == (line == "<ul>"):
-                return False
-            in_list = line == "<ul>"
-        elif in_list != line.startswith("<li>"):
-            return False
-    return not in_list and body.count("<h1>") == 1
+        h1 += line.startswith(_H1)
+    return not stack and h1 == 1
 
 
 def expected_subject(settings: Settings, day: str) -> str | None:

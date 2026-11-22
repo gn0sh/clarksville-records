@@ -259,7 +259,7 @@ def test_editions_print_each_entry_under_its_placed_list(built, msite):
         if not rows:
             continue
         body = next(e["body"] for e in p["editions"] if e["key"] == p["signatures"][common.signature(lists, district, ward)])
-        heads = re.findall(r"(?m)^<h2>(.*)</h2>$", body)
+        heads = re.findall("(?m)^" + re.escape(common.TAG["h2"]) + "(.*)</h2>$", body)     # the list headings
         want = [labels[k] for i, (_, k) in enumerate(rows) if i == 0 or rows[i - 1][1] != k]
         assert heads == want and len(heads) == len(set(heads)), (lists, district, ward)
         assert set(heads) <= {labels[k] for k in lists}                # never a list the reader did not pick
@@ -393,13 +393,13 @@ def test_a_day_of_untitled_council_votes_is_one_line_per_meeting_and_keeps_its_e
     ward = next(e for e in p["editions"] if e["key"] == p["signatures"]["seats|-|3"])
     assert ward["entry_ids"] == [e["id"] for e in note["entries"]]
     assert ward["key"] == plan_mod.edition_key(D.isoformat(), [(e["id"], "seats") for e in note["entries"]])
-    assert ward["body"].count("<li>") == 4 and "Title not read" not in ward["body"]
+    assert ward["body"].count(common.TAG["card"]) == 4 and "Title not read" not in ward["body"]
     from sender import render
     ctx = render.context(cfg_with())
     assert deliver.body_ok(ward["body"], ctx["link_hosts"], ctx["link_urls"])
     text = built["texts"][ward["key"]]
     assert text.count(render.untitled_words(ctx, 13)) == 4 and "Title not read" not in text
-    assert len(text.splitlines()) < 40
+    assert len(text.splitlines()) < 70         # 52 entries: about 320 lines before note/compact-untitled
     assert ", ".join(f"ORDINANCE {n}-2026-27" for n in range(13)) in text      # the item numbers stay
     assert plan_mod.build(site_with(tmp_path, note), D, cfg_with()) == built
 

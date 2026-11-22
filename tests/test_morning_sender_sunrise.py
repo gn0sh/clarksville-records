@@ -1,0 +1,434 @@
+# ruff: noqa: E501
+"""note/sunrise (2026-11-22): the morning note's HTML edition in design concept A "Sunrise" (the sky header, the
+greeting, one card per entry, the navy "Take part" box), with concept C's plain-word definitions and its "You are
+invited." line over the next meetings in the records; the exact opening tags deliver accepts (common.TAG, LINKS);
+and the size rule that keeps an edition under Gmail's clip (common.BODY_BUDGET). FIXTURE notes only."""
+import copy
+import re
+from datetime import date
+
+import pytest
+
+from conftest import parse
+from sitegen import config, morning
+from sender import common, deliver, plan as plan_mod, render
+from test_morning import D, inputs  # noqa: F401
+from test_morning_sender_plan import SITE_URL, cfg_with, msite, read_note, site_with  # noqa: F401
+from test_morning_sender_render import CTX, HOSTILE, SEPT, entry, html_of, links, note_of, vote
+from test_site_neutrality import BANNED
+
+TEXT = config.SITE["morning_note"]["sender"]["text"]
+COMING = [{"date": "2026-11-18", "body": "Fixture County Budget Committee", "meeting": None,
+           "href": "today.html#d-2026-11-18"},
+          {"date": "2026-12-01", "body": "Fixture Council", "meeting": "executive session",
+           "href": "city/meetings/2026.html#2026-12-01-executive"},
+          {"date": "2026-12-03", "body": "Fixture Council", "meeting": "regular session",
+           "href": "city/meetings/2026.html#2026-12-03-regular"}]
+CONTRACTS = [entry(id="contracts/document/a/1", kind="document", body="contracts", body_name="Fixture County",
+                   lists=["contracts"], meeting_date=None, meeting=None, recorded="New document",
+                   title="Paving: Award Letter", href="contracts/paving.html",
+                   source={"url": "https://example.com/fixture/Award%20Letter.pdf", "page": None}),
+             entry(id="contracts/document/a/2", kind="document", body="contracts", body_name="Fixture County",
+                   lists=["contracts"], meeting_date=None, meeting=None, recorded="New document",
+                   title="Paving: Bid Tab", href="contracts/paving.html",
+                   source={"url": "https://example.com/fixture/Bid%20Tab.pdf", "page": None}),
+             entry(id="contracts/solicitation/b", kind="solicitation", body="contracts", body_name="Fixture County",
+                   lists=["contracts"], meeting_date=None, meeting=None, recorded="New on the purchasing archive",
+                   title="LED Signage Replacement", href="contracts/led.html",
+                   source={"url": "https://example.com/fixture/RFP%20Packet-%20LED.pdf", "page": None})]
+
+
+def ok(html: str) -> bool:
+    return deliver.body_ok(html, CTX["link_hosts"], CTX["link_urls"])
+
+
+def node_texts(html: str, tag: str) -> list[str]:
+    return [n.all_text() for n in parse(html).walk() if n.tag == tag]
+
+
+def styled(html: str, name: str) -> list:
+    """Every element whose opening tag is common.TAG[name]."""
+    want = parse(common.TAG[name] + "</x>").children[0].attrs
+    return [n for n in parse(html).walk() if n.tag != "root" and n.attrs == want]
+
+
+# ------------------------------------------------------------------ A's layout, top to bottom
+def test_the_edition_opens_with_the_sky_header_greeting_and_unofficial_line():
+    n = note_of(*SEPT, date="2026-11-18")
+    html = render.body_html(CTX, n, n["entries"])
+    assert html.startswith(common.TAG["page"] + "\n" + common.TAG["sheet"] + "\n" + common.TAG["sky"] + "\n")
+    assert ok(html)
+    assert node_texts(html, "h1") == [config.SITE["site_name"]]
+    ps = node_texts(html, "p")
+    place = config.SITE["today_place"]
+    assert ps[:7] == [config.SITE["site_place"], f"Wednesday in {place}", "November 18", CTX["email_line"],
+                      f"Good morning, {place}.", TEXT["tagline"],
+                      TEXT["intro"].replace("{site_name}", config.SITE["site_name"])]
+    # the sun and the name's mark are shapes, hidden from screen readers, with no word in them
+    assert [x.attrs.get("aria-hidden") for x in styled(html, "sun_td") + styled(html, "mark_ring")] == ["true", "true"]
+    assert all(not x.all_text() for x in styled(html, "sun_box") + styled(html, "mark_ring"))
+
+
+def test_each_list_is_a_section_and_each_entry_a_card_with_the_date_block():
+    titled = vote(3, 4, untitled=False)
+    n = note_of(*SEPT, entry(), date="2026-11-18")
+    html = render.body_html(CTX, n, n["entries"])
+    assert node_texts(html, "h2")[:2] == ["My two seats", "Budget"]
+    assert len(styled(html, "kicker")) == 1 and styled(html, "kicker")[0].all_text() == TEXT["new_on_list"]
+    cards = styled(html, "card")
+    assert len(cards) == 3                                  # the compact group, the titled vote, the budget entry
+    day = [c.all_text() for c in styled(html, "day_td")]
+    assert day == ["Sep32026", "Sep32026", "Nov162026"]
+    heads = [h.all_text() for h in parse(html).walk() if h.tag == "h3"]
+    assert heads[0] == "Fixture Council, September 3, 2026 regular session"
+    # the headline is the link to the site's page; "Open the page on the site" is no longer printed in HTML
+    assert [a.attrs["href"] for h in parse(html).walk() if h.tag == "h3" for a in h.walk() if a.tag == "a"] == [
+        SITE_URL + "city/meetings/2026.html#2026-09-03-regular", SITE_URL + titled["href"], SITE_URL + "items/2026.html#i-x"]
+    assert TEXT["open_site"] not in html
+    src = [x.all_text() for x in styled(html, "source")]
+    assert src == ["Source document, September 3, 2026 meeting", "Source document, September 3, 2026 meeting, page 4",
+                   "Source document, November 16, 2026 meeting, page 2"]
+    assert [x.all_text() for x in styled(html, "numbers")] == ["ORDINANCE 1-2026-27, ORDINANCE 2-2026-27, ORDINANCE 4-2026-27"]
+
+
+def test_an_entry_with_no_meeting_has_a_kicker_line_and_its_title_as_the_headline():
+    n = note_of(*CONTRACTS)
+    html = render.body_html(CTX, n, n["entries"])
+    assert not styled(html, "day_td")
+    assert [x.all_text() for x in styled(html, "kicker")][1:] == ["Fixture County · New document"] * 2 + \
+        ["Fixture County · New on the purchasing archive"]
+    assert [h.all_text() for h in styled(html, "h3_after")] == [e["title"] for e in CONTRACTS]
+    assert [x.all_text() for x in styled(html, "source")] == [TEXT["source_document"]] * 3
+    assert ok(html)
+
+
+def test_an_entry_with_no_page_has_a_plain_headline_and_no_source_line_without_a_source():
+    html = html_of(entry(href=None, source={"url": None, "page": None}))
+    h3 = next(h for h in parse(html).walk() if h.tag == "h3")
+    assert not [a for a in h3.walk() if a.tag == "a"] and not styled(html, "source")
+    assert ok(html)
+
+
+def test_the_navy_box_invites_and_lists_the_next_meetings_then_the_footer():
+    n = note_of(entry(), coming_up=COMING, support_line="Please help.", support_url=config.SITE["support_url"])
+    html = render.body_html(CTX, n, n["entries"])
+    part = styled(html, "part")[0]
+    texts = [x.all_text() for x in part.walk() if x.tag in ("p", "h2")]
+    assert texts == [TEXT["take_part"], TEXT["take_part_heading"],
+                     TEXT["take_part_line"].replace("{site_name}", config.SITE["site_name"]), TEXT["invited"],
+                     TEXT["coming_up"], "November 18, 2026: Fixture County Budget Committee",
+                     "December 1, 2026: Fixture Council, executive session",
+                     "December 3, 2026: Fixture Council, regular session", TEXT["all_meetings"]]
+    assert [a.attrs["href"] for a in part.walk() if a.tag == "a"] == [SITE_URL + c["href"] for c in COMING] + [SITE_URL + "today.html"]
+    foot = [x.all_text().strip() for x in styled(html, "foot")[0].walk() if x.tag == "p"]
+    assert foot == [CTX["text"]["why"], CTX["notice"], f"Please help. {config.SITE['support_label']}", common.CREDIT_TEXT]
+    assert html.endswith(common.CREDIT_LINE + "\n</div>\n</div>\n</div>\n")
+    assert ok(html)
+
+
+def test_with_no_meeting_ahead_the_coming_up_list_is_left_out():
+    for coming in (None, [], "x", [{"date": "nope", "body": "B"}, {"date": "2026-12-01", "body": 7}]):
+        n = note_of(entry(), **({} if coming is None else {"coming_up": coming}))
+        html = render.body_html(CTX, n, n["entries"])
+        assert TEXT["coming_up"] not in html and TEXT["invited"] in html and TEXT["all_meetings"] in html
+        assert ok(html)
+
+
+def test_at_most_three_meetings_and_a_bad_link_leaves_the_words_without_a_link():
+    rows = COMING + [{"date": "2026-12-09", "body": "Fourth", "meeting": None, "href": "x.html"}]
+    rows[1] = {**rows[1], "href": "https://evil.example.com/x"}
+    n = note_of(entry(), coming_up=rows)
+    html = render.body_html(CTX, n, n["entries"])
+    assert "Fourth" not in html and "evil" not in html
+    assert len(styled(html, "coming")) == 3 and len([a for c in styled(html, "coming") for a in c.walk() if a.tag == "a"]) == 2
+
+
+def test_the_text_twin_reads_the_same_content_in_the_same_order():
+    n = note_of(*SEPT, *CONTRACTS, coming_up=COMING, date="2026-11-18",
+                support_line="Please help.", support_url=config.SITE["support_url"])
+    text = render.body_text(CTX, n, n["entries"])
+    place = config.SITE["today_place"]
+    order = [config.SITE["site_name"], config.SITE["site_place"], f"Wednesday in {place}", "November 18, 2026",
+             CTX["email_line"], f"Good morning, {place}.", TEXT["tagline"], TEXT["new_on_list"], "My two seats",
+             "Fixture Council, September 3, 2026 regular session", "Contracts", "Paving: Award Letter",
+             TEXT["plain_words"], TEXT["define_ordinance"], TEXT["define_rfp"], TEXT["take_part"],
+             TEXT["take_part_heading"], TEXT["invited"], TEXT["coming_up"],
+             "December 3, 2026: Fixture Council, regular session", TEXT["all_meetings"], CTX["text"]["why"],
+             CTX["notice"], "Please help."]
+    at = [text.find(w) for w in order]
+    assert -1 not in at and at == sorted(at), list(zip(order, at))
+    assert f"{TEXT['all_meetings']}: {SITE_URL}today.html" in text and SITE_URL + COMING[2]["href"] in text
+
+
+# ------------------------------------------------------------------ "Read it in plain words." (concept C)
+def test_only_the_definitions_of_kinds_in_the_edition_are_listed():
+    seats = render.body_html(CTX, note_of(*SEPT), SEPT)
+    assert [x.all_text() for x in styled(seats, "define")] == [TEXT[k] for k in ("define_ordinance", "define_minutes")]
+    res = [vote(1, 2, item_number="RESOLUTION 1-2026-27"), vote(2, 3, item_number="ORDINANCE 2-2026-27")]
+    assert [x.all_text() for x in styled(html_of(*res), "define")] == \
+        [TEXT[k] for k in ("define_ordinance", "define_resolution", "define_minutes")]
+    contracts = html_of(*CONTRACTS)
+    assert [x.all_text() for x in styled(contracts, "define")] == \
+        [TEXT[k] for k in ("define_bid_tab", "define_award_letter", "define_rfp")]
+    assert node_texts(contracts, "h2")[-2] == TEXT["plain_words"]
+    # the term is bold, the definition plain, both config text word for word
+    d = styled(contracts, "define")[0]
+    assert [s.all_text() for s in d.walk() if s.tag == "strong"] == ["Bid tab."]
+    none = html_of(entry(title="A budget amendment", source={"url": "https://example.com/a.pdf", "page": None}))
+    assert not styled(none, "words") and TEXT["plain_words"] not in none
+
+
+def test_the_shipped_definitions_are_concept_cs_words():
+    assert [TEXT[f"define_{k}"] for k, _ in render.KINDS] == [
+        "Ordinance. A local law.", "Resolution. A formal decision or statement that is not a law.",
+        "Minutes. The official written record of a meeting.", "Bid tab. A table of the bids received and their prices.",
+        "Award letter. The letter that names the bidder chosen.",
+        "RFP. A request for proposals: a government asking companies to offer their services."]
+
+
+# ------------------------------------------------------------------ every new slot: hostile text stays inert
+def test_hostile_text_in_every_new_slot_comes_out_inert_and_passes_the_deliver_check():
+    ctx = {**CTX, "place": HOSTILE, "site_place": HOSTILE, "site_name": HOSTILE,
+           "text": {**CTX["text"], **{k: HOSTILE + " {n} {date} {body} {meeting} {place} {weekday} {site_name}"
+                                      for k in render.TEXT_KEYS if k != "subject"}}}
+    ctx["text"]["define_ordinance"] = "Ordinance. " + HOSTILE
+    hostile_row = {"date": "2026-12-01", "body": HOSTILE, "meeting": HOSTILE, "href": "a.html"}
+    bad_rows = [{"date": HOSTILE, "body": "x", "meeting": None, "href": "b.html"},
+                {"date": "2026-12-02", "body": "y", "meeting": None, "href": HOSTILE}]
+    es = [entry(title=HOSTILE, body_name=HOSTILE, recorded=HOSTILE, meeting=HOSTILE),
+          entry(id="c", meeting_date=None, title=HOSTILE, body_name=HOSTILE, recorded=HOSTILE),
+          *[vote(k, k, body_name=HOSTILE, item_number="ORDINANCE " + HOSTILE) for k in (1, 2)]]
+    n = note_of(*es, coming_up=[hostile_row, *bad_rows], unplaced_text=HOSTILE)
+    for c in (ctx, {**ctx, "budget": 3000}):
+        html = render.body_html(c, n, n["entries"])
+        assert ok(html), html
+        assert "{{" not in html and "{%" not in html and "<script" not in html and "evil.example.com" not in "".join(links(html))
+        assert set(links(html)) <= {SITE_URL + x for x in ("a.html", "today.html", "morning/index.html", "items/2026.html#i-x",
+                                                           "city/meetings/2026.html#2026-09-03-regular")} | \
+            {"https://example.com/fixture/agenda.pdf#page=2", "https://example.com/fixture/minutes-2026-09-03.pdf"}
+        tags = {x.tag for x in parse(html).walk()} - {"root"}
+        assert tags <= {"div", "table", "tr", "td", "h1", "h2", "h3", "p", "span", "a", "br", "strong", "img"}
+
+
+@pytest.mark.parametrize("n", range(300))
+def test_random_text_in_the_new_slots_always_gives_a_body_deliver_accepts(n):
+    import random
+
+    from test_morning_sender_render import _PIECES
+    rnd = random.Random(20261122 + n)
+    t = ["".join(rnd.choice(_PIECES) for _ in range(rnd.randint(0, 20))) for _ in range(6)]
+    ctx = {**CTX, "place": t[0], "site_place": t[1]}
+    rows = [{"date": "2026-12-01", "body": t[2], "meeting": t[3], "href": "a.html"}]
+    es = [entry(title=t[4]), entry(id="u", meeting_date=None, body_name=t[5]), *[vote(k, k, item_number=t[k]) for k in (1, 2)]]
+    nn = note_of(*es, coming_up=rows)
+    assert ok(render.body_html(ctx, nn, nn["entries"])), t
+
+
+# ------------------------------------------------------------------ deliver.body_ok: exact tags only
+def _good() -> str:
+    n = note_of(*SEPT, *CONTRACTS, coming_up=COMING, support_line="Please help.", support_url=config.SITE["support_url"])
+    return render.body_html(CTX, n, n["entries"])
+
+
+def test_the_full_layout_passes_and_every_tag_render_wrote_is_a_shared_constant():
+    html = _good()
+    assert ok(html)
+    known = set(common.TAG.values()) | {"<br>", common.CREDIT_LINE}
+    assert html.count(common.CREDIT_LINE) == 1
+    for tag in re.findall(r"<(?!/)[^<>]*>", html.replace(common.CREDIT_LINE, "")):
+        if tag.startswith("<a href="):
+            assert any(tag.endswith(end) for end in common.LINKS.values()), tag
+        else:
+            assert tag in known, tag
+    assert html.count("<img ") == 1 and "url(" not in html and "background-image" not in html
+
+
+CARD = common.TAG["card"]
+TAMPERED = [
+    CARD.replace('">', 'position:fixed;">'), CARD.replace("#FFFFFF", "#FFFFFE"), CARD.replace("<div ", '<div onclick="x" '),
+    CARD.replace('">', '" class="x">'), CARD.replace("<div", "<DIV"), CARD.replace(";", "; ", 1),
+    CARD.replace('style="', "style='").replace('">', "'>"), CARD.replace('">', '" >'),
+]
+
+
+@pytest.mark.parametrize("bad", TAMPERED)
+def test_an_unknown_attribute_or_style_is_refused(bad):
+    html = _good()
+    assert CARD in html
+    assert not ok(html.replace(CARD, bad, 1))
+
+
+@pytest.mark.parametrize("swap", [
+    lambda h: h.replace(common.LINKS["ink"], '" style="color:#0F1F3D;">', 1),                  # another link style
+    lambda h: h.replace(common.LINKS["ink"], '" onclick="x' + common.LINKS["ink"], 1),
+    lambda h: h.replace(f'<a href="{SITE_URL}', '<a href="https://evil.example.com/', 1),        # a host not allowed
+    lambda h: h.replace(common.TAG["sun"] + "</span>", common.TAG["sun"] + "Click here</span>", 1),  # words in the sun
+    lambda h: h.replace(common.TAG["mark"] + "</span>", common.TAG["mark"] + "x</span>", 1),
+    lambda h: h.replace(common.TAG["card"] + "\n", common.TAG["card"], 1),                     # two tags on a line
+    lambda h: h.replace("</h3>\n", "</h3>" + common.TAG["line"] + "x</p>\n", 1),                # two blocks on a line
+    lambda h: h.replace("</table>\n", "", 1),                                                   # a container left open
+    lambda h: h.replace("</div>\n", "</div>\n</div>\n", 1),                                     # one closed twice
+    lambda h: h.replace(common.TAG["h3"], common.TAG["h1"], 1).replace("</h3>", "</h1>", 1),     # a second h1
+    lambda h: h.replace("</strong>", "", 1),                                                    # an inline tag left open
+    lambda h: h.replace("<strong>", "<strong>" + common.TAG["line"], 1),                         # a block inside a line
+    lambda h: h.replace(common.TAG["page"], common.TAG["sheet"], 1),                             # not the first line
+    lambda h: h[:-7],                                                                            # cut short
+    lambda h: h.replace("\n", "\n\n", 1), lambda h: h.replace("\n" + common.TAG["sky"], "\n  " + common.TAG["sky"], 1),
+    lambda h: h.replace("</td>\n", "</td>\nloose text\n", 1),                                   # text on its own line
+    lambda h: h.replace(common.TAG["intro"], common.TAG["intro"] + "evil.example/login ", 1),
+    lambda h: h.replace(common.TAG["intro"], common.TAG["intro"] + "{{ x }} ", 1),
+    lambda h: h.replace(common.CREDIT_LINE, common.CREDIT_LINE.replace("160", "1"), 1),
+])
+def test_a_tampered_body_is_refused(swap):
+    html = _good()
+    bad = swap(html)
+    assert bad != html and not ok(bad)
+
+
+def test_a_tampered_constant_in_render_fails_the_plan_not_the_morning(msite, monkeypatch):  # noqa: F811
+    """If render's tags drift from the ones deliver holds (an edit to one copy only), the plan stage refuses the
+    edition it wrote (PlanError), so the gap shows in the rehearsal, never as a day lost at 7:00."""
+    built = plan_mod.build(msite, D, cfg_with())
+    assert built["plan"]["editions"]
+    tampered = {**common.TAG, "card": common.TAG["card"].replace('">', 'position:fixed;">')}
+    monkeypatch.setattr(render, "TAG", tampered)
+    with pytest.raises(plan_mod.PlanError, match="body check refuses"):
+        plan_mod.build(msite, D, cfg_with())
+
+
+def test_deliver_holds_its_own_copy_of_the_tags():
+    """A change to common.TAG at run time (after import) widens nothing: deliver's sets were made at import."""
+    html = _good()
+    saved = copy.deepcopy(common.TAG)
+    try:
+        common.TAG["card"] = common.TAG["card"].replace('">', 'position:fixed;">')
+        assert not ok(html.replace(saved["card"], common.TAG["card"]))
+    finally:
+        common.TAG.clear()
+        common.TAG.update(saved)
+
+
+def test_the_tag_constants_hold_nothing_a_template_or_markdown_step_could_read():
+    for name, tag in {**common.TAG, **{f"link-{k}": '<a href="x' + v for k, v in common.LINKS.items()}}.items():
+        assert not re.search(r"[{}\n\\`]|  |url\(|expression|position|!important|javascript", tag, re.I), name
+        assert tag.startswith("<") and tag.endswith(">") and tag.count("<") == tag.count(">") == 1, name
+
+
+# ------------------------------------------------------------------ the size rule (Gmail clips at about 102 KB)
+def _many(k: int, title_len: int = 200) -> list[dict]:
+    return [entry(id=f"county/item/{i}", title=f"FIXTURE item {i} " + "word " * (title_len // 5),
+                  meeting_date=f"2026-{1 + i % 12:02d}-{1 + i % 28:02d}") for i in range(k)]
+
+
+def test_a_small_edition_has_every_entry_as_a_card():
+    html = html_of(*_many(10))
+    assert len(styled(html, "card")) == 10 and not styled(html, "row") and TEXT["more"].split(" ", 1)[1] not in html
+
+
+def test_a_large_edition_stays_under_the_budget_with_its_footer_and_rest_as_rows():
+    es = _many(100)
+    n = note_of(*es, support_line="Please help.", support_url=config.SITE["support_url"], coming_up=COMING)
+    html = render.body_html(CTX, n, n["entries"])
+    size = len(html.encode("utf-8"))
+    assert size <= common.BODY_BUDGET, size
+    cards, rows = styled(html, "card"), styled(html, "row")
+    assert cards and rows and len(cards) + len(rows) == 100
+    # the cards come first, in the edition's order, then one row each for the rest
+    shown = [c.all_text() for c in cards + rows]
+    assert [next(i for i, e in enumerate(es) if f"item {i} " in s) for s in shown] == list(range(100))
+    assert CTX["notice"] in parse(html).all_text() and common.CREDIT_LINE in html and "Please help." in html
+    assert TEXT["all_meetings"] in html and ok(html)
+    # the row keeps the entry's words and both links
+    r = rows[0]
+    assert {a.attrs["href"] for a in r.walk() if a.tag == "a"} == {SITE_URL + "items/2026.html#i-x",
+                                                                   "https://example.com/fixture/agenda.pdf#page=2"}
+
+
+def test_a_huge_edition_ends_its_list_with_n_more_on_the_site():
+    es = _many(400, title_len=590)
+    n = note_of(*es, support_line="Please help.", support_url=config.SITE["support_url"])
+    html = render.body_html(CTX, n, n["entries"])
+    assert len(html.encode("utf-8")) <= common.BODY_BUDGET and ok(html)
+    rows = styled(html, "row")
+    more = rows[-1]
+    hidden = 400 - len(styled(html, "card")) - (len(rows) - 1)
+    assert hidden > 0 and more.all_text() == TEXT["more"].replace("{n}", str(hidden))
+    assert [a.attrs["href"] for a in more.walk() if a.tag == "a"] == [SITE_URL + "morning/index.html"]
+    assert CTX["notice"] in parse(html).all_text() and html.rstrip().endswith("</div>")
+    text = render.body_text(CTX, n, n["entries"])
+    assert f"{TEXT['more'].replace('{n}', str(hidden))}: {SITE_URL}morning/index.html" in text
+    assert text.count("FIXTURE item ") == 400 - hidden
+
+
+@pytest.mark.parametrize("budget", [20_000, 40_000, 60_000])
+def test_any_budget_is_kept(budget):
+    n = note_of(*_many(150, 300))
+    html = render.body_html({**CTX, "budget": budget}, n, n["entries"])
+    assert len(html.encode("utf-8")) <= budget and ok(html)
+
+
+def test_the_shipped_budget_leaves_room_under_gmails_clip():
+    assert 60_000 <= common.BODY_BUDGET <= 90_000
+
+
+# ------------------------------------------------------------------ config: every new word, checked
+def test_every_new_word_is_config_text_and_passes_the_neutrality_scan(msite):  # noqa: F811
+    assert set(TEXT) == set(render.TEXT_KEYS) == set(morning.SENDER_TEXT_KEYS)
+    ours = render.own_text(CTX, {**read_note(msite), "coming_up": COMING})
+    for k in render.TEXT_KEYS:
+        assert TEXT[k] in ours or render.subject(CTX, D.isoformat()) in ours, k
+    assert "Fixture County Budget Committee" in ours and "executive session" in ours
+    assert not [t for t in ours if BANNED.search(t)]
+
+
+@pytest.mark.parametrize("key, value, problem", [
+    ("greeting", "Good morning.", "must contain {place}"), ("header_day", "{weekday}", "must contain {place}"),
+    ("coming_meeting", "{date}: {body}", "must contain {meeting}"), ("more", "More on the site", "must contain {n}"),
+    ("source_meeting", "Source", "must contain {date}"), ("define_rfp", "RFP: proposals", "Term. Definition"),
+    ("invited", "", "must be set")])
+def test_the_build_refuses_a_new_text_without_its_placeholders(key, value, problem):
+    cfg = copy.deepcopy(config.SITE)
+    assert morning.problems(cfg) == []
+    cfg["morning_note"]["sender"]["text"][key] = value
+    assert any(key in p and problem in p for p in morning.problems(cfg)), morning.problems(cfg)
+
+
+def test_the_deliver_jobs_reader_still_matches_pyyaml():
+    assert morning.reader_problems() == []
+
+
+# ------------------------------------------------------------------ the note's coming_up (build time, from the records)
+ROWS = [{"iso": "2026-11-17", "body": "School Board", "title": "Formal board meeting", "href": "school/a.html", "cancelled": False},
+        {"iso": "2026-11-18", "body": "Montgomery Budget Committee", "title": "Budget Committee", "href": None, "cancelled": False},
+        {"iso": "2026-11-20", "body": "Council", "title": "Special session", "href": "c/x.html", "cancelled": True},
+        {"iso": "2026-12-01", "body": "Council", "title": "Executive session", "href": "c/y.html#e", "cancelled": False},
+        {"iso": "2026-12-03", "body": "Council", "title": None, "href": "c/z.html", "cancelled": False},
+        {"iso": "2026-12-09", "body": "Council", "title": "Regular session", "href": "c/w.html", "cancelled": False}]
+
+
+def test_coming_up_is_the_next_three_meetings_on_or_after_the_notes_day():
+    got = morning.coming_up(date(2026, 11, 18), ROWS)
+    assert got == [{"date": "2026-11-18", "body": "Montgomery Budget Committee", "meeting": None,
+                    "href": "today.html#d-2026-11-18"},
+                   {"date": "2026-12-01", "body": "Council", "meeting": "executive session", "href": "c/y.html#e"},
+                   {"date": "2026-12-03", "body": "Council", "meeting": None, "href": "c/z.html"}]
+    assert morning.coming_up(date(2027, 1, 1), ROWS) == [] and morning.coming_up(date(2026, 11, 1), None) == []
+    assert [r["date"] for r in morning.coming_up(date(2026, 11, 1), ROWS)] == ["2026-11-17", "2026-11-18", "2026-12-01"]
+
+
+def test_every_note_carries_coming_up_the_same_for_every_reader(msite):  # noqa: F811
+    note = read_note(msite)
+    assert isinstance(note["coming_up"], list) and len(note["coming_up"]) <= 3
+    assert all(r["date"] >= note["date"] for r in note["coming_up"])
+    built = plan_mod.build(msite, D, cfg_with())
+    if note["coming_up"]:
+        first = render.coming(CTX, note)[0][0]
+        assert all(render.inert(first) in ed["body"] for ed in built["plan"]["editions"])
+
+
+def test_a_note_without_coming_up_still_plans(tmp_path):
+    n = note_of(entry(lists=["budget"]))
+    n.update(window={"from": "x", "to": "y"}, data_as_of="", counts={}, notice=CTX["notice"],
+             email_line=CTX["email_line"], support_line="", support_url="")
+    built = plan_mod.build(site_with(tmp_path, n), D, cfg_with())
+    assert built["plan"]["editions"] and TEXT["coming_up"] not in built["plan"]["editions"][0]["body"]

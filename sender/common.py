@@ -79,6 +79,106 @@ CREDIT_ALT = "gnoshcodes"
 CREDIT_TEXT = "A gnoshcodes project."
 CREDIT_LINE = f'<p><img src="{CREDIT_IMAGE}" alt="{CREDIT_ALT}" width="160" height="32"> {CREDIT_TEXT}</p>'
 
+# note/sunrise (2026-11-22, design concept A "Sunrise"; docs/architecture/morning-note.md "Email body forms"): the
+# exact opening tags the HTML edition is made of, each with its fixed inline style. render writes only these strings
+# (by name) and deliver.body_ok accepts an opening tag only when it is one of them, character for character, the way
+# CREDIT_LINE is held: no attribute or style is ever parsed or built from record text. The only variable part of a
+# tag is a link's checked href (LINKS: `<a href="` + URL + one of these endings). Colors are the site's tokens
+# (site/static/style.css); fonts are the site's stacks with system fallbacks (nothing is downloaded). No style holds
+# a brace, a "<", a ">", a double quote or a double space.
+_HEAD = "font-family:Outfit,'Avenir Next','Segoe UI',Arial,sans-serif;"
+_MONO = "font-family:'JetBrains Mono',Menlo,Consolas,monospace;"
+_KICK = _MONO + "font-size:12px;line-height:1.5;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;"
+_TABLE = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" ' \
+         'style="width:100%;border-collapse:collapse;">'
+TAG = {
+    # the frame: the page ground, the 600px sheet (body font and ink set once, inherited below)
+    "page": '<div style="margin:0;padding:16px 12px 28px;background-color:#E9EDF5;">',
+    "sheet": '<div style="max-width:600px;margin:0 auto;background-color:#F7F8FC;border-radius:20px;'
+             "font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;line-height:1.5;"
+             'color:#141A2E;">',
+    # the sky header: name, plate, "Wednesday in <place>" over the date, the sun half-risen on the ink horizon
+    "sky": '<div style="background-color:#D5DFF0;border-radius:20px 20px 0 0;border-bottom:2px solid #141A2E;">',
+    "table": _TABLE,
+    "tr": "<tr>",
+    "sky_td": f'<td style="padding:20px 8px 14px 20px;vertical-align:bottom;{_HEAD}color:#141A2E;">',
+    "h1": '<h1 style="margin:0;font-size:22px;line-height:1.1;font-weight:800;letter-spacing:-0.02em;color:#141A2E;">',
+    "mark_ring": '<span aria-hidden="true" style="display:inline-block;margin:0 8px 0 0;padding:3px;'
+                 'background-color:#EFC4AF;border-radius:50%;vertical-align:middle;">',
+    "mark": '<span style="display:block;width:14px;height:14px;background-color:#D2561B;border-radius:50%;">',
+    "plate": f'<p style="margin:3px 0 0;{_KICK}color:#4A5470;">',
+    "weekday": '<p style="margin:20px 0 0;font-size:17px;line-height:1.2;font-weight:500;color:#141A2E;">',
+    "date": '<p style="margin:0;font-size:32px;line-height:1.05;font-weight:800;letter-spacing:-0.035em;'
+            'color:#141A2E;">',
+    "sun_td": '<td width="80" aria-hidden="true" style="width:80px;padding:0 18px 0 0;vertical-align:bottom;">',
+    "sun_box": '<div style="height:40px;overflow:hidden;font-size:0;line-height:0;">',
+    "sun_ring": '<span style="display:inline-block;padding:10px;background-color:#EFC4AF;border-radius:50%;">',
+    "sun": '<span style="display:block;width:60px;height:60px;background-color:#D2561B;border-radius:50%;">',
+    "unofficial": '<p style="margin:0;padding:10px 20px;background-color:#E9EDF5;font-size:14px;line-height:1.45;'
+                  'color:#141A2E;">',
+    # the greeting
+    "intro_box": '<div style="padding:24px 20px 4px;">',
+    "greeting": f'<p style="margin:0;{_HEAD}font-size:28px;line-height:1.12;font-weight:800;'
+                'letter-spacing:-0.025em;color:#141A2E;">',
+    "tagline": f'<p style="margin:6px 0 0;{_HEAD}font-size:19px;line-height:1.3;font-weight:500;color:#141A2E;">',
+    "intro": '<p style="margin:12px 0 0;">',
+    # one section per list, one white card per entry (a meeting's carries the site's date block)
+    "section": '<div style="padding:18px 20px 0;">',
+    "kicker": f'<p style="margin:0;{_KICK}color:#4A5470;">',
+    "h2": f'<h2 style="margin:2px 0 12px;{_HEAD}font-size:22px;line-height:1.2;font-weight:800;color:#141A2E;">',
+    "card": '<div style="margin:0 0 12px;padding:16px;background-color:#FFFFFF;border:1px solid #D5DAE8;'
+            'border-radius:12px;">',
+    "day_td": f'<td width="52" aria-hidden="true" style="width:52px;padding:2px 14px 0 0;vertical-align:top;'
+              f'text-align:center;{_MONO}font-size:12px;line-height:1.3;text-transform:uppercase;color:#4A5470;">',
+    "day_n": f'<span style="{_HEAD}font-size:26px;line-height:1.1;font-weight:800;color:#141A2E;">',
+    "card_td": '<td style="vertical-align:top;">',
+    "h3": f'<h3 style="margin:0;{_HEAD}font-size:18px;line-height:1.25;font-weight:800;color:#141A2E;">',
+    "h3_after": f'<h3 style="margin:4px 0 0;{_HEAD}font-size:18px;line-height:1.25;font-weight:800;'
+                'color:#141A2E;">',
+    "line": '<p style="margin:8px 0 0;">',
+    "numbers": f'<p style="margin:4px 0 0;{_MONO}font-size:13px;line-height:1.6;color:#4A5470;">',
+    "source": '<p style="margin:10px 0 0;font-size:15px;">',
+    # the size rule's compact row (render.BUDGET), the "N more" line, and the unplaced zoning line
+    "row": '<p style="margin:0 0 10px;font-size:15px;">',
+    "note": '<p style="margin:0 0 12px;">',
+    # "Read it in plain words."
+    "words": '<div style="margin:6px 20px 0;padding:16px;background-color:#E9EDF5;border-radius:12px;">',
+    "words_h2": f'<h2 style="margin:0 0 6px;{_HEAD}font-size:18px;line-height:1.25;font-weight:800;'
+                'color:#141A2E;">',
+    "define": '<p style="margin:6px 0 0;">',
+    # the navy "Take part" box
+    "part_box": '<div style="padding:18px 12px 0;">',
+    "part": '<div style="padding:22px 20px 24px;background-color:#0F1F3D;border-radius:20px;color:#FFFFFF;">',
+    "part_kicker": f'<p style="margin:0;{_KICK}color:#D5DCEA;">',
+    "part_h2": f'<h2 style="margin:6px 0 0;{_HEAD}font-size:22px;line-height:1.2;font-weight:800;color:#FFFFFF;">',
+    "part_line": '<p style="margin:10px 0 0;color:#FFFFFF;">',
+    "invited": f'<p style="margin:16px 0 0;{_HEAD}font-size:19px;line-height:1.3;font-weight:500;color:#FFFFFF;">',
+    "coming_kicker": f'<p style="margin:14px 0 0;{_KICK}color:#D5DCEA;">',
+    "coming": '<p style="margin:6px 0 0;color:#FFFFFF;">',
+    "button_p": '<p style="margin:20px 0 0;">',
+    # the footer: why, the notice, the support line (then CREDIT_LINE, unstyled, exactly as before)
+    "foot": '<div style="padding:22px 20px 24px;font-size:14px;color:#4A5470;">',
+    "foot_first": '<p style="margin:0;">',
+    "foot_p": '<p style="margin:10px 0 0;">',
+    "strong": "<strong>",
+}
+# A link is `<a href="` + the checked URL + one of these endings: ink on a light ground, white on navy, the button.
+LINKS = {
+    "ink": '" style="color:#0F1F3D;text-decoration:underline;">',
+    "white": '" style="color:#FFFFFF;text-decoration:underline;">',
+    "button": '" style="display:inline-block;padding:13px 20px;background-color:#FFFFFF;border-radius:999px;'
+              'font-size:16px;line-height:1.2;font-weight:600;color:#0F1F3D;text-decoration:none;">',
+}
+# Which of TAG stand alone on their line (a container opened here and closed on a later line by its own "</x>" line),
+# which hold no text at all (the sun and the name's mark: shapes, never words), and which stand inside a line.
+CONTAINERS = ("page", "sheet", "sky", "table", "tr", "sky_td", "sun_td", "intro_box", "section", "card", "card_td",
+              "words", "part_box", "part", "foot")
+EMPTY = ("mark_ring", "mark", "sun_box", "sun_ring", "sun")
+INLINE = ("mark_ring", "mark", "sun_ring", "sun", "day_n", "strong")     # inside a line; every other TAG opens one
+# Gmail clips a message at about 102 KB and hides the rest (the notice, the support line and the provider's
+# unsubscribe link) behind "View entire message". An edition's HTML stays under this many bytes (render.layout).
+BODY_BUDGET = 80_000
+
 # plan-untrusted/body-unchecked: the hosts an email may link to (`morning_note.sender.link_hosts`: the site's host
 # and the collectors' source hosts), one rule for the plan stage, the deliver check and the build. The support link
 # is allowed as its one exact URL (top-level `support_url`), never its host: anyone can host a page there.

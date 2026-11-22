@@ -392,6 +392,15 @@ def chip(card: dict) -> str | None:
     return dict(CHIPS[1:]).get(card.get("state"))
 
 
+def meeting_rows(page_ctx: dict) -> list[dict]:
+    """Every meeting card of the day page (page()), soonest first: [{iso, body, title, href, cancelled}]. Bid
+    listings are not meetings and are left out. The morning note's `coming_up` is a selection of these
+    (morning.coming_up)."""
+    return [{"iso": d["iso"], "body": c["body"], "title": c.get("title"), "href": c.get("href"),
+             "cancelled": bool(c.get("cancelled"))}
+            for w in page_ctx["weeks"] for d in w["days"] for c in d["cards"] if c["kind"] != "bids"]
+
+
 def landing_meetings(page_ctx: dict, today: date | None = None, n: int = 3) -> dict:
     """A selection of the day page's own cards (page()), nothing new: the next `n` meetings on or after the build day,
     soonest first, and the last `n` before it, newest first. Bid listings are not meetings and are left out; a

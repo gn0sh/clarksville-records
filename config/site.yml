@@ -187,6 +187,40 @@ morning_note:
       # its own (two or more from one minutes document, never a zoning case), under the meeting line; the record's
       # item numbers follow on the next line (with none, the trailing colon is dropped). {n}: the count of votes.
       untitled_votes: "{n} votes in these minutes with no item title:"
+      # note/sunrise (2026-11-22, design concept A "Sunrise" with concept C's plain words and invitation; the owner:
+      # "celebrates their civic pride ... Your Local Government.. in Broad Daylight"). The header, the greeting and
+      # the "Take part" box. {place}: top-level today_place; {site_name}: site_name; {weekday}: the note's day name.
+      # Fixed text about the place, the records and open meetings: no sentence describes any body's conduct.
+      header_day: "{weekday} in {place}"
+      greeting: "Good morning, {place}."
+      tagline: "Your local government, in broad daylight."
+      intro: "Here is what is new on {site_name} for the lists you picked. Every item links to the official document it came from."
+      new_on_list: New on your list
+      # A card's source link. {date}: the meeting's day as the site writes it. A page number follows after page_label.
+      source_meeting: "Source document, {date} meeting"
+      source_document: Source document
+      # "Read it in plain words." (concept C): only the definitions whose kind is in that edition (render.KINDS).
+      # Each is "Term. Definition." and prints the term in bold. A person confirms these words before launch.
+      plain_words: Read it in plain words.
+      define_ordinance: Ordinance. A local law.
+      define_resolution: Resolution. A formal decision or statement that is not a law.
+      define_minutes: Minutes. The official written record of a meeting.
+      define_bid_tab: Bid tab. A table of the bids received and their prices.
+      define_award_letter: Award letter. The letter that names the bidder chosen.
+      define_rfp: "RFP. A request for proposals: a government asking companies to offer their services."
+      take_part: Take part
+      take_part_heading: This is your government. Its meetings are open to you.
+      take_part_line: "{site_name} lists each meeting by day, with a link to the official video where the body posts one."
+      invited: You are invited.
+      # The next meetings in the records on or after the note's day (the note's coming_up, the same for every reader;
+      # no time or place: neither is collected). coming_body when the meeting kind repeats the body's name or is unknown.
+      coming_up: Coming up
+      coming_meeting: "{date}: {body}, {meeting}"
+      coming_body: "{date}: {body}"
+      all_meetings: "See all meetings, day by day"
+      # The size rule (render.layout): past the byte budget the rest of an edition stands as one line each, and past
+      # that as this one line, linking the day's note on the site. {n}: how many items are not shown.
+      more: "{n} more on the site"
   # Every word the sign-up section (alerts.html#note) and the preview page (morning/index.html) print around the
   # records' own titles. Neutral connective text only: no summary, no claim about anyone.
   page:

@@ -122,7 +122,14 @@ T1 additions (additive; T3 and the sender may rely on them):
   when the record printed no title of its own (`title_ours`, or a county/council item whose printed title is only a
   document kind, `morning.DOCUMENT_KINDS`: "MINUTES"); `meeting_href` is the site's page of the entry's meeting for
   county and council entries, else `null`; `item_number` is the county/council item's own printed number
-  ("ORDINANCE 95-2025-26"), else `null`. The email uses them (Body, below); the preview page ignores them.
+  ("ORDINANCE 95-2025-26"), else `null`. The email uses them (Body, below); the preview page ignores them;
+- the note carries `coming_up` (additive, 2026-11-22, note/sunrise): the next `morning.COMING_N` (3) meetings in the
+  records on or after the note's `date`, soonest first, the same for every reader: `[{date, body, meeting, href}]`,
+  a selection of the day page's own meeting cards (`days.meeting_rows`: bid listings and cancelled meetings left
+  out). `meeting` is the card's kind label in lower case, `null` when it has none or the body's name already says it;
+  `href` is the meeting's page on the site, else its day on `today.html`. No time or place (neither is collected).
+  Computed at build time from the records, so a note rebuilt later lists the meetings the records then hold. `[]`
+  when none; the email reads a missing field as `[]`. Body names and kind labels are in `own_text`.
 
 `select(day, lists, seats) -> list[entry]` (Python, `sitegen/morning.py`) is the one filter: `seats` and `budget`/
 `contracts` membership is by `lists`; `zoning` and `seats` also need the seat match above. `morning.js` mirrors it;
@@ -247,7 +254,7 @@ left out: those people get nothing.
 The plan is a pure function of the note and config: two runs on the same note give byte-identical files. It holds
 no subscriber data, so it is safe as a build artifact in a public repository.
 
-Body (`render.py`): the site name and date, then per picked list its config label and the entries placed under it: body name
+Body (`render.py`; layout since 2026-11-22 is note/sunrise, "Email body forms" below): the site name and date, then per picked list its config label and the entries placed under it: body name
 and meeting (config `morning_note.text.meeting_line`, "{body}, {date} {meeting}": "Montgomery County Commission, November
 9, 2026 formal meeting"; the body alone for an entry with no meeting), `recorded`, the verbatim title, a link to the site page (`alerts.site_url` + `href`) and the source link; then
 `unplaced_text` when set; then one config line saying why the reader got this; the HTML edition then closes with the
@@ -270,9 +277,56 @@ function of its rows. Rules:
   through the provider's own template and Markdown step (a record's title is untrusted text);
 - links are only `site_url` pages and `source.url` values that pass `build._is_https_uri`; anything else drops the link;
 - every word that is ours comes from `morning_note.sender.text` in config and runs through the `BANNED` scan with
+  `morning_note.sender.text` in config and runs through the `BANNED` scan with
   `morning.own_text`; no official's name outside a verbatim title; no summary. The email adds nothing the preview
-  page (`morning/index.html`) does not already show;
+  page (`morning/index.html`) does not already show, except the note's `coming_up` meetings (the landing's own
+  "Coming up" selection from `today.html`) and the fixed plain-word definitions (note/sunrise);
 - the unsubscribe link and footer are the provider's; we add no unsubscribe mechanism of our own.
+
+### Email body forms (note/sunrise, 2026-11-22)
+The owner chose design concept A "Sunrise" (`/mnt/project-files/clarksville-records/morning-note-design/concepts.md`)
+with concept C's plain words and its "You are invited." line. Order of the HTML edition: the sky header (site name
+with the sun mark, `site_place`, config `header_day` "{weekday} in {place}" over "November 18", the sun drawn with CSS),
+`unofficial.email_line`, the greeting (`greeting`, `tagline`, `intro`), the `new_on_list` kicker, then per list an
+`h2` and one white card per item (from a meeting: the site's date block, the meeting line as `h3` and link to the
+site's page, `recorded`, the title in bold, the source link "Source document, {date} meeting[, page N]"; anything
+else: body and `recorded` as a kicker, the title as `h3` and link, "Source document"), the unplaced line, "Read it in
+plain words." (only the `define_*` texts whose kind is in the edition, `render.KINDS`: the entries' title, item
+number or source file name; a vote means minutes), the navy "Take part" box (`take_part`, `take_part_heading`,
+`take_part_line`, `invited`, then `coming_up` and one line per note `coming_up` row when there is one, and the
+`all_meetings` button to `today.html`), then the footer (`why`, the notice, the support line, `CREDIT_LINE`
+unchanged). Every word is `morning_note.sender.text` (placeholders checked by `morning.sender_problems`; each
+`define_*` must read "Term. Definition."). `body_text` is the same content in the same order. The one image is still
+the credit logo; the sun, mark and date blocks are text and CSS, so the email reads with images off.
+
+**Size rule.** Gmail clips a message at about 102 KB, which hides the notice, the support line and the provider's
+unsubscribe link. `render.layout` keeps every edition's HTML at or under `common.BODY_BUDGET` (80,000 bytes): all
+cards when they fit; else the first items as cards and the rest as one-line rows (`TAG["row"]`: the item's words,
+its page link with `open_site` and its source link); else rows only, as many as fit, then one line `more` ("{n} more
+on the site") linking `morning/index.html`. The header, "Take part" box and footer always stay. The plain text twin
+carries the same cut.
+
+**Accepted forms (`deliver.body_ok`, the security boundary).** Invariant: every opening tag in an emailed body is
+one of the exact strings render writes, so no attribute and no style can come from anything but our own source.
+- The strings are `common.TAG` (each opening tag with its fixed inline style; colors are site tokens, no `url()`,
+  `position`, `background-image`, gradient, `!important`, brace, quote or double space) and `common.LINKS` (a link is
+  `<a href="` + URL + one of three fixed endings: ink, white on navy, the button). render writes only these by name;
+  deliver builds its sets from them once, at import, and compares whole strings. No style or attribute parser exists.
+- The body's first line is exactly `TAG["page"]`; every line is either one container tag alone (`CONTAINERS`: div,
+  table, tr, td forms), its lone closing tag, `CREDIT_LINE` exactly, or one block: a non-container, non-inline TAG,
+  then text, `&middot;` and render's numeric references, `<br>`, the inline TAGs (`INLINE`: the sun spans, the day
+  number span, `<strong>`) and links (text only inside a link), all closed in order, the block's close last.
+  Containers close in order and nothing follows the last; exactly one `<h1>`; no blank or indented line.
+- No text inside the sun or the name's mark (`EMPTY`): they are shapes.
+- Unchanged from M3: text holds no raw `common.MARKUP` character and no format or control character; read as shown,
+  no `common.ADDRESS`; every `href` is an https URL on `link_hosts` or exactly the support URL, `&` only as `&amp;`.
+  Record text reaches the body only through `render.inert()`, in every slot (titles, item numbers, body names,
+  meeting words, coming-up rows, `site_place`, `today_place`).
+- Tests: `tests/test_morning_sender_sunrise.py` (hostile text in every new slot, random text, an unknown attribute or
+  style, a changed link ending, words in the sun, two blocks on a line, a tampered constant failing the plan) and
+  `tests/test_morning_sender_deliver.py` (the M3 cases, moved to the new forms).
+Unverified before go-live: whether Buttondown's template and Markdown step pass `style`, `table`, `role` and
+`aria-hidden` through unchanged, and what wrapper it adds (one test email to a team inbox answers both).
 
 ### Deliver stage
 Order of work for `deliver --live` (any failed check stops before the first write, exit non-zero, nothing sent):
@@ -379,9 +433,8 @@ morning_note:
   between a day's first run and 7:00 (the scheduled emails would match nobody). `stamp` mode refuses to run without
   the secret, or with one under 32 bytes, and tries nothing in its place ("no-secret", exit 2; security Low (b)). `ids` emails carry `<D>.<key>` only (no filter reads it).
 - **The deliver stage checks each body** (security `plan-untrusted/body-unchecked`, M3) against render's exact
-  output, not by parsing HTML: `<h1>` first, every line one of render's forms (`<h1>T</h1>`, `<h2>T</h2>`,
-  `<p>…</p>`, `<ul>`, `</ul>`, `<li>…</li>`, inside them only `<br>`, `<strong>T</strong>`, `<a href="U">T</a>`),
-  lists closed, the body ending in a complete line and a newline. Text holds no raw markup character
+  output, not by parsing HTML: since note/sunrise (2026-11-22) the exact opening tags of `common.TAG` and `LINKS`,
+  one construct per line, as "Email body forms" above lists; the body ending in a complete line and a newline. Text holds no raw markup character
   (`common.MARKUP`, braces included) and only the references render writes; read as a reader sees it, it holds no
   `www.`, no `://` and no dot between two word characters (`evil.example/login`; CJK and full-width dots too),
   which render breaks with a zero-width space (`common.ADDRESS`). Each `href` is one https URL on a host in

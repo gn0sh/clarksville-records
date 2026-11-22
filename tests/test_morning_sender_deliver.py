@@ -1252,9 +1252,20 @@ def test_fixture_subscribers_are_all_at_example_com():
 
 
 # ------------------------------------------------------------------ plan-untrusted/body-unchecked
-GOOD_BODY = ('<h1>Daylight</h1>\n<p>November 11, 2026</p>\n<ul>\n<li>A<br><strong>T</strong><br>'
-             '<a href="https://records.example.com/items/2026.html#i-x">Open</a> &middot; '
-             '<a href="https://www.cmcrpc.com/a.pdf?x=1&amp;y=%7B2%7D">Source</a></li>\n</ul>\n<p>&#123;why&#125;</p>\n')
+# note/sunrise: render's own tags (common.TAG, LINKS), with the made-up site's links
+TAG, INK = common.TAG, common.LINKS["ink"]
+P = TAG["line"]
+GOOD_BODY = "\n".join([
+    TAG["page"], TAG["sheet"], TAG["h1"] + "Daylight</h1>", P + "November 11, 2026</p>", TAG["card"],
+    TAG["h3"] + '<a href="https://records.example.com/items/2026.html#i-x' + INK + "A</a></h3>",
+    P + "<strong>T</strong></p>",
+    TAG["source"] + '<a href="https://www.cmcrpc.com/a.pdf?x=1&amp;y=%7B2%7D' + INK + "Source</a></p>", "</div>",
+    TAG["foot"], TAG["foot_first"] + "&#123;why&#125;</p>", "</div>", "</div>", "</div>"]) + "\n"
+
+
+def _new(line: str) -> str:
+    """An old-form test line in render's new forms (note/sunrise): the same text and href in render's exact tags."""
+    return re.sub(r'<a href="([^"]*)">', lambda m: f'<a href="{m.group(1)}{INK}', line.replace("<p>", P))
 
 
 @pytest.mark.parametrize("body", [
@@ -1283,30 +1294,42 @@ def _with(line: str) -> str:
     return f"{head}\n{line}\n{last}\n"
 
 
+def _withn(line: str) -> str:
+    return _with(_new(line))
+
+
+def test_the_harness_lines_pass_when_their_text_is_fine():
+    """So each refusal below is the text's or the tag's, not the harness's (note/sunrise moved every form)."""
+    s = settings()
+    assert deliver.body_ok(GOOD_BODY, s.link_hosts)
+    assert deliver.body_ok(_withn("<p>fine words, and more</p>"), s.link_hosts)
+    assert deliver.body_ok(_withn('<p><a href="https://records.example.com/x">x</a></p>'), s.link_hosts)
+
+
 # M3 (security delta at a168d24): text the old tag-only check let through, then everything it already blocked
 TEXT_BYPASSES = [
-    _with("<p>[Confirm](https://evil.example/x)</p>"), _with("<p>![x](https://evil.example/t.gif)</p>"),
-    _with("<p>[x]: https&#58;//evil.example</p>"), _with("<p>[x]: https://evil.example</p>"),
-    _with("<p>Sign in at https://evil.example/login</p>"), _with("<p>Sign in at evil.example/login</p>"),
-    _with("<p>See WWW.evil now</p>"), _with("<p>mail x&#64;evil.example</p>"), _with("<p>evil\uff0eexample</p>"),
-    _with("<p>https:&#8203;//evil.example</p>"), _with("<p>evil.&#x65;xample</p>"),
-    _with("<li>outside a list</li>"), "<ul>\n" + GOOD_BODY, GOOD_BODY + "<ul>\n",
+    _withn("<p>[Confirm](https://evil.example/x)</p>"), _withn("<p>![x](https://evil.example/t.gif)</p>"),
+    _withn("<p>[x]: https&#58;//evil.example</p>"), _withn("<p>[x]: https://evil.example</p>"),
+    _withn("<p>Sign in at https://evil.example/login</p>"), _withn("<p>Sign in at evil.example/login</p>"),
+    _withn("<p>See WWW.evil now</p>"), _withn("<p>mail x&#64;evil.example</p>"), _withn("<p>evil\uff0eexample</p>"),
+    _withn("<p>https:&#8203;//evil.example</p>"), _withn("<p>evil.&#x65;xample</p>"),
+    _withn("<li>outside a list</li>"), "<ul>\n" + GOOD_BODY, GOOD_BODY + "<ul>\n",
     GOOD_BODY + '<a href="https://evil.example/"', GOOD_BODY + "<img src=https://evil.example/t.gif",
-    GOOD_BODY[:-1], GOOD_BODY + "x\n", GOOD_BODY + "\n", GOOD_BODY.replace("<h1>Daylight</h1>\n", ""),
-    _with("<p>a</p><p>b</p>"), _with("<p>a\x00b</p>"), _with("<p>a\tb</p>"), _with("<p>a\u202eb</p>"),
-    _with("<p>&#8238;b</p>"), _with("<p>&amp;</p>"), _with("<p>&lt;script&gt;</p>"),
+    GOOD_BODY[:-1], GOOD_BODY + "x\n", GOOD_BODY + "\n", GOOD_BODY.replace(TAG["h1"] + "Daylight</h1>\n", ""),
+    _withn("<p>a</p><p>b</p>"), _withn("<p>a\x00b</p>"), _withn("<p>a\tb</p>"), _withn("<p>a\u202eb</p>"),
+    _withn("<p>&#8238;b</p>"), _withn("<p>&amp;</p>"), _withn("<p>&lt;script&gt;</p>"),
 ]
 REGRESSIONS = [
-    _with('<p><a href="https://user' + '@records.example.com/x">x</a></p>'),
-    _with('<p><a href="javascript&#58;alert(1)">x</a></p>'), _with('<p><a href="HTTPS://records.example.com/">x</a></p>'),
-    _with('<p><a href="//records.example.com/">x</a></p>'),
-    _with('<p><a href="https://records.example.com.evil.example/">x</a></p>'),
-    _with('<p><a href="https://records.example.com/\tx">x</a></p>'),
-    _with('<p><a href="https://records.example.com/" href="https://evil.example/">x</a></p>'),
-    _with('<p><a href="https://records.example.com/x&#38;y">x</a></p>'),
-    _with('<p><img src="https://records.example.com/x.png"></p>'), _with("<style>p{}</style>"),
-    _with("<!-- x -->"), _with("<![CDATA[x]]>"), _with("<p>x</ p onclick=y>"), _with("<p>{% if x %}</p>"),
-    _with("    <script>alert(1)</script>"), _with("<p>    indented</p>"), _with("<br/>"), _with("<P>x</P>"),
+    _withn('<p><a href="https://user' + '@records.example.com/x">x</a></p>'),
+    _withn('<p><a href="javascript&#58;alert(1)">x</a></p>'), _withn('<p><a href="HTTPS://records.example.com/">x</a></p>'),
+    _withn('<p><a href="//records.example.com/">x</a></p>'),
+    _withn('<p><a href="https://records.example.com.evil.example/">x</a></p>'),
+    _withn('<p><a href="https://records.example.com/\tx">x</a></p>'),
+    _withn('<p><a href="https://records.example.com/" href="https://evil.example/">x</a></p>'),
+    _withn('<p><a href="https://records.example.com/x&#38;y">x</a></p>'),
+    _withn('<p><img src="https://records.example.com/x.png"></p>'), _withn("<style>p{}</style>"),
+    _withn("<!-- x -->"), _withn("<![CDATA[x]]>"), _withn("<p>x</ p onclick=y>"), _withn("<p>{% if x %}</p>"),
+    _withn("    <script>alert(1)</script>"), _withn("<p>    indented</p>"), _withn("<br/>"), _withn("<P>x</P>"),
 ]
 
 
@@ -1347,7 +1370,7 @@ def test_the_footer_credit_is_the_one_image_a_body_may_carry(plan):
     good = copy.deepcopy(plan)
     good["editions"][0]["body"] = _with(common.CREDIT_LINE)
     deliver.check_plan(good, s.link_hosts, s.link_urls)
-    assert all(ed["body"].endswith(common.CREDIT_LINE + "\n") for ed in plan["editions"])     # every edition has it
+    assert all(ed["body"].endswith(common.CREDIT_LINE + "\n</div>\n</div>\n</div>\n") for ed in plan["editions"])
 
 
 @pytest.mark.parametrize("line", OTHER_IMAGES)
@@ -1367,9 +1390,9 @@ def test_the_support_url_is_allowed_exactly_not_its_host(plan, href, ok):
     """Low (a): a page anyone could host on the support link's host is refused; the configured URL passes."""
     hosts = tuple(h for h in settings().link_hosts if h != "tips.example.com")
     urls = settings().link_urls + ("https://tips.example.com/x",)        # the fixture's own support link too
-    body = _with(f'<p>Please help. <a href="{href}">Tips</a></p>')
+    body = _withn(f'<p>Please help. <a href="{href}">Tips</a></p>')
     assert deliver.body_ok(body, hosts, urls) is ok
-    assert not deliver.body_ok(_with('<p>Please help. <a href="https://tips.example.com/x">Tips</a></p>'), hosts)
+    assert not deliver.body_ok(_withn('<p>Please help. <a href="https://tips.example.com/x">Tips</a></p>'), hosts)
     good = copy.deepcopy(plan)
     good["editions"][0]["body"] = body
     if ok:
@@ -1382,7 +1405,7 @@ def test_the_support_url_is_allowed_exactly_not_its_host(plan, href, ok):
 def test_the_run_allows_the_settings_support_url(plan):
     s = dataclasses.replace(settings(), link_hosts=tuple(h for h in settings().link_hosts if h != "tips.example.com"))
     good = copy.deepcopy(plan)
-    good["editions"][0]["body"] = _with('<p>Please help. <a href="https://tips.example.com/x">Tips</a></p>')
+    good["editions"][0]["body"] = _withn('<p>Please help. <a href="https://tips.example.com/x">Tips</a></p>')
     res, _ = go(good, Fake(people(plan)), s=s)
     assert res.status == "bad-plan"
     res, _ = go(good, Fake(people(plan)), s=dataclasses.replace(s, link_urls=s.link_urls + ("https://tips.example.com/x",)))
