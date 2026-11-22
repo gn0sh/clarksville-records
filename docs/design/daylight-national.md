@@ -64,8 +64,11 @@ Icons are `aria-hidden`; the pill text is real text. In dark mode the pill uses 
 
 `site/static/style.css` has no `digest-*` rules yet. Everything below uses its existing tokens; add no new color.
 Brand navy is `--blue` (fills, borders) and `--link` (text and outlines; it turns light blue in dark mode, so
-use it instead of `--blue` for anything drawn on `--surface`). Brand orange `--sun` is the focus ring only: no
-orange text, fill or border on a digest page. No red or green anywhere (R2). Class names are the ones
+use it instead of `--blue` for anything drawn on `--surface`). Brand orange `--sun` is decoration and the focus ring
+only (superseded in part by `docs/design/digest-warmth.md`, 2026-11-22: was "the focus ring only: no orange text,
+fill or border"): on a digest page it may draw the sun, its rays and the sunrise edge of a card, and the three
+dawn surface tokens in `site/static/digest.css` are the only added colours. Never orange text, never orange for a
+status; status pills stay navy. No red or green anywhere (R2). Class names are the ones
 `site/static/national.js` and `site/templates/digest/` already write.
 
 **Status pill** (`.chip.digest-pill`, in `p.digest-status`). Start from `.chip`; set `font-size: var(--t-sm)`,

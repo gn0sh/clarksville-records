@@ -4,7 +4,8 @@
 
    - jsonpUrl(address): the Census geographies URL (ADR 0013 decision 2). The geo frame's own script
      (site/templates/_geo_frame.js) builds the same URL; tests/national.test.js holds the two to one shape.
-   - classify(answer) and governments(units, pagedir): the Census answer, read as data, -> the cards and fixed lines.
+   - classify(answer) and governments(units, pagedir): the Census answer, read as data, -> the cards and fixed lines,
+     and the one name the list's greeting may print (`place`, greetingPlace; docs/design/digest-warmth.md section 4).
    - loadList / saveList / forget / markRequested / markCounted (+ loadRequested, loadCounted): the three device keys
      of 3.8, each call wrapped so a blocked, full or throwing storage never breaks the page.
    - mount(env): the page wiring (task F2; 4.1, 4.2, 4.2a): address form, states, picker, cards, in-card request
@@ -98,6 +99,17 @@
       "&benchmark=Public_AR_Current&vintage=Current_Current&layers=" + layers + "&format=jsonp&callback=" + CALLBACK;
   }
 
+  /* The Census's own short name of a unit (its BASENAME: "Clarksville" for NAME "Clarksville city"; recorded in
+     docs/platform-facts.md "Census geocoder"), or "" when the answer has none we can print as a name. It is used
+     only as given: cleaned like every Census string, and kept only when it holds a letter and is a part of the
+     unit's own NAME, which the card already prints. This page never trims a name itself ("" means no name is
+     greeted: `lookup.greet-none`). */
+  var LETTER = /[A-Za-zÀ-ɏ]/;      // Census names are written in Latin letters
+  function baseName(v, name) {
+    var b = clean(v, MAX_NAME);
+    return b && LETTER.test(b) && String(name).indexOf(b) >= 0 ? b : "";
+  }
+
   /* The units of one match's geographies, from the six layers only, each checked before it becomes an id. */
   function unitsOf(geo) {
     var out = [];
@@ -112,9 +124,10 @@
         if (typeof state !== "string" || !STATE_RE.test(state) || geoid.slice(0, 2) !== state) { return; }
         var name = clean(u.NAME, MAX_NAME);
         if (!name) { return; }
+        var base = baseName(u.BASENAME, name);
         var fs = typeof u.FUNCSTAT === "string" && CODE_RE.test(u.FUNCSTAT) ? u.FUNCSTAT : "";
         var cc = l.cc && typeof u[l.cc] === "string" && CODE_RE.test(u[l.cc]) ? u[l.cc] : "";
-        out.push({ id: l.layer + "-" + geoid, layer: l.layer, name: name, funcstat: fs, state: state, cc: cc });
+        out.push({ id: l.layer + "-" + geoid, layer: l.layer, name: name, base: base, funcstat: fs, state: state, cc: cc });
       });
     });
     return out;
@@ -221,6 +234,7 @@
      sde, sds, sdu (school districts elementary, secondary, unified: UX section 3) by each card's slot (its layer, or
      the pagedir `slots` move: a New England town outside Connecticut is in slot place, AC2.11), then by real layer.
      Step 5 compares real Census layers, never slots.
+     `place` is the greeting's name (greetingPlace), "" for none.
      Notes, as label keys: "note.<line>" for each returned unit's gov-flags line, kept or hidden; else "note.no-city"
      when no kept unit is in slot place or is a town or township (cousub, in either slot) and "note.no-county" when the answer had a county and none is kept. */
   function governments(units, pagedir) {
@@ -244,7 +258,9 @@
       if (!keep) { return; }
       if (SCHOOL.has(u.layer) && /99999$/.test(u.id)) { return; }
       var target = idx.alias.get(u.id) || u.id;
-      recs.push({ id: target, layer: layerOf(target), name: clean(u.name, MAX_NAME), cc: u.cc, own: target === u.id });
+      var uname = clean(u.name, MAX_NAME);
+      recs.push({ id: target, layer: layerOf(target), name: uname, base: baseName(u.base, uname), cc: u.cc,
+                  own: target === u.id });
     });
     var byId = new Map();
     recs.forEach(function (r) {
@@ -266,7 +282,24 @@
       }
       if (hadCounty && !kept.some(function (r) { return r.layer === "county"; })) { notes.push("note.no-county"); }
     }
-    return { govs: govs, notes: notes };
+    return { govs: govs, notes: notes, place: greetingPlace(kept) };
+  }
+
+  /* The name the list's greeting prints ("{place}, here's who governs you."), one rule for every address
+     (docs/design/digest-warmth.md section 4). `kept` is the list in its fixed slot order; school districts never
+     decide. In order: (1) the government in the city-or-town slot (an incorporated place, or a town the directory
+     moves there), else (2) the township or town, each by the Census's own short name (its BASENAME, as given);
+     else (3) the county, by its Census name in full ("Montgomery County"); else (4) "". When the government that
+     decides has no short name in the Census answer the result is "" too, and the next one is not tried: the page
+     then greets no name and never makes one up. The name is page text only: it is not stored, and never reaches
+     the URL or the title. */
+  function greetingPlace(kept) {
+    function first(pred) { for (var i = 0; i < kept.length; i++) { if (pred(kept[i])) { return kept[i]; } } return null; }
+    var town = first(function (r) { return r.slot === "place" && !SCHOOL.has(r.layer); }) ||
+      first(function (r) { return r.layer === "cousub"; });
+    if (town) { return town.base || ""; }
+    var county = first(function (r) { return r.layer === "county"; });
+    return county ? county.name : "";
   }
 
   // --- device storage (3.8) ----------------------------------------------------------------------------------------
@@ -498,6 +531,11 @@
     var saved = doc.getElementById("digest-saved"), noscript = doc.getElementById("digest-noscript");
     var find = form ? findButton(form) : null;
     if (!form || !input || !result || !list || !saved || !find) { return null; }
+    // The fold (digest-warmth section 4): while a look-up result is on the page, #digest-entry carries data-folded
+    // (the digest stylesheet hides the hero, the form and the reading below) and #digest-folded shows its one row. All three
+    // parts are optional: without them nothing folds and the list is drawn as before.
+    var entry = doc.getElementById("digest-entry"), folded = doc.getElementById("digest-folded");
+    var another = doc.getElementById("digest-another");
     var idx = asIndex(readBlock(doc, "digest-pagedir"));
     var STR = stringsOf(readBlock(doc, "digest-strings"));
     var cfg = configOf(readBlock(doc, "digest-config"));
@@ -571,7 +609,29 @@
       find.textContent = on ? S("lookup.button-busy") : findText;
       if (on) { find.setAttribute("aria-disabled", "true"); } else { find.removeAttribute("aria-disabled"); }
     }
-    function clearList() { list.textContent = ""; list.hidden = true; openCard = null; }
+    function fold(on) {
+      if (!entry || !folded || !another) { return; }
+      if (on) { entry.setAttribute("data-folded", ""); } else { entry.removeAttribute("data-folded"); }
+      folded.hidden = !on;
+    }
+    function clearList() { list.textContent = ""; list.hidden = true; openCard = null; fold(false); }
+    /* The small sun mark beside a heading (decoration: aria-hidden), as site/templates/digest/_dawn.html.j2 draws
+       it; null where the page cannot make SVG elements. */
+    function sunMark() {
+      if (typeof doc.createElementNS !== "function") { return null; }
+      var NS = "http://www.w3.org/2000/svg";
+      var svg = doc.createElementNS(NS, "svg");
+      [["class", "digest-sunmark"], ["width", "32"], ["height", "20"], ["viewBox", "0 0 32 20"],
+       ["aria-hidden", "true"], ["focusable", "false"]].forEach(function (a) { svg.setAttribute(a[0], a[1]); });
+      [["digest-sunmark-sun", "M8 17a8 8 0 0 1 16 0z"], ["digest-sunmark-rays", "M16 2v3M5.4 6.4l2.1 2.1M26.6 6.4l-2.1 2.1"],
+       ["digest-sunmark-line", "M2 18h28"]].forEach(function (d) {
+        var path = doc.createElementNS(NS, "path");
+        path.setAttribute("class", d[0]);
+        path.setAttribute("d", d[1]);
+        svg.appendChild(path);
+      });
+      return svg;
+    }
     function clearSaved() { saved.textContent = ""; saved.hidden = true; }
 
     // -- framed by another page (national/postmessage-hardening/framed-parent): the form stays hidden and nothing is
@@ -666,10 +726,17 @@
       var one = govs.length === 1;
       var head = one ? S("lookup.summary-found-one") : fill(S("lookup.summary-found"), { n: govs.length });
       if (!a) {
-        var tail = S(one ? "lookup.summary-none-one" : "lookup.summary-none");
-        // "None are covered yet. Request the ones you want ...": with no email form, only the first sentence
-        if (!cfg.formAction) { tail = tail.replace(/^([^.]*\.)\s.*$/, "$1"); }
-        return head + " " + tail;
+        // Nothing covered: the label is three sentences. The first always prints ("We don't read any of these
+        // yet."). The second says the cards link the governments' own agenda pages, so it prints only when every
+        // card here does (never a claim the cards don't keep). The third offers the email request, so it prints
+        // only while the email form is on. A label of any other shape prints its first sentence only.
+        var parts3 = S(one ? "lookup.summary-none-one" : "lookup.summary-none").match(/[^.]+\./g) || [];
+        var said = parts3.slice(0, 1);
+        if (parts3.length === 3) {
+          if (govs.every(function (g) { return !!g.official_url; })) { said.push(parts3[1]); }
+          if (cfg.formAction) { said.push(parts3[2]); }
+        }
+        return [head].concat(said.map(function (x) { return x.trim(); })).join(" ");
       }
       var parts = [fill(S("lookup.summary-covered"), { n: a })];
       if (b) { parts.push(fill(S("lookup.summary-not-yet"), { n: b })); }
@@ -682,15 +749,24 @@
       clearSaved();
       clearList();
       list.hidden = false;
-      var h = heading("h2", S("lookup.list-h"));
-      list.appendChild(h);
-      if (matched) { list.appendChild(el("p", "addr-matched", fill(S("lookup.matched"), { line: matched }))); }
+      // The greeting (digest-warmth section 4): the Census's matched line, then the heading that takes focus, then
+      // the summary, on one dawn surface. The heading names the place only by governments()'s rule (r.place, the
+      // Census's own name as given), else it is the fixed "Here's who governs this address."; the name is drawn here
+      // and nowhere else (no storage, URL or title).
+      var greet = el("div", "digest-greet");
+      if (matched) { greet.appendChild(el("p", "addr-matched", fill(S("lookup.matched"), { line: matched }))); }
+      var h = heading("h2", r.place ? fill(S("lookup.greet"), { place: r.place }) : S("lookup.greet-none"));
+      greet.appendChild(h);
+      list.appendChild(greet);
+      fold(true);
       if (!r.govs.length) {
-        list.appendChild(el("p", null, S("lookup.nothing-listable")));
+        var mark = sunMark();                       // nothing listable is a plain fact, not an error: the sun mark
+        if (mark) { h.insertBefore(mark, h.firstChild); }
+        greet.appendChild(el("p", "digest-nothing", S("lookup.nothing-listable")));
         list.appendChild(el("p", "muted", S("lookup.under-list")));
         if (cfg.election) { list.appendChild(put(el("p", "muted"), "lookup.election-none", cfg.election, null, true)); }
       } else {
-        list.appendChild(el("p", "coverage", summary(r.govs)));
+        greet.appendChild(el("p", "coverage", summary(r.govs)));
         r.notes.forEach(function (k) { var t = label(idx, k); if (t) { list.appendChild(el("p", "note", t)); } });
         var kept = saveList(storage, r.govs);
         drawCards(list, r.govs);
@@ -699,10 +775,14 @@
         if (kept) { deviceLine(list); }
       }
       var again = button(S("lookup.another"), "more-btn");
-      again.addEventListener("click", function () { clearList(); say([]); focus(input); });
+      again.addEventListener("click", lookAgain);
       list.appendChild(again);
       focus(h);
     }
+    /* "Look up another address" (under the list, and in the folded row): the list goes, the form comes back with
+       the focus in its box. */
+    function lookAgain() { clearList(); say([]); focus(input); }
+    if (another) { another.addEventListener("click", lookAgain); }
 
     // -- "Your saved list" (3.8): ids re-checked with layerOf (the layer's exact GEOID length) before a card --
     function showSaved() {
@@ -760,7 +840,13 @@
       if (g.board) { li.appendChild(el("p", "digest-board", g.board)); }
       li.appendChild(pill(g.status));
       if (g.status === "covered") {
-        if (g.page) { li.appendChild(linkLine(S("lookup.coming-up"), idx.root + g.page)); }
+        if (g.page) {
+          // the card's one primary action: a full-width filled button (a link), the same on every Covered card
+          var go = linkLine(S("lookup.coming-up"), idx.root + g.page);
+          go.setAttribute("class", "digest-go");
+          go.firstChild.setAttribute("class", "digest-primary");
+          li.appendChild(go);
+        }
         if (g.full) {
           li.appendChild(linkLine(S("lookup.full"), idx.root + g.full));
           if (cfg.morning) { li.appendChild(linkLine(S("lookup.morning"), idx.root + cfg.morning)); }
@@ -1020,6 +1106,7 @@
 
   var api = {
     jsonpUrl: jsonpUrl, classify: classify, governments: governments, indexPagedir: indexPagedir, label: label,
+    baseName: baseName,
     slotOf: slotOf,
     loadList: loadList, saveList: saveList, forget: forget, markRequested: markRequested, markCounted: markCounted,
     loadRequested: loadRequested, loadCounted: loadCounted, storageOf: storageOf,

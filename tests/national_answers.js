@@ -11,9 +11,12 @@ const path = require('path');
 const LAYER = { place: 'Incorporated Places', county: 'Counties', cousub: 'County Subdivisions',
   sdu: 'Unified School Districts', sds: 'Secondary School Districts', sde: 'Elementary School Districts' };
 const CC = { place: 'PLACECC', county: 'COUNTYCC', cousub: 'COUSUBCC' };
-function unit(layer, geoid, name, funcstat, cc) {
+/* `basename`: the unit's Census BASENAME (the greeting's name, digest-warmth section 4); left out, the unit has none,
+   as an answer without the field would. */
+function unit(layer, geoid, name, funcstat, cc, basename) {
   const u = { OBJECTID: 1, GEOID: geoid, NAME: name, STATE: geoid.slice(0, 2), FUNCSTAT: funcstat, MTFCC: 'G0000' };
   if (cc && CC[layer]) { u[CC[layer]] = cc; }
+  if (basename !== undefined) { u.BASENAME = basename; }
   return [layer, u];
 }
 function match(addr, ...units) {

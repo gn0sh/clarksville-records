@@ -328,6 +328,13 @@ lines.
   (6) status from `govs`, else `not-covered-yet`, (7) order: place, county, cousub, then school districts
   elementary, secondary, unified (sde, sds, sdu; UX section 3).
   Pure; unit-tested with recorded answers.
+  digest-warmth (2026-11-22): it also returns `place`, the one name the result heading greets
+  (`lookup.greet`, else `lookup.greet-none` when it is ""), by `docs/design/digest-warmth.md` section 4 over the
+  kept units: the unit in the city-or-town slot, else the first county subdivision, each by the answer's own
+  `BASENAME` read as given (cleaned like NAME; "" unless it holds a letter and is part of that unit's NAME; the page
+  never trims a NAME itself), else the county's full NAME, else "". `BASENAME` is the only field added to what the
+  script reads from an answer. `place` is drawn with `textContent` and goes nowhere else: not into the device list
+  (still `{id, name}`), the URL, the title, a count or a request.
 - Device list (3.8): `loadList(storage) -> [{id, name}]` (validates, drops bad), `saveList(storage, govs)`,
   `forget(storage)` (removes the three keys), `markRequested(storage, ids)`, `markCounted(storage, id)`. All take the
   storage object as an argument so node tests use a fake; every call is wrapped so a blocked or full storage never

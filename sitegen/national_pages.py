@@ -97,6 +97,9 @@ REQUIRED_PAGE_LABELS = (
     "index.title", "index.h1", "index.lede", "index.who", "index.cover-link", "index.input-label",
     "index.placeholder", "index.find", "index.privacy", "index.privacy-detail", "index.toggle-summary",
     "index.toggle-body", "index.census-notice", "index.noscript",
+    # digest-warmth (docs/design/digest-warmth.md sections 3 to 5): the warm entry page and the folded-form row
+    "index.eyebrow", "index.h1-2", "index.steps-h", *(f"index.step-{n}{h}" for n in (1, 2, 3) for h in ("-h", "")),
+    "index.why-h", "index.why-1", "index.why-2", "lookup.looked-up", "lookup.another",
     "covered.title", "covered.h1", "covered.count", "covered.count-one", "covered.how", "covered.lookup",
     "covered.h-covered", "covered.h-cant", "covered.row-link", "covered.checked", "covered.official",
     "covered.empty-cant", "covered.closing",
@@ -108,6 +111,7 @@ REQUIRED_PAGE_LABELS = (
     "body.no-time", "body.tz", "body.as-posted", "body.agenda", "body.agenda-for",
     "body.not-posted", "body.incomplete", "body.withheld", "body.cut", "body.item-page", "body.no-meetings",
     "body.full", "body.morning", "body.topic-sr", "body.topic-note",
+    "body.next", "body.later-h", "body.more", "body.no-time-all", "body.going-h", "body.going",
     *(f"body.topic-{k}" for k, _type in TOPICS))
 
 LINK_RE = re.compile(r"\[([^\[\]]+)\]")
@@ -577,6 +581,68 @@ def meeting_view(m: dict, gov: Mapping, tz: str, page_labels) -> dict:
                         for it in items]}
 
 
+# digest-warmth section 5 item 3: meetings in the first OPEN_MONTHS calendar months that have a meeting print open;
+# the rest sit in one closed native <details> on the same page (all of them stay page text, AC4.1).
+OPEN_MONTHS = 3
+
+
+def _month_key(iso: str) -> str:
+    return iso[:7]
+
+
+def _month_words(iso: str) -> str:
+    """"2026-12-14" -> "December 2026" (a month heading and the fold's range)."""
+    d = date.fromisoformat(iso)
+    return f"{d.strftime('%B')} {d.year}"
+
+
+def _by_month(meetings: list[dict]) -> list[dict]:
+    """Consecutive meetings of one calendar month as one group, in the order given (never re-sorted)."""
+    groups: list[dict] = []
+    for m in meetings:
+        key = _month_key(m["date"])
+        if not groups or groups[-1]["key"] != key:
+            groups.append({"key": key, "label": _month_words(m["date"]), "meetings": []})
+        groups[-1]["meetings"].append(m)
+    return groups
+
+
+def meeting_layout(meetings: list[dict]) -> dict:
+    """How the coming-up page lays out its meeting views (digest-warmth section 5): the same rule for every
+    government (AC4.9), always in the feed's own order (B-ISO-14: nothing is re-sorted, so the page's data-feed spans
+    stay an in-order subsequence of the JSON's).
+    - `next`: the first meeting, drawn as the "Next meeting" card (None when there is none);
+    - `months`: the meetings after it up to the end of the first OPEN_MONTHS calendar months that have a meeting
+      (the first meeting's month counts), grouped by month;
+    - `more`: the rest, in a closed toggle: {n, from, to, months}, or None. The toggle's one label ("Show {n} later
+      meetings, {from} to {to}") reads right only for more than one meeting over two different months, so a rest of
+      one meeting, or within one month, prints open in `months` instead;
+    - `no_time_all`: no meeting on the page has a start time (the rows then say so once, under the list).
+    Each view gains `dow` and `dom` (its date chip: "Thu", "3"), from the meeting's own date."""
+    for m in meetings:
+        d = date.fromisoformat(m["date"])
+        m["dow"], m["dom"] = d.strftime("%a"), str(d.day)
+    first, later = (meetings[0], meetings[1:]) if meetings else (None, [])
+    seen: list[str] = []
+    cut = len(later)
+    for i, m in enumerate(meetings):
+        key = _month_key(m["date"])
+        if key not in seen:
+            if len(seen) == OPEN_MONTHS:
+                cut = i - 1                     # where, in `later`, the first meeting past the open months sits
+                break
+            seen.append(key)
+    shown, rest = later[:cut], later[cut:]
+    more = None
+    if len(rest) > 1 and _month_key(rest[0]["date"]) != _month_key(rest[-1]["date"]):
+        more = {"n": len(rest), "from": _month_words(rest[0]["date"]), "to": _month_words(rest[-1]["date"]),
+                "months": _by_month(rest)}
+    else:
+        shown = later
+    return {"next": first, "months": _by_month(shown), "more": more,
+            "no_time_all": bool(meetings) and not any(m["time"] for m in meetings)}
+
+
 class Pages:
     """Renders the digest pages with the build's Jinja environment and the site context (switch off: no "Show records
     from" on digest pages, 7a)."""
@@ -592,11 +658,14 @@ class Pages:
         self.L = page_labels
 
     def html(self, template: str, rel: str, page_name: str, *, csp: str | None = None, crumbs=(),
-             report: bool = True, **ctx) -> str:
+             report: bool = True, own_crumbs: bool = False, **ctx) -> str:
+        """`own_crumbs`: the template prints the "where am I" line itself (`head_crumbs`: the same markup, still above
+        its h1), so base.html.j2 prints none. The coming-up page puts the line under its dawn band."""
         root = "../" * rel.count("/")
         return self.env.get_template(template).render(
             site=self.site, root=root, page_name=page_name, body_current="", report_page=report,
-            crumbs=list(crumbs), official_record=None, csp=csp or self.site["csp"], digest_header=True,
+            crumbs=[] if own_crumbs else list(crumbs), head_crumbs=list(crumbs) if own_crumbs else [],
+            official_record=None, csp=csp or self.site["csp"], digest_header=True,
             digest_place=self.L["digest.place"], L=self.L, card=self.labels, lh=label_html, lt=label_text, **ctx)
 
     def crumbs(self, *keys: str) -> list[dict]:
@@ -614,11 +683,12 @@ def _gov_files(pages: "Pages", g: Mapping, feed: dict, flags: nat.GovFlags, labe
     meetings = [meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"]]
     html = pages.html(
         "digest/body.html.j2", rel, label_text(L["body.title"], name=g["body_name"]),
-        crumbs=pages.crumbs("crumb.home", "crumb.covered"),
+        crumbs=pages.crumbs("crumb.home", "crumb.covered"), own_crumbs=True,
         name=g["body_name"], official=official, state_name=_state_label(L, g["state"]),
         slot=labels[f"slot.{nat.slot_of(g['gov'], flags)}"], host=_host(official),
         newest=newest_day(feed.get("checked_at")),
-        meetings=meetings, topic_note=any(e["topics"] for m in meetings for e in m["entries"]),
+        meetings=meetings, layout=meeting_layout(meetings),
+        topic_note=any(e["topics"] for m in meetings for e in m["entries"]),
         full_href=g["daylight"]["full_url"] if daylight else None, morning=morning if daylight else None)
     return rel, html, rel[:-len(".html")] + ".json", feed_json(feed)
 
