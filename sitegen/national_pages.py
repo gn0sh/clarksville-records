@@ -590,9 +590,10 @@ class Pages:
 
     def __init__(self, env, site: dict, labels: Mapping[str, str], page_labels: Mapping[str, str]):
         self.env = env
-        # digest pages print the digest notice wherever the site prints its notice or `short` line (config/site.yml
-        # unofficial.digest_notice): the site covers every government, not only the four the Clarksville notice names
-        u = dict(site["unofficial"], notice=site["unofficial"]["digest_notice"], short=site["unofficial"]["digest_notice"])
+        # digest pages print the digest notice wherever the site prints its notice (config/site.yml
+        # unofficial.digest_notice): the site covers every government, not only the four the Clarksville notice names.
+        # No digest template prints `short` (the landing's first-screen line), so it is left as it is.
+        u = dict(site["unofficial"], notice=site["unofficial"]["digest_notice"])
         self.site = dict(site, switch=None, unofficial=u)
         self.labels = labels
         self.L = page_labels

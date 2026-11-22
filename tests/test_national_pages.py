@@ -5,6 +5,7 @@ frame's), national-switch/byte-identical (off: nothing changes; on: only the thr
 
 The switch tests build the fixture site (about a second) for the pages target; the real-data tests make the feeds
 from data/ through the build's loaders and skip only as tests/test_national_clarksville.py does."""
+import copy
 import html as html_mod
 import json
 import os
@@ -124,6 +125,19 @@ def test_digest_pages_carry_the_digest_notice_and_clarksville_pages_keep_theirs(
     assert clarksville != digest
     for p in ("about.html", "index.html"):
         assert b"the City of Clarksville" in on[p] and digest.encode() not in on[p]
+
+
+def test_a_switch_on_build_leaves_the_site_s_unofficial_block_unchanged(tmp_path):
+    """Code review 9c82941a nit 3 (unofficial/no-mutation-test): the digest notice is swapped in on a copy, so the
+    pages built after the digest (and the next build in this process) still read the Clarksville notice and `short`.
+    Nit 2 (unofficial/short-overridden): the digest pages' context keeps `short` as it is."""
+    before = copy.deepcopy(config.SITE["unofficial"])
+    _build(tmp_path / "site", True)
+    assert config.SITE["unofficial"] == before
+    pages = npg.Pages(build_mod.make_env(), {"unofficial": dict(before)}, {}, {})
+    assert pages.site["unofficial"]["notice"] == before["digest_notice"]
+    assert pages.site["unofficial"]["short"] == before["short"] and pages.site["switch"] is None
+    assert config.SITE["unofficial"] == before
 
 
 def test_switch_on_writes_the_page_set_and_no_feeds(sites):

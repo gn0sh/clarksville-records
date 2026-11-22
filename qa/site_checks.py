@@ -3060,28 +3060,27 @@ def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None
     u = cfg.get("unofficial")
     if not u:
         return ["config/site.yml has no unofficial: block"], ""
-    site_notice = unofficial_notice(cfg)
+    notice = unofficial_notice(cfg)
     problems = [f"static/style.css: {sel!r} hides the unofficial notice" for sel in _hiding_rules(site)]
     for rel in sorted(pages):
         # digest pages carry the digest notice (no list of Clarksville bodies); every other page the site notice
-        notice = digest_unofficial_notice(cfg) if rel.startswith(DIGEST) else site_notice
+        want = digest_unofficial_notice(cfg) if rel.startswith(DIGEST) else notice
         raw = (site / rel).read_text(encoding="utf-8")
         seen = UnofficialText()
         seen.feed(raw)
         seen.close()
-        if notice not in " ".join("".join(seen.footer).split()):
+        if want not in " ".join("".join(seen.footer).split()):
             problems.append(f"{rel}: the unofficial notice is not in the page text (visible, in the footer)")
         if not seen.tags or any(" ".join("".join(t).split()) != u["tag"] for t in seen.tags):
             problems.append(f"{rel}: no visible '{u['tag']}' tag by the site name")
         meta = re.findall(r'<meta\s+(?:name="description"|property="og:description")\s+content="([^"]*)"', raw)
-        if len(meta) != 2 or any(" ".join(html.unescape(m).split()) != notice for m in meta):
+        if len(meta) != 2 or any(" ".join(html.unescape(m).split()) != want for m in meta):
             problems.append(f"{rel}: description and og:description meta tags do not both carry the notice")
         lead = f"{cfg['site_name']} ({u['tag'].lower()}) | "   # the tag leads the title and the share card
         for what, m in (("<title>", re.search(r"<title>(.*?)</title>", raw, re.S)),
                         ("og:title", re.search(r'<meta\s+property="og:title"\s+content="([^"]*)"', raw))):
             if not m or not html.unescape(m.group(1)).strip().startswith(lead):
                 problems.append(f"{rel}: {what} does not start with {lead!r}")
-    notice = site_notice
     feeds = []   # every Atom feed anywhere; any other .xml in feeds/ is a problem, other .xml files are not feeds
     for f in sorted(site.rglob("*.xml")):
         rel = f.relative_to(site).as_posix()
