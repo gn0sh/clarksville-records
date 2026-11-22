@@ -4,11 +4,15 @@
 #
 # Usage: tests/playwright/browsers-sha256.sh <browsers folder> > tests/playwright/browsers.sha256
 #
-# Regenerate it whenever package-lock.json moves Playwright to a new browser revision: install that Playwright's
-# chromium into an empty folder (PLAYWRIGHT_BROWSERS_PATH=<folder> PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1
-# node_modules/.bin/playwright install chromium) from zips whose source you checked (2026-11-22: the two Chrome for
-# Testing 153.0.8010.12 linux64 zips from storage.googleapis.com/chrome-for-testing-public, served to Playwright 1.63.0's
-# own installer), then run this. It covers the chromium* folders only: ffmpeg is deleted unrun by the workflow.
+# Regenerate it whenever package-lock.json moves Playwright to a new browser revision, never from `playwright install`
+# (security re-check a84d19d R1; docs/architecture/ci-download-verify-invariant.md). Use the daily update's own steps:
+# curl the two Chrome for Testing linux64 zips for that Playwright's version (2026-11-22: 153.0.8010.12, from
+# https://storage.googleapis.com/chrome-for-testing-public/<version>/linux64/) into a new, empty folder, check them
+# against their source, write their sha256sum lines to tests/playwright/browser-zips.sha256 (chrome-linux64.zip, then
+# chrome-headless-shell-linux64.zip), unzip -q each into <folder>/chromium-<rev> and <folder>/chromium_headless_shell-<rev>
+# of an empty folder, create an empty INSTALLATION_COMPLETE in each, then run this before anything launches the browser.
+# The bump is one pull request: the version in the step's URL, <rev> in its two folder names, both .sha256 files, and
+# REVISIONS in tests/test_browser_install_step.py. The list covers the chromium* folders only (no ffmpeg, no .links).
 set -euo pipefail
 dir=${1:?usage: browsers-sha256.sh <browsers folder>}
 cd "$dir"

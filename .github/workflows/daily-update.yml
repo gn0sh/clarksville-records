@@ -467,7 +467,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils tesseract-ocr
-          python -m pip install --require-hashes -r requirements.lock
+          python -m pip install --require-hashes --only-binary :all: -r requirements.lock
 
       # The text and OCR caches below are only valid for the tesseract and poppler (pdftotext) that wrote them: their
       # version lines, hashed, are part of that cache's key, so an image update starts a fresh cache.
@@ -692,35 +692,52 @@ jobs:
       # browser-gated files) use Node Playwright. This step installs exactly tests/playwright/package-lock.json
       # (playwright and playwright-core 1.63.0, each with its sha512) into runner temp, outside the checkout, so the tree
       # the tests and the build read is unchanged: npm ci refuses a lock that does not match, and --ignore-scripts runs
-      # no package script. Then that Playwright's system libraries (apt, signed Ubuntu packages) and its Chromium
-      # (Chrome for Testing 153.0.8010.12 and its headless shell, revision 1243) into $RUNNER_TEMP/pw-browsers.
-      # Security review bbc603a F1 (ci-supply/browser-bytes-unverified): Playwright checks a download's size only, so
-      # before anything runs the browser the installed tree must match tests/playwright/browsers.sha256 file for file
-      # (made by tests/playwright/browsers-sha256.sh): no extra, missing, linked or changed file. The install skips
-      # Playwright's host check (PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: it runs ldd on the downloaded binaries
-      # before they are checked); ffmpeg, which Playwright adds to every chromium install, is used only to record video
-      # (no test does) and is deleted unrun. A mismatch (or an npm EINTEGRITY) fails this step and the job, always.
-      # Code review bbc603a #1 (daily-run/install-step-hard-dependency): a failed download (npm, apt or the browser,
-      # each tried three times, 30 s then 90 s apart) or a runner without Node 20 or newer is a warning instead, the
-      # browser folder is removed and browsers=missing: the Tests step then leaves Playwright off PATH, the browser tests
-      # skip, and Clarksville still publishes, while config/site.yml national.enabled is off. Once it is on,
-      # tests/test_national_browser.py (_browser_required) fails instead of skipping. No token, no permission.
+      # no package script. Then that Playwright's system libraries (apt, signed Ubuntu packages) and its Chromium.
+      # Security re-check a84d19d R1 (ci-supply/browser-bytes-unverified, hit 2; docs/architecture/
+      # ci-download-verify-invariant.md): no byte is unpacked or run before its hash is checked, so the browser is not
+      # fetched by `playwright install` (its extractor unpacks unchecked zips). curl fetches the two Chrome for Testing
+      # 153.0.8010.12 linux64 zips into a new, empty folder; they must match tests/playwright/browser-zips.sha256; only
+      # then are they unzipped into the folders Playwright 1.63.0 expects (chromium-1243 and chromium_headless_shell-1243
+      # in $RUNNER_TEMP/pw-browsers, each with an empty INSTALLATION_COMPLETE). The unpacked tree must then match
+      # tests/playwright/browsers.sha256 file for file (security review bbc603a F1; made by
+      # tests/playwright/browsers-sha256.sh): no extra, missing, linked or changed file or folder (no ffmpeg, no .links).
+      # A zip or tree mismatch, a malformed list or an npm EINTEGRITY fails this step and the job, always.
+      # PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS stays (Playwright runs ldd on the browser binaries otherwise).
+      # Code review bbc603a #1 (daily-run/install-step-hard-dependency): a failed download (npm, apt or a zip, each
+      # tried three times, 30 s then 90 s apart), no unzip, or a runner without Node 20 or newer is a warning instead,
+      # nothing unchecked is left and browsers=missing: the Tests step then leaves Playwright off PATH, the browser tests
+      # skip, Clarksville still publishes while config/site.yml national.enabled is off, and on main the step after
+      # Tests opens or updates one issue (R3). Once the switch is on, tests/test_national_browser.py (_browser_required)
+      # fails instead of skipping. No token, no permission. Nothing here is cached: no cache may hold pw-browsers,
+      # pw-zips or ms-playwright. Version bump (package-lock.json moves Playwright to a new browser): the new Chrome for
+      # Testing version in the URL below, the new revision in both folder names, browser-zips.sha256, browsers.sha256
+      # and REVISIONS in tests/test_browser_install_step.py, all in one pull request (tests/playwright/browsers-sha256.sh).
       - name: Install Playwright and Chromium (browser tests)
         id: browsers
-        timeout-minutes: 50   # above three tries of each part (each under its own timeout) plus the pauses
+        # R2: worst case 3,990 s (66.5 min) = npm 3x(180+15) + deps 3x(300+15) + download 3x(2x300)
+        # + pauses 3x(30+90) + 300 s for unzip and both checks
+        timeout-minutes: 70
         env:
           PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: "1"
         run: |
           set -euo pipefail
           pw="$RUNNER_TEMP/playwright"
           br="$RUNNER_TEMP/pw-browsers"
+          zl="$PWD/tests/playwright/browser-zips.sha256"
+          zips=""
           export PLAYWRIGHT_BROWSERS_PATH="$br"
           echo "PLAYWRIGHT_BROWSERS_PATH=$br" >> "$GITHUB_ENV"
           missing() {
             echo "::warning::Browser tests: $1 The browser tests skip this run (they fail instead once national.enabled is on); everything else runs."
             rm -rf -- "$br"
+            if [ -n "$zips" ]; then rm -rf -- "$zips"; fi
             echo "browsers=missing" >> "$GITHUB_OUTPUT"
             exit 0
+          }
+          zbad() {
+            echo "::error::The downloaded Chromium does not match tests/playwright/browser-zips.sha256 ($1). Nothing unpacked or ran it; nothing is built."
+            if [ -n "$zips" ]; then rm -rf -- "$zips"; fi
+            exit 1
           }
           tries() {   # tries <what> <command...>: up to three tries, 30 s then 90 s apart
             local what=$1 pause
@@ -743,27 +760,50 @@ jobs:
             return "$rc"
           }
           deps() { timeout --kill-after=15 300 "$pw/node_modules/.bin/playwright" install-deps chromium; }
-          download() { rm -rf -- "$br"; timeout --kill-after=15 420 "$pw/node_modules/.bin/playwright" install chromium; }
+          cft="https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.12/linux64"
+          download() {   # each try starts empty, so a failed try's partial file is never checked or unzipped
+            rm -f -- "$zips"/*
+            curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --silent --show-error -o "$zips/chrome-linux64.zip" "$cft/chrome-linux64.zip" \
+              && curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 --silent --show-error -o "$zips/chrome-headless-shell-linux64.zip" "$cft/chrome-headless-shell-linux64.zip"
+          }
+          # browser-zips-shape: exactly the two pinned lines, checked before anything is fetched
+          [ "$(wc -l < "$zl")" = 2 ] && ! grep -qvE '^[0-9a-f]{64}  chrome(-headless-shell)?-linux64\.zip$' "$zl" \
+            && [ "$(cut -c67- "$zl")" = $'chrome-linux64.zip\nchrome-headless-shell-linux64.zip' ] || zbad "the list is malformed"
           command -v node > /dev/null || missing "node is not on this runner."
           echo "node $(node --version)"
           major=$(node -p 'process.versions.node.split(".")[0]' 2> /dev/null) || major=0
           [[ "$major" =~ ^[0-9]+$ ]] && [ "$major" -ge 20 ] || missing "Node 20 or newer is needed (Playwright 1.63)."
+          command -v unzip > /dev/null || missing "unzip is not on this runner."
           mkdir -p "$pw"
           cp tests/playwright/package.json tests/playwright/package-lock.json "$pw/"
           tries "npm ci" npm_ci || missing "npm ci failed three times."
           "$pw/node_modules/.bin/playwright" --version
           tries "The system libraries install" deps || missing "the system libraries install failed three times."
+          rm -rf -- "$br"
+          zips=$(mktemp -d "$RUNNER_TEMP/pw-zips.XXXXXXXXXX")
           tries "The Chromium download" download || missing "the Chromium download failed three times."
-          # browser-tree-check (tests/test_browser_install_step.py runs this step with stubs and tampered trees)
+          # browser-zips-check: the folder holds exactly the two listed files, and each matches its sha256. Never retried.
+          [ -z "$(find "$zips" -mindepth 1 ! -type f -print -quit)" ] \
+            && [ "$(cd "$zips" && find . -mindepth 1 -printf '%f\n' | LC_ALL=C sort)" = "$(cut -c67- "$zl" | LC_ALL=C sort)" ] \
+            || zbad "a file added or missing"
+          (cd "$zips" && sha256sum --quiet --strict -c "$zl") || zbad "a zip's sha256 differs"
+          echo "Chromium zips checked: 2 files match tests/playwright/browser-zips.sha256."
+          # only now, the checked zips are unpacked (-n: never overwrite, so unzip never stops to ask)
+          mkdir -p "$br/chromium-1243" "$br/chromium_headless_shell-1243"
+          unzip -q -n -d "$br/chromium-1243" "$zips/chrome-linux64.zip" \
+            && unzip -q -n -d "$br/chromium_headless_shell-1243" "$zips/chrome-headless-shell-linux64.zip" \
+            || { echo "::error::unzip failed on the checked Chromium zips. Nothing ran them; nothing is built."; rm -rf -- "$zips"; exit 1; }
+          : > "$br/chromium-1243/INSTALLATION_COMPLETE"
+          : > "$br/chromium_headless_shell-1243/INSTALLATION_COMPLETE"
+          rm -rf -- "$zips"
+          # browser-tree-check (tests/test_browser_install_step.py runs this step with stubs, test zips and tampered trees)
           man="$PWD/tests/playwright/browsers.sha256"
           bad() { echo "::error::The installed Chromium does not match tests/playwright/browsers.sha256 ($1). Nothing ran it; nothing is built."; exit 1; }
           line='^[0-9a-f]{64}  (chromium|chromium_headless_shell)-[0-9]+/[A-Za-z0-9._/@+-]+$'
           [ -s "$man" ] && ! grep -qvE "$line" "$man" || bad "the list is malformed"
-          rm -rf -- "$br"/ffmpeg-[0-9]*
           dirs=$(cut -c67- "$man" | cut -d/ -f1 | LC_ALL=C sort -u)
-          [ "$(printf '%s\n' .links $dirs | LC_ALL=C sort)" = "$(cd "$br" && find . -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" ] \
+          [ "$(printf '%s\n' $dirs | LC_ALL=C sort)" = "$(cd "$br" && find . -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" ] \
             || bad "a folder added or missing"
-          [ -z "$(find "$br/.links" -mindepth 1 ! -type f -print -quit)" ] || bad "more than files in .links"
           [ -z "$(cd "$br" && find $dirs ! -type d ! -type f -print -quit)" ] || bad "a link or special file"
           [ "$(cd "$br" && find $dirs -type f | LC_ALL=C sort)" = "$(cut -c67- "$man" | LC_ALL=C sort)" ] || bad "a file added or missing"
           (cd "$br" && sha256sum --quiet --strict -c "$man") || bad "a file's sha256 differs"
@@ -782,6 +822,33 @@ jobs:
         run: |
           if [ "${BROWSERS:-}" = ok ]; then PATH="$RUNNER_TEMP/playwright/node_modules/.bin:$PATH"; fi
           python -m pytest -q || { echo "::warning::tests failed once; rerunning the failures"; python -m pytest -q --lf; }
+
+      # Security re-check a84d19d R3 (ci-browser/probe-skips-silently): browsers=missing is more than a warning on
+      # main: one open issue with a fixed title, a comment each later day instead of a new issue. Fixed text, passed
+      # with --body-file; the token is this step's only (the install step stays token-free).
+      - name: Open or update the browser-tests-skipped issue
+        if: always() && github.ref == 'refs/heads/main' && steps.browsers.outputs.browsers == 'missing'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BR_TITLE: "Daily update: browser tests skipped (Chromium not installed)"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/browser-issue.md"
+          {
+            echo "The browser tests were skipped: Chromium was not installed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "A download (npm, the system libraries or the Chrome for Testing zips) failed three times, or the runner"
+            echo "lacked Node 20 or unzip. Everything else was tested and published as usual. Read the 'Install Playwright"
+            echo "and Chromium (browser tests)' step's warnings in the run log. Once national.enabled is on, this fails the run."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$BR_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.BR_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$BR_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
 
       # I-pub, the content tripwire (ADR 0011 decision 4 and Amendment (c); collector/tripwire.py): compares the
       # votes, roll calls and outcomes of the tree the live site was built from (named by its build-info.json) with

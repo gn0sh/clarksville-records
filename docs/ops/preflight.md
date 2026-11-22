@@ -2,7 +2,7 @@
 
 Run these from the repository folder and paste the output in the pull request (playbook step 4).
 
-1. Install: `python -m pip install --require-hashes -r requirements.lock` (and `pip install ruff` once).
+1. Install: `python -m pip install --require-hashes --only-binary :all: -r requirements.lock` (and `pip install ruff` once).
 2. **Data** (ADR 0011): from the cutover on, `main` tracks no `data/`; the collector's output lives on branch
    `records-data`. Fill `data/` from it:
    - bash: `bash scripts/fetch-data.sh`

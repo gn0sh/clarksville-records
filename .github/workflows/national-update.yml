@@ -232,7 +232,7 @@ jobs:
           N: ${{ needs.gate.outputs.sha }}
         run: |
           set -euo pipefail
-          python -m pip install --quiet --disable-pip-version-check --require-hashes -r requirements.lock
+          python -m pip install --quiet --disable-pip-version-check --require-hashes --only-binary :all: -r requirements.lock
           if ! [[ "$N" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::the gate gave no national-data head. Nothing is collected."; exit 1; fi
           root="$GITHUB_WORKSPACE/national"
           if [ -e "$root" ] || [ -L "$root" ]; then echo "::error::the national folder already exists. Nothing is collected."; exit 1; fi

@@ -3625,8 +3625,9 @@ def _lock_pins() -> dict:
 def test_the_update_job_installs_only_hashed_pins_from_the_lock():
     steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
     run = steps["Install system tools and Python packages"]["run"]
-    assert "python -m pip install --require-hashes -r requirements.lock" in run and "requirements.txt" not in run
-    assert re.findall(r"pip install -[^\n]*", TEXT) == ["pip install --require-hashes -r requirements.lock"]
+    pip = "pip install --require-hashes --only-binary :all: -r requirements.lock"   # hashed wheels only (F-pip)
+    assert f"python -m {pip}" in run and "requirements.txt" not in run
+    assert re.findall(r"pip install -[^\n]*", TEXT) == [pip]
     pins = _lock_pins()
     assert pins and all(hashes for _, hashes in pins.values()), "every locked package carries its sha256"
 
