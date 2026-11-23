@@ -38,7 +38,7 @@ SITE_NAME = SITE["site_name"]
 # Councils shown beside the county (M4): each listed locality's config/localities/<locality>/council.yml names its
 # facts and wards files, its page folder and its wording (sitegen/council.py). An empty list builds the county only.
 COUNCIL_KEYS = ("body_key", "body_name", "nav_label", "slug", "facts", "wards", "seat_word", "min_ward_prints",
-                "title_seats", "evidence", "latest_words", "kind_labels", "untitled_item")
+                "title_seats", "evidence", "latest_words", "kind_labels", "untitled_item", "items_lede")
 
 
 def load_council(locality: str) -> dict:

@@ -53,6 +53,8 @@ def styled(html: str, name: str) -> list:
 
 
 # ------------------------------------------------------------------ A's layout, top to bottom
+LABEL = {t["key"]: t["label"] for t in config.SITE["morning_note"]["subject_topics"]}
+
 def test_the_edition_opens_with_the_sky_header_greeting_and_unofficial_line():
     n = note_of(*SEPT, date="2026-11-18")
     html = render.body_html(CTX, n, n["entries"])
@@ -69,36 +71,94 @@ def test_the_edition_opens_with_the_sky_header_greeting_and_unofficial_line():
     assert all(not x.all_text() for x in styled(html, "sun_box") + styled(html, "mark_ring"))
 
 
-def test_each_list_is_a_section_and_each_entry_a_card_with_the_date_block():
+def test_each_list_is_a_section_and_each_meeting_a_card_with_the_date_block():
+    """note-titles round 3 (the owner: a busy reader will not scroll a 35,000-pixel email): one card per meeting,
+    its line, the `recorded` words its items share and its documents once, then one compact line per item."""
     titled = vote(3, 4, untitled=False)
     n = note_of(*SEPT, entry(), date="2026-11-18")
     html = render.body_html(CTX, n, n["entries"])
     assert node_texts(html, "h2")[:2] == ["My two seats", "Budget"]
-    assert len(styled(html, "kicker")) == 1 and styled(html, "kicker")[0].all_text() == TEXT["new_on_list"]
+    assert [k.all_text() for k in styled(html, "kicker")] == [TEXT["new_on_list"]]
     cards = styled(html, "card")
-    assert len(cards) == 3                                  # the compact group, the titled vote, the budget entry
+    assert len(cards) == 2                                  # the council meeting, the commission meeting
     day = [c.all_text() for c in styled(html, "day_td")]
-    assert day == ["Sep32026", "Sep32026", "Nov162026"]
+    assert day == ["Sep32026", "Nov162026"]
     heads = [h.all_text() for h in parse(html).walk() if h.tag == "h3"]
-    assert heads[0] == "Fixture Council, September 3, 2026 regular session"
-    # the headline is the link to the site's page; "Open the page on the site" is no longer printed in HTML
+    assert heads == ["Fixture Council, September 3, 2026 regular session", "Fixture Commission"]
+    # the meeting line links the meeting's page when the entries name it
     assert [a.attrs["href"] for h in parse(html).walk() if h.tag == "h3" for a in h.walk() if a.tag == "a"] == [
-        SITE_URL + "city/meetings/2026.html#2026-09-03-regular", SITE_URL + titled["href"], SITE_URL + "items/2026.html#i-x"]
-    assert TEXT["open_site"] not in html
-    src = [x.all_text() for x in styled(html, "source")]
-    assert src == ["Source document, September 3, 2026 meeting", "Source document, September 3, 2026 meeting, page 4",
-                   "Source document, November 16, 2026 meeting, page 2"]
-    assert [x.all_text() for x in styled(html, "numbers")] == ["ORDINANCE 1-2026-27, ORDINANCE 2-2026-27, ORDINANCE 4-2026-27"]
+        SITE_URL + "city/meetings/2026.html#2026-09-03-regular"]
+    # the council's votes are not confirmed: never the card's shared words, each line says so (below)
+    assert [x.all_text() for x in styled(html, "said")] == ["On the agenda"]
+    assert [x.all_text() for x in styled(html, "docs")] == [TEXT["source_document"]] * 2
+    assert [a.attrs["href"] for d in styled(html, "docs") for a in d.walk() if a.tag == "a"] == [
+        "https://example.com/fixture/minutes-2026-09-03.pdf", "https://example.com/fixture/agenda.pdf"]
+    # each item: its topic label (a config label of morning_note.subject_topics; first match wins: the budget entry
+    # is on the budget list), then its headline linking its page
+    assert [k.all_text() for k in styled(html, "item_kick")] == [LABEL["ordinance"], LABEL["ordinance"], LABEL["budget"]]
+    item_links = [[a.attrs["href"] for a in x.walk() if a.tag == "a"] for x in styled(html, "item")]
+    assert item_links == [[SITE_URL + "city/meetings/2026.html#2026-09-03-regular"], [SITE_URL + titled["href"]],
+                          [SITE_URL + "items/2026.html#i-x"]]
+    assert TEXT["open_site"] not in html and not styled(html, "source")
+    assert [x.all_text() for x in styled(html, "muted")] == [
+        "ORDINANCE 1-2026-27, ORDINANCE 2-2026-27, ORDINANCE 4-2026-27 · Recorded in the minutes; not confirmed",
+        "Recorded in the minutes; not confirmed"]
+    assert ok(html)
 
 
-def test_an_entry_with_no_meeting_has_a_kicker_line_and_its_title_as_the_headline():
+def test_a_meetings_card_names_a_different_recorded_and_the_title_labels_muted_after_the_headline():
+    first = vote(3, 4, untitled=False, title="ORDINANCE 3-2026-27: (FIRST READING) [ZONING CASE Z-1-2026] FIXTURE a title",
+                 recorded="Recorded in the minutes", confirmed=True)
+    sure = vote(5, 6, untitled=False, recorded="Recorded in the minutes", confirmed=True)
+    n = note_of(first, vote(4, 5, untitled=False), sure, date="2026-11-18")
+    html = render.body_html(CTX, n, n["entries"])
+    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes"]
+    muted = [x.all_text() for x in styled(html, "muted")]
+    # under "Recorded in the minutes" a vote not confirmed says only the rest, on its own line
+    assert muted == ["(FIRST READING) [ZONING CASE Z-1-2026]", "not confirmed"]
+    line = styled(html, "item")[0]
+    head = [a.all_text() for a in line.walk() if a.tag == "a"]
+    assert head == ["ORDINANCE 3-2026-27: FIXTURE a title"]
+    assert ok(html)
+
+
+def test_a_vote_not_confirmed_is_flagged_on_its_own_line_even_when_most_are():
+    """note/unconfirmed-unflagged: the words of a vote not confirmed are never the card's shared words, so a
+    confirmed vote never reads as one under them and each unconfirmed one says so itself."""
+    sure = vote(5, 6, untitled=False, recorded="Recorded in the minutes", confirmed=True)
+    n = note_of(sure, vote(3, 4, untitled=False), vote(4, 5, untitled=False), date="2026-11-18")
+    html = render.body_html(CTX, n, n["entries"])
+    assert [x.all_text() for x in styled(html, "said")] == ["Recorded in the minutes"]
+    assert [x.all_text() for x in styled(html, "muted")] == ["not confirmed", "not confirmed"]
+    alone = note_of(vote(3, 4, untitled=False), vote(4, 5, untitled=False), date="2026-11-18")
+    html = render.body_html(CTX, alone, alone["entries"])
+    assert not styled(html, "said")
+    assert [x.all_text() for x in styled(html, "muted")] == ["Recorded in the minutes; not confirmed"] * 2
+    assert ok(html)
+
+
+def test_two_votes_on_one_item_at_one_meeting_are_one_line():
+    a, b = vote(3, 4, untitled=False), vote(3, 5, untitled=False, id="city/vote/rc-2026-09-03-3b")
+    n = note_of(a, b, date="2026-11-18")
+    html = render.body_html(CTX, n, n["entries"])
+    assert len(styled(html, "item")) == 1 and ok(html)
+    assert render.body_text(CTX, n, n["entries"]).count(a["title"]) == 1
+
+
+def test_an_entry_with_no_meeting_has_its_body_as_the_card_line_and_links_its_own_source():
     n = note_of(*CONTRACTS)
     html = render.body_html(CTX, n, n["entries"])
     assert not styled(html, "day_td")
-    assert [x.all_text() for x in styled(html, "kicker")][1:] == ["Fixture County · New document"] * 2 + \
-        ["Fixture County · New on the purchasing archive"]
-    assert [h.all_text() for h in styled(html, "h3_after")] == [e["title"] for e in CONTRACTS]
-    assert [x.all_text() for x in styled(html, "source")] == [TEXT["source_document"]] * 3
+    assert [h.all_text() for h in parse(html).walk() if h.tag == "h3"] == ["Fixture County"]
+    # note-titles: the topic label (by what the title says first: the two "Paving" documents are street items,
+    # the solicitation a contract), the headline, then its own source document, muted
+    assert [x.all_text() for x in styled(html, "item_kick")] == [LABEL["streets"]] * 2 + [LABEL["contracts"]]
+    assert [x.all_text() for x in styled(html, "said")] == ["New document"]
+    assert [x.all_text() for x in styled(html, "muted")] == [TEXT["source_document"]] * 2 + \
+        [f"New on the purchasing archive · {TEXT['source_document']}"]
+    assert [[a.all_text() for a in x.walk() if a.tag == "a"][0] for x in styled(html, "item")] == [e["title"] for e in CONTRACTS]
+    assert [[a.attrs["href"] for a in x.walk() if a.tag == "a"][1] for x in styled(html, "item")] == \
+        [e["source"]["url"] for e in CONTRACTS]
     assert ok(html)
 
 
@@ -214,7 +274,8 @@ def test_hostile_text_in_every_new_slot_comes_out_inert_and_passes_the_deliver_c
         assert "{{" not in html and "{%" not in html and "<script" not in html and "evil.example.com" not in "".join(links(html))
         assert set(links(html)) <= {SITE_URL + x for x in ("a.html", "today.html", "morning/index.html", "items/2026.html#i-x",
                                                            "city/meetings/2026.html#2026-09-03-regular")} | \
-            {"https://example.com/fixture/agenda.pdf#page=2", "https://example.com/fixture/minutes-2026-09-03.pdf"}
+            {"https://example.com/fixture/agenda.pdf#page=2", "https://example.com/fixture/agenda.pdf",
+             "https://example.com/fixture/minutes-2026-09-03.pdf"}
         tags = {x.tag for x in parse(html).walk()} - {"root"}
         assert tags <= {"div", "table", "tr", "td", "h1", "h2", "h3", "p", "span", "a", "br", "strong", "img"}
 
@@ -340,11 +401,15 @@ def test_a_large_edition_stays_under_the_budget_with_its_footer_and_rest_as_rows
     html = render.body_html(CTX, n, n["entries"])
     size = len(html.encode("utf-8"))
     assert size <= common.BODY_BUDGET, size
-    cards, rows = styled(html, "card"), styled(html, "row")
-    assert cards and rows and len(cards) + len(rows) == 100
-    # the cards come first, in the edition's order, then one row each for the rest
-    shown = [c.all_text() for c in cards + rows]
-    assert [next(i for i, e in enumerate(es) if f"item {i} " in s) for s in shown] == list(range(100))
+    items, rows = styled(html, "item"), styled(html, "row")
+    assert items and rows and len(items) + len(rows) == 100
+    # the cards come first, in the edition's order with each meeting's items together (note-titles round 3), then
+    # one row each for the rest
+    order: dict = {}
+    for i, e in enumerate(es):
+        order.setdefault(e["meeting_date"], []).append(i)
+    shown = [c.all_text() for c in items + rows]
+    assert [next(i for i, e in enumerate(es) if f"item {i} " in s) for s in shown] == [i for g in order.values() for i in g]
     assert CTX["notice"] in parse(html).all_text() and common.CREDIT_LINE in html and "Please help." in html
     assert TEXT["all_meetings"] in html and ok(html)
     # the row keeps the entry's words and both links
@@ -382,9 +447,9 @@ def test_the_shipped_budget_leaves_room_under_gmails_clip():
 
 # ------------------------------------------------------------------ config: every new word, checked
 def test_every_new_word_is_config_text_and_passes_the_neutrality_scan(msite):  # noqa: F811
-    assert set(TEXT) == set(render.TEXT_KEYS) == set(morning.SENDER_TEXT_KEYS)
+    assert set(TEXT) - set(morning.topic_text_keys(config.SITE)) == set(render.TEXT_KEYS) == set(morning.SENDER_TEXT_KEYS)
     ours = render.own_text(CTX, {**read_note(msite), "coming_up": COMING})
-    for k in render.TEXT_KEYS:
+    for k in [*render.TEXT_KEYS, *morning.topic_text_keys(config.SITE)]:
         assert TEXT[k] in ours or render.subject(CTX, D.isoformat()) in ours, k
     assert "Fixture County Budget Committee" in ours and "executive session" in ours
     assert not [t for t in ours if BANNED.search(t)]

@@ -267,6 +267,16 @@ class Index:
         s = self.sources[source_id]
         return {"url": f"{s['url']}#page={page}", "page": page, "fetched": localdates.fetched(s), "kind": s["kind"]}
 
+    def title_src(self, item: dict) -> dict | None:
+        """note-titles: the agenda page an item's title is printed on when the minutes print none (facts
+        item.title_source), as src() plus `text`, the cite shown by the title (site.yml title_source_text). None for
+        a title the minutes print (or no title)."""
+        ts = item.get("title_source") if item else None
+        if not ts:
+            return None
+        return {**self.src(ts["source_id"], ts["page"]),
+                "text": config.SITE["title_source_text"].format(page=ts["page"])}
+
     # A body whose held roll calls say which check held them ({check: sentence, "other": sentence}; a council's
     # `held_sentences`). None: the vote pages' own sentence ("Not confirmed: this page was hard to read.").
     held_sentences: dict | None = None
@@ -311,9 +321,10 @@ class Index:
     def item_ref(self, item_id: str) -> dict:
         it = self.items.get(item_id)
         if it is None:
-            return {"id": item_id, "number": None, "title": item_id, "href": None}
+            return {"id": item_id, "number": None, "title": item_id, "href": None, "title_src": None}
         title = self.item_title(it)
-        return {"id": it["id"], "number": it["number"], "title": title, "href": self.item_href(it)}
+        return {"id": it["id"], "number": it["number"], "title": title, "href": self.item_href(it),
+                "title_src": self.title_src(it)}
 
     def data_as_of(self) -> str:
         """The latest fetch day, as pages print it (localdates.span: the site_timezone day, or labelled UTC)."""
@@ -1125,7 +1136,7 @@ def items_year(year: int, facts) -> dict:
             continue
         events = sorted(ix.events_by_item[it["id"]], key=lambda e: (e["date"], e["page"], e["order"], e["id"]))
         entries.append({
-            "id": it["id"], "number": it["number"], "title": ix.item_title(it),
+            "id": it["id"], "number": it["number"], "title": ix.item_title(it), "title_src": ix.title_src(it),
             "basis": "Linked by number" if it["link_basis"] == "number" else "Linked by title",
             "zoning": zoning_rows(ix, it),
             "rpc": ix.rpc_links.get(it["id"], []),
@@ -1870,10 +1881,11 @@ def _word_start(word: str) -> re.Pattern:
     return re.compile(r"(?<!\w)" + re.escape(word.casefold()))
 
 
-def item_types(item: dict) -> list[str]:
-    """Design 5.4: number prefix, else fixed words in the verbatim title; can match several; else "other"."""
+def item_types(item: dict, types: list | None = None) -> list[str]:
+    """Design 5.4: number prefix, else fixed words in the verbatim title; can match several; else "other".
+    `types`: config item_types (default: the site's; the morning note's sender passes its own config's)."""
     number, title = (item.get("number") or "").upper(), (item.get("title") or "").casefold()
-    out = [t["key"] for t in config.SITE["item_types"]
+    out = [t["key"] for t in (config.SITE["item_types"] if types is None else types)
            if any(number.startswith(p.upper()) for p in t["prefixes"])
            or any(_word_start(w).search(title) for w in t["words"])]
     return out or ["other"]
@@ -1895,6 +1907,13 @@ def zoning_search_text(item: dict) -> str:
     return " · ".join(parts)
 
 
+def _title_cite(ix: Index, it: dict) -> dict:
+    """A search record's `ts` (note-titles): the agenda page its item's title is printed on, when the minutes print
+    none: {u: link, p: page, l: the cite's words}. Nothing for a title the minutes print."""
+    src = ix.title_src(it)
+    return {"ts": {"u": src["url"], "p": src["page"], "l": src["text"]}} if src else {}
+
+
 def body_records(ix: Index, body: str) -> list[dict]:
     """One body's search records (items, votes, meetings, people), every href from the body's own Index, so the
     county and a council (sitegen/council.py) are indexed by one rule."""
@@ -1905,7 +1924,7 @@ def body_records(ix: Index, body: str) -> list[dict]:
         records.append({"k": "item", "id": it["id"], "n": it["number"] or "", "t": ix.item_title(it),
                         "d": dates[0] if dates else "", "d2": dates[-1] if dates else "", "a": len(evs),
                         "y": sorted({int(d[:4]) for d in dates} or {it["year"]}), "ty": item_types(it), "b": body,
-                        "h": ix.item_href(it), "z": zoning_search_text(it)})
+                        "h": ix.item_href(it), "z": zoning_search_text(it), **_title_cite(ix, it)})
     for rc in ix.facts["roll_calls"]:
         m = ix.meetings[rc["meeting_id"]]
         it = ix.items.get(rc["item_id"], {})
@@ -1913,7 +1932,7 @@ def body_records(ix: Index, body: str) -> list[dict]:
                "t": (ix.item_title(it) if it else "") or rc["item_id"],
                "d": m["date"], "y": [int(m["date"][:4])], "ty": item_types(it) if it else ["other"], "b": body,
                "h": ix.meeting_href(m["id"], rc["id"]), "c": is_verified(rc), "o": None, "v": None, "s": None,
-               "z": zoning_search_text(it)}
+               "z": zoning_search_text(it), **_title_cite(ix, it)}
         if values_shown(rc) and is_verified(rc):  # confirmed only, whatever the display switch says
             rec["o"] = rc["outcome"]
             rec["v"] = {v["official_id"]: v["value"] for v in rc["votes"]

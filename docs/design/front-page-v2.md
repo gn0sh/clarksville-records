@@ -192,12 +192,12 @@ that opportunity needs to be on the main page, probably near the top."
 Right under the address card, at every width, while the sign-up form is enabled (`morning_note.enabled`; off or
 absent, nothing is drawn): one sentence and one link, drawn as the site's blue button, to the form on the Alerts page
 (`alerts.html#note`). Words are config text, `morning_note.page.front_pitch` and `front_button`:
-"Get one short email at 7 AM on days when something new is posted." and
+"Your local government, in plain words: one short email by 7 AM with what's new on the lists you pick (council votes from your seats, zoning near you, budget and contracts) plus the next public meetings. Quiet day? No email." and
 "Sign up for the morning note". A link, not a second email field: the form's list picks, its saved-seats box and the
 line saying what is sent to the provider stay in one place, and the landing's CSP gains no form origin. No support
 ask and nothing counted. On a phone it keeps its place under the address card (CSS `order`, with the card), the
-sentence above a full-width 44px button; at 390x844 the whole card is on the first screen (bottom at 714px).
-With the browser's bars showing (about 664px) the sentence is on the first screen and the button is partly below it.
+sentence above a full-width 44px button; at 390x844 the whole card is on the first screen (bottom at 800px with the 2026-11-22 sentence, was 714px).
+With the browser's bars showing (about 664px) the sentence is partly below the first screen.
 
 ## Acceptance criteria this satisfies (from the brief)
 - Friendlier, less intimidating first screen: sections 1 and 2 (one sentence, one action).

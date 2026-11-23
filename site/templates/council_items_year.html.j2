@@ -3,7 +3,7 @@
    and its years. #}
 {% block items_head %}
 <h1>Items first seen in {{ year }}</h1>
-<p class="lede">{{ body }}. Each item shows every appearance in the minutes, oldest first. Items are linked by their official number; items without a number are linked only when the title matches exactly, and say so.</p>
+<p class="lede">{{ body }}. {{ lede }}</p>
 <nav aria-label="Items by year" class="year-nav">
   <ul class="inline-list">
     {% for y in years %}<li><a href="{{ y }}.html"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a></li>{% endfor %}

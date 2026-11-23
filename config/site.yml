@@ -113,6 +113,48 @@ morning_note:
   cutoff: "07:00"
   keep_days: 7
   zoning_prefixes: [Z, ZO, CZ, CZO, HZ]   # rpc.yml City/County/Historic zoning case types
+  # note-titles (2026-11-22): what each record is about, for the email's subject and each card's kicker
+  # (sender/render.py topic). Checked in this order; an item takes the first topic it matches. A topic matches by
+  # `words` (each a case-insensitive pattern that must start a word of the record's own title, never a title we
+  # made), `lists` (the note's list keys), `kinds` (the entry kinds) or `item_types` (the site's item type rule:
+  # number prefix, else its fixed words). The kind-based ordinance and resolution come last, as `fallback`: the
+  # subject names a fallback topic only when the edition has no other. `label` is the card's
+  # kicker; the subject's words are morning_note.sender.text.subject_<key>_one and _many.
+  subject_topics:
+    # A phrase claims no more than its match proves (neutrality/topic-phrase-overclaims): "a zone change" only for a
+    # title that says "zone change", "an annexation" only for an act "annexing" or "annexation of"; anything else
+    # on those subjects is "a zoning item" / "an annexation item". Every other phrase is "<subject> item".
+    - {key: zonechange, label: Zone change, words: ["zone change"]}
+    - {key: zoning, label: Zoning, words: ["zoning", "rezon"], lists: [zoning]}
+    - {key: annexation, label: Annexation, words: ["annexing", "annexation of"]}
+    - {key: annexitem, label: Annexation, words: ["annex"]}
+    - {key: appointments, label: Appointment, words: ["appoint"]}
+    - {key: alcohol, label: Alcohol, words: ["wine", "beer", "liquor", "certificate of compliance"]}
+    - {key: property, label: Property, words: ["real property", "donation of", "acquisition", "easements?\\b"]}
+    - {key: budget, label: Budget, words: ["budgets?\\b", "appropriat", "tax lev"], lists: [budget]}
+    - {key: safety, label: Public safety, words: ["police", "fire department", "k-9", "emergency"]}
+    # a street address ("953 Clark Street", "Bel Aire Park Dr") is not a parks or streets item: no bare "street"
+    # or "road", and "park" not before a street suffix
+    - {key: parks, label: Parks, words: ["greenways?\\b", "parks?\\b(?!\\s+(?:dr|drive|rd|road|ln|lane|ave|avenue|blvd|st|street|way|pl|place|ct|cir|circle)\\b)"]}
+    - {key: streets, label: Streets, words: ["paving", "traffic", "sidewalks?\\b", "drainage", "parking", "streets and other public ways", "road improvements?\\b", "rights? of way"]}
+    - {key: contracts, label: Contract, kinds: [solicitation]}
+    - {key: ordinance, label: Ordinance, item_types: [ordinance], fallback: true}
+    - {key: resolution, label: Resolution, item_types: [resolution], fallback: true}
+  # note-titles: a headline is the record's title after its item number, its leading "(FIRST READING)" and
+  # "[ZONING CASE ...]" labels shown muted after it, cut to 200 characters at words (sender/render.py
+  # headline_parts). A title whose words then start with one of these patterns (case-insensitive, matched at the
+  # start) shows "…" in their place: words every such title repeats, never the part that says what it is about.
+  # Best effort, not a guarantee: the zoning and application patterns also leave out the applicant (often a
+  # person's name) in the wordings the fixtures and facts hold; a new wording may still print one, as the site does.
+  title_lead_drop:
+    - "(?:An Ordinance )?amending the zoning (?:code|ordinance) and map of the City of Clarksville,\\s*application of .{1,160}? for (?=(?:an? )?zone change\\b)"
+    - "(?:An Ordinance )?amending the zoning (?:code|ordinance) and map of the City of Clarksville,"
+    # a county zoning case ("Application of <applicant> from AG to R-1") and an application for an act
+    # ("Application of <applicant> for the Abandonment of ..."): from the districts, or from the act
+    - "application of\\s*.{1,160}? (?=from\\s+\\S.{0,60}\\sto\\s)"
+    - "application of\\s*.{1,160}? for (?=(?:the|an?|partial)\\s)"
+    - "A Resolution of the City Council of the City of Clarksville, Tennessee,"
+    - "A Resolution approving"
   # Backfill guard: a day holding a document from a collector's initial run (first fetched within initial_run_hours of
   # the earliest row of its manifest) or more than max_entries entries is written with "backfill": true and no
   # entries (its counts kept), so a first collection never becomes a mail.
@@ -180,7 +222,58 @@ morning_note:
     link_hosts: "daylight.gnoshcodes.com,www.clarksvilletn.gov,montgomerytn.gov,www.cmcrpc.com,clarksvilletn.api.civicclerk.com,montgomeryminutes.bisonline.com,mcgtn.org"
     # Every word of the email that is ours. Neutral connective text only: no summary, no claim about anyone.
     text:
+      # The day's subject when an edition names no topic and no record (render.subject; deliver.subject_ok).
       subject: "{site_name} morning note, {date}"
+      # note-titles (2026-11-22, the owner: "nothing letting me know why I should care"): the subject says what is
+      # inside, counted from the edition's own entries by what each record is about (morning_note.subject_topics
+      # below: each item counts once, under the first topic it matches). {topics}: up to three of the phrases below,
+      # most items first (ties in the list's order), joined with ", " and subject_and, while the subject stays within
+      # 78 characters (common.SUBJECT_CAP); none: "{n} new records". {place}: top-level today_place. The "today"
+      # phrase leads, then " · ", when the note's next meetings hold one on its own day and it still fits. A count
+      # only: never an outcome. Each topic of subject_topics needs subject_<key>_one and _many here. Each phrase is
+      # quoted (the deliver stage reads every text.subject* line without PyYAML) and holds no ", ", no " and " and
+      # no "·".
+      subject_frame: "{topics}: your {place} morning note"
+      subject_and: "and"
+      subject_records_one: "a new record"
+      subject_records_many: "{n} new records"
+      subject_today_one: "a meeting today"
+      subject_today_many: "{n} meetings today"
+      subject_zonechange_one: "a zone change"
+      subject_zonechange_many: "{n} zone changes"
+      subject_zoning_one: "a zoning item"
+      subject_zoning_many: "{n} zoning items"
+      subject_annexation_one: "an annexation"
+      subject_annexation_many: "{n} annexations"
+      subject_annexitem_one: "an annexation item"
+      subject_annexitem_many: "{n} annexation items"
+      subject_safety_one: "a public safety item"
+      subject_safety_many: "{n} public safety items"
+      subject_appointments_one: "an appointment"
+      subject_appointments_many: "{n} appointments"
+      subject_alcohol_one: "an alcohol item"
+      subject_alcohol_many: "{n} alcohol items"
+      subject_property_one: "a property item"
+      subject_property_many: "{n} property items"
+      subject_budget_one: "a budget item"
+      subject_budget_many: "{n} budget items"
+      subject_parks_one: "a park item"
+      subject_parks_many: "{n} park items"
+      subject_streets_one: "a street item"
+      subject_streets_many: "{n} street items"
+      subject_contracts_one: "a new bid"
+      subject_contracts_many: "{n} new bids"
+      subject_ordinance_one: "an ordinance"
+      subject_ordinance_many: "{n} ordinances"
+      subject_resolution_one: "a resolution"
+      subject_resolution_many: "{n} resolutions"
+      # note-titles: a vote whose minutes printed no title, titled from its meeting's agenda (the entry's
+      # title_source "agenda"): the link to that agenda's page, which printed the words. A page number follows.
+      title_agenda: Item titles from the meeting's agenda
+      title_agenda_dated: "Item titles from the {date} meeting's agenda"
+      # next to each title from an agenda, linking that page (docs/architecture/agenda-title-cite-invariant.md)
+      title_agenda_page: "title from the agenda, p. {page}"
+      title_agenda_page_dated: "title from the {date} agenda, p. {page}"
       why: You get this note because a record on a list you picked was added to the site since yesterday morning.
       open_site: Open the page on the site
       # note/compact-untitled: in the seats section, one line for a meeting's votes whose record printed no title of
@@ -256,7 +349,7 @@ morning_note:
     method_signup_link: Sign up on the Alerts page
     # The front page's invitation (front-signup, 2026-11-18; owner: the sign-up was only in the menu). Enabled state
     # only: one sentence saying what the note is, and the link to the form on the Alerts page (alerts.html#note).
-    front_pitch: Get one short email at 7 AM on days when something new is posted.
+    front_pitch: "Your local government, in plain words: one short email by 7 AM with what's new on the lists you pick (council votes from your seats, zoning near you, budget and contracts) plus the next public meetings. Quiet day? No email."
     front_button: Sign up for the morning note
     preview_title: Today's morning note
     preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."
@@ -335,6 +428,12 @@ swapped_districts: [19, 20]
 # The county's Elected Officials List prints Districts 19 and 20 with the numbers the roll-call tables use (the map
 # PDF prints them the other way round). Cited by the map caption and the seat 19/20 pages.
 swap_source: "https://montgomerytn.gov/storage/departments/election/Elected%20Officials%20List.pdf#page=9"
+
+# note-titles: an item title the minutes do not print is the caption its meeting's agenda prints (facts
+# item.title_source). Wherever such a title is shown it carries this cite, linked to that agenda page ({page}).
+title_source_text: "title as printed in the agenda, p. {page}"
+# The same in a feed entry's summary ({url}: the agenda page).
+title_source_feed: "Title as printed in the agenda, page {page}: {url}."
 
 # Item type rule (design 5.4), mechanical and the same for every item; rendered on the About page. An item matches a
 # type when its number starts with one of the prefixes, or its verbatim title contains one of the words (any case).

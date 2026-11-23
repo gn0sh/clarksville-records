@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import source, fact_meta, cite, motion_block, roll_call_block, item_title, parts_nav %}
+{% from "_macros.html.j2" import source, fact_meta, cite, motion_block, roll_call_block, item_title, title_cite, parts_nav %}
 {% block main %}
 {% block items_head %}
 <h1>Items first seen in {{ year }}</h1>
@@ -23,6 +23,7 @@
 <section class="item" id="{{ it.id }}" aria-labelledby="h-{{ it.id }}">
   {% if it.number %}<p class="item-num">{{ it.number }}</p>{% endif %}
   <h2 id="h-{{ it.id }}" class="item-h">{{ item_title(it.title) }}</h2>
+  {% if it.title_src %}<p class="item-title-src">{{ title_cite(it.title_src) }}</p>{% endif %}
   <p class="item-basis"><span class="chip chip-type">{{ it.basis }}</span></p>
   {% if it.zoning %}
   <div class="zoning">

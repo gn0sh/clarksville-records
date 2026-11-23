@@ -183,7 +183,76 @@ SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site"
                     "define_award_letter": (), "define_rfp": (), "take_part": (), "take_part_heading": (),
                     "take_part_line": (), "invited": (), "coming_up": (),
                     "coming_meeting": ("{date}", "{body}", "{meeting}"), "coming_body": ("{date}", "{body}"),
-                    "all_meetings": (), "more": ("{n}",)}
+                    "all_meetings": (), "more": ("{n}",),
+                    # note-titles (2026-11-22): the subject's fixed phrases (sender.common.SUBJECT_KEYS; each topic of
+                    # morning_note.subject_topics adds subject_<key>_one and _many, topic_text_keys) and the agenda
+                    # link of a title its meeting's agenda printed
+                    "subject_frame": ("{topics}",), "subject_and": (), "subject_records_one": (),
+                    "subject_records_many": ("{n}",), "subject_today_one": (), "subject_today_many": ("{n}",),
+                    "title_agenda": (), "title_agenda_dated": ("{date}",), "title_agenda_page": ("{page}",),
+                    "title_agenda_page_dated": ("{date}", "{page}")}
+TOPIC_RULES = ("words", "lists", "kinds", "item_types")      # sender.render.topic: how a topic matches an entry
+
+
+def topic_text_keys(cfg: dict) -> dict:
+    """{text key: placeholders} the topics of morning_note.subject_topics add to morning_note.sender.text."""
+    topics = (cfg.get("morning_note") or {}).get("subject_topics")
+    keys = [t.get("key") for t in topics if isinstance(t, dict)] if isinstance(topics, list) else []
+    return {f"subject_{k}_{f}": ("{n}",) if f == "many" else () for k in keys if isinstance(k, str)
+            for f in ("one", "many")}
+
+
+def topic_problems(cfg: dict) -> list[str]:
+    """note-titles: morning_note.subject_topics and title_lead_drop. Each topic: a key (lower-case letters, once, not
+    records or today), a label, and at least one rule; every `words` pattern compiles; lists, kinds and item_types
+    name what exists. Each lead drop is a pattern that matches words (never the empty string)."""
+    from sender.common import FIXED_COUNTED, TOPIC_KEY
+    mn = cfg.get("morning_note") or {}
+    at = "morning_note.subject_topics"
+    topics = mn.get("subject_topics")
+    if not isinstance(topics, list) or not topics:
+        return [f"{at} must be a list of {{key, label, words, lists, kinds, item_types}}"]
+    out, seen = [], set()
+    types = {t.get("key") for t in cfg.get("item_types") or [] if isinstance(t, dict)}
+    for t in topics:
+        if not isinstance(t, dict) or set(t) - {"key", "label", "fallback", *TOPIC_RULES} \
+                or not isinstance(t.get("fallback", False), bool):
+            out.append(f"{at}: each topic is a mapping of key, label, its rules ({', '.join(TOPIC_RULES)}) and "
+                       f"fallback (true or false)")
+            continue
+        k = t.get("key")
+        if not (isinstance(k, str) and TOPIC_KEY.fullmatch(k)) or k in FIXED_COUNTED or k in seen:
+            out.append(f"{at}: key {k!r} must be lower-case letters, used once, and not {' or '.join(FIXED_COUNTED)}")
+        seen.add(k)
+        if not (isinstance(t.get("label"), str) and t["label"].strip()):
+            out.append(f"{at} {k!r} needs a label")
+        rules = {r: t.get(r) for r in TOPIC_RULES if r in t}
+        if not rules or not all(isinstance(v, list) and v and all(isinstance(x, str) and x for x in v)
+                                for v in rules.values()):
+            out.append(f"{at} {k!r} needs at least one rule, each a non-empty list of text")
+            continue
+        for w in rules.get("words", []):
+            try:
+                re.compile(w)
+            except re.error:
+                out.append(f"{at} {k!r}: {w!r} is not a pattern")
+        out += [f"{at} {k!r}: list {x!r} is not one of {', '.join(LIST_KEYS)}" for x in rules.get("lists", [])
+                if x not in LIST_KEYS]
+        out += [f"{at} {k!r}: kind {x!r} is not one of {', '.join(KINDS)}" for x in rules.get("kinds", [])
+                if x not in KINDS]
+        out += [f"{at} {k!r}: item type {x!r} is not an item_types key" for x in rules.get("item_types", [])
+                if x not in types]
+    lead = mn.get("title_lead_drop", [])
+    if not isinstance(lead, list) or not all(isinstance(x, str) and x.strip() for x in lead):
+        out.append("morning_note.title_lead_drop must be a list of patterns")
+        return out
+    for x in lead:
+        try:
+            if re.compile(x, re.IGNORECASE).match(""):
+                out.append(f"morning_note.title_lead_drop: {x!r} matches nothing at all; it must match words")
+        except re.error:
+            out.append(f"morning_note.title_lead_drop: {x!r} is not a pattern")
+    return out
 _DEFINITION = re.compile(r"[^.\s][^.]*\. \S.*")        # "Term. Definition.": the term (bold in the email), then its words
 _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
@@ -236,8 +305,9 @@ def sender_problems(cfg: dict) -> list[str]:
     if "text" in s and not isinstance(text, dict):
         out.append(f"{at}.text must be a mapping")
     elif isinstance(text, dict):
-        out += [f"{at}.text.{k} is not a known key" for k in text if k not in SENDER_TEXT_KEYS]
-        for k, marks in SENDER_TEXT_KEYS.items():
+        known = {**SENDER_TEXT_KEYS, **topic_text_keys(cfg)}
+        out += [f"{at}.text.{k} is not a known key" for k in text if k not in known]
+        for k, marks in known.items():
             v = text.get(k)
             if not (isinstance(v, str) and v.strip()):
                 out.append(f"{at}.text.{k} must be set")
@@ -250,6 +320,15 @@ def sender_problems(cfg: dict) -> list[str]:
         subj = text.get("subject")
         if isinstance(subj, str) and AUTHORITY.search(subj.replace("{site_name}", str(cfg.get("site_name") or ""))):
             out.append(f"{at}.text.subject must not name a government body or say official, got {subj!r}")
+        # note-titles: the subject's phrases make subjects the deliver stage can read back, none of them names a
+        # government body or says official, and neither does the place they print
+        from sender.common import SUBJECT_KEYS, subject_problems
+        place = str(cfg.get("today_place") or "")
+        out += subject_problems(text, place)
+        out += [f"{at}.text.{k} must not name a government body or say official, got {text[k]!r}"
+                for k in (*SUBJECT_KEYS, *topic_text_keys(cfg)) if isinstance(text.get(k), str)
+                and AUTHORITY.search(text[k].replace("{place}", place))]
+        out += topic_problems(cfg)
     from sender.common import exact_url_ok, parse_hosts     # plan-untrusted/body-unchecked: what an email links
     if cfg.get("support_url") not in (None, "") and not exact_url_ok(cfg["support_url"]):
         out.append(f"support_url must be one https URL on a lower-case host, with no user or port (the deliver "
@@ -368,7 +447,8 @@ def _entry(**kw) -> dict:
     e = {"id": None, "lists": [], "kind": None, "body": None, "body_name": None, "meeting_date": None, "meeting": None,
          "title": None,
          "title_ours": False, "recorded": None, "district": None, "ward": None, "case": None, "seat_body": None,
-         "href": None, "meeting_href": None, "item_number": None, "source": {"url": None, "page": None}}
+         "href": None, "meeting_href": None, "item_number": None, "source": {"url": None, "page": None},
+         "title_source": None}
     e.update(kw)
     e["lists"] = [k for k in LIST_KEYS if k in e["lists"]]
     # note/compact-untitled: the record printed no title of its own for this entry (the email gives a meeting's
@@ -393,6 +473,23 @@ def _kind(ix, m: dict, txt: dict) -> str:
     agendas of one item (an informal and a formal meeting) then never read as a duplicate (note/entry-meeting)."""
     label = (getattr(ix, "kind_labels", None) or {}).get(m.get("kind"))
     return label.lower() if isinstance(label, str) and label.strip() else txt["meeting"]
+
+
+def _title_source(ix, it: dict | None) -> dict | None:
+    """note-titles: where an item's title came from when no minutes printed it, the caption its meeting's agenda
+    prints (the facts' `item.title_source`, collector/city_build agenda_titles), with that agenda page's URL so the
+    email can cite it: {kind "agenda", source_id, page, meeting_id, url}. None for any other item, or one whose
+    agenda is not among the facts' sources."""
+    ts = (it or {}).get("title_source")
+    if not (isinstance(ts, dict) and ts.get("kind") == "agenda"):
+        return None
+    s = ix.sources.get(ts.get("source_id") or "")
+    page = ts.get("page")
+    if s is None or not s.get("url"):
+        return None
+    ok = isinstance(page, int) and not isinstance(page, bool) and page > 0
+    return {"kind": "agenda", "source_id": ts["source_id"], "page": page if ok else None,
+            "meeting_id": ts.get("meeting_id"), "url": f"{s['url']}#page={page}" if ok else s["url"]}
 
 
 def _number_title(number: str | None, title: str) -> str:
@@ -489,7 +586,8 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     href=ix.item_href(it) if it else ix.meeting_href(m["id"]), meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={fact['page']}", "page": fact["page"]},
                     title_ours=not (it and it.get("title")), untitled=_kind_only(it),
-                    item_number=(it.get("number") or None) if it else None, **_seat_fields(case)))
+                    item_number=(it.get("number") or None) if it else None, title_source=_title_source(ix, it),
+                    **_seat_fields(case)))
         else:   # an agenda: the items printed on it, as the facts record them
             seen = {}
             for e in ix.facts["item_events"]:
@@ -505,7 +603,7 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                     title=_number_title(it.get("number"), ix.item_title(it)),
                     lists=["seats"] + (["budget"] if "budget" in views.item_types(it) else [])
                     + (["zoning"] if case else []), title_ours=not it.get("title"), untitled=_kind_only(it),
-                    item_number=it.get("number") or None,
+                    item_number=it.get("number") or None, title_source=_title_source(ix, it),
                     recorded=txt["agenda_item"], seat_body=seat_body, href=ix.item_href(it),
                     meeting_href=ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={e['page']}", "page": e["page"]}, **_seat_fields(case)))

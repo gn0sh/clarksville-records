@@ -333,13 +333,17 @@ def test_a_subject_that_is_not_one_printable_line_sends_nothing(plan, subject):
 @pytest.mark.parametrize("subject", [
     "Daylight morning note, November 12, 2026",                          # another day's
     "Daylight morning note, November 11, 2026 - URGENT: reply with your password",
-    "Official notice from the City", "Daylight morning note,  November 11, 2026", "Daylight"])
+    "Official notice from the City", "Daylight morning note,  November 11, 2026", "Daylight",
+    # note-titles: topics subjects too, read back into the config's phrases and checked against the edition
+    "2 lawsuits: your Clarksville morning note", "999 zone changes: your Clarksville morning note",
+    "A zone change: your Clarksville morning note - URGENT", "a zone change: your Clarksville morning note"])
 @pytest.mark.parametrize("mode", ["stamp", "ids"])
 def test_a_subject_other_than_the_one_the_config_gives_sends_nothing(plan, subject, mode):
     """sender/plan-untrusted/subject-unchecked: each subject is rebuilt from the repository's site_name and
     text.subject for the plan's day; a printable but different one (the plan comes from the job that parses
-    untrusted PDFs) is refused before any provider call, in every edition and in the dry run too."""
-    assert plan["editions"][0]["subject"] == f"Daylight morning note, {render.day_words(DAY)}"
+    untrusted PDFs) is refused before any provider call, in every edition and in the dry run too. note-titles: or
+    read back into the config's subject phrases (deliver.subject_ok, tests/test_morning_sender_titles.py)."""
+    assert all(deliver.subject_ok(settings(), DAY, e["subject"], len(e["entry_ids"])) for e in plan["editions"])
     for i in (0, len(plan["editions"]) - 1):
         bad = copy.deepcopy(plan)
         bad["editions"][i]["subject"] = subject
@@ -351,10 +355,18 @@ def test_a_subject_other_than_the_one_the_config_gives_sends_nothing(plan, subje
 
 def test_the_expected_subject_comes_from_the_repository_config_not_the_plan(plan):
     fake = Fake(people(plan))
-    res, _ = go(copy.deepcopy(plan), fake, s=settings(subject_template="{site_name} note for {date}"))
+    # note-titles: the plan's subjects are topics subjects, read back with the repository's phrases and place
+    other = tuple((k, v.replace("morning note", "evening note")) for k, v in settings().subject_text)
+    res, _ = go(copy.deepcopy(plan), fake, s=settings(subject_text=other))
     assert (res.code, res.status) == (2, "bad-plan") and fake.calls == []
-    res, _ = go(copy.deepcopy(plan), Fake(people(plan)), s=settings(site_name="Elsewhere"))
+    res, _ = go(copy.deepcopy(plan), Fake(people(plan)), s=settings(place="Elsewhere"))
     assert res.status == "bad-plan"
+    day = copy.deepcopy(plan)       # the day's template form: rebuilt from site_name and text.subject
+    for ed in day["editions"]:
+        ed["subject"] = f"Daylight morning note, {render.day_words(DAY)}"
+    assert go(copy.deepcopy(day), Fake(people(plan)))[0].status == "sent"
+    for s in (settings(subject_template="{site_name} note for {date}"), settings(site_name="Elsewhere")):
+        assert go(copy.deepcopy(day), Fake(people(plan)), s=s)[0].status == "bad-plan"
     for broken in ({"site_name": ""}, {"subject_template": ""}):
         assert go(copy.deepcopy(plan), Fake(people(plan)), s=settings(**broken))[0].status == "bad-plan"
 

@@ -10,6 +10,7 @@ import yaml
 from conftest import note_off
 from sitegen import config, morning
 from sitegen.build import site_url_problems
+from sender import common
 from sender import settings as settings_mod
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,7 +37,7 @@ def test_the_shipped_block_is_on_and_clean():
     assert s == {"enabled": True, "provider": "buttondown", "api_base": "https://api.buttondown.com/v1",
                  "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 400,
                  "max_recipients": 1000, "canary_only": False, "link_hosts": s["link_hosts"], "text": s["text"]}
-    assert sorted(s["text"]) == sorted(morning.SENDER_TEXT_KEYS)
+    assert sorted(set(s["text"]) - set(morning.topic_text_keys(config.SITE))) == sorted(morning.SENDER_TEXT_KEYS)
     assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []
     off = note_off(config.SITE)
     assert morning.problems(off) == [] and site_url_problems(off) == []
@@ -121,9 +122,14 @@ def test_the_stdlib_reader_agrees_with_yaml_on_the_shipped_file():
     full = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))
     sender = full["morning_note"]["sender"]
     assert got["sender"] == {**{k: v for k, v in sender.items() if k != "text"},
-                             "text.subject": sender["text"]["subject"]}      # text: its subject line only
+                             "text.subject": sender["text"]["subject"],      # text: its subject lines only
+                             **{f"text.{k}": v for k, v in sender["text"].items() if k.startswith("subject_")}}
     assert got["top"] == {k: full[k] for k in ("site_timezone", "district_count", "ward_count", "support_url",
-                                               "site_name")}
+                                               "site_name", "today_place")}
+    assert settings_mod.load(SITE_YML).subject_text == tuple((k, v) for k, v in sender["text"].items()
+                                                             if k.startswith("subject_"))
+    assert set(common.SUBJECT_KEYS) <= set(dict(settings_mod.load(SITE_YML).subject_text))
+    assert settings_mod.load(SITE_YML).place == full["today_place"]
     s = settings_mod.load(SITE_YML)
     assert (s.enabled, s.canary_only, s.mode, s.max_recipients, s.timezone) == \
         (sender["enabled"], sender["canary_only"], "stamp", 1000, "America/Chicago")

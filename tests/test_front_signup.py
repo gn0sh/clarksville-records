@@ -124,9 +124,10 @@ def test_config_refuses_missing_words(key, value):
 def test_shipped_words():
     t = config.SITE["morning_note"]["page"]
     assert t["front_button"] == "Sign up for the morning note"
-    assert t["front_pitch"] == "Get one short email at 7 AM on days when something new is posted."
-    # one edition for everyone (owner, 2026-11-18, the provider's free plan): the words promise no picking of topics
-    assert not re.search(r"topic|pick|list|choose", t["front_pitch"] + " " + t["front_button"], re.I)
+    assert t["front_pitch"] == (
+        "Your local government, in plain words: one short email by 7 AM with what's new on the lists you pick (council votes from your seats, zoning near you, budget and contracts) plus the next public meetings. Quiet day? No email."
+    )
+    # the lists are picked on the sign-up form (morning_note.lists), so the words may name them
     assert morning.problems(config.SITE) == []
 
 

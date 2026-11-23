@@ -886,3 +886,37 @@ def test_morning_js_recomputes_the_note_on_pageshow_and_submit():
     js = MORNING_JS.read_text(encoding="utf-8")
     assert 'note.addEventListener("submit", updateNote);' in js
     assert 'root.addEventListener("pageshow", updateNote);' in js
+
+
+# -- captions/uncited-title/preview-page (docs/architecture/agenda-title-cite-invariant.md)
+AGENDA = "https://example.com/fixture/agenda-2026-09-03.pdf"
+
+
+def _day_with_caption(url=f"{AGENDA}#page=3", page=3):
+    """The fixture day with its first entry a minutes vote whose title its agenda printed (`title_source` kind
+    "agenda", as sitegen.morning._title_source writes it)."""
+    day = copy.deepcopy(DAY)
+    day["entries"][0].update(kind="vote", title="ORDINANCE 6-2026-27: FIXTURE CAPTION WORDS", item_number="ORDINANCE 6-2026-27",
+                             title_ours=False, untitled=False,
+                             title_source={"kind": "agenda", "source_id": "src-a", "page": page,
+                                           "meeting_id": "2026-09-03-regular", "url": url})
+    return day
+
+
+def test_preview_cites_the_agenda_beside_a_title_it_printed(tmp_path, monkeypatch):
+    ctx = morning_page.preview(_day_with_caption(), [])
+    want = {"url": f"{AGENDA}#page=3", "text": config.SITE["title_source_text"].format(page=3)}
+    assert ctx["entries"][0]["title_src"] == want
+    assert all(e["title_src"] is None for e in ctx["entries"][1:])          # a minutes title carries no cite
+    html = _build(tmp_path / "site", monkeypatch, note=_day_with_caption())["morning/index.html"]
+    first = html.split('class="mn-entry"')[1]
+    title = first.split('class="mn-title"')[1].split("</p>")[0]
+    assert "FIXTURE CAPTION WORDS" in title and f'href="{AGENDA}#page=3"' in title and want["text"] in title
+
+
+@pytest.mark.parametrize("url, page", [("javascript:alert(1)", 3), (None, 3), (f"{AGENDA}#page=3", None)])
+def test_preview_never_shows_an_agenda_title_it_cannot_cite(tmp_path, monkeypatch, url, page):
+    ctx = morning_page.preview(_day_with_caption(url, page), [])
+    assert ctx["entries"][0]["title_src"] is None and ctx["entries"][0]["title"] == "ORDINANCE 6-2026-27"
+    html = _build(tmp_path / "site", monkeypatch, note=_day_with_caption(url, page))["morning/index.html"]
+    assert "FIXTURE CAPTION WORDS" not in html and "javascript:" not in html

@@ -87,8 +87,14 @@
 {% endif %}
 {%- endmacro %}
 
+{# note-titles: the cite beside a title the minutes do not print (views.Index.title_src), linked to the agenda page
+   that prints it. Nothing for a title the minutes print. #}
+{% macro title_cite(src) -%}
+{% if src %} <span class="title-cite">(<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer" data-title-source>{{ src.text }}<span class="sr-only"> (opens the agenda PDF in a new tab)</span></a>)</span>{% endif %}
+{%- endmacro %}
+
 {% macro item_link(item, root) -%}
-{% if item.href %}<a href="{{ root }}{{ item.href }}">{% if item.number %}<strong>{{ item.number }}</strong> {% endif %}{{ item_title(item.title) }}</a>{% else %}{{ item_title(item.title) }}{% endif %}
+{% if item.href %}<a href="{{ root }}{{ item.href }}">{% if item.number %}<strong>{{ item.number }}</strong> {% endif %}{{ item_title(item.title) }}</a>{% else %}{{ item_title(item.title) }}{% endif %}{{ title_cite(item.get("title_src")) }}
 {%- endmacro %}
 
 {# A vote or attendance chip: swatch (pattern, never colour) plus the word. key is yes/no/abstain/other/present/absent. #}
