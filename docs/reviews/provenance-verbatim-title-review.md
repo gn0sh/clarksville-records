@@ -17,3 +17,8 @@ Fixes for 1-3: 59a05ad (test_provenance + test_site_review_fixes 99 passed). Del
 - Tests: 99 passed (test_provenance + test_site_review_fixes), after scripts/fetch-data.sh.
 
 Fix for the item_title caller pin: b5db47e4
+
+## Delta re-review 2 (code-reviewer, opus/high) at a9a7c7ae: APPROVE
+- provenance/verbatim-span-producers-unguarded (item_title callers): fixed; `test_every_item_title_caller_is_pinned` parses templates with Jinja and pins the 5 callers. Fails on a literal argument, split-line concatenation, `set` rename, import alias, module import and `{% call %}`. Not caught: subscript lookup `m["item_title"]` (none exists; noted in the test).
+- No new problems. nit: 3 blank lines at tests/test_provenance.py:309. Pre-existing E501 at line 68.
+- Tests: 100 passed (test_provenance + test_site_review_fixes).
