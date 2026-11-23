@@ -178,6 +178,87 @@ def test_search_index_seat_strings_are_worded(built):
         assert site_checks.dates_worded(t) == [], t
 
 
+# --- provenance/verbatim-title-trips-ban: a record's own words are not the site's seat wording -----------------------
+
+# The 2021-12-02 agenda's caption for ORDINANCE 30-2021-22, verbatim (the Daily update of 2026-11-23 failed on it).
+CAPTION = ("(Second Reading) Amending the official code Title 1, Chapter 2, Section 204 relative to presenting "
+           "legislation and deliberation of City Council members to maximize efficiency Pg 201")
+
+
+def _plant(tmp_path, built, page_html: str = "", index_record: dict | None = None) -> Path:
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    if page_html:
+        f = site / "about.html"
+        f.write_text(f.read_text(encoding="utf-8").replace("</main>", page_html + "</main>"), encoding="utf-8")
+    if index_record is not None:
+        f = site / "static" / "search-index.js"
+        raw = f.read_text(encoding="utf-8")
+        start, end = raw.index("{"), raw.rindex("}") + 1
+        ix = json.loads(raw[start:end])
+        ix["records"].append(index_record)
+        f.write_text(raw[:start] + json.dumps(ix) + raw[end:], encoding="utf-8")
+    return site
+
+
+def _banned(site: Path, facts) -> list[str]:
+    pages = {p.relative_to(site).as_posix(): site_checks.parse(p) for p in site.rglob("*.html")}
+    problems, _ = site_checks.check_provenance(site, pages, facts, [], site_checks._site_cfg())
+    return [p for p in problems if "banned" in p]
+
+
+def _item_title_html(title: str) -> str:
+    """The title as the real macro renders it (the markup VERBATIM_TITLE relies on)."""
+    from sitegen.build import make_env
+    return make_env().from_string('{% import "_macros.html.j2" as m %}{{ m.item_title(t) }}').render(t=title)
+
+
+def test_the_item_title_macro_renders_the_bare_span_the_check_empties():
+    out = _item_title_html(CAPTION + " & <b>")
+    assert site_checks.VERBATIM_TITLE.fullmatch(out), out
+    assert site_checks.VERBATIM_TITLE.sub(r"\1\2", out) == "<span data-item-title></span>"
+
+
+@pytest.mark.parametrize("title", [CAPTION, "Resolution authorizing the Mayor to present the plan",
+                                   "Lease of the old depot, vacant since 1998", "Held this seat? A plaque request",
+                                   "Ordinance effective {cutover}"])
+def test_a_verbatim_title_holding_a_banned_phrase_passes(tmp_path, built, facts, title):
+    """A title as its minutes or agenda print it (page and search index) is the record's words, never flagged; the
+    lines_effective day in words is banned too, so a title that prints it is covered by the same rule."""
+    import datetime as dt
+    d = dt.date.fromisoformat(site_checks._site_cfg()["lines_effective"])
+    title = title.format(cutover=f"{d.strftime('%B')} {d.day}, {d.year}")
+    item = _item_title_html(title)
+    site = _plant(tmp_path, built, f'<p><a href="items/2021.html"><strong>ORDINANCE 30-2021-22</strong> {item}</a></p>',
+                  {"k": "item", "id": "x", "n": "ORDINANCE 30-2021-22", "t": title,
+                   "ts": {"u": "https://example.gov/a.pdf#page=3", "p": 3, "l": "title as printed in the agenda, p. 3"}})
+    assert _banned(site, facts) == []
+
+
+@pytest.mark.parametrize("planted", [
+    "<p>Seat 4, 2021 to present</p>",                                               # site-written, outside any title
+    f'<span data-item-title>{CAPTION}</span> <span class="seat">2021 to present</span>',  # beside a title
+    '<span data-item-title>Ward 2 <span class="seat">2021 to present</span></span>',  # markup inside: stays checked
+    '<span data-item-title class="x">2021 to present</span>',                       # another attribute: stays checked
+])
+def test_site_written_to_present_still_fails_beside_a_verbatim_title(tmp_path, built, facts, planted):
+    assert _banned(_plant(tmp_path, built, planted, None), facts) == ["about.html: contains banned 'to present'"]
+
+
+@pytest.mark.parametrize("record", [
+    {"k": "person", "id": "x", "n": "", "t": "Example, A.", "st": "District 1, 2021 to present"},   # a seat text
+    {"k": "item", "id": "x", "n": "", "t": "", "ts": {"u": "u", "p": 1, "l": "2021 to present"}},  # the cite's words
+    {"k": "meeting", "id": "x", "n": "", "t": "Meeting, held 2021 to present"},                     # another kind
+])
+def test_site_written_to_present_in_the_search_index_still_fails(tmp_path, built, facts, record):
+    assert _banned(_plant(tmp_path, built, "", record), facts) == ["static/search-index.js: contains banned 'to present'"]
+
+
+def test_an_unparseable_search_index_is_scanned_whole():
+    raw = 'window.SEARCH_INDEX = {"records": [{"k": "item", "t": "x to present"}, ;'
+    assert site_checks.search_index_own_text(raw) == raw
+
+
 # --- check 4: cutover immaterial, on the committed data --------------------------------------------------------------
 
 def test_cutover_is_immaterial_on_committed_data():
