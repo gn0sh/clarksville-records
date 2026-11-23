@@ -306,6 +306,62 @@ def test_every_verbatim_span_producer_is_pinned():
     assert py == []
 
 
+
+# provenance/verbatim-span-producers-unguarded (hit 2): the `item_title` macro's span prints its own parameter, so the
+# pin above holds only if every caller passes a record's title as printed. Each call's argument is pinned here, read
+# with Jinja's own parser (whitespace, newlines and {% call %} blocks alike). Calls through a module import
+# (`m.item_title(...)`) count as callers; an import alias (`import item_title as t`), a `set` or any other non-call use
+# of the name fails, so it cannot be called under another name unpinned. Not caught: a subscript (`m["item_title"]`),
+# which no template uses. (file, argument): count.
+ITEM_TITLE_CALLERS = {
+    ("_macros.html.j2", "item.title"): 2,           # item_link: an item's title, verbatim from the minutes
+    ("items_year.html.j2", "it.title"): 2,          # year page: jump list and item heading
+    ("today.html.j2", "s.title"): 1,                # today page: an item said at a meeting
+}
+
+
+def _jinja_expr(node):
+    from jinja2 import nodes
+    if isinstance(node, nodes.Name):
+        return node.name
+    if isinstance(node, nodes.Getattr):
+        return f"{_jinja_expr(node.node)}.{node.attr}"
+    if isinstance(node, nodes.Const):
+        return repr(node.value)
+    return repr(node)            # anything else (a filter, a concatenation, a call) is never in the registry
+
+
+def test_every_item_title_caller_is_pinned():
+    from collections import Counter
+    from jinja2 import nodes
+    from sitegen import build
+    env, tdir = build.make_env(), config.TEMPLATE_DIR
+    found, other = Counter(), []
+    for f in sorted(tdir.rglob("*.j2")):
+        rel = f.relative_to(tdir).as_posix()
+        ast = env.parse(f.read_text(encoding="utf-8"), name=rel)
+        calls = set()
+        for c in ast.find_all(nodes.Call):
+            callee = c.node
+            if (isinstance(callee, nodes.Name) and callee.name == "item_title") or (
+                    isinstance(callee, nodes.Getattr) and callee.attr == "item_title"):
+                calls.add(id(callee))
+                if len(c.args) == 1 and not (c.kwargs or c.dyn_args or c.dyn_kwargs):
+                    found[(rel, _jinja_expr(c.args[0]))] += 1
+                else:
+                    other.append((rel, "call", repr(c)))
+        # the name used any other way: passed on, `set` to a new name, or reached through a module import
+        for n in ast.find_all((nodes.Name, nodes.Getattr)):
+            if id(n) not in calls and getattr(n, "name", getattr(n, "attr", None)) == "item_title":
+                other.append((rel, "use", repr(n)))
+        for imp in ast.find_all(nodes.FromImport):
+            for name in imp.names:
+                if isinstance(name, tuple) and name[0] == "item_title" and name[1] != "item_title":
+                    other.append((rel, "alias", name[1]))
+    assert dict(found) == ITEM_TITLE_CALLERS, sorted(set(found.items()) ^ set(ITEM_TITLE_CALLERS.items()))
+    assert other == []
+
+
 def test_the_search_index_title_fallbacks_hold_no_banned_phrase():
     """provenance/index-t-producers-misdocumented: the `t` the search-index scan empties is a title as printed or one
     of these fallbacks; the site writes the fallbacks, so none may hold a banned phrase."""
