@@ -222,7 +222,8 @@ def test_the_item_title_macro_renders_the_bare_span_the_check_empties():
 @pytest.mark.parametrize("title", [CAPTION, "Resolution authorizing the Mayor to present the plan",
                                    "Lease of the old depot, vacant since 1998", "Held this seat? A plaque request",
                                    "Ordinance effective {cutover}"])
-def test_a_verbatim_title_holding_a_banned_phrase_passes(tmp_path, built, facts, title):
+@pytest.mark.parametrize("kind", ["item", "vote"])
+def test_a_verbatim_title_holding_a_banned_phrase_passes(tmp_path, built, facts, title, kind):
     """A title as its minutes or agenda print it (page and search index) is the record's words, never flagged; the
     lines_effective day in words is banned too, so a title that prints it is covered by the same rule."""
     import datetime as dt
@@ -230,7 +231,7 @@ def test_a_verbatim_title_holding_a_banned_phrase_passes(tmp_path, built, facts,
     title = title.format(cutover=f"{d.strftime('%B')} {d.day}, {d.year}")
     item = _item_title_html(title)
     site = _plant(tmp_path, built, f'<p><a href="items/2021.html"><strong>ORDINANCE 30-2021-22</strong> {item}</a></p>',
-                  {"k": "item", "id": "x", "n": "ORDINANCE 30-2021-22", "t": title,
+                  {"k": kind, "id": "x", "n": "ORDINANCE 30-2021-22", "t": title,
                    "ts": {"u": "https://example.gov/a.pdf#page=3", "p": 3, "l": "title as printed in the agenda, p. 3"}})
     assert _banned(site, facts) == []
 
@@ -252,6 +253,70 @@ def test_site_written_to_present_still_fails_beside_a_verbatim_title(tmp_path, b
 ])
 def test_site_written_to_present_in_the_search_index_still_fails(tmp_path, built, facts, record):
     assert _banned(_plant(tmp_path, built, "", record), facts) == ["static/search-index.js: contains banned 'to present'"]
+
+
+# provenance/verbatim-span-producers-unguarded: the check empties every bare <span data-item-title> site-wide, so each
+# template that prints one is pinned here with its exact inner expression or literal. Each must print a record's words
+# as printed (titles, names, motion and outcome words, printed dates), never the site's own seat or term wording. A new
+# or changed one fails this test until it is reviewed and added. (file, element, inner text): count.
+VERBATIM_SPAN_PRODUCERS = {
+    ("_city_committee.html.j2", "span", '{{ a.present | join(", ") }}'): 1,                     # attendance, as printed
+    ("_city_committee.html.j2", "span", '{% if a.absent %}{{ a.absent | join(", ") }}{% else %}none{% endif %}'): 1,
+    ("_city_committee.html.j2", "span", "{{ mv.item }}"): 1,                                    # motion words, as printed
+    ("_city_committee.html.j2", "span", "{{ mv.words }}"): 1,
+    ("_city_committee.html.j2", "span", "{{ mv.moved_by }}"): 1,
+    ("_city_committee.html.j2", "span", "{{ mv.seconded_by }}"): 1,
+    ("_city_committee.html.j2", "span", '{{ mv.ayes | join(", ") }}'): 1,
+    ("_city_committee.html.j2", "span", '{{ mv.nays | join(", ") }}'): 1,
+    ("_city_committee.html.j2", "span", "{{ mv.outcome_printed }}"): 1,
+    ("_committee.html.j2", "span", "{{ m.title }}"): 1,                                         # agenda heading
+    ("_committee.html.j2", "span", "{{ e.text }}"): 2,                                          # agenda lines
+    ("_macros.html.j2", "span", "{{ title }}"): 1,                                              # item_title: minutes/agenda
+    ("_rpc.html.j2", "span", "{{ mv.moved_by }}"): 1,                                           # RPC motion words
+    ("_rpc.html.j2", "span", "{{ mv.seconded_by }}"): 1,
+    ("_rpc.html.j2", "span", '{{ mv.nays | join(", ") }}'): 1,
+    ("_rpc.html.j2", "span", '{{ mv.abstained | join(", ") }}'): 1,
+    ("_rpc.html.j2", "span", "{{ mv.outcome }}"): 1,
+    ("county_agendas.html.j2", "span", "{{ it.title }}"): 1,                                    # agenda item titles
+    ("rpc_meetings_year.html.j2", "span", "{{ h.printed }}"): 1,                                # case text, as printed
+    ("rpc_meetings_year.html.j2", "dd", "{{ r.value }}"): 1,      # a <dd>: not emptied by VERBATIM_TITLE (stays checked)
+    ("today.html.j2", "span", "{{ x.request }}"): 1,                                            # agenda/archive text
+    ("today.html.j2", "span", "{{ x.title }}"): 1,
+    ("today.html.j2", "span", "{{ c.cal_title }}"): 1,                                          # the city's calendar title
+    ("today.html.j2", "span", "{{ s.date_text }}"): 1,                                          # a date as printed
+}
+
+
+def test_every_verbatim_span_producer_is_pinned():
+    from collections import Counter
+    tdir = config.TEMPLATE_DIR
+    found, loose = Counter(), []
+    for f in sorted(tdir.rglob("*.j2")):
+        text = f.read_text(encoding="utf-8")
+        rel = f.relative_to(tdir).as_posix()
+        for m in re.finditer(r"<(\w+)\s+data-item-title>([^<]*)<", text):
+            found[(rel, m[1], m[2])] += 1
+        # any other use as an attribute (another attribute beside it, a value): not emptied, but pinned as none
+        loose += [rel for m in re.finditer(r"<\w+[^>]*\sdata-item-title(?!>)[\s=/]", text)]
+    assert dict(found) == VERBATIM_SPAN_PRODUCERS, sorted(set(found.items()) ^ set(VERBATIM_SPAN_PRODUCERS.items()))
+    assert loose == []
+    # HTML built in Python never prints the span (every producer is a template, pinned above)
+    py = [p.relative_to(ROOT).as_posix() for d in ("sitegen", "sender") for p in (ROOT / d).rglob("*.py")
+          if "<span data-item-title" in p.read_text(encoding="utf-8")]
+    assert py == []
+
+
+def test_the_search_index_title_fallbacks_hold_no_banned_phrase():
+    """provenance/index-t-producers-misdocumented: the `t` the search-index scan empties is a title as printed or one
+    of these fallbacks; the site writes the fallbacks, so none may hold a banned phrase."""
+    untitled = config.load_council("clarksville-tn")["untitled_item"]     # council.Council.item_title's fallback
+    assert untitled == "Title not read from the minutes"
+    # views.Index.item_title's two fixed forms (it reads no state, so it is called unbound)
+    county = [views.Index.item_title(None, {"title": "", "number": "ORDINANCE 1-2021-22"}),
+              views.Index.item_title(None, {"title": "", "number": ""})]
+    assert county == ["Untitled item ORDINANCE 1-2021-22", "Untitled item"]
+    for t in [untitled] + county:
+        assert not [b for b in site_checks.BANNED if b in t], t
 
 
 def test_an_unparseable_search_index_is_scanned_whole():

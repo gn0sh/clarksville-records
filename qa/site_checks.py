@@ -1911,15 +1911,21 @@ DATE_PHRASES = ("seen in vote records", "shown as vacant in vote records", "vote
                 "seen in the minutes that record the seating")
 SOURCE_TERM = "as the source prints it"
 BANNED = ("Held this seat", "vacant since", "to present", "in use since")
-# The banned words judge the site's own wording, not a document's (provenance/verbatim-title-trips-ban): a record's
-# words shown verbatim (an item title from its minutes or agenda: _macros.item_title's bare <span data-item-title>)
-# are emptied first, as transcript text is. Autoescaped text holds no "<", so the match is exact; a span with markup
+# The banned words judge the site's own wording, not a document's (provenance/verbatim-title-trips-ban): any bare
+# <span data-item-title> holds a record's words as printed (titles, names, motion and outcome words, printed dates),
+# so its text is emptied first, as transcript text is. Every template that prints one is pinned, with its exact inner
+# expression, in tests/test_provenance.py VERBATIM_SPAN_PRODUCERS (provenance/verbatim-span-producers-unguarded): a
+# new or changed one fails until reviewed. Autoescaped text holds no "<", so the match is exact; a span with markup
 # inside or another attribute does not match and stays checked (fails safe). The 2021-12-02 agenda's caption for
 # ORDINANCE 30-2021-22 prints "relative to presenting legislation".
 VERBATIM_TITLE = re.compile(r"(<span data-item-title>)[^<]*(</span>)")
-# The same titles in the search index: the `t` of an item or vote record is views.Index.item_title (the title as
-# printed, or the fixed "Untitled item <number>"); every other field (the cite's words `ts.l`, a seat text `st`) and
-# every other record kind stays checked.
+# The same words in the search index: the `t` of an item or vote record (provenance/index-t-producers-misdocumented)
+# is the title as printed (views.Index.item_title, council.Council.item_title), a council's config fallback
+# (council.yml untitled_item, "Title not read from the minutes"), the county's fixed "Untitled item <number>", a vote's
+# item id (views.body_records, when its item is missing), or an RPC case's printed request or case type, cut to
+# TITLE_MAX with an ellipsis, or its number (rpc.py search records). The config and fixed fallbacks are tested to hold
+# no banned phrase. Every other field (the cite's words `ts.l`, a seat text `st`) and every other record kind stays
+# checked.
 VERBATIM_RECORD_KINDS = ("item", "vote")
 
 
@@ -2040,7 +2046,7 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
         body = (site / rel).read_text(encoding="utf-8")
         # transcript text (data-transcript) is what the speech-recognition software wrote, shown verbatim: its words
         # are the speakers', not the site's seat wording; a coming-up page's feed text is the government's (B-ISO-8);
-        # an item title is the minutes' or agenda's (VERBATIM_TITLE)
+        # a bare data-item-title span holds a record's words as printed (VERBATIM_TITLE)
         plain = html.unescape(VERBATIM_TITLE.sub(r"\1\2", TRANSCRIPT_TEXT.sub(r"\1\3", own_text(site, rel, body))))
         for b in banned:
             if b in plain:
