@@ -15,3 +15,5 @@ Fixes for 1-3: 59a05ad (test_provenance + test_site_review_fixes 99 passed). Del
 - NEW should-fix provenance/verbatim-span-producers-unguarded (family hit 2 in this PR), tests/test_provenance.py:273, site/templates/_macros.html.j2:75: the `item_title` macro pin is `{{ title }}` (its own parameter), so callers are unpinned; a caller passing site words passed the test. Fix: pin each `item_title(...)` caller's argument too (5 callers today, all record titles).
 - Accepted: HTML assembled by Python string formatting would bypass the Python scan; no such producer exists; other-attribute spans fail safe.
 - Tests: 99 passed (test_provenance + test_site_review_fixes), after scripts/fetch-data.sh.
+
+Fix for the item_title caller pin: b5db47e4
