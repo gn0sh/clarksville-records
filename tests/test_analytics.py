@@ -43,7 +43,7 @@ def test_off_by_default_when_the_code_is_empty():
     assert analytics.problems(off) == [] and analytics.settings(off, target="pages") is None
 
 
-def test_off_build_loads_no_counter_and_names_none_in_connect_src(pages):
+def test_off_build_loads_no_counter_and_connect_src_names_only_the_weather(pages):
     for rel, html in pages.items():
         assert "count.js" not in html and "goatcounter" not in html.lower() and "data-goatcounter" not in html, rel
         assert _csp(html)["connect-src"] == [WEATHER], rel       # only the header's weather (tests/test_weather.py)

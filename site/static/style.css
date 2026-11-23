@@ -81,7 +81,7 @@
   --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
   --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
   --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-ring: #A9BDE6;
-    --wx-veil: #1C2333; --wx-cloud: #313E5C; --wx-fog: #2B3856; --wx-fall: #313E5C;
+  --wx-veil: #1C2333; --wx-cloud: #313E5C; --wx-fog: #2B3856; --wx-fall: #313E5C;
   --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
   --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
   color-scheme: dark;

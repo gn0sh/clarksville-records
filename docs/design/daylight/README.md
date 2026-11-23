@@ -161,6 +161,7 @@ header should show whatever Clarksville's weather is, as a small set of scenes.
 - **Not checked from the build machine.** The service could not be reached from the sandbox, so the code follows its
   published observation schema and the tests use fixtures; that the service answers a browser on another site
   (CORS) should be confirmed on the preview before release.
+- **After deploy.** Check one live `api.weather.gov` response for `Access-Control-Allow-Origin` and `Cache-Control`.
 
 ## Once-over fixes (design review, 2026-11-14)
 Problem keys `onceover/...`; tests in `tests/test_onceover.py`.

@@ -101,6 +101,23 @@ SCENES = [
                                               "cloudLayers": [{"amount": "SCT"}]}, "partly", None, False),
     ("a thunderstorm in the vicinity is not here", {"textDescription": "Thunderstorm in Vicinity", "presentWeather": []},
      "clear", None, False),
+    ("rain keeps when only the thunderstorm is in the vicinity", {"textDescription": "Light Rain and Thunderstorms in Vicinity"},
+     "rain", "light", False),
+    ("rain showers by the service's word", {"presentWeather": [{"weather": "rain_showers", "intensity": "light"}]},
+     "rain", "light", False),
+    ("blowing snow is not falling snow", {"textDescription": "Blowing Snow", "presentWeather": [pw("BLSN", "snow", None, "blowing")],
+                                          "cloudLayers": [{"amount": "SCT"}]}, "partly", None, False),
+    ("drifting snow is not falling snow", {"presentWeather": [pw("DRSN", "snow", None, "low_drifting")], "windSpeed": kmh(45)},
+     "windy", None, True),
+    ("blowing snow by its modifier only", {"presentWeather": [{"weather": "snow", "modifier": "blowing", "intensity": "heavy"}]},
+     "clear", None, False),
+    ("blowing snow by its words only", {"textDescription": "Blowing Snow and Breezy"}, "windy", None, True),
+    ("snow falling while snow blows", {"presentWeather": [pw("-SN", "snow", "light"), pw("BLSN", "snow", None, "blowing")]},
+     "snow", "light", False),
+    ("visibility 0 with no fog reported is no reading", {"textDescription": "Clear", "visibility": {"unitCode": "wmoUnit:m", "value": 0}},
+     "clear", None, False),
+    ("visibility 0 with fog reported is fog", {"presentWeather": [pw("FG", "fog")], "visibility": {"unitCode": "wmoUnit:m", "value": 0}},
+     "fog", None, False),
     ("nothing reported at all", {}, "clear", None, False),
 ]
 # What is not a fresh observation: the plain sky (null), whatever weather it names.
@@ -250,6 +267,7 @@ if (c.fetch !== "missing") {
     if (c.fetch === "rejects") { return Promise.reject(new Error("network")); }
     if (c.fetch === "hangs") { return new Promise((ok) => { release = () => ok({ ok: true, json: () => Promise.resolve(c.answer) }); }); }
     if (c.fetch === "status") { return Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve(c.answer) }); }
+    if (c.fetch === "sized") { return Promise.resolve({ ok: true, headers: { get: (k) => (k.toLowerCase() === "content-length" ? c.length : null) }, json: () => { log.read = true; return Promise.resolve(c.answer); } }); }
     if (c.fetch === "html") { return Promise.resolve({ ok: true, json: () => Promise.reject(new SyntaxError("Unexpected token <")) }); }
     return Promise.resolve({ ok: true, json: () => Promise.resolve(c.answer) });
   };
@@ -320,6 +338,14 @@ def test_an_answer_that_is_not_a_fresh_observation_draws_nothing(node, answer):
     assert got["seen"] == [{}] and len(got["log"]["fetches"]) == 1
 
 
+def test_an_answer_that_says_it_is_over_64_kb_is_not_read(node):
+    big = page(node, fetch="sized", length="65537", then=[{"do": "tick"}])
+    assert big["seen"] == [{}, {}] and "read" not in big["log"] and len(big["log"]["fetches"]) == 1
+    for length in ("65536", "4212", None, "many"):               # at the limit, usual, not given, not a number: read
+        ok = page(node, fetch="sized", length=length)
+        assert ok["seen"] == [RAIN_ATTRS] and ok["log"]["read"] is True, length
+
+
 def test_no_answer_in_five_seconds_draws_nothing_even_if_it_comes_later(node):
     got = page(node, fetch="hangs", then=[{"do": "timeout"}, {"do": "release"}, {"do": "tick"}])
     assert got["seen"] == [{}, {}, {}, {}]
@@ -352,7 +378,7 @@ def test_the_script_says_what_it_asks_and_keeps():
     head = JS[:JS.index("(function (root)")]
     assert "No network calls" not in JS and "nothing sent" not in JS
     assert "only network call" in head and "no credentials, no referrer" in head and "National Weather Service" in head
-    assert "Nothing is stored" in head and "90 minutes" in head
+    assert "Nothing is stored by the script" in head and "this site's address" in head and "90 minutes" in head
     assert "sessionStorage" not in JS and "localStorage" not in JS and "cookie" not in JS
     assert JS.count("fetch(") == 1 and "XMLHttpRequest" not in JS and "sendBeacon" not in JS
     assert "api.weather.gov" not in JS and "KCKV" not in JS            # the address comes from the page, from config
@@ -507,8 +533,11 @@ def test_the_site_check_holds_the_address_and_the_policy_together(built, tmp_pat
 def test_about_and_method_say_what_is_asked_and_kept(pages):
     said = weather.settings()["disclosure"]
     assert said.startswith("Each page asks the National Weather Service for the current weather at Clarksville's airport")
-    assert "says nothing about you or the page you are reading" in said and "IP address and browser" in said
-    assert said.endswith("Nothing is kept in your browser.")
+    assert "The request does not say which page you are reading." in said
+    assert ("Like any web request, it tells the Weather Service your IP address, your browser and that the request "
+            "came from this site.") in said
+    assert said.endswith("This site keeps nothing from it; your browser may briefly cache the answer, as it does for "
+                         "any web page.")
     import html as html_mod
     about, method = html_mod.unescape(pages["about.html"]), html_mod.unescape(pages["method.html"])
     assert about.count(said) == 1 and method.count(said) == 1

@@ -34,8 +34,9 @@ sky_weather:
   url: "https://api.weather.gov/stations/{station}/observations/latest"
   disclosure: >-
     Each page asks the National Weather Service for the current weather at Clarksville's airport, so the sky at the
-    top of the page can show it. The request says nothing about you or the page you are reading; like any web
-    request, it tells the Weather Service your IP address and browser. Nothing is kept in your browser.
+    top of the page can show it. The request does not say which page you are reading. Like any web request, it
+    tells the Weather Service your IP address, your browser and that the request came from this site. This site
+    keeps nothing from it; your browser may briefly cache the answer, as it does for any web page.
 operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
 # The person who runs the operator, named on the About page (Brian, 2026-11-11): an official id in a council's facts.

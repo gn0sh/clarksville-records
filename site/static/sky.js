@@ -9,9 +9,10 @@
    it once per page view for that place's latest weather observation (the National Weather Service's, for one
    station) and draws one quiet scene over the sky: cloud, rain, snow, fog, wind or a thunderstorm. That request is
    the script's only network call. It carries no credentials, no referrer and nothing about the visitor or the page
-   (the service sees what any web request shows: the IP address and the browser). Nothing is stored. An observation
-   over 90 minutes old, an error or no answer in 5 seconds draws nothing: the plain sky. A page with no address asks
-   nothing.
+   (the service sees what any web request from a page shows: the IP address, the browser and this site's address).
+   Nothing is stored by the script; the browser may cache the answer as it does any page.
+   An observation over 90 minutes old, an error or no answer in 5 seconds draws nothing: the plain sky. A page
+   with no address asks nothing.
    A page with no place has no moon, and its sun follows the viewer's own clock (the rough day below).
    Without this script the sun stays at its CSS midday place, and the date line and the moon stay hidden.
    Exposes CRSky.altitude, sunAltitude, render, the moon's pure functions and the weather's (weatherScene, SCENES)
@@ -309,7 +310,7 @@
   /* the observation's words for what is falling or hanging in the air -> the METAR code of the same thing */
   var WX_WORD = { rain: "RA", drizzle: "DZ", snow: "SN", snow_grains: "SG", snow_pellets: "GS", ice_pellets: "PL",
                   ice_crystals: "IC", hail: "GR", unknown: "UP", thunderstorms: "TS", fog: "FG", fog_mist: "BR",
-                  haze: "HZ", showers: "SH", freezing: "FZ" };
+                  haze: "HZ", showers: "SH", rain_showers: "RA", freezing: "FZ" };
   /* miles an hour (or metres) from a { unitCode, value } quantity; null when there is no number */
   var TO_MPH = { "km_h-1": 0.621371, "m_s-1": 2.236936, "kn": 1.150779, "kt": 1.150779, "mi_h-1": 1 };
   var TO_M = { "m": 1, "km": 1000, "mi": 1609.344 };
@@ -323,12 +324,13 @@
   /* The facts of one observation's `properties`:
        has        the METAR codes reported at the station, as keys (RA, SN, TS, FG ...). From presentWeather: its
                   rawString in two-letter groups, and its weather and modifier words; an entry "in the vicinity" (VC)
-                  is not at the station and is left out. Only when presentWeather lists nothing are the words of
-                  textDescription read instead ("Light Rain", "Thunderstorms and Rain", "Fog/Mist").
+                  is not at the station and is left out, and so is snow that is blowing or drifting (BLSN, DRSN):
+                  it is lifted off the ground by the wind, not falling. Only when presentWeather lists nothing are
+                  the words of textDescription read instead ("Light Rain", "Thunderstorms and Rain", "Fog/Mist").
        intensity  "light", "heavy" or "moderate": of what is falling
        cover      the fullest cloud layer, 0 (clear) to 4 (overcast); from textDescription when no layer is listed
        windy      sustained wind of WIND_MPH or gusts of GUST_MPH (the word "Windy" or "Breezy" when neither is given)
-       lowVis     seeing under LOW_VIS_M */
+       lowVis     seeing under LOW_VIS_M (a reported 0 is taken as no reading, not as fog) */
   function weatherFacts(p) {
     var has = {}, light = false, heavy = false, cover = 0, listed = 0, i, e, raw, text;
     var pw = Array.isArray(p.presentWeather) ? p.presentWeather : [];
@@ -340,12 +342,16 @@
       raw = typeof e.rawString === "string" ? e.rawString.toUpperCase() : "";
       if (e.inVicinity === true || /^VC/.test(raw)) { continue; }
       listed += 1;
+      if (/^[+-]?(BL|DR)/.test(raw) || e.modifier === "blowing" || e.modifier === "low_drifting") { continue; }
       if (/^[+-]?([A-Z]{2})+$/.test(raw)) { (raw.replace(/^[+-]/, "").match(/[A-Z]{2}/g) || []).forEach(code); }
       word(e.weather); word(e.modifier);
       if (e.intensity === "heavy" || raw.charAt(0) === "+") { heavy = true; }
       if (e.intensity === "light" || raw.charAt(0) === "-") { light = true; }
     }
-    text = typeof p.textDescription === "string" ? p.textDescription.toLowerCase().replace(/[a-z /]*in vicinity/g, " ") : "";
+    /* the description's words, less the one thing said to be "in vicinity" (the word just before it) and less snow
+       that is only blowing or drifting */
+    text = typeof p.textDescription === "string"
+      ? p.textDescription.toLowerCase().replace(/[a-z]+ in vicinity/g, " ").replace(/(blowing|drifting) snow/g, " ") : "";
     if (!listed && text) {
       if (/thunder/.test(text)) { has.TS = true; }
       if (/snow|flurr|sleet|ice pellets|wintry/.test(text)) { has.SN = true; }
@@ -367,7 +373,7 @@
     return { has: has, intensity: heavy ? "heavy" : light ? "light" : "moderate", cover: cover,
              windy: (wind !== null && wind >= WIND_MPH) || (gust !== null && gust >= GUST_MPH)
                || (wind === null && gust === null && /windy|breezy/.test(text)),
-             lowVis: vis !== null && vis < LOW_VIS_M };
+             lowVis: vis !== null && vis > 0 && vis < LOW_VIS_M };
   }
 
   /* The scenes, in one place. The first whose `when` holds is the scene, so the order is the precedence: a
@@ -465,9 +471,13 @@
   /* Asks for the observation: one request per page view, to the one address the page names (data-weather on
      #sky-moon; the page's CSP allows that origin only), with no credentials and no referrer. Nothing is stored: a
      later page asks again, and the browser's own cache answers it while the service's answer is still current. Any
-     failure (no answer in WX_TIMEOUT, an error status, not JSON, anything thrown) leaves the plain sky; nothing is
-     tried twice. */
-  var WX_TIMEOUT = 5000, asked = false;
+     failure (no answer in WX_TIMEOUT, an error status, an answer that says it is over WX_MAX_BYTES, not JSON,
+     anything thrown) leaves the plain sky; nothing is tried twice. */
+  var WX_TIMEOUT = 5000, WX_MAX_BYTES = 65536, asked = false;       /* an observation is a few thousand bytes */
+  function tooBig(res) {
+    var n = res.headers && typeof res.headers.get === "function" ? parseInt(res.headers.get("content-length"), 10) : NaN;
+    return isFinite(n) && n > WX_MAX_BYTES;
+  }
   function loadWeather() {
     var doc = root.document, el = doc && doc.getElementById("sky-moon"), url = el && el.getAttribute("data-weather");
     if (asked || !url || !/^https:\/\//.test(url) || typeof root.fetch !== "function") { return; }
@@ -485,7 +495,7 @@
     }, WX_TIMEOUT);
     try {
       root.fetch(url, { credentials: "omit", referrerPolicy: "no-referrer", signal: ctl ? ctl.signal : undefined })
-        .then(function (res) { if (!res || !res.ok) { throw new Error("status"); } return res.json(); })
+        .then(function (res) { if (!res || !res.ok || tooBig(res)) { throw new Error("status"); } return res.json(); })
         .then(function (obs) { finish(obs); }, function () { finish(null); });
     } catch (e3) { finish(null); }
   }
