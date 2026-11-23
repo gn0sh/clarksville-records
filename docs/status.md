@@ -37,6 +37,15 @@
 | 2026-11-22 | security-engineer | opus/high | PR #90 | OK w/ follow-ups -> OK |
 | 2026-11-22 | code-reviewer | sonnet/medium | PR #90 delta after main + pitch | approve |
 | 2026-11-22 | frontend-engineer | sonnet/medium | front-page sign-up pitch | done (Brian: "perfect"), in PR #90 |
+| 2026-11-23 | frontend-engineer | fable/default | weather scenes PR 92 + review fixes | done |
+| 2026-11-23 | code-reviewer | opus/high | PR 92 | approve (1 should-fix wording, 1 should-fix test stubs, 5 nits) |
+| 2026-11-23 | security-engineer | opus/high | PR 92 | OK with follow-ups (4 low/info) |
+| 2026-11-23 | code-reviewer | opus/high | PR 92 delta at 27b3047 | approve, 2 nits |
+| 2026-11-23 | code-reviewer | sonnet/medium | PR 92 delta at 27b3047 (second run, old thread's answer arrived late) | approve; waste:duplicate |
+| 2026-11-23 | backend-engineer | opus/high | provenance vs verbatim caption, PR 93 + review fixes | done |
+| 2026-11-23 | code-reviewer | opus/high | PR 93 fresh | approve (2 should-fix, 1 nit) |
+| 2026-11-23 | code-reviewer | opus/high | PR 93 delta at 59a05ad | approve, 1 new should-fix (item_title callers unpinned) |
+| 2026-11-23 | backend-engineer | opus/high | PR 93 pin item_title callers | done b5db47e4 |
 | 2026-11-21 | manager | n/a | V1'' probe try 4 | PASS (6:02 PM CT; main ee4af9f; 2 pages-api NOT-REACHABLE by design) |
 | 2026-11-21 | manager | n/a | PR #82 merge | merged ee4af9f (rule suite 5282920166 bypass) |
 | 2026-11-21 | manager | n/a | manual daily run 44955655903 | green, deployed |
@@ -287,7 +296,9 @@
 | item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
-| provenance | 4 (review 11-08 x2, delta, fresh b983bfb): invariant stated (2c9dba6); fresh review on next fix | derived-count-shown-as-stated, derived-seat-dates-shown-as-term, acreage-not-as-printed, open-run-latest-mismatch, vote-on-rule-unpublished |
+| provenance | 6 (review 11-08 x2, delta, fresh b983bfb, daily run 11-23 + PR 93 fresh, PR 93 delta): invariant stated (2c9dba6) still stands; PR 93 scopes the ban check to the site's own words and pins every verbatim producer | derived-count-shown-as-stated, derived-seat-dates-shown-as-term, acreage-not-as-printed, open-run-latest-mismatch, vote-on-rule-unpublished, verbatim-title-trips-ban, verbatim-span-producers-unguarded, index-t-producers-misdocumented |
+| captions | 1 (PR 93 review) | packet-page-marker (caption kept "Pg 201"; architect decides whether the parser drops packet page markers) |
+| wx-mapping | 1 (PR 92 review, nits) | blowing-snow, rain-showers-word, vicinity-greedy, vis-zero, vicinity-one-word (open nit) |
 | parse-accuracy | 3 (review 11-08, rezoning review, fresh review d251fcb): invariant stated e9c7502; implementation miss #2 of the re-plan at b983bfb (sibling staff-acreage pattern left out of the consumer list): every pattern consumer must now be listed before the fix; FYI to Brian, no ask | narrow-pattern-drops-veto, suffix-swallows-range, verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
 
 ## Skipped panels
