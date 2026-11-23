@@ -19,3 +19,6 @@ Checked sound: CSP on all page types (landing, digest/national, alerts, counter)
 Residual (owner's choice, disclosed): NWS sees IP and time of every page view.
 
 Fixes for all items except security #2 (live CORS check after deploy, in docs/design/daylight/README.md) and #4 (info): 27b3047.
+
+## Delta re-review (code-reviewer, opus/high) of 27b3047: APPROVE
+All keys fixed; 64 KB cap tested at 65536/65537, no header, non-number. Nits left: wx-mapping/vicinity-one-word (sky.js:354, text-only "Rain Showers in Vicinity" draws rain; drop the clause to the last "and"/comma), lint/e501 tests/test_digest_site_checks.py:131. 196 passed on the six touched test files; pages build OK.
