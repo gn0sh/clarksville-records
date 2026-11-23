@@ -501,9 +501,11 @@ def test_the_clock_sun_is_untouched_and_the_script_stays_on_the_device():
     assert "var RISE = 6, SET = 19, NIGHT = -0.25;" in src
     assert "return Math.round(Math.sin((hours - RISE) / (SET - RISE) * Math.PI) * 1000) / 1000;" in src
     assert 'parseFloat(el.getAttribute("data-lat"))' in src and "36.5" not in src     # the place comes from the page
-    for word in ("fetch(", "XMLHttpRequest", "sendBeacon", "localStorage", "sessionStorage", "cookie", "geolocation",
+    for word in ("XMLHttpRequest", "sendBeacon", "localStorage", "sessionStorage", "cookie", "geolocation",
                  "import(", "WebSocket", "EventSource"):
         assert word not in src, word
+    # one call out, and only one: the weather over the place, to the address the page names (tests/test_weather.py)
+    assert src.count("fetch(") == 1 and 'el.getAttribute("data-weather")' in src
     # the sun over the place and the moon come from one render, which draws the moon only with the sun down
     assert "var m = where && !sunUp ? moon(ms, where.lat, where.lon) : null;" in src
     assert 'sunEl.setAttribute("data-at", sunUp ? "up" : "down");' in src
@@ -520,7 +522,8 @@ def test_the_clock_sun_is_untouched_and_the_script_stays_on_the_device():
 def test_markup_is_decoration_hidden_until_drawn(site):  # noqa: F811
     html = (site / "index.html").read_text(encoding="utf-8")
     moon = ('<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="36.53"'
-            ' data-lon="-87.36" hidden></span></div>')
+            ' data-lon="-87.36"'
+            ' data-weather="https://api.weather.gov/stations/KCKV/observations/latest" hidden></span></div>')
     assert html.count(moon) == 1 and html.count('id="sky-moon"') == 1
     assert html.index('id="sky-sun"') < html.index(moon) < html.index('<div class="masthead">')
     for page in site.rglob("*.html"):                         # the moon is wherever the sun is, and nowhere else

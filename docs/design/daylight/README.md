@@ -130,6 +130,38 @@ page at the same time, and the moon should be represented as it looks.. not a wh
   browser, at 375 and 1280 on three pages, the sun or the moon or neither as the sky has it, the painted moon is
   about its lit share of the disc and its unlit side is plain sky.
 
+## The weather in the sky (Brian, 2026-11-23)
+
+Brian: "if it's raining in Clarksville, it would be cool if the top of the Daylight page had rain also", then: the
+header should show whatever Clarksville's weather is, as a small set of scenes.
+
+- **Source.** The National Weather Service's latest observation for Clarksville's airport (station KCKV), asked from
+  the visitor's browser: `config/site.yml` `sky_weather` (station and address; `sitegen/weather.py`). The page carries
+  the address as `data-weather` on `#sky-moon`, and the CSP's `connect-src` names that one origin (before the visitor
+  counter's when both apply). Pages without the sky place (the Daylight Digest) ask nothing.
+- **Scenes.** One table, `SCENES` in `site/static/sky.js`, in order of precedence: `storm`, `snow`, `rain`, `fog`,
+  `overcast`, `partly`, `windy`, `clear`. `weatherScene(observation, now)` reads the reported weather codes (or the
+  description's words when none are listed), the fullest cloud layer, the wind and the visibility, and returns the
+  first scene that holds, with an intensity (light, moderate, heavy) for what falls and a `windy` modifier (sustained
+  20 mph or gusts of 30) that makes any scene drift faster. Freezing rain is rain; sleet and rain mixed with snow are
+  snow; broken cloud counts as overcast, scattered as partly, a few clouds as clear. A new scene is one row in the
+  table and one block in `style.css` under `.has-sky[data-wx="<id>"]`.
+- **Never old weather.** An observation over 90 minutes old, an error, an answer that is not JSON or no answer in 5
+  seconds draws the plain sky. One request per page view, never retried, and nothing stored (the browser's own
+  cache answers the next page while the service's answer is current); an open tab stops drawing an observation once
+  it is 90 minutes old.
+- **Drawing.** A layer the script adds over the sky and under the words (`#sky-wx`, aria-hidden, takes no room): a
+  grey veil, soft drifting clouds, slanted rain or falling snow in two depths, bands of fog, thin streaks of wind,
+  and a storm's faint lightning (two flickers every 11 seconds). The sun or the moon dims behind cloud and fog and is
+  untouched among a few clouds. Every colour laid behind the words is 4.5:1 or better against the ink and the muted
+  ink in both themes, so the dark theme's scenes are quieter than the light theme's. Motion is CSS transforms and
+  opacity only, and only without `prefers-reduced-motion: reduce`; with it the scene is still and has no lightning.
+- **Said on the site.** About (neutrality rule on outside requests) and Method ("What is never done") print
+  `sky_weather.disclosure`. Tests: `tests/test_weather.py`.
+- **Not checked from the build machine.** The service could not be reached from the sandbox, so the code follows its
+  published observation schema and the tests use fixtures; that the service answers a browser on another site
+  (CORS) should be confirmed on the preview before release.
+
 ## Once-over fixes (design review, 2026-11-14)
 Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
 

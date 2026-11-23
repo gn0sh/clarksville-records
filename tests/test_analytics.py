@@ -16,6 +16,7 @@ from sitegen import analytics, build as sitegen_build, config, views
 COUNT_JS = ROOT / "site" / "static" / "count.js"
 CODE = "daylight-test"
 ORIGIN = f"https://{CODE}.goatcounter.com"
+WEATHER = "https://api.weather.gov"   # the header's weather origin, on every page (sitegen/weather.py)
 META = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
 
 
@@ -42,10 +43,10 @@ def test_off_by_default_when_the_code_is_empty():
     assert analytics.problems(off) == [] and analytics.settings(off, target="pages") is None
 
 
-def test_off_build_loads_no_counter_and_keeps_connect_src_none(pages):
+def test_off_build_loads_no_counter_and_names_none_in_connect_src(pages):
     for rel, html in pages.items():
         assert "count.js" not in html and "goatcounter" not in html.lower() and "data-goatcounter" not in html, rel
-        assert _csp(html)["connect-src"] == ["'none'"], rel
+        assert _csp(html)["connect-src"] == [WEATHER], rel       # only the header's weather (tests/test_weather.py)
 
 
 def test_off_about_and_method_keep_the_no_tracking_text(pages):
@@ -98,7 +99,7 @@ def test_on_every_page_loads_count_js_and_connect_src_is_the_one_origin(on_site)
         tags = re.findall(r'<script src="[^"]*static/count\.js" data-goatcounter="([^"]*)" defer></script>', html)
         assert tags == [ORIGIN + "/count"], p
         pol = _csp(html)
-        assert pol["connect-src"] == [ORIGIN] and pol["script-src"][0] == "'self'", p
+        assert pol["connect-src"] == [WEATHER, ORIGIN] and pol["script-src"][0] == "'self'", p
         assert "gc.zgo.at" not in html, p   # no provider script
 
 

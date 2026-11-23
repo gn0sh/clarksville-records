@@ -143,7 +143,8 @@ def alerts_context(feeds: list[dict], cfg: dict | None = None, preview: bool = F
     ctx = {"note": _section(feeds, cfg, preview)}
     origin = form_origin(cfg)
     if origin:
-        ctx["csp"] = views.csp(form_origin=origin, counter=counter)   # counter: ADR 0008
+        from . import weather   # the header's weather origin, as on every page with the sky place
+        ctx["csp"] = views.csp(form_origin=origin, counter=counter, weather=weather.origin(cfg))   # counter: ADR 0008
     return ctx
 
 

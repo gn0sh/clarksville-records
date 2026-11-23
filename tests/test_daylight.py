@@ -79,6 +79,8 @@ def test_no_inline_script_or_handlers_and_no_outside_fonts(site):
         assert "fonts.googleapis" not in html and "fonts.gstatic" not in html, name
     css = CSS.read_text(encoding="utf-8")
     urls = re.findall(r'url\("([^"]+)"\)', css)
+    # the header's weather shapes are masks written into the stylesheet itself (data: SVGs; tests/test_weather.py)
+    urls = [u for u in urls if not u.startswith("data:image/svg+xml,")]
     assert urls and all(u.startswith("brand/") and (BRAND / u[len("brand/"):]).is_file() for u in urls), urls
     for family in ('"Outfit"', '"Inter"', '"JetBrains Mono"'):
         assert f"font-family: {family}" in css, family

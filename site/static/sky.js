@@ -4,10 +4,18 @@
      the moon  only while the sun is down and the moon is up: its real height, compass direction, phase and the tilt
                of its bright edge, and only its lit part (no dark disc; a new moon is nothing).
    The two are never on the page together (owner, 2026-11-18): at night with no moon up the sky is empty.
-   It also shows today's weekday and date in the site's zone. No network calls, no storage, nothing sent.
+   It also shows today's weekday and date in the site's zone.
+   The weather: where the page names an address (data-weather on #sky-moon, from config sky_weather), the script asks
+   it once per page view for that place's latest weather observation (the National Weather Service's, for one
+   station) and draws one quiet scene over the sky: cloud, rain, snow, fog, wind or a thunderstorm. That request is
+   the script's only network call. It carries no credentials, no referrer and nothing about the visitor or the page
+   (the service sees what any web request shows: the IP address and the browser). Nothing is stored. An observation
+   over 90 minutes old, an error or no answer in 5 seconds draws nothing: the plain sky. A page with no address asks
+   nothing.
    A page with no place has no moon, and its sun follows the viewer's own clock (the rough day below).
    Without this script the sun stays at its CSS midday place, and the date line and the moon stay hidden.
-   Exposes CRSky.altitude, sunAltitude, render and the moon's pure functions for tests (module.exports under node). */
+   Exposes CRSky.altitude, sunAltitude, render, the moon's pure functions and the weather's (weatherScene, SCENES)
+   for tests (module.exports under node). */
 (function (root) {
   "use strict";
   var RISE = 6, SET = 19, NIGHT = -0.25;
@@ -289,12 +297,206 @@
     } catch (e) { return; }
     hero.hidden = false;
   }
+  /* ---- The weather over the site's place --------------------------------------------------------------------
+     One observation (the National Weather Service's latest for one station: GeoJSON, read from `properties`) is
+     boiled down to a few plain facts, and SCENES, the one table of scenes, picks the scene to draw from them.
+     Everything down to weatherOnly is pure: an observation and an instant in, a scene or null out. */
+  var WX_MAX_AGE = 90 * 60000;   /* an observation older than this is not drawn: the plain sky, never old weather */
+  var WX_AHEAD = 10 * 60000;     /* nor one stamped later than this past the viewer's clock (one of the two is wrong) */
+  var WIND_MPH = 20, GUST_MPH = 30;         /* windy: sustained wind or gusts from here up, miles an hour */
+  var LOW_VIS_M = 4800;                      /* fog without a fog report: seeing under about 3 miles, in metres */
+  var COVER = { SKC: 0, CLR: 0, FEW: 1, SCT: 2, BKN: 3, OVC: 4, VV: 4 };   /* how much sky a cloud layer covers */
+  /* the observation's words for what is falling or hanging in the air -> the METAR code of the same thing */
+  var WX_WORD = { rain: "RA", drizzle: "DZ", snow: "SN", snow_grains: "SG", snow_pellets: "GS", ice_pellets: "PL",
+                  ice_crystals: "IC", hail: "GR", unknown: "UP", thunderstorms: "TS", fog: "FG", fog_mist: "BR",
+                  haze: "HZ", showers: "SH", freezing: "FZ" };
+  /* miles an hour (or metres) from a { unitCode, value } quantity; null when there is no number */
+  var TO_MPH = { "km_h-1": 0.621371, "m_s-1": 2.236936, "kn": 1.150779, "kt": 1.150779, "mi_h-1": 1 };
+  var TO_M = { "m": 1, "km": 1000, "mi": 1609.344 };
+  function quantity(q, table) {
+    if (!q || typeof q !== "object" || typeof q.value !== "number" || !isFinite(q.value)) { return null; }
+    var unit = String(q.unitCode || "").replace(/^[a-z]+:/i, "");
+    return Object.prototype.hasOwnProperty.call(table, unit) ? q.value * table[unit] : null;
+  }
+  function own(table, key) { return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined; }
+
+  /* The facts of one observation's `properties`:
+       has        the METAR codes reported at the station, as keys (RA, SN, TS, FG ...). From presentWeather: its
+                  rawString in two-letter groups, and its weather and modifier words; an entry "in the vicinity" (VC)
+                  is not at the station and is left out. Only when presentWeather lists nothing are the words of
+                  textDescription read instead ("Light Rain", "Thunderstorms and Rain", "Fog/Mist").
+       intensity  "light", "heavy" or "moderate": of what is falling
+       cover      the fullest cloud layer, 0 (clear) to 4 (overcast); from textDescription when no layer is listed
+       windy      sustained wind of WIND_MPH or gusts of GUST_MPH (the word "Windy" or "Breezy" when neither is given)
+       lowVis     seeing under LOW_VIS_M */
+  function weatherFacts(p) {
+    var has = {}, light = false, heavy = false, cover = 0, listed = 0, i, e, raw, text;
+    var pw = Array.isArray(p.presentWeather) ? p.presentWeather : [];
+    function word(w) { if (typeof w === "string" && own(WX_WORD, w)) { has[own(WX_WORD, w)] = true; } }
+    function code(c) { has[c] = true; }
+    for (i = 0; i < pw.length && i < 12; i += 1) {
+      e = pw[i];
+      if (!e || typeof e !== "object") { continue; }
+      raw = typeof e.rawString === "string" ? e.rawString.toUpperCase() : "";
+      if (e.inVicinity === true || /^VC/.test(raw)) { continue; }
+      listed += 1;
+      if (/^[+-]?([A-Z]{2})+$/.test(raw)) { (raw.replace(/^[+-]/, "").match(/[A-Z]{2}/g) || []).forEach(code); }
+      word(e.weather); word(e.modifier);
+      if (e.intensity === "heavy" || raw.charAt(0) === "+") { heavy = true; }
+      if (e.intensity === "light" || raw.charAt(0) === "-") { light = true; }
+    }
+    text = typeof p.textDescription === "string" ? p.textDescription.toLowerCase().replace(/[a-z /]*in vicinity/g, " ") : "";
+    if (!listed && text) {
+      if (/thunder/.test(text)) { has.TS = true; }
+      if (/snow|flurr|sleet|ice pellets|wintry/.test(text)) { has.SN = true; }
+      if (/rain|drizzle/.test(text) || (/shower/.test(text) && !has.SN)) { has.RA = true; }
+      if (/fog|mist/.test(text)) { has.FG = true; }
+      if (/haze/.test(text)) { has.HZ = true; }
+      heavy = /heavy/.test(text); light = /light/.test(text);
+    }
+    var layers = Array.isArray(p.cloudLayers) ? p.cloudLayers : [], known = false;
+    for (i = 0; i < layers.length && i < 12; i += 1) {
+      e = layers[i] && typeof layers[i].amount === "string" ? own(COVER, layers[i].amount.toUpperCase()) : undefined;
+      if (typeof e === "number") { known = true; cover = Math.max(cover, e); }
+    }
+    if (!known && text) {
+      cover = /mostly cloudy/.test(text) ? 3 : /overcast|cloudy/.test(text) && !/partly/.test(text) ? 4
+        : /partly (cloudy|sunny)/.test(text) ? 2 : 0;
+    }
+    var wind = quantity(p.windSpeed, TO_MPH), gust = quantity(p.windGust, TO_MPH), vis = quantity(p.visibility, TO_M);
+    return { has: has, intensity: heavy ? "heavy" : light ? "light" : "moderate", cover: cover,
+             windy: (wind !== null && wind >= WIND_MPH) || (gust !== null && gust >= GUST_MPH)
+               || (wind === null && gust === null && /windy|breezy/.test(text)),
+             lowVis: vis !== null && vis < LOW_VIS_M };
+  }
+
+  /* The scenes, in one place. The first whose `when` holds is the scene, so the order is the precedence: a
+     thunderstorm beats snow beats rain beats fog beats cloud beats wind, and "clear" (the plain sky) is what is left.
+     `falls`: something may be falling, so the scene carries an intensity. Freezing rain is rain; sleet (ice pellets)
+     and rain mixed with snow are snow. Wind is a scene of its own only under a clear sky; over any other scene it is
+     a modifier (`windy`) that makes the scene drift faster. To add a scene: a row here, in its place in the order,
+     and its drawing in style.css under `.has-sky[data-wx="<id>"]`. */
+  function any(f, codes) { return codes.some(function (c) { return f.has[c] === true; }); }
+  var FALLING = ["RA", "DZ", "SN", "SG", "GS", "PL", "IC", "GR", "UP"];
+  var SCENES = [
+    { id: "storm",    falls: true,  when: function (f) { return any(f, ["TS"]); } },
+    { id: "snow",     falls: true,  when: function (f) { return any(f, ["SN", "SG", "GS", "PL", "IC"]); } },
+    { id: "rain",     falls: true,  when: function (f) { return any(f, ["RA", "DZ", "GR", "UP"]); } },
+    { id: "fog",      falls: false, when: function (f) { return any(f, ["FG", "BR", "HZ"]) || f.lowVis; } },
+    { id: "overcast", falls: false, when: function (f) { return f.cover >= 3; } },           /* broken or overcast */
+    { id: "partly",   falls: false, when: function (f) { return f.cover === 2; } },          /* scattered */
+    { id: "windy",    falls: false, when: function (f) { return f.windy; } },
+    { id: "clear",    falls: false, when: function () { return true; } }
+  ];
+
+  /* The scene for one observation at an instant (a Date.now() value), or null: the plain sky. Null for anything that
+     is not a fresh observation: not an object, no readable timestamp, older than WX_MAX_AGE, or stamped in the future.
+       scene      a SCENES id
+       intensity  "light", "moderate" or "heavy" while something is falling, else null (a dry thunderstorm: null)
+       windy      true when the wind is up */
+  function weatherScene(obs, ms) {
+    var p = obs && typeof obs === "object" ? obs.properties : null;
+    if (!p || typeof p !== "object" || typeof p.timestamp !== "string") { return null; }
+    var at = Date.parse(p.timestamp);
+    if (!isFinite(at) || typeof ms !== "number" || !(ms - at <= WX_MAX_AGE) || !(at - ms <= WX_AHEAD)) { return null; }
+    var f = weatherFacts(p), i;
+    for (i = 0; i < SCENES.length; i += 1) {
+      if (SCENES[i].when(f)) {
+        return { scene: SCENES[i].id, intensity: SCENES[i].falls && any(f, FALLING) ? f.intensity : null, windy: f.windy };
+      }
+    }
+    return null;
+  }
+
+  /* Only the weather of an observation: the fields weatherFacts reads and nothing else. This is all the page holds. */
+  function weatherOnly(obs) {
+    var p = obs && typeof obs === "object" && obs.properties && typeof obs.properties === "object" ? obs.properties : null;
+    if (!p) { return null; }
+    function str(v, n) { return typeof v === "string" ? v.slice(0, n) : null; }
+    function q(v) {
+      return v && typeof v === "object" ? { unitCode: str(v.unitCode, 24), value: typeof v.value === "number" ? v.value : null } : null;
+    }
+    return { properties: {
+      timestamp: str(p.timestamp, 40), textDescription: str(p.textDescription, 120),
+      presentWeather: (Array.isArray(p.presentWeather) ? p.presentWeather : []).slice(0, 12).map(function (e) {
+        e = e && typeof e === "object" ? e : {};
+        return { rawString: str(e.rawString, 16), weather: str(e.weather, 24), modifier: str(e.modifier, 24),
+                 intensity: str(e.intensity, 12), inVicinity: e.inVicinity === true };
+      }),
+      cloudLayers: (Array.isArray(p.cloudLayers) ? p.cloudLayers : []).slice(0, 12).map(function (e) {
+        return { amount: str(e && e.amount, 8) };
+      }),
+      windSpeed: q(p.windSpeed), windGust: q(p.windGust), visibility: q(p.visibility) } };
+  }
+
+  /* Draws a scene (or, for null and "clear", takes any scene away). The scene is three attributes on the header,
+     which the stylesheet draws from; the layer it draws in (#sky-wx: decoration, aria-hidden, behind the words, laid
+     over the sky without taking any room) is made the first time a scene needs it. */
+  function drawWeather(doc, w) {
+    var moonEl = doc.getElementById("sky-moon"), frame = moonEl && moonEl.parentNode, header = frame && frame.parentNode;
+    if (!header) { return; }
+    if (!w || w.scene === "clear") {
+      header.removeAttribute("data-wx"); header.removeAttribute("data-wx-fall"); header.removeAttribute("data-wx-wind");
+      return;
+    }
+    if (!doc.getElementById("sky-wx")) {
+      var layer = doc.createElement("div");
+      layer.id = "sky-wx"; layer.className = "sky-wx"; layer.setAttribute("aria-hidden", "true");
+      ["wx-veil", "wx-clouds", "wx-fall wx-far", "wx-fall wx-near", "wx-flash"].forEach(function (name) {
+        var part = doc.createElement("span"); part.className = name; layer.appendChild(part);
+      });
+      header.insertBefore(layer, frame.nextSibling);
+    }
+    header.setAttribute("data-wx", w.scene);
+    if (w.intensity) { header.setAttribute("data-wx-fall", w.intensity); } else { header.removeAttribute("data-wx-fall"); }
+    if (w.windy) { header.setAttribute("data-wx-wind", ""); } else { header.removeAttribute("data-wx-wind"); }
+  }
+
+  /* The observation this page view holds (weather only), judged again at every redraw: a tab left open stops
+     drawing it once it is WX_MAX_AGE old. It is asked for once per page view and never again. */
+  var held = null;
+  function showWeather() {
+    var doc = root.document, w = null;
+    if (!doc) { return; }
+    try { w = held ? weatherScene(held, Date.now()) : null; } catch (e) { w = null; }
+    try { drawWeather(doc, w); } catch (e2) { /* the plain sky */ }
+  }
+
+  /* Asks for the observation: one request per page view, to the one address the page names (data-weather on
+     #sky-moon; the page's CSP allows that origin only), with no credentials and no referrer. Nothing is stored: a
+     later page asks again, and the browser's own cache answers it while the service's answer is still current. Any
+     failure (no answer in WX_TIMEOUT, an error status, not JSON, anything thrown) leaves the plain sky; nothing is
+     tried twice. */
+  var WX_TIMEOUT = 5000, asked = false;
+  function loadWeather() {
+    var doc = root.document, el = doc && doc.getElementById("sky-moon"), url = el && el.getAttribute("data-weather");
+    if (asked || !url || !/^https:\/\//.test(url) || typeof root.fetch !== "function") { return; }
+    asked = true;
+    var done = false, timer = 0, ctl = typeof root.AbortController === "function" ? new root.AbortController() : null;
+    function finish(obs) {
+      if (done) { return; }
+      done = true; root.clearTimeout(timer);
+      held = obs ? weatherOnly(obs) : null;
+      showWeather();
+    }
+    timer = root.setTimeout(function () {
+      finish(null);
+      try { if (ctl) { ctl.abort(); } } catch (e) { /* already over */ }
+    }, WX_TIMEOUT);
+    try {
+      root.fetch(url, { credentials: "omit", referrerPolicy: "no-referrer", signal: ctl ? ctl.signal : undefined })
+        .then(function (res) { if (!res || !res.ok) { throw new Error("status"); } return res.json(); })
+        .then(function (obs) { finish(obs); }, function () { finish(null); });
+    } catch (e3) { finish(null); }
+  }
+
   /* The timer, and a tab coming back into view: the whole sky again (sun, date line, moon), so the sun, the date
      and the moon always agree in a tab left open across a sunset or a sunrise. Nothing is drawn while hidden. */
   function tick() {
     var doc = root.document;
     if (!doc || doc.hidden) { return; }
     render();
+    showWeather();
   }
   /* the same moon put back in the open sky after the layout changes (a resize, the web fonts arriving) */
   function replace() {
@@ -302,12 +504,16 @@
   }
   var api = { altitude: altitude, render: render, RISE: RISE, SET: SET, NIGHT: NIGHT,
               sun: sun, sunAltitude: sunAltitude, SUN_UP: SUN_UP, NEW: NEW, moon: moon, moonPosition: moonPosition, sunPosition: sunPosition, moonX: moonX, moonPath: moonPath,
-              freeRect: freeRect, moonSpot: moonSpot, renderMoon: renderMoon, tick: tick };
+              freeRect: freeRect, moonSpot: moonSpot, renderMoon: renderMoon, tick: tick,
+              weatherScene: weatherScene, weatherFacts: weatherFacts, weatherOnly: weatherOnly, drawWeather: drawWeather,
+              loadWeather: loadWeather, showWeather: showWeather,
+              SCENES: SCENES, WX_MAX_AGE: WX_MAX_AGE, WX_TIMEOUT: WX_TIMEOUT };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   root.CRSky = api;
   render();
   /* a page restored from the back/forward cache gets a fresh date and sun */
-  if (root.addEventListener) { root.addEventListener("pageshow", function (ev) { if (ev && ev.persisted) { render(); } }); }
+  if (root.addEventListener) { root.addEventListener("pageshow", function (ev) { if (ev && ev.persisted) { render(); showWeather(); } }); }
+  try { loadWeather(); } catch (e) { /* the plain sky */ }
   if (root.document && root.document.getElementById("sky-moon")) {
     /* the sky turns about a degree every four minutes, so it is redrawn every five while the page is open,
        and at once when the tab is looked at again */

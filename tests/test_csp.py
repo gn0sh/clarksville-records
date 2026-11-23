@@ -16,7 +16,7 @@ import pytest
 
 from conftest import ROOT, build
 from qa import site_checks
-from sitegen import morning_page, views
+from sitegen import morning_page, views, weather
 
 META = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
 
@@ -27,7 +27,9 @@ def test_every_page_has_one_csp_meta_first(pages):
         assert len(found) == 1, rel
         pol = site_checks.parse_csp(found[0].replace("&#39;", "'"))
         assert pol["script-src"] == ["'self'"] and pol["default-src"] == ["'self'"], rel
-        assert pol["connect-src"] == ["'none'"] and pol["object-src"] == ["'none'"] and pol["base-uri"] == ["'none'"], rel
+        # the one origin a page may call: the header's weather (config sky_weather; tests/test_weather.py)
+        assert pol["connect-src"] == [weather.origin()] == ["https://api.weather.gov"], rel
+        assert pol["object-src"] == ["'none'"] and pol["base-uri"] == ["'none'"], rel
         # the one exception: the Alerts page gains the morning note form's origin while the note is enabled
         origin = morning_page.form_origin() if rel == "alerts.html" else None
         assert pol["style-src-elem"] == ["'self'"] and pol["form-action"] == ["'self'"] + ([origin] if origin else []), rel
@@ -40,6 +42,16 @@ def test_csp_text_is_the_one_views_makes():
     assert views.csp() == ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
                            "style-src-elem 'self'; connect-src 'none'; img-src 'self' data:; object-src 'none'; "
                            "base-uri 'none'; form-action 'self'; frame-src 'self'")
+
+
+def test_csp_connect_src_names_the_weather_then_the_counter():
+    wx, counter = "https://api.weather.gov", "https://x-y.goatcounter.com"
+    rest = views.csp().replace("connect-src 'none'", "connect-src {}")
+    assert views.csp(weather=wx) == rest.format(wx)
+    assert views.csp(counter=counter) == rest.format(counter)
+    assert views.csp(counter=counter, weather=wx) == rest.format(f"{wx} {counter}")
+    both = views.csp(form_origin="https://buttondown.com", counter=counter, weather=wx)
+    assert both == rest.format(f"{wx} {counter}").replace("form-action 'self'", "form-action 'self' https://buttondown.com")
 
 
 def test_no_inline_script_or_style_element_in_any_page(pages):
