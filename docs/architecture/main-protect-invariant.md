@@ -407,8 +407,8 @@ Verdict: **turning Actions off is not needed**; with R2 off nothing below a writ
   session holding `gn0sh`'s credential and the project's connectors, only told to run one command (ADR 0014 Risk
   and "Invariant: the clock": at most one dispatch a night, nothing else). Collaborators, App installation tokens (`claude[bot]`), `github-actions[bot]` (a workflow's `GITHUB_TOKEN`, W2) and
   other users fail the actor checks; a `gn0sh` re-run of someone else's dispatch fails `github.actor`. The
-  expression's `==` ignores case, so the Deliver step re-checks the event, `send_note` and both actors exactly in
-  bash. Judgment: small next to "a gn0sh credential can already merge code" (L3; confidence medium). Reopen if a
+  expression's `==` ignores case, so the Deliver step re-checks the event, `send_note`, `collect` and both actors
+  exactly in bash. Judgment: small next to "a gn0sh credential can already merge code" (L3; confidence medium). Reopen if a
   `gn0sh` token is stored anywhere new (a third-party service, another repository's secret), or if the note ever
   sends without the day claim.
 - zip-slip-residual: a download that could write anywhere on the runner (toolcache, `GITHUB_ENV`) has better targets
