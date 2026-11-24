@@ -28,8 +28,9 @@ re-fetch, so an item never alerts twice. It is read, by source URL, from each co
 `data/manifest.json` (county minutes, finance), `data/county-agendas/manifest.json`,
 `data/localities/clarksville-tn/manifest.json`, `data/localities/cmc-rpc/manifest.json` (checked: every current
 source URL in facts/finance/RPC resolves to one of these). The note's run is started by the morning clock at 03:07 site
-time (ADR 0014; GitHub's 09:07 UTC schedule arrives hours late and now only collects again as a data backstop), before
-the cutoff, so the 7:00 note covers that morning's collection; a backstop run's new items fall in the next day's window. A document maps to entries:
+time (ADR 0014; GitHub's schedule arrives hours late, so it moved to 13:07 UTC and now only collects again as a data
+backstop), before the cutoff, so the 7:00 note covers that morning's collection; a backstop run is after the cutoff
+even when on time, so its new items fall in the next day's window. A document maps to entries:
 - an agenda (county, county agenda-only, council, RPC): one `agenda_item` entry per item / case printed on it;
 - minutes: one `vote` entry per motion recorded on it (outcome and tally only as printed and confirmed; an unconfirmed
   motion says "Recorded in the minutes; not confirmed" with no values, per `config.SHOW_UNCONFIRMED_VALUES`);

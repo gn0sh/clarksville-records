@@ -553,7 +553,13 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 2. The next morning clock run (03:07 site time, "Daily update (morning note)"; `docs/ops/morning-clock.md`)
    schedules the day's emails for 7:00 (site time zone) to every confirmed
    subscriber whose lists have something new; nothing on a quiet or backfill day.
-3. The first mornings (until one clean week), a team member checks: the run's `note` job is green, its log shows
+3. **The first clock run after the ADR 0014 PR merges** (`note-route/boolean-input-unverified`: the tests model
+   GitHub's typed `inputs.send_note == true`, but no run has shown it yet): a team member checks that the run is
+   titled **"Daily update (morning note)"** and that its `note` job ran (green or red, **not skipped**). If it is
+   titled "Daily update" or the note job is skipped while `update` and `deploy` are green, the input check did not
+   match: tell the architect the same morning; nothing was sent, and the next scheduled run opens the "morning
+   clock did not fire" issue only if the title is wrong.
+   The first mornings (until one clean week), a team member checks: the run's `note` job is green, its log shows
    totals only (no address, no id), the team's own addresses got exactly the editions their lists and seats call
    for (nothing on a quiet day), the links open live pages, the unsubscribe link works, and the Buttondown
    dashboard's recipient count matches the log's total.

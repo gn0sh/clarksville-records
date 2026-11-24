@@ -2,7 +2,7 @@
 
 Owner: devops-engineer. Go-live is the CEO's hard stop 1: nothing below marked **CEO** happens without his go-ahead.
 Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are free). Workflow:
-`.github/workflows/daily-update.yml` (daily 09:07 UTC and on demand).
+`.github/workflows/daily-update.yml` (the morning clock at 03:07 site time, ADR 0014; GitHub's schedule at 13:07 UTC as a data backstop; and on demand).
 
 ## How it works
 - `update` job: city collect, county collect + finance + site build, `qa.site_checks` (browser checks off in CI),
@@ -164,7 +164,7 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 4. Enable the deploy lock: https://github.com/gn0sh/clarksville-records/settings/variables/actions > New repository
    variable, Name `RECORDS_DEPLOY_ENABLED`, Value `true`. (Or: `gh variable set RECORDS_DEPLOY_ENABLED --body true
    --repo gn0sh/clarksville-records`.)
-5. Deploy now instead of waiting for 09:07 UTC: Actions > Daily update > Run workflow > main. With a warm cache it takes
+5. Deploy now instead of waiting for the next run: Actions > Daily update > Run workflow > main. With a warm cache it takes
    minutes. Collect = false rebuilds and deploys from the committed data with no fetching.
 6. Look: https://daylight.gnoshcodes.com/ loads over HTTPS, footer shows the operator, alerts.html feeds link to
    `https://daylight.gnoshcodes.com/...`. The footer of every page, and the top of About, say the site is independent

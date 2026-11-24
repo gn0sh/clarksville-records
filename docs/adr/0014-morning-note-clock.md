@@ -31,23 +31,40 @@ Builds on ADR 0004 (sender), 0009/0011 (gate, data off `main`); runbook `docs/op
    The **schedule no longer sends**: one send route, and a late cron run can't raise a daily "missed" issue.
    The Deliver step re-checks event, input and both actors in bash before passing `--live` (second lock, as
    `allow_shrink` does). The stale-run check, staged sender, gate, day claim and caps are unchanged.
-4. **The cron stays** at 09:07 UTC as a data backstop: when it arrives (noon-ish) it collects and deploys again; its
-   new items fall in the next day's window (`first_fetched_at` in `[D-1 07:00, D 07:00)`), so nothing is lost or doubled.
+4. **The cron stays** as a data backstop, moved to **13:07 UTC** (07:07 CST / 08:07 CDT; was 09:07, the clock's own
+   minute: PR #94 review, `clock-alarm/early-schedule-blind`): when it arrives (early afternoon at the observed delays)
+   it collects and deploys again. Off the clock's window, an on-time schedule can't take the queue's one waiting slot
+   from a clock run still queued, and `clock-missed` runs after 05:00 site time unless GitHub is about 16 to 22 h late.
+   Its new items fall in the next day's window: it runs after the 07:00 cutoff even when on time, so their
+   `first_fetched_at` is in `[D 07:00, D+1 07:00)`, note D+1; the windows are disjoint and `first_fetched_at` never
+   changes, so nothing is lost or doubled.
 5. **Alarm `clock-missed`** (new job, scheduled runs on `main` with `MORNING_NOTE_SEND` true only): `actions: read`
-   plus `issues: write`, no checkout, no repo code. If no "Daily update (morning note)" run was created since 00:00
+   plus `issues: write`, no checkout, no repo code. If no "Daily update (morning note)" run (`run-name`: `send_note`
+   and `collect` both true) by `gn0sh`, not cancelled, was created since 00:00
    site time (and it is past 05:00 site time), it opens or comments on one fixed-title issue "Daily update: the
    morning clock did not fire" (`--app github-actions` lookup, as the other fixed-title issues).
 6. `send_at`, `latest_send`, `config/site.yml` and `sender/` are unchanged. Moving the test suite off the nightly
    path (option C) is good separate work: it widens the same-day retry window, but is not needed for this.
 
 ## Risk of the pick (most serious)
-**Security: who can trigger a send to the whole list.** The send route widens from "GitHub's cron" to "any
-credential acting as `gn0sh` with `actions: write`": Brian's `gh` on his PC, every team session, the cloud task, any
-PAT Brian makes. What it can do: make today's note go out on a day it otherwise would not, from the data as of its
-run. What it cannot: change content or audience (today's plan from main's gate-verified commit), send twice (day
-claim), send before 07:00 (`publish = max(send_at, ...)`) or after 10:00, or run from a branch (ref and `verified`).
-Collaborators, Apps (`claude[bot]`), `github-actions` and other users fail the actor checks, and a gn0sh re-run of
-someone else's dispatch fails `github.actor`. Judgment: a small residual next to "a gn0sh credential can already
+**Security: who can trigger a send to the whole list.** The send route widens from "GitHub's cron" to "any token or
+app session authorized as `gn0sh` with `actions: write`": Brian's `gh` on his PC, every team session, the cloud
+task, any PAT Brian makes, and any GitHub App's user-to-server token acting for `gn0sh` (it reports `gn0sh` as the
+actor and passes; only an App's installation token, `<app>[bot]`, fails). What it can do: make today's note go out
+on a day it otherwise would not, from the data as of its run. A `gn0sh` dispatch with `send_note` between 00:00 and
+the clock's run claims the day with that earlier run's data, and the clock's run then ends "claimed" (exit 0, no
+issue), so the day's note silently misses the hours between them. What it cannot: change content or audience
+(today's plan from main's gate-verified commit), send twice (day claim), send before 07:00 (in stamp mode,
+`publish = max(send_at, ...)`; `ids` mode is not usable with Buttondown) or after 10:00, or run from a branch (ref
+and `verified`). Collaborators, App installation tokens (`claude[bot]`), `github-actions` and other users fail the
+actor checks, and a gn0sh re-run of someone else's dispatch fails `github.actor`.
+**Security: an unattended session with gn0sh's credential** (PR #94 review, `clock/unattended-admin-session`). The
+clock is a claude.ai scheduled task: each morning it starts a fresh thread in the gnoshcodes project, which gets the
+project's repositories and connectors (the org can't limit connectors per task). Its GitHub credential can do
+anything `gn0sh` can, in every repository `gn0sh` reaches, admin included. The task is only *told* to run one
+command (`docs/ops/morning-clock.md`); the prompt forbids every other action, but nothing enforces it. A prompt
+injection in anything the thread reads could steer it. Judgment: the same reach every team session already has,
+now once a day with no person watching (confidence medium); keep the prompt minimal and the task reading nothing. Judgment: a small residual next to "a gn0sh credential can already
 merge code" (confidence medium). **Reliability:** the clock is a new single point; its timing and whether the
 cloud proxy allows `POST .../dispatches` are unverified (V1 below); the alarm makes a miss loud the same day.
 

@@ -393,14 +393,19 @@ Verdict: **turning Actions off is not needed**; with R2 off nothing below a writ
   pushes it: a `GITHUB_TOKEN` can merge the file onto a branch (W2), but its pushes and merges start no run, and no
   workflow on `main` grants `actions: write` to dispatch one. Reopen if a workflow on `main` gains `actions: write` or
   ever calls the Pages API outside the `github-pages` environment.
-- R-clock (ADR 0014, 2026-11-24): the note's send route is a dispatch by any credential acting as `gn0sh` with
-  `actions: write` (Brian's `gh`, every team session, the claude.ai clock, any PAT Brian makes), where it was GitHub's
-  cron. Verified: the team's session acts as `gn0sh` with admin rights (`gh api user`, 2026-11-24), so `gn0sh` means
+- R-clock (ADR 0014, 2026-11-24): the note's send route is a dispatch by any token or app session authorized as
+  `gn0sh` with `actions: write` (Brian's `gh`, every team session, the claude.ai clock, any PAT Brian makes, and any
+  GitHub App's user-to-server token acting for `gn0sh`, which reports `gn0sh` and passes; only installation tokens,
+  `<app>[bot]`, fail), where it was GitHub's cron. Verified: the team's session acts as `gn0sh` with admin rights (`gh api user`, 2026-11-24), so `gn0sh` means
   "Brian or a team session", never "Brian only" (as for `allow_shrink` and national collect). Such a dispatch can
-  make today's note go out on a day it otherwise would not, from the data as of its run. It cannot change content or
+  make today's note go out on a day it otherwise would not, from the data as of its run. A `gn0sh` `send_note`
+  dispatch between 00:00 and the clock's run claims the day with that run's older data; the clock's run then ends
+  "claimed" (exit 0, no issue) and the hours between them miss that day's note. It cannot change content or
   audience (the plan comes from the gate-verified commit on `main`), send twice (day claim), send before 07:00
-  (`publish = max(send_at, ...)`) or after 10:00 (`latest_send`), or run from a branch (`github.ref` and
-  `verified`). Collaborators, Apps (`claude[bot]`), `github-actions[bot]` (a workflow's `GITHUB_TOKEN`, W2) and
+  (stamp mode, `publish = max(send_at, ...)`; `ids` mode is not usable with Buttondown) or after 10:00
+  (`latest_send`), or run from a branch (`github.ref` and `verified`). The clock itself is an unattended claude.ai
+  session holding `gn0sh`'s credential, only told to run one command (ADR 0014 Risk). Collaborators, App
+  installation tokens (`claude[bot]`), `github-actions[bot]` (a workflow's `GITHUB_TOKEN`, W2) and
   other users fail the actor checks; a `gn0sh` re-run of someone else's dispatch fails `github.actor`. The
   expression's `==` ignores case, so the Deliver step re-checks the event, `send_note` and both actors exactly in
   bash. Judgment: small next to "a gn0sh credential can already merge code" (L3; confidence medium). Reopen if a

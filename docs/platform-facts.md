@@ -349,7 +349,8 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   to 12.1 h late, median 8.6 h**, none within 6 h. Measured on each run's `created_at` (when GitHub queued it), so
   this is GitHub's scheduler, not our concurrency group. GitHub documents no upper bound on schedule delay.
 - Consequence (ADR 0014): the schedule can't deliver a 07:00 note, so it no longer sends. The note's run is
-  dispatched by a 03:07 America/Chicago clock (`docs/ops/morning-clock.md`); the cron stays as a data backstop.
+  dispatched by a 03:07 America/Chicago clock (`docs/ops/morning-clock.md`); the cron stays as a data backstop,
+  moved to `7 13 * * *` (13:07 UTC) off the clock's window. The lateness above was measured on the 09:07 cron.
 - **Unverified (ADR 0014 V1):** the claude.ai scheduled task's timing (PASS: each run created within 15 min of 03:07
   site time, on 3 mornings) and that its network proxy allows `POST .../actions/workflows/.../dispatches`. Record the
   V1 result here.
