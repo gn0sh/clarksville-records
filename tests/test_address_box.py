@@ -159,7 +159,8 @@ def test_landing_csp_allows_only_the_frame_script_and_the_exact_geocoder(real_ma
     pol = _csp(html)
     assert pol["script-src"] == ["'self'", f"'{views.script_hash(views.geocode_frame_script())}'",
                                  config.SITE["geocoder_url"]]
-    assert pol["connect-src"] == ["'none'"] and pol["object-src"] == ["'none'"] and pol["default-src"] == ["'self'"]
+    assert pol["connect-src"] == ["https://api.weather.gov"]     # the header's weather only (tests/test_weather.py)
+    assert pol["object-src"] == ["'none'"] and pol["default-src"] == ["'self'"]
     assert pol["frame-src"] == ["'self'"] and pol["form-action"] == ["'self'"] and pol["base-uri"] == ["'none'"]
     other = (real_map_site / "about.html").read_text(encoding="utf-8")
     assert _csp(other)["script-src"] == ["'self'"]                       # only the landing names the geocoder
@@ -367,7 +368,7 @@ def test_site_checks_hold_every_page_to_the_csp(real_map_site, tmp_path, edit):
     elif edit == "frame-src-gone":
         new = html.replace("frame-src &#39;self&#39;", "")
     else:
-        new = html.replace("connect-src &#39;none&#39;", "connect-src *")
+        new = html.replace("connect-src https://api.weather.gov", "connect-src *")
     assert new != html, edit
     target.write_text(new, encoding="utf-8")
     pages = {p.relative_to(site).as_posix(): site_checks.parse(p) for p in site.rglob("*.html")}

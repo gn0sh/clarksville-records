@@ -401,7 +401,9 @@ def test_csp_per_file(sites):
     assert f"form-action 'self' {origin}" in index and f"connect-src {origin}" in index
     for rel in ("digest/covered.html", "digest/requested.html", f"digest/tn/{COUNCIL_ID}.html",
                 f"digest/tn/{COUNTY_ID}.html"):
-        assert _csp(on[rel]) == site_csp, rel
+        # the site's policy less the header's weather origin: a digest header has no sky place and asks for none
+        assert _csp(on[rel]) == site_csp.replace("connect-src https://api.weather.gov", "connect-src 'none'"), rel
+        assert "data-weather" not in on[rel] and "connect-src https://api.weather.gov" in site_csp, rel
     frame = on["digest/geo-frame.html"]
     assert frame == nat.geo_frame_html()
     for rel, html in on.items():

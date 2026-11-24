@@ -23,6 +23,20 @@ today_place: Clarksville            # header date line: "Tuesday in Clarksville"
 # (north latitude, east longitude; the city hall area, to two places). The sun shows while it is up there, the moon
 # only while the sun is down. Remove the block and no moon is drawn, and the sun follows the viewer's own clock.
 sky_place: {lat: 36.53, lon: -87.36}
+# The weather in that sky (static/sky.js, sitegen/weather.py): each page asks this address, from the visitor's browser,
+# for the station's latest observation and draws one quiet scene from it (clouds, rain, snow, fog, wind, a storm).
+# Only a fresh answer is drawn: an observation over 90 minutes old, an error or no answer leaves the plain sky.
+# `station` is the National Weather Service id of the airport nearest the sky_place (KCKV: Clarksville's Outlaw
+# Field); `url` is asked with {station} filled in, and its origin is the one the pages' CSP connect-src gains.
+# `disclosure` is printed on the About and Method pages. Remove the block and nothing is asked.
+sky_weather:
+  station: KCKV
+  url: "https://api.weather.gov/stations/{station}/observations/latest"
+  disclosure: >-
+    Each page asks the National Weather Service for the current weather at Clarksville's airport, so the sky at the
+    top of the page can show it. The request does not say which page you are reading. Like any web request, it
+    tells the Weather Service your IP address, your browser and that the request came from this site. This site
+    keeps nothing from it; your browser may briefly cache the answer, as it does for any web page.
 operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
 # The person who runs the operator, named on the About page (Brian, 2026-11-11): an official id in a council's facts.

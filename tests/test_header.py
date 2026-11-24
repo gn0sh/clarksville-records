@@ -34,7 +34,8 @@ def test_every_built_page_has_the_same_header_with_the_date_line(built, pages):
     for part in ('<header class="site-header has-sky">',
                  '<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>',
                  '<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="36.53"'
-                 ' data-lon="-87.36" hidden></span></div>',
+                 ' data-lon="-87.36"'
+                 ' data-weather="https://api.weather.gov/stations/KCKV/observations/latest" hidden></span></div>',
                  '<a id="nav-open" class="menu-btn" href="#site-nav">',
                  f'<span class="plate-name">{config.SITE_NAME}</span>',
                  f'<p class="unofficial-tag">{config.SITE["unofficial"]["tag"]}</p>'):
@@ -105,7 +106,9 @@ def test_the_header_is_one_partial_that_no_page_template_can_change():
     # the one digest variant (docs/architecture/daylight-national.md 7a: `digest_header`, set only by
     # sitegen/national_pages.py, and its plate place `digest_place`)
     rest = partial
-    for v in ("{% if sp and not digest_header | default(false) %}", "{% if not digest_header | default(false) %}"):
+    # and one more site setting: the address the sky asks for the weather (config sky_weather; tests/test_weather.py)
+    for v in ("{% if sp and not digest_header | default(false) %}", "{% if not digest_header | default(false) %}",
+              "{% if site.sky_weather | default(none) %}"):
         assert rest.count(v) == 1, v
         rest = rest.replace(v, "")
     assert "{% block" not in partial and "{% if" not in rest
@@ -115,7 +118,8 @@ def test_the_header_is_one_partial_that_no_page_template_can_change():
     used = {n for expr in re.findall(r"\{\{(.*?)\}\}", partial, re.S)
             for n in re.findall(r"[a-z_][a-z_.]*", expr) if n not in words}
     assert used == {"root", "site.site_name", "digest_place", "digest_header", "site.cfg.site_place",
-                    "site.unofficial.tag", "site.cfg.site_timezone", "site.cfg.today_place", "sp.lat", "sp.lon"}, used
+                    "site.unofficial.tag", "site.cfg.site_timezone", "site.cfg.today_place", "sp.lat", "sp.lon",
+                    "site.sky_weather.url"}, used
     for word in ("page_name", "body_current", "crumbs", "sky_full"):
         assert word not in partial, word
     assert "sky_full" not in base and "{% block sky %}" not in base

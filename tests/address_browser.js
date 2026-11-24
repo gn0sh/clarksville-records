@@ -48,6 +48,7 @@ function consoleCsp(page) {
 
   for (const [w, h] of [[375, 667], [1280, 800], [320, 568]]) {
     const page = await browser.newPage({ viewport: { width: w, height: h } });
+    await page.route('https://api.weather.gov/**', (r) => r.fulfill({ status: 200, contentType: 'application/geo+json', body: '{}' }));   // never the real service
     await page.route(GEOCODER, (r) => r.fulfill({ status: 200, contentType: 'text/javascript',
       body: `${new URL(r.request().url()).searchParams.get('callback')}(${JSON.stringify(match(pts.district))})` }));
     await page.goto(url, { waitUntil: 'load' });
@@ -109,6 +110,7 @@ function consoleCsp(page) {
   };
   for (const [name, body] of Object.entries(cases)) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.route('https://api.weather.gov/**', (r) => r.fulfill({ status: 200, contentType: 'application/geo+json', body: '{}' }));   // never the real service
     await page.addInitScript(WATCH);
     const refused = consoleCsp(page);
     const requests = [];
@@ -179,6 +181,7 @@ function consoleCsp(page) {
   out.bare = {};
   for (const [name, c] of Object.entries(bare)) {
     const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+    await page.route('https://api.weather.gov/**', (r) => r.fulfill({ status: 200, contentType: 'application/geo+json', body: '{}' }));   // never the real service
     await page.addInitScript(WATCH);
     const refused = consoleCsp(page);
     const requests = [], framesAtRequest = [];

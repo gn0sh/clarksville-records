@@ -17,6 +17,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from . import bodies as bodies_mod
 from . import analytics as analytics_mod
+from . import weather as weather_mod
 from . import stats as stats_mod
 from . import county_agendas as agendas_mod
 from . import committees as committees_mod
@@ -530,7 +531,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them
     except (seats_mod.SeatsError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
-    bad = site_url_problems(config.SITE) + morning_mod.reader_problems() + analytics_mod.problems()
+    bad = site_url_problems(config.SITE) + morning_mod.reader_problems() + analytics_mod.problems() \
+        + weather_mod.problems()
     if config.SITE.get("live", False) not in (True, False):   # site-polish/about-preview: a typo never claims a launch
         bad.append(f"live must be true or false, got {config.SITE.get('live')!r}")
     if bad:

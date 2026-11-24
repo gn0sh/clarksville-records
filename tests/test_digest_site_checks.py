@@ -127,7 +127,8 @@ def test_header_a_digest_page_with_the_clarksville_header_fails(site):
                                      '<span id="sky-weekday"></span><span class="sky-in"> in Clarksville</span>'),
                  id="sky-in-kept"),
     pytest.param(lambda h: h.replace('<div class="masthead">', '<div class="sky-moon-frame" aria-hidden="true"><span '
-                                     'class="sky-moon" id="sky-moon" data-lat="36.53" data-lon="-87.36" hidden></span>'
+                                     'class="sky-moon" id="sky-moon" data-lat="36.53" data-lon="-87.36" '
+                                     'data-weather="https://api.weather.gov/stations/KCKV/observations/latest" hidden></span>'
                                      '</div>\n  <div class="masthead">'), id="moon-kept"),
     pytest.param(lambda h: h.replace('<header class="site-header has-sky">', '<header class="site-header has-sky x">'),
                  id="extra-class"),

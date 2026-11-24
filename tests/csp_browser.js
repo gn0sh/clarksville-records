@@ -30,6 +30,8 @@ const WATCH = () => {
     await page.addInitScript(WATCH);
     const refused = [];
     page.on('console', (m) => { if (/Content Security Policy|Refused to/.test(m.text())) refused.push(m.text()); });
+    // the header's weather request (tests/test_weather.py) is answered here, so a test never reaches the service
+    await page.route('https://api.weather.gov/**', (r) => r.fulfill({ status: 200, contentType: 'application/geo+json', body: '{}' }));
     await page.route('https://geocoding.geo.census.gov/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript',
       body: `${new URL(r.request().url()).searchParams.get('callback')}({"result":{"addressMatches":[]}})` }));
     await page.goto(base + rel, { waitUntil: 'load' });

@@ -111,10 +111,14 @@ def test_morning_js_makes_no_network_call_and_stores_nothing():
         assert bad not in js, bad
 
 
+# every page's policy: the base one, with the header's weather origin in connect-src (tests/test_weather.py)
+SITE_CSP = views.csp(weather="https://api.weather.gov")
+
+
 def test_csp_unchanged_when_disabled(site):
     _, pages = site
     for rel, html in pages.items():
-        assert CSP_META.findall(html) == [views.csp().replace("'", "&#39;")], rel
+        assert CSP_META.findall(html) == [SITE_CSP.replace("'", "&#39;")], rel
     assert morning_page.form_origin(note_off(config.SITE)) is None
 
 
@@ -408,10 +412,10 @@ def test_enabled_path_in_a_test_config(tmp_path, monkeypatch):
     pol = site_checks.parse_csp(CSP_META.findall(html)[0].replace("&#39;", "'"))
     assert pol["form-action"] == ["'self'", "https://forms.example.net"]
     assert {k: v for k, v in pol.items() if k != "form-action"} == \
-        {k: v for k, v in site_checks.parse_csp(views.csp()).items() if k != "form-action"}
+        {k: v for k, v in site_checks.parse_csp(SITE_CSP).items() if k != "form-action"}
     for rel, page in pages.items():   # only the Alerts page gains the origin
         if rel != "alerts.html":
-            assert CSP_META.findall(page) == [views.csp().replace("'", "&#39;")], rel
+            assert CSP_META.findall(page) == [SITE_CSP.replace("'", "&#39;")], rel
     assert "We keep no list of followers" not in _main(html)
     assert SUCCESS.search(parse(_main(html)).all_text()) is None
     # the preview page's picker never submits
@@ -667,6 +671,8 @@ const base = process.argv[1];
   const visible = (p, sel) => p.evaluate(s => [...document.querySelectorAll(s)].filter(e => e.offsetParent !== null || e.getClientRects().length).map(e => e.getAttribute('href') || e.textContent.trim()), sel);
   for (const w of [360, 1280]) {
     const ctx = await b.newContext({ viewport: { width: w, height: 760 } }); const p = await ctx.newPage();
+    // the header's weather request (tests/test_weather.py) is answered here: the test machine has no way out
+    await ctx.route('https://api.weather.gov/**', r => r.fulfill({ status: 200, contentType: 'application/geo+json', body: '{}' }));
     const errs = [], reqs = []; p.on('pageerror', e => errs.push(String(e))); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
     p.on('request', r => reqs.push(r.url()));
     const r = {};
@@ -698,7 +704,7 @@ const base = process.argv[1];
     await p.uncheck('#n-contracts'); r.quiet = await p.evaluate(() => [!document.querySelector('.mn-quiet').hidden, location.hash]);
     await p.goto(base + 'morning/index.html'); r.pall = (await visible(p, '.mn-entry .mn-title')).length;
     r.sw2 = await p.evaluate(() => document.documentElement.scrollWidth); r.iw = w;
-    r.errs = errs; r.foreign = reqs.filter(u => !u.startsWith(base)); out[w] = r; await ctx.close();
+    r.errs = errs; r.foreign = reqs.filter(u => !u.startsWith(base) && !u.startsWith('https://api.weather.gov/stations/KCKV/')); out[w] = r; await ctx.close();
   }
   const ctx = await b.newContext({ viewport: { width: 360, height: 760 }, javaScriptEnabled: false }); const p = await ctx.newPage();
   await p.goto(base + 'morning/index.html');
@@ -755,7 +761,7 @@ const base = process.argv[1];
   await p.reload();
   out.districtOnly = await state(p);
   out.sw = await p.evaluate(() => document.documentElement.scrollWidth);
-  out.foreign = reqs.filter(u => !u.startsWith(base));
+  out.foreign = reqs.filter(u => !u.startsWith(base) && !u.startsWith('https://api.weather.gov/stations/KCKV/'));
   await ctx.close();
   const c2 = await b.newContext({ viewport: { width: 360, height: 760 }, javaScriptEnabled: false }); const q = await c2.newPage();
   await q.goto(base + 'alerts.html');

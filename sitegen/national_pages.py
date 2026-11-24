@@ -665,7 +665,7 @@ class Pages:
         return self.env.get_template(template).render(
             site=self.site, root=root, page_name=page_name, body_current="", report_page=report,
             crumbs=[] if own_crumbs else list(crumbs), head_crumbs=list(crumbs) if own_crumbs else [],
-            official_record=None, csp=csp or self.site["csp"], digest_header=True,
+            official_record=None, csp=csp or self.site.get("csp_digest") or self.site["csp"], digest_header=True,
             digest_place=self.L["digest.place"], L=self.L, card=self.labels, lh=label_html, lt=label_text, **ctx)
 
     def crumbs(self, *keys: str) -> list[dict]:

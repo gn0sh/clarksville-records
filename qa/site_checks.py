@@ -38,7 +38,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               hex with alpha or rgb()/rgba() (the palette is the gnoshcodes navy #0F1F3D and orange #D2561B)
   external    no third-party scripts, styles, images or fonts (N6); the visitor counter (ADR 0008) only while config
               analytics.code is set, on every page or none, as static/count.js with exactly that code's /count
-              address, and then connect-src is exactly its origin (else 'none'); the landing address box's geocoder (called
+              address, and then connect-src is exactly its origin (else 'none'); the header's weather (config
+              sky_weather) only as data-weather on #sky-moon holding exactly the configured address, and connect-src
+              then names that address's origin first; the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
               (only beside the address box) one sha256 hash and exactly geocoder_url
@@ -1355,6 +1357,7 @@ class Page(HTMLParser):
         self.json_blocks: dict[str, list[str]] = defaultdict(list)   # <script type="application/json" id=...> text
         self.csp: list[str] = []      # every <meta http-equiv="Content-Security-Policy"> content
         self.counters: list[tuple[str, str]] = []   # (script src, data-goatcounter) of each visitor-counter tag
+        self.weather: list[str] = []  # every data-weather attribute: the address static/sky.js asks for the weather
         self._json_id = None
 
     def handle_endtag(self, tag):
@@ -1395,6 +1398,8 @@ class Page(HTMLParser):
             self.fact_ids.append(a["data-fact-id"])
         if tag == "script" and a.get("src"):
             self.resources.append((tag, a["src"]))
+        if "data-weather" in a:
+            self.weather.append(a["data-weather"] if a.get("id") == "sky-moon" and a["data-weather"] else "")
         if tag == "script" and ("data-goatcounter" in a or COUNT_JS.search(a.get("src") or "")):
             self.counters.append((a.get("src") or "", a.get("data-goatcounter") or ""))
         if tag == "script" and (a.get("type") or "").strip().lower() == "application/json" and a.get("id"):
@@ -2521,6 +2526,8 @@ def check_header(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
             '<span id="sky-weekday"></span>', '<time class="sky-date" id="sky-date"></time>']
     if cfg.get("sky_place"):
         want.append('<span class="sky-moon" id="sky-moon" data-lat="')
+        if weather_address(cfg):
+            want.append(f' data-weather="{weather_address(cfg)}" hidden>')
     for rel in sorted(pages):
         raw = (site / rel).read_text(encoding="utf-8")
         header = site_header(raw, rel)
@@ -2554,7 +2561,7 @@ def check_header(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
         problems += [f"{seen[usual][0]}: {w}" for w in why]
         moon = '<span class="sky-moon" id="sky-moon" data-lat="'
         problems += [f"{DIGEST}: the digest header has no {part!r}" for part in want
-                     if part != moon and part not in expected]
+                     if part != moon and "data-weather" not in part and part not in expected]
         for header, rels in digest.items():
             more = f" (and {len(rels) - 1} more pages like it)" if len(rels) > 1 else ""
             if header == usual:
@@ -2653,6 +2660,22 @@ def parse_csp(text: str) -> dict[str, list[str]]:
 
 
 NOTE_PAGE = "alerts.html"   # the morning note's sign-up form (sitegen/morning_page.py)
+WEATHER_STATION = re.compile(r"[A-Z][A-Z0-9]{3}")                      # restated from sitegen/weather.py STATION
+WEATHER_URL = re.compile(r"https://([a-z0-9-]+\.)+[a-z0-9-]+/[A-Za-z0-9/._~-]*")   # a plain https address, no query
+
+
+def weather_address(cfg: dict | None) -> str | None:
+    """The one address the header's sky may ask for the weather: config sky_weather.url with {station} filled in,
+    while the config also names sky_place (restated from sitegen/weather.py, not called from it), else None."""
+    w = (cfg or {}).get("sky_weather")
+    if not (cfg or {}).get("sky_place") or not isinstance(w, dict):
+        return None
+    url, station = w.get("url"), w.get("station")
+    if not isinstance(url, str) or not isinstance(station, str) or not WEATHER_STATION.fullmatch(station) \
+            or "{station}" not in url:
+        return None
+    full = url.replace("{station}", station)
+    return full if WEATHER_URL.fullmatch(full) else None
 
 
 def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict | None = None) -> list[str]:
@@ -2706,6 +2729,14 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             if not COUNT_JS.search(src) or (counter and end != counter + "/count") or len(tags) != 1:
                 problems.append(f"{rel}: visitor counter tag {src!r} {end!r} is not the one static/count.js with "
                                 f"{(counter or '') + '/count'!r}")
+    # The header's weather (config sky_weather): a page names an address to ask only as the one data-weather on its
+    # #sky-moon, and only the configured one; its connect-src then names that origin, and no other page's does.
+    weather = weather_address(cfg)
+    weather_origin = "{0.scheme}://{0.netloc}".format(urlsplit(weather)) if weather else None
+    for rel, pg in pages.items():
+        if pg.weather and pg.weather != [weather]:
+            problems.append(f"{rel}: weather address {pg.weather!r} is not the one config sky_weather address "
+                            f"{weather!r} on #sky-moon")
     for rel, pg in pages.items():
         blocks = pg.json_blocks.get("addr-config", [])
         loads = any(t == "script" and ADDRESS_JS.search(src) for t, src in pg.resources)
@@ -2733,8 +2764,10 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
         for k, v in CSP_FIXED.items():
             if rel == DIGEST_INDEX and k in ("connect-src", "form-action"):
                 continue            # digest/csp holds these two for the lookup page
-            if k == "connect-src" and pg.counters and counter:
-                v = [counter]
+            if k == "connect-src":
+                named = [o for o in (weather_origin if pg.weather else None,
+                                     counter if pg.counters and counter else None) if o]
+                v = named or v
             if k == "form-action" and note_action and rel == NOTE_PAGE:
                 u = urlsplit(note_action)
                 v = [*v, f"{u.scheme}://{u.netloc}"]
