@@ -1445,7 +1445,7 @@ def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # no
     first morning."""
     import shutil
 
-    from test_workflow_lock import PY_ENV, _commit_all, _note_steps, _stage
+    from test_workflow_lock import NOTE_ROUTE_ENV, PY_ENV, _commit_all, _note_steps, _stage
     work = tmp_path / "work"
     (work / "sender").mkdir(parents=True)
     for f in (ROOT / "sender").glob("*.py"):
@@ -1472,7 +1472,8 @@ def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # no
     assert name == "PLAN" and plan_path == str(runner / "morning-send" / D.isoformat() / "plan.json")
     for step, send in (("Check the plan (dry run, no secret)", ""), ("Deliver the morning note", "true")):
         r = subprocess.run(["bash", "-c", _note_steps()[step]["run"]], cwd=work, capture_output=True, text=True,
-                           env={**env, "PLAN": plan_path, "MORNING_NOTE_SEND": send}, timeout=120)
+                           env={**env, **NOTE_ROUTE_ENV, "PLAN": plan_path, "MORNING_NOTE_SEND": send},
+                           timeout=120)                    # the clock's run (ADR 0014)
         assert r.returncode == 0, (step, r.stdout, r.stderr)
         assert f"morning note {D.isoformat()}: dry run, no connection opened, nothing sent" in r.stdout, step
         assert "Traceback" not in r.stderr
