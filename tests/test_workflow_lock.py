@@ -1234,15 +1234,33 @@ def test_note_if_holds_in_exactly_the_one_locked_case():
     assert n == 1
 
 
-def test_the_morning_clocks_run_is_named():
-    """ADR 0014 decision 2: run-name names the clock's run, so clock-missed and a person can find it."""
+@pytest.mark.parametrize("send_note,collect,name", [
+    (True, True, "Daily update (morning note)"),                       # the clock's run
+    (True, False, "Daily update"),            # clock-alarm/collect-false-counts: it can't send, so it never hides a miss
+    (True, None, "Daily update"),
+    (False, True, "Daily update"), (None, True, "Daily update"), ("true", True, "Daily update"),
+    (None, None, "Daily update"),                                       # a scheduled run
+])
+def test_the_morning_clocks_run_is_named(send_note, collect, name):
+    """ADR 0014 decision 2: run-name names the clock's run (send_note and collect both true, as the note job's `if:`
+    needs), so clock-missed and a person can find it, and no run that can't send carries the name."""
     expr = WF["run-name"]
-    assert expr == "${{ inputs.send_note == true && 'Daily update (morning note)' || 'Daily update' }}"
+    assert expr == ("${{ inputs.send_note == true && inputs.collect == true && 'Daily update (morning note)'"
+                    " || 'Daily update' }}")
     inner = expr.removeprefix("${{").removesuffix("}}")
-    assert _gh(inner, {"inputs.send_note": True}) == "Daily update (morning note)"
-    for value in (False, None, "true"):
-        assert _gh(inner, {"inputs.send_note": value}) == "Daily update", value
+    assert _gh(inner, {"inputs.send_note": send_note, "inputs.collect": collect}) == name
     assert WF["name"] == "Daily update"
+
+
+def test_the_cron_is_the_data_backstop_off_the_clock_window():
+    """ADR 0014 decision 4, clock-alarm/early-schedule-blind: the backstop cron is 13:07 UTC (07:07 CST, 08:07 CDT), not
+    the clock's 03:07 site time: an on-time schedule never takes the one waiting slot from a queued clock run, and
+    clock-missed then always checks (after 05:00 site time, in both CST and CDT)."""
+    on = WF.get("on") or WF[True]
+    assert on["schedule"] == [{"cron": "7 13 * * *"}]
+    for offset in (-6, -5):                                              # CST, CDT
+        local = 13 + offset
+        assert 5 <= local < 24 and not 2 <= local <= 4                  # outside the clock's 02:45-05:00 window
 
 
 @pytest.mark.parametrize("value", [

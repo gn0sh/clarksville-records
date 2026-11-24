@@ -39,14 +39,17 @@
 # Collection keeps the collector's own rules (collector/fetch.py): one honest User-Agent, robots.txt obeyed, at least
 # 10 s between requests per host (more where robots.txt asks). Nothing here changes them.
 name: Daily update
-# ADR 0014: the morning clock's run (send_note true) is named so the clock-missed job and a person can find it.
-run-name: ${{ inputs.send_note == true && 'Daily update (morning note)' || 'Daily update' }}
+# ADR 0014: the morning clock's run (send_note and collect both true, the note job's own input checks) is named so the
+# clock-missed job and a person can find it; a send_note run with collect false can't send and keeps the plain name.
+run-name: ${{ inputs.send_note == true && inputs.collect == true && 'Daily update (morning note)' || 'Daily update' }}
 
 on:
   schedule:
     # Data backstop (ADR 0014): collects and deploys again when GitHub gets to it (6.6 to 12.1 h late, Nov 13-23); it
-    # never sends the note. 09:07 UTC daily (03:07 CST / 04:07 CDT), off the hour to avoid the scheduler rush.
-    - cron: "7 9 * * *"
+    # never sends the note. 13:07 UTC daily (07:07 CST / 08:07 CDT): off the hour to avoid the scheduler rush, and
+    # off the clock's 03:07 run, so an on-time schedule never takes the queue's one waiting slot from a clock run
+    # still queued, and clock-missed always runs after 05:00 site time (PR #94 review, clock-alarm/early-schedule-blind).
+    - cron: "7 13 * * *"
   workflow_dispatch:
     inputs:
       collect:
@@ -1910,8 +1913,9 @@ jobs:
   # bash). If it is past 05:00 site time and no "Daily update (morning note)" run dispatched and triggered by gn0sh
   # was created since 00:00 site time, it opens or comments on one fixed-title issue. A cancelled run does not count
   # (a run waiting in the one-run-at-a-time group can be replaced by a newer one and never start, so note-failed
-  # never fires), nor does a run someone else dispatched (it could not send). Before 05:00 (an on-time schedule) it
-  # checks nothing. Least privilege: actions: read (list this workflow's runs) and issues: write; no checkout, no
+  # never fires), nor does a run someone else dispatched (it could not send). Before 05:00 site time it checks
+  # nothing (that morning's clock run may still be queued); with the cron at 13:07 UTC (07:07 CST) that happens
+  # only when GitHub is about 16 to 22 h late, into the next day. Least privilege: actions: read (list this workflow's runs) and issues: write; no checkout, no
   # repository code, no secret. SITE_TZ is config/site.yml's site_timezone (a test keeps the two equal).
   clock-missed:
     if: github.event_name == 'schedule' && github.ref == 'refs/heads/main' && vars.MORNING_NOTE_SEND == 'true'
@@ -1940,7 +1944,7 @@ jobs:
                 --jq '[.workflow_runs[] | select(.display_title == $ENV.CLOCK_RUN and .actor.login == "gn0sh" and .triggering_actor.login == "gn0sh" and .conclusion != "cancelled")] | length')
           if ! [[ "$n" =~ ^[0-9]+$ ]]; then echo "::error::could not count today's morning-note runs."; exit 1; fi
           if [ "$n" -gt 0 ]; then echo "The morning clock fired: $n morning-note run(s) since 00:00 site time."; exit 0; fi
-          body="No \"Daily update (morning note)\" run dispatched by gn0sh has started on $day (site time, checked after 05:00), so no morning note was sent today. Found by the scheduled run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The site and data still update. Check and fix the clock: docs/ops/morning-clock.md; a note by hand only before 08:30 site time: docs/ops/morning-note.md, 'When the note job fails'."
+          body="No \"Daily update (morning note)\" run dispatched by gn0sh was created on $day (site time, checked after 05:00), so no morning note was sent today. Found by the scheduled run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The site and data still update. Check and fix the clock: docs/ops/morning-clock.md; a note by hand only before 08:30 site time: docs/ops/morning-note.md, 'When the note job fails'."
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$CLOCK_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.CLOCK_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then
