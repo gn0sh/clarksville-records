@@ -354,7 +354,7 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   site time, on 3 mornings) and that its network proxy allows `POST .../actions/workflows/.../dispatches`. Record the
   V1 result here.
 - The team's session acts on GitHub as `gn0sh` with admin rights (`gh api user`, 2026-11-24): a dispatch from it has
-  `github.actor` and `github.triggering_actor` `gn0sh`, the same as Brian's own.
+  `github.actor` and `github.triggering_actor` `gn0sh`, the same as Brian's own (expected; V1 checks it on the clock's runs).
 
 ## Main protection (V1 probe, T4.10.1)
 - **V1'' probe: PASS, 2026-11-21 6:02 PM CT (~2026-11-22 00:05 UTC)** (Brian's PC, try 4 of `scripts/v1pp-probe.ps1`): `main` ee4af9f, gh 2.104.0; 2 `pages-api` checks NOT-REACHABLE by design (U-pages). Results file on Brian's PC: `Documents\v1pp-probe-results-20261121-1802.txt` (summary: `v1pp/try4-results-20261121-1802.md` in the project files). Earlier try 3 was INCONCLUSIVE (job log unreadable: gh 2.104 refuses logs with escape sequences, fixed by PR #82). The one-run unlock is back to `none` in both scripts.
