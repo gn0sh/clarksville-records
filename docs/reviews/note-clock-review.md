@@ -30,3 +30,11 @@
 - New nit `clock-alarm/very-late-backstop`: the 16-22 h late case in ADR Risk should say what the alarm misses then.
 - New nit `tests/cron-check-tautological`: the cron test should parse the hour from the cron string, not restate it.
 - `cron-move/stale-window-comments`, left as is on purpose: `scripts/cutover-data-off-main.{sh,ps1}` (the one-time cutover ran 2026-11-19; their 05:00-10:30 UTC refusal and its tests pin a finished step) and `national-update.yml:40` (its blob sha is pinned by protect-main, and its "09:07 UTC" is still the clock's run in CST). Only `docs/architecture/v1pp-job-log-invariant.md:216` is reworded.
+
+## Round 3 at d390c77
+
+### security-engineer delta (opus/high): OK to merge
+- All 4 round-2 findings closed: `clock/unattended-session-reach`, `clock-prompt/lost-response-redispatch`, `cron-move/stale-window-comments`, `note-route/collect-not-rechecked`.
+- New low `clock-prompt/age-check-needs-clock`: the retry pre-check printed a time and left the session to judge "less than 5 minutes ago"; make the check print its own answer (`... --jq '.[0].createdAt | fromdateiso8601 | (now - .) < 300'`), retry only on `false`.
+- New nit `clock/r-clock-recheck-wording`: main-protect-invariant.md R-clock should say the bash re-check covers event, send_note, collect and both actors.
+- Tests: 82 passed.
