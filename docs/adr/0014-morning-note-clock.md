@@ -34,7 +34,9 @@ Builds on ADR 0004 (sender), 0009/0011 (gate, data off `main`); runbook `docs/op
 4. **The cron stays** as a data backstop, moved to **13:07 UTC** (07:07 CST / 08:07 CDT; was 09:07, the clock's own
    minute: PR #94 review, `clock-alarm/early-schedule-blind`): when it arrives (early afternoon at the observed delays)
    it collects and deploys again. Off the clock's window, an on-time schedule can't take the queue's one waiting slot
-   from a clock run still queued, and `clock-missed` runs after 05:00 site time unless GitHub is about 16 to 22 h late.
+   from a clock run still queued, and `clock-missed` runs after 05:00 site time unless GitHub is about 16 to 22 h late
+   (then it lands before 05:00 the next day, checks nothing, and a missed clock on the day it was meant for goes
+   unreported: Risk, Reliability).
    Its new items fall in the next day's window: it runs after the 07:00 cutoff even when on time, so their
    `first_fetched_at` is in `[D 07:00, D+1 07:00)`, note D+1; the windows are disjoint and `first_fetched_at` never
    changes, so nothing is lost or doubled.
@@ -58,15 +60,38 @@ issue), so the day's note silently misses the hours between them. What it cannot
 `publish = max(send_at, ...)`; `ids` mode is not usable with Buttondown) or after 10:00, or run from a branch (ref
 and `verified`). Collaborators, App installation tokens (`claude[bot]`), `github-actions` and other users fail the
 actor checks, and a gn0sh re-run of someone else's dispatch fails `github.actor`.
-**Security: an unattended session with gn0sh's credential** (PR #94 review, `clock/unattended-admin-session`). The
-clock is a claude.ai scheduled task: each morning it starts a fresh thread in the gnoshcodes project, which gets the
-project's repositories and connectors (the org can't limit connectors per task). Its GitHub credential can do
-anything `gn0sh` can, in every repository `gn0sh` reaches, admin included. The task is only *told* to run one
-command (`docs/ops/morning-clock.md`); the prompt forbids every other action, but nothing enforces it. A prompt
-injection in anything the thread reads could steer it. Judgment: the same reach every team session already has,
-now once a day with no person watching (confidence medium); keep the prompt minimal and the task reading nothing. Judgment: a small residual next to "a gn0sh credential can already
-merge code" (confidence medium). **Reliability:** the clock is a new single point; its timing and whether the
-cloud proxy allows `POST .../dispatches` are unverified (V1 below); the alarm makes a miss loud the same day.
+Judgment: a small residual next to "a gn0sh credential can already merge code" (confidence medium).
+
+**Security: an unattended session with gn0sh's reach** (PR #94 review, `clock/unattended-admin-session`, then
+`clock/unattended-session-reach`). The clock is a claude.ai scheduled task: each morning it starts a fresh thread in
+the gnoshcodes project, and that thread loads instructions and holds tools no prompt can remove (the next
+paragraph lists them). The task is only *told* to run one command (`docs/ops/morning-clock.md`); its prompt says it
+overrides every other instruction and forbids every connector, message and edit, but nothing enforces that. A
+planted memory entry or a merged CLAUDE.md change ("default to action") could steer the 03:07 thread, with no person
+watching. Judgment: the same reach every team session already has, now unattended once a day (confidence medium).
+Kept as primary because Brian chose this design. **Preferred upgrade:** if V1 shows the cloud clock reliable but
+this residual is judged too high, make the PC Task Scheduler entry (`scripts/register-morning-clock.ps1`: `gh` only,
+no model in the loop) the primary clock and pause the cloud task.
+
+**Invariant: the clock** (`clock/` family, 2nd hit, so stated before the fix). The clock may cause at most one
+dispatch of `daily-update.yml` on `main` per night (two only through the one guarded retry, when no run was created
+in the last 5 minutes) and nothing else: no other command, connector, message or edit.
+- Instruction sources the session loads on its own: the gnoshcodes project's instructions; the project's memory;
+  the `CLAUDE.md` of every repository cloned into the thread (the gnoshcodes playbook and each product repository's).
+  Any of them can be changed by whoever can write the project or merge into those repositories.
+- Reach: GitHub as `gn0sh`, admin, on every repository `gn0sh` reaches (`gh` and the GitHub MCP); the project's
+  connectors: Gmail (including send as Brian), Google Drive, Google Docs, Google Calendar, GitHub MCP, Claude Docs,
+  TradingKit.
+- Consumers that rely on it: the note's one send route (decision 3: a dispatch by `gn0sh` sends today's note) and
+  residual R-clock (`docs/architecture/main-protect-invariant.md`), which count the clock as one more `gn0sh`
+  credential that dispatches once a night and does nothing else.
+- What holds it: the prompt only (first line overrides the loaded instructions; one command; one guarded retry);
+  V1's daily check of the run list; the alarm. Nothing technical.
+
+**Reliability:** the clock is a new single point; its timing and whether the cloud proxy allows
+`POST .../dispatches` are unverified (V1 below); the alarm makes a miss loud the same day, except on a day the
+backstop schedule is about 16 to 22 h late (it then runs before 05:00 the next day and checks nothing:
+`clock-alarm/very-late-backstop`).
 
 ## Options rejected (steelmanned, with each one's most serious risk)
 - **Do nothing / accept later sends** (relax `latest_send` to ~17:00). Strongest case: zero new parts, the send route

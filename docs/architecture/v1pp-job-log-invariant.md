@@ -213,7 +213,8 @@ PC and adds a new code path to a gate script, while a full try 4 also re-proves 
 1. **The window.** The unlock expires after 2026-11-24 UTC (the script compares the UTC date). The fix PR needs
    review and security before Brian runs it, so aim to run on 11-22 or 11-23 and keep a day for one rerun. If the
    window is missed, a new unlock PR is needed, not an edit to the date.
-2. **The daily run** (09:07 UTC; GitHub can start it hours late).
+2. **The daily run** (at the time: the 09:07 UTC schedule, which GitHub started hours late; since ADR 0014 the
+   morning clock's 03:07 site-time dispatch, with the schedule moved to 13:07 UTC as a data backstop).
    - It never writes to main (it pushes only to records-data, and the probe already ignores records-data moving).
      An overlap is therefore not unsafe, but a main move from any other source makes `main` INCONCLUSIVE.
    - The self-check reads only *completed* runs, so a run in progress is skipped.

@@ -404,8 +404,8 @@ Verdict: **turning Actions off is not needed**; with R2 off nothing below a writ
   audience (the plan comes from the gate-verified commit on `main`), send twice (day claim), send before 07:00
   (stamp mode, `publish = max(send_at, ...)`; `ids` mode is not usable with Buttondown) or after 10:00
   (`latest_send`), or run from a branch (`github.ref` and `verified`). The clock itself is an unattended claude.ai
-  session holding `gn0sh`'s credential, only told to run one command (ADR 0014 Risk). Collaborators, App
-  installation tokens (`claude[bot]`), `github-actions[bot]` (a workflow's `GITHUB_TOKEN`, W2) and
+  session holding `gn0sh`'s credential and the project's connectors, only told to run one command (ADR 0014 Risk
+  and "Invariant: the clock": at most one dispatch a night, nothing else). Collaborators, App installation tokens (`claude[bot]`), `github-actions[bot]` (a workflow's `GITHUB_TOKEN`, W2) and
   other users fail the actor checks; a `gn0sh` re-run of someone else's dispatch fails `github.actor`. The
   expression's `==` ignores case, so the Deliver step re-checks the event, `send_note` and both actors exactly in
   bash. Judgment: small next to "a gn0sh credential can already merge code" (L3; confidence medium). Reopen if a
