@@ -1911,6 +1911,36 @@ DATE_PHRASES = ("seen in vote records", "shown as vacant in vote records", "vote
                 "seen in the minutes that record the seating")
 SOURCE_TERM = "as the source prints it"
 BANNED = ("Held this seat", "vacant since", "to present", "in use since")
+# The banned words judge the site's own wording, not a document's (provenance/verbatim-title-trips-ban): any bare
+# <span data-item-title> holds a record's words as printed (titles, names, motion and outcome words, printed dates),
+# so its text is emptied first, as transcript text is. Every template that prints one is pinned, with its exact inner
+# expression, in tests/test_provenance.py VERBATIM_SPAN_PRODUCERS (provenance/verbatim-span-producers-unguarded): a
+# new or changed one fails until reviewed. Autoescaped text holds no "<", so the match is exact; a span with markup
+# inside or another attribute does not match and stays checked (fails safe). The 2021-12-02 agenda's caption for
+# ORDINANCE 30-2021-22 prints "relative to presenting legislation".
+VERBATIM_TITLE = re.compile(r"(<span data-item-title>)[^<]*(</span>)")
+# The same words in the search index: the `t` of an item or vote record (provenance/index-t-producers-misdocumented)
+# is the title as printed (views.Index.item_title, council.Council.item_title), a council's config fallback
+# (council.yml untitled_item, "Title not read from the minutes"), the county's fixed "Untitled item <number>", a vote's
+# item id (views.body_records, when its item is missing), or an RPC case's printed request or case type, cut to
+# TITLE_MAX with an ellipsis, or its number (rpc.py search records). The config and fixed fallbacks are tested to hold
+# no banned phrase. Every other field (the cite's words `ts.l`, a seat text `st`) and every other record kind stays
+# checked.
+VERBATIM_RECORD_KINDS = ("item", "vote")
+
+
+def search_index_own_text(raw: str) -> str:
+    """search-index.js with each item and vote record's title (`t`) emptied, re-serialized unescaped; the text
+    around the JSON object kept. A file whose object does not parse is returned raw (scanned whole: fails safe)."""
+    try:
+        start, end = raw.index("{"), raw.rindex("}") + 1
+        ix = json.loads(raw[start:end])
+    except ValueError:
+        return raw
+    for r in ix.get("records", []) if isinstance(ix, dict) else []:
+        if isinstance(r, dict) and r.get("k") in VERBATIM_RECORD_KINDS and isinstance(r.get("t"), str):
+            r["t"] = ""
+    return raw[:start] + json.dumps(ix, ensure_ascii=False) + raw[end:]
 
 
 class SeatTexts(HTMLParser):
@@ -2015,8 +2045,9 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
     for rel in sorted(pages):
         body = (site / rel).read_text(encoding="utf-8")
         # transcript text (data-transcript) is what the speech-recognition software wrote, shown verbatim: its words
-        # are the speakers', not the site's seat wording; a coming-up page's feed text is the government's (B-ISO-8)
-        plain = html.unescape(TRANSCRIPT_TEXT.sub(r"\1\3", own_text(site, rel, body)))
+        # are the speakers', not the site's seat wording; a coming-up page's feed text is the government's (B-ISO-8);
+        # a bare data-item-title span holds a record's words as printed (VERBATIM_TITLE)
+        plain = html.unescape(VERBATIM_TITLE.sub(r"\1\2", TRANSCRIPT_TEXT.sub(r"\1\3", own_text(site, rel, body))))
         for b in banned:
             if b in plain:
                 problems.append(f"{rel}: contains banned {b!r}")
@@ -2029,8 +2060,9 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
     idx_file = site / "static" / "search-index.js"
     if idx_file.is_file():
         raw = idx_file.read_text(encoding="utf-8")
+        own = search_index_own_text(raw)
         for b in banned:
-            if b in raw:
+            if b in own:
                 problems.append(f"static/search-index.js: contains banned {b!r}")
         ix = json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
         seat_strings = ([r.get("st") or "" for r in ix.get("records", []) if r.get("k") == "person"]

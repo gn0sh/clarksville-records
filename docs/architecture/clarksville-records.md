@@ -405,7 +405,14 @@ Seats are not in the public export today; if added, each row carries `dates` and
    every ISO date sits in a phrase that starts "seen in roll calls", "shown as vacant in roll calls" or "roll calls",
    or the element contains "as the source prints it". Banned anywhere: "Held this seat", "vacant since", "to present",
    "in use since", the `lines_effective` value and the day before it (`views.district` clips blocks with
-   `_day_before(eff)`; a block shows its own first and last roll-call dates, never the cutover).
+   `_day_before(eff)`; a block shows its own first and last roll-call dates, never the cutover). "Anywhere" means
+   the site's own words: a record's words shown verbatim are emptied first (transcript text; any bare
+   `<span data-item-title>`, which holds record words as printed: titles, names, motion and outcome words, printed
+   dates, each producer pinned in `tests/test_provenance.py` `VERBATIM_SPAN_PRODUCERS`; the `t` of an item or vote
+   record in `search-index.js`, whose fallbacks "Untitled item" and council.yml `untitled_item` are tested to hold no
+   banned phrase), so an agenda caption
+   printing "relative to presenting legislation" passes, while a seat text, a cite or any other site-written text
+   stays checked (provenance/verbatim-title-trips-ban).
 4. Cutover immaterial (rule above), on the committed `data/facts.json` and `config/seats.yml`.
 5. Export registry: `collector/export.py` `PROVENANCE = {"<file>.<column>": "stated" | "derived: <how>"}`; every CSV
    column and facts.json row key must be listed; a derived column name never starts `stated_`; a `stated_` value is
