@@ -1826,8 +1826,8 @@ jobs:
 
       # The only step with the API key. --live only when the variable is exactly 'true' (the job's own `if:` already
       # requires it; this is the second lock). With the variable on, the send route is checked again, exactly and in
-      # bash (an expression's == ignores case): a workflow_dispatch, send_note exactly true, and gn0sh as both the
-      # dispatching and the triggering actor (ADR 0014, as allow_shrink's re-check); anything else stops the step,
+      # bash (an expression's == ignores case): a workflow_dispatch, send_note and collect exactly true, and gn0sh as
+      # both the dispatching and the triggering actor (ADR 0014, as allow_shrink's re-check); anything else stops the step,
       # nothing sent, and note-failed opens its issue. Values come in through env only. Totals only in the log.
       - name: Deliver the morning note
         env:
@@ -1835,6 +1835,7 @@ jobs:
           MORNING_NOTE_CANARY_IDS: ${{ secrets.MORNING_NOTE_CANARY_IDS }}
           MORNING_NOTE_SEND: ${{ vars.MORNING_NOTE_SEND }}
           SEND_NOTE: ${{ inputs.send_note }}
+          COLLECT: ${{ inputs.collect }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}   # who started or re-ran this attempt
           DISPATCH_ACTOR: ${{ github.actor }}   # who dispatched it first (a re-run keeps it): both must be gn0sh
         run: |
@@ -1847,8 +1848,8 @@ jobs:
           live=()
           if [ "$MORNING_NOTE_SEND" = "true" ]; then
             if [ "${GITHUB_EVENT_NAME:-}" != workflow_dispatch ] || [ "${SEND_NOTE:-}" != true ] \
-               || [ "${DISPATCH_ACTOR:-}" != gn0sh ] || [ "${TRIGGERING_ACTOR:-}" != gn0sh ]; then
-              echo "::error::only a run gn0sh dispatched and triggered with send_note true may send (ADR 0014). Nothing sent."
+               || [ "${COLLECT:-}" != true ] || [ "${DISPATCH_ACTOR:-}" != gn0sh ] || [ "${TRIGGERING_ACTOR:-}" != gn0sh ]; then
+              echo "::error::only a run gn0sh dispatched and triggered with send_note and collect true may send (ADR 0014). Nothing sent."
               exit 2
             fi
             live=(--live)

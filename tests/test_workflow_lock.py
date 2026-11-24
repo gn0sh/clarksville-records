@@ -980,8 +980,8 @@ NOTE_IF = ("github.event_name == 'workflow_dispatch' && inputs.send_note == true
            " && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh' && vars.MORNING_NOTE_SEND == 'true'"
            " && github.ref == 'refs/heads/main' && needs.gate.outputs.verified == 'true'")
 # the route env the Deliver step's bash re-check reads (ADR 0014): the clock's run
-NOTE_ROUTE_ENV = {"GITHUB_EVENT_NAME": "workflow_dispatch", "SEND_NOTE": "true", "DISPATCH_ACTOR": "gn0sh",
-                  "TRIGGERING_ACTOR": "gn0sh"}
+NOTE_ROUTE_ENV = {"GITHUB_EVENT_NAME": "workflow_dispatch", "SEND_NOTE": "true", "COLLECT": "true",
+                  "DISPATCH_ACTOR": "gn0sh", "TRIGGERING_ACTOR": "gn0sh"}
 # main-protect/pr-check-path-scope, main-protect/test-launcher-coverage: the note job's three python runs, exactly
 # (-I -S, a fresh pycache_prefix, the staged sender folder alone on sys.path, the staged config), each after VERIFY,
 # the re-check of the staged folder's digest (main-protect/staged-lib-integrity).
@@ -1257,10 +1257,14 @@ def test_the_cron_is_the_data_backstop_off_the_clock_window():
     the clock's 03:07 site time: an on-time schedule never takes the one waiting slot from a queued clock run, and
     clock-missed then always checks (after 05:00 site time, in both CST and CDT)."""
     on = WF.get("on") or WF[True]
-    assert on["schedule"] == [{"cron": "7 13 * * *"}]
+    assert len(on["schedule"]) == 1
+    minute, hour, *rest = on["schedule"][0]["cron"].split()
+    assert rest == ["*", "*", "*"] and minute.isdigit() and hour.isdigit()   # one fixed time, every day
+    utc = int(hour) * 60 + int(minute)
     for offset in (-6, -5):                                              # CST, CDT
-        local = 13 + offset
-        assert 5 <= local < 24 and not 2 <= local <= 4                  # outside the clock's 02:45-05:00 window
+        local = (utc + offset * 60) % (24 * 60)
+        assert not 2 * 60 + 45 <= local <= 5 * 60, (hour, minute, offset)   # outside the clock's 02:45-05:00 window
+        assert local >= 5 * 60                       # clock-missed checks (05:00 site time on) on an on-time run
 
 
 @pytest.mark.parametrize("value", [
@@ -1462,6 +1466,9 @@ def _deliver_script() -> str:
     ({"SEND_NOTE": "false"}, False),
     ({"SEND_NOTE": ""}, False),
     ({"SEND_NOTE": "True"}, False),
+    ({"COLLECT": "false"}, False),                             # note-route/collect-not-rechecked
+    ({"COLLECT": ""}, False),
+    ({"COLLECT": None}, False),
     ({"DISPATCH_ACTOR": "mallory"}, False),                    # a gn0sh re-run of someone else's dispatch
     ({"TRIGGERING_ACTOR": "mallory"}, False),
     ({"DISPATCH_ACTOR": "Gn0sh"}, False),                      # the `if:` ignores case; bash does not
@@ -1479,6 +1486,7 @@ def test_the_deliver_step_rechecks_the_route_before_live(change, ok):
     step before the sender runs (exit 2, nothing sent, note-failed opens its issue)."""
     deliver = _note_steps()["Deliver the morning note"]
     assert deliver["env"]["SEND_NOTE"] == "${{ inputs.send_note }}"
+    assert deliver["env"]["COLLECT"] == "${{ inputs.collect }}"
     assert deliver["env"]["TRIGGERING_ACTOR"] == "${{ github.triggering_actor }}"
     assert deliver["env"]["DISPATCH_ACTOR"] == "${{ github.actor }}"
     env = {k: v for k, v in {**os.environ, **NOTE_ROUTE_ENV, **change, "MORNING_NOTE_SEND": "true",
@@ -1488,7 +1496,8 @@ def test_the_deliver_step_rechecks_the_route_before_live(change, ok):
         assert r.returncode == 0 and "ARGS" in r.stdout and "--live" in r.stdout, r.stdout + r.stderr
     else:
         assert r.returncode == 2 and "ARGS" not in r.stdout, (change, r.stdout, r.stderr)
-        assert "::error::only a run gn0sh dispatched and triggered with send_note true may send" in r.stdout
+        assert ("::error::only a run gn0sh dispatched and triggered with send_note and collect true may send"
+                in r.stdout)
         assert "Nothing sent." in r.stdout and "unbound" not in r.stderr
 
 
