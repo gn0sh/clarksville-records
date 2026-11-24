@@ -156,8 +156,9 @@ twins and their tests in one PR, with this note.
 | J1 | `update` job | `needs: gate`; checks out exactly `needs.gate.outputs.sha`, not `ref: main` (L-A). `contents: read`, token not persisted, `issues: write` only. Its build and plan come from the checked commit, so what `deploy` publishes and `note` sends was built by checked code. |
 | J2 | `push` job | `needs: [gate, update]`; commits on `update.sha` (= `S`). Local check: one commit on top of main, `data/` only. Server check: the PR's file list equals the local list exactly and is not empty (L-C); every name under `data/`; merge pinned to the checked `sha`, squash. Its merges are the bot merges I-main expects (data only); a test keeps `contents: write` and `pull-requests: write` to this job alone across every workflow (M-2). |
 | J3 | `deploy` job | `needs: [gate, update, push]`, plus `needs.gate.result == 'success'` in its `if:`. Publishes only this run's artifact from J1. Environment `github-pages`, main only (E1). |
-| J4 | `note` job | `needs: [gate, update, deploy]`, `if:` adds `needs.gate.outputs.verified == 'true'`; checks out `needs.gate.outputs.sha`. Its own PR-check step is removed (one copy, in the gate); the stale-rerun step stays. Internals: table "Inside the note job" below. |
+| J4 | `note` job | `needs: [gate, update, deploy]`, `if:` adds `needs.gate.outputs.verified == 'true'`; checks out `needs.gate.outputs.sha`. Its own PR-check step is removed (one copy, in the gate); the stale-rerun step stays. Send route (ADR 0014, 2026-11-24): only a `workflow_dispatch` with `send_note` and `collect` true and `gn0sh` as both `github.actor` and `github.triggering_actor`; the schedule never sends; re-checked in bash before `--live` (residual R-clock). Internals: table "Inside the note job" below. |
 | J5 | `note-failed`, `gate-failed` (new), push's failure step | `issues: write` only, fixed text, no checkout, run no repo code. |
+| J6 | `clock-missed` (ADR 0014) | Scheduled runs on `main` with `MORNING_NOTE_SEND` on; `actions: read` (lists this workflow's runs) and `issues: write` only, fixed title, `--app github-actions` lookup, no checkout, runs no repo code, no secret. `actions: read` is not `actions: write`, so U-pages stays closed. |
 | W1 | The workflow file at `S` | Ruleset R1' (PR only, code-owner review outside `data/`, admin bypass for PRs only). V1 is false and no longer relied on. The gate also refuses a bot-merged `.github/` commit already in the history (3ef440a, PR #40, is before the baseline: see "V1 is false"), so a later good workflow stops until a person moves the baseline past it. |
 | W2 | Workflows on any other branch | Only a writer can create or start one (T2, T7 in "V1 is false"). With `contents: write` it can merge an open PR (R2 does not govern merging) and, with R2 on, open its own, from any branch or fork. Under R1' it can merge into `main` only a PR that changes nothing outside `data/` (residual M-2, shape checked); before R1' a code or workflow change too, since V1 is false, which G refuses on later runs only if the workflow file still holds G. It can merge into unprotected branches (workflows included) and dispatch them: they reach no credential while E1 and E2 are main only. |
 | E1 | Environment `github-pages` | Deployment branches **main only**. `gh-pages` is still allowed today (status: "optional hygiene"); under I-run it is not optional: a workflow a person pushes to `gh-pages` (the ruleset covers main only) would get `pages: write` outside the gate. Removed in T4.10.5. |
@@ -392,6 +393,19 @@ Verdict: **turning Actions off is not needed**; with R2 off nothing below a writ
   pushes it: a `GITHUB_TOKEN` can merge the file onto a branch (W2), but its pushes and merges start no run, and no
   workflow on `main` grants `actions: write` to dispatch one. Reopen if a workflow on `main` gains `actions: write` or
   ever calls the Pages API outside the `github-pages` environment.
+- R-clock (ADR 0014, 2026-11-24): the note's send route is a dispatch by any credential acting as `gn0sh` with
+  `actions: write` (Brian's `gh`, every team session, the claude.ai clock, any PAT Brian makes), where it was GitHub's
+  cron. Verified: the team's session acts as `gn0sh` with admin rights (`gh api user`, 2026-11-24), so `gn0sh` means
+  "Brian or a team session", never "Brian only" (as for `allow_shrink` and national collect). Such a dispatch can
+  make today's note go out on a day it otherwise would not, from the data as of its run. It cannot change content or
+  audience (the plan comes from the gate-verified commit on `main`), send twice (day claim), send before 07:00
+  (`publish = max(send_at, ...)`) or after 10:00 (`latest_send`), or run from a branch (`github.ref` and
+  `verified`). Collaborators, Apps (`claude[bot]`), `github-actions[bot]` (a workflow's `GITHUB_TOKEN`, W2) and
+  other users fail the actor checks; a `gn0sh` re-run of someone else's dispatch fails `github.actor`. The
+  expression's `==` ignores case, so the Deliver step re-checks the event, `send_note` and both actors exactly in
+  bash. Judgment: small next to "a gn0sh credential can already merge code" (L3; confidence medium). Reopen if a
+  `gn0sh` token is stored anywhere new (a third-party service, another repository's secret), or if the note ever
+  sends without the day claim.
 - zip-slip-residual: a download that could write anywhere on the runner (toolcache, `GITHUB_ENV`) has better targets
   than `NOTE_LIB`; the defence is the pinned `download-artifact` (v4.3.0) and the plan coming only from this run's J1.
 - Unverified GitHub behaviour: U1-U4 of ADR 0010 (code-owner review binds with 0 approvals: V1' probe; data/ unowned

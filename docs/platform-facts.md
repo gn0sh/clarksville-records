@@ -344,6 +344,18 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   `environments/` and `pages`), so whether `gh-pages` is still allowed was unverified from the session (Brian's PC read on 2026-11-18 is under "Main protection" below: `main` only). Removing `gh-pages` from that
   list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
 
+## GitHub Actions scheduler (verified 2026-11-24 from the run list, health check "Scheduler"; ADR 0014)
+- `daily-update.yml`'s `cron: "7 9 * * *"` (09:07 UTC): all **11 scheduled runs from Nov 13 to 23 were created 6.6
+  to 12.1 h late, median 8.6 h**, none within 6 h. Measured on each run's `created_at` (when GitHub queued it), so
+  this is GitHub's scheduler, not our concurrency group. GitHub documents no upper bound on schedule delay.
+- Consequence (ADR 0014): the schedule can't deliver a 07:00 note, so it no longer sends. The note's run is
+  dispatched by a 03:07 America/Chicago clock (`docs/ops/morning-clock.md`); the cron stays as a data backstop.
+- **Unverified (ADR 0014 V1):** the claude.ai scheduled task's timing (PASS: each run created within 15 min of 03:07
+  site time, on 3 mornings) and that its network proxy allows `POST .../actions/workflows/.../dispatches`. Record the
+  V1 result here.
+- The team's session acts on GitHub as `gn0sh` with admin rights (`gh api user`, 2026-11-24): a dispatch from it has
+  `github.actor` and `github.triggering_actor` `gn0sh`, the same as Brian's own.
+
 ## Main protection (V1 probe, T4.10.1)
 - **V1'' probe: PASS, 2026-11-21 6:02 PM CT (~2026-11-22 00:05 UTC)** (Brian's PC, try 4 of `scripts/v1pp-probe.ps1`): `main` ee4af9f, gh 2.104.0; 2 `pages-api` checks NOT-REACHABLE by design (U-pages). Results file on Brian's PC: `Documents\v1pp-probe-results-20261121-1802.txt` (summary: `v1pp/try4-results-20261121-1802.md` in the project files). Earlier try 3 was INCONCLUSIVE (job log unreadable: gh 2.104 refuses logs with escape sequences, fixed by PR #82). The one-run unlock is back to `none` in both scripts.
 - **V1 probe: FAIL, 2026-11-18 08:50 UTC** (Brian's run of `scripts/v1-probe.ps1`; run
