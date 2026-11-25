@@ -112,6 +112,9 @@ REQUIRED_PAGE_LABELS = (
     "body.not-posted", "body.incomplete", "body.withheld", "body.cut", "body.item-page", "body.no-meetings",
     "body.full", "body.morning", "body.topic-sr", "body.topic-note",
     "body.next", "body.later-h", "body.more", "body.no-time-all", "body.going-h", "body.going",
+    # digest titles, Proposal A: the page-top summary and each meeting's "On this agenda" line (agenda_counts)
+    "body.summary", "body.on-agenda", "body.on-topic",
+    *(f"body.{k}{one}" for k in ("summary-meetings", "on-more", "on-items") for one in ("", "-one")),
     *(f"body.topic-{k}" for k, _type in TOPICS))
 
 LINK_RE = re.compile(r"\[([^\[\]]+)\]")
@@ -556,6 +559,61 @@ def item_topics(number: str | None, text: str) -> list[str]:
     return [f"body.topic-{key}" for key, item_type in TOPICS if item_type in types]
 
 
+def count_label(page_labels, key: str, n: int) -> str:
+    """A count label: `<key>-one` (the singular words) for exactly 1, else `<key>`, with {n} filled, as the
+    covered.count and lookup.summary-found pairs pick their singular."""
+    return label_text(page_labels[f"{key}-one" if n == 1 else key], n=n)
+
+
+def agenda_counts(entries) -> dict:
+    """What a list of shown item views holds, by topic (digest titles, Proposal A):
+    - `topics`: [(label key, n)] in TOPICS order, only topics with n > 0. An item counts once under each topic it
+      shows a chip for (the same chips the reader sees), so an item with two topics counts in both;
+    - `more`: the items that show no topic chip. Each item is either in `more` or in at least one topic, never both,
+      so `more` never double-counts;
+    - `total`: every shown item."""
+    keys = [f"body.topic-{k}" for k, _type in TOPICS]
+    n = dict.fromkeys(keys, 0)
+    more = 0
+    for e in entries:
+        for t in e["topics"]:
+            n[t] += 1
+        if not e["topics"]:
+            more += 1
+    return {"topics": [(k, n[k]) for k in keys if n[k]], "more": more, "total": len(entries)}
+
+
+def _topic_parts(page_labels, counts: dict) -> list[str]:
+    return [label_text(page_labels["body.on-topic"], topic=page_labels[k], n=n) for k, n in counts["topics"]]
+
+
+def agenda_line(entries, page_labels) -> list[str] | None:
+    """A meeting's "On this agenda:" parts, from labels and counts only (no AI text, AC4.8): each shown topic with its
+    count, then "N more items" for the items with no topic; with no topic at all, "N items". None when the meeting
+    shows no items (not posted, withheld, not final, or an empty agenda): the card keeps its current lines."""
+    if not entries:
+        return None
+    c = agenda_counts(entries)
+    if not c["topics"]:
+        return [count_label(page_labels, "body.on-items", c["total"])]
+    return [*_topic_parts(page_labels, c),
+            *([count_label(page_labels, "body.on-more", c["more"])] if c["more"] else [])]
+
+
+def page_summary(meetings: list[dict], page_labels) -> list[str] | None:
+    """The coming-up page's top line parts (after `body.summary`, "From today on:"). The page lists every posted
+    meeting from the build day on, with no end date (AC4.1), so the line names no fixed period. Parts: the meeting
+    count, then each topic with its count over every shown item on the page (folded meetings included); with no
+    topic, the item count when any item is shown. None when the page has no meeting (the empty card says so)."""
+    if not meetings:
+        return None
+    c = agenda_counts([e for m in meetings for e in m["entries"]])
+    parts = [count_label(page_labels, "body.summary-meetings", len(meetings)), *_topic_parts(page_labels, c)]
+    if not c["topics"] and c["total"]:
+        parts.append(count_label(page_labels, "body.on-items", c["total"]))
+    return parts
+
+
 def meeting_view(m: dict, gov: Mapping, tz: str, page_labels) -> dict:
     """What the coming-up template prints for one meeting of the bound feed (section 11 consumer 3): items only when
     the agenda is final and the feed says they are not withheld. Links come from the meeting through the directory
@@ -567,7 +625,7 @@ def meeting_view(m: dict, gov: Mapping, tz: str, page_labels) -> dict:
     state = m["agenda"]["state"]
     withheld = m["items_withheld"] is not False
     items = m["items"] if state == ncl.FINAL and not withheld else []
-    return {"id": m["id"], "date": m["date"], "day": long_day(m["date"]), "time": m["time"],
+    view = {"id": m["id"], "date": m["date"], "day": long_day(m["date"]), "time": m["time"],
             "tz": _tz_label(page_labels, tz) if m["time"] else None,
             "title": m["title"], "title_ours": m["title_ours"], "state": state,
             "posted": state in (ncl.FINAL, ncl.NOT_READ), "agenda_url": agenda_url,
@@ -579,6 +637,8 @@ def meeting_view(m: dict, gov: Mapping, tz: str, page_labels) -> dict:
                          "url": link_or_official((it.get("source") or {}).get("url"), agenda_url or "", platform,
                                                  client) or None}
                         for it in items]}
+    view["on"] = agenda_line(view["entries"], page_labels)        # the card's lead line (None: no items shown)
+    return view
 
 
 # digest-warmth section 5 item 3: meetings in the first OPEN_MONTHS calendar months that have a meeting print open;
@@ -687,7 +747,7 @@ def _gov_files(pages: "Pages", g: Mapping, feed: dict, flags: nat.GovFlags, labe
         name=g["body_name"], official=official, state_name=_state_label(L, g["state"]),
         slot=labels[f"slot.{nat.slot_of(g['gov'], flags)}"], host=_host(official),
         newest=newest_day(feed.get("checked_at")),
-        meetings=meetings, layout=meeting_layout(meetings),
+        meetings=meetings, layout=meeting_layout(meetings), summary=page_summary(meetings, L),
         topic_note=any(e["topics"] for m in meetings for e in m["entries"]),
         full_href=g["daylight"]["full_url"] if daylight else None, morning=morning if daylight else None)
     return rel, html, rel[:-len(".html")] + ".json", feed_json(feed)

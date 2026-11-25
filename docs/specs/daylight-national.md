@@ -175,6 +175,12 @@ As a resident, I want to see what a body will take up next, in its own words, so
   stale claim: `checked_at` is a first-fetch date, see `national-freshness/checked-at-is-first-fetch`.)
 - AC4.7 An item whose verbatim text matches the published topic word list (AC3.3; in M1 the morning note's lists)
   shows that fixed topic label next to it. The rule is the same for every body; no AI.
+  Digest titles, Proposal A (Brian, 2026-11-24, with counts): the page opens with one summary line, "From today on:
+  2 meetings · Rezoning (3) · Budget and finance (1)" (the page has no end date, see AC4.1, so it names no period;
+  with no topic match the item count instead). Each meeting with shown items leads with "On this agenda: Rezoning (3)
+  · Budget and finance (1) · 14 more items" above its date and name; with no topic match "On this agenda: 18 items";
+  with no items shown, no such line. Topics in topic-list order; an item counts once under each topic it shows a label
+  for, and "more items" counts only items with no label, so nothing is counted twice there. Labels and counts only.
 - AC4.8 The only text on the page that is not verbatim source text is a fixed label (QA lists every string on the
   page and checks each is a source quote or a label in the label file).
 - AC4.9 Every coming-up page has the same layout and fields (QA compares two bodies' pages).
