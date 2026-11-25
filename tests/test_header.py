@@ -20,7 +20,7 @@ def test_every_built_page_has_the_same_header_with_the_date_line(built, pages):
     for rel, html in pages.items():
         header = SC.site_header(html, rel)
         assert header is not None, rel                        # exactly one site header on the page
-        if rel in ROOT_ABSOLUTE_PAGES:                                  # served for any address, so its links start at "/"
+        if rel in ROOT_ABSOLUTE_PAGES:  # served for any address, so its links start at "/"
             header = header.replace('="/', '="')
         headers.setdefault(header, []).append(rel)
         assert html.index('<a class="skip" href="#main">') < html.index('<header class="site-header') \
