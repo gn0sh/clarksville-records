@@ -1028,6 +1028,97 @@ def test_topic_labels_follow_shown_items_and_never_a_withheld_meeting(tmp_path, 
     assert "digest-topic" not in html2
 
 
+# --- digest titles, Proposal A: the page summary and each meeting's "On this agenda" line -----------------------------
+
+def _e(*topics):
+    return {"topics": [f"body.topic-{t}" for t in topics]}
+
+
+def test_agenda_counts_count_each_topic_in_topics_order_and_the_rest_once():
+    """An item counts once under every topic it shows a chip for; `more` is the items with no chip, so an item is in
+    `more` or in a topic, never both (no double count in "N more items")."""
+    c = npg.agenda_counts([_e("budget"), _e("zoning"), _e(), _e("zoning", "budget"), _e("zoning"), _e()])
+    assert c == {"topics": [("body.topic-zoning", 3), ("body.topic-budget", 2)], "more": 2, "total": 6}
+    assert npg.agenda_counts([_e(), _e()]) == {"topics": [], "more": 2, "total": 2}
+    assert npg.agenda_counts([]) == {"topics": [], "more": 0, "total": 0}
+
+
+def test_agenda_line_topics_then_more_items_and_its_zero_cases(page_labels):
+    L = page_labels
+    assert npg.agenda_line([_e("budget"), *[_e("zoning")] * 3, *[_e()] * 14], L) == [
+        "Rezoning (3)", "Budget and finance (1)", "14 more items"]
+    assert npg.agenda_line([_e("zoning"), _e()], L) == ["Rezoning (1)", "1 more item"]
+    assert npg.agenda_line([_e("zoning"), _e("zoning", "budget")], L) == ["Rezoning (2)", "Budget and finance (1)"]
+    assert npg.agenda_line([_e()] * 18, L) == ["18 items"]           # no topic match: no invented hook
+    assert npg.agenda_line([_e()], L) == ["1 item"]
+    assert npg.agenda_line([], L) is None                            # no items shown: the card keeps its lines
+
+
+def test_page_summary_counts_meetings_and_topics_over_the_whole_page(page_labels):
+    L = page_labels
+    ms = [{"entries": [_e("zoning"), _e("zoning"), _e()]}, {"entries": []}, {"entries": [_e("zoning", "budget")]}]
+    assert npg.page_summary(ms, L) == ["3 meetings", "Rezoning (3)", "Budget and finance (1)"]
+    assert npg.page_summary([{"entries": [_e(), _e()]}], L) == ["1 meeting", "2 items"]
+    assert npg.page_summary([{"entries": [_e()]}, {"entries": []}], L) == ["2 meetings", "1 item"]
+    assert npg.page_summary([{"entries": []}], L) == ["1 meeting"]
+    assert npg.page_summary([], L) is None
+
+
+def test_count_labels_pick_the_singular_key_for_one(page_labels):
+    for key in ("body.summary-meetings", "body.on-more", "body.on-items"):
+        assert key in npg.REQUIRED_PAGE_LABELS and f"{key}-one" in npg.REQUIRED_PAGE_LABELS
+        assert npg.count_label(page_labels, key, 1) == npg.label_text(page_labels[f"{key}-one"], n=1)
+        assert npg.count_label(page_labels, key, 0) == npg.label_text(page_labels[key], n=0)
+        assert npg.count_label(page_labels, key, 7) == npg.label_text(page_labels[key], n=7)
+    assert page_labels["body.summary"] == "From today on:"        # the page has no end date (AC4.1): no "2 weeks"
+
+
+def test_coming_up_page_leads_with_the_summary_and_what_is_on_each_agenda(tmp_path, loaded, page_labels):
+    directory, flags, labels = loaded
+    titles = ("Resolution amending the FY27 budget", "Rezoning request for 5 acres", "Rezone 2 acres on Main St",
+              "Approve the minutes", "Budget for a rezoning study")
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas(*titles), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    html = _render_one(tmp_path, directory, flags, labels, page_labels, feeds, COUNTY_ID)
+    text = main_text(html)
+    assert "From today on: 1 meeting · Rezoning (3) · Budget and finance (2)" in text
+    section = re.search(r'<section class="digest-meeting".*?</section>', html, re.S).group(0)
+    assert main_text("<main>" + section + "</main>").startswith(
+        "On this agenda: Rezoning (3) · Budget and finance (2) · 1 more item\n")
+    assert section.index('class="digest-on"') < section.index("<h2") < section.index("digest-meeting-title")
+    assert html.index('class="digest-summary"') < html.index('class="digest-next')     # the summary tops the page
+    rest = leftover(text, [*page_labels.values(), *labels.values(), *FRAME_WORDS], _sources(directory, [feeds[COUNTY_ID]]))
+    assert re.fullmatch(r"[\s.,·:/]*", rest), rest.strip()[:300]
+    assert section.count('class="digest-on"') == 1
+    # no topic match: the plain item count
+    feeds2 = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("Approve the minutes", "Call to order"),
+                                   date(2026, 11, 19), checked_at=BUILT_AT)
+    text2 = main_text(_render_one(tmp_path / "n", directory, flags, labels, page_labels, feeds2, COUNTY_ID))
+    assert "From today on: 1 meeting · 2 items" in text2 and "On this agenda: 2 items" in text2
+
+
+def test_a_meeting_with_no_items_shown_keeps_its_current_lines(tmp_path, loaded, page_labels):
+    """The city meetings (agenda not read, no items) and a withheld government's meetings get no "On this agenda"
+    line; their not-posted or withheld text is unchanged."""
+    directory, flags, labels = loaded
+    withheld = _entry(directory, "place-4799999", body_name="Clarksville Youth Council", items="withheld")
+    d = nat.Directory(govs=(*directory.govs, withheld), alias={})
+    facts = {"meetings": [{"id": "2026-12-03-regular", "date": "2026-12-03", "kind": "regular", "title": "Regular"}],
+             "sources": []}
+    feeds = ncl.clarksville_feeds(d, {"city": (facts, [])}, _agendas("Rezone 2 acres"), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    out = tmp_path / "site"
+    _build_pages_into(out, d, flags, labels, page_labels, feeds)
+    for gid in ("place-4799999", COUNCIL_ID):
+        html = (out / "digest" / "tn" / f"{gid}.html").read_text(encoding="utf-8")
+        assert feeds[gid]["meetings"], gid
+        assert 'class="digest-on"' not in html and "On this agenda" not in html, gid
+        n = len(feeds[gid]["meetings"])
+        assert npg.count_label(page_labels, "body.summary-meetings", n) in main_text(html), gid
+    youth = (out / "digest" / "tn" / "place-4799999.html").read_text(encoding="utf-8")
+    assert npg.label_text(page_labels["body.withheld"]) in " ".join(main_text(youth).split())
+
+
 def test_real_county_page_20_sampled_items_match_the_word_list(tmp_path, loaded, page_labels, real):
     """AC3.3 / AC4.7 QA sample: 20 items spread over the real county page, each item's printed labels equal the
     labels the word list gives its verbatim number and text, and at least one sampled or printed item has a label."""

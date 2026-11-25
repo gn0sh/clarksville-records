@@ -343,3 +343,9 @@ ol.digest-items .item-num { margin: 0 6px 0 0; }
 @media (prefers-reduced-motion: reduce) {
   .digest *, .digest *::before, .digest *::after { animation: none; transition: none; scroll-behavior: auto; }
 }
+
+/* ---- digest titles, Proposal A: the page summary and each meeting's "On this agenda" lead line ------------------- */
+.digest-bodyhead > .digest-summary { margin: 6px 0 10px; font-size: var(--t-md); }
+.digest-meeting > .digest-on { margin: 0 0 4px; font-size: var(--t-md); font-weight: 600; overflow-wrap: anywhere; }
+.digest-on-label { font-weight: 700; }
+.digest-on-part { white-space: nowrap; }
