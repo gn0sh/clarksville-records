@@ -7606,5 +7606,17 @@
     "meeting_date": "2026-11-05",
     "sha256": "66bfee28436f0b94a00dd1ca69db374282478795cfdc630467823cb8be7801c2",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3332,plainText=false)"
+  },
+  {
+    "bytes": 249157,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-25T09:17:19+00:00",
+    "kind": "agenda",
+    "label": "Executive Session",
+    "last_modified": null,
+    "meeting_date": "2026-12-01",
+    "sha256": "c7c14ea153d3b1c584aae4828b47f5b74df3d5cf8c1d3e48cf01bb2d810ffcea",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3368,plainText=false)"
   }
 ]
