@@ -8,8 +8,8 @@
    tokens set just below, which are the only colours this file names; each has a light and a dark value:
    - brand navy is --blue for fills and --link for text and outlines drawn on --surface (--link turns light blue on
      the dark theme, where --blue would sink into the card);
-   - brand orange is light, never ink: --sun (with its --halo) draws the sun, its rays and the 5px edge of a card,
-     all decoration (aria-hidden drawings and a ::before), and --focus stays the focus ring. Orange is never text,
+   - brand orange is light, never ink: --sun (with its --halo) draws the small sun mark and the 5px edge of a card,
+     all decoration (an aria-hidden drawing and a ::before), and --focus stays the focus ring. Orange is never text,
      never a border that carries meaning and never a status. tests/test_national_pages.py holds this file to it;
    - --dawn, --dawn-2 and --dawn-line are the morning-paper surfaces: fills and decorative edges only, never text;
    - no red or green anywhere, so no status reads as a grade (R2). A status is told by its word, its mark and its
@@ -34,24 +34,16 @@
 }
 :root[data-theme="dark"] { --dawn: #231A22; --dawn-2: #3A2420; --dawn-line: #5A3A2C; }
 
-/* ---- measure ------------------------------------------------------------------------------------------------ */
+/* ---- measure --------------------------------------------------------------------------------------------------
+   One column on every digest page, at every width: 44rem, left-aligned in <main> like the Clarksville front page's
+   heading, lede and address card (style.css .welcome, .find), so the two read as one site. Nothing on a digest page
+   is wider than this column and nothing bleeds into main's gutters: no band, no full-width rule. The header's sky
+   (site/templates/_header.html.j2) is the page's one sun; a digest page draws no second one under it. */
+.digest { max-width: 44rem; }
 .digest p, .digest details, .digest-device { max-width: 44rem; }
 .digest h1, .digest h2, .digest h3, .digest h4 { overflow-wrap: anywhere; }
 
-/* ---- the two drawings (site/templates/digest/_dawn.html.j2): decoration only ----------------------------------
-   The band sits flush under the header and runs the full width of <main> (main's own 20px top padding and its
-   gutters are taken back). The drawing keeps its size; the sky behind it is a plain two-colour fade. */
-.digest-entry, .digest-body { margin-top: -20px; }
-.digest-dawn {
-  display: block; width: calc(100% + 2 * var(--gutter)); height: 56px; margin: 0 calc(-1 * var(--gutter));
-  background: linear-gradient(180deg, var(--sky) 0%, var(--dawn-2) 88%);
-}
-.digest-dawn-home { height: 96px; }
-.digest-dawn-rays { fill: none; stroke: var(--sun); stroke-width: 3; stroke-linecap: round; opacity: .55; }
-.digest-dawn-halo { fill: var(--halo); opacity: .7; }
-.digest-dawn-sun { fill: var(--sun); }
-.digest-dawn-roofs { fill: var(--mark-soft); opacity: .45; }
-.digest-dawn-ground { fill: var(--dawn); }
+/* ---- the sun mark (site/templates/digest/_dawn.html.j2): decoration only, beside a heading ----------------------- */
 .digest-sunmark { flex: none; }
 .digest-sunmark-sun { fill: var(--sun); }
 .digest-sunmark-rays { fill: none; stroke: var(--sun); stroke-width: 2; stroke-linecap: round; }
@@ -63,14 +55,15 @@
 .digest-warm p:last-child { margin-bottom: 0; }
 
 /* ---- the entry page (digest-warmth section 3) ------------------------------------------------------------------- */
-.digest-hero { margin: 0 calc(-1 * var(--gutter)); padding: 4px var(--gutter) 56px; background: var(--dawn); border-bottom: 1px solid var(--dawn-line); }
+/* the heading block: plain, on the page's own background, as the Clarksville front page's welcome */
+.digest-hero { margin: 0; padding: 0; }
 .digest-hero .eyebrow { margin: 0 0 6px; color: var(--muted); letter-spacing: .14em; }
 .digest-hero h1 { margin: 0; font-size: clamp(1.7rem, 8.6vw, 2.1rem); line-height: 1.15; letter-spacing: -.01em; }
 /* the heading's second part on its own line, over a wash of dawn light */
 .digest-h1-2 { display: block; width: fit-content; box-shadow: inset 0 -.32em 0 var(--dawn-2); }
 .digest-hero .lede { margin: 12px 0 0; color: var(--fg); font-size: 1.125rem; }
-/* the address card, lifted onto the hero */
-.digest-find { position: relative; max-width: 40rem; margin: -36px 0 14px; padding: 16px; border-radius: var(--radius-xl); box-shadow: 0 6px 0 var(--dawn-2); }
+/* the address card: under the lede, clear of everything, as wide as the column (.find's own 44rem) */
+.digest-find { margin: 20px 0 14px; padding: 16px; border-radius: var(--radius-xl); box-shadow: 0 6px 0 var(--dawn-2); }
 .digest-find .addr-form label { margin: 0 0 8px; color: var(--fg); font-family: var(--font-head); font-size: var(--t-lg); font-weight: 700; line-height: 1.25; }
 .digest-find .search-row { flex-direction: column; gap: 10px; }
 .digest-find .search-row input { width: 100%; min-height: 52px; padding: 8px 14px; font-size: 1.0625rem; }
@@ -108,13 +101,13 @@ ol.digest-steps > li::before {
   font: 700 1.05rem/34px var(--font-head); text-align: center;
 }
 ol.digest-steps b { display: block; font-family: var(--font-head); font-size: 1.0625rem; }
-/* While a look-up result is on the page the hero, the form and the reading below fold to one row (national.js sets
+/* While a look-up result is on the page the heading, the form and the reading below fold to one row (national.js sets
    data-folded on #digest-entry and shows #digest-folded); "Look up another address" brings them back. */
 .digest-entry[data-folded] .digest-fold { display: none; }
 .digest-folded[hidden] { display: none; }
 .digest-folded-row {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px;
-  margin: 0 calc(-1 * var(--gutter)); padding: 6px var(--gutter); background: var(--bg); border-bottom: 1px solid var(--border);
+  margin: 0 0 16px; padding: 0 0 6px; border-bottom: 1px solid var(--border);
 }
 .digest-folded-row p { margin: 0; color: var(--muted); font-size: var(--t-sm); }
 .digest-folded-row .more-btn { margin: 0; }
@@ -122,9 +115,8 @@ ol.digest-steps b { display: block; font-family: var(--font-head); font-size: 1.
 /* ---- the list for this spot (digest-warmth section 4) ----------------------------------------------------------- */
 .digest-list[hidden], .digest-saved[hidden] { display: none; }
 .digest-list > h2, .digest-saved > h2 { margin-top: 1.2em; }
-/* the greeting: the Census's matched line, the heading that takes focus, the summary; on the dawn surface */
-.digest-greet { margin: 0 calc(-1 * var(--gutter)) 16px; padding: 12px var(--gutter) 18px; background: var(--dawn); border-bottom: 1px solid var(--dawn-line); }
-.digest-entry[data-folded] .digest-greet { padding-top: 0; }
+/* the greeting: the Census's matched line, the heading that takes focus, the summary; a warm box in the column */
+.digest-greet { margin: 0 0 16px; padding: 14px 16px 16px; background: var(--dawn); border: 1px solid var(--dawn-line); border-radius: var(--radius-xl); }
 .digest-greet .addr-matched { margin: 0 0 8px; font-family: var(--font-mono); font-size: var(--t-eyebrow); font-weight: 500; line-height: 1.5; letter-spacing: .04em; }
 .digest-greet h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; font-size: clamp(1.56rem, 7.6vw, 1.85rem); letter-spacing: -.01em; }
 .digest-greet .coverage, .digest-greet .digest-nothing { margin: 10px 0 0; font-size: 1.0625rem; font-weight: 400; }
@@ -264,8 +256,8 @@ ul.digest-rows .digest-checked a { display: inline; min-height: 0; }
    Source text is printed as the source prints it: no case change on it (the month headings and the date chips are
    our own words, made from the meeting's date). The withheld, incomplete and cut-short lines are the site's .note
    (a --mark-soft rule), not orange and not red. */
-/* the page head, on the dawn surface under the band: where am I, which government, how new our records are */
-.digest-bodyhead { margin: 0 calc(-1 * var(--gutter)) 16px; padding: 0 var(--gutter) 16px; background: var(--dawn); border-bottom: 1px solid var(--dawn-line); }
+/* the page head, plain on the page's own background: where am I, which government, how new our records are */
+.digest-bodyhead { margin: 0 0 20px; }
 .digest-bodyhead > .eyebrow { margin: 0 0 2px; color: var(--muted); }
 .digest-bodyhead h1 { margin: 0; font-size: clamp(1.56rem, 7.6vw, 1.85rem); }
 .digest-subject { margin: 2px 0 10px; font-family: var(--font-head); font-size: var(--t-lg); font-weight: 600; }
@@ -327,16 +319,15 @@ ol.digest-items .item-num { margin: 0 6px 0 0; }
 .digest-topic-note { font-size: var(--t-sm); color: var(--muted); }
 
 /* ---- narrow windows, forced colours, motion -----------------------------------------------------------------------
-   20rem grows with the reader's text size, so this is a 320px phone and also a wider window at 200% text: the lifted
-   card loses its overlap and a date chip sits above its row. Nothing scrolls sideways. */
+   20rem grows with the reader's text size, so this is a 320px phone and also a wider window at 200% text: the
+   address card sits closer under the lede and a date chip sits above its row. Nothing scrolls sideways. */
 @media (max-width: 20rem) {
-  .digest-hero { padding-bottom: 16px; }
   .digest-find { margin-top: 12px; }
   ul.digest-mtgs > li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
 }
-/* forced colours: the drawings and the card edge drop out; borders and words remain */
+/* forced colours: the sun mark and the card edge drop out; borders and words remain */
 @media (forced-colors: active) {
-  .digest-dawn, .digest-sunmark, .digest-card::before { display: none; }
+  .digest-sunmark, .digest-card::before { display: none; }
   .digest-h1-2 { box-shadow: none; }
 }
 /* nothing on a digest page moves; this keeps it so for a reader who asks for less motion, whatever is added later */

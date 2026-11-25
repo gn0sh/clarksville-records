@@ -175,9 +175,8 @@ def test_digest_stylesheet_is_linked_by_digest_pages_only(sites):
 DAWN = {"--dawn": ("#FFF3E4", "#231A22"), "--dawn-2": ("#FFE3C7", "#3A2420"), "--dawn-line": ("#F0C9A6", "#5A3A2C")}
 DAWN_LIGHT = ":root"
 DAWN_DARK = (':root:not([data-theme="light"])', ':root[data-theme="dark"]')     # by system setting, by the page's switch
-# Where brand orange may be drawn: the sun, its rays and halo in the two drawings, and the card's sunrise edge.
-ORANGE_DECORATION = {".digest-dawn-rays", ".digest-dawn-halo", ".digest-dawn-sun", ".digest-sunmark-sun",
-                     ".digest-sunmark-rays", ".digest-card::before"}
+# Where brand orange may be drawn: the small sun mark (its sun and rays) and the card's sunrise edge.
+ORANGE_DECORATION = {".digest-sunmark-sun", ".digest-sunmark-rays", ".digest-card::before"}
 ORANGE_PROPS = {"fill", "stroke", "background"}                 # never color, border, outline or text-decoration
 DAWN_PROPS = {"background", "border", "border-bottom", "box-shadow", "fill"}    # surfaces and edges, never text
 
@@ -221,7 +220,7 @@ def test_digest_stylesheet_names_only_the_dawn_colours_and_loads_nothing():
     for hook in (".digest-pill-covered", ".digest-pill-not-covered-yet", ".digest-pill-cant-cover",
                  ".digest-count-btn", ".digest-err", ".digest-msg", ".digest-pick", ".digest-req-form",
                  '[data-state="sent"]', '[data-state="counted"]', '[data-state="failed"]',
-                 ".digest-dawn", ".digest-hero", ".digest-warm", ".digest-steps", ".digest-next", ".digest-month",
+                 ".digest-sunmark", ".digest-hero", ".digest-warm", ".digest-steps", ".digest-next", ".digest-month",
                  ".digest-datechip", ".digest-primary", ".digest-greet", ".digest-folded", ".digest-bodyhead"):
         assert hook in rules, hook
 
@@ -248,8 +247,7 @@ def test_orange_is_decoration_only_never_text_and_never_a_status():
             assert not re.search(r"var\(--(sun|halo|seal|focus|dawn[a-z0-9-]*)\)", value), (sel, prop, value)
     # the orange is really used where the design draws it (the test above is not vacuous)
     used = {sel for sel, _p, value in decls if "var(--sun)" in value}
-    assert used == {".digest-dawn-rays", ".digest-dawn-sun", ".digest-sunmark-sun", ".digest-sunmark-rays",
-                    ".digest-card::before"}
+    assert used == {".digest-sunmark-sun", ".digest-sunmark-rays", ".digest-card::before"}
     # the pills: navy fill or outline, as before
     pills = {sel: (prop, value) for sel, prop, value in decls if sel.startswith(".digest-pill-") and prop == "color"}
     assert pills == {".digest-pill-covered": ("color", "var(--on-blue)"),
@@ -258,6 +256,31 @@ def test_orange_is_decoration_only_never_text_and_never_a_status():
     # the sunrise edge is one rule for every card, whatever its status
     edge = [(sel, prop) for sel, prop, value in decls if "var(--sun)" in value and "card" in sel]
     assert edge == [(".digest-card::before", "background")]
+
+
+def test_digest_pages_are_one_column_with_no_band_and_no_second_sun():
+    """Owner, 2026-11-24 (docs/design/digest-warmth.md section 2a): every digest page is one 44rem column, left-aligned
+    like the Clarksville front page's address card. Nothing bleeds into main's gutters or is pulled up over another
+    part (no negative margin at all), nothing is positioned out of the flow, and the dawn band is gone: the header's
+    sky draws the page's one sun."""
+    rules = _digest_css()
+    decls = css_rules(rules)
+    assert (".digest", "max-width", "44rem") in decls
+    style = (ROOT / "site" / "static" / "style.css").read_text(encoding="utf-8")
+    assert re.search(r"^\.find \{[^}]*max-width: 44rem;", style, re.M)       # the Clarksville card the column matches
+    for sel, prop, value in decls:
+        if prop.startswith("margin") and not sel.endswith("::before"):       # the card edge fills its own card
+            assert "-" not in re.sub(r"var\(--[a-z0-9-]+\)", "", value), (sel, prop, value)
+        if prop == "max-width":
+            assert value == "44rem", (sel, value)
+        if prop == "position":
+            assert value == "relative" or sel.endswith("::before"), (sel, value)
+        assert "--gutter" not in value and "100vw" not in value, (sel, prop, value)
+    assert "digest-dawn" not in rules
+    for name in ("_dawn.html.j2", "index.html.j2", "body.html.j2", "covered.html.j2", "how.html.j2", "requested.html.j2"):
+        text = (ROOT / "site" / "templates" / "digest" / name).read_text(encoding="utf-8")
+        assert "digest-dawn" not in text and "dawn_band(" not in text, name
+    assert "digest-dawn" not in (ROOT / "site" / "static" / "national.js").read_text(encoding="utf-8")
 
 
 def test_nothing_on_a_digest_page_moves():
@@ -1391,13 +1414,13 @@ def test_coming_up_page_empty_state_is_the_same_card_and_keeps_the_going_card(wa
 
 def test_two_governments_pages_have_the_same_parts(warm_page, tmp_path, loaded, page_labels):
     """AC4.9 (QA compares two bodies' pages): every coming-up page carries the same parts in the same order, whatever
-    the government: the band, the head, the "Next meeting" card (or its empty state), "Thinking of going?"."""
+    the government: the head, the "Next meeting" card (or its empty state), "Thinking of going?"."""
     def parts(html):
-        found = re.findall(r'class="(digest-dawn|digest-bodyhead|digest-next|digest-next digest-next-empty|'
+        found = re.findall(r'class="(digest-bodyhead|digest-next|digest-next digest-next-empty|'
                            r'digest-warm digest-going)"', _main(html))
         return [p.replace(" digest-next-empty", "") for p in found]
     assert parts(warm_page["html"]) == parts(warm_page["council"]) == [
-        "digest-dawn", "digest-bodyhead", "digest-next", "digest-warm digest-going"]
+        "digest-bodyhead", "digest-next", "digest-warm digest-going"]
     # and the words of the fixed card are the same on both
     going = [re.search(r'<section class="digest-warm digest-going".*?</section>', _main(warm_page[k]), re.S).group(0)
              for k in ("html", "council")]
@@ -1415,10 +1438,10 @@ def test_no_official_link_means_no_going_card_and_no_empty_href(loaded, page_lab
     assert 'href=""' not in html and '<div class="digest-next">' in html
 
 
-def test_coming_up_page_keeps_its_one_crumb_above_the_h1_under_the_band(warm_page):
+def test_coming_up_page_keeps_its_one_crumb_above_the_h1_first_in_the_head(warm_page):
     html = _main(warm_page["html"])
     assert html.count('<nav class="crumb" aria-label="You are in">') == 1
-    assert html.index('class="digest-dawn"') < html.index('<nav class="crumb"') < html.index("<h1")
+    assert html.index('class="digest-bodyhead"') < html.index('<nav class="crumb"') < html.index("<h1")
     crumb = re.search(r'<nav class="crumb" aria-label="You are in">(.*?)</nav>', html, re.S).group(1)
     assert re.findall(r'href="([^"]+)"', crumb) == ["../../digest/index.html", "../../digest/covered.html"]
     # the same markup base.html.j2 writes on every other page
@@ -1434,7 +1457,8 @@ def test_entry_page_order_one_h1_and_the_lines_kept_word_for_word(warm_page, pag
     heads = _headings(warm_page["index"])
     assert heads[0] == (1, "Your local government, in broad daylight.") and [lv for lv, _t in heads].count(1) == 1
     assert "| Daylight Digest: Find your local governments</title>" in warm_page["index"]
-    order = ['class="digest-dawn digest-dawn-home"', 'class="digest-hero"', 'id="digest-form"', 'id="digest-privacy"',
+    order = ['class="digest-hero"', 'class="eyebrow"', "<h1", 'class="lede"', 'class="find digest-find"',
+             'id="digest-form"', 'id="digest-privacy"',
              'class="digest-privacy-detail"', 'class="digest-cover-link"', 'class="digest-who"', 'id="digest-folded"',
              'id="digest-list"', 'id="digest-saved"', 'class="digest-steps"', 'id="digest-why-h"',
              'class="digest-how"', 'class="digest-census-notice"']
@@ -1485,9 +1509,13 @@ def test_drawings_are_decoration_and_no_page_carries_inline_style(warm_page):
         assert not re.search(r'\sstyle="', html), name
         bare = re.sub(r"<script.*?</script>|href=\"[^\"]*\"", "", html, flags=re.S)
         assert not re.search(r"#[0-9a-fA-F]{6}\b", bare), name
-    # the band is the first thing in a page's own content, right under the header
+    # no band and no second sun: a page's own content starts with its head, right under the header, and its only
+    # drawings are the small sun mark and the address card's lock
     for name in ("html", "council"):
-        assert re.match(r'\s*<div class="digest digest-body">\s*<svg class="digest-dawn"', _main(warm_page[name])), name
+        assert re.match(r'\s*<div class="digest digest-body">\s*<div class="digest-bodyhead">', _main(warm_page[name])), name
     assert re.match(r'\s*<div class="digest digest-entry" id="digest-entry" data-root="\.\./">\s*'
-                    r'<div class="digest-fold digest-top">\s*<svg class="digest-dawn digest-dawn-home"',
-                    _main(warm_page["index"]))
+                    r'<div class="digest-fold digest-top">\s*<div class="digest-hero">', _main(warm_page["index"]))
+    for name in ("index", "html", "council"):
+        html = _main(warm_page[name])
+        assert "digest-dawn" not in html, name
+        assert set(re.findall(r'<svg class="([^"]+)"', html)) <= {"digest-sunmark", "digest-lock"}, name

@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% from "digest/_dawn.html.j2" import dawn_band, sun_mark %}
+{% from "digest/_dawn.html.j2" import sun_mark %}
 {# `name` and `official` come from the directory entry (official re-checked against its platform's hosts; None
    when it fails, and then no link is printed). A covered government's coming-up page (docs/design/digest-warmth.md
    section 5, over docs/design/daylight-national.md section 5; architecture 3.5, 11). Built by
@@ -75,7 +75,6 @@
 {% endmacro %}
 {% block main %}
 <div class="digest digest-body">
-  {{ dawn_band() }}
   <div class="digest-bodyhead">
     {# the "where am I" line, as base.html.j2 prints it on every other page (Pages.html own_crumbs) #}
     {% if head_crumbs %}

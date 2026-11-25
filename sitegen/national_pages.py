@@ -660,7 +660,7 @@ class Pages:
     def html(self, template: str, rel: str, page_name: str, *, csp: str | None = None, crumbs=(),
              report: bool = True, own_crumbs: bool = False, **ctx) -> str:
         """`own_crumbs`: the template prints the "where am I" line itself (`head_crumbs`: the same markup, still above
-        its h1), so base.html.j2 prints none. The coming-up page puts the line under its dawn band."""
+        its h1), so base.html.j2 prints none. The coming-up page puts the line at the top of its own head."""
         root = "../" * rel.count("/")
         return self.env.get_template(template).render(
             site=self.site, root=root, page_name=page_name, body_current="", report_page=report,
