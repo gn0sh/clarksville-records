@@ -660,7 +660,8 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 /* From 1100px the invitation is a card in the free column beside the address card (front page) or the body's header
    (a body's page), its sentence over its button. */
 @media (min-width: 1100px) {
-  .landing { display: grid; grid-template-columns: minmax(0, 44rem) minmax(15rem, 20rem) minmax(0, 1fr); column-gap: 24px; }
+  .landing { display: grid; grid-auto-flow: row dense; grid-template-columns: minmax(0, 44rem) minmax(15rem, 20rem) minmax(0, 1fr); column-gap: 24px; }   /* dense: the morning-note card stays beside the address card when the Digest line (national switch on) sits between them */
+  .landing > .digest-line { grid-column: 1; }
   .landing > * { grid-column: 1 / -1; min-width: 0; }
   .landing > .find { grid-column: 1; }
   .landing > .note-invite { grid-column: 2; align-self: start; margin-top: 20px; }
