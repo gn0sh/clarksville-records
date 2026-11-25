@@ -658,7 +658,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     def html_of(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> str:
         depth = rel.count("/")
         return env.get_template(template).render(
-            site=site_ctx or site, root="/" if rel == "404.html" else "../" * depth, page_name=page_name, body_current=switch_current.get(rel, ""),
+            site=site_ctx or site, root="/" if rel == "404.html" else "../" * depth, page_name=page_name,
+            body_current=switch_current.get(rel, ""),
             report_page=template in REPORT_TEMPLATES, crumbs=bodies_mod.crumbs(site, rel, cixs, rpx, cmx, cms),
             official_record=views.official_record(template, site_ctx or site, ctx), **ctx)
 
@@ -993,7 +994,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("who.html.j2", "who-runs-this.html", "Who runs this", **trust, operator_person=person)
     render("rules.html.j2", "our-rules.html", "Our rules", **trust)
     render("corrections.html.j2", "corrections.html", "Corrections", **trust)
-    render("not_found.html.j2", "404.html", "Page not found", **trust)   # GitHub Pages serves it for any unknown address; root is "/" because the address is unknown
+    # GitHub Pages serves it for any unknown address; root is "/" because the address is unknown
+    render("not_found.html.j2", "404.html", "Page not found", **trust)
     render("method.html.j2", "method.html", "Method", **trust)
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
