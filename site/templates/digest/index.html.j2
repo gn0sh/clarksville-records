@@ -1,16 +1,17 @@
 {% extends "base.html.j2" %}
-{% from "digest/_dawn.html.j2" import dawn_band, sun_mark %}
+{% from "digest/_dawn.html.j2" import sun_mark %}
 {# Daylight Digest entry page (docs/design/digest-warmth.md section 3, over docs/design/daylight-national.md section 1;
    architecture 1a, 3.4, 4.0, 6). Built by sitegen/national_pages.py. Every fixed word is a page label
    (config/national/page-labels.yml, `L`), the same for every reader and every place.
-   Order: the dawn band and the hero; the address card with its privacy line; the Census line; the "What we cover"
-   link (AC1.10); who runs this (AC1.9); the look-up result and the saved list; "How it works"; "Why look?"; the
-   how-it-works toggle; the Census notice. The drawings are decoration (aria-hidden, no animation).
+   Order: the heading block (eyebrow, h1, lede; no drawing: the header's sky is the page's one sun); the address
+   card with its privacy line; the Census line; the "What we cover" link (AC1.10); who runs this (AC1.9); the
+   look-up result and the saved list; "How it works"; "Why look?"; the how-it-works toggle; the Census notice.
+   The sun mark and the lock are decoration (aria-hidden, no animation).
    Mount points for the page wiring (task F2, site/static/national.js), all empty or hidden until the script runs:
    - #digest-form        the address form (hidden: it needs the script); its input has no `name`, the form no
                          `action`, so a submit without the script sends nothing anywhere
    - #digest-result      the one status line under the input (role="status")
-   - #digest-folded      the row shown in place of the hero and the form while a look-up result is on the page:
+   - #digest-folded      the row shown in place of the heading and the form while a look-up result is on the page:
                          "Address looked up. It was not sent to us." and #digest-another, which brings the form back
    - #digest-list        the lookup result: picker, greeting, cards (digest-warmth section 4)
    - #digest-saved       "Your saved list" from this device (3.8)
@@ -27,7 +28,6 @@
 {% block main %}
 <div class="digest digest-entry" id="digest-entry" data-root="{{ root }}">
   <div class="digest-fold digest-top">
-    {{ dawn_band(home=true) }}
     <div class="digest-hero">
       <p class="eyebrow">{{ L["index.eyebrow"] }}</p>
       <h1>{{ L["index.h1"] }} <span class="digest-h1-2">{{ L["index.h1-2"] }}</span></h1>
@@ -54,7 +54,6 @@
       <p>{{ L["lookup.looked-up"] }}</p>
       <button type="button" class="more-btn" id="digest-another">{{ L["lookup.another"] }}</button>
     </div>
-    {{ dawn_band() }}
   </div>
   <div id="digest-list" class="digest-list" tabindex="-1" hidden></div>
   <section id="digest-saved" class="digest-saved" hidden></section>
