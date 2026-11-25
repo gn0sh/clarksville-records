@@ -1,5 +1,7 @@
 """The weather in the header's sky (owner, 2026-11-23: "if it's raining in Clarksville, it would be cool if the top
-of the Daylight page had rain also", then: whatever the weather is, as a small set of scenes).
+of the Daylight page had rain also", then: whatever the weather is, as a small set of scenes; 2026-11-24: "up in
+the top panel where the masthead is. It would incorporate the sun and moon that are already there", so the sun or
+the moon that is up shows the weather itself: a cloud across it, rain falling in front of it).
 
 static/sky.js asks the National Weather Service, from the visitor's browser, for the latest observation of one
 station (config/site.yml sky_weather: KCKV, Clarksville's airport) and draws one scene from it. Held here:
@@ -10,13 +12,15 @@ station (config/site.yml sky_weather: KCKV, Clarksville's airport) and draws one
   an answer that is not JSON, nothing asked twice, nothing stored;
 - the wiring: the config block, the address on the page, the CSP's connect-src, the site check that holds them, and
   the sentence on the About and Method pages;
-- the drawing: decoration only, the words' contrast kept, motion only where the visitor allows it.
+- the drawing: on the sun or the moon, whichever is up (never a sky of its own), decoration only, the words'
+  contrast kept, motion only where the visitor allows it.
 
 The fixtures follow the service's documented observation schema (GeoJSON `properties`: timestamp, textDescription,
 presentWeather[] with rawString / weather / intensity / modifier / inVicinity, cloudLayers[].amount, windSpeed,
 windGust and visibility as {unitCode, value}). The sandbox cannot reach api.weather.gov, so none is a recording."""
 # ruff: noqa: E501  (the fixture tables and the probes read better one case to a line)
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -32,9 +36,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SKY_JS = ROOT / "site" / "static" / "sky.js"
 JS = SKY_JS.read_text(encoding="utf-8")
 CSS = (ROOT / "site" / "static" / "style.css").read_text(encoding="utf-8")
-WX_CSS = CSS[CSS.index("/* The weather: one quiet scene"):CSS.index(".has-sky .masthead { z-index: 1; }")]
+WX_CSS = CSS[CSS.index("/* The weather: drawn on the sun or the moon"):CSS.index(".has-sky .masthead { z-index: 1; }")]
 URL = "https://api.weather.gov/stations/KCKV/observations/latest"
 ORIGIN = "https://api.weather.gov"
+PARTS = ["wx-veil", "wx-cloud wx-back", "wx-fall wx-a", "wx-fall wx-b", "wx-fall wx-c", "wx-cloud wx-front", "wx-flash"]
 NOW = "2026-11-23T18:00:00Z"
 FRESH = "2026-11-23T17:53:00+00:00"          # seven minutes before NOW
 META = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
@@ -245,13 +250,23 @@ Date.now = () => now;
 const log = { fetches: [], aborted: 0, timers: [] };
 const attrs = {};
 const ids = {};
+log.moves = [];                                 // every time the drawing is put somewhere: where
+const put = (host, name) => (el) => { el.parentNode = host; ids[el.id] = el; log.moves.push(name);
+  log.layer = { id: el.id, cls: el.className, attrs: el.attrs, parts: el.kids.map(k => k.className) }; };
 const header = { setAttribute: (k, v) => { attrs[k] = v; }, removeAttribute: (k) => { delete attrs[k]; },
-                 insertBefore: (el) => { ids[el.id] = el; log.layer = { id: el.id, cls: el.className, attrs: el.attrs, parts: el.kids.map(k => k.className) }; } };
+                 getAttribute: (k) => (k in attrs ? attrs[k] : null) };
+header.insertBefore = put(header, "header");
 const frame = { parentNode: header, nextSibling: null };
 ids["sky-moon"] = { parentNode: frame, setAttribute: () => {}, getAttribute: (k) => (k === "data-weather" ? c.url : null) };
+let sunAt = c.sun || null;                      // the sun's data-at, as render() leaves it; no sun element when null
+if (sunAt) {                                    // what render() writes on it is dropped: the case says whether it is up
+  ids["sky-sun"] = { getAttribute: (k) => (k === "data-at" ? sunAt : null), setAttribute: () => {}, style: { setProperty() {} } };
+  ids["sky-sun"].appendChild = put(ids["sky-sun"], "sun");
+}
 const win = {
   document: { hidden: false, getElementById: (id) => ids[id] || null,
-              createElement: () => ({ attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = v; }, appendChild(k) { this.kids.push(k); } }) },
+              createElement: () => ({ attrs: {}, kids: [], style: { setProperty() {} }, setAttribute(k, v) { this.attrs[k] = v; },
+                                      removeAttribute(k) { delete this.attrs[k]; }, appendChild(k) { this.kids.push(k); } }) },
   setTimeout: (fn, ms) => { log.timers.push(ms); win.fire = fn; return 1; }, clearTimeout: () => { win.fire = null; },
   AbortController: function () { this.signal = { tag: "signal" }; this.abort = () => { log.aborted += 1; }; },
 };
@@ -284,6 +299,8 @@ const settle = () => new Promise((r) => setImmediate(r));
     if (step.do === "timeout") { win.fire(); }
     if (step.do === "release") { release(); }
     if (step.do === "tick") { s.tick(); }
+    if (step.do === "sunset") { sunAt = "down"; s.showWeather(); }
+    if (step.do === "sunrise") { sunAt = "up"; s.showWeather(); }
     if (step.do === "ask again") { s.loadWeather(); }           // a second call in the same page view
     await settle(); snap();
   }
@@ -300,7 +317,8 @@ def page(node, **case):
     return json.loads(res.stdout)
 
 
-RAIN_ATTRS = {"data-wx": "rain", "data-wx-fall": "moderate"}
+# the stand-in page has no sun element and no moon drawn: the weather's own small cloud in the open sky
+RAIN_ATTRS = {"data-wx": "rain", "data-wx-fall": "moderate", "data-wx-on": "sky"}
 
 
 def test_a_page_view_asks_once_and_draws_the_scene(node):
@@ -310,18 +328,35 @@ def test_a_page_view_asks_once_and_draws_the_scene(node):
     assert got["log"]["fetches"] == [{"url": URL, "credentials": "omit", "referrerPolicy": "no-referrer",
                                       "signal": True, "keys": ["credentials", "referrerPolicy", "signal"]}]
     assert got["log"]["timers"] == [5000] and got["log"]["aborted"] == 0
-    # the layer the scene is drawn in: decoration only, made once
-    assert got["log"]["layer"] == {"id": "sky-wx", "cls": "sky-wx", "attrs": {"aria-hidden": "true"},
-                                   "parts": ["wx-veil", "wx-clouds", "wx-fall wx-far", "wx-fall wx-near", "wx-flash"]}
+    # the drawing: decoration only, made once and put in one place
+    assert got["log"]["layer"] == {"id": "sky-wx", "cls": "sky-wx", "attrs": {"aria-hidden": "true"}, "parts": PARTS}
+    assert got["log"]["moves"] == ["header"]
     assert "storage" not in got["log"]                         # nothing is kept in the browser
 
 
 def test_each_scene_sets_its_attributes_and_clear_sets_none(node):
     wind = page(node, answer=fresh({"presentWeather": [pw("+SN", "snow", "heavy")], "windGust": kmh(70)}))
-    assert wind["seen"] == [{"data-wx": "snow", "data-wx-fall": "heavy", "data-wx-wind": ""}]
-    assert page(node, answer=fresh({"cloudLayers": [{"amount": "OVC"}]}))["seen"] == [{"data-wx": "overcast"}]
+    assert wind["seen"] == [{"data-wx": "snow", "data-wx-fall": "heavy", "data-wx-wind": "", "data-wx-on": "sky"}]
+    assert page(node, answer=fresh({"cloudLayers": [{"amount": "OVC"}]}))["seen"] == [{"data-wx": "overcast", "data-wx-on": "sky"}]
     clear = page(node, answer=fresh({"textDescription": "Clear"}))
-    assert clear["seen"] == [{}] and "layer" not in clear["log"]          # the plain sky: no layer is made at all
+    assert clear["seen"] == [{}] and "layer" not in clear["log"]          # the plain sky: no drawing is made at all
+    for sun in ("up", "down"):
+        clear = page(node, sun=sun, answer=fresh({"textDescription": "Clear"}))
+        assert clear["seen"] == [{}] and "layer" not in clear["log"] and clear["log"]["moves"] == [], sun
+
+
+def test_the_weather_is_drawn_inside_the_sun_while_it_is_up_and_leaves_it_when_it_sets(node):
+    """Owner, 2026-11-24: the sun (or the moon) shows the weather. The one drawing is put inside the sun's own element
+    while the sun is up, taken out to the open sky when it sets with no moon drawn, and put back at sunrise. (That it
+    goes inside the drawn moon, and where it then sits, is the browser test below.)"""
+    got = page(node, sun="up", then=[{"do": "tick"}, {"do": "sunset"}, {"do": "tick"}, {"do": "sunrise"}])
+    day = {"data-wx": "rain", "data-wx-fall": "moderate", "data-wx-on": "sun"}
+    assert got["seen"] == [day, day, RAIN_ATTRS, RAIN_ATTRS, day]
+    assert got["log"]["moves"] == ["sun", "header", "sun"]                 # moved only when what is up changes
+    assert got["log"]["layer"]["parts"] == PARTS and len(got["log"]["fetches"]) == 1
+    # an observation that goes stale while the sun is up: the plain sun again
+    stale = page(node, sun="up", then=[{"do": "tick", "wait": 90}])
+    assert stale["seen"] == [day, {}] and stale["log"]["moves"] == ["sun"]
 
 
 @pytest.mark.parametrize("how", ["rejects", "throws", "status", "html"])
@@ -575,16 +610,32 @@ def test_the_weather_colours_keep_the_words_contrast_in_both_themes():
     assert not re.search(r"#[0-9A-Fa-f]{3,8}\b", re.sub(r'url\("data:[^"]*"\)', "", WX_CSS).split("*/", 1)[1])   # no colour of its own
 
 
-def test_the_scene_is_decoration_that_takes_no_room():
-    assert ".sky-wx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }" in WX_CSS
-    assert ".sky-wx > span { position: absolute; inset: 0; opacity: 0; }" in WX_CSS      # nothing shows with no scene
+def test_the_drawing_is_decoration_that_takes_no_room_and_belongs_to_the_sun_or_the_moon():
+    assert "position: absolute; left: 0; top: 0; width: var(--wx-s); height: var(--wx-s); pointer-events: none;" in WX_CSS
+    assert ".sky-wx > span { position: absolute; opacity: 0; }" in WX_CSS                # nothing shows with no scene
+    assert ".sky-wx[hidden] { display: none; }" in WX_CSS
     assert CSS.index(".sky-wx {") < CSS.index(".has-sky .masthead { z-index: 1; }")     # the words sit above it
     assert 'layer.setAttribute("aria-hidden", "true")' in JS
-    assert "header.insertBefore(layer, frame.nextSibling)" in JS                          # after the sky, before the words
+    # inside the sun or the moon; in the header itself (after the sky, before the words) only when neither is up
+    assert 'var on = sunEl && sunEl.getAttribute("data-at") === "up" ? "sun" : drawn ? "moon" : "sky";' in JS
+    assert 'if (on === "sky") { header.insertBefore(layer, frame.nextSibling); } else { host.appendChild(layer); }' in JS
+    # it takes its size from the body it is on, and on the sun its box is the part above the horizon
+    assert ".sky-moon .sky-wx { --wx-s: var(--moon-size); }" in WX_CSS
+    assert "--wx-s: var(--sun-size);" in WX_CSS and "--wx-v: calc(var(--sun-alt) * var(--sun-max) * var(--sun-size));" in WX_CSS
+    assert "height: var(--wx-v);" in WX_CSS
+    # no band-wide layer is left: nothing in the drawing spans the header
+    assert "inset: 0" not in WX_CSS and "wx-clouds" not in CSS + JS and "wx-near" not in CSS + JS
+    # the sun and the moon are not faded as wholes any more; the moon's lit part alone is drawn fainter behind cloud
+    assert not re.search(r"\.sky-(sun|moon)\s*(,[^{]*)?\{[^}]*opacity", CSS)
+    assert '.has-sky[data-wx-on="moon"][data-wx="storm"] .moon-lit { opacity: .42; }' in WX_CSS
+    assert ".sky-moon .wx-veil, .site-header > .sky-wx .wx-veil { display: none; }" in WX_CSS   # no disc behind a crescent
+    # the lone cloud of a moonless night is fainter than the same cloud on the sun or the moon
+    assert ".site-header > .sky-wx { left: var(--wx-left, 0); top: var(--wx-top, 0); opacity: .7; }" in WX_CSS
     # the shapes are masks from data: addresses (img-src 'self' data:), never a file from somewhere else
     urls = re.findall(r'url\("([^"]*)"\)', WX_CSS)
-    assert len(urls) == 3 and all(u.startswith("data:image/svg+xml,") for u in urls)
-    assert "http://www.w3.org/2000/svg" in urls[0] and "<" not in "".join(urls) and "script" not in "".join(urls).lower()
+    assert len(urls) == 5 and all(u.startswith("data:image/svg+xml,") for u in urls)
+    assert all("http://www.w3.org/2000/svg" in u for u in urls)
+    assert "<" not in "".join(urls) and "script" not in "".join(urls).lower() and "href" not in "".join(urls).lower()
 
 
 def test_motion_is_transform_and_opacity_only_and_only_when_allowed():
@@ -594,15 +645,144 @@ def test_motion_is_transform_and_opacity_only_and_only_when_allowed():
     assert "animation" not in re.sub(r"@keyframes[^\n]*\n", "", outside) and "transition" not in outside
     assert WX_CSS[start:end].count("animation") >= 7 and "prefers-reduced-motion: reduce" not in WX_CSS
     frames = re.findall(r"@keyframes (wx-[a-z-]+) \{(.*)\}\n", WX_CSS)
-    assert {n for n, _ in frames} == {"wx-drift", "wx-rain-near", "wx-rain-far", "wx-snow-near", "wx-snow-far", "wx-wisp",
-                                      "wx-flash"}
+    assert {n for n, _ in frames} == {"wx-drift", "wx-fall", "wx-gust", "wx-flash"}
+    used = set(re.findall(r"animation: (wx-[a-z]+)", WX_CSS[start:end]))
+    assert used == {n for n, _ in frames}                                  # each is used, and none other is named
     for name, body in frames:
         props = set(re.findall(r"([a-z-]+):", body))
         assert props <= {"transform", "opacity"} and props, (name, props)
-    # each turn moves a layer by whole tiles of its mask (no seam): rain 48x96 and 32x64, snow 90x90 and 60x60
-    assert "wx-rain-near { to { transform: translate3d(-24px, 96px, 0); } }" in WX_CSS and "--wx-tile: 48px 96px; top: -96px; right: -24px;" in WX_CSS
-    assert "wx-rain-far { to { transform: translate3d(-16px, 64px, 0); } }" in WX_CSS and "--wx-tile: 32px 64px; top: -64px; right: -16px;" in WX_CSS
-    assert "wx-snow-near { to { transform: translate3d(0, 90px, 0); } }" in WX_CSS and "--wx-tile: 90px 90px; top: -90px;" in WX_CSS
-    assert "wx-snow-far { to { transform: translate3d(-60px, 120px, 0); } }" in WX_CSS and "--wx-tile: 60px 60px; top: -120px; right: -60px;" in WX_CSS
-    assert "wx-drift { to { transform: translate3d(-560px, 0, 0); } }" in WX_CSS and "right: -560px;" in WX_CSS
-    assert "wx-wisp { to { transform: translate3d(420px, 0, 0); } }" in WX_CSS and "--wx-tile: 420px 72px; left: -420px;" in WX_CSS
+    # at rest (reduced motion) the three rows of what falls sit one under the other, shown by how much falls
+    assert ".sky-wx > .wx-fall { opacity: var(--wx-o); }" in outside
+    for row, share in (("a", ".08"), ("b", ".4"), ("c", ".7")):
+        assert f"transform: translate3d(0, calc(var(--wx-fh) * {share}), 0); }}" in outside, row
+    # lightning stays far under three flashes a second: two flickers in eleven seconds
+    assert '.has-sky[data-wx="storm"] .wx-flash { animation: wx-flash 11s linear infinite; }' in WX_CSS
+
+
+# --- in a browser: the weather sits on the sun or the moon -------------------------------------------------
+
+WX_BROWSER = r"""
+const path = require('path');
+let pw;
+const roots = [...(process.env.NODE_PATH || '').split(path.delimiter).filter(Boolean), '/opt/node22/lib/node_modules'];
+for (const r of ['', ...roots]) {
+  try { pw = require(r ? path.join(r, 'playwright') : 'playwright'); break; } catch (e) { /* next */ }
+}
+(async () => {
+  const [site, cases] = [process.argv[2], JSON.parse(process.argv[3])];
+  const browser = await pw.chromium.launch();
+  const out = [];
+  for (const c of cases) for (const width of [390, 1280]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 800 }, timezoneId: 'America/Chicago',
+      reducedMotion: c.motion ? 'no-preference' : 'reduce' });
+    const page = await ctx.newPage();
+    await page.clock.setFixedTime(new Date(c.at));
+    let asked = 0;
+    await page.route('https://api.weather.gov/**', (route) => {
+      asked += 1;
+      const stamp = new Date(Date.parse(c.at) - 7 * 60000).toISOString();
+      return route.fulfill({ status: 200, contentType: 'application/geo+json', headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify({ type: 'Feature', properties: Object.assign({ timestamp: stamp }, c.props) }) });
+    });
+    await page.goto('file://' + path.join(site, 'index.html'));
+    await page.evaluate(() => document.fonts.ready.then(() => new Promise(r => setTimeout(r, 150))));
+    const at = await page.evaluate(() => {
+      const box = (r) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height });
+      const header = document.querySelector('.site-header'), wx = document.getElementById('sky-wx');
+      const sun = document.getElementById('sky-sun'), moon = document.getElementById('sky-moon');
+      const words = Array.from(document.querySelectorAll('#nav-open, .site-header .site-name, .site-header .unofficial-tag, .site-header .kicker, #sky-hero .sky-day'))
+        .map((n) => { if (n.id === 'nav-open') { return box(n.getBoundingClientRect()); }
+                      const g = document.createRange(); g.selectNodeContents(n); return box(g.getBoundingClientRect()); });
+      const parts = {};
+      if (wx) { for (const p of wx.children) { const st = getComputedStyle(p);
+        parts[p.className] = { box: box(p.getBoundingClientRect()), opacity: parseFloat(st.opacity), shown: st.display !== 'none',
+                               moving: st.animationName !== 'none' }; } }
+      return { wx: header.getAttribute('data-wx'), on: header.getAttribute('data-wx-on'), layers: document.querySelectorAll('.sky-wx').length,
+               host: wx ? (wx.parentNode.id || wx.parentNode.className) : null, hidden: wx ? wx.hasAttribute('hidden') : null,
+               aria: wx ? wx.closest('[aria-hidden="true"]') !== null : null,
+               sunUp: sun.getAttribute('data-at') === 'up' && getComputedStyle(sun).visibility === 'visible', sun: box(sun.getBoundingClientRect()),
+               moonUp: !moon.hasAttribute('hidden'), moon: box(moon.getBoundingClientRect()),
+               moonLit: moon.querySelector('.moon-lit') ? parseFloat(getComputedStyle(moon.querySelector('.moon-lit')).opacity) : null,
+               header: box(header.getBoundingClientRect()), words, parts,
+               scrolls: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+    });
+    out.push({ name: c.name, width, asked, ...at });
+    await ctx.close();
+  }
+  await browser.close();
+  console.log(JSON.stringify(out));
+})();
+"""
+
+NOON, NIGHT_MOON, NIGHT_NONE = "2026-11-24T18:00:00Z", "2026-11-25T05:30:00Z", "2026-11-09T06:00:00Z"
+RAIN = {"presentWeather": [pw("RA", "rain")], "cloudLayers": [{"amount": "OVC"}]}
+PARTLY = {"cloudLayers": [{"amount": "SCT"}]}
+
+
+def _hits(a, b):
+    return a["left"] < b["right"] and b["left"] < a["right"] and a["top"] < b["bottom"] and b["top"] < a["bottom"]
+
+
+def _browser_ok():
+    return bool(shutil.which("node")) and (os.path.exists("/opt/pw-browsers") or bool(shutil.which("playwright")))
+
+
+@pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) not available")
+def test_in_a_browser_the_weather_sits_on_the_sun_or_the_moon(built, tmp_path):
+    """At 390 and 1280, with the one request answered by a made-up observation: by day the cloud is inside the sun
+    and over its disc, at night inside the moon and over it, and the moon keeps clear of the header's words; rain
+    falls from the cloud across the disc; a clear answer leaves the plain sun and the plain moon; with neither up
+    there is one small cloud in the open sky, off every word. One request each, and the page never scrolls sideways."""
+    cases = [{"name": "sun partly", "at": NOON, "props": PARTLY}, {"name": "sun rain", "at": NOON, "props": RAIN},
+             {"name": "sun rain moving", "at": NOON, "props": RAIN, "motion": True},
+             {"name": "moon partly", "at": NIGHT_MOON, "props": PARTLY}, {"name": "moon rain", "at": NIGHT_MOON, "props": RAIN},
+             {"name": "sun clear", "at": NOON, "props": {"textDescription": "Clear"}},
+             {"name": "moon clear", "at": NIGHT_MOON, "props": {"textDescription": "Clear"}},
+             {"name": "neither rain", "at": NIGHT_NONE, "props": RAIN}]
+    script = tmp_path / "wx.js"
+    script.write_text(WX_BROWSER, encoding="utf-8")
+    res = subprocess.run(["node", str(script), str(built), json.dumps(cases)], capture_output=True, text=True, timeout=300)
+    assert res.returncode == 0, res.stderr[-2000:]
+    rows = json.loads(res.stdout)
+    assert len(rows) == 2 * len(cases)
+    for r in rows:
+        tag = (r["name"], r["width"])
+        body, scene = r["name"].split()[0], r["name"].split()[1]
+        assert r["asked"] == 1 and not r["scrolls"], tag
+        assert r["sunUp"] == (body == "sun") and r["moonUp"] == (body == "moon"), tag       # never both
+        if scene == "clear":                                                  # the plain sun, the plain moon
+            assert r["wx"] is None and r["on"] is None and r["layers"] == 0 and r["moonLit"] in (None, 1), tag
+            continue
+        assert r["layers"] == 1 and r["aria"] and not r["hidden"], tag
+        assert r["on"] == {"sun": "sun", "moon": "moon", "neither": "sky"}[body], tag
+        assert r["host"] == {"sun": "sky-sun", "moon": "sky-moon", "neither": "site-header has-sky"}[body], tag
+        front, rows_ = r["parts"]["wx-cloud wx-front"], [r["parts"][f"wx-fall wx-{x}"] for x in "abc"]
+        assert front["opacity"] == 1 and front["box"]["width"] > 20, tag
+        if body != "neither":
+            disc = r[body]
+            assert _hits(front["box"], disc), tag                             # the cloud is over the disc
+            mid = (front["box"]["left"] + front["box"]["right"]) / 2          # and across its middle, not off to a side
+            assert disc["left"] < mid < disc["right"], tag
+            assert front["box"]["bottom"] <= r["header"]["bottom"] + 1, tag   # above the horizon
+        if scene == "rain":
+            moving = r["name"].endswith("moving")
+            assert all(x["moving"] == moving for x in rows_) and r["parts"]["wx-flash"]["opacity"] == 0, tag
+            if not moving:                                                    # at rest: where each row sits
+                assert [x["opacity"] > 0 for x in rows_] == [True, True, False], tag          # moderate: two rows of three
+                assert all(x["box"]["left"] >= front["box"]["left"] and x["box"]["right"] <= front["box"]["right"] for x in rows_), tag
+                assert rows_[0]["box"]["top"] < front["box"]["bottom"] < rows_[0]["box"]["bottom"], tag   # from under the cloud
+                if body != "neither":
+                    assert _hits(rows_[0]["box"], r[body]), tag               # in front of the disc
+        else:
+            assert all(x["opacity"] == 0 for x in rows_), tag
+        if body == "sun":
+            assert r["parts"]["wx-veil"]["shown"], tag
+        if body == "moon":                                                    # only its lit part, fainter behind rain
+            assert not r["parts"]["wx-veil"]["shown"] and r["moonLit"] == (0.6 if scene == "rain" else 1), tag
+            air = {k: r["moon"][k] + d for k, d in (("left", -2), ("top", -2), ("right", 2), ("bottom", 2))}
+            assert not any(_hits(air, w) for w in r["words"]), tag            # the moon itself never behind a word
+            if r["width"] == 1280:                                            # and with room, nor is its cloud
+                assert not any(_hits(front["box"], w) for w in r["words"]), tag
+        if body == "neither":                                                 # the lone cloud: small, in open sky
+            assert front["box"]["width"] <= 70 and not any(_hits(front["box"], w) for w in r["words"]), tag
+            assert _hits(front["box"], r["header"]), tag
