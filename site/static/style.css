@@ -32,10 +32,12 @@
   --moon: #FFFFFF;            /* the lit moon */
   --moon-edge: #5F7099;       /* its hairline edge, and the tint of its dark part */
   --moon-ring: #FFFFFF;       /* its soft ring */
-  --wx-veil: #C8CDD6;         /* the weather on the sun or moon (static/sky.js): cloud grey */  
+  --wx-veil: #C8CDD6;         /* the weather on the sun or moon (static/sky.js): cloud grey */
   --wx-cloud: #FFFFFF;        /* clouds, fog bands and lightning */
   --wx-fog: #EEF1F6;          /* fog's pale veil */
   --wx-fall: #FFFFFF;         /* rain, snow and streaks of wind */
+  --wx-moon-cloud: #DDE1E8;   /* a cloud's top on the moon: the moon is white here, so its cloud is not */
+  --wx-moon-fall: #C8CDD6;    /* what falls or blows across the moon, and its bolt: never the moon's own white */
   --focus: #D2561B;
   --band-bg: #0F1F3D;
   --band-fg: #FFFFFF;
@@ -72,6 +74,7 @@
     --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
     --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-ring: #A9BDE6;
     --wx-veil: #1C2333; --wx-cloud: #313E5C; --wx-fog: #2B3856; --wx-fall: #313E5C;
+    --wx-moon-cloud: #313E5C; --wx-moon-fall: #313E5C;
     --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
     --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
     color-scheme: dark;
@@ -82,6 +85,7 @@
   --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
   --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-ring: #A9BDE6;
   --wx-veil: #1C2333; --wx-cloud: #313E5C; --wx-fog: #2B3856; --wx-fall: #313E5C;
+    --wx-moon-cloud: #313E5C; --wx-moon-fall: #313E5C;
   --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
   --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
   color-scheme: dark;
@@ -1365,7 +1369,8 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
      .wx-flash   a storm's bolt under its cloud
    Sizes come from the body: --wx-s is its size, --wx-cw and --wx-ch the front cloud's, --wx-base how far the cloud's
    flat bottom is above the box's bottom (the horizon, for the sun), --wx-fh how far things fall.
-   Contrast: the words keep their 4.5:1. Every colour here (--wx-veil, --wx-cloud, --wx-fog, --wx-fall) is itself
+   Contrast: the words keep their 4.5:1. Every colour here (--wx-veil, --wx-cloud, --wx-fog, --wx-fall, and the
+   moon's own --wx-moon-cloud and --wx-moon-fall) is itself
    4.5:1 or better against --fg and --muted in both themes (tests/test_weather.py), so a cloud's edge that reaches
    behind a word cannot take it below that. In the light theme the clouds and what falls are lighter than the sky;
    in the dark theme they are a little lighter than it, within that limit.
@@ -1386,11 +1391,15 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .sky-moon .sky-wx { --wx-s: var(--moon-size); }
 .sky-sun .sky-wx {
   --wx-s: var(--sun-size); --wx-w: .95; --wx-v: calc(var(--sun-alt) * var(--sun-max) * var(--sun-size));
-  --wx-base: max(var(--wx-v) * .28, var(--wx-s) * .1); height: var(--wx-v);
+  --wx-base: min(max(var(--wx-v) * .28, var(--wx-s) * .1), var(--wx-v) - var(--wx-ch) * .55); height: var(--wx-v);
 }
-/* while something falls the cloud rides higher, so it falls across the disc: on the sun, down to the horizon */
+/* while something falls the cloud rides higher, so it falls across the disc: on the sun, down to the horizon.
+   The sun's cloud never floats free of it: its top is at most a little above the sun's (a quarter of the cloud while
+   something falls, else a bit under half), so over a sun on the horizon the cloud is low on the horizon too. */
 .has-sky[data-wx-fall] .sky-wx { --wx-base: calc(var(--wx-s) * .58); }
-.has-sky[data-wx-fall] .sky-sun .sky-wx { --wx-base: max(var(--wx-v) * .45, var(--wx-s) * .4); --wx-fh: var(--wx-base); }
+.has-sky[data-wx-fall] .sky-sun .sky-wx {
+  --wx-base: min(max(var(--wx-v) * .45, var(--wx-s) * .4), var(--wx-v) - var(--wx-ch) * .25); --wx-fh: max(var(--wx-base), 0px);
+}
 /* no sun and no moon: the lone cloud, where the script puts it in the open sky, and fainter */
 .site-header > .sky-wx { left: var(--wx-left, 0); top: var(--wx-top, 0); opacity: .7; }
 /* the haze is a round one, for the sun's disc. The moon is only its lit part, so it has no haze: behind cloud or
@@ -1399,6 +1408,10 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .has-sky[data-wx-on="moon"][data-wx="fog"] .moon-lit, .has-sky[data-wx-on="moon"][data-wx="overcast"] .moon-lit,
 .has-sky[data-wx-on="moon"][data-wx="rain"] .moon-lit, .has-sky[data-wx-on="moon"][data-wx="snow"] .moon-lit { opacity: .6; }
 .has-sky[data-wx-on="moon"][data-wx="storm"] .moon-lit { opacity: .42; }
+/* on the moon the weather has colours of its own (--wx-moon-cloud, --wx-moon-fall): in the light theme the moon, the
+   clouds and the rain are all white elsewhere, and white on the white moon would not show */
+.has-sky[data-wx-on="moon"] .wx-cloud { background: linear-gradient(var(--wx-moon-cloud), var(--wx-veil) 60%); }
+.has-sky[data-wx-on="moon"] .wx-fall, .has-sky[data-wx-on="moon"] .wx-flash { background: var(--wx-moon-fall); }
 .wx-veil {
   left: -25%; top: calc(var(--wx-s) * -.25); width: 150%; height: calc(var(--wx-s) * 1.5); border-radius: 50%;
   background: radial-gradient(closest-side, var(--wx-veil) 62%, transparent);
@@ -1456,7 +1469,7 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .has-sky[data-wx="storm"] .sky-wx { --wx-k: 1.12; }
 .has-sky[data-wx="storm"] .wx-veil { opacity: .8; }
 .has-sky[data-wx="storm"] .wx-back { opacity: .85; }
-.has-sky[data-wx="storm"] .wx-front { opacity: 1; background: var(--wx-veil); }
+.has-sky[data-wx="storm"] .wx-front, .has-sky[data-wx-on="moon"][data-wx="storm"] .wx-front { opacity: 1; background: var(--wx-veil); }
 /* fog: a pale haze over the disc, and two flat bands of fog across it in place of the clouds */
 .has-sky[data-wx="fog"] .wx-veil { opacity: .72; background: radial-gradient(closest-side, var(--wx-fog) 58%, transparent); }
 .has-sky[data-wx="fog"] .wx-cloud {
@@ -1469,6 +1482,7 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .has-sky[data-wx="windy"] .sky-wx { --wx-shape: var(--wx-wisp); --wx-base: calc(var(--wx-s) * .14); }
 .has-sky[data-wx="windy"] .sky-sun .sky-wx { --wx-base: calc(var(--wx-v) * .3); }
 .has-sky[data-wx="windy"] .wx-cloud { opacity: .85; background: var(--wx-fall); }
+.has-sky[data-wx-on="moon"][data-wx="windy"] .wx-cloud { background: var(--wx-moon-fall); }
 .has-sky[data-wx="windy"] .wx-back { opacity: .6; }
 @media (prefers-reduced-motion: no-preference) {
   .sky-wx > span { transition: opacity 1.2s ease; }

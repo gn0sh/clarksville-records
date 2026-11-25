@@ -213,16 +213,12 @@
   /* The part of the sky band (its own pixels, from its box `f`) the moon may sit in: a little in from every edge. */
   function skyBand(f) { return { left: 8, top: 6, right: f.width - 8, bottom: f.height - 4 }; }
 
-  /* Is the weather drawn on the moon just now (data-wx-on="moon" on the header, set by drawWeather)? */
-  function weatherOnMoon(el) {
-    var frame = el.parentNode, header = frame && frame.parentNode;
-    return !!header && typeof header.getAttribute === "function" && header.getAttribute("data-wx-on") === "moon";
-  }
-
   /* Puts the drawn moon in the open sky, or hides it when the band has no room. Tried in turn: its own size, then a
-     smaller moon (a phone's band is short). While the weather is drawn on the moon, each is first tried with WX_ROOM
-     more air around it, so the moon's cloud stays clear of the words too where the band has the room; the moon
-     itself keeps clear of them either way. */
+     smaller moon (a phone's band is short). On a page that may show the weather (it names an address to ask), each
+     is first tried with WX_ROOM more air around it, so a cloud drawn on the moon stays clear of the words too where
+     the band has the room; the moon itself keeps clear of them either way. The room is kept whether or not there is
+     any weather, so the moon is in one place from the first draw and does not move when the answer comes.
+     A moon with no room at all is hidden, and the weather drawn on it is hidden with it: nothing stands in for it. */
   var drawn = null;                       /* the last moon drawn: { x, alt }, kept for a resize */
   var WX_ROOM = 0.4;                      /* how far the weather reaches past the moon's box, in moon sizes */
   function placeMoon(doc) {
@@ -231,7 +227,8 @@
     el.style.removeProperty("--moon-size");
     el.removeAttribute("hidden");
     var f = el.parentNode.getBoundingClientRect(), size = el.offsetWidth, band = skyBand(f);
-    var sizes = [size, Math.max(22, Math.round(size * 0.8))], rooms = weatherOnMoon(el) ? [WX_ROOM, 0] : [0];
+    var mayHaveWeather = typeof el.getAttribute === "function" && !!el.getAttribute("data-weather");
+    var sizes = [size, Math.max(22, Math.round(size * 0.8))], rooms = mayHaveWeather ? [WX_ROOM, 0] : [0];
     var i, j, spot, gap;
     for (j = 0; size && j < rooms.length; j += 1) {
       for (i = 0; i < sizes.length; i += 1) {
@@ -474,10 +471,10 @@
     if (!header) { return; }
     if (!w || w.scene === "clear") {
       WX_ATTRS.forEach(function (name) { header.removeAttribute(name); });
-      try { placeMoon(doc); } catch (e) { /* the moon stays where it was */ }
       return;
     }
     var sunEl = doc.getElementById("sky-sun"), layer = doc.getElementById("sky-wx");
+    /* `drawn`: the moon is up. If the band had no room for it, it is hidden and so is its weather (placeMoon). */
     var on = sunEl && sunEl.getAttribute("data-at") === "up" ? "sun" : drawn ? "moon" : "sky";
     var host = on === "sun" ? sunEl : on === "moon" ? moonEl : header;
     if (!layer) {
@@ -496,7 +493,6 @@
     header.setAttribute("data-wx-on", on);
     try {
       if (on === "sky") { placeHint(doc, layer, frame); } else { layer.removeAttribute("hidden"); }
-      placeMoon(doc);                       /* the moon makes room for its weather, or takes its own place back */
     } catch (e2) { /* drawn where it is */ }
   }
 
