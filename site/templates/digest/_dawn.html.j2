@@ -1,27 +1,7 @@
-{# The Daylight Digest's two drawings (docs/design/digest-warmth.md section 6, "Imagery"). Both are decoration only:
+{# The Daylight Digest's one drawing (docs/design/digest-warmth.md section 6, "Imagery"). It is decoration only:
    aria-hidden, not focusable, no text, no animation, and coloured by site/static/digest.css classes (no inline style,
-   so the pages' CSP needs nothing new). Neither shows a real building, seal or skyline: the rooftops are rectangles
-   and triangles, the same on every page of every place.
-   - dawn_band(home): a half sun with seven rays over one ground line; `home` adds the plain rooftops and makes the
-     band the tall one. The ground runs far past the 390-wide drawing on both sides, so on a wide window the drawing
-     stays its own size in the middle and the ground still reaches both edges ("meet", never stretched or cropped).
-   - sun_mark(): the same half sun on a short horizon, 32 by 20, beside a heading. #}
-{% macro dawn_band(home=false) %}
-{% if home %}
-<svg class="digest-dawn digest-dawn-home" viewBox="0 0 390 96" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
-  <path class="digest-dawn-rays" d="M339 78.9L357.8 72.1M327.4 60.6L341.5 46.5M309.1 49L315.9 30.2M292 46V26M274.9 49L268.1 30.2M256.6 60.6L242.5 46.5M245 78.9L226.2 72.1"/>
-  <circle class="digest-dawn-halo" cx="292" cy="96" r="44"/>
-  <circle class="digest-dawn-sun" cx="292" cy="96" r="36"/>
-  <path class="digest-dawn-roofs" d="M30 90V72h16v-7l10-7 10 7v7h12V60h9v-9l5-6 5 6v9h9v12h14v-9l11-7 11 7v9h12v18z"/>
-  <path class="digest-dawn-ground" d="M-2000 96V86H0C90 72 180 74 250 82S350 86 390 78H2400V96z"/>
-</svg>
-{% else %}
-<svg class="digest-dawn" viewBox="0 0 390 56" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
-  <path class="digest-dawn-rays" d="M335 44L350 38M322 28L333 17M306 19L311 5M290 16V2M274 19L269 5M258 28L247 17M245 44L230 38"/>
-  <circle class="digest-dawn-halo" cx="290" cy="58" r="36"/>
-  <circle class="digest-dawn-sun" cx="290" cy="58" r="28"/>
-  <path class="digest-dawn-ground" d="M-2000 56V50H0C90 40 180 42 250 47S350 50 390 44H2400V56z"/>
-</svg>
-{% endif %}
-{% endmacro %}
+   so the pages' CSP needs nothing new).
+   - sun_mark(): a half sun on a short horizon, 32 by 20, beside a heading.
+   There is no dawn band any more (owner, 2026-11-24): the site header's sky already draws the day's sun or moon on
+   every page (site/templates/_header.html.j2), and a second sun right under it read as a mistake. #}
 {% macro sun_mark() %}<svg class="digest-sunmark" width="32" height="20" viewBox="0 0 32 20" aria-hidden="true" focusable="false"><path class="digest-sunmark-sun" d="M8 17a8 8 0 0 1 16 0z"/><path class="digest-sunmark-rays" d="M16 2v3M5.4 6.4l2.1 2.1M26.6 6.4l-2.1 2.1"/><path class="digest-sunmark-line" d="M2 18h28"/></svg>{% endmacro %}

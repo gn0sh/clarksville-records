@@ -17,8 +17,8 @@ or three fixed sentences why a council agenda is worth a minute of their time.
 
 Three ideas carry it:
 
-1. **Daybreak.** A small rising-sun band under the header, a warm "morning paper" surface for the hero and the
-   key cards, and the brand orange used as light (sun, rays, a card's top edge), never as text or status.
+1. **Daybreak.** The header's sky and its sun (no second sun under it; section 2a), a warm "morning paper"
+   surface for the key cards, and the brand orange used as light (sun, rays, a card's top edge), never as text or status.
 2. **Your town first.** The result greets the place by its Census name: "Clarksville, here's who governs you."
    The pride is in the reader's place and their seat in the room. Nothing on any page praises or rates a
    government or an official.
@@ -50,20 +50,39 @@ General claims in the new copy and why each holds for every reader:
 - "Where it meets and how to speak are set by the government": true everywhere, and it points to the official
   page instead of promising what that page says.
 
+## 2a. Layout: one column, no band (owner, 2026-11-24)
+
+On a wide window the first build "was still kind of a mess": the warm band behind the heading ran the full page
+width (1344px) while its text was 704px wide, the band's sun sat under the header sky's own sun (two suns), the
+address card straddled the band's bottom edge, and everything below hugged the left of a wide column. Now:
+
+- **One column on every Digest page, at every width:** 44rem, left-aligned in the page like the Clarksville front
+  page's heading and address card, so the two products read as one site. Nothing is wider than the column and
+  nothing bleeds into the page's gutters.
+- **No dawn band, on any page.** The header's sky draws the day's sun (or moon) on every page; a band under it
+  drew a second one. This goes for the small band on a coming-up page and above a look-up result too.
+- **The heading block and a coming-up page's head are plain,** on the page's own background. The address card
+  sits under the lede, clear of everything (no overlap).
+- **The warmth that stays:** the "Why look?" and "Thinking of going?" boxes, the greeting (now a warm box in the
+  column), the sun mark, the cards' sunrise edge, the step numbers and date chips, the wash under "in broad
+  daylight." and the soft shadow under the address and "Next meeting" cards.
+
+Where a later section still says "band", "hero surface" or "lifted", this section wins.
+`tests/test_national_pages.py::test_digest_pages_are_one_column_with_no_band_and_no_second_sun` holds it.
+
 ## 3. Screen 1: home and look-up (`digest/index.html`): US1, US9, AC1.7, AC1.9, AC1.10
 
 Order on a phone:
 
 ```
 [ existing header, unchanged ]
-[ dawn band: sun rising over a horizon ]
 DAYLIGHT DIGEST                       eyebrow
 Your local government,                h1
 in broad daylight.
 Local governments like city councils, lede
 county commissions and school boards...
 +----------------------------------+
-| Your street address              |  the address card, lifted onto the hero
+| Your street address              |  the address card, under the lede
 | [ 100 Main St, City, State     ] |
 | [  Find my local governments   ] |
 | (lock) We never get your address |
@@ -112,7 +131,7 @@ the reader types anything.
 | State | What shows |
 |---|---|
 | Default | As above. |
-| No script | The card shows the existing `index.noscript` line in place of the form, on the same lifted card. |
+| No script | The card shows the existing `index.noscript` line in place of the form, on the same card. |
 | Empty submit | `lookup.empty`, unchanged, under the input. |
 | Looking | Button reads "Looking up..." (`aria-disabled`), status line as today. No animation; the sun does not move. |
 | Still looking | Unchanged. |
@@ -127,10 +146,11 @@ Error and tip text sits on the white card in ink; no dawn colour, no icon that r
 ```
 [ header ]
 Address looked up. It was not sent to us.     [Look up another]
-[ short dawn band ]
++- warm box -------------------------------+
 CENSUS MATCHED: 1 PUBLIC SQ, CLARKSVILLE, TN, 37040
 Clarksville, here's who governs you.          h2, receives focus
 We found 3 local governments. 2 covered, 1 we can't cover.
++------------------------------------------+
 +-- sunrise edge (same on every card) --+
 | CITY OR TOWN                          |
 | Clarksville city                      |  h3, Census name as given
@@ -193,14 +213,14 @@ The warm empty state says "we don't read", so the gap is plainly ours and says n
 ### Folding the form after a result (optional, engineer's call with the architect)
 
 Today the whole intro and form stay above the list, so the result starts two screens down. Proposal: once a list
-is shown, the hero and form fold to one row ("Address looked up. It was not sent to us." and "Look up another
+is shown, the heading and form fold to one row ("Address looked up. It was not sent to us." and "Look up another
 address", which unfolds the form and moves focus to the input). If that is more script than the team wants now,
-skip it: the greeting, band and cards work without it, and focus already moves to the list.
+skip it: the greeting and cards work without it, and focus already moves to the list.
 
 ## 5. Screen 3: a government's coming-up page (`digest/<st>/<id>.html`): US4
 
 ```
-[ header ] [ short dawn band ]
+[ header ]
 DAYLIGHT DIGEST / WHAT WE COVER
 TENNESSEE . CITY OR TOWN
 Clarksville City Council                      h1
@@ -273,8 +293,8 @@ Three new tokens, in `digest.css` only (no change to `style.css`, so Clarksville
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--dawn` | `#FFF3E4` | `#231A22` | hero, greeting and page-head surface; warm cards; date chips |
-| `--dawn-2` | `#FFE3C7` | `#3A2420` | horizon glow in the band; step numbers; the soft shadow under lifted cards; the h1 underline wash |
+| `--dawn` | `#FFF3E4` | `#231A22` | the greeting box; warm cards; date chips |
+| `--dawn-2` | `#FFE3C7` | `#3A2420` | step numbers; the soft shadow under the address and "Next meeting" cards; the h1 underline wash |
 | `--dawn-line` | `#F0C9A6` | `#5A3A2C` | decorative edge of a dawn surface |
 
 Contrast (my arithmetic; the engineer re-runs the repo's contrast check before review):
@@ -301,13 +321,10 @@ device line, the Census notice).
 
 ### Imagery
 
-No photographs, no stock art, no real skyline, seal or landmark. Two inline SVGs, both `aria-hidden`:
+No photographs, no stock art, no real skyline, seal or landmark. One inline SVG, `aria-hidden`:
 
-- **Dawn band** (96px on the home page, 56px elsewhere): a half sun with seven rays over one curved ground
-  line. The home band adds a plain row of rooftops with one cupola, drawn from rectangles and triangles so it
-  can't be read as any real building. If anyone on the Focus Group reads it as a specific courthouse, drop the
-  rooftops; the sun and horizon carry the idea alone.
-- **Sun mark** (32 by 20): the same half sun on a short horizon, beside "Why look?" and "Next meeting" and in
+- **Dawn band:** removed (section 2a). The header's sky is the page's one sun.
+- **Sun mark** (32 by 20): a half sun on a short horizon, beside "Why look?" and "Next meeting" and in
   the empty states.
 
 The header's own sun and sky stay as they are. No animation anywhere (and so nothing to gate behind
@@ -322,11 +339,11 @@ The header's own sun and sky stay as they are. No animation anywhere (and so not
   need updating.
 - Every control 44px or taller; primary buttons 52px. Focus ring unchanged (3px `--focus`, 2px offset); it is
   about 3.8:1 on `--dawn`, above the 3:1 bar, to be confirmed by the check.
-- Links stay underlined. Statuses stay told by word, mark and edge. Forced-colors: the band and edges drop out,
+- Links stay underlined. Statuses stay told by word, mark and edge. Forced-colors: the sun mark and edges drop out,
   borders and words remain.
-- 320px and 200% text: the lifted card loses its overlap (margin 0), date chips drop above their rows, buttons
+- 320px and 200% text: the address card sits closer under the lede, date chips drop above their rows, buttons
   stay full width. No sideways scroll.
-- Dark mode: all three dawn tokens have dark values; the band becomes a dim pre-dawn glow, not a bright stripe.
+- Dark mode: all three dawn tokens have dark values; the warm boxes become a dim pre-dawn surface, not a bright block.
 
 ## 7. What stays the same
 
@@ -351,7 +368,7 @@ The header's own sun and sky stay as they are. No animation anywhere (and so not
 - `sitegen/national_pages.py`: add the new keys to the known-key list; `tests/test_national_pages.py` lists them.
 
 `site/templates/digest/index.html.j2`
-- Inline dawn-band SVG and a `.digest-hero` wrapper around eyebrow, `h1`, lede.
+- A `.digest-hero` wrapper around eyebrow, `h1`, lede (plain; no band, section 2a).
 - Move `index.who` and `index.cover-link` below the address card (needs spec changes 1 and 2; if refused, leave
   both between the lede and the card at `--t-sm`).
 - Add the steps list and the "Why look?" card after the privacy detail.
@@ -364,7 +381,7 @@ The header's own sun and sky stay as they are. No animation anywhere (and so not
 - Optional fold of the form after a result.
 
 `site/templates/digest/body.html.j2` and `sitegen/national_pages.py`
-- Short dawn band and `.digest-bodyhead` wrapper.
+- `.digest-bodyhead` wrapper (plain; no band, section 2a).
 - `meeting_view` output split into `next` (first meeting), `months` (groups for the rows) and `later` (the
   folded rest), all still `section.digest-meeting` with the same `data-feed` spans, in the JSON's order, so the
   site checks that exempt feed text keep working.
@@ -372,9 +389,9 @@ The header's own sun and sky stay as they are. No animation anywhere (and so not
 - Heading levels as in section 6.
 
 `site/static/digest.css`
-- The three dawn tokens (light and dark), `.digest-hero`, `.digest-dawn` (band), `.digest-warm` (card),
+- The three dawn tokens (light and dark), `.digest-hero`, `.digest-warm` (card),
   `.digest-steps`, `.digest-next`, `.digest-month`, `.digest-datechip`, `.digest-primary`; the sunrise edge on
-  `.digest-card`; larger `h1`/greeting; lifted `.digest-find`. Update the file's header comment: orange is now
+  `.digest-card`; larger `h1`/greeting; `.digest-find`; the one 44rem column (section 2a). Update the file's header comment: orange is now
   the sun, rays, card edge and focus ring; still never text or status.
 
 Checks and docs
