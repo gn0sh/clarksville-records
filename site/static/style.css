@@ -32,7 +32,7 @@
   --moon: #FFFFFF;            /* the lit moon */
   --moon-edge: #5F7099;       /* its hairline edge, and the tint of its dark part */
   --moon-ring: #FFFFFF;       /* its soft ring */
-  --wx-veil: #C8CDD6;         /* the weather over the sky (static/sky.js): a clouded sky's grey */
+  --wx-veil: #C8CDD6;         /* the weather on the sun or moon (static/sky.js): cloud grey */  
   --wx-cloud: #FFFFFF;        /* clouds, fog bands and lightning */
   --wx-fog: #EEF1F6;          /* fog's pale veil */
   --wx-fall: #FFFFFF;         /* rain, snow and streaks of wind */
@@ -1347,107 +1347,156 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .sky-moon svg { display: block; width: 100%; height: 100%; overflow: visible;
   filter: drop-shadow(0 0 calc(var(--moon-size) * .1) color-mix(in srgb, var(--moon-ring) 45%, transparent)); }
 .moon-lit { fill: var(--moon); stroke: var(--moon-edge); stroke-width: .7; stroke-linejoin: round; }
-/* The weather: one quiet scene over the sky while static/sky.js holds a fresh observation of the site's place
-   (config sky_weather; its SCENES table names the scenes). The script sets the scene on the header: data-wx (partly,
-   overcast, fog, rain, snow, storm, windy), data-wx-fall (light, moderate, heavy: what is falling) and data-wx-wind
-   (the wind is up: everything drifts faster). No attribute is the plain sky, which is also what a clear day, an old
-   observation or a failed request draws. The scene is drawn in #sky-wx, a layer the script adds: laid over the sky
-   and under the words, taking no room (no layout shift), aria-hidden, never a pointer target. Its parts:
-     .wx-veil    the grey of a clouded sky, fading toward the horizon
-     .wx-clouds  soft clouds (or bands of fog) drifting across
-     .wx-fall    what falls, a near and a far layer: rain's slanted streaks, snow's flakes; under a clear windy sky,
-                 thin streaks of wind
-     .wx-flash   a storm's faint lightning
+/* The weather: drawn on the sun or the moon, whichever is up (owner, 2026-11-24), while static/sky.js holds a fresh
+   observation of the site's place (config sky_weather; its SCENES table names the scenes). The script sets the
+   scene on the header: data-wx (partly, overcast, fog, rain, snow, storm, windy), data-wx-fall (light, moderate,
+   heavy: what is falling), data-wx-wind (the wind is up: everything moves faster) and data-wx-on (sun, moon or
+   sky: what it is drawn on). No attribute is the plain sun or moon, which is also what a clear day, an old
+   observation or a failed request draws. The drawing is #sky-wx, a small box the script adds inside the sun (its
+   part above the horizon) or inside the moon, so it sits where they sit and goes where they go; on a night with
+   no moon up it is a lone faint cloud in the open sky (data-wx-on="sky"). It takes no room (no layout shift), is
+   aria-hidden, under the words, and never a pointer target. Its parts, back to front:
+     .wx-veil    a soft haze over the sun's disc: the sun dimmed behind cloud, or paled by fog (the moon has none:
+                 its lit part is drawn fainter instead)
+     .wx-back    a smaller cloud behind (in fog: a band of fog; in wind: a streak of wind)
+     .wx-fall    what falls from the front cloud across the disc, three staggered rows (.wx-a, .wx-b, .wx-c): rain's
+                 slanted streaks or snow's flakes; more rows show as more falls
+     .wx-front   the cloud in front, partly covering the disc; a storm's is the dark one
+     .wx-flash   a storm's bolt under its cloud
+   Sizes come from the body: --wx-s is its size, --wx-cw and --wx-ch the front cloud's, --wx-base how far the cloud's
+   flat bottom is above the box's bottom (the horizon, for the sun), --wx-fh how far things fall.
    Contrast: the words keep their 4.5:1. Every colour here (--wx-veil, --wx-cloud, --wx-fog, --wx-fall) is itself
-   4.5:1 or better against --fg and --muted in both themes (tests/test_weather.py), and each is only ever laid at
-   part strength over a sky that already is, so no pixel behind a word falls below it. In the light theme the clouds
-   and what falls are lighter than the sky; in the dark theme they are a little lighter than it, within that limit.
+   4.5:1 or better against --fg and --muted in both themes (tests/test_weather.py), so a cloud's edge that reaches
+   behind a word cannot take it below that. In the light theme the clouds and what falls are lighter than the sky;
+   in the dark theme they are a little lighter than it, within that limit.
    Motion: transforms and opacity only (no script loop, no repaint per frame), and only under
    prefers-reduced-motion: no-preference; with reduced motion the scene is still, and there is no lightning.
-   The shapes that fall are masks (small SVGs in data: addresses, which the CSP's img-src allows), so their colour
-   is the theme's. */
-.sky-wx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-.sky-wx > span { position: absolute; inset: 0; opacity: 0; }
-.wx-veil { background: linear-gradient(var(--wx-veil), color-mix(in srgb, var(--wx-veil) 40%, transparent)); }
-.wx-clouds {
-  right: -560px; background-repeat: repeat-x; background-size: 560px 100%;
-  background-image:
-    radial-gradient(ellipse 74px 17px at 96px 30px, var(--wx-cloud) 35%, transparent 100%),
-    radial-gradient(ellipse 46px 15px at 128px 19px, var(--wx-cloud) 35%, transparent 100%),
-    radial-gradient(ellipse 92px 18px at 338px 58px, var(--wx-cloud) 35%, transparent 100%),
-    radial-gradient(ellipse 52px 16px at 306px 47px, var(--wx-cloud) 35%, transparent 100%),
-    radial-gradient(ellipse 60px 13px at 494px 22px, var(--wx-cloud) 35%, transparent 100%);
+   The shapes are masks (small SVGs in data: addresses, which the CSP's img-src allows), so their colour is the
+   theme's. */
+.sky-wx {
+  --wx-s: clamp(28px, 3.1vw, 40px); --wx-w: 1.6; --wx-k: 1;
+  --wx-cw: calc(var(--wx-s) * var(--wx-w) * var(--wx-k)); --wx-ch: calc(var(--wx-cw) * .4);
+  --wx-base: calc(var(--wx-s) * -.2); --wx-fh: calc(var(--wx-s) * .8); --wx-dx: calc(var(--wx-fh) * -.25);
+  --wx-tw: 20px; --wx-th: 36px; --wx-o: 0; --wx-shape: var(--wx-puff);
+  position: absolute; left: 0; top: 0; width: var(--wx-s); height: var(--wx-s); pointer-events: none;
+}
+.sky-wx[hidden] { display: none; }
+.sky-wx > span { position: absolute; opacity: 0; }
+/* on the moon: the moon's own size. On the sun: its size, and the box is the part of it above the horizon */
+.sky-moon .sky-wx { --wx-s: var(--moon-size); }
+.sky-sun .sky-wx {
+  --wx-s: var(--sun-size); --wx-w: .95; --wx-v: calc(var(--sun-alt) * var(--sun-max) * var(--sun-size));
+  --wx-base: max(var(--wx-v) * .28, var(--wx-s) * .1); height: var(--wx-v);
+}
+/* while something falls the cloud rides higher, so it falls across the disc: on the sun, down to the horizon */
+.has-sky[data-wx-fall] .sky-wx { --wx-base: calc(var(--wx-s) * .58); }
+.has-sky[data-wx-fall] .sky-sun .sky-wx { --wx-base: max(var(--wx-v) * .45, var(--wx-s) * .4); --wx-fh: var(--wx-base); }
+/* no sun and no moon: the lone cloud, where the script puts it in the open sky, and fainter */
+.site-header > .sky-wx { left: var(--wx-left, 0); top: var(--wx-top, 0); opacity: .7; }
+/* the haze is a round one, for the sun's disc. The moon is only its lit part, so it has no haze: behind cloud or
+   in fog the lit part itself is drawn fainter, and no disc appears around a crescent */
+.sky-moon .wx-veil, .site-header > .sky-wx .wx-veil { display: none; }
+.has-sky[data-wx-on="moon"][data-wx="fog"] .moon-lit, .has-sky[data-wx-on="moon"][data-wx="overcast"] .moon-lit,
+.has-sky[data-wx-on="moon"][data-wx="rain"] .moon-lit, .has-sky[data-wx-on="moon"][data-wx="snow"] .moon-lit { opacity: .6; }
+.has-sky[data-wx-on="moon"][data-wx="storm"] .moon-lit { opacity: .42; }
+.wx-veil {
+  left: -25%; top: calc(var(--wx-s) * -.25); width: 150%; height: calc(var(--wx-s) * 1.5); border-radius: 50%;
+  background: radial-gradient(closest-side, var(--wx-veil) 62%, transparent);
+}
+.wx-cloud {
+  left: calc((var(--wx-s) - var(--wx-cw)) / 2); bottom: var(--wx-base); width: var(--wx-cw); height: var(--wx-ch);
+  background: linear-gradient(var(--wx-cloud) 45%, var(--wx-veil));
+  -webkit-mask: var(--wx-shape) center / 100% 100% no-repeat; mask: var(--wx-shape) center / 100% 100% no-repeat;
+}
+.wx-back {
+  left: calc((var(--wx-s) - var(--wx-cw)) / 2 - var(--wx-cw) * .15); bottom: calc(var(--wx-base) + var(--wx-ch) * .5);
+  width: calc(var(--wx-cw) * .66); height: calc(var(--wx-ch) * .66);
 }
 .wx-fall {
+  left: calc((var(--wx-s) - var(--wx-cw)) / 2 + var(--wx-cw) * .16); width: calc(var(--wx-cw) * .7);
+  bottom: calc(var(--wx-base) + var(--wx-ch) * .3 - var(--wx-th)); height: var(--wx-th);
   background: var(--wx-fall);
-  -webkit-mask-repeat: repeat; mask-repeat: repeat; -webkit-mask-image: var(--wx-mask); mask-image: var(--wx-mask);
-  -webkit-mask-size: var(--wx-tile); mask-size: var(--wx-tile);
+  -webkit-mask: var(--wx-drop) 0 0 / var(--wx-tw) var(--wx-th) repeat-x; mask: var(--wx-drop) 0 0 / var(--wx-tw) var(--wx-th) repeat-x;
 }
-.wx-flash { background: radial-gradient(ellipse 60% 100% at 68% 0, var(--wx-cloud), transparent 72%); }
+.sky-wx > .wx-fall { opacity: var(--wx-o); }
+/* the three rows at rest (reduced motion): one under the other, each a little aside of the last */
+.wx-a { transform: translate3d(0, calc(var(--wx-fh) * .08), 0); }
+.wx-b { -webkit-mask-position: 7px 0; mask-position: 7px 0; transform: translate3d(0, calc(var(--wx-fh) * .4), 0); }
+.wx-c { -webkit-mask-position: 13px 0; mask-position: 13px 0; transform: translate3d(0, calc(var(--wx-fh) * .7), 0); }
+.wx-flash {
+  left: calc(var(--wx-s) / 2 - var(--wx-ch) * .2); bottom: calc(var(--wx-base) - var(--wx-ch) * .62);
+  width: calc(var(--wx-ch) * .5); height: calc(var(--wx-ch) * .9); background: var(--wx-cloud);
+  -webkit-mask: var(--wx-bolt) center / 100% 100% no-repeat; mask: var(--wx-bolt) center / 100% 100% no-repeat;
+}
 .has-sky {
-  --wx-rain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='96'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.2' stroke-linecap='round'%3E%3Cpath d='M12 6l-4 16M38 30l-4 16M24 60l-4 16'/%3E%3Cpath opacity='.55' d='M44 72l-3 12M7 42l-3 12'/%3E%3C/g%3E%3C/svg%3E");
-  --wx-snow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cg%3E%3Ccircle cx='12' cy='10' r='1.9'/%3E%3Ccircle cx='58' cy='24' r='1.5'/%3E%3Ccircle cx='32' cy='46' r='2.1'/%3E%3Ccircle cx='78' cy='58' r='1.6'/%3E%3Ccircle cx='14' cy='74' r='1.4'/%3E%3Ccircle cx='52' cy='80' r='1.8'/%3E%3C/g%3E%3C/svg%3E");
-  --wx-wisp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='72'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'%3E%3Cpath d='M12 14h96M170 44h132'/%3E%3Cpath opacity='.6' d='M318 24h64M60 60h44'/%3E%3C/g%3E%3C/svg%3E");
+  --wx-puff: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='40' viewBox='0 0 100 40' preserveAspectRatio='none'%3E%3Cpath d='M18 38a12 12 0 0 1-2-23.8A17 17 0 0 1 47 8a21 21 0 0 1 36 9.5A10.5 10.5 0 0 1 84 38z'/%3E%3C/svg%3E");
+  --wx-rain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='36'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M15 4l-3.5 14'/%3E%3Cpath opacity='.6' d='M6 20l-3 12'/%3E%3C/g%3E%3C/svg%3E");
+  --wx-snow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='6' cy='6' r='1.8'/%3E%3Ccircle cx='16' cy='15' r='1.4'/%3E%3C/svg%3E");
+  --wx-wisp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='40' viewBox='0 0 100 40'%3E%3Cg fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M6 14h58a7 7 0 1 0-7-7'/%3E%3Cpath d='M20 25h66a6 6 0 1 1-6 6'/%3E%3Cpath opacity='.6' d='M4 34h36'/%3E%3C/g%3E%3C/svg%3E");
+  --wx-bolt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='36' viewBox='0 0 20 36'%3E%3Cpath d='M12 0L2 20h7L6 36l12-22h-7z'/%3E%3C/svg%3E");
 }
-/* the sky behind the scene: the sun (or the moon) dims behind cloud and fog, and stays as it is among a few clouds */
-.has-sky[data-wx="fog"] .sky-sun, .has-sky[data-wx="fog"] .sky-moon { opacity: .5; }
-.has-sky[data-wx="overcast"] .sky-sun, .has-sky[data-wx="rain"] .sky-sun, .has-sky[data-wx="snow"] .sky-sun,
-.has-sky[data-wx="overcast"] .sky-moon, .has-sky[data-wx="rain"] .sky-moon, .has-sky[data-wx="snow"] .sky-moon { opacity: .3; }
-.has-sky[data-wx="storm"] .sky-sun, .has-sky[data-wx="storm"] .sky-moon { opacity: .16; }
-/* cloud */
-.has-sky[data-wx="partly"] .wx-clouds { opacity: .95; }
-.has-sky[data-wx="overcast"] .wx-veil, .has-sky[data-wx="rain"] .wx-veil, .has-sky[data-wx="snow"] .wx-veil { opacity: .85; }
-.has-sky[data-wx="storm"] .wx-veil { opacity: 1; }
-.has-sky[data-wx="overcast"] .wx-clouds { opacity: .8; }
-.has-sky[data-wx="rain"] .wx-clouds, .has-sky[data-wx="snow"] .wx-clouds, .has-sky[data-wx="storm"] .wx-clouds { opacity: .45; }
-/* fog: a pale veil, and long flat bands low in the sky in place of clouds */
-.has-sky[data-wx="fog"] .wx-veil { opacity: .7; background: linear-gradient(color-mix(in srgb, var(--wx-fog) 60%, transparent), var(--wx-fog)); }
-.has-sky[data-wx="fog"] .wx-clouds {
-  opacity: .9;
-  background-image:
-    radial-gradient(ellipse 240px 9px at 150px 34%, var(--wx-cloud) 20%, transparent 100%),
-    radial-gradient(ellipse 200px 8px at 420px 58%, var(--wx-cloud) 20%, transparent 100%),
-    radial-gradient(ellipse 260px 10px at 230px 82%, var(--wx-cloud) 20%, transparent 100%);
-}
-/* rain (and a storm that rains): slanted streaks, one step left for every four down */
-.has-sky[data-wx="rain"] .wx-fall, .has-sky[data-wx="storm"] .wx-fall { --wx-mask: var(--wx-rain); }
-.has-sky[data-wx="rain"] .wx-near, .has-sky[data-wx="storm"] .wx-near { --wx-tile: 48px 96px; top: -96px; right: -24px; }
-.has-sky[data-wx="rain"] .wx-far, .has-sky[data-wx="storm"] .wx-far { --wx-tile: 32px 64px; top: -64px; right: -16px; }
-/* snow: flakes, the near ones straight down and the far ones on a slant */
-.has-sky[data-wx="snow"] .wx-fall { --wx-mask: var(--wx-snow); }
-.has-sky[data-wx="snow"] .wx-near { --wx-tile: 90px 90px; top: -90px; }
-.has-sky[data-wx="snow"] .wx-far { --wx-tile: 60px 60px; top: -120px; right: -60px; }
+/* a few clouds: one smaller cloud drifting across the disc, which shows beside and above it */
+.has-sky[data-wx="partly"] .sky-wx { --wx-k: .82; }
+.has-sky[data-wx="partly"] .wx-front { opacity: 1; }
+/* cloud all over: the disc dimmed, a cloud in front and one behind */
+.has-sky[data-wx="overcast"] .sky-wx { --wx-k: 1.12; }
+.has-sky[data-wx="overcast"] .wx-veil, .has-sky[data-wx="rain"] .wx-veil, .has-sky[data-wx="snow"] .wx-veil { opacity: .6; }
+.has-sky[data-wx="overcast"] .wx-cloud, .has-sky[data-wx="rain"] .wx-front, .has-sky[data-wx="snow"] .wx-front { opacity: 1; }
+.has-sky[data-wx="rain"] .wx-back, .has-sky[data-wx="snow"] .wx-back { opacity: .7; }
+/* rain (and a storm that rains): slanted streaks from the cloud. Snow: flakes, slower and straighter. */
+.has-sky[data-wx="rain"] .sky-wx, .has-sky[data-wx="storm"] .sky-wx { --wx-drop: var(--wx-rain); }
+.has-sky[data-wx="snow"] .sky-wx { --wx-drop: var(--wx-snow); --wx-tw: 22px; --wx-th: 22px; --wx-dx: calc(var(--wx-fh) * .12); }
 /* how much falls */
-.has-sky[data-wx-fall="light"] .wx-near { opacity: .55; }
-.has-sky[data-wx-fall="moderate"] .wx-near { opacity: .8; }
-.has-sky[data-wx-fall="moderate"] .wx-far { opacity: .4; }
-.has-sky[data-wx-fall="heavy"] .wx-near { opacity: 1; }
-.has-sky[data-wx-fall="heavy"] .wx-far { opacity: .7; }
-/* wind under a clear sky: thin streaks blowing across */
-.has-sky[data-wx="windy"] .wx-near { --wx-mask: var(--wx-wisp); --wx-tile: 420px 72px; left: -420px; opacity: .7; }
+.has-sky[data-wx-fall="light"] .wx-a { --wx-o: .75; }
+.has-sky[data-wx-fall="moderate"] .wx-a { --wx-o: .9; }
+.has-sky[data-wx-fall="moderate"] .wx-b { --wx-o: .7; }
+.has-sky[data-wx-fall="heavy"] .wx-a, .has-sky[data-wx-fall="heavy"] .wx-b { --wx-o: 1; }
+.has-sky[data-wx-fall="heavy"] .wx-c { --wx-o: .8; }
+/* a storm: the disc dimmer still, and the cloud in front is the dark one */
+.has-sky[data-wx="storm"] .sky-wx { --wx-k: 1.12; }
+.has-sky[data-wx="storm"] .wx-veil { opacity: .8; }
+.has-sky[data-wx="storm"] .wx-back { opacity: .85; }
+.has-sky[data-wx="storm"] .wx-front { opacity: 1; background: var(--wx-veil); }
+/* fog: a pale haze over the disc, and two flat bands of fog across it in place of the clouds */
+.has-sky[data-wx="fog"] .wx-veil { opacity: .72; background: radial-gradient(closest-side, var(--wx-fog) 58%, transparent); }
+.has-sky[data-wx="fog"] .wx-cloud {
+  opacity: .95; left: calc(var(--wx-s) * -.3); bottom: 14%; width: calc(var(--wx-s) * 1.6); height: calc(var(--wx-s) * .2);
+  -webkit-mask: none; mask: none;
+  background: radial-gradient(closest-side, var(--wx-cloud), var(--wx-fog) 45%, transparent);
+}
+.has-sky[data-wx="fog"] .wx-back { left: calc(var(--wx-s) * -.05); bottom: 52%; width: calc(var(--wx-s) * 1.25); }
+/* wind under a clear sky: two streaks of wind blowing past the disc */
+.has-sky[data-wx="windy"] .sky-wx { --wx-shape: var(--wx-wisp); --wx-base: calc(var(--wx-s) * .14); }
+.has-sky[data-wx="windy"] .sky-sun .sky-wx { --wx-base: calc(var(--wx-v) * .3); }
+.has-sky[data-wx="windy"] .wx-cloud { opacity: .85; background: var(--wx-fall); }
+.has-sky[data-wx="windy"] .wx-back { opacity: .6; }
 @media (prefers-reduced-motion: no-preference) {
   .sky-wx > span { transition: opacity 1.2s ease; }
-  /* --wx-pace: 1 in still air, less in wind (a shorter turn is a faster drift) */
+  /* --wx-pace: 1 in still air, less in wind (a shorter turn is a faster drift, and what falls is blown aside) */
   .has-sky { --wx-pace: 1; }
   .has-sky[data-wx-wind] { --wx-pace: .4; }
-  .has-sky[data-wx] .wx-clouds { animation: wx-drift calc(150s * var(--wx-pace)) linear infinite; }
-  .has-sky[data-wx="rain"] .wx-near, .has-sky[data-wx="storm"] .wx-near { animation: wx-rain-near calc(1.1s * (.6 + .4 * var(--wx-pace))) linear infinite; }
-  .has-sky[data-wx="rain"] .wx-far, .has-sky[data-wx="storm"] .wx-far { animation: wx-rain-far calc(1.5s * (.6 + .4 * var(--wx-pace))) linear infinite; }
-  .has-sky[data-wx-fall="heavy"] .wx-near { animation-duration: .8s; }
-  .has-sky[data-wx="snow"] .wx-near { animation: wx-snow-near calc(9s * (.4 + .6 * var(--wx-pace))) linear infinite; }
-  .has-sky[data-wx="snow"] .wx-far { animation: wx-snow-far calc(15s * (.4 + .6 * var(--wx-pace))) linear infinite; }
-  .has-sky[data-wx="windy"] .wx-near { animation: wx-wisp 7s linear infinite; }
+  .has-sky[data-wx-wind] .sky-wx { --wx-dx: calc(var(--wx-fh) * -.55); }
+  .has-sky[data-wx] .wx-front { animation: wx-drift calc(26s * var(--wx-pace)) ease-in-out infinite alternate; }
+  .has-sky[data-wx] .wx-back { animation: wx-drift calc(37s * var(--wx-pace)) ease-in-out infinite alternate-reverse; }
+  /* a storm's cloud stays over its bolt */
+  .has-sky[data-wx="storm"] .wx-front { animation: none; }
+  .has-sky[data-wx="rain"] .wx-fall, .has-sky[data-wx="storm"] .wx-fall { animation: wx-fall calc(1.2s * (.6 + .4 * var(--wx-pace))) linear infinite; }
+  .has-sky[data-wx="snow"] .wx-fall { animation: wx-fall calc(5.4s * (.4 + .6 * var(--wx-pace))) linear infinite; }
+  .has-sky[data-wx-fall="heavy"][data-wx="rain"] .wx-fall, .has-sky[data-wx-fall="heavy"][data-wx="storm"] .wx-fall { animation-duration: .9s; }
+  .has-sky[data-wx] .wx-b { animation-delay: -.4s; }
+  .has-sky[data-wx] .wx-c { animation-delay: -.8s; }
+  .has-sky[data-wx="snow"] .wx-b { animation-delay: -1.8s; }
+  .has-sky[data-wx="snow"] .wx-c { animation-delay: -3.6s; }
+  .has-sky[data-wx="windy"] .wx-front { animation: wx-gust 3.4s linear infinite; }
+  .has-sky[data-wx="windy"] .wx-back { animation: wx-gust 4.6s linear -1.7s infinite; }
   /* lightning: two faint flickers every eleven seconds (far under three flashes a second) */
   .has-sky[data-wx="storm"] .wx-flash { animation: wx-flash 11s linear infinite; }
 }
-/* each turn moves a layer by whole tiles of its mask, so the loop has no seam */
-@keyframes wx-drift { to { transform: translate3d(-560px, 0, 0); } }
-@keyframes wx-rain-near { to { transform: translate3d(-24px, 96px, 0); } }
-@keyframes wx-rain-far { to { transform: translate3d(-16px, 64px, 0); } }
-@keyframes wx-snow-near { to { transform: translate3d(0, 90px, 0); } }
-@keyframes wx-snow-far { to { transform: translate3d(-60px, 120px, 0); } }
-@keyframes wx-wisp { to { transform: translate3d(420px, 0, 0); } }
-@keyframes wx-flash { 0%, 62%, 64.5%, 67%, 100% { opacity: 0; } 63% { opacity: .9; } 65.5% { opacity: .55; } }
+/* a cloud sways a sixth of its width either way; what falls goes --wx-fh down from under the cloud, fading in and out */
+@keyframes wx-drift { from { transform: translate3d(calc(var(--wx-cw) * -.16), 0, 0); } to { transform: translate3d(calc(var(--wx-cw) * .16), 0, 0); } }
+@keyframes wx-fall { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 20%, 72% { opacity: var(--wx-o); } 100% { opacity: 0; transform: translate3d(var(--wx-dx), var(--wx-fh), 0); } }
+@keyframes wx-gust { 0% { opacity: 0; transform: translate3d(calc(var(--wx-cw) * -.35), 0, 0); } 25%, 65% { opacity: .85; } 100% { opacity: 0; transform: translate3d(calc(var(--wx-cw) * .35), 0, 0); } }
+@keyframes wx-flash { 0%, 62%, 64.5%, 67%, 100% { opacity: 0; } 63% { opacity: 1; } 65.5% { opacity: .6; } }
 .has-sky .masthead { z-index: 1; }
 .sky-hero { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) 10px; }
 .sky-hero[hidden] { display: none; }

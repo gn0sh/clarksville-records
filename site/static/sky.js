@@ -7,12 +7,14 @@
    It also shows today's weekday and date in the site's zone.
    The weather: where the page names an address (data-weather on #sky-moon, from config sky_weather), the script asks
    it once per page view for that place's latest weather observation (the National Weather Service's, for one
-   station) and draws one quiet scene over the sky: cloud, rain, snow, fog, wind or a thunderstorm. That request is
+   station) and draws it on the sun or the moon, whichever is up (owner, 2026-11-24): a cloud drifting across it,
+   rain or snow falling from a cloud in front of it, fog over it, wind past it, a storm's dark cloud. On a night
+   with no moon up there is only a small faint cloud of the same kind in the open sky. That request is
    the script's only network call. It carries no credentials, no referrer and nothing about the visitor or the page
    (the service sees what any web request from a page shows: the IP address, the browser and this site's address).
    Nothing is stored by the script; the browser may cache the answer as it does any page.
-   An observation over 90 minutes old, an error or no answer in 5 seconds draws nothing: the plain sky. A page
-   with no address asks nothing.
+   An observation over 90 minutes old, an error or no answer in 5 seconds draws nothing: the plain sun or moon. A
+   page with no address asks nothing.
    A page with no place has no moon, and its sun follows the viewer's own clock (the rough day below).
    Without this script the sun stays at its CSS midday place, and the date line and the moon stay hidden.
    Exposes CRSky.altitude, sunAltitude, render, the moon's pure functions and the weather's (weatherScene, SCENES)
@@ -208,25 +210,39 @@
     return blocks;
   }
 
+  /* The part of the sky band (its own pixels, from its box `f`) the moon may sit in: a little in from every edge. */
+  function skyBand(f) { return { left: 8, top: 6, right: f.width - 8, bottom: f.height - 4 }; }
+
+  /* Is the weather drawn on the moon just now (data-wx-on="moon" on the header, set by drawWeather)? */
+  function weatherOnMoon(el) {
+    var frame = el.parentNode, header = frame && frame.parentNode;
+    return !!header && typeof header.getAttribute === "function" && header.getAttribute("data-wx-on") === "moon";
+  }
+
   /* Puts the drawn moon in the open sky, or hides it when the band has no room. Tried in turn: its own size, then a
-     smaller moon (a phone's band is short). */
+     smaller moon (a phone's band is short). While the weather is drawn on the moon, each is first tried with WX_ROOM
+     more air around it, so the moon's cloud stays clear of the words too where the band has the room; the moon
+     itself keeps clear of them either way. */
   var drawn = null;                       /* the last moon drawn: { x, alt }, kept for a resize */
+  var WX_ROOM = 0.4;                      /* how far the weather reaches past the moon's box, in moon sizes */
   function placeMoon(doc) {
     var el = doc.getElementById("sky-moon");
     if (!el || !drawn) { return; }
     el.style.removeProperty("--moon-size");
     el.removeAttribute("hidden");
-    var f = el.parentNode.getBoundingClientRect(), size = el.offsetWidth;
-    var band = { left: 8, top: 6, right: f.width - 8, bottom: f.height - 4 };
-    var sizes = [size, Math.max(22, Math.round(size * 0.8))], i, spot, gap;
-    for (i = 0; size && i < sizes.length; i += 1) {
-      gap = Math.round(sizes[i] * 0.14) + 1;                                /* the moon's glow, and a little air */
-      spot = moonSpot(band, skyBlocks(doc, f, gap), sizes[i], drawn.x, drawn.alt);
-      if (spot) {
-        if (sizes[i] !== size) { el.style.setProperty("--moon-size", sizes[i] + "px"); }
-        el.style.setProperty("--moon-left", spot.left + "px");
-        el.style.setProperty("--moon-top", spot.top + "px");
-        return;
+    var f = el.parentNode.getBoundingClientRect(), size = el.offsetWidth, band = skyBand(f);
+    var sizes = [size, Math.max(22, Math.round(size * 0.8))], rooms = weatherOnMoon(el) ? [WX_ROOM, 0] : [0];
+    var i, j, spot, gap;
+    for (j = 0; size && j < rooms.length; j += 1) {
+      for (i = 0; i < sizes.length; i += 1) {
+        gap = Math.round(sizes[i] * (0.14 + rooms[j])) + 1;                 /* the moon's glow, and a little air */
+        spot = moonSpot(band, skyBlocks(doc, f, gap), sizes[i], drawn.x, drawn.alt);
+        if (spot) {
+          if (sizes[i] !== size) { el.style.setProperty("--moon-size", sizes[i] + "px"); }
+          el.style.setProperty("--moon-left", spot.left + "px");
+          el.style.setProperty("--moon-top", spot.top + "px");
+          return;
+        }
       }
     }
     el.setAttribute("hidden", "");
@@ -435,27 +451,53 @@
       windSpeed: q(p.windSpeed), windGust: q(p.windGust), visibility: q(p.visibility) } };
   }
 
-  /* Draws a scene (or, for null and "clear", takes any scene away). The scene is three attributes on the header,
-     which the stylesheet draws from; the layer it draws in (#sky-wx: decoration, aria-hidden, behind the words, laid
-     over the sky without taking any room) is made the first time a scene needs it. */
+  /* Draws a scene (or, for null and "clear", takes any scene away: the plain sun or moon). The weather is drawn on
+     the body that is up, never as a sky of its own: its drawing (#sky-wx: decoration, aria-hidden, taking no room,
+     made the first time a scene needs it) is put inside the sun while the sun is up, inside the moon while the moon
+     is drawn, and moved from one to the other as the sky turns. On a night with no moon up it sits alone in the
+     open sky, clear of the words, as a small faint cloud. The scene itself is attributes on the header, which the
+     stylesheet draws from: data-wx (the scene), data-wx-fall (how much falls), data-wx-wind (the wind is up) and
+     data-wx-on (sun, moon or sky: what the weather is drawn on). */
+  var WX_PARTS = ["wx-veil", "wx-cloud wx-back", "wx-fall wx-a", "wx-fall wx-b", "wx-fall wx-c", "wx-cloud wx-front", "wx-flash"];
+  var WX_ATTRS = ["data-wx", "data-wx-fall", "data-wx-wind", "data-wx-on"];
+  var HINT_X = 0.82, HINT_ALT = 0.6;      /* where the lone cloud sits in the open sky: toward the right, above the middle */
+  function placeHint(doc, layer, frame) {
+    layer.removeAttribute("hidden");
+    var f = frame.getBoundingClientRect(), size = layer.offsetWidth;
+    var spot = size ? moonSpot(skyBand(f), skyBlocks(doc, f, Math.round(size * (0.14 + WX_ROOM)) + 1), size, HINT_X, HINT_ALT) : null;
+    if (!spot) { layer.setAttribute("hidden", ""); return; }
+    layer.style.setProperty("--wx-left", spot.left + "px");
+    layer.style.setProperty("--wx-top", spot.top + "px");
+  }
   function drawWeather(doc, w) {
     var moonEl = doc.getElementById("sky-moon"), frame = moonEl && moonEl.parentNode, header = frame && frame.parentNode;
     if (!header) { return; }
     if (!w || w.scene === "clear") {
-      header.removeAttribute("data-wx"); header.removeAttribute("data-wx-fall"); header.removeAttribute("data-wx-wind");
+      WX_ATTRS.forEach(function (name) { header.removeAttribute(name); });
+      try { placeMoon(doc); } catch (e) { /* the moon stays where it was */ }
       return;
     }
-    if (!doc.getElementById("sky-wx")) {
-      var layer = doc.createElement("div");
+    var sunEl = doc.getElementById("sky-sun"), layer = doc.getElementById("sky-wx");
+    var on = sunEl && sunEl.getAttribute("data-at") === "up" ? "sun" : drawn ? "moon" : "sky";
+    var host = on === "sun" ? sunEl : on === "moon" ? moonEl : header;
+    if (!layer) {
+      layer = doc.createElement("div");
       layer.id = "sky-wx"; layer.className = "sky-wx"; layer.setAttribute("aria-hidden", "true");
-      ["wx-veil", "wx-clouds", "wx-fall wx-far", "wx-fall wx-near", "wx-flash"].forEach(function (name) {
+      WX_PARTS.forEach(function (name) {
         var part = doc.createElement("span"); part.className = name; layer.appendChild(part);
       });
-      header.insertBefore(layer, frame.nextSibling);
+    }
+    if (layer.parentNode !== host) {
+      if (on === "sky") { header.insertBefore(layer, frame.nextSibling); } else { host.appendChild(layer); }
     }
     header.setAttribute("data-wx", w.scene);
     if (w.intensity) { header.setAttribute("data-wx-fall", w.intensity); } else { header.removeAttribute("data-wx-fall"); }
     if (w.windy) { header.setAttribute("data-wx-wind", ""); } else { header.removeAttribute("data-wx-wind"); }
+    header.setAttribute("data-wx-on", on);
+    try {
+      if (on === "sky") { placeHint(doc, layer, frame); } else { layer.removeAttribute("hidden"); }
+      placeMoon(doc);                       /* the moon makes room for its weather, or takes its own place back */
+    } catch (e2) { /* drawn where it is */ }
   }
 
   /* The observation this page view holds (weather only), judged again at every redraw: a tab left open stops
@@ -508,9 +550,11 @@
     render();
     showWeather();
   }
-  /* the same moon put back in the open sky after the layout changes (a resize, the web fonts arriving) */
+  /* the same moon put back in the open sky after the layout changes (a resize, the web fonts arriving), and the
+     weather with it (on the moon, or the lone cloud) */
   function replace() {
     try { if (root.document) { placeMoon(root.document); } } catch (e) { /* the moon stays where it was */ }
+    if (held) { showWeather(); }
   }
   var api = { altitude: altitude, render: render, RISE: RISE, SET: SET, NIGHT: NIGHT,
               sun: sun, sunAltitude: sunAltitude, SUN_UP: SUN_UP, NEW: NEW, moon: moon, moonPosition: moonPosition, sunPosition: sunPosition, moonX: moonX, moonPath: moonPath,
