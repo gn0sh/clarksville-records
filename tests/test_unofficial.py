@@ -229,3 +229,13 @@ def test_morning_preview_and_sign_up_carry_the_email_line(tmp_path, monkeypatch)
     for rel in ("morning/index.html", "alerts.html"):
         assert f'<p class="small mn-unofficial">{line}</p>' in pages[rel], rel
     assert site_checks.check_unofficial(tmp_path / "site", pages)[0] == []
+
+
+def test_the_404_page_is_built_with_the_notice_and_root_relative_links(built, pages):
+    assert (built / "404.html").is_file() and "404.html" in pages
+    html = pages["404.html"]
+    assert '<p class="unofficial-tag">Independent, unofficial</p>' in html and 'class="unofficial-notice"' in html
+    assert NOTICE in " ".join(re.sub(r"<[^>]+>", " ", html.split("<body", 1)[1]).replace("&#39;", "'").split())
+    links = re.findall(r'\b(?:href|src)="([^"]*)"', html)
+    internal = [u for u in links if not re.match(r"(?:[a-z][a-z0-9+.-]*:|//|#)", u, re.I)]
+    assert internal and all(u.startswith("/") for u in internal), [u for u in internal if not u.startswith("/")]

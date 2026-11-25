@@ -121,6 +121,7 @@ FIELD_RE = re.compile(r"\{([a-z]+)\}")
 MENU_ANCHOR = "    </ul>\n  </nav>\n</footer>"
 MENU_ROOT_RE = re.compile(r'<nav id="site-nav" class="site-nav" aria-label="All pages" data-root="((?:\.\./)*)"')
 FRONT_PAGE = "index.html"
+NOTE_INVITE_RE = re.compile(r'\s*<section class="note-invite".*?</section>', re.S)
 FRONT_START = '<section class="find" aria-labelledby="find-h">'
 SECTION_TAG_RE = re.compile(r"<section\b|</section>")
 METHOD_PAGE = "method.html"
@@ -324,7 +325,11 @@ def _with_front_line(html: str, labels) -> str:
     for m in SECTION_TAG_RE.finditer(html, start):
         depth += 1 if m.group(0) == "<section" else -1
         if depth == 0:
-            return html[:m.end()] + front_fragment(labels) + html[m.end():]
+            end = m.end()
+            invite = NOTE_INVITE_RE.match(html, end)    # the morning-note card comes first, so the page reads as it looks
+            if invite:
+                end = invite.end()
+            return html[:end] + front_fragment(labels) + html[end:]
     raise NationalBuildError(f"{FRONT_PAGE}: the address card is not closed")
 
 

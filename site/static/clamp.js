@@ -18,12 +18,13 @@
     btn.setAttribute("aria-expanded", "false");
     btn.setAttribute("aria-controls", el.id);
     btn.textContent = "Show more";
-    btn.addEventListener("click", function () {
-      var open = btn.getAttribute("aria-expanded") === "true";
-      btn.setAttribute("aria-expanded", open ? "false" : "true");
-      btn.textContent = open ? "Show more" : "Show less";
-      el.classList.toggle("is-clamped", open);
-    });
+    function setOpen(show) {
+      btn.setAttribute("aria-expanded", show ? "true" : "false");
+      btn.textContent = show ? "Show less" : "Show more";
+      el.classList.toggle("is-clamped", !show);
+    }
+    btn.addEventListener("click", function () { setOpen(btn.getAttribute("aria-expanded") !== "true"); });
+    el.addEventListener("focusin", function () { setOpen(true); });   // a link hidden by the clamp is shown when it takes focus
     el.insertAdjacentElement("afterend", btn);
   }
   function run(root) {

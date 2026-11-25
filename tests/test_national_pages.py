@@ -362,9 +362,31 @@ def test_method_page_names_the_digest_keys_and_links_how(sites, page_labels):
         assert key in how, key
 
 
-def test_front_line_sits_right_after_the_address_card(sites, page_labels):
+CARD = '<section class="find" aria-labelledby="find-h"><p>card</p></section>'
+INVITE = '\n  <section class="note-invite" aria-label="Morning note"><p>pitch</p></section>'
+
+
+def test_front_line_follows_the_address_card_and_the_morning_note_card(sites, page_labels):
+    """The page reads as it looks: address card, then the morning-note card when the sign-up is on, then the line."""
     html = sites["on"]["index.html"].decode()
-    assert '</section>\n  <p class="digest-line"><a href="digest/index.html">' + page_labels["front.line"] in html
+    line = '<p class="digest-line"><a href="digest/index.html">' + page_labels["front.line"]
+    assert html.count(line) == 1
+    find_end = html.index("</section>", html.index('<section class="find"')) + len("</section>")
+    if '<section class="note-invite"' in html:         # sign-up on: the invite sits between the card and the line
+        invite = html.index('<section class="note-invite"')
+        assert find_end <= invite < html.index(line)
+        assert html[html.index("</section>", invite):].startswith("</section>\n  " + line)
+    else:
+        assert html[find_end:].startswith("\n  " + line)
+
+
+def test_front_line_goes_after_the_invite_when_there_is_one_and_straight_after_the_card_when_not(page_labels):
+    with_invite = npg._with_front_line("<main>" + CARD + INVITE + "\n  <h2>next</h2></main>", page_labels)
+    assert with_invite.index("note-invite") < with_invite.index("digest-line") < with_invite.index("<h2>next")
+    assert "</section>\n  <p class=\"digest-line\">" in with_invite
+    without = npg._with_front_line("<main>" + CARD + "\n  <h2>next</h2></main>", page_labels)
+    assert without.index(CARD) + len(CARD) == without.index("\n  <p class=\"digest-line\">")
+    assert without.index("digest-line") < without.index("<h2>next")
 
 
 def test_fragment_insertion_fails_closed():
