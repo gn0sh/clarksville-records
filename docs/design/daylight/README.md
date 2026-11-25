@@ -161,9 +161,19 @@ header should show whatever Clarksville's weather is, as a small set of scenes.
   Wind under a clear sky: two streaks blowing past the disc; over any other scene it only speeds things up.
   On the sun the drawing's box is the part of the disc above the horizon, so a low sun keeps its cloud in view. The
   moon is still only its lit part: it gets no round haze (that would draw a disc around a crescent); behind cloud
-  or in fog the lit part itself is drawn fainter. The moon still keeps clear of the header's words, and while it
-  carries weather it is first tried with more air around it so its cloud keeps clear too where the band has room.
+  or in fog the lit part itself is drawn fainter. The moon still keeps clear of the header's words, and on a page
+  that names a weather address it is first tried with more air around it, so its cloud keeps clear too where the
+  band has room. That room is kept whether or not there is weather, so the moon does not move when the answer comes
+  (review, moon-place/jump-on-weather). A moon with no room in the band is hidden, and its weather with it.
   A clear sky, an old observation or an error draws the plain sun or moon.
+- **Colours on the moon (review, wx-visible/light-moon).** In the light theme the moon, the clouds and the rain were
+  all white. What is drawn on the moon now has its own two tokens, `--wx-moon-cloud` and `--wx-moon-fall` (a pale
+  grey and the cloud grey in the light theme; unchanged in the dark theme). They are as dark as the 4.5:1 rule
+  against the muted ink allows (`--moon-edge` would be 1.5:1 against it), so on the white moon they are faint, 1.3
+  to 1.6:1, but no longer the moon's own colour.
+- **A sun on the horizon (review, wx-host/sun-at-horizon).** The sun's cloud never floats free of it: its top is at
+  most a quarter of the cloud's height above the sun's top while something falls, else a bit under half, so over a
+  rising or setting sun the cloud sits low on the horizon with it.
 - **A night with no moon up.** The earlier design drew the scene over the empty sky too, so a quiet hint is kept:
   the same small cloud (moon-sized, 70% strength, no haze) alone in the open sky toward the right, clear of the
   words, with its rain or snow if any. Nothing else is added to an empty sky.
