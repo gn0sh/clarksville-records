@@ -175,9 +175,8 @@ def test_digest_stylesheet_is_linked_by_digest_pages_only(sites):
 DAWN = {"--dawn": ("#FFF3E4", "#231A22"), "--dawn-2": ("#FFE3C7", "#3A2420"), "--dawn-line": ("#F0C9A6", "#5A3A2C")}
 DAWN_LIGHT = ":root"
 DAWN_DARK = (':root:not([data-theme="light"])', ':root[data-theme="dark"]')     # by system setting, by the page's switch
-# Where brand orange may be drawn: the sun, its rays and halo in the two drawings, and the card's sunrise edge.
-ORANGE_DECORATION = {".digest-dawn-rays", ".digest-dawn-halo", ".digest-dawn-sun", ".digest-sunmark-sun",
-                     ".digest-sunmark-rays", ".digest-card::before"}
+# Where brand orange may be drawn: the small sun mark (its sun and rays) and the card's sunrise edge.
+ORANGE_DECORATION = {".digest-sunmark-sun", ".digest-sunmark-rays", ".digest-card::before"}
 ORANGE_PROPS = {"fill", "stroke", "background"}                 # never color, border, outline or text-decoration
 DAWN_PROPS = {"background", "border", "border-bottom", "box-shadow", "fill"}    # surfaces and edges, never text
 
@@ -221,7 +220,7 @@ def test_digest_stylesheet_names_only_the_dawn_colours_and_loads_nothing():
     for hook in (".digest-pill-covered", ".digest-pill-not-covered-yet", ".digest-pill-cant-cover",
                  ".digest-count-btn", ".digest-err", ".digest-msg", ".digest-pick", ".digest-req-form",
                  '[data-state="sent"]', '[data-state="counted"]', '[data-state="failed"]',
-                 ".digest-dawn", ".digest-hero", ".digest-warm", ".digest-steps", ".digest-next", ".digest-month",
+                 ".digest-sunmark", ".digest-hero", ".digest-warm", ".digest-steps", ".digest-next", ".digest-month",
                  ".digest-datechip", ".digest-primary", ".digest-greet", ".digest-folded", ".digest-bodyhead"):
         assert hook in rules, hook
 
@@ -248,8 +247,7 @@ def test_orange_is_decoration_only_never_text_and_never_a_status():
             assert not re.search(r"var\(--(sun|halo|seal|focus|dawn[a-z0-9-]*)\)", value), (sel, prop, value)
     # the orange is really used where the design draws it (the test above is not vacuous)
     used = {sel for sel, _p, value in decls if "var(--sun)" in value}
-    assert used == {".digest-dawn-rays", ".digest-dawn-sun", ".digest-sunmark-sun", ".digest-sunmark-rays",
-                    ".digest-card::before"}
+    assert used == {".digest-sunmark-sun", ".digest-sunmark-rays", ".digest-card::before"}
     # the pills: navy fill or outline, as before
     pills = {sel: (prop, value) for sel, prop, value in decls if sel.startswith(".digest-pill-") and prop == "color"}
     assert pills == {".digest-pill-covered": ("color", "var(--on-blue)"),
@@ -258,6 +256,31 @@ def test_orange_is_decoration_only_never_text_and_never_a_status():
     # the sunrise edge is one rule for every card, whatever its status
     edge = [(sel, prop) for sel, prop, value in decls if "var(--sun)" in value and "card" in sel]
     assert edge == [(".digest-card::before", "background")]
+
+
+def test_digest_pages_are_one_column_with_no_band_and_no_second_sun():
+    """Owner, 2026-11-24 (docs/design/digest-warmth.md section 2a): every digest page is one 44rem column, left-aligned
+    like the Clarksville front page's address card. Nothing bleeds into main's gutters or is pulled up over another
+    part (no negative margin at all), nothing is positioned out of the flow, and the dawn band is gone: the header's
+    sky draws the page's one sun."""
+    rules = _digest_css()
+    decls = css_rules(rules)
+    assert (".digest", "max-width", "44rem") in decls
+    style = (ROOT / "site" / "static" / "style.css").read_text(encoding="utf-8")
+    assert re.search(r"^\.find \{[^}]*max-width: 44rem;", style, re.M)       # the Clarksville card the column matches
+    for sel, prop, value in decls:
+        if prop.startswith("margin") and not sel.endswith("::before"):       # the card edge fills its own card
+            assert "-" not in re.sub(r"var\(--[a-z0-9-]+\)", "", value), (sel, prop, value)
+        if prop == "max-width":
+            assert value == "44rem", (sel, value)
+        if prop == "position":
+            assert value == "relative" or sel.endswith("::before"), (sel, value)
+        assert "--gutter" not in value and "100vw" not in value, (sel, prop, value)
+    assert "digest-dawn" not in rules
+    for name in ("_dawn.html.j2", "index.html.j2", "body.html.j2", "covered.html.j2", "how.html.j2", "requested.html.j2"):
+        text = (ROOT / "site" / "templates" / "digest" / name).read_text(encoding="utf-8")
+        assert "digest-dawn" not in text and "dawn_band(" not in text, name
+    assert "digest-dawn" not in (ROOT / "site" / "static" / "national.js").read_text(encoding="utf-8")
 
 
 def test_nothing_on_a_digest_page_moves():
@@ -750,9 +773,14 @@ def _render_one(tmp_path, directory, flags, labels, page_labels, feeds, gov_id):
     return (out / "digest" / st / f"{gov_id}.html").read_text(encoding="utf-8")
 
 
-def _build_pages_into(out, directory, flags, labels, page_labels, feeds):
+def _noon(day: date) -> datetime:
+    """A build instant on `day` (the real-data tests build their feeds from a day other than BUILT_AT's)."""
+    return npg.build_instant(day, now=BUILT_AT)
+
+
+def _build_pages_into(out, directory, flags, labels, page_labels, feeds, built_at=BUILT_AT):
     env = build_mod.make_env()
-    npg.build_national(out, env, _SITE_CTX(), directory, flags, labels, page_labels, feeds, built_at=BUILT_AT,
+    npg.build_national(out, env, _SITE_CTX(), directory, flags, labels, page_labels, feeds, built_at=built_at,
                        counter=None)
 
 
@@ -876,7 +904,7 @@ def test_real_coming_up_pages_print_exactly_the_json_items(tmp_path, loaded, pag
     assert feeds[COUNTY_ID]["checked_at"] == npg.newest_record_at(real["agendas"]["sources"]).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
     out = tmp_path / "site"
-    _build_pages_into(out, directory, flags, labels, page_labels, feeds)
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds, built_at=_noon(real["today"]))
     for gid, feed in feeds.items():
         html = (out / "digest" / "tn" / f"{gid}.html").read_text(encoding="utf-8")
         printed = item_headings(html)
@@ -1050,13 +1078,143 @@ def test_topic_labels_follow_shown_items_and_never_a_withheld_meeting(tmp_path, 
     assert "digest-topic" not in html2
 
 
+# --- digest titles, Proposal A: the page summary and each meeting's "On this agenda" line -----------------------------
+
+def _e(*topics):
+    return {"topics": [f"body.topic-{t}" for t in topics]}
+
+
+def test_agenda_counts_count_each_topic_in_topics_order_and_the_rest_once():
+    """An item counts once under every topic it shows a chip for; `more` is the items with no chip, so an item is in
+    `more` or in a topic, never both (no double count in "N more items")."""
+    c = npg.agenda_counts([_e("budget"), _e("zoning"), _e(), _e("zoning", "budget"), _e("zoning"), _e()])
+    assert c == {"topics": [("body.topic-zoning", 3), ("body.topic-budget", 2)], "more": 2, "total": 6}
+    assert npg.agenda_counts([_e(), _e()]) == {"topics": [], "more": 2, "total": 2}
+    assert npg.agenda_counts([]) == {"topics": [], "more": 0, "total": 0}
+
+
+def test_agenda_line_topics_then_more_items_and_its_zero_cases(page_labels):
+    L = page_labels
+    assert npg.agenda_line([_e("budget"), *[_e("zoning")] * 3, *[_e()] * 14], L) == [
+        "Rezoning (3)", "Budget and finance (1)", "14 more items"]
+    assert npg.agenda_line([_e("zoning"), _e()], L) == ["Rezoning (1)", "1 more item"]
+    assert npg.agenda_line([_e("zoning"), _e("zoning", "budget")], L) == ["Rezoning (2)", "Budget and finance (1)"]
+    assert npg.agenda_line([_e()] * 18, L) == ["18 items"]           # no topic match: no invented hook
+    assert npg.agenda_line([_e()], L) == ["1 item"]
+    assert npg.agenda_line([], L) is None                            # no items shown: the card keeps its lines
+
+
+def test_page_summary_counts_meetings_and_topics_over_the_whole_page(page_labels):
+    L = page_labels
+    ms = [{"entries": [_e("zoning"), _e("zoning"), _e()]}, {"entries": []}, {"entries": [_e("zoning", "budget")]}]
+    assert npg.page_summary(ms, L) == ["3 meetings", "Rezoning (3)", "Budget and finance (1)"]
+    assert npg.page_summary([{"entries": [_e(), _e()]}], L) == ["1 meeting", "2 items"]
+    assert npg.page_summary([{"entries": [_e()]}, {"entries": []}], L) == ["2 meetings", "1 item"]
+    assert npg.page_summary([{"entries": []}], L) == ["1 meeting"]
+    assert npg.page_summary([], L) is None
+
+
+def test_count_labels_pick_the_singular_key_for_one(page_labels):
+    for key in ("body.summary-meetings", "body.on-more", "body.on-items"):
+        assert key in npg.REQUIRED_PAGE_LABELS and f"{key}-one" in npg.REQUIRED_PAGE_LABELS
+        assert npg.count_label(page_labels, key, 1) == npg.label_text(page_labels[f"{key}-one"], n=1)
+        assert npg.count_label(page_labels, key, 0) == npg.label_text(page_labels[key], n=0)
+        assert npg.count_label(page_labels, key, 7) == npg.label_text(page_labels[key], n=7)
+    assert page_labels["body.summary"] == "Listed below:"          # claims no period (Legistar: today to +28 days)
+
+
+def test_coming_up_page_leads_with_the_summary_and_what_is_on_each_agenda(tmp_path, loaded, page_labels):
+    directory, flags, labels = loaded
+    titles = ("Resolution amending the FY27 budget", "Rezoning request for 5 acres", "Rezone 2 acres on Main St",
+              "Approve the minutes", "Budget for a rezoning study")
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas(*titles), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    html = _render_one(tmp_path, directory, flags, labels, page_labels, feeds, COUNTY_ID)
+    text = main_text(html)
+    assert "Listed below: 1 meeting · Rezoning (3) · Budget and finance (2)" in _seen(text)
+    section = re.search(r'<section class="digest-meeting".*?</section>', html, re.S).group(0)
+    # titles-a11y/lead-before-heading: the heading is first in the DOM (the region's name, then what is on it);
+    # digest.css draws the lead line first in the card
+    lines = main_text("<main>" + section + "</main>").split("\n")
+    assert lines[0] == "Monday, December 14, 2026"
+    assert _seen(lines[1]) == "On this agenda: Rezoning (3) · Budget and finance (2) · 1 more item"
+    assert section.index("<h2") < section.index('class="digest-on"') < section.index("digest-meeting-title")
+    # titles-copy/separator-sr: the dot is hidden from screen readers, which hear a comma instead
+    assert section.count('<span aria-hidden="true"> · </span><span class="sr-only">, </span>') == 2
+    assert " · " not in section.replace('<span aria-hidden="true"> · </span>', "")
+    assert html.index('class="digest-summary"') < html.index('class="digest-next')     # the summary tops the page
+    rest = leftover(text, [*page_labels.values(), *labels.values(), *FRAME_WORDS],
+                    _sources(directory, [feeds[COUNTY_ID]]))
+    assert re.fullmatch(r"[\s.,·:/]*", rest), rest.strip()[:300]
+    assert section.count('class="digest-on"') == 1
+    # no topic match: the plain item count
+    feeds2 = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("Approve the minutes", "Call to order"),
+                                   date(2026, 11, 19), checked_at=BUILT_AT)
+    text2 = _seen(main_text(_render_one(tmp_path / "n", directory, flags, labels, page_labels, feeds2, COUNTY_ID)))
+    assert "Listed below: 1 meeting · 2 items" in text2 and "On this agenda: 2 items" in text2
+
+
+def _seen(text: str) -> str:
+    """Page text as the eye reads it: the screen-reader-only comma after each " · " dropped."""
+    return text.replace(" · , ", " · ")
+
+
+def test_page_drops_meetings_before_the_build_day(tmp_path, loaded, page_labels):
+    """titles-summary/period-claim: a stale feed's past meetings never print under "Next meeting" or in the summary
+    count; the build day itself still counts (in the site's zone), and the JSON stays the bound feed."""
+    directory, flags, labels = loaded
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("Rezone 2 acres"), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    county = feeds[COUNTY_ID]
+    past, same_day = copy.deepcopy(county["meetings"][0]), copy.deepcopy(county["meetings"][0])
+    past.update(id="2026-11-18-formal", date="2026-11-18")
+    same_day.update(id="2026-11-19-formal", date="2026-11-19")
+    county["meetings"] = [past, same_day, *county["meetings"]]
+    out = tmp_path / "site"
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds)          # BUILT_AT: 2026-11-19 18:00 UTC
+    html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
+    assert 'id="m-2026-11-18-formal"' not in html and "November 18, 2026" not in main_text(html)
+    nxt = re.search(r'<div class="digest-next">.*?</section>', html, re.S).group(0)
+    assert 'id="m-2026-11-19-formal"' in nxt
+    assert "Listed below: 2 meetings" in _seen(main_text(html))
+    js = json.loads((out / "digest" / "tn" / f"{COUNTY_ID}.json").read_text(encoding="utf-8"))
+    assert [m["id"] for m in js["meetings"]][:2] == ["2026-11-18-formal", "2026-11-19-formal"]
+    # 03:00 UTC on the 20th is still the 19th in Clarksville: the 19th's meeting stays
+    late = datetime(2026, 11, 20, 3, 0, tzinfo=timezone.utc)
+    _build_pages_into(tmp_path / "late", directory, flags, labels, page_labels, feeds, built_at=late)
+    html2 = (tmp_path / "late" / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
+    assert 'id="m-2026-11-19-formal"' in html2 and 'id="m-2026-11-18-formal"' not in html2
+
+
+def test_a_meeting_with_no_items_shown_keeps_its_current_lines(tmp_path, loaded, page_labels):
+    """The city meetings (agenda not read, no items) and a withheld government's meetings get no "On this agenda"
+    line; their not-posted or withheld text is unchanged."""
+    directory, flags, labels = loaded
+    withheld = _entry(directory, "place-4799999", body_name="Clarksville Youth Council", items="withheld")
+    d = nat.Directory(govs=(*directory.govs, withheld), alias={})
+    facts = {"meetings": [{"id": "2026-12-03-regular", "date": "2026-12-03", "kind": "regular", "title": "Regular"}],
+             "sources": []}
+    feeds = ncl.clarksville_feeds(d, {"city": (facts, [])}, _agendas("Rezone 2 acres"), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    out = tmp_path / "site"
+    _build_pages_into(out, d, flags, labels, page_labels, feeds)
+    for gid in ("place-4799999", COUNCIL_ID):
+        html = (out / "digest" / "tn" / f"{gid}.html").read_text(encoding="utf-8")
+        assert feeds[gid]["meetings"], gid
+        assert 'class="digest-on"' not in html and "On this agenda" not in html, gid
+        n = len(feeds[gid]["meetings"])
+        assert npg.count_label(page_labels, "body.summary-meetings", n) in main_text(html), gid
+    youth = (out / "digest" / "tn" / "place-4799999.html").read_text(encoding="utf-8")
+    assert npg.label_text(page_labels["body.withheld"]) in " ".join(main_text(youth).split())
+
+
 def test_real_county_page_20_sampled_items_match_the_word_list(tmp_path, loaded, page_labels, real):
     """AC3.3 / AC4.7 QA sample: 20 items spread over the real county page, each item's printed labels equal the
     labels the word list gives its verbatim number and text, and at least one sampled or printed item has a label."""
     directory, flags, labels = loaded
     feeds = npg.build_feeds(directory, real["councils"], real["agendas"], real["today"])
     out = tmp_path / "site"
-    _build_pages_into(out, directory, flags, labels, page_labels, feeds)
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds, built_at=_noon(real["today"]))
     html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
     items = [it for m in feeds[COUNTY_ID]["meetings"] for it in m["items"]]
     printed = _printed_topics(html)
@@ -1413,13 +1571,13 @@ def test_coming_up_page_empty_state_is_the_same_card_and_keeps_the_going_card(wa
 
 def test_two_governments_pages_have_the_same_parts(warm_page, tmp_path, loaded, page_labels):
     """AC4.9 (QA compares two bodies' pages): every coming-up page carries the same parts in the same order, whatever
-    the government: the band, the head, the "Next meeting" card (or its empty state), "Thinking of going?"."""
+    the government: the head, the "Next meeting" card (or its empty state), "Thinking of going?"."""
     def parts(html):
-        found = re.findall(r'class="(digest-dawn|digest-bodyhead|digest-next|digest-next digest-next-empty|'
+        found = re.findall(r'class="(digest-bodyhead|digest-next|digest-next digest-next-empty|'
                            r'digest-warm digest-going)"', _main(html))
         return [p.replace(" digest-next-empty", "") for p in found]
     assert parts(warm_page["html"]) == parts(warm_page["council"]) == [
-        "digest-dawn", "digest-bodyhead", "digest-next", "digest-warm digest-going"]
+        "digest-bodyhead", "digest-next", "digest-warm digest-going"]
     # and the words of the fixed card are the same on both
     going = [re.search(r'<section class="digest-warm digest-going".*?</section>', _main(warm_page[k]), re.S).group(0)
              for k in ("html", "council")]
@@ -1437,10 +1595,10 @@ def test_no_official_link_means_no_going_card_and_no_empty_href(loaded, page_lab
     assert 'href=""' not in html and '<div class="digest-next">' in html
 
 
-def test_coming_up_page_keeps_its_one_crumb_above_the_h1_under_the_band(warm_page):
+def test_coming_up_page_keeps_its_one_crumb_above_the_h1_first_in_the_head(warm_page):
     html = _main(warm_page["html"])
     assert html.count('<nav class="crumb" aria-label="You are in">') == 1
-    assert html.index('class="digest-dawn"') < html.index('<nav class="crumb"') < html.index("<h1")
+    assert html.index('class="digest-bodyhead"') < html.index('<nav class="crumb"') < html.index("<h1")
     crumb = re.search(r'<nav class="crumb" aria-label="You are in">(.*?)</nav>', html, re.S).group(1)
     assert re.findall(r'href="([^"]+)"', crumb) == ["../../digest/index.html", "../../digest/covered.html"]
     # the same markup base.html.j2 writes on every other page
@@ -1456,7 +1614,8 @@ def test_entry_page_order_one_h1_and_the_lines_kept_word_for_word(warm_page, pag
     heads = _headings(warm_page["index"])
     assert heads[0] == (1, "Your local government, in broad daylight.") and [lv for lv, _t in heads].count(1) == 1
     assert "| Daylight Digest: Find your local governments</title>" in warm_page["index"]
-    order = ['class="digest-dawn digest-dawn-home"', 'class="digest-hero"', 'id="digest-form"', 'id="digest-privacy"',
+    order = ['class="digest-hero"', 'class="eyebrow"', "<h1", 'class="lede"', 'class="find digest-find"',
+             'id="digest-form"', 'id="digest-privacy"',
              'class="digest-privacy-detail"', 'class="digest-cover-link"', 'class="digest-who"', 'id="digest-folded"',
              'id="digest-list"', 'id="digest-saved"', 'class="digest-steps"', 'id="digest-why-h"',
              'class="digest-how"', 'class="digest-census-notice"']
@@ -1507,9 +1666,13 @@ def test_drawings_are_decoration_and_no_page_carries_inline_style(warm_page):
         assert not re.search(r'\sstyle="', html), name
         bare = re.sub(r"<script.*?</script>|href=\"[^\"]*\"", "", html, flags=re.S)
         assert not re.search(r"#[0-9a-fA-F]{6}\b", bare), name
-    # the band is the first thing in a page's own content, right under the header
+    # no band and no second sun: a page's own content starts with its head, right under the header, and its only
+    # drawings are the small sun mark and the address card's lock
     for name in ("html", "council"):
-        assert re.match(r'\s*<div class="digest digest-body">\s*<svg class="digest-dawn"', _main(warm_page[name])), name
+        assert re.match(r'\s*<div class="digest digest-body">\s*<div class="digest-bodyhead">', _main(warm_page[name])), name
     assert re.match(r'\s*<div class="digest digest-entry" id="digest-entry" data-root="\.\./">\s*'
-                    r'<div class="digest-fold digest-top">\s*<svg class="digest-dawn digest-dawn-home"',
-                    _main(warm_page["index"]))
+                    r'<div class="digest-fold digest-top">\s*<div class="digest-hero">', _main(warm_page["index"]))
+    for name in ("index", "html", "council"):
+        html = _main(warm_page[name])
+        assert "digest-dawn" not in html, name
+        assert set(re.findall(r'<svg class="([^"]+)"', html)) <= {"digest-sunmark", "digest-lock"}, name
