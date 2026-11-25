@@ -28,7 +28,7 @@ function el(name, tall) {
     get nextElementSibling() { return e.next; },
     get clientHeight() { log.push("read " + name); return 40; },
     get scrollHeight() { log.push("read " + name); return tall ? 200 : 40; },
-    insertAdjacentElement: (_, b) => { log.push("write " + name); e.next = b; },
+    addEventListener() {}, insertAdjacentElement: (_, b) => { log.push("write " + name); e.next = b; },
   };
   return e;
 }
