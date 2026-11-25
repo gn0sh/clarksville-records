@@ -143,21 +143,39 @@ header should show whatever Clarksville's weather is, as a small set of scenes.
   `overcast`, `partly`, `windy`, `clear`. `weatherScene(observation, now)` reads the reported weather codes (or the
   description's words when none are listed), the fullest cloud layer, the wind and the visibility, and returns the
   first scene that holds, with an intensity (light, moderate, heavy) for what falls and a `windy` modifier (sustained
-  20 mph or gusts of 30) that makes any scene drift faster. Freezing rain is rain; sleet and rain mixed with snow are
+  20 mph or gusts of 30) that makes any scene move faster. Freezing rain is rain; sleet and rain mixed with snow are
   snow; broken cloud counts as overcast, scattered as partly, a few clouds as clear. A new scene is one row in the
   table and one block in `style.css` under `.has-sky[data-wx="<id>"]`.
 - **Never old weather.** An observation over 90 minutes old, an error, an answer that is not JSON or no answer in 5
   seconds draws the plain sky. One request per page view, never retried, and nothing stored (the browser's own
   cache answers the next page while the service's answer is current); an open tab stops drawing an observation once
   it is 90 minutes old.
-- **Drawing.** A layer the script adds over the sky and under the words (`#sky-wx`, aria-hidden, takes no room): a
-  grey veil, soft drifting clouds, slanted rain or falling snow in two depths, bands of fog, thin streaks of wind,
-  and a storm's faint lightning (two flickers every 11 seconds). The sun or the moon dims behind cloud and fog and is
-  untouched among a few clouds. Every colour laid behind the words is 4.5:1 or better against the ink and the muted
-  ink in both themes, so the dark theme's scenes are quieter than the light theme's. Motion is CSS transforms and
-  opacity only, and only without `prefers-reduced-motion: reduce`; with it the scene is still and has no lightning.
+- **Drawing: on the sun or the moon (Brian, 2026-11-24).** "I meant up in the top panel where the masthead is. It
+  would incorporate the sun and moon that are already there." So the weather is not a sky of its own: the body that
+  is up shows it. The script adds one small drawing (`#sky-wx`, aria-hidden, takes no room) inside the sun while the
+  sun is up, or inside the drawn moon at night, and moves it as the sky turns; `data-wx-on` on the header says which
+  (`sun`, `moon`, `sky`). A few clouds: one cloud drifting across the disc. Overcast: the disc dimmed, a cloud in
+  front and one behind. Rain or snow: the cloud rides higher and three staggered rows of streaks or flakes fall from
+  it across the disc (one, two or three rows show for light, moderate, heavy). Fog: a pale haze and two soft bands
+  across the disc. Storm: the front cloud is the dark one, with a bolt under it (two flickers every 11 seconds).
+  Wind under a clear sky: two streaks blowing past the disc; over any other scene it only speeds things up.
+  On the sun the drawing's box is the part of the disc above the horizon, so a low sun keeps its cloud in view. The
+  moon is still only its lit part: it gets no round haze (that would draw a disc around a crescent); behind cloud
+  or in fog the lit part itself is drawn fainter. The moon still keeps clear of the header's words, and while it
+  carries weather it is first tried with more air around it so its cloud keeps clear too where the band has room.
+  A clear sky, an old observation or an error draws the plain sun or moon.
+- **A night with no moon up.** The earlier design drew the scene over the empty sky too, so a quiet hint is kept:
+  the same small cloud (moon-sized, 70% strength, no haze) alone in the open sky toward the right, clear of the
+  words, with its rain or snow if any. Nothing else is added to an empty sky.
+- **Contrast and motion.** Every colour in the drawing (`--wx-veil`, `--wx-cloud`, `--wx-fog`, `--wx-fall`) is 4.5:1
+  or better against the ink and the muted ink in both themes, so a cloud's edge that reaches behind a word cannot
+  take it below that; the dark theme's weather is therefore quieter than the light theme's. Motion is CSS transforms
+  and opacity only, and only under `prefers-reduced-motion: no-preference`; with reduced motion the drawing is still
+  (the rows of rain sit one under the other) and there is no lightning. The shapes are masks from `data:` SVGs in
+  the stylesheet; no new file, and nothing new in the CSP.
 - **Said on the site.** About (neutrality rule on outside requests) and Method ("What is never done") print
-  `sky_weather.disclosure`. Tests: `tests/test_weather.py`.
+  `sky_weather.disclosure`. Tests: `tests/test_weather.py` (the decision, the request, and in a browser at 390 and
+  1280 that the cloud is over the sun or the moon that is up).
 - **Not checked from the build machine.** The service could not be reached from the sandbox, so the code follows its
   published observation schema and the tests use fixtures; that the service answers a browser on another site
   (CORS) should be confirmed on the preview before release.
