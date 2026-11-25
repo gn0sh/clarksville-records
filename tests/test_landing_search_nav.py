@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, parse
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, parse, root_prefix
 from sitegen import build as sitegen_build, config, views
 from sitegen.seats import load_rows
 from test_site_neutrality import skeleton
@@ -40,7 +40,7 @@ def test_menu_is_a_link_to_the_footer_list_without_js_and_the_dialog_is_built_by
         nav = next(n for n in tree.walk() if n.attrs.get("id") == "site-nav")
         assert nav.tag == "nav" and nav.attrs["aria-label"] == "All pages", name
         assert "<dialog" not in html and 'class="nav-wide"' not in html and 'class="nav-narrow"' not in html, name
-        assert re.search(r'<script src="(\.\./)*static/nav\.js" defer>', html), name
+        assert f'<script src="{root_prefix(name)}static/nav.js" defer>' in html, name
     js = (ROOT / "site" / "static" / "nav.js").read_text(encoding="utf-8")
     for needle in ("showModal()", 'aria-expanded', 'aria-haspopup', 'aria-controls', '"site-nav-drawer"',
                    'aria-labelledby', "autofocus", "btn.focus()", "e.target === dlg", "cloneNode(true)"):

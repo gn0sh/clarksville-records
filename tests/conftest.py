@@ -6,6 +6,13 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+# Pages whose links start at "/" instead of "../" steps: GitHub Pages serves 404.html for any unknown address.
+ROOT_ABSOLUTE_PAGES = frozenset({"404.html"})
+
+
+def root_prefix(rel: str) -> str:
+    """The prefix a built page puts before site-root paths ("/" for the 404 page, else one "../" per folder)."""
+    return "/" if rel in ROOT_ABSOLUTE_PAGES else "../" * rel.count("/")
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
