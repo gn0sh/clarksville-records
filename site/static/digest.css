@@ -340,3 +340,8 @@ ol.digest-items .item-num { margin: 0 6px 0 0; }
 .digest-meeting > .digest-on { margin: 0 0 4px; font-size: var(--t-md); font-weight: 600; overflow-wrap: anywhere; }
 .digest-on-label { font-weight: 700; }
 .digest-on-part { white-space: nowrap; }
+/* The lead line follows the heading in the DOM (titles-a11y/lead-before-heading). In the "Next meeting" card it is
+   drawn first; in a month row it stays right under the date heading, so the date chip keeps lining up with that
+   heading (the chip and the heading carry the same date). */
+.digest-next .digest-meeting { display: flex; flex-direction: column; }
+.digest-next .digest-meeting > .digest-on { order: -1; }

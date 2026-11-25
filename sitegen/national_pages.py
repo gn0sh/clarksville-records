@@ -601,8 +601,9 @@ def agenda_line(entries, page_labels) -> list[str] | None:
 
 
 def page_summary(meetings: list[dict], page_labels) -> list[str] | None:
-    """The coming-up page's top line parts (after `body.summary`, "From today on:"). The page lists every posted
-    meeting from the build day on, with no end date (AC4.1), so the line names no fixed period. Parts: the meeting
+    """The coming-up page's top line parts (after `body.summary`, "Listed below:"). The line counts what the page
+    lists (meetings from the build day on, _gov_files) and claims no period: how far ahead a source posts differs by
+    platform (Legistar: today to 28 days on), and the page has no end date (AC4.1). Parts: the meeting
     count, then each topic with its count over every shown item on the page (folded meetings included); with no
     topic, the item count when any item is shown. None when the page has no meeting (the empty card says so)."""
     if not meetings:
@@ -734,13 +735,17 @@ class Pages:
 
 
 def _gov_files(pages: "Pages", g: Mapping, feed: dict, flags: nat.GovFlags, labels: Mapping[str, str],
-               morning: str | None) -> tuple[str, str, str, str]:
-    """(page path, page HTML, JSON path, JSON text) of one covered government, from its bound feed only."""
+               morning: str | None, today: date) -> tuple[str, str, str, str]:
+    """(page path, page HTML, JSON path, JSON text) of one covered government, from its bound feed only. The page
+    prints only meetings dated `today` (the build day in the site's zone) or later, so a feed that has gone stale (a
+    copied M2 file, an old run) never shows a past meeting as "coming up" or "Next meeting" (AC4.1); the JSON is the
+    bound feed as it is."""
     L = pages.L
     rel = nat.gov_page(g)
     daylight = g.get("platform") == ncl.PLATFORM          # Clarksville's own bodies (AC4.5, AC8.3)
     official = official_of(g)
-    meetings = [meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"]]
+    day0 = today.isoformat()
+    meetings = [meeting_view(m, g, feed["body"]["tz"], L) for m in feed["meetings"] if m["date"] >= day0]
     html = pages.html(
         "digest/body.html.j2", rel, label_text(L["body.title"], name=g["body_name"]),
         crumbs=pages.crumbs("crumb.home", "crumb.covered"), own_crumbs=True,
@@ -778,6 +783,7 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
     pages = Pages(env, site, labels, page_labels)
     L = page_labels
     morning = (site.get("morning_note") or {}).get("signup_href") if site.get("morning_note") else None
+    today = built_at.astimezone(ZoneInfo(config.SITE["site_timezone"])).date()   # the build day: no past meeting
     written: dict[str, str] = {}
     files: dict[str, str] = {}
 
@@ -788,13 +794,13 @@ def build_national(out_dir: Path, env, site: dict, directory: nat.Directory, fla
         gid = g["gov"]
         try:
             feed, n = bind_feed(feeds[gid], g)
-            gov_files[gid] = _gov_files(pages, g, feed, flags, labels, morning)
+            gov_files[gid] = _gov_files(pages, g, feed, flags, labels, morning, today)
         except Exception as exc:
             _warn(g, RENDER_ERROR, exc)
             if states is not None:
                 states[gid] = RENDER_ERROR
             feed, _n = bind_feed(ncopy.stale_feed(g), g)
-            gov_files[gid] = _gov_files(pages, g, feed, flags, labels, morning)
+            gov_files[gid] = _gov_files(pages, g, feed, flags, labels, morning, today)
         else:
             if bind_counts is not None:
                 bind_counts[gid] = n

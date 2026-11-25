@@ -751,9 +751,14 @@ def _render_one(tmp_path, directory, flags, labels, page_labels, feeds, gov_id):
     return (out / "digest" / st / f"{gov_id}.html").read_text(encoding="utf-8")
 
 
-def _build_pages_into(out, directory, flags, labels, page_labels, feeds):
+def _noon(day: date) -> datetime:
+    """A build instant on `day` (the real-data tests build their feeds from a day other than BUILT_AT's)."""
+    return npg.build_instant(day, now=BUILT_AT)
+
+
+def _build_pages_into(out, directory, flags, labels, page_labels, feeds, built_at=BUILT_AT):
     env = build_mod.make_env()
-    npg.build_national(out, env, _SITE_CTX(), directory, flags, labels, page_labels, feeds, built_at=BUILT_AT,
+    npg.build_national(out, env, _SITE_CTX(), directory, flags, labels, page_labels, feeds, built_at=built_at,
                        counter=None)
 
 
@@ -877,7 +882,7 @@ def test_real_coming_up_pages_print_exactly_the_json_items(tmp_path, loaded, pag
     assert feeds[COUNTY_ID]["checked_at"] == npg.newest_record_at(real["agendas"]["sources"]).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
     out = tmp_path / "site"
-    _build_pages_into(out, directory, flags, labels, page_labels, feeds)
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds, built_at=_noon(real["today"]))
     for gid, feed in feeds.items():
         html = (out / "digest" / "tn" / f"{gid}.html").read_text(encoding="utf-8")
         printed = item_headings(html)
@@ -1093,7 +1098,7 @@ def test_count_labels_pick_the_singular_key_for_one(page_labels):
         assert npg.count_label(page_labels, key, 1) == npg.label_text(page_labels[f"{key}-one"], n=1)
         assert npg.count_label(page_labels, key, 0) == npg.label_text(page_labels[key], n=0)
         assert npg.count_label(page_labels, key, 7) == npg.label_text(page_labels[key], n=7)
-    assert page_labels["body.summary"] == "From today on:"        # the page has no end date (AC4.1): no "2 weeks"
+    assert page_labels["body.summary"] == "Listed below:"          # claims no period (Legistar: today to +28 days)
 
 
 def test_coming_up_page_leads_with_the_summary_and_what_is_on_each_agenda(tmp_path, loaded, page_labels):
@@ -1104,20 +1109,59 @@ def test_coming_up_page_leads_with_the_summary_and_what_is_on_each_agenda(tmp_pa
                                   checked_at=BUILT_AT)
     html = _render_one(tmp_path, directory, flags, labels, page_labels, feeds, COUNTY_ID)
     text = main_text(html)
-    assert "From today on: 1 meeting · Rezoning (3) · Budget and finance (2)" in text
+    assert "Listed below: 1 meeting · Rezoning (3) · Budget and finance (2)" in _seen(text)
     section = re.search(r'<section class="digest-meeting".*?</section>', html, re.S).group(0)
-    assert main_text("<main>" + section + "</main>").startswith(
-        "On this agenda: Rezoning (3) · Budget and finance (2) · 1 more item\n")
-    assert section.index('class="digest-on"') < section.index("<h2") < section.index("digest-meeting-title")
+    # titles-a11y/lead-before-heading: the heading is first in the DOM (the region's name, then what is on it);
+    # digest.css draws the lead line first in the card
+    lines = main_text("<main>" + section + "</main>").split("\n")
+    assert lines[0] == "Monday, December 14, 2026"
+    assert _seen(lines[1]) == "On this agenda: Rezoning (3) · Budget and finance (2) · 1 more item"
+    assert section.index("<h2") < section.index('class="digest-on"') < section.index("digest-meeting-title")
+    # titles-copy/separator-sr: the dot is hidden from screen readers, which hear a comma instead
+    assert section.count('<span aria-hidden="true"> · </span><span class="sr-only">, </span>') == 2
+    assert " · " not in section.replace('<span aria-hidden="true"> · </span>', "")
     assert html.index('class="digest-summary"') < html.index('class="digest-next')     # the summary tops the page
-    rest = leftover(text, [*page_labels.values(), *labels.values(), *FRAME_WORDS], _sources(directory, [feeds[COUNTY_ID]]))
+    rest = leftover(text, [*page_labels.values(), *labels.values(), *FRAME_WORDS],
+                    _sources(directory, [feeds[COUNTY_ID]]))
     assert re.fullmatch(r"[\s.,·:/]*", rest), rest.strip()[:300]
     assert section.count('class="digest-on"') == 1
     # no topic match: the plain item count
     feeds2 = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("Approve the minutes", "Call to order"),
                                    date(2026, 11, 19), checked_at=BUILT_AT)
-    text2 = main_text(_render_one(tmp_path / "n", directory, flags, labels, page_labels, feeds2, COUNTY_ID))
-    assert "From today on: 1 meeting · 2 items" in text2 and "On this agenda: 2 items" in text2
+    text2 = _seen(main_text(_render_one(tmp_path / "n", directory, flags, labels, page_labels, feeds2, COUNTY_ID)))
+    assert "Listed below: 1 meeting · 2 items" in text2 and "On this agenda: 2 items" in text2
+
+
+def _seen(text: str) -> str:
+    """Page text as the eye reads it: the screen-reader-only comma after each " · " dropped."""
+    return text.replace(" · , ", " · ")
+
+
+def test_page_drops_meetings_before_the_build_day(tmp_path, loaded, page_labels):
+    """titles-summary/period-claim: a stale feed's past meetings never print under "Next meeting" or in the summary
+    count; the build day itself still counts (in the site's zone), and the JSON stays the bound feed."""
+    directory, flags, labels = loaded
+    feeds = ncl.clarksville_feeds(directory, {"city": ({}, [])}, _agendas("Rezone 2 acres"), date(2026, 11, 19),
+                                  checked_at=BUILT_AT)
+    county = feeds[COUNTY_ID]
+    past, same_day = copy.deepcopy(county["meetings"][0]), copy.deepcopy(county["meetings"][0])
+    past.update(id="2026-11-18-formal", date="2026-11-18")
+    same_day.update(id="2026-11-19-formal", date="2026-11-19")
+    county["meetings"] = [past, same_day, *county["meetings"]]
+    out = tmp_path / "site"
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds)          # BUILT_AT: 2026-11-19 18:00 UTC
+    html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
+    assert 'id="m-2026-11-18-formal"' not in html and "November 18, 2026" not in main_text(html)
+    nxt = re.search(r'<div class="digest-next">.*?</section>', html, re.S).group(0)
+    assert 'id="m-2026-11-19-formal"' in nxt
+    assert "Listed below: 2 meetings" in _seen(main_text(html))
+    js = json.loads((out / "digest" / "tn" / f"{COUNTY_ID}.json").read_text(encoding="utf-8"))
+    assert [m["id"] for m in js["meetings"]][:2] == ["2026-11-18-formal", "2026-11-19-formal"]
+    # 03:00 UTC on the 20th is still the 19th in Clarksville: the 19th's meeting stays
+    late = datetime(2026, 11, 20, 3, 0, tzinfo=timezone.utc)
+    _build_pages_into(tmp_path / "late", directory, flags, labels, page_labels, feeds, built_at=late)
+    html2 = (tmp_path / "late" / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
+    assert 'id="m-2026-11-19-formal"' in html2 and 'id="m-2026-11-18-formal"' not in html2
 
 
 def test_a_meeting_with_no_items_shown_keeps_its_current_lines(tmp_path, loaded, page_labels):
@@ -1148,7 +1192,7 @@ def test_real_county_page_20_sampled_items_match_the_word_list(tmp_path, loaded,
     directory, flags, labels = loaded
     feeds = npg.build_feeds(directory, real["councils"], real["agendas"], real["today"])
     out = tmp_path / "site"
-    _build_pages_into(out, directory, flags, labels, page_labels, feeds)
+    _build_pages_into(out, directory, flags, labels, page_labels, feeds, built_at=_noon(real["today"]))
     html = (out / "digest" / "tn" / f"{COUNTY_ID}.html").read_text(encoding="utf-8")
     items = [it for m in feeds[COUNTY_ID]["meetings"] for it in m["items"]]
     printed = _printed_topics(html)

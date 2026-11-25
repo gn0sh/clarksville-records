@@ -24,16 +24,18 @@
 {# the digest pages' own stylesheet (design 0a): linked here only, copied only while the switch is on #}
 {% block head %}<link rel="stylesheet" href="{{ root }}static/digest.css">
 {% endblock %}
-{# Label parts of a count line, " · " between them (the separator the eyebrow label uses) #}
-{% macro parts(ps) %}{% for p in ps %}{% if not loop.first %} · {% endif %}<span class="digest-on-part">{{ p }}</span>{% endfor %}{% endmacro %}
+{# Label parts of a count line, " · " between them (the separator the eyebrow label uses): the dot is hidden from
+   screen readers, which read a comma instead (titles-copy/separator-sr) #}
+{% macro parts(ps) %}{% for p in ps %}{% if not loop.first %}<span aria-hidden="true"> · </span><span class="sr-only">, </span>{% endif %}<span class="digest-on-part">{{ p }}</span>{% endfor %}{% endmacro %}
 {# One meeting. `h`: its heading level; an item's is `h + 1`. `own_time`: print "no start time" for this meeting
    itself (the card always; a row only when some meeting on the page has a time, else the page says it once). #}
 {% macro meeting(m, h, own_time) %}
 <section class="digest-meeting" id="m-{{ m.id }}" aria-labelledby="m-{{ m.id }}-h">
-  {# digest titles, Proposal A: what is on the agenda leads the meeting, from labels and counts only
-     (national_pages.agenda_line); a meeting with no shown item has none and keeps its current lines #}
-  {% if m.on %}<p class="digest-on"><span class="digest-on-label">{{ L["body.on-agenda"] }}</span> {{ parts(m.on) }}</p>{% endif %}
   <h{{ h }} id="m-{{ m.id }}-h"><time datetime="{{ m.date }}">{{ m.day }}</time>{% if m.time %}, <span data-feed>{{ m.time }}</span>{% endif %}</h{{ h }}>
+  {# digest titles, Proposal A: what is on the agenda, from labels and counts only (national_pages.agenda_line); a
+     meeting with no shown item has none and keeps its current lines. Right after the heading in the DOM, so a screen
+     reader meets the meeting's name first (titles-a11y/lead-before-heading); digest.css draws it first in the card. #}
+  {% if m.on %}<p class="digest-on"><span class="digest-on-label">{{ L["body.on-agenda"] }}</span> {{ parts(m.on) }}</p>{% endif %}
   <p class="digest-meeting-title">{% if m.title_ours %}{{ m.title }}{% else %}<span data-feed>{{ m.title }}</span> {{ L["body.as-posted"] }}{% endif %}</p>
   {% if m.time %}
   <p class="digest-time">{{ lt(L["body.tz"], tz=m.tz) }}</p>

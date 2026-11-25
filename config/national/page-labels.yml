@@ -222,11 +222,11 @@ labels:
   body.topic-budget: Budget and finance
   body.topic-note: Topic labels come from a fixed word list, not AI. [How topics are picked]
   # Digest titles, Proposal A (Brian, 2026-11-24): a page-top summary and a lead line on each meeting, from these
-  # labels and counts only (national_pages.agenda_counts). {topic} is a body.topic-* label. The page lists every
-  # posted meeting from the build day on, with no end date (AC4.1), so the summary names no fixed period. A key with
-  # -one is the singular, as covered.count-one is; it keeps {n} (filled with 1) so the page-strings test can tell the
-  # count from a source number "1" next to it.
-  body.summary: "From today on:"
+  # labels and counts only (national_pages.agenda_counts). {topic} is a body.topic-* label. The summary counts what
+  # the page lists and claims no period: how far ahead a source posts differs by platform (Legistar holds only today
+  # to 28 days on), and the page itself has no end date (AC4.1). A key with -one is the singular, as covered.count-one
+  # is; it keeps {n} (filled with 1) so the page-strings test can tell the count from a source number "1" next to it.
+  body.summary: "Listed below:"
   body.summary-meetings: "{n} meetings"
   body.summary-meetings-one: "{n} meeting"
   body.on-agenda: "On this agenda:"
