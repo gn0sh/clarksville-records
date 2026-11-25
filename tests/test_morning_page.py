@@ -18,7 +18,7 @@ import threading
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, note_off, parse
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, note_off, parse, root_prefix
 from qa import site_checks
 from sitegen import config, morning, morning_page, views
 from sender import common
@@ -127,7 +127,7 @@ def test_nav_morning_note_links_the_section_on_every_page(site):
     for rel, html in pages.items():
         nav = html[html.index('<nav id="site-nav"'):]
         nav = nav[:nav.index("</nav>")]
-        assert re.search(r'href="(\.\./)*alerts\.html#note"[^>]*>Morning note<', nav), rel
+        assert re.search(rf'href="{re.escape(root_prefix(rel))}alerts\.html#note"[^>]*>Morning note<', nav), rel
     assert 'id="note"' in pages["alerts.html"]
     assert 'aria-current="page">Morning note' not in pages["morning/index.html"]
 

@@ -13,7 +13,7 @@ import subprocess
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, note_off
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, note_off, root_prefix
 from sitegen import bodies, config, localdates
 from sitegen.build import build
 from test_rpc_pages import rpc_cfg  # noqa: F401  (fixture: the RPC's fixture facts)
@@ -189,7 +189,7 @@ def test_every_page_but_the_home_page_and_a_bodys_landing_page_has_one_crumb_abo
         assert 1 <= len(crumbs) <= 2, (rel, crumbs)
         main = main_of(page)
         assert main.index('<nav class="crumb"') < main.index("<h1"), rel
-        depth = "../" * rel.count("/")
+        depth = root_prefix(rel)
         for href, label in crumbs:                                          # each part leads to a page that exists
             assert href.startswith(depth) and href[len(depth):] in rpc_pages, (rel, href)
             assert label.strip()

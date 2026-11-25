@@ -24,7 +24,7 @@ def site(tmp_path, built):
     for f in dst.rglob("*.html"):
         t = f.read_text(encoding="utf-8")
         # any depth (a vote list page is two folders down: officials/<id>/votes.html)
-        f.write_text(re.sub(r'href="((?:\.\./)*)review\.html"', r'href="\1about.html"', t), encoding="utf-8")
+        f.write_text(re.sub(r'href="((?:\.\./)*|/)review\.html"', r'href="\1about.html"', t), encoding="utf-8")
     return dst
 
 

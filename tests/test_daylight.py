@@ -9,7 +9,7 @@ import subprocess
 
 import pytest
 
-from conftest import FIXTURE, ROOT, build, parse
+from conftest import FIXTURE, ROOT, build, parse, root_prefix
 from sitegen import config
 
 SKY_JS = ROOT / "site" / "static" / "sky.js"
@@ -47,7 +47,7 @@ def test_every_page_has_the_date_line_and_it_waits_for_the_script(site):
     pages = _pages(site)
     assert len(pages) > 20
     for name, html in pages.items():
-        depth = "../" * name.count("/")
+        depth = root_prefix(name)
         assert html.count('id="sky-hero"') == 1, name
         hero = next(n for n in parse(html).walk() if n.attrs.get("id") == "sky-hero")
         assert "hidden" in hero.attrs, name                              # no script, no (stale) date

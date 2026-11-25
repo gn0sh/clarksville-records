@@ -6,7 +6,7 @@ from urllib.parse import unquote, urlparse
 
 import pytest
 
-from conftest import parse
+from conftest import ROOT_ABSOLUTE_PAGES, parse
 from sitegen import build as sitegen_build, config
 
 
@@ -93,14 +93,17 @@ def test_internal_links_resolve(built, pages):
                     ids = {n.attrs["id"] for n in parse(html).walk() if "id" in n.attrs}
                     assert href[1:] in ids, (name, href)
                 continue
-            target = (Path(name).parent / unquote(u.path))
-            parts = []
-            for p in target.parts:
-                if p == "..":
-                    parts.pop()
-                else:
-                    parts.append(p)
-            rel = "/".join(parts)
+            if name in ROOT_ABSOLUTE_PAGES and u.path.startswith("/"):
+                rel = unquote(u.path).lstrip("/")           # the 404 page's links start at the site root
+            else:
+                target = (Path(name).parent / unquote(u.path))
+                parts = []
+                for p in target.parts:
+                    if p == "..":
+                        parts.pop()
+                    else:
+                        parts.append(p)
+                rel = "/".join(parts)
             if rel.startswith("data/"):
                 continue  # written by the collector's export, not by sitegen
             assert (built / rel).is_file(), (name, href)
