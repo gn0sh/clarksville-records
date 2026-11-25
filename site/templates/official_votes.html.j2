@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import item_link %}
+{% from "_macros.html.j2" import item_link, clamp %}
 {# An official's vote list (onceover/votes/member-yes-no-list, views.official_votes): every confirmed vote the minutes
    record for them by name, plus each vote taken while recorded absent, filterable by vote and downloadable as CSV
    of exactly the rows shown (votes.js). The same page, options and wording for every official. Without JavaScript the
@@ -30,7 +30,7 @@
 <thead><tr><th scope="col">Date</th><th scope="col">Item</th><th scope="col">Vote</th><th scope="col">Source</th></tr></thead>
 <tbody>
 {% for r in rows -%}
-<tr data-vote="{{ r.key }}" data-date="{{ r.date }}"><td>{% if r.item.href %}{{ r.date | day_words }}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.date | day_words }}</a>{% endif %}<td>{{ item_link(r.item, root) }}{% if r.vote_on %} <small><a href="{{ root }}about.html#vote-on">Vote on</a>: {{ r.vote_on }}.</small>{% endif %}<td>{{ r.label }}<td><a href="{{ r.src.url }}" target="_blank" rel="noopener noreferrer">p.&nbsp;{{ r.src.page }}<span class="sr-only"> (PDF, new tab)</span></a>
+<tr data-vote="{{ r.key }}" data-date="{{ r.date }}"><td>{% if r.item.href %}{{ r.date | day_words }}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.date | day_words }}</a>{% endif %}<td>{% call clamp(2) %}{{ item_link(r.item, root) }}{% endcall %}{% if r.vote_on %} <small><a href="{{ root }}about.html#vote-on">Vote on</a>: {{ r.vote_on }}.</small>{% endif %}<td>{{ r.label }}<td><a href="{{ r.src.url }}" target="_blank" rel="noopener noreferrer">p.&nbsp;{{ r.src.page }}<span class="sr-only"> (PDF, new tab)</span></a>
 {% else -%}
 <tr class="empty"><td colspan="4">No confirmed votes are recorded for this person.
 {% endfor -%}
