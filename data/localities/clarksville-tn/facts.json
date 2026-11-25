@@ -93075,8 +93075,8 @@
       "video_url": "https://cpmedia.azureedge.net/clarksvilletn/fc4820ad23.mp4"
     },
     {
-      "agenda_source_id": "src-c7c14ea153d3",
-      "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3368,plainText=false)",
+      "agenda_source_id": "src-607ff806f305",
+      "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3369,plainText=false)",
       "attendance": [],
       "attendance_status": "not_extracted",
       "body": "Clarksville City Council",
@@ -93086,7 +93086,7 @@
       "listing_source": "civicclerk",
       "minutes_status": "not_posted",
       "minutes_url": null,
-      "source_id": "src-c7c14ea153d3",
+      "source_id": "src-607ff806f305",
       "stated_absent_count": null,
       "title": "Executive Session",
       "verification": {
@@ -489355,13 +489355,13 @@
     },
     {
       "fetched_at": "2026-11-25",
-      "id": "src-c7c14ea153d3",
+      "id": "src-607ff806f305",
       "kind": "agenda",
       "meeting_date": "2026-12-01",
       "pages": 3,
-      "sha256": "c7c14ea153d3b1c584aae4828b47f5b74df3d5cf8c1d3e48cf01bb2d810ffcea",
+      "sha256": "607ff806f305836895cb9f3beb324e06f2b41440d74ee4206a7f8d2344247a2c",
       "text_layer": "text",
-      "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3368,plainText=false)"
+      "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3369,plainText=false)"
     }
   ]
 }

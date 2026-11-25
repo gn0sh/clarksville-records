@@ -1601,8 +1601,8 @@
   },
   {
     "agenda_id": "cc-2996",
-    "agenda_name": "Agenda",
-    "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3368,plainText=false)",
+    "agenda_name": "agenda",
+    "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3369,plainText=false)",
     "date": "2026-12-01",
     "event_id": 2996,
     "has_media": false,
