@@ -597,7 +597,7 @@ def test_every_scene_but_clear_has_a_drawing_and_the_drawing_names_no_other(node
 def test_the_weather_colours_keep_the_words_contrast_in_both_themes():
     """Each colour the scene lays behind the header's words is itself 4.5:1 or better against the ink and the muted
     ink, so no mix of it with the sky (which already is) can fall below."""
-    tokens = ("--wx-veil", "--wx-cloud", "--wx-fog", "--wx-fall")
+    tokens = ("--wx-veil", "--wx-cloud", "--wx-fog", "--wx-fall", "--wx-moon-cloud", "--wx-moon-fall")
     for theme in (LIGHT, DARK):
         for token in tokens:
             for text in ("--fg", "--muted"):
@@ -605,9 +605,85 @@ def test_the_weather_colours_keep_the_words_contrast_in_both_themes():
     media = CSS[CSS.index("@media (prefers-color-scheme: dark)"):]
     media = media[:media.index("}")]
     assert all(f"{t}: {DARK[t]}" in media for t in tokens)                # the two dark blocks agree
-    used = set(re.findall(r"var\((--wx-(?:veil|cloud|fog|fall))\)", WX_CSS))
+    used = set(re.findall(r"var\((--wx-(?:moon-)?(?:veil|cloud|fog|fall))\)", WX_CSS))
     assert used == set(tokens)
     assert not re.search(r"#[0-9A-Fa-f]{3,8}\b", re.sub(r'url\("data:[^"]*"\)', "", WX_CSS).split("*/", 1)[1])   # no colour of its own
+
+
+def test_the_weather_on_the_moon_is_never_the_moons_own_colour():
+    """Review, wx-visible/light-moon: in the light theme the moon, the clouds and the rain were all #FFFFFF, so rain
+    and cloud on the moon did not show. What is drawn on the moon has its own two colours, neither of them the
+    moon's, in both themes; and what crosses the sun is not the sun's colour either."""
+    for theme in (LIGHT, DARK):
+        for token in ("--wx-moon-fall", "--wx-moon-cloud", "--wx-veil"):
+            assert theme[token].upper() != theme["--moon"].upper(), token
+            assert _ratio(theme[token], theme["--moon"]) >= 1.3, (token, _ratio(theme[token], theme["--moon"]))
+        for token in ("--wx-fall", "--wx-cloud", "--wx-veil"):
+            assert _ratio(theme[token], theme["--sun"]) >= 2, (token, _ratio(theme[token], theme["--sun"]))
+    # on the moon the cloud, what falls, the bolt and the wind are drawn in those colours, whatever the scene
+    assert '.has-sky[data-wx-on="moon"] .wx-cloud { background: linear-gradient(var(--wx-moon-cloud), var(--wx-veil) 60%); }' in WX_CSS
+    assert ('.has-sky[data-wx-on="moon"] .wx-fall, .has-sky[data-wx-on="moon"] .wx-flash { background: var(--wx-moon-fall); }'
+            in WX_CSS)
+    assert '.has-sky[data-wx-on="moon"][data-wx="windy"] .wx-cloud { background: var(--wx-moon-fall); }' in WX_CSS
+
+
+MOON_PLACE_PROBE = r"""
+const s = require(process.argv[1]);
+const at = Date.parse(process.argv[2]), withAddress = process.argv[3] === "yes";
+const node = (id) => { const n = { id, attrs: {}, css: {}, kids: [], parentNode: null,
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }, hasAttribute(k) { return k in this.attrs; },
+  setAttribute(k, v) { this.attrs[k] = v; if (k === "id") { els[v] = this; } }, removeAttribute(k) { delete this.attrs[k]; },
+  appendChild(c) { this.kids.push(c); c.parentNode = this; }, insertBefore(c) { this.kids.push(c); c.parentNode = this; } };
+  n.style = { setProperty(k, v) { n.css[k] = v; }, removeProperty(k) { delete n.css[k]; } }; return n; };
+const els = {};
+const header = node("header"), frame = node("frame"), moon = (els["sky-moon"] = node("sky-moon"));
+const sun = (els["sky-sun"] = node("sky-sun")); sun.attrs["data-at"] = "down";
+frame.parentNode = header; moon.parentNode = frame; moon.attrs.hidden = ""; moon.offsetWidth = 40;
+if (withAddress) { moon.attrs["data-weather"] = "https://api.weather.gov/stations/KCKV/observations/latest"; }
+// a 1280 by 146 band whose words fill the left half, as the name plate and the date line do
+frame.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1280, height: 146 });
+const words = { id: "words" };
+const doc = { getElementById: (id) => els[id] || null, querySelectorAll: () => [words],
+  createRange: () => ({ selectNodeContents() {}, getBoundingClientRect: () => ({ left: 112, top: 20, right: 690, bottom: 130, width: 578, height: 110 }) }),
+  createElement: () => { const n = node(""); Object.defineProperty(n, "id", { set(v) { els[v] = n; }, get() { return "sky-wx"; } }); return n; },
+  createElementNS: () => node("") };
+const where = () => [moon.css["--moon-left"], moon.css["--moon-top"], "hidden" in moon.attrs];
+const seen = {};
+s.renderMoon(doc, at, { lat: 36.53, lon: -87.36 }, false);                    // the first draw, before any answer
+seen.first = where();
+s.drawWeather(doc, { scene: "rain", intensity: "moderate", windy: false });    // the answer comes
+seen.rain = where(); seen.on = header.attrs["data-wx-on"]; seen.host = els["sky-wx"].parentNode.id;
+s.drawWeather(doc, { scene: "partly", intensity: null, windy: true });
+seen.partly = where();
+s.drawWeather(doc, null);                                                      // and goes stale
+seen.cleared = where(); seen.after = Object.keys(header.attrs);
+console.log(JSON.stringify(seen));
+"""
+
+
+def test_the_moon_does_not_move_when_the_weather_arrives(node):
+    """Review, moon-place/jump-on-weather: the moon's place must not depend on the request. A page that names a
+    weather address keeps the cloud's room around the moon from the first draw, so the moon is where it was when
+    the answer comes, changes or goes stale."""
+    for instant in ("2026-11-25T05:30:00Z", "2026-11-27T03:00:00Z", "2026-11-12T23:20:00Z"):   # high, east, low west
+        got = run(node, MOON_PLACE_PROBE, instant, "yes")
+        assert got["first"][2] is False and got["first"][0].endswith("px") and got["first"][1].endswith("px"), instant
+        assert got["rain"] == got["partly"] == got["cleared"] == got["first"], (instant, got)
+        assert got["on"] == "moon" and got["host"] == "sky-moon" and got["after"] == [], instant
+        # the room is real: beside the words, the same moon on a page that asks for no weather sits closer to them
+        plain = run(node, MOON_PLACE_PROBE, instant, "no")
+        assert plain["rain"] == plain["first"], instant
+        assert int(plain["first"][0][:-2]) < int(got["first"][0][:-2]), (instant, plain["first"], got["first"])
+    assert "placeMoon(doc)" not in JS[JS.index("function drawWeather("):JS.index("/* The observation this page view holds")]
+    assert 'rooms = mayHaveWeather ? [WX_ROOM, 0] : [0];' in JS
+
+
+def test_the_suns_cloud_stays_on_the_sun():
+    """Review, wx-host/sun-at-horizon: over a sun on the horizon the cloud must not float above it. Its top is held
+    to a part of its own height above the sun's top, and nothing falls a negative distance."""
+    assert "--wx-base: min(max(var(--wx-v) * .28, var(--wx-s) * .1), var(--wx-v) - var(--wx-ch) * .55);" in WX_CSS
+    assert ("--wx-base: min(max(var(--wx-v) * .45, var(--wx-s) * .4), var(--wx-v) - var(--wx-ch) * .25); "
+            "--wx-fh: max(var(--wx-base), 0px);") in WX_CSS
 
 
 def test_the_drawing_is_decoration_that_takes_no_room_and_belongs_to_the_sun_or_the_moon():
