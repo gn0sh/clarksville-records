@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from conftest import parse
+from conftest import parse, root_prefix
 from sitegen import config, views
 from test_council_pages import cfg, city_facts, city_wards, site, cpages  # noqa: F401  (fixtures)
 from test_fin_pages import build_with, fpages  # noqa: F401  (fixtures)
@@ -24,7 +24,7 @@ def test_each_new_page_exists_and_is_in_the_footer_list_and_drawer_source(pages)
         assert rel in pages, rel
         for name, html in pages.items():
             nav = re.search(r'<nav id="site-nav".*?</nav>', html, re.S).group(0)   # the footer list the drawer is built from
-            assert f'href="{"../" * name.count("/")}{rel}"' in nav and f">{label}" in nav, (name, rel)
+            assert f'href="{root_prefix(name)}{rel}"' in nav and f">{label}" in nav, (name, rel)
 
 
 def test_who_runs_this_has_no_personal_name_and_names_the_operator(pages):

@@ -9,7 +9,7 @@ import subprocess
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, build
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, build, root_prefix
 from qa import site_checks
 from sitegen import analytics, build as sitegen_build, config, views
 
@@ -279,5 +279,5 @@ def test_stats_page_counts_the_data_and_names_no_official(pages, facts):
 def test_every_footer_links_the_stats_page(pages):
     for rel, html in pages.items():
         foot = html[html.index('<footer class="site-footer">'):]
-        depth = "../" * rel.count("/")
+        depth = root_prefix(rel)
         assert f'<a href="{depth}stats.html">The site in numbers.</a>' in foot, rel

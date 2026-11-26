@@ -14,6 +14,13 @@ from sitegen.build import build  # noqa: E402
 FIXTURE = ROOT / "site" / "fixtures" / "facts.sample.json"
 FIXTURE_SEATS = ROOT / "site" / "fixtures" / "seats.sample.yml"
 FIXTURE_DISTRICTS = ROOT / "site" / "fixtures" / "districts.sample.json"
+# Pages whose links start at "/" instead of "../" steps: GitHub Pages serves 404.html for any unknown address.
+ROOT_ABSOLUTE_PAGES = frozenset({"404.html"})
+
+
+def root_prefix(rel: str) -> str:
+    """The prefix a built page puts before site-root paths ("/" for the 404 page, else one "../" per folder)."""
+    return "/" if rel in ROOT_ABSOLUTE_PAGES else "../" * rel.count("/")
 
 
 def note_off(cfg: dict) -> dict:

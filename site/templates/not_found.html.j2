@@ -1,0 +1,14 @@
+{% extends "base.html.j2" %}
+{# GitHub Pages shows this for any address the site does not have. The address is unknown, so every link is from the
+   site's root (build.html_of gives this page root "/"). #}
+{% block main %}
+<h1>That page isn't here</h1>
+<p>The address may have a typo, or the page may have moved. Here are some places to start:</p>
+<ul>
+  <li><a href="{{ root }}index.html">Home</a></li>
+  <li><a href="{{ root }}today.html">Meetings, day by day</a></li>
+  <li><a href="{{ root }}search.html">Search the records</a></li>
+  <li><a href="{{ root }}alerts.html">Get the morning note</a></li>
+</ul>
+<p>If a link on this site brought you here, please <a href="{{ root }}report.html">report it</a> so it can be fixed.</p>
+{% endblock %}

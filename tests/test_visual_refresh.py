@@ -4,7 +4,7 @@
 import copy
 import re
 
-from conftest import parse
+from conftest import parse, root_prefix
 from sitegen import views
 from test_held_counts import RC_HELD, MEETING_DEC, by_id
 from test_site_review_fixes import build_pages
@@ -171,7 +171,7 @@ def test_nav_lists_every_items_year_newest_first(pages, facts):
     for name, html in pages.items():
         nav = html[html.index('<nav id="site-nav"'):]
         nav = nav[:nav.index("</nav>")]
-        assert [int(y) for y in re.findall(r'href="(?:\.\./)*items/(\d{4})\.html"', nav)] == years, name
+        assert [int(y) for y in re.findall(rf'href="{re.escape(root_prefix(name))}items/(\d{{4}})\.html"', nav)] == years, name
         labels = [" ".join(re.sub(r"<[^>]+>", " ", x).split()) for x in re.findall(r'<li><(?:a [^>]*|span class="nav-group")>(.*?)</(?:a|span)>', nav)]
         labels = [x for x in labels if not x.isdigit()]
         want = ["Home", "Today", "Search", "Votes", "Meetings", "Officials", "Montgomery County", "School board Coming",

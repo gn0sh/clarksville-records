@@ -2534,15 +2534,17 @@ def check_header(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
         if header is None:
             problems.append(f"{rel}: {len(SITE_HEADER.findall(raw))} site headers (want 1)")
             continue
+        if rel == "404.html":   # served for any unknown address, so its links start at the site root ("/")
+            header = header.replace('="/', '="')
         (digest if rel.startswith(DIGEST) else seen).setdefault(header, []).append(rel)
-        root = "../" * rel.count("/")
+        root = "/" if rel == "404.html" else "../" * rel.count("/")
         head = raw[:raw.index("</head>")] if "</head>" in raw else ""
         if f'<script src="{root}static/js-flag.js"></script>' not in head:
             problems.append(f"{rel}: static/js-flag.js is not in the page's head (the date line would jump in)")
         if raw.count(f'<script src="{root}static/sky.js" defer></script>') != 1:
             problems.append(f"{rel}: static/sky.js is not loaded once (no date, no sun by the hour, no moon)")
         m = re.search(r'<a class="sky-link" href="([^"]*)"', SITE_HEADER.search(raw).group(0))
-        if not m or resolve(rel, m.group(1)) != "today.html":
+        if not m or resolve(rel, m.group(1).lstrip("/") if rel == "404.html" else m.group(1)) != "today.html":
             problems.append(f"{rel}: the header's date does not link the day page")
     if not seen:
         return problems + [f"{rels[0]}: a digest page's header, with no usual header outside {DIGEST} to hold it to"

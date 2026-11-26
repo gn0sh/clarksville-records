@@ -15,7 +15,7 @@ from html import unescape
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, ROOT_ABSOLUTE_PAGES, root_prefix
 from qa import site_checks as SC
 from sitegen import bodies, config
 from sitegen.build import build
@@ -465,13 +465,16 @@ def test_every_page_has_the_same_full_sky_whether_or_not_it_is_a_switch_target(s
     assert len(targets) == 5 and targets <= set(html)
     headers = {}
     for rel, page in html.items():
-        depth = "../" * rel.count("/")
+        depth = root_prefix(rel)
         header = page[page.index('<header class="site-header'):page.index("</header>")]
         assert sun in header and page.count('id="sky-sun"') == 1, rel
         assert page.count('<header class="site-header has-sky">') == 1 and "sky-small" not in page, rel
         assert page.count(f'<script src="{depth}static/sky.js" defer></script>') == 1, rel
         assert header.count('id="sky-hero"') == 1 and page.count('id="sky-hero"') == 1, rel
-        headers.setdefault(SC.site_header(page, rel), []).append(rel)
+        header_norm = SC.site_header(page, rel)
+        if rel in ROOT_ABSOLUTE_PAGES:                                  # its links start at "/"
+            header_norm = header_norm.replace('="/', '="')
+        headers.setdefault(header_norm, []).append(rel)
     assert len(headers) == 1, [rels[0] for rels in headers.values()]
     problems, note = SC.check_header(site, {rel: SC.parse(site / rel) for rel in html})
     assert problems == [] and f"one header on {len(html)} of {len(html)} pages" in note, problems[:5]

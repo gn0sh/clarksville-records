@@ -27,6 +27,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import ROOT_ABSOLUTE_PAGES
 from sitegen import config
 from test_daylight import DARK, LIGHT, _ratio, site  # noqa: F401  (site: the fixture build)
 
@@ -691,7 +692,7 @@ def test_in_a_browser_the_sky_holds_the_sun_or_the_moon_never_both_and_the_moon_
     air it touches no word of the header (manager's design call, 2026-11-14: open sky only), stays inside the band,
     is 28px on the phone and about 40px wide, and the page does not scroll sideways."""
     rels = sorted(str(p.relative_to(site)) for p in site.rglob("*.html"))
-    body = next(r for r in rels if r != "index.html" and "/" not in r)
+    body = next(r for r in rels if r != "index.html" and "/" not in r and r not in ROOT_ABSOLUTE_PAGES)   # 404: "/" links
     deep = next(r for r in rels if "/" in r)
     script = tmp_path / "clear.js"
     script.write_text(CLEAR_PROBE, encoding="utf-8")
