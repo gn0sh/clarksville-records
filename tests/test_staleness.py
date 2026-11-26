@@ -330,8 +330,9 @@ def test_every_fixed_title_issue_lookup_lists_only_actions_issues():
     # 1 data-age check, 2 update job failure, 3 RPC step, 4 county committee agendas step, 5 city budget books
     # kept, 6 county meetings kept, 7 city meetings kept (ADR 0006), 8 push job failure, 9 morning note, 10 gate,
     # 11 deploy held by the I-pub tripwire (ADR 0011), 12 national pages degraded (architecture 12.2 D-ISO-9),
-    # 13 browser tests skipped, Chromium not installed (docs/architecture/ci-download-verify-invariant.md)
-    assert len(lookups) == 13, lookups
+    # 13 browser tests skipped, Chromium not installed (docs/architecture/ci-download-verify-invariant.md),
+    # 14 the morning clock did not fire (ADR 0014)
+    assert len(lookups) == 14, lookups
     for ln in lookups:
         assert "--app github-actions" in ln, ln
 

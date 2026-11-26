@@ -974,8 +974,14 @@ def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):
 
 
 # ------------------------------------------------------------------ the morning note (T4.5)
-NOTE_IF = ("github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' && github.ref == 'refs/heads/main'"
-           " && needs.gate.outputs.verified == 'true'")
+# ADR 0014 decision 3: the one send route is a dispatch with send_note and collect true that gn0sh both dispatched and
+# triggered (the 03:07 clock); the schedule no longer sends. Every earlier check is kept.
+NOTE_IF = ("github.event_name == 'workflow_dispatch' && inputs.send_note == true && inputs.collect == true"
+           " && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh' && vars.MORNING_NOTE_SEND == 'true'"
+           " && github.ref == 'refs/heads/main' && needs.gate.outputs.verified == 'true'")
+# the route env the Deliver step's bash re-check reads (ADR 0014): the clock's run
+NOTE_ROUTE_ENV = {"GITHUB_EVENT_NAME": "workflow_dispatch", "SEND_NOTE": "true", "COLLECT": "true",
+                  "DISPATCH_ACTOR": "gn0sh", "TRIGGERING_ACTOR": "gn0sh"}
 # main-protect/pr-check-path-scope, main-protect/test-launcher-coverage: the note job's three python runs, exactly
 # (-I -S, a fresh pycache_prefix, the staged sender folder alone on sys.path, the staged config), each after VERIFY,
 # the re-check of the staged folder's digest (main-protect/staged-lib-integrity).
@@ -1038,15 +1044,19 @@ def _note_steps():
     return {s.get("name"): s for s in WF["jobs"]["note"]["steps"]}
 
 
-def test_note_job_is_locked_scheduled_on_main_and_after_deploy():
+def test_note_job_is_locked_dispatched_by_gn0sh_on_main_and_after_deploy():
     note = WF["jobs"]["note"]
     assert " ".join(note["if"].split()) == NOTE_IF
     assert "always()" not in note["if"] and "cancelled()" not in note["if"]   # implicit success(): update and deploy
     assert note["needs"] == ["gate", "update", "deploy"]                        # deploy locked -> note skipped
     assert note["environment"] == "morning-note" and note["timeout-minutes"] <= 15
-    # a manual run never sends: the if needs the schedule trigger, and only schedule and dispatch exist
+    # ADR 0014: the schedule never sends (the if needs workflow_dispatch), and only schedule and dispatch exist
     on = WF.get("on") or WF[True]
     assert set(on) == {"schedule", "workflow_dispatch"}
+    # an ordinary "Run workflow" never sends: send_note is a boolean that defaults to false
+    send_note = on["workflow_dispatch"]["inputs"]["send_note"]
+    assert send_note["type"] == "boolean" and send_note["default"] is False and set(send_note) == {
+        "description", "type", "default"}
 
 
 def test_note_job_has_a_timeout_and_shares_the_one_run_at_a_time_group():
@@ -1058,20 +1068,203 @@ def test_note_job_has_a_timeout_and_shares_the_one_run_at_a_time_group():
     assert all(isinstance(job.get("timeout-minutes"), int) for job in WF["jobs"].values())
 
 
-def _note_if(event, var, ref, verified):
-    return event == "schedule" and var == "true" and ref == "refs/heads/main" and verified == "true"
+def _gh(text: str, ctx: dict):
+    """A GitHub Actions expression over `==`, `!=`, `&&`, `||`, `!`, parentheses, '...' literals, true/false/null and
+    context names (dotted, read from `ctx`; a missing one is null), with GitHub's rules: && and || return an operand,
+    strings compare ignoring case, and two values of different types are both turned into numbers (null 0, true 1,
+    false 0, a string its JSON number, '' 0, else NaN). Anything else in the text is an error, so a new operator or
+    function in the `if:` fails the test instead of being guessed at."""
+    toks = re.findall(r"\s*(==|!=|&&|\|\||!|\(|\)|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_.-]*|\S)", text)
+    pos = 0
+
+    def peek():
+        return toks[pos] if pos < len(toks) else None
+
+    def take(want=None):
+        nonlocal pos
+        tok = peek()
+        assert tok is not None and (want is None or tok == want), (want, tok, text)
+        pos += 1
+        return tok
+
+    def num(v):
+        if v is None or isinstance(v, (bool, int, float)):
+            return float(v or 0)
+        if not v.strip():
+            return 0.0
+        try:
+            n = json.loads(v)
+        except ValueError:
+            return float("nan")
+        return float(n) if isinstance(n, (int, float)) and not isinstance(n, bool) else float("nan")
+
+    def eq(a, b):
+        if isinstance(a, str) and isinstance(b, str):
+            return a.lower() == b.lower()
+        if type(a) is type(b):
+            return a == b
+        return num(a) == num(b)
+
+    def truthy(v):
+        if isinstance(v, bool) or v is None:
+            return bool(v)
+        if isinstance(v, (int, float)):
+            return v == v and v != 0
+        return v != ""
+
+    def atom():
+        tok = take()
+        if tok == "(":
+            v = disj()
+            take(")")
+            return v
+        if tok == "!":
+            return not truthy(atom())
+        if tok.startswith("'"):
+            return tok[1:-1].replace("''", "'")
+        if tok in ("true", "false", "null"):
+            return {"true": True, "false": False, "null": None}[tok]
+        assert re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.-]*", tok), tok
+        assert peek() != "(", f"function call {tok}() is not evaluated here"
+        return ctx.get(tok)
+
+    def comp():
+        v = atom()
+        while peek() in ("==", "!="):
+            op = take()
+            r = eq(v, atom())
+            v = r if op == "==" else not r
+        return v
+
+    def conj():
+        v = comp()
+        while peek() == "&&":
+            take()
+            r = comp()
+            v = r if truthy(v) else v
+        return v
+
+    def disj():
+        v = conj()
+        while peek() == "||":
+            take()
+            r = conj()
+            v = v if truthy(v) else r
+        return v
+
+    v = disj()
+    assert pos == len(toks), (toks[pos:], text)
+    return v
 
 
-@pytest.mark.parametrize("event,var,ref,verified", list(itertools.product(
-    ["schedule", "workflow_dispatch"], [None, "", "false", "True", "true"], ["refs/heads/main", "refs/heads/x"],
-    ["true", "false", "", None])))
-def test_note_runs_only_in_the_one_locked_case(event, var, ref, verified):
-    """...and only when the gate verified main's history (never in phase 0)."""
-    expr = " ".join(WF["jobs"]["note"]["if"].split())
-    py = (expr.replace("github.event_name", repr(event)).replace("vars.MORNING_NOTE_SEND", repr(var))
-          .replace("needs.gate.outputs.verified", repr(verified))
-          .replace("github.ref", repr(ref)).replace("&&", "and"))
-    assert eval(py) == _note_if(event, var, ref, verified)                      # noqa: S307  our own expression
+def test_the_expression_evaluator_reads_an_if_as_github_does():
+    """The evaluator itself, so the truth tables below cannot pass through a parser that drops a clause."""
+    assert _gh("a == true", {"a": True}) is True and _gh("a == true", {"a": False}) is False
+    assert _gh("a == true", {}) is False and _gh("a == true", {"a": "true"}) is False      # 'true' is NaN as a number
+    assert _gh("a == 'X'", {"a": "x"}) is True and _gh("a != 'x'", {"a": "y"}) is True
+    assert _gh("a == 'x' && 'yes' || 'no'", {"a": "x"}) == "yes" and _gh("a == 'x' && 'yes' || 'no'", {}) == "no"
+    assert _gh("!(a == 'x')", {"a": "y"}) is True and _gh("a == 'X' && b == 'y' || c == 'z'", {"c": "z"}) is True
+    assert _gh("a == 'x' && (b == 'y' || c == 'z')", {"c": "z"}) is False
+    for bad in ("contains(a, 'x')", "a == 'x' || always()", "a == 'x' ||", "a = 'x'"):
+        with pytest.raises(AssertionError):
+            _gh(bad, {"a": "x"})
+
+
+def _note_route(event="workflow_dispatch", send_note=True, collect=True, actor="gn0sh", triggering="gn0sh",
+                var="true", ref="refs/heads/main", verified="true") -> dict:
+    """A run's context as the note job's `if:` sees it; the default is the clock's run. On a scheduled run the
+    inputs are null, and github.actor is the account the schedule is tied to (whoever last changed the cron)."""
+    return {"github.event_name": event, "inputs.send_note": send_note, "inputs.collect": collect,
+            "github.actor": actor, "github.triggering_actor": triggering, "vars.MORNING_NOTE_SEND": var,
+            "github.ref": ref, "needs.gate.outputs.verified": verified}
+
+
+_SCHED = {"event": "schedule", "send_note": None, "collect": None}
+# ADR 0014 "Consumers that must change", tests row: every route toward a send, and the one that is allowed
+NOTE_ROUTES = {
+    "the-clock": (_note_route(), True),
+    "schedule-never-sends": (_note_route(**_SCHED), False),
+    "schedule-tied-to-another": (_note_route(**_SCHED, actor="mallory", triggering="mallory"), False),
+    "schedule-with-inputs-set": (_note_route(event="schedule"), False),
+    "dispatch-without-send-note": (_note_route(send_note=False), False),
+    "dispatch-send-note-missing": (_note_route(send_note=None), False),
+    "dispatch-send-note-as-text": (_note_route(send_note="true"), False),
+    "dispatch-collect-false": (_note_route(collect=False), False),
+    "dispatch-collect-missing": (_note_route(collect=None), False),
+    "dispatch-by-another": (_note_route(actor="mallory", triggering="mallory"), False),
+    "dispatch-named-like-gn0sh": (_note_route(actor="gn0sh-bot", triggering="gn0sh-bot"), False),
+    "dispatch-by-github-actions": (_note_route(actor="github-actions[bot]", triggering="github-actions[bot]"), False),
+    "dispatch-by-claude-app": (_note_route(actor="claude[bot]", triggering="claude[bot]"), False),
+    "gn0sh-rerun-of-another-dispatch": (_note_route(actor="mallory"), False),
+    "another-rerun-of-gn0sh-dispatch": (_note_route(triggering="mallory"), False),
+    "dispatch-on-a-branch": (_note_route(ref="refs/heads/x"), False),
+    "dispatch-on-a-tag-named-main": (_note_route(ref="refs/tags/main"), False),
+    "gate-not-verified": (_note_route(verified="false"), False),
+    "gate-no-output": (_note_route(verified=None), False),
+    "variable-unset": (_note_route(var=None), False),
+    "variable-false": (_note_route(var="false"), False),
+    "variable-empty": (_note_route(var=""), False),
+    # an expression's == ignores case, so these two pass the `if:`; the Deliver step's exact bash checks stop them
+    # (test_the_deliver_step_rechecks_the_route_before_live)
+    "variable-TRUE-if-only": (_note_route(var="TRUE"), True),
+    "actor-case-if-only": (_note_route(actor="Gn0sh", triggering="GN0SH"), True),
+}
+
+
+@pytest.mark.parametrize("route", sorted(NOTE_ROUTES))
+def test_note_runs_only_on_the_one_send_route(route):
+    """ADR 0014 decision 3: the schedule never sends; a dispatch sends only with send_note and collect true, gn0sh
+    as both actors (a gn0sh re-run of someone else's dispatch keeps their actor), on main, with the gate verified."""
+    ctx, runs = NOTE_ROUTES[route]
+    assert _gh(WF["jobs"]["note"]["if"], ctx) is runs
+
+
+def test_note_if_holds_in_exactly_the_one_locked_case():
+    """Every combination of the eight values, against the rule written out by hand: exactly one passes."""
+    flags, actors, vals = [True, False, None, "true"], ["gn0sh", "mallory", None], ["true", "false", "", None]
+    expr = WF["jobs"]["note"]["if"]
+    n = 0
+    for e, s, c, a, tr, v, r, ver in itertools.product(["schedule", "workflow_dispatch", "push"], flags, flags,
+                                                        actors, actors, vals, ["refs/heads/main", "refs/heads/x"],
+                                                        vals):
+        want = (e == "workflow_dispatch" and s is True and c is True and a == "gn0sh" and tr == "gn0sh"
+                and v == "true" and r == "refs/heads/main" and ver == "true")
+        assert _gh(expr, _note_route(e, s, c, a, tr, v, r, ver)) is want, (e, s, c, a, tr, v, r, ver)
+        n += want
+    assert n == 1
+
+
+@pytest.mark.parametrize("send_note,collect,name", [
+    (True, True, "Daily update (morning note)"),                       # the clock's run
+    (True, False, "Daily update"),            # clock-alarm/collect-false-counts: it can't send, so it never hides a miss
+    (True, None, "Daily update"),
+    (False, True, "Daily update"), (None, True, "Daily update"), ("true", True, "Daily update"),
+    (None, None, "Daily update"),                                       # a scheduled run
+])
+def test_the_morning_clocks_run_is_named(send_note, collect, name):
+    """ADR 0014 decision 2: run-name names the clock's run (send_note and collect both true, as the note job's `if:`
+    needs), so clock-missed and a person can find it, and no run that can't send carries the name."""
+    expr = WF["run-name"]
+    assert expr == ("${{ inputs.send_note == true && inputs.collect == true && 'Daily update (morning note)'"
+                    " || 'Daily update' }}")
+    inner = expr.removeprefix("${{").removesuffix("}}")
+    assert _gh(inner, {"inputs.send_note": send_note, "inputs.collect": collect}) == name
+    assert WF["name"] == "Daily update"
+
+
+def test_the_cron_is_the_data_backstop_off_the_clock_window():
+    """ADR 0014 decision 4, clock-alarm/early-schedule-blind: the backstop cron is 13:07 UTC (07:07 CST, 08:07 CDT), not
+    the clock's 03:07 site time: an on-time schedule never takes the one waiting slot from a queued clock run, and
+    clock-missed then always checks (after 05:00 site time, in both CST and CDT)."""
+    on = WF.get("on") or WF[True]
+    assert len(on["schedule"]) == 1
+    minute, hour, *rest = on["schedule"][0]["cron"].split()
+    assert rest == ["*", "*", "*"] and minute.isdigit() and hour.isdigit()   # one fixed time, every day
+    utc = int(hour) * 60 + int(minute)
+    for offset in (-6, -5):                                              # CST, CDT
+        local = (utc + offset * 60) % (24 * 60)
+        assert not 2 * 60 + 45 <= local <= 5 * 60, (hour, minute, offset)   # outside the clock's 02:45-05:00 window
+        assert local >= 5 * 60                       # clock-missed checks (05:00 site time on) on an on-time run
 
 
 @pytest.mark.parametrize("value", [
@@ -1135,7 +1328,8 @@ def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable():
     for var, live in (("true", True), ("", False), ("false", False), ("TRUE", False)):
         script = _ws(LAUNCH).sub("echo ARGS", _ws(VERIFY).sub("", deliver["run"]))
         assert script.count("echo ARGS") == 1 and "NOTE_LIB_SUM" not in script
-        r = subprocess.run(["bash", "-c", script], env={**os.environ, "MORNING_NOTE_SEND": var, "PLAN": "p.json"},
+        r = subprocess.run(["bash", "-c", script], env={**os.environ, **NOTE_ROUTE_ENV, "MORNING_NOTE_SEND": var,
+                                                        "PLAN": "p.json"},
                            capture_output=True, text=True, check=True)
         assert ("--live" in r.stdout) == live, var
     # the job that parses untrusted PDFs holds no secret and no write token
@@ -1256,6 +1450,196 @@ def test_note_failed_fires_on_failure_or_cancel_never_on_skip(result, fires):
     py = (expr.replace("always() && ", "").replace("needs.note.result", repr(result))
           .replace("||", "or").replace("&&", "and"))
     assert eval(py) == fires                                                     # noqa: S307  our own expression
+
+
+def _deliver_script() -> str:
+    """The Deliver step with the digest re-check left out and the launch replaced by `echo ARGS ...`."""
+    script = _ws(LAUNCH).sub("echo ARGS", _ws(VERIFY).sub("", _note_steps()["Deliver the morning note"]["run"]))
+    assert script.count("echo ARGS") == 1 and "NOTE_LIB_SUM" not in script
+    return script
+
+
+@pytest.mark.parametrize("change,ok", [
+    ({}, True),
+    ({"GITHUB_EVENT_NAME": "schedule"}, False),
+    ({"GITHUB_EVENT_NAME": ""}, False),
+    ({"SEND_NOTE": "false"}, False),
+    ({"SEND_NOTE": ""}, False),
+    ({"SEND_NOTE": "True"}, False),
+    ({"COLLECT": "false"}, False),                             # note-route/collect-not-rechecked
+    ({"COLLECT": ""}, False),
+    ({"COLLECT": None}, False),
+    ({"DISPATCH_ACTOR": "mallory"}, False),                    # a gn0sh re-run of someone else's dispatch
+    ({"TRIGGERING_ACTOR": "mallory"}, False),
+    ({"DISPATCH_ACTOR": "Gn0sh"}, False),                      # the `if:` ignores case; bash does not
+    ({"TRIGGERING_ACTOR": "GN0SH"}, False),
+    ({"DISPATCH_ACTOR": "gn0sh-bot"}, False),
+    ({"TRIGGERING_ACTOR": "github-actions[bot]"}, False),
+    ({"GITHUB_EVENT_NAME": None}, False),                      # unset: refused, never an unbound-variable crash
+    ({"SEND_NOTE": None}, False),
+    ({"DISPATCH_ACTOR": None}, False),
+    ({"TRIGGERING_ACTOR": None}, False),
+])
+def test_the_deliver_step_rechecks_the_route_before_live(change, ok):
+    """ADR 0014 decision 3, the second lock (as allow_shrink's): with MORNING_NOTE_SEND on, --live is passed only
+    when bash sees exactly a workflow_dispatch, send_note true and gn0sh as both actors; anything else stops the
+    step before the sender runs (exit 2, nothing sent, note-failed opens its issue)."""
+    deliver = _note_steps()["Deliver the morning note"]
+    assert deliver["env"]["SEND_NOTE"] == "${{ inputs.send_note }}"
+    assert deliver["env"]["COLLECT"] == "${{ inputs.collect }}"
+    assert deliver["env"]["TRIGGERING_ACTOR"] == "${{ github.triggering_actor }}"
+    assert deliver["env"]["DISPATCH_ACTOR"] == "${{ github.actor }}"
+    env = {k: v for k, v in {**os.environ, **NOTE_ROUTE_ENV, **change, "MORNING_NOTE_SEND": "true",
+                             "PLAN": "p.json"}.items() if v is not None}
+    r = subprocess.run(["bash", "-c", _deliver_script()], env=env, capture_output=True, text=True)
+    if ok:
+        assert r.returncode == 0 and "ARGS" in r.stdout and "--live" in r.stdout, r.stdout + r.stderr
+    else:
+        assert r.returncode == 2 and "ARGS" not in r.stdout, (change, r.stdout, r.stderr)
+        assert ("::error::only a run gn0sh dispatched and triggered with send_note and collect true may send"
+                in r.stdout)
+        assert "Nothing sent." in r.stdout and "unbound" not in r.stderr
+
+
+@pytest.mark.parametrize("change", [{}, {"GITHUB_EVENT_NAME": "schedule"}, {"DISPATCH_ACTOR": "mallory"}])
+def test_with_the_variable_off_the_deliver_step_is_a_dry_run_on_any_route(change):
+    """The variable's lock comes first and is unchanged: not exactly 'true' is a dry run, never --live."""
+    for var in ("", "false", "TRUE"):
+        env = {**os.environ, **NOTE_ROUTE_ENV, **change, "MORNING_NOTE_SEND": var, "PLAN": "p.json"}
+        r = subprocess.run(["bash", "-c", _deliver_script()], env=env, capture_output=True, text=True, check=True)
+        assert "ARGS" in r.stdout and "--live" not in r.stdout, (var, change)
+
+
+# ------------------------------------------------------------------ the morning clock alarm (ADR 0014 decision 5)
+CLOCK_TITLE = "Daily update: the morning clock did not fire"
+CLOCK_RUN = "Daily update (morning note)"
+
+
+def test_clock_missed_is_least_privilege_scheduled_on_main_and_runs_no_repo_code():
+    job = WF["jobs"]["clock-missed"]
+    assert job["if"] == ("github.event_name == 'schedule' && github.ref == 'refs/heads/main'"
+                         " && vars.MORNING_NOTE_SEND == 'true'")
+    assert job["permissions"] == {"actions": "read", "issues": "write"}
+    assert "needs" not in job and "environment" not in job and isinstance(job["timeout-minutes"], int)
+    assert len(job["steps"]) == 1 and "uses" not in job["steps"][0]               # no checkout, no action
+    step = job["steps"][0]
+    assert step["env"] == {"GH_TOKEN": "${{ github.token }}", "SEND": "${{ vars.MORNING_NOTE_SEND }}",
+                           "CLOCK_TITLE": CLOCK_TITLE, "CLOCK_RUN": CLOCK_RUN, "SITE_TZ": "America/Chicago"}
+    assert "${{" not in step["run"] and "--app github-actions" in step["run"]
+    # the name it looks for is the name run-name gives the clock's run, and the zone is the site's
+    assert f"'{CLOCK_RUN}'" in WF["run-name"]
+    site = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    assert site["site_timezone"] == step["env"]["SITE_TZ"]
+    # it reads this workflow's dispatches on main only, and runs only gh, date and the shell
+    run = step["run"]
+    assert 'repos/$GITHUB_REPOSITORY/actions/workflows/daily-update.yml/runs' in run
+    assert "-f event=workflow_dispatch -f branch=main" in run
+    assert not set(_commands(run)) - _SHELL - {"gh", "date"}, set(_commands(run)) - _SHELL - {"gh", "date"}
+
+
+def _run_clock_step(tmp_path, runs, hour="12", day="2026-11-24", open_issue="", send="true", jq_fails=False):
+    """Run clock-missed's step with a stub gh (its --jq filter run through the real jq on `runs`) and a stub date
+    (only `date +%H` and `date +%F` are faked; `date -u -d ...` is the real one). Returns (exit, gh calls, bodies)."""
+    _need_jq()
+    real_date = shutil.which("date")
+    work, bindir = tmp_path / "work", tmp_path / "bin"
+    work.mkdir(parents=True, exist_ok=True)
+    bindir.mkdir(exist_ok=True)
+    calls, bodies, runs_file = tmp_path / "gh-calls", tmp_path / "bodies", tmp_path / "runs.json"
+    runs_file.write_text(json.dumps({"total_count": len(runs), "workflow_runs": runs}))
+    (bindir / "date").write_text("#!/bin/bash\n"
+                                 'if [ "$1" = +%H ]; then echo "$FAKE_HOUR"; exit 0; fi\n'
+                                 'if [ "$1" = +%F ]; then echo "$FAKE_DAY"; exit 0; fi\n'
+                                 f'exec "{real_date}" "$@"\n')
+    (bindir / "gh").write_text(
+        "#!/bin/bash\n"
+        f'printf "%s\\n" "$*" >> "{calls}"\n'
+        'args=("$@"); jqf=""\n'
+        'for ((i=0; i<${#args[@]}; i++)); do\n'
+        '  if [ "${args[$i]}" = --jq ]; then jqf="${args[$((i+1))]}"; fi\n'
+        f'  if [ "${{args[$i]}}" = --body ]; then printf "%s\\n" "${{args[$((i+1))]}}" >> "{bodies}"; fi\n'
+        'done\n'
+        + ('if [ "$1" = api ]; then echo oops; exit 0; fi\n' if jq_fails else
+           f'if [ "$1" = api ]; then jq -r "$jqf" "{runs_file}"; exit $?; fi\n') +
+        f'if [ "$2" = list ]; then echo "{open_issue}"; fi\n')
+    for f in ("date", "gh"):
+        (bindir / f).chmod(0o755)
+    step = WF["jobs"]["clock-missed"]["steps"][0]
+    env = {**os.environ, **{k: v for k, v in step["env"].items() if "${{" not in str(v)}, "SEND": send,
+           "PATH": f"{bindir}:{os.environ['PATH']}", "GITHUB_SERVER_URL": "https://x", "GITHUB_REPOSITORY": "o/r",
+           "GITHUB_RUN_ID": "1", "FAKE_HOUR": hour, "FAKE_DAY": day}
+    r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
+    return (r.returncode, calls.read_text().splitlines() if calls.exists() else [],
+            bodies.read_text() if bodies.exists() else "", r.stdout + r.stderr)
+
+
+def _clock_run(title=CLOCK_RUN, actor="gn0sh", triggering="gn0sh", conclusion=None):
+    return {"display_title": title, "actor": {"login": actor}, "triggering_actor": {"login": triggering},
+            "conclusion": conclusion, "event": "workflow_dispatch"}
+
+
+@pytest.mark.parametrize("runs", [[_clock_run()], [_clock_run(conclusion="success")],
+                                  [_clock_run(conclusion="failure")],
+                                  [_clock_run(title="Daily update"), _clock_run(conclusion="skipped")]])
+def test_clock_missed_is_quiet_when_the_clocks_run_started(tmp_path, runs):
+    code, calls, body, _ = _run_clock_step(tmp_path, runs)
+    assert code == 0 and len(calls) == 1 and calls[0].startswith("api -X GET") and body == ""
+
+
+@pytest.mark.parametrize("runs", [
+    [],
+    [_clock_run(title="Daily update")],                                            # an ordinary manual run
+    [_clock_run(actor="mallory", triggering="mallory")],                           # could not send
+    [_clock_run(actor="mallory")],                                                  # gn0sh re-run of another's
+    [_clock_run(triggering="mallory")],
+    [_clock_run(conclusion="cancelled")],                    # replaced in the concurrency group, never started
+])
+@pytest.mark.parametrize("open_issue", ["", "12"])
+def test_clock_missed_opens_or_comments_on_one_issue(tmp_path, runs, open_issue):
+    code, calls, body, _ = _run_clock_step(tmp_path, runs, open_issue=open_issue)
+    assert code == 0 and len(calls) == 3, calls
+    assert calls[1].startswith("issue list --repo o/r --state open --app github-actions")
+    assert calls[2].startswith("issue comment 12" if open_issue else f"issue create --repo o/r --title {CLOCK_TITLE}")
+    assert "2026-11-24" in body and "actions/runs/1" in body and "morning-clock.md" in body
+    assert "no morning note was sent today" in body
+
+
+@pytest.mark.parametrize("day,since", [("2026-11-24", "2026-11-24T06:00:00Z"),     # CST
+                                       ("2026-07-01", "2026-07-01T05:00:00Z")])    # CDT: the clock needs no edit
+def test_clock_missed_counts_from_midnight_site_time(tmp_path, day, since):
+    _, calls, _, _ = _run_clock_step(tmp_path, [_clock_run()], day=day)
+    assert f"-f created=>={since}" in calls[0] and "-f event=workflow_dispatch -f branch=main" in calls[0]
+
+
+@pytest.mark.parametrize("hour,send", [("00", "true"), ("04", "true"), ("12", "TRUE"), ("12", ""), ("12", "false")])
+def test_clock_missed_checks_nothing_before_five_or_with_the_variable_off(tmp_path, hour, send):
+    code, calls, _, _ = _run_clock_step(tmp_path, [], hour=hour, send=send)
+    assert code == 0 and calls == []
+
+
+@pytest.mark.parametrize("hour", ["05", "08", "09", "23"])
+def test_clock_missed_checks_from_five_on(tmp_path, hour):
+    """08 and 09 as hours: read as decimal, not octal."""
+    code, calls, _, _ = _run_clock_step(tmp_path, [], hour=hour)
+    assert code == 0 and len(calls) == 3
+
+
+def test_clock_missed_fails_loudly_when_it_cannot_count(tmp_path):
+    code, calls, _, out = _run_clock_step(tmp_path, [], jq_fails=True)
+    assert code == 1 and len(calls) == 1 and "could not count" in out
+
+
+def test_clock_missed_jq_filter_with_real_jq():
+    """The step's --jq filter (gh uses gojq), through jq: only the clock's own, not cancelled, run counts."""
+    _need_jq()
+    run = WF["jobs"]["clock-missed"]["steps"][0]["run"]
+    jq = re.search(r"--jq '(\[\.workflow_runs.*?)'\)", run).group(1)
+    for runs, want in (([], 0), ([_clock_run()], 1), ([_clock_run(), _clock_run(conclusion="success")], 2),
+                       ([_clock_run(conclusion="cancelled")], 0), ([_clock_run(title="daily update (morning note)")], 0),
+                       ([_clock_run(actor="Gn0sh")], 0)):
+        r = subprocess.run(["jq", "-r", jq], input=json.dumps({"workflow_runs": runs}), capture_output=True,
+                           text=True, check=True, env={**os.environ, "CLOCK_RUN": CLOCK_RUN})
+        assert r.stdout.strip() == str(want), runs
 
 
 def _git(cwd, *args):
@@ -2407,7 +2791,7 @@ def test_the_gate_reads_records_data_once_and_no_input_chooses_d():
     assert run.count("refs/heads/records-data") == 1 and run.count("git fetch") == 2      # D, then main's history
     assert "ls-remote" not in run and "inputs." not in TEXT.split("  gate:", 1)[1].split("\n  update:", 1)[0]
     inputs = WF[True]["workflow_dispatch"]["inputs"] if True in WF else WF["on"]["workflow_dispatch"]["inputs"]
-    assert set(inputs) == {"collect", "allow_shrink"}
+    assert set(inputs) == {"collect", "allow_shrink", "send_note"}
     assert run.count(" ".join(["gh attestation verify", '"$listing"'])) == 1
     flat = " ".join(run.replace("\\\n", " ").split())
     assert flat.count(" ".join(["gh attestation verify", '"$listing"', *VERIFY_ARGS]) + ";") == 1
@@ -2653,7 +3037,7 @@ def _planted_checkout(tmp_path):
 
 def _run_py_step(name, work, runner, lib_env, env, plan):
     return subprocess.run(["bash", "-c", _note_steps()[name]["run"]], cwd=work, capture_output=True, text=True,
-                          env={**env, **lib_env, "RUNNER_TEMP": str(runner), "PLAN": str(plan),
+                          env={**env, **lib_env, **NOTE_ROUTE_ENV, "RUNNER_TEMP": str(runner), "PLAN": str(plan),
                                "MORNING_NOTE_SEND": "true", "BUTTONDOWN_API_KEY": ""})
 
 
