@@ -13,7 +13,8 @@
   {# The moon, where it really is over the site's place right now (config sky_place; static/sky.js works out its
      height, direction, phase and tilt, and draws its lit part into this span). Decoration only, and hidden until the
      script draws it. data-weather (config sky_weather, sitegen/weather.py) is the one address the script asks for
-     that place's current weather; it draws the weather's scene in a layer of its own, behind the words. #}
+     that place's current weather; it draws the weather on the sun or the moon, whichever is up (a cloud across it,
+     rain in front of it), in a small aria-hidden drawing it adds inside that one. #}
   {% set sp = site.cfg.sky_place | default(none) %}{% if sp and not digest_header | default(false) %}<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="{{ sp.lat }}" data-lon="{{ sp.lon }}"{% if site.sky_weather | default(none) %} data-weather="{{ site.sky_weather.url }}"{% endif %} hidden></span></div>{% endif %}
   <div class="masthead">
     {# Design 2.1: without JS this is a link to the full list in the footer; static/nav.js swaps it for a button that
