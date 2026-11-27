@@ -9,6 +9,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from sitegen import morning  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "clock-report.py"
 _spec = importlib.util.spec_from_file_location("clock_report", SCRIPT)
@@ -57,8 +60,9 @@ def _jobs(fx, rid, arm=None, collect=True, note=None, deliver_at=None, note_log=
                      "run_attempt": attempt, "steps": []})
 
 
-def _sent(day, status="sent"):
-    return f"2026-12-01T12:50:00.0Z morning note {day}: {status}; emails created 3; recipients in total 9\n"
+def _sent(day, status="sent", created=3):
+    return (f"2026-12-01T12:50:00.0Z morning note {day}: {status}; emails created {created}; "
+            f"recipients in total 9\n")
 
 
 def _fixture():
@@ -81,7 +85,7 @@ def _fixture():
     # Dec 4, none: the only run came at 09:00, not armed
     fx["runs"].append(_run(5, "schedule", _line(37, 23), "2026-12-04T15:00:00Z"))
     _jobs(fx, 5, arm="false")
-    # Dec 5, two send runs: the first sends, the second ends "claimed"; plus the 20:37 line the evening before
+    # Dec 5, two send runs: the first sends, the second (same plan) says "sent; emails created 0"; plus the 20:37 line the evening before
     # (Dec 4 22:00 CST: not armed, a collect-and-deploy run on Dec 4)
     fx["runs"].append(_run(6, "schedule", _line(37, 20), "2026-12-05T04:00:00Z"))
     _jobs(fx, 6, arm="false")
@@ -90,7 +94,7 @@ def _fixture():
           note_log=_sent("2026-12-05"))
     fx["runs"].append(_run(8, "schedule", _line(37, 2), "2026-12-05T09:00:00Z"))
     _jobs(fx, 8, arm="true", note=("success", "2026-12-05T10:50:00Z"), deliver_at="2026-12-05T10:45:00Z",
-          note_log=_sent("2026-12-05", "claimed (the day belongs to an earlier, different plan)"))
+          note_log=_sent("2026-12-05", created=0))
     return fx
 
 
@@ -115,10 +119,10 @@ def test_each_kind_of_day():
     for day, (verdict, s1, s2) in want.items():
         d = days[day]
         assert (d.verdict, d.s1, d.s2, d.problems) == (verdict, s1, s2, []), day
-    # the two send runs on Dec 5: one sent, one claimed, both on the schedule route
+    # the two send runs on Dec 5: one real send, one "sent; emails created 0", both on the schedule route
     notes = [n for r in days["2026-12-05"].runs for n in r.notes]
-    assert [(n.route, n.conclusion, n.status) for n in notes] == [("schedule", "success", "sent"),
-                                                                 ("schedule", "success", "claimed")]
+    assert [(n.route, n.conclusion, n.status, n.emails, n.sent) for n in notes] == [
+        ("schedule", "success", "sent", 3, True), ("schedule", "success", "sent", 0, False)]
     # the PC's run is the dispatch route; the evening line belongs to the day it started (Dec 4)
     assert [n.route for r in days["2026-12-02"].runs for n in r.notes] == ["dispatch"]
     assert [r.id for r in days["2026-12-04"].runs] == [5, 6]
@@ -139,7 +143,7 @@ def test_the_printed_report(tmp_path, capsys):
         in lines
     assert '  run 2: workflow_dispatch "Daily update (morning note)"; created 12-02 03:07, started 12-02 03:07; ' \
            'armed yes (log)' in lines
-    assert "    note (schedule): success, completed 12-05 04:50, deliver claimed at 12-05 04:45" in lines
+    assert "    note (schedule): success, completed 12-05 04:50, deliver sent (0 emails) at 12-05 04:45" in lines
     assert "PROBLEM" not in out
 
 
@@ -149,6 +153,7 @@ def test_the_summary(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "Over 5 site days (2026-12-01 to 2026-12-05):" in out
     assert "S1 (note done by 06:55): 3 of 5 (target: at least 4)" in out
+    assert "No-send days (left out of S1): 0" in out
     assert "S2 (armed schedule run created by 05:00): 2 of 5" in out
     assert "S3 (safety problems seen): 0 day(s)" in out and "S3 by hand:" in out
 
@@ -225,7 +230,11 @@ def test_the_report_reads_the_workflows_own_run_names():
 
 def test_the_constants_match_the_workflow_and_the_config():
     env = WF["jobs"]["arm"]["steps"][0]["env"]
-    assert cr.ARM_FROM.strftime("%H:%M") == env["ARM_FROM"] and cr.ARM_UNTIL.strftime("%H:%M") == env["ARM_UNTIL"]
+    assert cr.ARM_UNTIL.strftime("%H:%M") == env["ARM_UNTIL"]
+    mn = SITE["morning_note"]
+    assert cr.CUTOFF.strftime("%H:%M") == mn["cutoff"] and cr.CUTOFF_FROM.isoformat() == str(mn["cutoff_from"])
+    assert cr.LEGACY_CUTOFF.strftime("%H:%M") == morning.LEGACY_CUTOFF
+    assert cr.CUTOFF < cr.ARM_UNTIL and cr.LEGACY_CUTOFF < cr.ARM_UNTIL
     assert cr.LATEST_SEND.strftime("%H:%M") == SITE["morning_note"]["sender"]["latest_send"]
     assert cr.site_zone().key == SITE["site_timezone"]
     note = {s["name"] for s in WF["jobs"]["note"]["steps"]}
@@ -233,7 +242,7 @@ def test_the_constants_match_the_workflow_and_the_config():
     assert cr.DELIVER_STEP in note and cr.COLLECT_STEP in update
     assert cr.ROUTE_REFUSAL in next(s["run"] for s in WF["jobs"]["note"]["steps"] if s["name"] == cr.DELIVER_STEP)
     assert cr.ARM_LOG.search("Site time ...; arm window [00:00, 08:00): send=true")
-    assert "arm window [$ARM_FROM, $ARM_UNTIL): send=$send" in WF["jobs"]["arm"]["steps"][0]["run"]
+    assert "arm window [" in WF["jobs"]["arm"]["steps"][0]["run"] and "): send=$send" in WF["jobs"]["arm"]["steps"][0]["run"]
 
 
 def test_it_reads_github_only_through_gh_api_get(monkeypatch, capsys):
@@ -275,3 +284,90 @@ def test_a_failed_run_list_read_fails_loudly(monkeypatch, capsys):
 def test_parse_time_is_utc():
     assert cr.parse_time("2026-12-05T08:40:00Z") == datetime(2026, 12, 5, 8, 40, tzinfo=timezone.utc)
     assert cr.parse_time(None) is None
+
+
+def _day(*notes_args, day="2026-12-05"):
+    """One site day from (arm, note-conclusion, deliver log text, deliver_at) runs, all schedule runs at 02:40 CST."""
+    fx = {"runs": [], "jobs": {}, "logs": {}}
+    for i, (conclusion, log, at) in enumerate(notes_args):
+        rid = 300 + i
+        fx["runs"].append(_run(rid, "schedule", _line(37, 2), f"{day}T08:4{i}:00Z"))
+        _jobs(fx, rid, arm="true", note=(conclusion, f"{day}T12:58:00Z"), deliver_at=at, note_log=log)
+    return _days(fx, 1)[day]
+
+
+def test_a_claim_by_a_different_plan_is_possible_lost_records():
+    d = _day(("success", _sent("2026-12-05", "claimed (the day belongs to an earlier, different plan)", 0),
+              "2026-12-05T12:50:00Z"))
+    assert d.problems == ["run 300: the day was claimed by a different plan: possible lost records"]
+    assert (d.verdict, d.s1) == ("none", False)          # a claim is not a send
+
+
+@pytest.mark.parametrize("status", ["disabled", "no-canary", "wrong-date"])
+def test_disabled_no_canary_and_wrong_date_never_count_as_on_time(status):
+    d = _day(("success", f"2026-12-05T12:50:00Z morning note 2026-12-05: {status}\n", "2026-12-05T12:50:00Z"))
+    assert (d.verdict, d.s1, d.no_send, d.problems) == ("none", False, False, [])
+
+
+def test_a_no_send_day_leaves_s1s_count(tmp_path, capsys):
+    fx = _fixture()
+    # Dec 4 (a "none" day) becomes a no-send day: its note says no-send
+    fx["runs"].append(_run(30, "schedule", _line(37, 2), "2026-12-04T08:40:00Z"))
+    _jobs(fx, 30, arm="true", note=("success", "2026-12-04T12:00:00Z"), deliver_at="2026-12-04T11:59:00Z",
+          note_log="2026-12-04T11:59:00Z morning note 2026-12-04: no-send; nothing new\n")
+    days = _days(fx)
+    assert (days["2026-12-04"].verdict, days["2026-12-04"].no_send, days["2026-12-04"].s1) == ("no-send", True, False)
+    f = _report(tmp_path, fx)
+    assert cr.main(["--from-json", str(f), "--now", NOW, "--summary", "5"]) == 0
+    out = capsys.readouterr().out
+    assert "S1 (note done by 06:55): 3 of 4 (target: at least 3)" in out
+    assert "No-send days (left out of S1): 1 (2026-12-04)" in out
+
+
+def test_a_sent_line_without_a_count_is_not_a_send():
+    d = _day(("success", "2026-12-05T12:50:00Z morning note 2026-12-05: sent\n", "2026-12-05T12:50:00Z"))
+    assert (d.verdict, d.s1) == ("none", False)
+
+
+def test_before_the_switch_day_a_run_is_derived_armed_only_from_07_to_08():
+    """Nov 27 (before T = 2026-11-30): cut(D) is the legacy 07:00; from T on it is 00:00."""
+    assert cr.cut_for(datetime(2026, 11, 29, tzinfo=timezone.utc).date()).strftime("%H:%M") == "07:00"
+    fx = {"runs": [_run(40, "schedule", _line(37, 2), "2026-11-27T08:40:00Z"),     # 02:40 CST
+                   _run(41, "schedule", _line(37, 6), "2026-11-27T12:59:00Z"),     # 06:59
+                   _run(42, "schedule", _line(37, 6), "2026-11-27T13:00:00Z"),     # 07:00
+                   _run(43, "schedule", _line(37, 6), "2026-11-27T13:59:00Z"),     # 07:59
+                   _run(44, "schedule", _line(37, 6), "2026-11-27T14:00:00Z"),     # 08:00
+                   _run(45, "schedule", _line(37, 2), "2026-11-30T06:00:00Z")],    # T 00:00 CST
+          "jobs": {}, "logs": {}}
+    runs = {r.id: r.armed for d in _days(fx, 4, "2026-11-30 12:00").values() for r in d.runs}
+    assert runs == {40: False, 41: False, 42: True, 43: True, 44: False, 45: True}
+
+
+def test_unreadable_run_data_exits_2_with_one_line(tmp_path, capsys):
+    fx = _fixture()
+    fx["runs"][3]["created_at"] = "not-a-date"
+    f = _report(tmp_path, fx)
+    assert cr.main(["--from-json", str(f), "--now", NOW, "--days", "5"]) == 2
+    cap = capsys.readouterr()
+    assert cap.out == "" and len(cap.err.splitlines()) == 1 and "run 4" in cap.err and cap.err.startswith("clock-report:")
+
+
+@pytest.mark.parametrize("damage", [
+    lambda fx: fx["runs"][0].pop("id"),                                   # KeyError
+    lambda fx: fx["runs"][0].update(created_at=12345),                    # TypeError
+    lambda fx: fx["jobs"]["1"][-1].update(completed_at="yesterday"),      # ValueError from a job
+])
+def test_other_bad_shapes_exit_2_too(tmp_path, capsys, damage):
+    fx = _fixture()
+    damage(fx)
+    f = _report(tmp_path, fx)
+    assert cr.main(["--from-json", str(f), "--now", NOW, "--days", "5"]) == 2
+    cap = capsys.readouterr()
+    assert cap.out == "" and len(cap.err.splitlines()) == 1
+
+
+def test_a_saved_file_that_is_not_json_exits_2(tmp_path, capsys):
+    f = tmp_path / "bad.json"
+    f.write_text("{nope")
+    assert cr.main(["--from-json", str(f), "--now", NOW]) == 2
+    assert len(capsys.readouterr().err.splitlines()) == 1

@@ -12,15 +12,21 @@ For each site day (America/Chicago, config/site.yml site_timezone) and each run 
 - a scheduled run's line (from its run name, "Daily update (schedule 37 2 * * *)"), its created time and its lateness
   (created minus the line's last UTC time at or before it; GitHub creates scheduled runs late, never early);
 - armed yes or no: the arm job's "send=..." log line, or, when the log can't be read (older runs have no arm job,
-  logs expire), derived from the run's start in site time against [ARM_FROM, ARM_UNTIL);
+  logs expire), derived from the run's start in site time against [cut(D), ARM_UNTIL), where cut(D) is the cut in
+  force for the run's site day D (CUTOFF from CUTOFF_FROM on, the legacy 07:00 before it);
 - each note job that ran: its route (schedule or dispatch), conclusion, completed time and the deliver status from
   its log ("sent", "claimed", ...);
-- on time (the Deliver step done by 06:55 site time, emails at 07:00), late, or none;
+- on time (a real send whose Deliver step ended by 06:55 site time, emails at 07:00), late, none, or no-send;
 - how many runs collected (the update job's "Collect (polite fetch, parse, verify)" step ran).
 
---summary N (ADR 0015 "Success signal"): S1 days with a note job success whose Deliver step ended by 06:55; S2 days
-with an armed schedule run created by 05:00 site time; S3 days with a safety problem the report can see (two "sent"
-deliveries, a note job or Deliver step finishing after 10:00, a note failed by the route or arm check). S3's other
+A delivery is a send only when its deliver line says "sent" with "emails created N" and N > 0 ("sent; emails created
+0" on a second run of the same plan is not one).
+
+--summary N (ADR 0015 "Success signal"): S1 days with a real send whose Deliver step ended by 06:55 (days whose only
+outcome is "no-send" leave the count and are reported on their own line; disabled, no-canary and wrong-date days
+never count as on time); S2 days with an armed schedule run created by 05:00 site time; S3 days with a safety problem
+the report can see (two real sends, a delivery "claimed" by a different plan = possible lost records, a note job or
+Deliver step finishing after 10:00, a note failed by the route or arm check). S3's other
 parts (the alarm fired exactly on days with no note, no record lost or doubled at the cutoff switch) are checked by
 hand: the report says so.
 
@@ -42,16 +48,19 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parent.parent
 REPO = "gn0sh/clarksville-records"
 WORKFLOW = "daily-update.yml"
-# The arm window, the promise and the send bound. tests/test_clock_report.py keeps these equal to the arm job's env
-# (.github/workflows/daily-update.yml) and to config/site.yml morning_note.sender.latest_send.
-ARM_FROM = time(0, 0)
+# The arm window, the promise and the send bound. tests/test_clock_report.py keeps these equal to config/site.yml
+# (morning_note.cutoff, cutoff_from, sender.latest_send), sitegen.morning.LEGACY_CUTOFF and the arm job's ARM_UNTIL.
+CUTOFF = time(0, 0)
+CUTOFF_FROM = date(2026, 11, 30)    # T, the switch day
+LEGACY_CUTOFF = time(7, 0)
 ARM_UNTIL = time(8, 0)
 ON_TIME_BY = time(6, 55)        # emails are scheduled for max(send_at 07:00, now + 5 min)
 S2_CREATED_BY = time(5, 0)      # a send run that starts by 05:00 ends by about 07:00
 LATEST_SEND = time(10, 0)
 SCHEDULE_TITLE = re.compile(r"^Daily update \(schedule ([0-9]{1,2}) ([0-9]{1,2}) \* \* \*\)$")
 ARM_LOG = re.compile(r"arm window \[[0-9:]+, [0-9:]+\): send=(true|false)\b")
-DELIVER_LOG = re.compile(r"morning note ([0-9]{4}-[0-9]{2}-[0-9]{2}): ([a-z-]+)")
+DELIVER_LOG = re.compile(r"morning note ([0-9]{4}-[0-9]{2}-[0-9]{2}): ([a-z-]+)([^\n]*)")
+EMAILS_CREATED = re.compile(r"emails created ([0-9]+)")
 ROUTE_REFUSAL = "only an armed run may send"
 DELIVER_STEP = "Deliver the morning note"
 COLLECT_STEP = "Collect (polite fetch, parse, verify)"
@@ -99,6 +108,12 @@ class Note:
     deliver_done: datetime | None
     status: str | None          # the deliver line's status (sent, claimed, ...), None when the log can't be read
     refused: bool               # the Deliver step's route or arm check stopped it
+    emails: int | None = None   # "emails created N" on the deliver line, None when absent
+
+    @property
+    def sent(self) -> bool:
+        """A real send: the line says sent and N > 0 emails were created."""
+        return self.status == "sent" and bool(self.emails)
 
 
 @dataclass
@@ -113,6 +128,10 @@ class Run:
     armed_from: str             # "log" or "derived"
     collected: bool | None      # None: the jobs could not be read
     notes: list[Note] = field(default_factory=list)
+
+
+class BadData(Exception):
+    """A run or job answer that is not shaped as GitHub's API shapes it."""
 
 
 class Source:
@@ -158,8 +177,13 @@ class Source:
             return None
 
 
+def cut_for(day: date) -> time:
+    """cut(D): the cut in force for site day D (ADR 0015 invariant)."""
+    return CUTOFF if day >= CUTOFF_FROM else LEGACY_CUTOFF
+
+
 def in_arm_window(local: datetime) -> bool:
-    return ARM_FROM <= local.time().replace(second=0, microsecond=0) < ARM_UNTIL
+    return cut_for(local.date()) <= local.time().replace(second=0, microsecond=0) < ARM_UNTIL
 
 
 def read_run(raw: dict, source: Source, tz: ZoneInfo) -> Run:
@@ -184,12 +208,14 @@ def read_run(raw: dict, source: Source, tz: ZoneInfo) -> Run:
             if job.get("name") == "note" and job.get("conclusion") not in (None, "skipped"):
                 text = source.log(job["id"])
                 found = DELIVER_LOG.findall(text or "")
+                made = EMAILS_CREATED.search(found[-1][2]) if found else None
                 notes.append(Note(route="schedule" if raw.get("event") == "schedule" else "dispatch",
                                   conclusion=job.get("conclusion") or "?",
                                   completed=parse_time(job.get("completed_at")),
                                   deliver_done=parse_time(steps.get(DELIVER_STEP, {}).get("completed_at")),
                                   status=found[-1][1] if found else None,
-                                  refused=ROUTE_REFUSAL in (text or "")))
+                                  refused=ROUTE_REFUSAL in (text or ""),
+                                  emails=int(made.group(1)) if made else None))
     return Run(id=raw["id"], event=raw.get("event") or "?", title=title, created=created, started=started,
                line=schedule_line(title) if raw.get("event") == "schedule" else None, armed=armed,
                armed_from=armed_from, collected=collected, notes=notes)
@@ -199,7 +225,8 @@ def read_run(raw: dict, source: Source, tz: ZoneInfo) -> Run:
 class Day:
     day: date
     runs: list[Run]
-    verdict: str                 # on time | late | none
+    verdict: str                 # on time | late | none | no-send
+    no_send: bool                # the only outcome is "no-send": out of S1's count
     s1: bool
     s2: bool
     problems: list[str]
@@ -212,12 +239,14 @@ def judge(day: date, runs: list[Run], tz: ZoneInfo) -> Day:
     on_time_by = datetime.combine(day, ON_TIME_BY, tz)
     latest = datetime.combine(day, LATEST_SEND, tz)
     good = [n for r in runs for n in r.notes if n.conclusion == "success"]
-    s1 = any((n.deliver_done or n.completed) and local(n.deliver_done or n.completed) <= on_time_by for n in good)
-    verdict = "on time" if s1 else ("late" if good else "none")
+    sends = [n for n in good if n.sent]
+    s1 = any((n.deliver_done or n.completed) and local(n.deliver_done or n.completed) <= on_time_by for n in sends)
+    no_send = {n.status for r in runs for n in r.notes} == {"no-send"}
+    verdict = "on time" if s1 else ("late" if sends else ("no-send" if no_send else "none"))
     s2 = any(r.event == "schedule" and r.armed and local(r.created) <= datetime.combine(day, S2_CREATED_BY, tz)
              for r in runs)
     problems = []
-    sent = sum(n.status == "sent" for r in runs for n in r.notes)
+    sent = sum(n.sent for r in runs for n in r.notes)
     if sent > 1:
         problems.append(f"{sent} deliveries say sent (two plans' emails?)")
     for r in runs:
@@ -225,9 +254,11 @@ def judge(day: date, runs: list[Run], tz: ZoneInfo) -> Day:
             end = n.deliver_done or n.completed
             if n.conclusion == "success" and end and local(end) > latest + timedelta(minutes=15):
                 problems.append(f"run {r.id}: a note job succeeded after {LATEST_SEND:%H:%M}")
+            if n.status == "claimed":
+                problems.append(f"run {r.id}: the day was claimed by a different plan: possible lost records")
             if n.refused:
                 problems.append(f"run {r.id}: the note job was stopped by the route or arm check")
-    return Day(day=day, runs=runs, verdict=verdict, s1=s1, s2=s2, problems=problems)
+    return Day(day=day, runs=runs, verdict=verdict, no_send=no_send, s1=s1, s2=s2, problems=problems)
 
 
 def collect(source: Source, tz: ZoneInfo, now: datetime, days: int) -> list[Day]:
@@ -238,7 +269,10 @@ def collect(source: Source, tz: ZoneInfo, now: datetime, days: int) -> list[Day]
     for raw in source.runs(since):
         if raw.get("head_branch", "main") != "main" or not raw.get("created_at"):
             continue
-        run = read_run(raw, source, tz)
+        try:
+            run = read_run(raw, source, tz)
+        except (ValueError, KeyError, TypeError) as exc:
+            raise BadData(f"run {raw.get('id', '?')}: unreadable run or job data ({type(exc).__name__}: {exc})")
         d = run.started.astimezone(tz).date()
         if d in by_day:
             by_day[d].append(run)
@@ -270,7 +304,8 @@ def report(days: list[Day], tz: ZoneInfo) -> str:
                        f"armed {'yes' if r.armed else 'no'} ({r.armed_from})")
             for n in r.notes:
                 out.append(f"    note ({n.route}): {n.conclusion}, completed {_hm(n.completed, tz)}, deliver "
-                           f"{n.status or '?'}" + (f" at {_hm(n.deliver_done, tz)}" if n.deliver_done else ""))
+                           f"{n.status or '?'}" + (" (0 emails)" if n.emails == 0 else "")
+                           + (f" at {_hm(n.deliver_done, tz)}" if n.deliver_done else ""))
         if not d.runs:
             out.append("  no runs")
         for p in d.problems:
@@ -280,11 +315,15 @@ def report(days: list[Day], tz: ZoneInfo) -> str:
 
 def summary(days: list[Day]) -> str:
     n = len(days)
+    counted = [d for d in days if not d.no_send]
+    skipped = [d for d in days if d.no_send]
     s1 = sum(d.s1 for d in days)
     s2 = sum(d.s2 for d in days)
     s3 = [d for d in days if d.problems]
     lines = [f"Over {n} site days ({days[0].day} to {days[-1].day}):" if days else "No days.",
-             f"S1 (note done by {ON_TIME_BY:%H:%M}): {s1} of {n} (target: at least {n - 1})",
+             f"S1 (note done by {ON_TIME_BY:%H:%M}): {s1} of {len(counted)} (target: at least {len(counted) - 1})",
+             f"No-send days (left out of S1): {len(skipped)}"
+             + (f" ({', '.join(str(d.day) for d in skipped)})" if skipped else ""),
              f"S2 (armed schedule run created by {S2_CREATED_BY:%H:%M}): {s2} of {n}",
              f"S3 (safety problems seen): {len(s3)} day(s)"
              + ("".join(f"\n  {d.day}: {'; '.join(d.problems)}" for d in s3)),
@@ -304,12 +343,19 @@ def main(argv: list[str] | None = None) -> int:
     tz = site_zone()
     now = (datetime.strptime(args.now, "%Y-%m-%d %H:%M").replace(tzinfo=tz) if args.now
            else datetime.now(timezone.utc))
-    saved = json.loads(args.from_json.read_text(encoding="utf-8")) if args.from_json else None
     n = args.summary or args.days
     if n < 1:
         ap.error("the number of days must be at least 1")
     try:
+        saved = json.loads(args.from_json.read_text(encoding="utf-8")) if args.from_json else None
+    except ValueError as exc:
+        print(f"clock-report: {args.from_json} is not readable JSON ({' '.join(str(exc).split())})", file=sys.stderr)
+        return 2
+    try:
         days = collect(Source(args.repo, saved), tz, now, n)
+    except (BadData, ValueError, KeyError, TypeError) as exc:
+        print(f"clock-report: {' '.join(str(exc).split()) or type(exc).__name__}", file=sys.stderr)
+        return 2
     except RuntimeError as exc:
         print(f"clock-report: could not read the runs: {exc}", file=sys.stderr)
         return 1
