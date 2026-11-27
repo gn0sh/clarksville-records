@@ -371,3 +371,10 @@ def test_a_saved_file_that_is_not_json_exits_2(tmp_path, capsys):
     f.write_text("{nope")
     assert cr.main(["--from-json", str(f), "--now", NOW]) == 2
     assert len(capsys.readouterr().err.splitlines()) == 1
+
+
+def test_the_report_constants_equal_the_arm_job_env():
+    env = next(st for st in WF["jobs"]["arm"]["steps"] if st.get("id") == "arm")["env"]
+    assert cr.CUTOFF.strftime("%H:%M") == env["CUTOFF"]
+    assert cr.CUTOFF_FROM.isoformat() == str(env["CUTOFF_FROM"])
+    assert cr.LEGACY_CUTOFF.strftime("%H:%M") == env["LEGACY_CUTOFF"]
