@@ -23,11 +23,11 @@ off by default, so going live is a config change after the CEO picks a provider.
 | Config | `config/site.yml` `morning_note:` | Lists, window, retention, provider seam (`enabled: false`) |
 
 ## "New today": the window rule
-A digest for date D (in `site_timezone`) holds every document whose **`first_fetched_at`** falls in `[D-1 at its cut, D at its cut)` (ADR 0015 decision 5). A day's cut is `morning_note.cutoff` (`"00:00"`) from the switch day `morning_note.cutoff_from` (`2026-11-30`) on, and the legacy 07:00 before it. So days before the switch day keep `[D-1 07:00, D 07:00)`, the switch day is `[Nov 29 07:00, Nov 30 00:00)`, and every later day is `[D-1 00:00, D 00:00)`: everything first found yesterday. Each window starts where the one before ends (no gap, no overlap), and past digest pages do not change. The build refuses a bad `cutoff_from`, and any `cutoff` other than 07:00 without one (`sitegen/morning.py` `window()`, `note_day()`). `first_fetched_at` never changes on
+A digest for date D (in `site_timezone`) holds every document whose **`first_fetched_at`** falls in `[D-1 at its cut, D at its cut)` (ADR 0015 decision 5). A day's cut is `morning_note.cutoff` (`"00:00"`) from the switch day `morning_note.cutoff_from` (currently `2026-11-30`; the one place T lives) on, and the legacy 07:00 before it. So days before the switch day keep `[D-1 07:00, D 07:00)`, the switch day is `[D-1 07:00, D 00:00)`, and every later day is `[D-1 00:00, D 00:00)`: everything first found yesterday. Each window starts where the one before ends (no gap, no overlap), and past digest pages do not change. The build refuses a bad `cutoff_from`, and any `cutoff` other than 07:00 without one (`sitegen/morning.py` `window()`, `note_day()`). `first_fetched_at` never changes on
 re-fetch, so an item never alerts twice. It is read, by source URL, from each collector's own manifest:
 `data/manifest.json` (county minutes, finance), `data/county-agendas/manifest.json`,
 `data/localities/clarksville-tn/manifest.json`, `data/localities/cmc-rpc/manifest.json` (checked: every current
-source URL in facts/finance/RPC resolves to one of these). The note's run is any armed run between 00:00 and 08:00 site time (GitHub's schedule lines, or the optional PC clock at
+source URL in facts/finance/RPC resolves to one of these). The note's run is any armed run inside the arm window (the cut in force for the day to 08:00 site time) (GitHub's schedule lines, or the optional PC clock at
 03:07; ADR 0015). The cut is midnight and no armed run starts before it, so every run that may send D collects only
 into D+1's window: all send runs on D build the same plan, and the day claim makes extra runs harmless. A document maps to entries:
 - an agenda (county, county agenda-only, council, RPC): one `agenda_item` entry per item / case printed on it;
@@ -598,7 +598,7 @@ morning_note:
   `github.actor` and `github.triggering_actor` both `gn0sh` (the optional PC clock, `docs/ops/morning-clock.md`).
   The Deliver step re-checks all of it in bash before `--live`. An ordinary manual run still never sends. New job
   `note-missed` (every run on `main`; `actions: read`, `issues: write`, no checkout) opens one issue for each site
-  day with no successful note job, and when no scheduled run was created in 26 hours.
+  day with no successful note job, and when no scheduled run was created in 26 hours (this cannot see a disabled workflow; an outside watcher is the FX4 follow-up).
 
 ### Privacy (no personal data in the repo or the logs)
 - The repository is public, so its Actions logs and artifacts are public. The `note` job uploads no artifact.

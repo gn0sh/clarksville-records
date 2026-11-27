@@ -24,13 +24,14 @@ and 5).
   job, the data commit or the deploy.
 - `note` job: runs only when **all** of these hold, otherwise it is skipped:
   1. the run is on one of two send routes (ADR 0015 decision 4), and **armed**: the `arm` job (first job, no
-     checkout, `date` only) says `send=true` only when the run started between 00:00 and 08:00 site time. The
-     routes are (a) a first-attempt scheduled run (`schedule`, `run_attempt` 1; the five lines in "The clock"
+     checkout, `date` only) says `send=true` only when the run started inside the arm window: from the cut in force for the day (00:00 from the
+     switch day `morning_note.cutoff_from`, currently 2026-11-30; 07:00 before it) to 08:00 site time. The
+     routes are (a) a first-attempt scheduled run (`schedule`, `run_attempt` 1; a dispatched run must be attempt 1 too; the five lines in "The clock"
      below), or (b) the optional PC clock or a recovery by hand: a "Run workflow" (`workflow_dispatch`) with
      `send_note` and `collect` both true, dispatched **and** triggered by `gn0sh` (named **"Daily update (morning
      note)"**; a `gn0sh` re-run of someone else's dispatch keeps their actor and never sends). Any number of
-     armed runs may send on one night: the first sends, the rest end "claimed". A run that starts before 00:00 or
-     at 08:00 or later only collects and deploys. An ordinary "Run workflow" never sends (`send_note` defaults to
+     armed runs may send on one night: the first sends, and a later run on the same plan ends "sent; emails created 0".
+     A run that starts before the cut or at 08:00 or later only collects and deploys. An ordinary "Run workflow" never sends (`send_note` defaults to
      false);
   2. the run is on `main`;
   3. the repository variable `MORNING_NOTE_SEND` is exactly `true`;
@@ -57,7 +58,9 @@ and 5).
   time inside that day, up to 10:15. If none did, it opens one issue titled **"Daily update: no morning note"**, or
   comments on it if it is open. It reports each site day once, by reading the last 10 issues with that title
   opened by GitHub Actions. It also reports when no scheduled run was created in the last 26 hours (the schedule
-  went silent: dropped lines, a disabled workflow, or 60 days with no repository activity). `actions: read` and
+  went silent: dropped lines or 60 days with no repository activity). This check cannot see a disabled workflow: a
+  disabled workflow runs nothing, so no job exists to report it. An outside watcher is a follow-up (FX4: gnosh-uptime
+  alarms when the live `build-info.json` is more than 26 h old). `actions: read` and
   `issues: write` only; no checkout, no repository code. See "The clock" below.
 - Three switches must all be on before anything is sent: `morning_note.sender.enabled: true` in `config/site.yml`
   (a reviewed PR, after T4.8), the variable `MORNING_NOTE_SEND`, and the `BUTTONDOWN_API_KEY` secret. With
@@ -401,7 +404,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    that unlocks it for one run (one line in each of `scripts/v1pp-probe.ps1` and `.sh`). Wait for the team to say
    so, then:
    The unlock carries a last day (UTC); after it the script refuses, and the team makes a new unlock PR.
-   Run it well away from the daily run at 09:07 UTC (03:07 CST): in the afternoon Central time, for example.
+   Run it when no Daily update run is in progress or queued (check Actions first), in the afternoon Central time, for example.
    1. In PowerShell, in the repository folder: `git pull`.
    2. Open https://github.com/settings/installations and check the Apps answer, as for `protect-main`: `claude`
       (only the Claude App reaches this repository, with none of Administration, Variables, Secrets or Environments
@@ -588,12 +591,12 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 - **Don't merge changes to `sender/`, `config/site.yml` or `.github/workflows/daily-update.yml` while a Daily update
   run is in progress.** The note job's stale check compares exactly those with `main` and would stop, and no note
   would be sent that day. Other `.github/` files are not compared (they still need a pull request: step 2.0).
-- **Between 00:00 and 08:00 site time, start only a run with `send_note` and `collect` ticked, and never while one
+- **Inside the arm window (from the cut in force, 00:00 from the switch day, 07:00 before it, to 08:00 site time), start only a run with `send_note` and `collect` ticked, and never while one
   is queued.** Any run that starts then is armed, and all runs share one concurrency group with one pending slot.
   A plain "Run workflow" started in that window (no `send_note`) takes that slot and replaces a queued run that
   could have sent: that day may get no email (the replaced run shows as cancelled, and `note-missed` opens its
   issue the next day). Before you click, open Actions: if any Daily update run is Queued, don't start one. Outside
-  00:00 to 08:00, start runs as usual.
+  the arm window, start runs as usual.
 - **`send_note = true` by hand only to recover, and only before 08:00 site time (the arm window):** "When the note job fails" below.
   An ordinary "Run workflow" leaves `send_note` unticked and never sends.
 - **Every manual Buttondown send must be filtered to its intended tag.** An unfiltered send goes to every subscriber,
@@ -603,10 +606,15 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 The clock is GitHub's own schedule (ADR 0015), plus an optional PC clock. No account, secret or AI session is
 involved.
 - **Schedule lines** (UTC, in `.github/workflows/daily-update.yml`): `37 20`, `37 23`, `37 2`, `37 6` (send lines) and
-  `7 13` (the data backstop). Every line collects and deploys. GitHub creates scheduled runs hours late (5.3 to 12.1
+  `7 13`. Every line collects and deploys, and every line can send: the `7 13` line sends too when it starts in the
+  arm window (GitHub's lateness often puts it there). GitHub creates scheduled runs hours late (5.3 to 12.1
   h measured; `docs/platform-facts.md` "GitHub Actions scheduler") and may drop one, so four lines cover the
-  night. The site time when the run starts decides whether it sends (the `arm` job, 00:00 to 08:00), not the line.
-  The first armed run sends; later ones end "claimed".
+  night. The site time when the run starts decides whether it sends (the `arm` job, the arm window), not the line.
+  The first armed run sends; a later run on the same plan ends "sent; emails created 0". Before the switch day
+  (`morning_note.cutoff_from`), the note goes only from a run that starts 07:00 to 08:00 site time; the PC clock's
+  03:07 run skips it. Merge only before the switch day and after 10:00 site time (a schedule edit drops that day's
+  pending runs); on or after the switch day, move `cutoff_from` to the merge day + 1 in `config/site.yml` and the
+  `arm` env together first.
 - **PC clock (optional):** `scripts/register-morning-clock.ps1` still starts a "Daily update (morning note)" run at
   03:07 on Brian's PC. It is an extra, on-time path while the PC is on. It is not required
   (`docs/ops/morning-clock.md`).
