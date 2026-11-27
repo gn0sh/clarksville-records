@@ -23,32 +23,50 @@
 #              repository variable
 #              RECORDS_DEPLOY_ENABLED is exactly 'true'. Setting that variable is the CEO's go-live step (hard stop 1).
 #              See docs/ops/launch-runbook.md.
-# note job   : sends the morning note from the update job's plan. LOCKED: only on a run gn0sh dispatched and
-#              triggered with collect and send_note both true (the 03:07 clock, ADR 0014; the schedule never sends),
-#              on main, when the repository variable MORNING_NOTE_SEND is exactly 'true', after deploy succeeded, and
-#              only when the gate verified main's history (verified == 'true'). The only job with
+# arm job    : runs at the start of every run (no needs, no permissions, no checkout, `date` only) and says whether
+#              this run may send today's note: send=true and day=<site date> when the run starts at a site time in
+#              [ARM_FROM 00:00, ARM_UNTIL 08:00), else send=false (ADR 0015 decision 3).
+# note job   : sends the morning note from the update job's plan. LOCKED: only on one of two send routes (ADR 0015
+#              decision 4): a first-attempt scheduled run, or a run gn0sh dispatched and triggered with collect and
+#              send_note both true (the optional PC clock, or a recovery by hand); and only when the arm job said
+#              send=true, on main, when the repository variable MORNING_NOTE_SEND is exactly 'true', after deploy
+#              succeeded, and when the gate verified main's history (verified == 'true'). The only job with
 #              secrets (BUTTONDOWN_API_KEY, MORNING_NOTE_CANARY_IDS, in the morning-note environment), each in one
 #              step's env. See docs/ops/morning-note.md. Every other job uses GITHUB_TOKEN only.
 # note-failed: opens or comments on one "Daily update: morning note failed" issue when the note job failed.
 # gate-failed: opens or comments on one "Daily update: main history check failed" issue when the gate failed.
-# clock-missed: on the scheduled run only, opens or comments on one "Daily update: the morning clock did not fire"
-#              issue when no "Daily update (morning note)" run started that day by 05:00 site time (ADR 0014).
+# note-missed: on every run on main with MORNING_NOTE_SEND exactly 'true', opens or comments on one "Daily update: no
+#              morning note" issue, once per site day, when yesterday (or today, after latest_send) had no successful
+#              note job, or when no scheduled run was created in the last 26 h (ADR 0015 decision 6).
 # Every fixed-title issue lookup lists only issues opened by GitHub Actions (--app github-actions), so an outsider's
 # issue with the same title in this public repo is never commented on in its place (ci/issue-title-squat).
 #
 # Collection keeps the collector's own rules (collector/fetch.py): one honest User-Agent, robots.txt obeyed, at least
 # 10 s between requests per host (more where robots.txt asks). Nothing here changes them.
 name: Daily update
-# ADR 0014: the morning clock's run (send_note and collect both true, the note job's own input checks) is named so the
-# clock-missed job and a person can find it; a send_note run with collect false can't send and keeps the plain name.
-run-name: ${{ inputs.send_note == true && inputs.collect == true && 'Daily update (morning note)' || 'Daily update' }}
+# ADR 0015 decision 2: a scheduled run names its schedule line ("Daily update (schedule 37 2 * * *)"), so each line's
+# lateness can be read from the run list alone (scripts/clock-report.py). ADR 0014: a dispatched run with send_note
+# and collect both true (the note job's own input checks) is "Daily update (morning note)"; a send_note run with
+# collect false can't send and keeps the plain name.
+run-name: >-
+  ${{ github.event_name == 'schedule' && format('Daily update (schedule {0})', github.event.schedule)
+  || inputs.send_note == true && inputs.collect == true && 'Daily update (morning note)' || 'Daily update' }}
 
 on:
   schedule:
-    # Data backstop (ADR 0014): collects and deploys again when GitHub gets to it (6.6 to 12.1 h late, Nov 13-23); it
-    # never sends the note. 13:07 UTC daily (07:07 CST / 08:07 CDT): off the hour to avoid the scheduler rush, and
-    # off the clock's 03:07 run, so an on-time schedule never takes the queue's one waiting slot from a clock run
-    # still queued, and clock-missed always runs after 05:00 site time (PR #94 review, clock-alarm/early-schedule-blind).
+    # ADR 0015 decision 1: several lines, all UTC and off the hour (the scheduler rush). Every line collects and
+    # deploys; any line may send, and the site time when the run starts decides (the arm job), not the line. GitHub
+    # creates scheduled runs late (5.3 to 12.1 h measured, Nov 13-27, platform-facts) and may drop one. A send run
+    # that starts by 05:00 site time ends by about 07:00, so a line must start between 06:00 and 10:00 UTC (CST and
+    # CDT both): 20:37 covers 9.4 to 13.4 h of lateness, 23:37 covers 6.4 to 10.4 h, 02:37 covers 3.4 to 7.4 h and
+    # 06:37 covers 0 to 3.4 h; together 0 to 13.4 h. 13:07 is the data backstop. A line that starts before midnight
+    # site time, or after 08:00, is an ordinary collect-and-deploy run. The lines are tuned from the first 14 days'
+    # scripts/clock-report.py output. Edit them only after 10:00 site time with the PC clock on: a schedule edit
+    # drops that day's pending runs (Nov 26, ADR 0015 Risk).
+    - cron: "37 20 * * *"
+    - cron: "37 23 * * *"
+    - cron: "37 2 * * *"
+    - cron: "37 6 * * *"
     - cron: "7 13 * * *"
   workflow_dispatch:
     inputs:
@@ -62,14 +80,17 @@ on:
         description: "Accept a result that unverifies committed roll calls or unconfirms motions (county and RPC); manual runs only"
         type: boolean
         default: false
-      # ADR 0014: the one send route. The note job runs only on a dispatch with send_note and collect both true,
-      # dispatched and triggered by gn0sh, on main; the default keeps an ordinary "Run workflow" from ever sending.
+      # ADR 0014, ADR 0015 decision 4: the dispatch send route. The note job runs on a dispatch only with send_note
+      # and collect both true, dispatched and triggered by gn0sh, on main, and armed (started 00:00 to 08:00 site
+      # time); the default keeps an ordinary "Run workflow" from ever sending.
       send_note:
-        description: "Send today's morning note (the 03:07 clock; by hand only to recover before 08:30 site time)"
+        description: "Send today's morning note (the PC clock; by hand only to recover between 00:00 and 08:00 site time)"
         type: boolean
         default: false
 
-# One run at a time, never cancel one mid-fetch or mid-deploy.
+# One run at a time, never cancel one mid-fetch or mid-deploy. Never-twice for the morning note rests on it too: send
+# runs are serial, so each one's day claim (sender/deliver.py) sees every earlier send run's emails (ADR 0015
+# invariant I-note-day parts 2 and 3).
 concurrency:
   group: daily-update
   cancel-in-progress: false
@@ -1658,16 +1679,67 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
 
+  # The arm window (ADR 0015 decision 3, invariant I-note-day part 1). No needs, so it runs when the run starts, and a
+  # run that waited in the queue is judged by when it actually runs. send=true and day=<site date> when the site time
+  # (SITE_TZ, which a test keeps equal to config/site.yml site_timezone) is in [ARM_FROM, ARM_UNTIL), else
+  # send=false. ARM_FROM is the note's cutoff (morning_note.cutoff, a test keeps them equal): a run that may send day
+  # D collects only into D+1's window, so every send run on D builds the same plan D. ARM_UNTIL 08:00 plus the
+  # slowest run seen (118 min) is inside latest_send 10:00 (a test keeps ARM_UNTIL + 2 h <= latest_send), and deliver
+  # still refuses after latest_send on its own. One `date` read, so the day and the time can't straddle midnight.
+  # Least privilege: no token permissions, no checkout, no repository code, no action; the values come in through env.
+  arm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      send: ${{ steps.arm.outputs.send }}
+      day: ${{ steps.arm.outputs.day }}
+    steps:
+      - name: Arm the morning note by site time
+        id: arm
+        env:
+          SITE_TZ: America/Chicago
+          ARM_FROM: "00:00"
+          ARM_UNTIL: "08:00"
+          EVENT: ${{ github.event_name }}
+          LINE: ${{ github.event.schedule }}
+        run: |
+          set -euo pipefail
+          # the shell's own locale (bash applies it on assignment): [[ a < b ]] then compares bytes, not by collation
+          LC_ALL=C
+          now=$(TZ="$SITE_TZ" date '+%F %H:%M %Z')
+          read -r day hm zone <<< "$now"
+          hhmm='^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          ok=yes
+          [[ "$day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ && "$hm" =~ $hhmm ]] || ok=no
+          [[ "$ARM_FROM" =~ $hhmm && "$ARM_UNTIL" =~ $hhmm && "$ARM_FROM" < "$ARM_UNTIL" ]] || ok=no
+          if [ "$ok" != yes ]; then
+            echo "::error::could not read the site time ($now) or the arm window ($ARM_FROM to $ARM_UNTIL)."; exit 1
+          fi
+          send=false
+          if ! [[ "$hm" < "$ARM_FROM" ]] && [[ "$hm" < "$ARM_UNTIL" ]]; then send=true; fi
+          echo "Site time $day $hm $zone ($SITE_TZ); event ${EVENT:-?}, schedule line '${LINE:-none}'; arm window [$ARM_FROM, $ARM_UNTIL): send=$send"
+          echo "send=$send" >> "$GITHUB_OUTPUT"
+          echo "day=$day" >> "$GITHUB_OUTPUT"
+
   # Morning note, deliver stage (docs/architecture/morning-note.md "Workflow changes"; runbook docs/ops/morning-note.md).
-  # LOCKED: runs only on the one send route (ADR 0014): a workflow_dispatch with send_note and collect both true,
-  # dispatched (github.actor) and triggered (github.triggering_actor) by gn0sh, as the 03:07 clock does
-  # (docs/ops/morning-clock.md). The schedule never sends (it is the data backstop), an ordinary "Run workflow"
-  # never sends (send_note defaults to false), and a gn0sh re-run of someone else's dispatch keeps their actor, so it
-  # never sends either. Also: on main, when the repository variable MORNING_NOTE_SEND is exactly 'true' (Brian's
-  # go-live switch, hard stop 1), and only after update and deploy both succeeded (so it cannot run while the deploy
-  # is locked, and an email never links a page that is not live). The Deliver step checks the event, send_note and
-  # both actors again in bash before it passes --live (the second lock). gn0sh is Brian or a team session, never
-  # "Brian only" (ADR 0014 "Risk of the pick"). It
+  # LOCKED (ADR 0015 decision 4, invariant I-note-day part 1): it runs only on one of two send routes, with one set of
+  # locks after them.
+  # - The schedule route: a scheduled run's first attempt (github.run_attempt == '1'). A schedule event is created only
+  #   by GitHub's scheduler, only on the default branch, from main's latest commit, with no inputs; a re-run (attempt
+  #   2 or later, by anyone) never sends. Its github.actor is whoever last edited the cron, not an identity, so the
+  #   lock never tests it.
+  # - The dispatch route (ADR 0014): a workflow_dispatch with send_note and collect both true, dispatched
+  #   (github.actor) and triggered (github.triggering_actor) by gn0sh, as the optional PC clock does
+  #   (docs/ops/morning-clock.md). An ordinary "Run workflow" never sends (send_note defaults to false), and a gn0sh
+  #   re-run of someone else's dispatch keeps their actor, so it never sends either. gn0sh is Brian or a team
+  #   session, never "Brian only" (ADR 0014 "Risk of the pick").
+  # Then, on either route: armed (the arm job said send == 'true': the run started 00:00 to 08:00 site time), on
+  # main, when the repository variable MORNING_NOTE_SEND is exactly 'true' (Brian's go-live switch, hard stop 1), and
+  # only after update and deploy both succeeded (so it cannot run while the deploy is locked, and an email never
+  # links a page that is not live). The Deliver step checks the route, the attempt, the arm and the inputs again in
+  # bash before it passes --live (the second lock). Any number of send runs on one day is safe: they are serial, all
+  # build the same plan (the midnight cutoff), and the day claim lets only the first plan's emails be created. It
   # runs after deploy, so a note failure can never hold back the data commit or the deploy; it opens its own issue
   # (the note-failed job), never the "Daily update failed" one.
   # It runs only when the gate verified main's history (needs.gate.outputs.verified == 'true': never on a branch)
@@ -1678,10 +1750,12 @@ jobs:
   # Never twice across runs: the workflow-level `concurrency: daily-update` group (one run at a time, never
   # cancelled) holds this job too; do not give it a group of its own.
   note:
-    needs: [gate, update, deploy]
+    needs: [gate, update, deploy, arm]
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.send_note == true && inputs.collect == true
-      && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh' && vars.MORNING_NOTE_SEND == 'true'
+      ( (github.event_name == 'schedule' && github.run_attempt == '1')
+        || (github.event_name == 'workflow_dispatch' && inputs.send_note == true && inputs.collect == true
+            && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh') )
+      && needs.arm.outputs.send == 'true' && vars.MORNING_NOTE_SEND == 'true'
       && github.ref == 'refs/heads/main' && needs.gate.outputs.verified == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -1825,15 +1899,18 @@ jobs:
             "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml"
 
       # The only step with the API key. --live only when the variable is exactly 'true' (the job's own `if:` already
-      # requires it; this is the second lock). With the variable on, the send route is checked again, exactly and in
-      # bash (an expression's == ignores case): a workflow_dispatch, send_note and collect exactly true, and gn0sh as
-      # both the dispatching and the triggering actor (ADR 0014, as allow_shrink's re-check); anything else stops the step,
-      # nothing sent, and note-failed opens its issue. Values come in through env only. Totals only in the log.
+      # requires it; this is the second lock). With the variable on, the route is checked again, exactly and in bash
+      # (an expression's == ignores case; ADR 0015 decision 4): the arm job's send exactly true, and either a schedule
+      # event on its first attempt (GITHUB_RUN_ATTEMPT, set by the runner, exactly 1), or a workflow_dispatch with
+      # send_note and collect exactly true and gn0sh as both the dispatching and the triggering actor (ADR 0014, as
+      # allow_shrink's re-check); anything else stops the step, nothing sent, and note-failed opens its issue. Values
+      # come in through env only. Totals only in the log.
       - name: Deliver the morning note
         env:
           BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
           MORNING_NOTE_CANARY_IDS: ${{ secrets.MORNING_NOTE_CANARY_IDS }}
           MORNING_NOTE_SEND: ${{ vars.MORNING_NOTE_SEND }}
+          ARM: ${{ needs.arm.outputs.send }}
           SEND_NOTE: ${{ inputs.send_note }}
           COLLECT: ${{ inputs.collect }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}   # who started or re-ran this attempt
@@ -1847,11 +1924,18 @@ jobs:
           fi
           live=()
           if [ "$MORNING_NOTE_SEND" = "true" ]; then
-            if [ "${GITHUB_EVENT_NAME:-}" != workflow_dispatch ] || [ "${SEND_NOTE:-}" != true ] \
-               || [ "${COLLECT:-}" != true ] || [ "${DISPATCH_ACTOR:-}" != gn0sh ] || [ "${TRIGGERING_ACTOR:-}" != gn0sh ]; then
-              echo "::error::only a run gn0sh dispatched and triggered with send_note and collect true may send (ADR 0014). Nothing sent."
+            route=none
+            if [ "${GITHUB_EVENT_NAME:-}" = schedule ] && [ "${GITHUB_RUN_ATTEMPT:-}" = 1 ]; then
+              route=schedule
+            elif [ "${GITHUB_EVENT_NAME:-}" = workflow_dispatch ] && [ "${SEND_NOTE:-}" = true ] \
+                 && [ "${COLLECT:-}" = true ] && [ "${DISPATCH_ACTOR:-}" = gn0sh ] && [ "${TRIGGERING_ACTOR:-}" = gn0sh ]; then
+              route=dispatch
+            fi
+            if [ "$route" = none ] || [ "${ARM:-}" != true ]; then
+              echo "::error::only an armed run may send: a scheduled run's first attempt, or a run gn0sh dispatched and triggered with send_note and collect true (ADR 0015). Nothing sent."
               exit 2
             fi
+            echo "Send route: $route (armed)."
             live=(--live)
           fi
           pc=$(mktemp -d)
@@ -1909,47 +1993,140 @@ jobs:
             gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
           fi
 
-  # ADR 0014 alarm: the 03:07 clock (docs/ops/morning-clock.md) dispatches the day's morning-note run, and GitHub's
-  # late schedule runs this check. Scheduled runs on main only, with MORNING_NOTE_SEND exactly 'true' (re-checked in
-  # bash). If it is past 05:00 site time and no "Daily update (morning note)" run dispatched and triggered by gn0sh
-  # was created since 00:00 site time, it opens or comments on one fixed-title issue. A cancelled run does not count
-  # (a run waiting in the one-run-at-a-time group can be replaced by a newer one and never start, so note-failed
-  # never fires), nor does a run someone else dispatched (it could not send). Before 05:00 site time it checks
-  # nothing (that morning's clock run may still be queued); with the cron at 13:07 UTC (07:07 CST) that happens
-  # only when GitHub is about 16 to 22 h late, into the next day. Least privilege: actions: read (list this workflow's runs) and issues: write; no checkout, no
-  # repository code, no secret. SITE_TZ is config/site.yml's site_timezone (a test keeps the two equal).
-  clock-missed:
-    if: github.event_name == 'schedule' && github.ref == 'refs/heads/main' && vars.MORNING_NOTE_SEND == 'true'
+  # ADR 0015 decision 6 alarm (replaces ADR 0014's clock-missed). Every run on main with MORNING_NOTE_SEND exactly
+  # 'true' (re-checked in bash), scheduled or dispatched, checks two things and reports each at most once per site
+  # day on one fixed-title issue, "Daily update: no morning note":
+  # - each site day X in {yesterday, and today once it is past latest_send plus the note job's timeout} that has no
+  #   note job (any run on main, any attempt) ending success with completed_at between X 00:00 and X latest_send
+  #   (+ NOTE_GRACE_MIN, the note job's timeout-minutes: a deliver that started by latest_send may finish a few
+  #   minutes after it). A note job can only succeed live inside that window (deliver refuses after latest_send), so
+  #   a success anywhere in it means the day's note was handled. A run on X+1 catches a missed X, so a very late or
+  #   missing backstop line no longer blinds the alarm (clock-alarm/very-late-backstop);
+  # - "the schedule went silent": no scheduled run created in the last 26 h (dropped lines, a disabled workflow, or
+  #   GitHub's 60-day inactivity stop). A scheduled run counts itself, so only a dispatched run can report it.
+  # Once per day: a day is skipped when an issue with this title opened by GitHub Actions (open or closed, the last
+  # 10) already names it in its body or in a comment by github-actions[bot]; a person's comment never counts. It
+  # runs at the start of the run (no needs), so the run's own note is never judged (it is excluded by run id). It
+  # fails loudly (exit 1, red job) when it cannot read the time, the run list, a run's jobs or the issues. Least
+  # privilege: actions: read (this workflow's runs and their jobs) and issues: write; no checkout, no repository
+  # code, no secret. SITE_TZ is config/site.yml's site_timezone, LATEST_SEND its morning_note.sender.latest_send,
+  # NOTE_GRACE_MIN the note job's timeout-minutes (tests keep them equal).
+  note-missed:
+    if: github.ref == 'refs/heads/main' && vars.MORNING_NOTE_SEND == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       actions: read
       issues: write
     steps:
-      - name: Open or update the morning clock issue
+      - name: Open or update the no morning note issue
         env:
           GH_TOKEN: ${{ github.token }}
           SEND: ${{ vars.MORNING_NOTE_SEND }}
-          CLOCK_TITLE: "Daily update: the morning clock did not fire"
-          CLOCK_RUN: "Daily update (morning note)"
+          MISSED_TITLE: "Daily update: no morning note"
           SITE_TZ: America/Chicago
+          LATEST_SEND: "10:00"
+          NOTE_GRACE_MIN: "15"
         run: |
           set -euo pipefail
           if [ "$SEND" != true ]; then echo "MORNING_NOTE_SEND is not exactly true: nothing checked."; exit 0; fi
-          day=$(TZ="$SITE_TZ" date +%F)
-          hour=$(TZ="$SITE_TZ" date +%H)
-          if [ "$((10#$hour))" -lt 5 ]; then echo "Before 05:00 site time: nothing checked."; exit 0; fi
-          since=$(date -u -d "TZ=\"$SITE_TZ\" $day 00:00" +%Y-%m-%dT%H:%M:%SZ)
-          n=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/daily-update.yml/runs" \
-                -f event=workflow_dispatch -f branch=main -f "created=>=$since" -f per_page=100 \
-                --jq '[.workflow_runs[] | select(.display_title == $ENV.CLOCK_RUN and .actor.login == "gn0sh" and .triggering_actor.login == "gn0sh" and .conclusion != "cancelled")] | length')
-          if ! [[ "$n" =~ ^[0-9]+$ ]]; then echo "::error::could not count today's morning-note runs."; exit 1; fi
-          if [ "$n" -gt 0 ]; then echo "The morning clock fired: $n morning-note run(s) since 00:00 site time."; exit 0; fi
-          body="No \"Daily update (morning note)\" run dispatched by gn0sh was created on $day (site time, checked after 05:00), so no morning note was sent today. Found by the scheduled run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The site and data still update. Check and fix the clock: docs/ops/morning-clock.md; a note by hand only before 08:30 site time: docs/ops/morning-note.md, 'When the note job fails'."
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$CLOCK_TITLE\" in:title" \
-                   --json number,title --jq 'map(select(.title == $ENV.CLOCK_TITLE)) | .[0].number // empty')
+          # the shell's own locale (bash applies it on assignment): [[ a < b ]] then compares bytes, not by collation
+          LC_ALL=C
+          fail() { echo "::error::$1 Nothing reported; the check fails so the run shows it."; exit 1; }
+          hhmm='^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          iso='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+          now=$(TZ="$SITE_TZ" date '+%F %H:%M %s')
+          read -r today hm epoch <<< "$now"
+          [[ "$today" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ && "$hm" =~ $hhmm && "$epoch" =~ ^[0-9]+$ ]] \
+            || fail "could not read the site time ($now)."
+          [[ "$LATEST_SEND" =~ $hhmm && "$NOTE_GRACE_MIN" =~ ^[0-9]{1,3}$ ]] || fail "LATEST_SEND or NOTE_GRACE_MIN is malformed."
+          # at: a site wall-clock time as epoch seconds; utc: epoch seconds as GitHub writes a time
+          at() { date -d "TZ=\"$SITE_TZ\" $1" +%s; }
+          utc() { date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
+          grace=$((10#$NOTE_GRACE_MIN * 60))
+          yesterday=$(TZ="$SITE_TZ" date -d "$today 12:00 yesterday" +%F)
+          before=$(TZ="$SITE_TZ" date -d "$yesterday 12:00 yesterday" +%F)
+          days=("$yesterday")
+          t_end=$(at "$today $LATEST_SEND")
+          if [ "$epoch" -ge "$((t_end + grace))" ]; then days+=("$today"); fi
+          t0=$(at "$before 00:00")
+          since=$(utc "$t0")
+          cut=$(utc "$((epoch - 26 * 3600))")
+          # every run on main since the day before yesterday began (a run created then may still have sent yesterday)
+          list=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/daily-update.yml/runs" -f branch=main \
+                   -f "created=>=$since" -f per_page=100 \
+                   --jq '.total_count, (.workflow_runs[] | "\(.id) \(.event) \(.created_at)")')
+          runre='^([0-9]+) ([a-z_]+) (.+)$'
+          total=""; count=0; sched=0; ids=()
+          while IFS= read -r line; do
+            if [ -z "$total" ]; then total=$line; continue; fi
+            [[ "$line" =~ $runre ]] || fail "could not read the run list."
+            id=${BASH_REMATCH[1]}; ev=${BASH_REMATCH[2]}; created=${BASH_REMATCH[3]}
+            [[ "$created" =~ $iso ]] || fail "could not read the run list."
+            count=$((count + 1))
+            if [ "$ev" = schedule ] && ! [[ "$created" < "$cut" ]]; then sched=$((sched + 1)); fi
+            if [ "$id" != "${GITHUB_RUN_ID:-}" ]; then ids+=("$id"); fi
+          done <<< "$list"
+          if ! [[ "$total" =~ ^[0-9]+$ ]] || [ "$total" -gt 100 ] || [ "$count" -ne "$total" ]; then
+            fail "could not count this workflow's runs since $since (total '$total', read $count)."
+          fi
+          done_at=()
+          for id in "${ids[@]}"; do
+            jobs=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" -f filter=all -f per_page=100 \
+                     --jq '.total_count, (.jobs[] | select(.name == "note" and .conclusion == "success") | .completed_at)')
+            first=""
+            while IFS= read -r line; do
+              if [ -z "$first" ]; then first=$line; continue; fi
+              [[ "$line" =~ $iso ]] || fail "could not read run $id's jobs."
+              done_at+=("$line")
+            done <<< "$jobs"
+            if ! [[ "$first" =~ ^[0-9]+$ ]] || [ "$first" -gt 100 ]; then fail "could not read run $id's jobs."; fi
+          done
+          found=()
+          for x in "${days[@]}"; do
+            a=$(at "$x 00:00")
+            b=$(at "$x $LATEST_SEND")
+            from=$(utc "$a")
+            upto=$(utc "$((b + grace))")
+            ok=no
+            for t in "${done_at[@]}"; do
+              if ! [[ "$t" < "$from" ]] && ! [[ "$t" > "$upto" ]]; then ok=yes; fi
+            done
+            if [ "$ok" = yes ]; then echo "Site day $x: a note job succeeded by $LATEST_SEND."
+            else found+=("Site day $x: no morning note."); fi
+          done
+          echo "Scheduled runs created in the last 26 h: $sched."
+          if [ "$sched" -eq 0 ]; then found+=("Site day $today: no scheduled run was created in the last 26 hours."); fi
+          if [ "${#found[@]}" -eq 0 ]; then echo "Nothing to report."; exit 0; fi
+          # what earlier checks already reported: issues with this title opened by GitHub Actions, their bodies and
+          # GitHub Actions' own comments (never a person's text: an outsider's comment can't silence a day)
+          issues=$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --app github-actions --limit 10 \
+                     --search "\"$MISSED_TITLE\" in:title" --json number,title,state \
+                     --jq 'map(select(.title == $ENV.MISSED_TITLE)) | .[] | "\(.number) \(.state)"')
+          issre='^([0-9]+) (OPEN|CLOSED)$'
+          open=""; seen=""
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            [[ "$line" =~ $issre ]] || fail "could not read the issue list."
+            num=${BASH_REMATCH[1]}
+            if [ "${BASH_REMATCH[2]}" = OPEN ] && [ -z "$open" ]; then open=$num; fi
+            text=$(gh api "repos/$GITHUB_REPOSITORY/issues/$num" --jq '.body // ""')
+            seen+="$text"$'\n'
+            text=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$num/comments" \
+                     --jq '.[] | select(.user.login == "github-actions[bot]" and .user.type == "Bot") | .body')
+            seen+="$text"$'\n'
+          done <<< "$issues"
+          new=()
+          for f in "${found[@]}"; do
+            if grep -qF -- "$f" <<< "$seen"; then echo "Already reported: $f"; else new+=("$f"); fi
+          done
+          if [ "${#new[@]}" -eq 0 ]; then echo "Everything found was already reported."; exit 0; fi
+          lines=$(printf -- '- %s\n' "${new[@]}")
+          body="$lines
+
+          Found by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. A day has its note when a note job ended success between 00:00 and $LATEST_SEND site time (plus $NOTE_GRACE_MIN minutes to finish). The site and data still update; a note is never sent late or the next day. See docs/ops/morning-note.md, 'When the note job fails', and docs/ops/morning-clock.md."
           if [ -z "$open" ]; then
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$CLOCK_TITLE" --body "$body"
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$MISSED_TITLE" --body "$body"
           else
             gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
           fi
