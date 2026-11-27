@@ -4,7 +4,10 @@ Status: **proposed** (software-architect, 2026-11-27, branch `claude/permanent-c
 Supersedes ADR 0014 decisions 1 (the claude.ai cloud task), 3 (the schedule never sends), 4 (one cron) and 5 (the
 `clock-missed` alarm). Keeps ADR 0014 decision 2 (`send_note`) and decision 6, and ADR 0004's sender, day claim and
 send window. Tasks: `docs/tasks/permanent-clock.md`. Problem family: `clock/` (third hit: ADR 0014's two, and the
-Nov 27 refusal), so the invariant and every consumer are stated below before any fix.
+Nov 27 refusal; **fourth hit: the PR #98 reviews at cc59aa8**, `clock/cutoff-le-arm-from` and
+`clock/cutoff-switch-day`), so the invariant and every consumer are stated below before any fix. The fourth hit
+restated the invariant (section "Invariant I-note-day") and changed decisions 3, 4 and 6; its findings and their
+fixes are in "Review of PR #98".
 
 ## Context
 - ADR 0014's clock was a claude.ai scheduled cloud task. On **Nov 27** its AI safety check refused the dispatch
@@ -50,8 +53,14 @@ Nov 27 refusal), so the invariant and every consumer are stated below before any
    read from the run list alone. The dispatch names are unchanged.
 3. **New job `arm`** (no `needs`, so it starts when the run starts; `permissions: {}`, no checkout, no repository
    code, `date` only). It outputs `send=true` and `day=<YYYY-MM-DD>` when the site time (`TZ=America/Chicago`, a test
-   keeps it equal to `config/site.yml` `site_timezone`) is in **`[ARM_FROM 00:00, ARM_UNTIL 08:00)`**, otherwise
-   `send=false`. Its log names the site time and the line. 08:00 plus the slowest observed run (118 min) is just
+   keeps it equal to `config/site.yml` `site_timezone`) on site day D is in **`[cut(D), ARM_UNTIL 08:00)`**,
+   otherwise `send=false`. `cut(D)` is the cut in force for D (decision 5): `CUTOFF` (`"00:00"`) when
+   `D >= CUTOFF_FROM` (T), else `LEGACY_CUTOFF` (`"07:00"`). The three come in as env, and a test pins them equal to
+   `morning_note.cutoff`, `morning_note.cutoff_from` and `sitegen/morning.py` `LEGACY_CUTOFF` (fourth hit: the
+   fixed `ARM_FROM 00:00` broke the invariant on every day before T). So on days before T the window is
+   `[07:00, 08:00)` on **both routes**: the PC clock's 03:07 run skips the note, and a run (or a by-hand recovery)
+   that starts 07:00 to 08:00 sends it late. From T on it is `[00:00, 08:00)`. Its log names the site time, the
+   line and the window (`arm window [<cut>, 08:00): send=...`, the format `clock-report.py` reads). 08:00 plus the slowest observed run (118 min) is just
    inside 10:00, and `deliver` still refuses after 10:00 on its own. Because the decision is taken when the run
    starts, a run that waited in the queue is judged by when it actually runs.
 4. **The note job's `if` (two routes, one set of locks):**
@@ -62,15 +71,19 @@ Nov 27 refusal), so the invariant and every consumer are stated below before any
    && needs.arm.outputs.send == 'true' && vars.MORNING_NOTE_SEND == 'true'
    && github.ref == 'refs/heads/main' && needs.gate.outputs.verified == 'true'
    ```
-   `needs` gains `arm`. The Deliver step checks all of this again in bash before `--live` (the second lock):
-   `GITHUB_EVENT_NAME`, `GITHUB_RUN_ATTEMPT` = `1` for the schedule route, `ARM` = `true`, and the existing
-   dispatch checks. The arm window applies to the dispatch route too, so the PC clock or a by-hand recovery that
+   `needs` gains `arm`. **Both routes need `github.run_attempt == '1'`** (fourth hit: "Re-run failed jobs" reuses
+   the first attempt's `arm` output, so a re-run hours or days later would still read `send=true`). The Deliver
+   step checks all of this again in bash before `--live` (the second lock): `GITHUB_EVENT_NAME`,
+   `GITHUB_RUN_ATTEMPT` = `1` on either route, `ARM` = `true`, **`ARM_DAY` (the arm job's `day`) equal to both the
+   site date now and the plan's `date`** (read from the plan file with `jq`), and the existing dispatch checks. Any
+   mismatch exits 2, nothing sent, and `note-failed` opens its issue. With these locks, `deliver`'s own
+   "wrong-date" (exit 0) is unreachable on a live run. The arm window applies to the dispatch route too, so the PC clock or a by-hand recovery that
    fires before midnight or after 08:00 skips the note instead of failing "missed".
 5. **The cutoff moves to midnight, from a dated switch day.** `morning_note.cutoff: "00:00"` with
    `cutoff_from: <T>`. Days before T keep 07:00. T's window is `[T-1 07:00, T 00:00)`. From T+1 on it is
    `[D-1 00:00, D 00:00)`: "everything first found yesterday". Each record still has one note day (no gap, no
-   overlap), and past digest pages do not change. Because `cutoff (00:00) <= ARM_FROM (00:00)`, a run that may send
-   D collects only into D+1. So every send run on D builds the same plan D, and any number of them is safe: the
+   overlap), and past digest pages do not change. Because the arm opens at `cut(D)` (decision 3), a run that may
+   send D collects only into D+1 (invariant part 3). So every send run on D builds the same plan D, and any number of them is safe: the
    first sends, and the rest end "claimed" or finish the same plan's editions not yet created. ADR 0014's residual
    about an early dispatch claiming the day "with older data" goes away.
 6. **The alarm** (job `note-missed`, replacing `clock-missed`): it runs on every scheduled **and** dispatched run on
@@ -79,8 +92,12 @@ Nov 27 refusal), so the invariant and every consumer are stated below before any
    `latest_send` 10:00} that has no note yet. It reads the run list and its jobs, and asks whether a `note` job
    ended `success` with `completed_at` on X by 10:00. If none did, it opens or comments on **"Daily update: no
    morning note"** at most once per day X. It also opens or comments on that issue when **no scheduled run was
-   created in the last 26 h** ("the schedule went silent": dropped lines, a disabled workflow, or 60 days with no
-   activity). A run on X+1 catches a missed X, which closes `clock-alarm/very-late-backstop`.
+   created in the last 26 h** ("the schedule went silent"). **Limit (fourth hit, `clock-alarm/silent-schedule-
+   unwatched`):** a scheduled run counts itself, so only a *dispatched* run (the PC clock or a by-hand run) can
+   report a silent schedule, and a **disabled workflow runs nothing at all** (dispatch included), so nothing inside
+   this repository can see it. That needs an outside watcher: follow-up FX4 (gnosh-uptime alarms when the live
+   `build-info.json` is older than 26 h). A run on X+1 catches a missed X, which closes
+   `clock-alarm/very-late-backstop`.
 7. **The PC clock stays, as an optional extra path that is on time** (`scripts/register-morning-clock.ps1`,
    unchanged). It is not required. It stays on through the 14-day measurement. After that Brian may remove it or
    keep it. **The claude.ai cloud task is retired** (paused or deleted). ADR 0014's "Invariant: the clock" (an
@@ -90,39 +107,58 @@ Nov 27 refusal), so the invariant and every consumer are stated below before any
    conclusion and completion time, on time (done by 06:55) or late, and how many runs collected. Results go to
    `docs/platform-facts.md`.
 
-## Invariant I-note-day (stated before the fix; family `clock/`)
-For each site date D:
-1. **Who may send.** Emails for note D are created only by a `note` job whose run is on a send route (a first-attempt
-   `schedule` run on `main`, or a `gn0sh`-dispatched and -triggered run with `send_note` and `collect`). The run must
-   also be armed: its `arm` job saw site date D and a site time in `[00:00, 08:00)`. `MORNING_NOTE_SEND` must be
-   exactly `true` and the gate must have verified main. `deliver` must see site date D and `now <= latest_send`.
-2. **At most once.** At most one plan's editions for D are ever created (day claim, `sender/deliver.py` `_claim`).
-3. **Nothing lost or doubled.** Plan D is built only from records first fetched in window(D). Windows tile time
-   with no gap and no overlap. `cutoff(D) <= ARM_FROM`, so no run that can send D adds to window(D). This rests on
-   `first_fetched_at` never changing and on runs being serial (one concurrency group).
+## Invariant I-note-day (restated at the fourth hit; family `clock/`)
+Definitions, for a site date D (site time is `site_timezone`, wall clock):
+- `cut(D)` is the cut **actually in force** for D: the end of `window(D)` as `sitegen/morning.py` computes it from
+  the config of the commit that builds plan D. It is `morning_note.cutoff` for `D >= cutoff_from` (T) and the legacy
+  07:00 for `D < T`. `window(D) = [cut(D-1) on D-1, cut(D) on D)`.
+- `A(D)` is the **earliest instant at which any run that may send D can collect**: the instant the `arm` job of such
+  a run opens for D (a run collects only after its `arm` job ran, and runs are serial).
 
-Consumers (each relies on it, and the tasks change or test each):
-| Consumer | Relies on | Change |
-|---|---|---|
-| `.github/workflows/daily-update.yml` `on.schedule`, `run-name`, `arm`, `note` `if` and Deliver re-check, `note-missed`, header comments, concurrency comment | 1, 3 | change (T2) |
-| `sender/deliver.py` wrong-date, `latest_send` "missed", `_claim`, `plan_digest` | 1, 2 | none; tests run |
-| `sender/plan.py` `today()` (plan date is the site date at plan time) | 1, 3 | none |
-| `sitegen/morning.py` `window()`, `note_day()`, cutoff validation; the digest pages | 3 | change (T1) |
-| `config/site.yml` `morning_note.cutoff`, `cutoff_from`, `site_timezone`, `sender.send_at`, `sender.latest_send` | 1, 3 | cutoff (T1); tests pin `ARM_FROM == cutoff`, `SITE_TZ == site_timezone`, `ARM_UNTIL + 2 h <= latest_send` |
-| `tests/test_workflow_lock.py`, `tests/test_morning.py`, the sender tests | all | change (T1, T2) |
-| `scripts/register-morning-clock.ps1`, `docs/ops/morning-clock.md` (PC clock) | 1 | docs only (T3) |
-| `docs/ops/morning-note.md` (How it runs; Rules for manual runs; The clock; Rollback: the key-rotation window now opens at 00:00; When the note job fails) | 1, 2 | change (T3) |
-| `docs/architecture/morning-note.md` (window rule), `main-protect-invariant.md` (J4, J6, R-clock) | 1, 3 | change (T3) |
-| `scripts/protect-main.ps1`, `tests/test_protect_main.py` (`WfShape`) | workflow shape | expected none; T2 confirms |
-| Buttondown scheduled emails (now created up to 7 h before 07:00) | 2 | none |
-| ADR 0014, `docs/platform-facts.md` (scheduler) | context | status and facts (T3) |
+For each site date D:
+1. **Who may send.** Emails for note D are created only by a `note` job of a first-attempt run on a send route (a
+   `schedule` run on `main`, or a `gn0sh`-dispatched and -triggered run with `send_note` and `collect`), whose `arm`
+   job saw site date D and a site time in `[cut(D), ARM_UNTIL)`, with `MORNING_NOTE_SEND` exactly `true`, the gate's
+   verified main, and the Deliver step seeing `ARM_DAY == today == plan date` and `now <= latest_send`.
+2. **At most once.** At most one plan's editions for D are ever created (day claim, `sender/deliver.py` `_claim`).
+3. **Nothing lost or doubled. `cut(D) <= A(D)` for every route.** Then every record first fetched at or after
+   `A(D)` has a note day after D, so every plan D (all built at or after `A(D)`) holds the same records, and the
+   first one sent loses none. The `arm` job enforces it by opening at `cut(D)` (equality).
+4. **The past never moves.** A commit never changes `window(D)` for a day D whose plan may already have been built.
+   For the switch this means **T is later than the site date of the merge** (a merge on day T or later would
+   redefine `window(T)` after T's note went out under the legacy rule: records found T 00:00 to 07:00 would be in
+   both T's and T+1's notes, and T's digest page would change). With part 3's guard, a merge on any day before T is
+   safe; a merge on or after T needs T moved first.
+
+It rests on: `first_fetched_at` never changing once written; runs being serial (the workflow-level `concurrency:
+daily-update` group; only this workflow writes `records-data`); and the `arm` env and the plan's config coming from
+the same commit (both are `github.sha`: the arm job reads its run's workflow file, and the note job checks out the
+gate's commit, which equals `github.sha`).
+
+Consumers (each relies on it; the fix tasks FX1 to FX5 change or test each):
+| Consumer | Relies on | State at cc59aa8 | Fix |
+|---|---|---|---|
+| `arm` job (`daily-update.yml`): window, `day` output, env | 1, 3 | **broken**: fixed `ARM_FROM 00:00` ignores `cutoff_from`, so before T `cut(D) = 07:00 > A(D) = 00:00` | FX1: opens at `cut(D)` from pinned `CUTOFF`, `CUTOFF_FROM`, `LEGACY_CUTOFF` |
+| `note` job `if` (both routes) | 1 | dispatch route lacks `run_attempt == '1'`; a re-run reuses a stale `arm` | FX1 |
+| Deliver step bash re-check | 1, 2 | `arm.day` unused | FX1: `ARM_DAY == today == plan date`, attempt 1 on both routes |
+| `sender/deliver.py` wrong-date, `latest_send`, `_claim`, `plan_digest` | 1, 2 | holds; exit-0 outcomes (F3) are an accepted gap, see "Review of PR #98" | none |
+| `sender/plan.py` `today()`, `sender plan` (builds plan D from `window(D)` with the commit's config) | 3, 4 | holds | none; FX1's property test calls it |
+| `sitegen/morning.py` `window()`, `note_day()`, `_cut()`, `LEGACY_CUTOFF`, `problems()` | 3, 4 | holds (T1) | none; source of truth the arm env is pinned to |
+| `config/site.yml` `morning_note.cutoff`, `cutoff_from`, `site_timezone`, `sender.latest_send` | 3, 4 | `cutoff_from` 2026-11-30 | FX5: T > merge's site date, checked at merge |
+| PC clock (`scripts/register-morning-clock.ps1`, 03:07 dispatch) | 1, 3 | before T it would send at 03:07 with a 07:00 cut while the new lines collect overnight: same loss | none in the script; FX1 makes its run skip before T; FX3 docs |
+| `note-missed` job | 1 | 26 h claim overstated (decision 6) | FX3 docs; FX4 outside watcher |
+| `scripts/clock-report.py` (armed, S1, S3) | 1, 2 | counts a same-plan "sent; emails created 0" as a double; S1 counts non-sends; derives armed from a fixed 00:00; crashes on bad JSON | FX2 |
+| `tests/test_workflow_lock.py` (`test_arm_from_is_the_notes_cutoff` l.1708, arm and route tables), `tests/test_clock_report.py`, `tests/test_morning.py` | all | the pin test ignores `cutoff_from` | FX1, FX2 |
+| Docs: `docs/ops/morning-note.md`, `docs/ops/morning-clock.md`, `docs/architecture/morning-note.md`, `main-protect-invariant.md`, `docs/platform-facts.md` | all | hard-coded Nov 29/30; 09:07 UTC; 13:07 "backstop"; 26 h claim | FX3 |
+| Buttondown scheduled emails (created up to 7 h before 07:00) | 2 | holds | none |
 
 ## Questions the brief asked, answered
 - **Is a schedule run on protected `main` as trustworthy as ADR 0014's `gn0sh` dispatch lock?** Yes, and its reach is
   narrower. A `gn0sh` dispatch is any `gn0sh` credential choosing any moment. A schedule run has no principal
   choosing anything: GitHub's clock, main's latest reviewed commit (gate-verified history), and no inputs. The ways to
   influence it: merge to main (full control already), change the default branch (fails the `github.ref` check),
-  re-run (fails `run_attempt == 1`), or disable the workflow (denial only, caught by the alarm's 26 h check). The
+  re-run (fails `run_attempt == 1` on both routes, and the Deliver step's `ARM_DAY` check), or disable the workflow
+  (denial only; nothing in this repository can see it, so the outside watcher FX4 does). The
   `actor` field on a schedule run is not authentication, so the lock must never test it. Before ADR 0014 the schedule
   was the only send route (ADR 0004), and it was reviewed as such. The schedule route adds no new principal. It only
   adds *when*, inside the arm window.
@@ -158,11 +194,29 @@ Other risks:
   collection (it touches the update, push and deploy conditions, so it is out of scope here).
 - **A schedule edit drops that day's pending runs** (Nov 26, inferred). So merge the T2 PR, and any later line
   change, after 10:00 site time, with the PC clock on.
+- **The switch day and the merge day** (invariant part 4). The planned merge, Sun Nov 29 after 10:00 CT, keeps
+  T = 2026-11-30 = merge day + 1, and no day before T can send after the merge. With the arm guard (decision 3), a
+  merge on any earlier day is also safe: each day before T gets its note only from a run that starts 07:00 to
+  08:00 (the PC clock's 03:07 run skips), otherwise none and the alarm opens. A merge on or after T 00:00 needs T
+  moved to the merge day + 1 first (config and the `arm` env together; the pin test fails if only one moves).
 - **What the note covers changes.** Records first found overnight move to the next day's note, so a record posted in
   the evening and found at 00:30 waits one more day. A reader gets "everything new yesterday". The change is
   reversible in config (`cutoff`). Assumption: acceptable to Brian (FYI, not an ask).
 - **Retries are automatic but noisy.** A later line can finish a failed note. The `note-failed` issue may then be open
   for a day that did get its note; the runbook says to close it when the alarm stays quiet.
+
+## Review of PR #98 (fourth hit, 2026-11-27): findings and decisions
+| Finding (key) | Reviewer recommendation | Decision | Why | Task |
+|---|---|---|---|---|
+| CR1, SEC F1 `clock/cutoff-le-arm-from` (must-fix) | arm gets `CUTOFF_FROM`, pinned to config; `send=false` on the schedule route before T | **accept, widened**: the arm opens at `cut(D)` on **both** routes (before T `[07:00, 08:00)`), env `CUTOFF`, `CUTOFF_FROM`, `LEGACY_CUTOFF` pinned by a test; a property test checks `note_day(t) > D` at every armed instant | A schedule-only guard leaves the dispatch route (the PC at 03:07) sending with a 07:00 cut while the new lines collect overnight: the same loss. Opening at `cut(D)` is the invariant itself, keeps a 07:00 to 08:00 recovery, and makes an early merge safe | FX1 |
+| CR4, SEC F2 `clock/arm-day-unused`, `security/arm-stale-on-rerun` | `ARM_DAY` to Deliver, checked against the plan and today; dispatch route `attempt == 1` | **accept** | A re-run reuses the first attempt's `arm` outputs; both locks are cheap and in bash | FX1 |
+| CR2 `clock/report-s3-same-plan-sent` | count only `emails created N>0` as a send | **accept** | A second run on the same plan ends "sent; emails created 0" and is not a double | FX2 |
+| CR nit 7 (S1 counts disabled, no-canary, wrong-date) | limit S1 to real outcomes | **accept**: S1 counts only "sent" with N>0 by 06:55; "no-send" days leave the count (nothing to send); disabled, no-canary and wrong-date count as not on time | The success signal must measure emails, not job colours | FX2 |
+| SEC F6 `security/clock-report-robustness` | catch `ValueError`/`KeyError` in `main` | **accept** (also `TypeError`): one-line error naming the run id, exit 2 | A read-only report must fail with a message, not a trace | FX2 |
+| CR3 `clock-alarm/silent-schedule-unwatched` | correct the "26 h catches a disabled workflow" claim; outside watcher as a follow-up | **accept** | True: a disabled workflow runs nothing, and a scheduled run counts itself. Corrected in decision 6 and "Is a schedule run as trustworthy" | FX3 (docs), FX4 (watcher, follow-up, not blocking) |
+| SEC F3 `clock/alarm-green-not-sent` | decide whether deliver's exit-0 outcomes fail | **reject a code change; accepted gap**, recorded here | "wrong-date" becomes unreachable live (FX1's `ARM_DAY` lock exits 2 first). "claimed" by an earlier, different plan means a note *did* go out that day, so `note-missed` is right to count the day; after T it should never happen (benign cause: a record's text edited between runs), so `clock-report` S3 flags it as "possible lost records" (FX2). "disabled" and "no-canary" are deliberate pre-launch config states, not a clock fault, and S1 no longer counts them. Changing `sender/deliver.py` exit codes would also change `note-failed`, outside this PR | FX2 |
+| SEC F4, F5 (informational: R-clock, queue replacement) | none | accepted residuals, unchanged | | none |
+| CR nits 5, 6 (morning-note.md:404 says 09:07 UTC; 13:07 called a "backstop" though it can send) and the hard-coded Nov 29/30 | fix docs | **accept**: docs name `morning_note.cutoff_from` as the one place for T, with "currently 2026-11-30" | Dates written in prose drift when T moves | FX3 |
 
 ## Options considered (steelmanned)
 - **B. External free cron calling `workflow_dispatch`** (Cloudflare Workers Cron Triggers, free plan). The strongest
@@ -202,8 +256,10 @@ Other risks:
 
 ## Verification before the switch
 - Truth tables in tests: routes (schedule attempt 1 and 2, the dispatch cases kept from ADR 0014, branch, verified
-  false), `arm` at 23:59, 00:00, 04:59, 07:59, 08:00 and on both DST change days, and the alarm (yesterday or
-  today, once per day, a silent schedule).
+  false, dispatch attempt 2), `arm` at 23:59, 00:00, 04:59, 07:59, 08:00 and on both DST change days, and on T-1
+  at 03:07, 06:59 and 07:00 (false, false, true) and T at 00:00 (true); the invariant as a property (every instant
+  `arm` arms on day D has `note_day > D`, days T-3 to T+3); and the alarm (yesterday or today, once per day, a
+  silent schedule).
 - The cutoff transition: `sender plan --rehearse` for T-1, T and T+1 on a fixture whose records sit on each side of
   07:00 and 00:00. Every record must appear exactly once.
 - Security review of the T2 PR (send path, CI), in session. Merge after 10:00 site time with the PC clock on.

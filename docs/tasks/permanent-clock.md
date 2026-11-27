@@ -19,6 +19,7 @@ schedule edit drops that day's pending runs).
 | T6 Verification | qa-engineer | T5 pass | after T5 |
 | T7 Merge and the 14-day measurement | manager, data-analyst | T6 pass | after T6 |
 | T8 Option B (only if T7's decision says so) | devops-engineer, then Brian | T7 | conditional |
+| FX1 to FX6 Fixes from the PR #98 reviews (fourth `clock/` hit) | see "Fixes after the PR #98 reviews" | ADR 0015 as restated | FX1, FX2, FX3 in parallel |
 
 ## T0 Retire the cloud task (manager)
 Pause or delete the claude.ai scheduled task described in `docs/ops/morning-clock.md`. It is the team's own task, so
@@ -119,3 +120,91 @@ days; S2 at 8 or under means one decision card for Brian on option B.
 Only after T7 says so, and only with Brian's yes. devops-engineer writes a Cloudflare Worker (in the repository,
 with tests) that dispatches the existing `gn0sh` route at 03:07 Chicago time. Brian creates the account and the
 fine-grained token as ADR 0015 "Options considered" B lists.
+
+## Fixes after the PR #98 reviews (fourth `clock/` hit, 2026-11-27)
+ADR 0015 "Invariant I-note-day" (restated: `cut(D) <= A(D)` on every route, and T later than the merge's site date)
+and "Review of PR #98" give the decisions. All on branch `claude/permanent-clock`. A fifth hit in `clock/` goes to
+the human per the loop limit if this re-plan's fix also fails twice.
+
+| Task | Owner (model) | Files | Depends on | Parallel |
+|---|---|---|---|---|
+| FX1 Arm opens at `cut(D)`; attempt 1 and `ARM_DAY` locks | devops-engineer (opus/high: send path) | `.github/workflows/daily-update.yml` (`arm`, `note` `if`, Deliver re-check, comments), `tests/test_workflow_lock.py` | none | with FX2, FX3 |
+| FX2 clock-report counts and robustness | devops-engineer (sonnet/medium) | `scripts/clock-report.py`, `tests/test_clock_report.py` | none (reads FX1's log format, unchanged) | with FX1, FX3 |
+| FX3 Docs | technical-writer (sonnet/medium) | `docs/ops/morning-note.md` (l.59, l.404, the 13:07 wording, Nov 29/30), `docs/ops/morning-clock.md` (l.63, before-T behaviour of the PC clock), `docs/architecture/morning-note.md` (l.26), `docs/architecture/main-protect-invariant.md` (J4: attempt 1 on both routes) | ADR 0015 text | with FX1, FX2 |
+| FX4 Outside watcher (follow-up, does not block PR #98) | devops-engineer (sonnet/medium) | `gn0sh/gnosh-uptime`: a freshness check for `https://daylight.gnoshcodes.com/build-info.json` | PR #98 merged | after merge |
+| FX5 Merge-day check | manager | none (a command at merge) | FX1 to FX3 reviewed | at merge |
+| FX6 Reviews and QA | code-reviewer and security-engineer (opus/high, **fresh** reviews: the fix touches CI and the send path), then qa-engineer | the fix commit SHA | FX1 to FX3 | after them |
+
+### FX1 (devops-engineer)
+- `arm` env: `SITE_TZ`, `CUTOFF: "00:00"`, `CUTOFF_FROM: "2026-11-30"`, `LEGACY_CUTOFF: "07:00"`, `ARM_UNTIL: "08:00"`;
+  drop `ARM_FROM`. Bash: one `date` read gives `day` and `hm`; `cut = CUTOFF` if `day >= CUTOFF_FROM` (ISO dates,
+  `LC_ALL=C` compare) else `LEGACY_CUTOFF`; `send=true` iff `cut <= hm < ARM_UNTIL`. Validate `CUTOFF_FROM` as
+  `YYYY-MM-DD` and both cuts `< ARM_UNTIL`, else exit 1 as now. Keep the log format `arm window [<cut>, <until>):
+  send=<x>` (clock-report's `ARM_LOG`). Add `cut` to the log line.
+- `note` `if`: `github.run_attempt == '1'` on both routes (move it outside the route disjunction).
+- Deliver: env `ARM_DAY: ${{ needs.arm.outputs.day }}` and `SITE_TZ`; in the `MORNING_NOTE_SEND == true` branch,
+  require `GITHUB_RUN_ATTEMPT = 1` on both routes, `ARM_DAY = $(TZ="$SITE_TZ" date +%F)` and
+  `ARM_DAY = $(jq -r .date "$PLAN")`; any mismatch: `::error::`, exit 2, nothing sent.
+- Rewrite the `arm` and `note` header comments (l.1682-1688, l.1737-1742) and the file header (l.26-31) to say
+  "opens at the cut in force for the day".
+- Done when (tests in `tests/test_workflow_lock.py`):
+  - `test_arm_from_is_the_notes_cutoff` (l.1708) is replaced by a pin test: `CUTOFF == morning_note.cutoff`,
+    `CUTOFF_FROM == morning_note.cutoff_from`, `LEGACY_CUTOFF == sitegen.morning.LEGACY_CUTOFF`, both cuts
+    `< ARM_UNTIL`; no `pytest.skip`;
+  - the arm truth table through its bash with a fixed `date` adds T-1 03:07 false, T-1 06:59 false, T-1 07:00 true,
+    T-1 07:59 true, T-1 08:00 false, T 00:00 true, T+1 00:00 true;
+  - a property test: for days T-3 to T+3 and both DST change days, every minute at which the arm bash says
+    `send=true` for day D has `sitegen.morning.note_day(t, cutoff, tz, cutoff_from) > D` (the invariant, part 3);
+  - route table: dispatch attempt 2 skipped in `if` and refused in bash; `ARM_DAY` = yesterday refused; `ARM_DAY` !=
+    plan date refused; each with nothing sent;
+  - the T1 rehearsal (`sender plan --rehearse` for T-1, T, T+1) still lists each record once;
+  - `tests/test_protect_main.py` and the pwsh twin pass unchanged; the full suite passes; output in the PR.
+
+### FX2 (devops-engineer)
+- A delivery counts as a send only when its line is `sent` with `emails created N` and N > 0. S3 "two plans" counts
+  those. A deliver line "claimed (the day belongs to an earlier, different plan)" is an S3 problem "possible lost
+  records" (it should never happen from T on).
+- S1 counts a day only when a send (as above) ended by 06:55. Days whose only outcome is `no-send` leave both
+  numerator and denominator (reported on their own line). `disabled`, `no-canary` and `wrong-date` never count as on
+  time.
+- Derived "armed" (no readable log) uses `cut(D)` (constants `CUTOFF`, `CUTOFF_FROM`, `LEGACY_CUTOFF`, pinned to the
+  arm env by a test), not a fixed 00:00.
+- `main` catches `ValueError`, `KeyError` and `TypeError` from the run and job JSON: one line naming the run id,
+  exit 2.
+- Done when fixture tests cover: one run sent and a second run on the same plan "sent; emails created 0" (no S3
+  problem); "claimed" by a different plan (S3 problem); a `disabled` and a `no-canary` day (not S1); a `no-send`
+  day (out of S1's count); a day before T derived as armed only 07:00 to 08:00; a run JSON with a bad date (exit 2,
+  one line); the suite passes.
+
+### FX3 (technical-writer)
+- Correct the 26 h claim (`docs/ops/morning-note.md` l.59 and anywhere `grep -rn "26 h"` finds it): it catches a
+  silent schedule only while dispatched runs still happen; a disabled workflow needs FX4.
+- `docs/ops/morning-note.md` l.404: 09:07 UTC becomes the current lines. The 13:07 line is a send line like the
+  others (it arms when it starts before 08:00 site time), not "backstop only".
+- Write T in one place: docs say "the switch day (`morning_note.cutoff_from`, currently 2026-11-30)" instead of
+  fixed Nov 29/30 (`docs/architecture/morning-note.md` l.26, `docs/ops/morning-clock.md` l.63).
+- Runbook: before T, the note goes only from a run that starts 07:00 to 08:00 site time (the PC clock's 03:07 run
+  skips it); the merge rule from FX5.
+- Done when `grep -rn "09:07\|2026-11-29\|Nov 29\|disabled workflow" docs/` shows only history or the corrected
+  text (output in the PR).
+
+### FX4 (devops-engineer, follow-up in `gn0sh/gnosh-uptime`)
+An outside watcher for a disabled or silent workflow: gnosh-uptime alarms when the live
+`https://daylight.gnoshcodes.com/build-info.json` was built more than 26 h ago (read its build time; add a
+freshness option to `monitor.config.json` if the monitor has none). Free, read-only, no secret. Done when a test in
+gnosh-uptime shows a stale build-info opens the usual outage issue and a fresh one does not. Does not block PR #98.
+
+### FX5 (manager, at merge)
+Run `TZ=America/Chicago date '+%F %H:%M'` right before merging. Merge only when the date is before
+`morning_note.cutoff_from` and the time is after 10:00 (a schedule edit drops that day's pending runs). The plan:
+Sun 2026-11-29 after 10:00 CT, which keeps T = 2026-11-30 = merge day + 1. With FX1's guard, a merge on any earlier
+day is also safe (those days send only from a run starting 07:00 to 08:00, else the alarm). On or after T 00:00,
+move T to the merge day + 1 in `config/site.yml` and the `arm` env together (the pin test fails if only one moves),
+and re-run the suite, before merging.
+
+### FX6 (reviews and QA)
+Fresh `code-reviewer` and `security-engineer` reviews at the fix SHA (CI and send path, so not deltas), with the
+open keys `clock/cutoff-le-arm-from`, `clock/cutoff-switch-day`, `clock/arm-day-unused`,
+`security/arm-stale-on-rerun`, `clock/report-s3-same-plan-sent`, `clock-alarm/silent-schedule-unwatched`,
+`clock/alarm-green-not-sent`, `security/clock-report-robustness`. Ask both to attack the invariant as restated
+(parts 3 and 4) and the consumer table. Then T6 (QA) as written, plus the T-1 arm cases.
