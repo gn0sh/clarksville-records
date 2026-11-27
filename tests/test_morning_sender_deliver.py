@@ -1445,7 +1445,7 @@ def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # no
     first morning."""
     import shutil
 
-    from test_workflow_lock import NOTE_ROUTE_ENV, PY_ENV, _commit_all, _note_steps, _stage
+    from test_workflow_lock import NOTE_ROUTE_ENV, PY_ENV, _armed, _commit_all, _note_steps, _stage
     work = tmp_path / "work"
     (work / "sender").mkdir(parents=True)
     for f in (ROOT / "sender").glob("*.py"):
@@ -1470,9 +1470,11 @@ def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # no
     assert v.returncode == 0, v.stdout + v.stderr
     name, plan_path = github_env.read_text().strip().split("=", 1)
     assert name == "PLAN" and plan_path == str(runner / "morning-send" / D.isoformat() / "plan.json")
+    # FX1: the Deliver step's day check (the arm job's day == today's site date == the plan's date D)
+    armed = _armed(tmp_path, arm_day=D.isoformat(), at=f"{D.isoformat()} 05:30", path=PY_ENV["PATH"])
     for step, send in (("Check the plan (dry run, no secret)", ""), ("Deliver the morning note", "true")):
         r = subprocess.run(["bash", "-c", _note_steps()[step]["run"]], cwd=work, capture_output=True, text=True,
-                           env={**env, **NOTE_ROUTE_ENV, "PLAN": plan_path, "MORNING_NOTE_SEND": send},
+                           env={**env, **NOTE_ROUTE_ENV, **armed, "PLAN": plan_path, "MORNING_NOTE_SEND": send},
                            timeout=120)                    # the clock's run (ADR 0014)
         assert r.returncode == 0, (step, r.stdout, r.stderr)
         assert f"morning note {D.isoformat()}: dry run, no connection opened, nothing sent" in r.stdout, step

@@ -974,12 +974,14 @@ def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):
 
 
 # ------------------------------------------------------------------ the morning note (T4.5)
-# ADR 0015 decision 4 (replaces ADR 0014's one route): two send routes, a scheduled run's first attempt or a dispatch
-# with send_note and collect true that gn0sh both dispatched and triggered, then one set of locks: armed, the
-# variable, main and the verified gate. Every earlier check is kept.
-NOTE_IF = ("( (github.event_name == 'schedule' && github.run_attempt == '1')"
+# ADR 0015 decision 4 (replaces ADR 0014's one route): two send routes, a scheduled run or a dispatch with send_note
+# and collect true that gn0sh both dispatched and triggered, then one set of locks: the first attempt on both routes
+# (FX1, security/arm-stale-on-rerun: a re-run reuses the first attempt's arm job), armed, the variable, main and the
+# verified gate. Every earlier check is kept.
+NOTE_IF = ("( github.event_name == 'schedule'"
            " || (github.event_name == 'workflow_dispatch' && inputs.send_note == true && inputs.collect == true"
            " && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh') )"
+           " && github.run_attempt == '1'"
            " && needs.arm.outputs.send == 'true' && vars.MORNING_NOTE_SEND == 'true'"
            " && github.ref == 'refs/heads/main' && needs.gate.outputs.verified == 'true'")
 # the route env the Deliver step's bash re-check reads: the dispatch route (the PC clock's run), armed, and the
@@ -1220,7 +1222,11 @@ NOTE_ROUTES = {
     "schedule-on-a-branch": (_note_route(**_SCHED, ref="refs/heads/x"), False),
     "schedule-gate-not-verified": (_note_route(**_SCHED, verified="false"), False),
     "schedule-variable-off": (_note_route(**_SCHED, var="false"), False),
-    "dispatch-second-attempt-by-gn0sh": (_note_route(attempt="2"), True),   # ADR 0014's dispatch route, unchanged
+    # FX1 (security/arm-stale-on-rerun): a re-run reuses the first attempt's arm job and day, so no route sends on it
+    "dispatch-second-attempt-by-gn0sh": (_note_route(attempt="2"), False),
+    "dispatch-third-attempt-by-gn0sh": (_note_route(attempt="3"), False),
+    "dispatch-attempt-missing": (_note_route(attempt=None), False),
+    "dispatch-attempt-as-number": (_note_route(attempt=1), True),
     "dispatch-not-armed": (_note_route(arm="false"), False),
     "dispatch-arm-missing": (_note_route(arm=None), False),
     "dispatch-without-send-note": (_note_route(send_note=False), False),
@@ -1252,9 +1258,9 @@ NOTE_ROUTES = {
 
 @pytest.mark.parametrize("route", sorted(NOTE_ROUTES))
 def test_note_runs_only_on_the_two_send_routes(route):
-    """ADR 0015 decision 4: a scheduled run's first attempt, or a dispatch with send_note and collect true and gn0sh
-    as both actors (a gn0sh re-run of someone else's dispatch keeps their actor); then armed, on main, the variable
-    on and the gate verified."""
+    """ADR 0015 decision 4: a scheduled run, or a dispatch with send_note and collect true and gn0sh as both actors (a
+    gn0sh re-run of someone else's dispatch keeps their actor), on the first attempt either way; then armed, on main,
+    the variable on and the gate verified."""
     ctx, runs = NOTE_ROUTES[route]
     assert _gh(WF["jobs"]["note"]["if"], ctx) is runs
 
@@ -1267,13 +1273,13 @@ def test_note_if_holds_in_exactly_the_locked_cases():
     for e, s, c, a, tr, v, r, ver, att, arm in itertools.product(
             ["schedule", "workflow_dispatch", "push"], flags, flags, actors, actors, vals,
             ["refs/heads/main", "refs/heads/x"], vals, ["1", "2"], vals):
-        route = ((e == "schedule" and att == "1")
-                 or (e == "workflow_dispatch" and s is True and c is True and a == "gn0sh" and tr == "gn0sh"))
+        route = att == "1" and (e == "schedule" or (e == "workflow_dispatch" and s is True and c is True
+                                                    and a == "gn0sh" and tr == "gn0sh"))
         want = route and arm == "true" and v == "true" and r == "refs/heads/main" and ver == "true"
         assert _gh(expr, _note_route(e, s, c, a, tr, v, r, ver, att, arm)) is want, (e, s, c, a, tr, v, r, ver,
                                                                                      att, arm)
         n += want
-    assert n == 3 * 3 * 2 * 2 + 2           # the schedule's 36 (inputs and actors untested) + dispatch on 2 attempts
+    assert n == 3 * 3 * 2 * 2 + 1           # the schedule's 36 (inputs and actors untested) + dispatch, attempt 1 only
 
 
 @pytest.mark.parametrize("event,schedule,send_note,collect,name", [
@@ -1307,7 +1313,7 @@ SEND_LINES = ["37 20 * * *", "37 23 * * *", "37 2 * * *", "37 6 * * *"]
 
 def test_the_schedule_lines_cover_the_measured_lateness():
     """ADR 0015 decision 1: four send lines and the 13:07 backstop, all off the hour. A send run must start by 05:00
-    site time to end by about 07:00, and the arm window opens at 00:00: in UTC that is 06:00 to 10:00 in both CST and
+    site time to end by about 07:00, and the arm window opens at 00:00 (from the switch day on): in UTC that is 06:00 to 10:00 in both CST and
     CDT. Each lateness from 0 to 13.4 h starts some line in that band (the 26 measured, 5.3 to 12.1 h, included)."""
     on = WF.get("on") or WF[True]
     crons = [e["cron"] for e in on["schedule"]]
@@ -1380,7 +1386,7 @@ def test_note_job_least_privilege():
     assert len(_ws(LAUNCH).findall(_note_steps()["Deliver the morning note"]["run"])) == 1
 
 
-def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable():
+def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable(tmp_path):
     key_steps = [s["name"] for j in WF["jobs"].values() for s in j["steps"]
                  if "BUTTONDOWN_API_KEY" in (s.get("env") or {})]
     assert key_steps == ["Deliver the morning note"]
@@ -1389,8 +1395,8 @@ def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable():
     for var, live in (("true", True), ("", False), ("false", False), ("TRUE", False)):
         script = _ws(LAUNCH).sub("echo ARGS", _ws(VERIFY).sub("", deliver["run"]))
         assert script.count("echo ARGS") == 1 and "NOTE_LIB_SUM" not in script
-        r = subprocess.run(["bash", "-c", script], env={**os.environ, **NOTE_ROUTE_ENV, "MORNING_NOTE_SEND": var,
-                                                        "PLAN": "p.json"},
+        r = subprocess.run(["bash", "-c", script], env={**os.environ, **NOTE_ROUTE_ENV, **_armed(tmp_path),
+                                                        "MORNING_NOTE_SEND": var},
                            capture_output=True, text=True, check=True)
         assert ("--live" in r.stdout) == live, var
     # the job that parses untrusted PDFs holds no secret and no write token
@@ -1520,10 +1526,39 @@ def _deliver_script() -> str:
     return script
 
 
+# FX1 (clock/arm-day-unused): with the variable on, Deliver also needs the arm job's day to be today's site date and
+# the plan's date. ARMED_AT is the fixed site time the Deliver step's `date` reads in these tests.
+ARMED_DAY, ARMED_AT = "2026-12-01", "2026-12-01 05:30"
+DAY_REFUSAL = "::error::only an armed run may send, and only the day it armed: the arm job's day"
+
+
+def _armed(tmp_path, arm_day=ARMED_DAY, plan=None, at=ARMED_AT, path=None) -> dict:
+    """The env the Deliver step's day check reads: ARM_DAY, SITE_TZ, a plan file (by default {"date": ARMED_DAY};
+    a str is written as is) and `date` fixed at `at` site time (the real date, so TZ applies for real)."""
+    bindir = tmp_path / "armed-bin"
+    _fake_date(bindir)
+    plan_file = tmp_path / "armed-plan.json"
+    plan_file.write_text(json.dumps({"date": ARMED_DAY}) if plan is None else plan)
+    env = {"SITE_TZ": SITE_TZ, "PLAN": str(plan_file), "FAKE_EPOCH": str(_epoch(at)),
+           "PATH": f"{bindir}{os.pathsep}{path if path is not None else os.environ['PATH']}"}
+    if arm_day is not None:
+        env["ARM_DAY"] = arm_day
+    return env
+
+
+def _run_deliver(tmp_path, base: dict, change: dict, var="true", **armed) -> subprocess.CompletedProcess:
+    env = {k: v for k, v in {**os.environ, **base, **_armed(tmp_path, **armed), **change,
+                             "MORNING_NOTE_SEND": var}.items() if v is not None}
+    return subprocess.run(["bash", "-c", _deliver_script()], env=env, capture_output=True, text=True)
+
+
 _D, _S = "dispatch", "schedule"
 DELIVER_CASES = [
     (_D, {}, True),
-    (_D, {"GITHUB_RUN_ATTEMPT": "2"}, True),                   # the dispatch route is ADR 0014's, any attempt
+    (_D, {"GITHUB_RUN_ATTEMPT": "2"}, False),                  # FX1: a re-run never sends, on either route
+    (_D, {"GITHUB_RUN_ATTEMPT": "01"}, False),
+    (_D, {"GITHUB_RUN_ATTEMPT": ""}, False),
+    (_D, {"GITHUB_RUN_ATTEMPT": None}, False),
     (_D, {"GITHUB_EVENT_NAME": "push"}, False),
     (_D, {"GITHUB_EVENT_NAME": ""}, False),
     (_D, {"SEND_NOTE": "false"}, False),
@@ -1561,30 +1596,85 @@ DELIVER_CASES = [
 
 
 @pytest.mark.parametrize("route,change,ok", DELIVER_CASES)
-def test_the_deliver_step_rechecks_the_route_before_live(route, change, ok):
+def test_the_deliver_step_rechecks_the_route_before_live(tmp_path, route, change, ok):
     """ADR 0015 decision 4, the second lock (as allow_shrink's): with MORNING_NOTE_SEND on, --live is passed only
-    when bash sees exactly ARM true and either a schedule event on attempt 1, or a workflow_dispatch with send_note
-    and collect true and gn0sh as both actors; anything else stops the step before the sender runs (exit 2, nothing
-    sent, note-failed opens its issue)."""
+    when bash sees exactly ARM true, attempt 1, and either a schedule event or a workflow_dispatch with send_note
+    and collect true and gn0sh as both actors (and the arm's day checks of the next test); anything else stops the
+    step before the sender runs (exit 2, nothing sent, note-failed opens its issue)."""
     deliver = _note_steps()["Deliver the morning note"]
     assert deliver["env"]["SEND_NOTE"] == "${{ inputs.send_note }}"
     assert deliver["env"]["COLLECT"] == "${{ inputs.collect }}"
     assert deliver["env"]["TRIGGERING_ACTOR"] == "${{ github.triggering_actor }}"
     assert deliver["env"]["DISPATCH_ACTOR"] == "${{ github.actor }}"
     assert deliver["env"]["ARM"] == "${{ needs.arm.outputs.send }}"
+    assert deliver["env"]["ARM_DAY"] == "${{ needs.arm.outputs.day }}"
+    assert deliver["env"]["SITE_TZ"] == SITE_CFG["site_timezone"] == _arm_step()["env"]["SITE_TZ"]
     # the event and the attempt are the runner's own GITHUB_* variables (a workflow's env cannot set those)
     assert "GITHUB_EVENT_NAME" not in deliver["env"] and "GITHUB_RUN_ATTEMPT" not in deliver["env"]
-    base = NOTE_ROUTE_ENV if route == _D else SCHED_ROUTE_ENV
-    env = {k: v for k, v in {**os.environ, **base, **change, "MORNING_NOTE_SEND": "true",
-                             "PLAN": "p.json"}.items() if v is not None}
-    r = subprocess.run(["bash", "-c", _deliver_script()], env=env, capture_output=True, text=True)
+    r = _run_deliver(tmp_path, NOTE_ROUTE_ENV if route == _D else SCHED_ROUTE_ENV, change)
     if ok:
         assert r.returncode == 0 and "ARGS" in r.stdout and "--live" in r.stdout, r.stdout + r.stderr
         assert f"Send route: {route} (armed)." in r.stdout
+        assert f"Arm day {ARMED_DAY}: today's site date and the plan's date." in r.stdout
     else:
         assert r.returncode == 2 and "ARGS" not in r.stdout, (change, r.stdout, r.stderr)
         assert "::error::only an armed run may send: a scheduled run's first attempt, or a run gn0sh" in r.stdout
         assert "Nothing sent." in r.stdout and "unbound" not in r.stderr
+
+
+_EVIL = '{"date": "2026-12-01\\n::add-mask::x\\n::error::planted"}'
+DAY_CASES = {
+    "arm-day-yesterday": ({"arm_day": "2026-11-30"}, "(2026-11-30)", "(2026-12-01)", "(2026-12-01)"),
+    "arm-day-tomorrow": ({"arm_day": "2026-12-02"}, "(2026-12-02)", "(2026-12-01)", "(2026-12-01)"),
+    "plan-of-another-day": ({"plan": '{"date": "2026-11-30"}'}, "(2026-12-01)", "(2026-12-01)", "(2026-11-30)"),
+    "today-is-another-day": ({"at": "2026-12-02 05:30"}, "(2026-12-01)", "(2026-12-02)", "(2026-12-01)"),
+    # the site date, not UTC's: 2026-12-01 23:30 CST is 2026-12-02 05:30 UTC
+    "late-evening-is-still-the-site-day": ({"at": "2026-12-01 23:30"}, None, None, None),
+    "arm-day-missing": ({"arm_day": None}, "(not a date)", "(2026-12-01)", "(2026-12-01)"),
+    "arm-day-empty": ({"arm_day": ""}, "(not a date)", "(2026-12-01)", "(2026-12-01)"),
+    "arm-day-not-a-date": ({"arm_day": "today"}, "(not a date)", "(2026-12-01)", "(2026-12-01)"),
+    "plan-not-json": ({"plan": "not json"}, "(2026-12-01)", "(2026-12-01)", "(not a date)"),
+    "plan-without-date": ({"plan": "{}"}, "(2026-12-01)", "(2026-12-01)", "(not a date)"),
+    "plan-date-null-vs-empty-arm": ({"plan": '{"date": null}', "arm_day": ""}, "(not a date)", "(2026-12-01)",
+                                    "(not a date)"),
+    "plan-is-a-list": ({"plan": "[]"}, "(2026-12-01)", "(2026-12-01)", "(not a date)"),
+    "plan-two-documents": ({"plan": '{"date": "2026-12-01"} {"date": "2026-12-01"}'}, "(2026-12-01)", "(2026-12-01)",
+                           "(not a date)"),
+    # the plan comes from the job that parses untrusted PDFs: none of a non-date value reaches the log
+    "plan-date-with-workflow-commands": ({"plan": _EVIL}, "(2026-12-01)", "(2026-12-01)", "(not a date)"),
+}
+
+
+@pytest.mark.parametrize("route", [_D, _S])
+@pytest.mark.parametrize("case", sorted(DAY_CASES))
+def test_the_deliver_step_sends_only_the_day_it_armed(tmp_path, route, case):
+    """FX1, invariant I-note-day part 1 (clock/arm-day-unused): on both routes, --live only when the arm job's day is
+    a date equal to today's site date (SITE_TZ) and to the plan's date; any mismatch or unreadable value: exit 2,
+    nothing sent, and only dates in the log."""
+    armed, arm_day, today, plan_day = DAY_CASES[case]
+    r = _run_deliver(tmp_path, NOTE_ROUTE_ENV if route == _D else SCHED_ROUTE_ENV, {}, **armed)
+    if arm_day is None:
+        assert r.returncode == 0 and "--live" in r.stdout, r.stdout + r.stderr
+        return
+    assert r.returncode == 2 and "ARGS" not in r.stdout and "Send route" not in r.stdout, (r.stdout, r.stderr)
+    want = (f"{DAY_REFUSAL} {arm_day}, today's site date {today} and the plan's date {plan_day} must be equal "
+            "(ADR 0015). Nothing sent.")
+    assert want in r.stdout, r.stdout
+    assert r.stdout.count("::") == 2 and "planted" not in r.stdout + r.stderr and "unbound" not in r.stderr
+
+
+def test_a_rerun_or_a_stale_day_never_sends_on_either_route(tmp_path):
+    """FX1 route table: a dispatch's attempt 2 is skipped by the `if:` and refused by bash; an ARM_DAY of yesterday
+    and an ARM_DAY that is not the plan's date are refused; each with nothing sent (no ARGS: the sender never ran)."""
+    expr = WF["jobs"]["note"]["if"]
+    assert _gh(expr, _note_route(attempt="2")) is False and _gh(expr, _note_route(**_SCHED, attempt="2")) is False
+    assert _gh(expr, _note_route()) is True and _gh(expr, _note_route(**_SCHED)) is True
+    for base in (NOTE_ROUTE_ENV, SCHED_ROUTE_ENV):
+        for change, armed in (({"GITHUB_RUN_ATTEMPT": "2"}, {}), ({}, {"arm_day": "2026-11-30"}),
+                              ({}, {"plan": '{"date": "2026-11-30"}'})):
+            r = _run_deliver(tmp_path, base, change, **armed)
+            assert r.returncode == 2 and "ARGS" not in r.stdout and "Nothing sent." in r.stdout, (base, change, armed)
+        assert _run_deliver(tmp_path, base, {}).returncode == 0
 
 
 @pytest.mark.parametrize("change", [{}, {"GITHUB_EVENT_NAME": "schedule"}, {"DISPATCH_ACTOR": "mallory"},
@@ -1642,40 +1732,110 @@ def _run_arm(tmp_path, epoch, line="37 2 * * *", event="schedule", **env_over):
     return r.returncode, outputs, r.stdout + r.stderr
 
 
-ARM_CASES = [
-    ("2026-11-27 23:59", 0, False), ("2026-11-28 00:00", 0, True), ("2026-11-28 04:59", 0, True),
-    ("2026-11-28 07:59", 0, True), ("2026-11-28 08:00", 0, False), ("2026-11-28 12:00", 0, False),
-    ("2026-07-01 00:00", 0, True), ("2026-07-01 07:59", 0, True), ("2026-07-01 08:00", 0, False),    # CDT
-    # spring forward, 2026-03-08 02:00 CST -> 03:00 CDT
-    ("2026-03-07 23:59", 0, False), ("2026-03-08 00:00", 0, True), ("2026-03-08 01:59", 0, True),
-    ("2026-03-08 03:00", 0, True), ("2026-03-08 07:59", 0, True), ("2026-03-08 08:00", 0, False),
-    # fall back, 2026-11-01 02:00 CDT -> 01:00 CST: both 01:30s are armed
-    ("2026-10-31 23:59", 0, False), ("2026-11-01 00:00", 0, True), ("2026-11-01 01:30", 0, True),
-    ("2026-11-01 01:30", 1, True), ("2026-11-01 07:59", 0, True), ("2026-11-01 08:00", 0, False),
+def _switch_day():
+    from datetime import date
+    return date.fromisoformat(SITE_CFG["morning_note"]["cutoff_from"])
+
+
+def _at(offset: int, hhmm: str) -> str:
+    """'YYYY-MM-DD HH:MM' for the switch day T (morning_note.cutoff_from) plus `offset` days."""
+    from datetime import timedelta
+    return f"{(_switch_day() + timedelta(days=offset)).isoformat()} {hhmm}"
+
+
+def _cut_in_force(day: str) -> str:
+    """cut(D) as sitegen/morning.py computes it from config/site.yml (the source of truth the arm env is pinned to)."""
+    from datetime import date
+    from sitegen import morning
+    mn = SITE_CFG["morning_note"]
+    return morning._cut(date.fromisoformat(day), mn["cutoff"], mn["cutoff_from"]).strftime("%H:%M")
+
+
+# FX1 (clock/cutoff-le-arm-from, clock/cutoff-switch-day): the arm opens at the cut in force for the day, so before T
+# only 07:00 to 08:00 arms (the PC clock's 03:07 run does not), and from T on 00:00 to 08:00. Relative to T, so moving
+# T (FX5) in config/site.yml and the arm env together keeps this table true.
+ARM_CASES_T = [
+    (-3, "00:00", False), (-3, "06:59", False), (-3, "07:00", True),
+    (-1, "00:00", False), (-1, "03:07", False), (-1, "06:59", False), (-1, "07:00", True), (-1, "07:59", True),
+    (-1, "08:00", False), (-1, "12:00", False), (-1, "23:59", False),
+    (0, "00:00", True), (0, "03:07", True), (0, "06:59", True), (0, "07:59", True), (0, "08:00", False),
+    (0, "23:59", False),
+    (1, "00:00", True), (1, "03:07", True), (1, "07:59", True), (1, "08:00", False),
+    (30, "00:00", True), (30, "08:00", False),
 ]
 
 
-@pytest.mark.parametrize("wall,fold,send", ARM_CASES)
-def test_the_arm_window_by_site_time(tmp_path, wall, fold, send):
-    """ADR 0015 decision 3: send=true exactly when the run starts in [00:00, 08:00) site time, on DST days too; day is
-    the site date; the log names the site time and the schedule line."""
-    code, outputs, log = _run_arm(tmp_path, _epoch(wall, fold))
+@pytest.mark.parametrize("offset,hhmm,send", ARM_CASES_T)
+def test_the_arm_window_opens_at_the_cut_in_force(tmp_path, offset, hhmm, send):
+    """FX1, invariant I-note-day part 3: send=true exactly when the run starts in [cut(D), 08:00) site time, cut(D)
+    being 07:00 before the switch day T and 00:00 from T on; day is the site date; the log names the site time, the
+    schedule line and the day's cut, in clock-report's ARM_LOG format."""
+    wall = _at(offset, hhmm)
+    code, outputs, log = _run_arm(tmp_path, _epoch(wall))
     assert code == 0, log
     assert outputs == {"send": "true" if send else "false", "day": wall[:10]}
+    cut = "07:00" if offset < 0 else "00:00"
+    assert cut == _cut_in_force(wall[:10])
     assert f"Site time {wall} " in log and "schedule line '37 2 * * *'" in log and "event schedule" in log
+    assert f"; cut {cut} (cutoff 00:00 from {_switch_day().isoformat()}, 07:00 before); " in log
+    assert f"arm window [{cut}, 08:00): send={'true' if send else 'false'}" in log
+
+
+# the DST change days, before T (2026: the legacy 07:00 cut) and after it (2027: the 00:00 cut)
+ARM_DST_CASES = [
+    # spring forward, 2026-03-08 02:00 CST -> 03:00 CDT
+    ("2026-03-07 23:59", 0), ("2026-03-08 00:00", 0), ("2026-03-08 01:59", 0), ("2026-03-08 03:00", 0),
+    ("2026-03-08 06:59", 0), ("2026-03-08 07:00", 0), ("2026-03-08 07:59", 0), ("2026-03-08 08:00", 0),
+    # fall back, 2026-11-01 02:00 CDT -> 01:00 CST: both 01:30s
+    ("2026-10-31 23:59", 0), ("2026-11-01 00:00", 0), ("2026-11-01 01:30", 0), ("2026-11-01 01:30", 1),
+    ("2026-11-01 07:00", 0), ("2026-11-01 07:59", 0), ("2026-11-01 08:00", 0),
+    ("2027-03-13 23:59", 0), ("2027-03-14 00:00", 0), ("2027-03-14 01:59", 0), ("2027-03-14 03:00", 0),
+    ("2027-03-14 07:59", 0), ("2027-03-14 08:00", 0),
+    ("2027-11-06 23:59", 0), ("2027-11-07 00:00", 0), ("2027-11-07 01:30", 0), ("2027-11-07 01:30", 1),
+    ("2027-11-07 07:59", 0), ("2027-11-07 08:00", 0),
+    ("2026-07-01 07:00", 0), ("2027-07-01 00:00", 0), ("2027-07-01 08:00", 0),          # CDT
+]
+
+
+@pytest.mark.parametrize("wall,fold", ARM_DST_CASES)
+def test_the_arm_window_on_dst_days(tmp_path, wall, fold):
+    """ADR 0015 decision 3: by site wall-clock time on DST change days too, against cut(D) from sitegen/morning.py."""
+    code, outputs, log = _run_arm(tmp_path, _epoch(wall, fold))
+    assert code == 0, log
+    send = _cut_in_force(wall[:10]) <= wall[11:] < "08:00"
+    assert outputs == {"send": "true" if send else "false", "day": wall[:10]}, log
 
 
 def test_the_arm_log_names_a_dispatch_without_a_line(tmp_path):
-    code, outputs, log = _run_arm(tmp_path, _epoch("2026-11-28 03:07"), line="", event="workflow_dispatch")
+    code, outputs, log = _run_arm(tmp_path, _epoch(_at(1, "03:07")), line="", event="workflow_dispatch")
     assert code == 0 and outputs["send"] == "true" and "event workflow_dispatch, schedule line 'none'" in log
 
 
-@pytest.mark.parametrize("over", [{"ARM_FROM": "8:00"}, {"ARM_UNTIL": "24:00"}, {"ARM_FROM": "08:00"},
-                                  {"ARM_FROM": "09:00"}, {"ARM_UNTIL": ""}])
+@pytest.mark.parametrize("over", [{"CUTOFF": "0:00"}, {"CUTOFF": "08:00"}, {"CUTOFF": "09:00"}, {"CUTOFF": ""},
+                                  {"LEGACY_CUTOFF": "08:00"}, {"LEGACY_CUTOFF": "7:00"}, {"LEGACY_CUTOFF": ""},
+                                  {"ARM_UNTIL": "24:00"}, {"ARM_UNTIL": ""}, {"ARM_UNTIL": "00:00"},
+                                  {"CUTOFF_FROM": ""}, {"CUTOFF_FROM": "2026-11-31x"}, {"CUTOFF_FROM": "2026-13-01"},
+                                  {"CUTOFF_FROM": "2026-1-30"}, {"CUTOFF_FROM": "30/11/2026"},
+                                  {"CUTOFF_FROM": "2026-11-30 "}])
 def test_a_bad_arm_window_fails_and_outputs_nothing(tmp_path, over):
-    """A malformed or empty window fails the arm job, so the note job (which needs it) is skipped."""
-    code, outputs, log = _run_arm(tmp_path, _epoch("2026-11-28 03:00"), **over)
+    """A malformed or empty window or switch day, or a cut not before ARM_UNTIL, fails the arm job, so the note job
+    (which needs it) is skipped."""
+    code, outputs, log = _run_arm(tmp_path, _epoch(_at(0, "03:00")), **over)
     assert code == 1 and outputs == {} and "::error::could not read the site time" in log
+
+
+def test_an_unset_arm_value_fails_like_a_bad_one(tmp_path):
+    for name in ("CUTOFF", "CUTOFF_FROM", "LEGACY_CUTOFF", "ARM_UNTIL"):
+        _fake_date(tmp_path / "bin")
+        out = tmp_path / "out"
+        out.write_text("")
+        env = {**os.environ, **{k: v for k, v in _arm_step()["env"].items() if "${{" not in str(v) and k != name},
+               "GITHUB_OUTPUT": str(out), "FAKE_EPOCH": str(_epoch(_at(0, "03:00"))),
+               "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}"}
+        env.pop(name, None)
+        r = subprocess.run(["bash", "-c", _arm_step()["run"]], env=env, capture_output=True, text=True)
+        assert r.returncode == 1 and out.read_text() == "" and "::error::could not read" in r.stdout, name
+        assert "unbound" not in r.stderr, name
 
 
 def test_arm_is_least_privilege_and_runs_only_date():
@@ -1686,14 +1846,16 @@ def test_arm_is_least_privilege_and_runs_only_date():
     assert len(job["steps"]) == 1
     step = job["steps"][0]
     assert step["id"] == "arm" and "uses" not in step and "with" not in step
-    assert step["env"] == {"SITE_TZ": SITE_TZ, "ARM_FROM": "00:00", "ARM_UNTIL": "08:00",
+    assert step["env"] == {"SITE_TZ": SITE_TZ, "CUTOFF": "00:00", "CUTOFF_FROM": SITE_CFG["morning_note"]["cutoff_from"],
+                           "LEGACY_CUTOFF": "07:00", "ARM_UNTIL": "08:00",
                            "EVENT": "${{ github.event_name }}", "LINE": "${{ github.event.schedule }}"}
     assert "${{" not in step["run"]                                       # values come in through env only
     assert not set(_commands(step["run"])) - _SHELL - {"date"}, set(_commands(step["run"]))
-    # the note job reads the arm's output in its `if:` and in the Deliver step's env, nowhere else
+    # the note job reads the arm's outputs in its `if:` and in the Deliver step's env, nowhere else
     note = WF["jobs"]["note"]
-    assert "needs.arm.outputs.send == 'true'" in note["if"]
-    assert [k for s in note["steps"] for k, v in (s.get("env") or {}).items() if "needs.arm" in str(v)] == ["ARM"]
+    assert "needs.arm.outputs.send == 'true'" in note["if"] and "outputs.day" not in note["if"]
+    assert [(s["name"], k) for s in note["steps"] for k, v in (s.get("env") or {}).items() if "needs.arm" in str(v)] \
+        == [("Deliver the morning note", "ARM"), ("Deliver the morning note", "ARM_DAY")]
 
 
 def test_the_arm_window_matches_the_site_config():
@@ -1702,17 +1864,107 @@ def test_the_arm_window_matches_the_site_config():
     env = _arm_step()["env"]
     assert env["SITE_TZ"] == SITE_CFG["site_timezone"]
     assert _hm(env["ARM_UNTIL"]) + 120 <= _hm(SITE_CFG["morning_note"]["sender"]["latest_send"])
-    assert _hm(env["ARM_FROM"]) < _hm(env["ARM_UNTIL"])
 
 
-def test_arm_from_is_the_notes_cutoff():
-    """ADR 0015 decision 5, invariant part 3: cutoff <= ARM_FROM, pinned as equal, so no run that may send day D adds
-    to window(D). The midnight cutoff comes with task T1 (morning_note.cutoff_from beside cutoff "00:00")."""
+def test_the_arm_cut_is_pinned_to_the_notes_cutoff():
+    """FX1, invariant I-note-day part 3 (replaces test_arm_from_is_the_notes_cutoff, which ignored cutoff_from): the
+    arm's cut is exactly the one sitegen/morning.py ends window(D) with: CUTOFF == morning_note.cutoff, CUTOFF_FROM ==
+    morning_note.cutoff_from, LEGACY_CUTOFF == sitegen.morning.LEGACY_CUTOFF, and both cuts before ARM_UNTIL. Moving T
+    (FX5) in only one of config/site.yml and the arm env fails here."""
+    from sitegen import morning
+    env, mn = _arm_step()["env"], SITE_CFG["morning_note"]
+    assert env["CUTOFF"] == mn["cutoff"]
+    assert isinstance(mn["cutoff_from"], str) and env["CUTOFF_FROM"] == mn["cutoff_from"]
+    assert env["LEGACY_CUTOFF"] == morning.LEGACY_CUTOFF
+    assert _hm(env["CUTOFF"]) < _hm(env["ARM_UNTIL"]) and _hm(env["LEGACY_CUTOFF"]) < _hm(env["ARM_UNTIL"])
+    assert not morning.problems(SITE_CFG), morning.problems(SITE_CFG)
+
+
+def _arm_minutes(tmp_path, epochs: list, **env_over) -> dict:
+    """The arm bash's verdict for many instants, in a few bash processes: real `date` turns each epoch into site
+    time (one call, `date -f`), and the step's own script runs once per instant as a function with `date` answering
+    that text."""
+    real = shutil.which("date")
+    walls = subprocess.run([real, "-f", "-", "+%F %H:%M %Z"], input="".join(f"@{e}\n" for e in epochs),
+                           env={**os.environ, "TZ": SITE_TZ}, capture_output=True, text=True, check=True).stdout
+    rows = [f"{e} {w}\n" for e, w in zip(epochs, walls.splitlines())]
+    assert len(rows) == len(epochs)
+    driver = ("date() { printf '%s\\n' \"$WALL\"; }\n"
+              "arm() {\n" + _arm_step()["run"] + "\n}\n"
+              'while read -r epoch WALL; do GITHUB_OUTPUT=/dev/null; echo "E $epoch"; arm; done < "$FEED"\n')
+    env = {**os.environ, **{k: v for k, v in _arm_step()["env"].items() if "${{" not in str(v)}, "EVENT": "schedule",
+           "LINE": "37 2 * * *", **env_over}
+    n = max(1, min(8, os.cpu_count() or 1))
+    procs = []
+    for i in range(n):
+        feed = tmp_path / f"feed{i}"
+        feed.write_text("".join(rows[i::n]))
+        procs.append(subprocess.Popen(["bash", "-c", driver], env={**env, "FEED": str(feed)},
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True))
+    text = ""
+    for proc in procs:
+        stdout, stderr = proc.communicate()
+        assert proc.returncode == 0, stderr
+        text += stdout
+    out, epoch = {}, None
+    for line in text.splitlines():
+        if line.startswith("E "):
+            epoch = int(line[2:])
+        else:
+            m = re.search(r"^Site time (\S+) .*arm window \[[0-9:]+, [0-9:]+\): send=(true|false)$", line)
+            assert m and epoch is not None, line
+            out[epoch] = (m.group(1), m.group(2) == "true")
+            epoch = None
+    assert len(out) == len(epochs)
+    return out
+
+
+@pytest.mark.parametrize("switch", [None, "2027-03-14", "2027-11-07"])
+def test_every_armed_minute_collects_only_into_a_later_note(tmp_path, switch):
+    """FX1, invariant I-note-day part 3, as a property: for every minute of the days T-3 to T+3 and the DST change
+    days of 2026 and 2027, whenever the arm bash says send=true for day D, sitegen.morning.note_day(that minute) > D,
+    so a record a send run for D collects never belongs to D (nothing lost, nothing doubled). Also with T moved onto
+    a DST change day (the arm env and the config moved together, as FX5 says)."""
+    from datetime import date, datetime, timedelta, timezone
+    from zoneinfo import ZoneInfo
+    from sitegen import morning
     mn = SITE_CFG["morning_note"]
-    if "cutoff_from" not in mn:
-        pytest.skip("task T1 is not on this branch: config/site.yml has no morning_note.cutoff_from yet, and cutoff "
-                    f"is still the legacy {mn.get('cutoff')!r}; this test runs once T1 is merged")
-    assert _arm_step()["env"]["ARM_FROM"] == mn["cutoff"]
+    cutoff_from = switch or mn["cutoff_from"]
+    t = date.fromisoformat(cutoff_from)
+    if switch is None:      # the shipped T: T-3 to T+3 and the DST change days on both sides of it
+        days = {t + timedelta(days=k) for k in range(-3, 4)}
+        days |= {date(2026, 3, 8), date(2026, 11, 1), date(2027, 3, 14), date(2027, 11, 7)}
+    else:                   # T moved onto a DST change day: T-1 to T+1 (the switch is the day that matters)
+        days = {t + timedelta(days=k) for k in range(-1, 2)}
+    zone = ZoneInfo(SITE_TZ)
+    epochs = []
+    for d in sorted(days):
+        start = datetime.combine(d, datetime.min.time(), zone).astimezone(timezone.utc)
+        end = datetime.combine(d + timedelta(days=1), datetime.min.time(), zone).astimezone(timezone.utc)
+        epochs += range(int(start.timestamp()), int(end.timestamp()), 60)
+    verdicts = _arm_minutes(tmp_path, epochs, CUTOFF_FROM=cutoff_from)
+    armed = 0
+    for e in epochs:
+        day, send = verdicts[e]
+        when = datetime.fromtimestamp(e, timezone.utc)
+        assert day == when.astimezone(zone).date().isoformat()
+        if send:
+            armed += 1
+            d = date.fromisoformat(day)
+            assert morning.note_day(when, mn["cutoff"], SITE_TZ, cutoff_from) > d, (when, day)
+            # and opening at cut(D) exactly (the equality of part 3): the minute before the window ends is not armed
+            assert when >= morning.window(d, mn["cutoff"], SITE_TZ, cutoff_from)[1], (when, day)
+    # each day arms from its cut to 08:00: 60 minutes before T, and from T on every real minute of 00:00 to 08:00
+    # (480, or 420 and 540 on the spring-forward and fall-back days)
+    want = 0
+    for d in days:
+        if d < t:
+            want += 60
+        else:
+            s = datetime.combine(d, datetime.min.time(), zone)
+            want += int((datetime.combine(d, datetime.min.time().replace(hour=8), zone).timestamp()
+                         - s.timestamp()) // 60)
+    assert armed == want, (armed, want)
 
 
 # ------------------------------------------------------------------ the no-note alarm (ADR 0015 decision 6)
@@ -3295,7 +3547,8 @@ NOTE_STEP_COMMANDS = {
     STAGE_STEP: {"mktemp", "mkdir", "git", "find", "sort", "xargs", "sha256sum"},
     "Validate the plan files": _VERIFY_WORDS | {"mktemp", "python", "wc", "head", "awk"},
     "Check the plan (dry run, no secret)": _VERIFY_WORDS | {"mktemp", "python"},
-    "Deliver the morning note": _VERIFY_WORDS | {"mktemp", "python"},
+    # FX1: `date` (today's site date) and `jq` (the plan's date, read as data) for the arm-day check
+    "Deliver the morning note": _VERIFY_WORDS | {"mktemp", "python", "date", "jq"},
 }
 
 
@@ -3378,10 +3631,10 @@ def _planted_checkout(tmp_path):
     return work, marker, env, plant
 
 
-def _run_py_step(name, work, runner, lib_env, env, plan):
+def _run_py_step(name, work, runner, lib_env, env, plan, extra=None):
     return subprocess.run(["bash", "-c", _note_steps()[name]["run"]], cwd=work, capture_output=True, text=True,
                           env={**env, **lib_env, **NOTE_ROUTE_ENV, "RUNNER_TEMP": str(runner), "PLAN": str(plan),
-                               "MORNING_NOTE_SEND": "true", "BUTTONDOWN_API_KEY": ""})
+                               "MORNING_NOTE_SEND": "true", "BUTTONDOWN_API_KEY": "", **(extra or {})})
 
 
 def test_a_planted_root_module_never_runs_in_the_note_job(tmp_path):
@@ -3397,11 +3650,18 @@ def test_a_planted_root_module_never_runs_in_the_note_job(tmp_path):
     runner.mkdir()
     staged, lib_env = _stage(work, runner)
     assert staged.returncode == 0, staged.stderr
-    for name in ("Check the plan (dry run, no secret)", "Deliver the morning note"):
-        r = _run_py_step(name, work, runner, lib_env, env, tmp_path / "none.json")
-        # the staged sender ran: it read the staged config/site.yml, then could not read the plan
-        assert r.returncode == 2 and "the plan file cannot be read; nothing sent" in r.stderr, (name, r.stderr)
-        assert "Traceback" not in r.stderr and "changed after it was staged" not in r.stderr
+    r = _run_py_step("Check the plan (dry run, no secret)", work, runner, lib_env, env, tmp_path / "none.json")
+    # the staged sender ran: it read the staged config/site.yml, then could not read the plan
+    assert r.returncode == 2 and "the plan file cannot be read; nothing sent" in r.stderr, r.stderr
+    assert "Traceback" not in r.stderr and "changed after it was staged" not in r.stderr
+    # the live step passes the route and day checks first (FX1: a plan dated the arm's day, which is today), then the
+    # staged sender ran --live: it read the staged config/site.yml, then refused the plan (a date and nothing else)
+    armed = _armed(tmp_path, path=env["PATH"])
+    r = _run_py_step("Deliver the morning note", work, runner, lib_env, env, armed["PLAN"], extra=armed)
+    assert r.returncode == 2 and "--live with the sender enabled, but BUTTONDOWN_API_KEY is not set" in r.stderr, \
+        (r.stdout, r.stderr)
+    assert f"Arm day {ARMED_DAY}: today's site date and the plan's date." in r.stdout
+    assert "Traceback" not in r.stderr and "changed after it was staged" not in r.stdout
     code, plan_env = _validate_plan(tmp_path / "v", GOOD, cwd=work, env=env)
     assert code == 0 and plan_env.strip().endswith("/morning-send/2026-11-12/plan.json")
     assert not marker.exists(), marker.read_text()
