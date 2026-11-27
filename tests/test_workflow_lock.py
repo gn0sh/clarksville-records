@@ -974,14 +974,21 @@ def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):
 
 
 # ------------------------------------------------------------------ the morning note (T4.5)
-# ADR 0014 decision 3: the one send route is a dispatch with send_note and collect true that gn0sh both dispatched and
-# triggered (the 03:07 clock); the schedule no longer sends. Every earlier check is kept.
-NOTE_IF = ("github.event_name == 'workflow_dispatch' && inputs.send_note == true && inputs.collect == true"
-           " && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh' && vars.MORNING_NOTE_SEND == 'true'"
+# ADR 0015 decision 4 (replaces ADR 0014's one route): two send routes, a scheduled run's first attempt or a dispatch
+# with send_note and collect true that gn0sh both dispatched and triggered, then one set of locks: armed, the
+# variable, main and the verified gate. Every earlier check is kept.
+NOTE_IF = ("( (github.event_name == 'schedule' && github.run_attempt == '1')"
+           " || (github.event_name == 'workflow_dispatch' && inputs.send_note == true && inputs.collect == true"
+           " && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh') )"
+           " && needs.arm.outputs.send == 'true' && vars.MORNING_NOTE_SEND == 'true'"
            " && github.ref == 'refs/heads/main' && needs.gate.outputs.verified == 'true'")
-# the route env the Deliver step's bash re-check reads (ADR 0014): the clock's run
-NOTE_ROUTE_ENV = {"GITHUB_EVENT_NAME": "workflow_dispatch", "SEND_NOTE": "true", "COLLECT": "true",
-                  "DISPATCH_ACTOR": "gn0sh", "TRIGGERING_ACTOR": "gn0sh"}
+# the route env the Deliver step's bash re-check reads: the dispatch route (the PC clock's run), armed, and the
+# schedule route (inputs and actors as a scheduled run has them). GITHUB_RUN_ATTEMPT is set by the runner; it is
+# set here too so a test run inside GitHub Actions never inherits its own.
+NOTE_ROUTE_ENV = {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_RUN_ATTEMPT": "1", "ARM": "true",
+                  "SEND_NOTE": "true", "COLLECT": "true", "DISPATCH_ACTOR": "gn0sh", "TRIGGERING_ACTOR": "gn0sh"}
+SCHED_ROUTE_ENV = {"GITHUB_EVENT_NAME": "schedule", "GITHUB_RUN_ATTEMPT": "1", "ARM": "true", "SEND_NOTE": "",
+                   "COLLECT": "", "DISPATCH_ACTOR": "gn0sh", "TRIGGERING_ACTOR": "gn0sh"}
 # main-protect/pr-check-path-scope, main-protect/test-launcher-coverage: the note job's three python runs, exactly
 # (-I -S, a fresh pycache_prefix, the staged sender folder alone on sys.path, the staged config), each after VERIFY,
 # the re-check of the staged folder's digest (main-protect/staged-lib-integrity).
@@ -1044,13 +1051,14 @@ def _note_steps():
     return {s.get("name"): s for s in WF["jobs"]["note"]["steps"]}
 
 
-def test_note_job_is_locked_dispatched_by_gn0sh_on_main_and_after_deploy():
+def test_note_job_is_locked_on_two_routes_on_main_armed_and_after_deploy():
     note = WF["jobs"]["note"]
     assert " ".join(note["if"].split()) == NOTE_IF
     assert "always()" not in note["if"] and "cancelled()" not in note["if"]   # implicit success(): update and deploy
-    assert note["needs"] == ["gate", "update", "deploy"]                        # deploy locked -> note skipped
+    assert note["needs"] == ["gate", "update", "deploy", "arm"]                 # deploy locked -> note skipped
     assert note["environment"] == "morning-note" and note["timeout-minutes"] <= 15
-    # ADR 0014: the schedule never sends (the if needs workflow_dispatch), and only schedule and dispatch exist
+    assert "name" not in note             # note-missed finds the job by its id as name, "note"
+    # only schedule and dispatch exist
     on = WF.get("on") or WF[True]
     assert set(on) == {"schedule", "workflow_dispatch"}
     # an ordinary "Run workflow" never sends: send_note is a boolean that defaults to false
@@ -1068,12 +1076,13 @@ def test_note_job_has_a_timeout_and_shares_the_one_run_at_a_time_group():
     assert all(isinstance(job.get("timeout-minutes"), int) for job in WF["jobs"].values())
 
 
-def _gh(text: str, ctx: dict):
+def _gh(text: str, ctx: dict, allow_format: bool = False):
     """A GitHub Actions expression over `==`, `!=`, `&&`, `||`, `!`, parentheses, '...' literals, true/false/null and
     context names (dotted, read from `ctx`; a missing one is null), with GitHub's rules: && and || return an operand,
     strings compare ignoring case, and two values of different types are both turned into numbers (null 0, true 1,
     false 0, a string its JSON number, '' 0, else NaN). Anything else in the text is an error, so a new operator or
-    function in the `if:` fails the test instead of being guessed at."""
+    function in the `if:` fails the test instead of being guessed at. allow_format (the run-name only) adds
+    format('...{0}...', value): the value as text (null as '')."""
     toks = re.findall(r"\s*(==|!=|&&|\|\||!|\(|\)|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_.-]*|\S)", text)
     pos = 0
 
@@ -1125,6 +1134,16 @@ def _gh(text: str, ctx: dict):
         if tok in ("true", "false", "null"):
             return {"true": True, "false": False, "null": None}[tok]
         assert re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.-]*", tok), tok
+        if allow_format and tok == "format" and peek() == "(":
+            take("(")
+            args = [disj()]
+            while peek() == ",":
+                take(",")
+                args.append(disj())
+            take(")")
+            assert isinstance(args[0], str), args
+            return re.sub(r"\{(\d+)\}", lambda m: "" if args[int(m.group(1)) + 1] is None else
+                          str(args[int(m.group(1)) + 1]), args[0])
         assert peek() != "(", f"function call {tok}() is not evaluated here"
         return ctx.get(tok)
 
@@ -1165,27 +1184,45 @@ def test_the_expression_evaluator_reads_an_if_as_github_does():
     assert _gh("a == 'x' && 'yes' || 'no'", {"a": "x"}) == "yes" and _gh("a == 'x' && 'yes' || 'no'", {}) == "no"
     assert _gh("!(a == 'x')", {"a": "y"}) is True and _gh("a == 'X' && b == 'y' || c == 'z'", {"c": "z"}) is True
     assert _gh("a == 'x' && (b == 'y' || c == 'z')", {"c": "z"}) is False
-    for bad in ("contains(a, 'x')", "a == 'x' || always()", "a == 'x' ||", "a = 'x'"):
+    for bad in ("contains(a, 'x')", "a == 'x' || always()", "a == 'x' ||", "a = 'x'", "format('{0}', a)"):
         with pytest.raises(AssertionError):
             _gh(bad, {"a": "x"})
+    assert _gh("format('a {0} b', x)", {"x": "37 2 * * *"}, allow_format=True) == "a 37 2 * * * b"
+    assert _gh("format('a {0}', x)", {}, allow_format=True) == "a "
+    with pytest.raises(AssertionError):
+        _gh("contains(a, 'x')", {"a": "x"}, allow_format=True)
 
 
 def _note_route(event="workflow_dispatch", send_note=True, collect=True, actor="gn0sh", triggering="gn0sh",
-                var="true", ref="refs/heads/main", verified="true") -> dict:
-    """A run's context as the note job's `if:` sees it; the default is the clock's run. On a scheduled run the
-    inputs are null, and github.actor is the account the schedule is tied to (whoever last changed the cron)."""
+                var="true", ref="refs/heads/main", verified="true", attempt="1", arm="true") -> dict:
+    """A run's context as the note job's `if:` sees it; the default is the PC clock's dispatch, armed. On a scheduled
+    run the inputs are null, and github.actor is the account the schedule is tied to (whoever last changed the
+    cron): not an identity, so the schedule route never tests it."""
     return {"github.event_name": event, "inputs.send_note": send_note, "inputs.collect": collect,
             "github.actor": actor, "github.triggering_actor": triggering, "vars.MORNING_NOTE_SEND": var,
-            "github.ref": ref, "needs.gate.outputs.verified": verified}
+            "github.ref": ref, "needs.gate.outputs.verified": verified, "github.run_attempt": attempt,
+            "needs.arm.outputs.send": arm}
 
 
 _SCHED = {"event": "schedule", "send_note": None, "collect": None}
-# ADR 0014 "Consumers that must change", tests row: every route toward a send, and the one that is allowed
+# ADR 0015 decision 4 and "Verification before the switch": every route toward a send, and the two that are allowed
 NOTE_ROUTES = {
-    "the-clock": (_note_route(), True),
-    "schedule-never-sends": (_note_route(**_SCHED), False),
-    "schedule-tied-to-another": (_note_route(**_SCHED, actor="mallory", triggering="mallory"), False),
-    "schedule-with-inputs-set": (_note_route(event="schedule"), False),
+    "the-pc-clock": (_note_route(), True),
+    "schedule-first-attempt": (_note_route(**_SCHED), True),
+    "schedule-second-attempt": (_note_route(**_SCHED, attempt="2"), False),
+    "schedule-third-attempt": (_note_route(**_SCHED, attempt="3"), False),
+    "schedule-attempt-missing": (_note_route(**_SCHED, attempt=None), False),
+    "schedule-attempt-as-number": (_note_route(**_SCHED, attempt=1), True),       # 1 == '1' as numbers
+    "schedule-tied-to-another": (_note_route(**_SCHED, actor="mallory", triggering="mallory"), True),
+    "schedule-not-armed": (_note_route(**_SCHED, arm="false"), False),
+    "schedule-arm-missing": (_note_route(**_SCHED, arm=None), False),
+    "schedule-arm-empty": (_note_route(**_SCHED, arm=""), False),
+    "schedule-on-a-branch": (_note_route(**_SCHED, ref="refs/heads/x"), False),
+    "schedule-gate-not-verified": (_note_route(**_SCHED, verified="false"), False),
+    "schedule-variable-off": (_note_route(**_SCHED, var="false"), False),
+    "dispatch-second-attempt-by-gn0sh": (_note_route(attempt="2"), True),   # ADR 0014's dispatch route, unchanged
+    "dispatch-not-armed": (_note_route(arm="false"), False),
+    "dispatch-arm-missing": (_note_route(arm=None), False),
     "dispatch-without-send-note": (_note_route(send_note=False), False),
     "dispatch-send-note-missing": (_note_route(send_note=None), False),
     "dispatch-send-note-as-text": (_note_route(send_note="true"), False),
@@ -1199,72 +1236,96 @@ NOTE_ROUTES = {
     "another-rerun-of-gn0sh-dispatch": (_note_route(triggering="mallory"), False),
     "dispatch-on-a-branch": (_note_route(ref="refs/heads/x"), False),
     "dispatch-on-a-tag-named-main": (_note_route(ref="refs/tags/main"), False),
+    "push-event": (_note_route(event="push"), False),
     "gate-not-verified": (_note_route(verified="false"), False),
     "gate-no-output": (_note_route(verified=None), False),
     "variable-unset": (_note_route(var=None), False),
     "variable-false": (_note_route(var="false"), False),
     "variable-empty": (_note_route(var=""), False),
-    # an expression's == ignores case, so these two pass the `if:`; the Deliver step's exact bash checks stop them
+    # an expression's == ignores case, so these pass the `if:`; the Deliver step's exact bash checks stop them
     # (test_the_deliver_step_rechecks_the_route_before_live)
     "variable-TRUE-if-only": (_note_route(var="TRUE"), True),
     "actor-case-if-only": (_note_route(actor="Gn0sh", triggering="GN0SH"), True),
+    "arm-TRUE-if-only": (_note_route(**_SCHED, arm="TRUE"), True),
 }
 
 
 @pytest.mark.parametrize("route", sorted(NOTE_ROUTES))
-def test_note_runs_only_on_the_one_send_route(route):
-    """ADR 0014 decision 3: the schedule never sends; a dispatch sends only with send_note and collect true, gn0sh
-    as both actors (a gn0sh re-run of someone else's dispatch keeps their actor), on main, with the gate verified."""
+def test_note_runs_only_on_the_two_send_routes(route):
+    """ADR 0015 decision 4: a scheduled run's first attempt, or a dispatch with send_note and collect true and gn0sh
+    as both actors (a gn0sh re-run of someone else's dispatch keeps their actor); then armed, on main, the variable
+    on and the gate verified."""
     ctx, runs = NOTE_ROUTES[route]
     assert _gh(WF["jobs"]["note"]["if"], ctx) is runs
 
 
-def test_note_if_holds_in_exactly_the_one_locked_case():
-    """Every combination of the eight values, against the rule written out by hand: exactly one passes."""
-    flags, actors, vals = [True, False, None, "true"], ["gn0sh", "mallory", None], ["true", "false", "", None]
+def test_note_if_holds_in_exactly_the_locked_cases():
+    """Every combination of the ten values, against the rule written out by hand."""
+    flags, actors, vals = [True, None, "true"], ["gn0sh", "mallory"], ["true", "false", None]
     expr = WF["jobs"]["note"]["if"]
     n = 0
-    for e, s, c, a, tr, v, r, ver in itertools.product(["schedule", "workflow_dispatch", "push"], flags, flags,
-                                                        actors, actors, vals, ["refs/heads/main", "refs/heads/x"],
-                                                        vals):
-        want = (e == "workflow_dispatch" and s is True and c is True and a == "gn0sh" and tr == "gn0sh"
-                and v == "true" and r == "refs/heads/main" and ver == "true")
-        assert _gh(expr, _note_route(e, s, c, a, tr, v, r, ver)) is want, (e, s, c, a, tr, v, r, ver)
+    for e, s, c, a, tr, v, r, ver, att, arm in itertools.product(
+            ["schedule", "workflow_dispatch", "push"], flags, flags, actors, actors, vals,
+            ["refs/heads/main", "refs/heads/x"], vals, ["1", "2"], vals):
+        route = ((e == "schedule" and att == "1")
+                 or (e == "workflow_dispatch" and s is True and c is True and a == "gn0sh" and tr == "gn0sh"))
+        want = route and arm == "true" and v == "true" and r == "refs/heads/main" and ver == "true"
+        assert _gh(expr, _note_route(e, s, c, a, tr, v, r, ver, att, arm)) is want, (e, s, c, a, tr, v, r, ver,
+                                                                                     att, arm)
         n += want
-    assert n == 1
+    assert n == 3 * 3 * 2 * 2 + 2           # the schedule's 36 (inputs and actors untested) + dispatch on 2 attempts
 
 
-@pytest.mark.parametrize("send_note,collect,name", [
-    (True, True, "Daily update (morning note)"),                       # the clock's run
-    (True, False, "Daily update"),            # clock-alarm/collect-false-counts: it can't send, so it never hides a miss
-    (True, None, "Daily update"),
-    (False, True, "Daily update"), (None, True, "Daily update"), ("true", True, "Daily update"),
-    (None, None, "Daily update"),                                       # a scheduled run
+@pytest.mark.parametrize("event,schedule,send_note,collect,name", [
+    ("schedule", "37 20 * * *", None, None, "Daily update (schedule 37 20 * * *)"),
+    ("schedule", "37 2 * * *", None, None, "Daily update (schedule 37 2 * * *)"),
+    ("schedule", "7 13 * * *", None, None, "Daily update (schedule 7 13 * * *)"),
+    ("workflow_dispatch", None, True, True, "Daily update (morning note)"),            # the PC clock's run
+    ("workflow_dispatch", None, True, False, "Daily update"),   # clock-alarm/collect-false-counts: it can't send
+    ("workflow_dispatch", None, True, None, "Daily update"),
+    ("workflow_dispatch", None, False, True, "Daily update"),
+    ("workflow_dispatch", None, None, True, "Daily update"),
+    ("workflow_dispatch", None, "true", True, "Daily update"),
+    ("workflow_dispatch", None, None, None, "Daily update"),
 ])
-def test_the_morning_clocks_run_is_named(send_note, collect, name):
-    """ADR 0014 decision 2: run-name names the clock's run (send_note and collect both true, as the note job's `if:`
-    needs), so clock-missed and a person can find it, and no run that can't send carries the name."""
-    expr = WF["run-name"]
-    assert expr == ("${{ inputs.send_note == true && inputs.collect == true && 'Daily update (morning note)'"
+def test_each_run_is_named_by_its_line_or_its_route(event, schedule, send_note, collect, name):
+    """ADR 0015 decision 2: a scheduled run names its line, so lateness per line can be read from the run list
+    (scripts/clock-report.py parses it: tests/test_clock_report.py); the dispatch names are ADR 0014's."""
+    expr = " ".join(WF["run-name"].split())
+    assert expr == ("${{ github.event_name == 'schedule' && format('Daily update (schedule {0})', github.event.schedule)"
+                    " || inputs.send_note == true && inputs.collect == true && 'Daily update (morning note)'"
                     " || 'Daily update' }}")
     inner = expr.removeprefix("${{").removesuffix("}}")
-    assert _gh(inner, {"inputs.send_note": send_note, "inputs.collect": collect}) == name
+    ctx = {"github.event_name": event, "github.event.schedule": schedule, "inputs.send_note": send_note,
+           "inputs.collect": collect}
+    assert _gh(inner, ctx, allow_format=True) == name
     assert WF["name"] == "Daily update"
 
 
-def test_the_cron_is_the_data_backstop_off_the_clock_window():
-    """ADR 0014 decision 4, clock-alarm/early-schedule-blind: the backstop cron is 13:07 UTC (07:07 CST, 08:07 CDT), not
-    the clock's 03:07 site time: an on-time schedule never takes the one waiting slot from a queued clock run, and
-    clock-missed then always checks (after 05:00 site time, in both CST and CDT)."""
+SEND_LINES = ["37 20 * * *", "37 23 * * *", "37 2 * * *", "37 6 * * *"]
+
+
+def test_the_schedule_lines_cover_the_measured_lateness():
+    """ADR 0015 decision 1: four send lines and the 13:07 backstop, all off the hour. A send run must start by 05:00
+    site time to end by about 07:00, and the arm window opens at 00:00: in UTC that is 06:00 to 10:00 in both CST and
+    CDT. Each lateness from 0 to 13.4 h starts some line in that band (the 26 measured, 5.3 to 12.1 h, included)."""
     on = WF.get("on") or WF[True]
-    assert len(on["schedule"]) == 1
-    minute, hour, *rest = on["schedule"][0]["cron"].split()
-    assert rest == ["*", "*", "*"] and minute.isdigit() and hour.isdigit()   # one fixed time, every day
-    utc = int(hour) * 60 + int(minute)
-    for offset in (-6, -5):                                              # CST, CDT
-        local = (utc + offset * 60) % (24 * 60)
-        assert not 2 * 60 + 45 <= local <= 5 * 60, (hour, minute, offset)   # outside the clock's 02:45-05:00 window
-        assert local >= 5 * 60                       # clock-missed checks (05:00 site time on) on an on-time run
+    crons = [e["cron"] for e in on["schedule"]]
+    assert crons == SEND_LINES + ["7 13 * * *"]
+    for c in crons:
+        minute, hour, *rest = c.split()
+        assert rest == ["*", "*", "*"] and minute.isdigit() and hour.isdigit() and int(minute) not in (0, 30), c
+    band = (6 * 60, 10 * 60)                         # UTC minutes of the day a send run may start
+    for offset in (-6, -5):                          # CST, CDT: the band is 00:00 (or 01:00) to 04:00 (or 05:00)
+        lo, hi = ((m + offset * 60) % 1440 for m in band)
+        assert 0 <= lo and hi <= 5 * 60, offset
+    covered = set()
+    for c in SEND_LINES:
+        minute, hour = (int(x) for x in c.split()[:2])
+        start = hour * 60 + minute
+        covered |= {late for late in range(24 * 60) if band[0] <= (start + late) % 1440 <= band[1]}
+    assert set(range(0, 13 * 60 + 23 + 1)) <= covered                       # 0 to 13.4 h, no gap
+    assert set(range(5 * 60 + 18, 12 * 60 + 6 + 1)) <= covered              # the 26 samples, 5.3 to 12.1 h
 
 
 @pytest.mark.parametrize("value", [
@@ -1459,49 +1520,75 @@ def _deliver_script() -> str:
     return script
 
 
-@pytest.mark.parametrize("change,ok", [
-    ({}, True),
-    ({"GITHUB_EVENT_NAME": "schedule"}, False),
-    ({"GITHUB_EVENT_NAME": ""}, False),
-    ({"SEND_NOTE": "false"}, False),
-    ({"SEND_NOTE": ""}, False),
-    ({"SEND_NOTE": "True"}, False),
-    ({"COLLECT": "false"}, False),                             # note-route/collect-not-rechecked
-    ({"COLLECT": ""}, False),
-    ({"COLLECT": None}, False),
-    ({"DISPATCH_ACTOR": "mallory"}, False),                    # a gn0sh re-run of someone else's dispatch
-    ({"TRIGGERING_ACTOR": "mallory"}, False),
-    ({"DISPATCH_ACTOR": "Gn0sh"}, False),                      # the `if:` ignores case; bash does not
-    ({"TRIGGERING_ACTOR": "GN0SH"}, False),
-    ({"DISPATCH_ACTOR": "gn0sh-bot"}, False),
-    ({"TRIGGERING_ACTOR": "github-actions[bot]"}, False),
-    ({"GITHUB_EVENT_NAME": None}, False),                      # unset: refused, never an unbound-variable crash
-    ({"SEND_NOTE": None}, False),
-    ({"DISPATCH_ACTOR": None}, False),
-    ({"TRIGGERING_ACTOR": None}, False),
-])
-def test_the_deliver_step_rechecks_the_route_before_live(change, ok):
-    """ADR 0014 decision 3, the second lock (as allow_shrink's): with MORNING_NOTE_SEND on, --live is passed only
-    when bash sees exactly a workflow_dispatch, send_note true and gn0sh as both actors; anything else stops the
-    step before the sender runs (exit 2, nothing sent, note-failed opens its issue)."""
+_D, _S = "dispatch", "schedule"
+DELIVER_CASES = [
+    (_D, {}, True),
+    (_D, {"GITHUB_RUN_ATTEMPT": "2"}, True),                   # the dispatch route is ADR 0014's, any attempt
+    (_D, {"GITHUB_EVENT_NAME": "push"}, False),
+    (_D, {"GITHUB_EVENT_NAME": ""}, False),
+    (_D, {"SEND_NOTE": "false"}, False),
+    (_D, {"SEND_NOTE": ""}, False),
+    (_D, {"SEND_NOTE": "True"}, False),
+    (_D, {"COLLECT": "false"}, False),                         # note-route/collect-not-rechecked
+    (_D, {"COLLECT": ""}, False),
+    (_D, {"COLLECT": None}, False),
+    (_D, {"DISPATCH_ACTOR": "mallory"}, False),                # a gn0sh re-run of someone else's dispatch
+    (_D, {"TRIGGERING_ACTOR": "mallory"}, False),
+    (_D, {"DISPATCH_ACTOR": "Gn0sh"}, False),                  # the `if:` ignores case; bash does not
+    (_D, {"TRIGGERING_ACTOR": "GN0SH"}, False),
+    (_D, {"DISPATCH_ACTOR": "gn0sh-bot"}, False),
+    (_D, {"TRIGGERING_ACTOR": "github-actions[bot]"}, False),
+    (_D, {"GITHUB_EVENT_NAME": None}, False),                  # unset: refused, never an unbound-variable crash
+    (_D, {"SEND_NOTE": None}, False),
+    (_D, {"DISPATCH_ACTOR": None}, False),
+    (_D, {"TRIGGERING_ACTOR": None}, False),
+    (_D, {"ARM": "false"}, False),                             # ADR 0015: the arm window holds on both routes
+    (_D, {"ARM": "TRUE"}, False),
+    (_D, {"ARM": ""}, False),
+    (_D, {"ARM": None}, False),
+    (_S, {}, True),
+    (_S, {"DISPATCH_ACTOR": "mallory", "TRIGGERING_ACTOR": "mallory"}, True),   # a schedule's actor is not tested
+    (_S, {"SEND_NOTE": None, "COLLECT": None}, True),
+    (_S, {"GITHUB_RUN_ATTEMPT": "2"}, False),                  # a re-run of a scheduled run never sends
+    (_S, {"GITHUB_RUN_ATTEMPT": "01"}, False),
+    (_S, {"GITHUB_RUN_ATTEMPT": ""}, False),
+    (_S, {"GITHUB_RUN_ATTEMPT": None}, False),
+    (_S, {"GITHUB_EVENT_NAME": "Schedule"}, False),
+    (_S, {"ARM": "false"}, False),
+    (_S, {"ARM": "True"}, False),
+    (_S, {"ARM": None}, False),
+]
+
+
+@pytest.mark.parametrize("route,change,ok", DELIVER_CASES)
+def test_the_deliver_step_rechecks_the_route_before_live(route, change, ok):
+    """ADR 0015 decision 4, the second lock (as allow_shrink's): with MORNING_NOTE_SEND on, --live is passed only
+    when bash sees exactly ARM true and either a schedule event on attempt 1, or a workflow_dispatch with send_note
+    and collect true and gn0sh as both actors; anything else stops the step before the sender runs (exit 2, nothing
+    sent, note-failed opens its issue)."""
     deliver = _note_steps()["Deliver the morning note"]
     assert deliver["env"]["SEND_NOTE"] == "${{ inputs.send_note }}"
     assert deliver["env"]["COLLECT"] == "${{ inputs.collect }}"
     assert deliver["env"]["TRIGGERING_ACTOR"] == "${{ github.triggering_actor }}"
     assert deliver["env"]["DISPATCH_ACTOR"] == "${{ github.actor }}"
-    env = {k: v for k, v in {**os.environ, **NOTE_ROUTE_ENV, **change, "MORNING_NOTE_SEND": "true",
+    assert deliver["env"]["ARM"] == "${{ needs.arm.outputs.send }}"
+    # the event and the attempt are the runner's own GITHUB_* variables (a workflow's env cannot set those)
+    assert "GITHUB_EVENT_NAME" not in deliver["env"] and "GITHUB_RUN_ATTEMPT" not in deliver["env"]
+    base = NOTE_ROUTE_ENV if route == _D else SCHED_ROUTE_ENV
+    env = {k: v for k, v in {**os.environ, **base, **change, "MORNING_NOTE_SEND": "true",
                              "PLAN": "p.json"}.items() if v is not None}
     r = subprocess.run(["bash", "-c", _deliver_script()], env=env, capture_output=True, text=True)
     if ok:
         assert r.returncode == 0 and "ARGS" in r.stdout and "--live" in r.stdout, r.stdout + r.stderr
+        assert f"Send route: {route} (armed)." in r.stdout
     else:
         assert r.returncode == 2 and "ARGS" not in r.stdout, (change, r.stdout, r.stderr)
-        assert ("::error::only a run gn0sh dispatched and triggered with send_note and collect true may send"
-                in r.stdout)
+        assert "::error::only an armed run may send: a scheduled run's first attempt, or a run gn0sh" in r.stdout
         assert "Nothing sent." in r.stdout and "unbound" not in r.stderr
 
 
-@pytest.mark.parametrize("change", [{}, {"GITHUB_EVENT_NAME": "schedule"}, {"DISPATCH_ACTOR": "mallory"}])
+@pytest.mark.parametrize("change", [{}, {"GITHUB_EVENT_NAME": "schedule"}, {"DISPATCH_ACTOR": "mallory"},
+                                    {"ARM": "false"}])
 def test_with_the_variable_off_the_deliver_step_is_a_dry_run_on_any_route(change):
     """The variable's lock comes first and is unchanged: not exactly 'true' is a dry run, never --live."""
     for var in ("", "false", "TRUE"):
@@ -1510,136 +1597,392 @@ def test_with_the_variable_off_the_deliver_step_is_a_dry_run_on_any_route(change
         assert "ARGS" in r.stdout and "--live" not in r.stdout, (var, change)
 
 
-# ------------------------------------------------------------------ the morning clock alarm (ADR 0014 decision 5)
-CLOCK_TITLE = "Daily update: the morning clock did not fire"
-CLOCK_RUN = "Daily update (morning note)"
+# ------------------------------------------------------------------ the arm window (ADR 0015 decision 3)
+SITE_TZ = "America/Chicago"
+SITE_CFG = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
 
 
-def test_clock_missed_is_least_privilege_scheduled_on_main_and_runs_no_repo_code():
-    job = WF["jobs"]["clock-missed"]
-    assert job["if"] == ("github.event_name == 'schedule' && github.ref == 'refs/heads/main'"
-                         " && vars.MORNING_NOTE_SEND == 'true'")
-    assert job["permissions"] == {"actions": "read", "issues": "write"}
-    assert "needs" not in job and "environment" not in job and isinstance(job["timeout-minutes"], int)
-    assert len(job["steps"]) == 1 and "uses" not in job["steps"][0]               # no checkout, no action
-    step = job["steps"][0]
-    assert step["env"] == {"GH_TOKEN": "${{ github.token }}", "SEND": "${{ vars.MORNING_NOTE_SEND }}",
-                           "CLOCK_TITLE": CLOCK_TITLE, "CLOCK_RUN": CLOCK_RUN, "SITE_TZ": "America/Chicago"}
-    assert "${{" not in step["run"] and "--app github-actions" in step["run"]
-    # the name it looks for is the name run-name gives the clock's run, and the zone is the site's
-    assert f"'{CLOCK_RUN}'" in WF["run-name"]
-    site = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
-    assert site["site_timezone"] == step["env"]["SITE_TZ"]
-    # it reads this workflow's dispatches on main only, and runs only gh, date and the shell
-    run = step["run"]
-    assert 'repos/$GITHUB_REPOSITORY/actions/workflows/daily-update.yml/runs' in run
-    assert "-f event=workflow_dispatch -f branch=main" in run
-    assert not set(_commands(run)) - _SHELL - {"gh", "date"}, set(_commands(run)) - _SHELL - {"gh", "date"}
+def _epoch(wall: str, fold: int = 0) -> int:
+    """A site wall-clock time 'YYYY-MM-DD HH:MM' as epoch seconds (fold 1: the second 01:xx of the fall-back day)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return int(datetime.strptime(wall, "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo(SITE_TZ), fold=fold).timestamp())
 
 
-def _run_clock_step(tmp_path, runs, hour="12", day="2026-11-24", open_issue="", send="true", jq_fails=False):
-    """Run clock-missed's step with a stub gh (its --jq filter run through the real jq on `runs`) and a stub date
-    (only `date +%H` and `date +%F` are faked; `date -u -d ...` is the real one). Returns (exit, gh calls, bodies)."""
-    _need_jq()
-    real_date = shutil.which("date")
-    work, bindir = tmp_path / "work", tmp_path / "bin"
-    work.mkdir(parents=True, exist_ok=True)
-    bindir.mkdir(exist_ok=True)
-    calls, bodies, runs_file = tmp_path / "gh-calls", tmp_path / "bodies", tmp_path / "runs.json"
-    runs_file.write_text(json.dumps({"total_count": len(runs), "workflow_runs": runs}))
+def _fake_date(bindir: Path):
+    """`date` with a single +FORMAT argument reads the fixed instant FAKE_EPOCH through the real date (so TZ and DST
+    are applied for real); any other call is the real date."""
+    real = shutil.which("date")
+    bindir.mkdir(parents=True, exist_ok=True)
     (bindir / "date").write_text("#!/bin/bash\n"
-                                 'if [ "$1" = +%H ]; then echo "$FAKE_HOUR"; exit 0; fi\n'
-                                 'if [ "$1" = +%F ]; then echo "$FAKE_DAY"; exit 0; fi\n'
-                                 f'exec "{real_date}" "$@"\n')
-    (bindir / "gh").write_text(
-        "#!/bin/bash\n"
-        f'printf "%s\\n" "$*" >> "{calls}"\n'
-        'args=("$@"); jqf=""\n'
-        'for ((i=0; i<${#args[@]}; i++)); do\n'
-        '  if [ "${args[$i]}" = --jq ]; then jqf="${args[$((i+1))]}"; fi\n'
-        f'  if [ "${{args[$i]}}" = --body ]; then printf "%s\\n" "${{args[$((i+1))]}}" >> "{bodies}"; fi\n'
-        'done\n'
-        + ('if [ "$1" = api ]; then echo oops; exit 0; fi\n' if jq_fails else
-           f'if [ "$1" = api ]; then jq -r "$jqf" "{runs_file}"; exit $?; fi\n') +
-        f'if [ "$2" = list ]; then echo "{open_issue}"; fi\n')
-    for f in ("date", "gh"):
-        (bindir / f).chmod(0o755)
-    step = WF["jobs"]["clock-missed"]["steps"][0]
-    env = {**os.environ, **{k: v for k, v in step["env"].items() if "${{" not in str(v)}, "SEND": send,
-           "PATH": f"{bindir}:{os.environ['PATH']}", "GITHUB_SERVER_URL": "https://x", "GITHUB_REPOSITORY": "o/r",
-           "GITHUB_RUN_ID": "1", "FAKE_HOUR": hour, "FAKE_DAY": day}
-    r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
-    return (r.returncode, calls.read_text().splitlines() if calls.exists() else [],
-            bodies.read_text() if bodies.exists() else "", r.stdout + r.stderr)
+                                 'if [ "$#" = 1 ] && [ "${1#+}" != "$1" ]; then '
+                                 f'exec "{real}" -d "@$FAKE_EPOCH" "$1"; fi\n'
+                                 f'exec "{real}" "$@"\n')
+    (bindir / "date").chmod(0o755)
 
 
-def _clock_run(title=CLOCK_RUN, actor="gn0sh", triggering="gn0sh", conclusion=None):
-    return {"display_title": title, "actor": {"login": actor}, "triggering_actor": {"login": triggering},
-            "conclusion": conclusion, "event": "workflow_dispatch"}
+def _hm(text: str) -> int:
+    h, m = text.split(":")
+    return int(h) * 60 + int(m)
 
 
-@pytest.mark.parametrize("runs", [[_clock_run()], [_clock_run(conclusion="success")],
-                                  [_clock_run(conclusion="failure")],
-                                  [_clock_run(title="Daily update"), _clock_run(conclusion="skipped")]])
-def test_clock_missed_is_quiet_when_the_clocks_run_started(tmp_path, runs):
-    code, calls, body, _ = _run_clock_step(tmp_path, runs)
-    assert code == 0 and len(calls) == 1 and calls[0].startswith("api -X GET") and body == ""
+def _arm_step():
+    return WF["jobs"]["arm"]["steps"][0]
 
 
-@pytest.mark.parametrize("runs", [
-    [],
-    [_clock_run(title="Daily update")],                                            # an ordinary manual run
-    [_clock_run(actor="mallory", triggering="mallory")],                           # could not send
-    [_clock_run(actor="mallory")],                                                  # gn0sh re-run of another's
-    [_clock_run(triggering="mallory")],
-    [_clock_run(conclusion="cancelled")],                    # replaced in the concurrency group, never started
-])
-@pytest.mark.parametrize("open_issue", ["", "12"])
-def test_clock_missed_opens_or_comments_on_one_issue(tmp_path, runs, open_issue):
-    code, calls, body, _ = _run_clock_step(tmp_path, runs, open_issue=open_issue)
-    assert code == 0 and len(calls) == 3, calls
-    assert calls[1].startswith("issue list --repo o/r --state open --app github-actions")
-    assert calls[2].startswith("issue comment 12" if open_issue else f"issue create --repo o/r --title {CLOCK_TITLE}")
-    assert "2026-11-24" in body and "actions/runs/1" in body and "morning-clock.md" in body
-    assert "no morning note was sent today" in body
+def _run_arm(tmp_path, epoch, line="37 2 * * *", event="schedule", **env_over):
+    _fake_date(tmp_path / "bin")
+    out = tmp_path / "out"
+    out.write_text("")
+    env = {**os.environ, **{k: v for k, v in _arm_step()["env"].items() if "${{" not in str(v)}, "EVENT": event,
+           "LINE": line, "GITHUB_OUTPUT": str(out), "FAKE_EPOCH": str(epoch),
+           "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}", **env_over}
+    r = subprocess.run(["bash", "-c", _arm_step()["run"]], env=env, capture_output=True, text=True)
+    outputs = dict(line.split("=", 1) for line in out.read_text().splitlines())
+    return r.returncode, outputs, r.stdout + r.stderr
 
 
-@pytest.mark.parametrize("day,since", [("2026-11-24", "2026-11-24T06:00:00Z"),     # CST
-                                       ("2026-07-01", "2026-07-01T05:00:00Z")])    # CDT: the clock needs no edit
-def test_clock_missed_counts_from_midnight_site_time(tmp_path, day, since):
-    _, calls, _, _ = _run_clock_step(tmp_path, [_clock_run()], day=day)
-    assert f"-f created=>={since}" in calls[0] and "-f event=workflow_dispatch -f branch=main" in calls[0]
+ARM_CASES = [
+    ("2026-11-27 23:59", 0, False), ("2026-11-28 00:00", 0, True), ("2026-11-28 04:59", 0, True),
+    ("2026-11-28 07:59", 0, True), ("2026-11-28 08:00", 0, False), ("2026-11-28 12:00", 0, False),
+    ("2026-07-01 00:00", 0, True), ("2026-07-01 07:59", 0, True), ("2026-07-01 08:00", 0, False),    # CDT
+    # spring forward, 2026-03-08 02:00 CST -> 03:00 CDT
+    ("2026-03-07 23:59", 0, False), ("2026-03-08 00:00", 0, True), ("2026-03-08 01:59", 0, True),
+    ("2026-03-08 03:00", 0, True), ("2026-03-08 07:59", 0, True), ("2026-03-08 08:00", 0, False),
+    # fall back, 2026-11-01 02:00 CDT -> 01:00 CST: both 01:30s are armed
+    ("2026-10-31 23:59", 0, False), ("2026-11-01 00:00", 0, True), ("2026-11-01 01:30", 0, True),
+    ("2026-11-01 01:30", 1, True), ("2026-11-01 07:59", 0, True), ("2026-11-01 08:00", 0, False),
+]
 
 
-@pytest.mark.parametrize("hour,send", [("00", "true"), ("04", "true"), ("12", "TRUE"), ("12", ""), ("12", "false")])
-def test_clock_missed_checks_nothing_before_five_or_with_the_variable_off(tmp_path, hour, send):
-    code, calls, _, _ = _run_clock_step(tmp_path, [], hour=hour, send=send)
-    assert code == 0 and calls == []
+@pytest.mark.parametrize("wall,fold,send", ARM_CASES)
+def test_the_arm_window_by_site_time(tmp_path, wall, fold, send):
+    """ADR 0015 decision 3: send=true exactly when the run starts in [00:00, 08:00) site time, on DST days too; day is
+    the site date; the log names the site time and the schedule line."""
+    code, outputs, log = _run_arm(tmp_path, _epoch(wall, fold))
+    assert code == 0, log
+    assert outputs == {"send": "true" if send else "false", "day": wall[:10]}
+    assert f"Site time {wall} " in log and "schedule line '37 2 * * *'" in log and "event schedule" in log
 
 
-@pytest.mark.parametrize("hour", ["05", "08", "09", "23"])
-def test_clock_missed_checks_from_five_on(tmp_path, hour):
-    """08 and 09 as hours: read as decimal, not octal."""
-    code, calls, _, _ = _run_clock_step(tmp_path, [], hour=hour)
-    assert code == 0 and len(calls) == 3
+def test_the_arm_log_names_a_dispatch_without_a_line(tmp_path):
+    code, outputs, log = _run_arm(tmp_path, _epoch("2026-11-28 03:07"), line="", event="workflow_dispatch")
+    assert code == 0 and outputs["send"] == "true" and "event workflow_dispatch, schedule line 'none'" in log
 
 
-def test_clock_missed_fails_loudly_when_it_cannot_count(tmp_path):
-    code, calls, _, out = _run_clock_step(tmp_path, [], jq_fails=True)
-    assert code == 1 and len(calls) == 1 and "could not count" in out
+@pytest.mark.parametrize("over", [{"ARM_FROM": "8:00"}, {"ARM_UNTIL": "24:00"}, {"ARM_FROM": "08:00"},
+                                  {"ARM_FROM": "09:00"}, {"ARM_UNTIL": ""}])
+def test_a_bad_arm_window_fails_and_outputs_nothing(tmp_path, over):
+    """A malformed or empty window fails the arm job, so the note job (which needs it) is skipped."""
+    code, outputs, log = _run_arm(tmp_path, _epoch("2026-11-28 03:00"), **over)
+    assert code == 1 and outputs == {} and "::error::could not read the site time" in log
 
 
-def test_clock_missed_jq_filter_with_real_jq():
-    """The step's --jq filter (gh uses gojq), through jq: only the clock's own, not cancelled, run counts."""
+def test_arm_is_least_privilege_and_runs_only_date():
+    job = WF["jobs"]["arm"]
+    assert job["permissions"] == {} and job["timeout-minutes"] == 2
+    assert not {"needs", "if", "environment", "uses", "concurrency"} & set(job)
+    assert job["outputs"] == {"send": "${{ steps.arm.outputs.send }}", "day": "${{ steps.arm.outputs.day }}"}
+    assert len(job["steps"]) == 1
+    step = job["steps"][0]
+    assert step["id"] == "arm" and "uses" not in step and "with" not in step
+    assert step["env"] == {"SITE_TZ": SITE_TZ, "ARM_FROM": "00:00", "ARM_UNTIL": "08:00",
+                           "EVENT": "${{ github.event_name }}", "LINE": "${{ github.event.schedule }}"}
+    assert "${{" not in step["run"]                                       # values come in through env only
+    assert not set(_commands(step["run"])) - _SHELL - {"date"}, set(_commands(step["run"]))
+    # the note job reads the arm's output in its `if:` and in the Deliver step's env, nowhere else
+    note = WF["jobs"]["note"]
+    assert "needs.arm.outputs.send == 'true'" in note["if"]
+    assert [k for s in note["steps"] for k, v in (s.get("env") or {}).items() if "needs.arm" in str(v)] == ["ARM"]
+
+
+def test_the_arm_window_matches_the_site_config():
+    """SITE_TZ == site_timezone, and ARM_UNTIL plus the slowest run seen (118 min, rounded up to 2 h) is no later
+    than latest_send, so an armed run still ends before deliver refuses."""
+    env = _arm_step()["env"]
+    assert env["SITE_TZ"] == SITE_CFG["site_timezone"]
+    assert _hm(env["ARM_UNTIL"]) + 120 <= _hm(SITE_CFG["morning_note"]["sender"]["latest_send"])
+    assert _hm(env["ARM_FROM"]) < _hm(env["ARM_UNTIL"])
+
+
+def test_arm_from_is_the_notes_cutoff():
+    """ADR 0015 decision 5, invariant part 3: cutoff <= ARM_FROM, pinned as equal, so no run that may send day D adds
+    to window(D). The midnight cutoff comes with task T1 (morning_note.cutoff_from beside cutoff "00:00")."""
+    mn = SITE_CFG["morning_note"]
+    if "cutoff_from" not in mn:
+        pytest.skip("task T1 is not on this branch: config/site.yml has no morning_note.cutoff_from yet, and cutoff "
+                    f"is still the legacy {mn.get('cutoff')!r}; this test runs once T1 is merged")
+    assert _arm_step()["env"]["ARM_FROM"] == mn["cutoff"]
+
+
+# ------------------------------------------------------------------ the no-note alarm (ADR 0015 decision 6)
+MISSED_TITLE = "Daily update: no morning note"
+_NM_GH = r'''#!/usr/bin/env python3
+import json, os, subprocess, sys
+fx = json.load(open(os.environ["NM_FIXTURE"]))
+args = sys.argv[1:]
+with open(os.environ["NM_CALLS"], "a") as f:
+    f.write(json.dumps(args) + "\n")
+opt = lambda name: args[args.index(name) + 1] if name in args else None
+fields = dict(args[i + 1].split("=", 1) for i, a in enumerate(args) if a == "-f")
+
+
+def out(doc):
+    jq = opt("--jq")
+    r = subprocess.run(["jq", "-r", jq], input=json.dumps(doc), capture_output=True, text=True)
+    sys.stdout.write(r.stdout)
+    sys.stderr.write(r.stderr)
+    sys.exit(r.returncode)
+
+
+if args[0] == "api":
+    path = [a for a in args[1:] if a.startswith("repos/")][0]
+    if path.endswith("/actions/workflows/daily-update.yml/runs"):
+        if fx.get("bad") == "runs":
+            print("oops")
+            sys.exit(0)
+        since = fields["created"].removeprefix(">=")
+        runs = [r for r in fx["runs"] if r["created_at"] >= since and fields.get("branch") == "main"]
+        out({"total_count": fx.get("total", len(runs)), "workflow_runs": runs})
+    elif "/actions/runs/" in path and path.endswith("/jobs"):
+        if fx.get("bad") == "jobs":
+            print("3\ngarbage")
+            sys.exit(0)
+        jobs = fx["jobs"].get(path.split("/")[-2], [])
+        out({"total_count": len(jobs), "jobs": jobs})
+    elif path.endswith("/comments"):
+        out(fx["issues"][path.split("/")[-2]].get("comments", []))
+    else:
+        out({"body": fx["issues"][path.split("/")[-1]]["body"]})
+elif args[:2] == ["issue", "list"]:
+    out([{"number": int(n), "title": i.get("title", os.environ["MISSED_TITLE"]), "state": i["state"]}
+         for n, i in fx.get("issues", {}).items()])
+elif args[:2] in (["issue", "create"], ["issue", "comment"]):
+    with open(os.environ["NM_BODIES"], "a") as f:
+        f.write(opt("--body") + "\n=====\n")
+'''
+
+
+def _nm_step():
+    return WF["jobs"]["note-missed"]["steps"][0]
+
+
+def _nm_run(rid, created, event="schedule"):
+    return {"id": rid, "event": event, "created_at": created, "head_branch": "main"}
+
+
+def _nm_job(conclusion="success", completed="2026-11-27T12:58:00Z", name="note"):
+    return {"name": name, "conclusion": conclusion, "completed_at": completed}
+
+
+def _note_missed(tmp_path, now, runs=(), jobs=None, issues=None, send="true", run_id="999", **fx_over):
+    """Run note-missed's step at site time `now` with a stub gh answering from the fixture (its --jq filters run
+    through the real jq) and the real date at a fixed instant. Returns (exit, gh calls, bodies, log)."""
     _need_jq()
-    run = WF["jobs"]["clock-missed"]["steps"][0]["run"]
-    jq = re.search(r"--jq '(\[\.workflow_runs.*?)'\)", run).group(1)
-    for runs, want in (([], 0), ([_clock_run()], 1), ([_clock_run(), _clock_run(conclusion="success")], 2),
-                       ([_clock_run(conclusion="cancelled")], 0), ([_clock_run(title="daily update (morning note)")], 0),
-                       ([_clock_run(actor="Gn0sh")], 0)):
-        r = subprocess.run(["jq", "-r", jq], input=json.dumps({"workflow_runs": runs}), capture_output=True,
-                           text=True, check=True, env={**os.environ, "CLOCK_RUN": CLOCK_RUN})
-        assert r.stdout.strip() == str(want), runs
+    bindir = tmp_path / "bin"
+    _fake_date(bindir)
+    (bindir / "gh").write_text(_NM_GH.replace("#!/usr/bin/env python3", f"#!{sys.executable}", 1))
+    (bindir / "gh").chmod(0o755)
+    fx = {"runs": list(runs), "jobs": jobs or {}, "issues": issues or {}, **fx_over}
+    (tmp_path / "fx.json").write_text(json.dumps(fx))
+    calls, bodies = tmp_path / "calls", tmp_path / "bodies"
+    env = {**os.environ, **{k: v for k, v in _nm_step()["env"].items() if "${{" not in str(v)}, "SEND": send,
+           "PATH": f"{bindir}:{os.environ['PATH']}", "GITHUB_SERVER_URL": "https://x", "GITHUB_REPOSITORY": "o/r",
+           "GITHUB_RUN_ID": run_id, "FAKE_EPOCH": str(_epoch(now)), "NM_FIXTURE": str(tmp_path / "fx.json"),
+           "NM_CALLS": str(calls), "NM_BODIES": str(bodies)}
+    r = subprocess.run(["bash", "-c", _nm_step()["run"]], cwd=tmp_path, env=env, capture_output=True, text=True)
+    return (r.returncode, [json.loads(c) for c in calls.read_text().splitlines()] if calls.exists() else [],
+            bodies.read_text().split("\n=====\n")[:-1] if bodies.exists() else [], r.stdout + r.stderr)
+
+
+def _issue_calls(calls):
+    return [c[:2] for c in calls if c[0] == "issue" and c[1] in ("create", "comment")]
+
+
+# Nov 27 (CST): the 02:37 line arrives at 02:40 and its note job ends at 06:58; a run at 01:00 on Nov 28 is today's
+QUIET_RUNS = [_nm_run(1, "2026-11-27T08:40:00Z"), _nm_run(2, "2026-11-28T07:00:00Z")]
+QUIET_JOBS = {"1": [_nm_job(name="arm"), _nm_job()], "2": [_nm_job(name="arm")]}
+
+
+def test_note_missed_is_quiet_when_yesterday_had_its_note(tmp_path):
+    code, calls, bodies, log = _note_missed(tmp_path, "2026-11-28 03:10", QUIET_RUNS, QUIET_JOBS)
+    assert code == 0 and bodies == [] and not [c for c in calls if c[0] == "issue"], log
+    assert "Site day 2026-11-27: a note job succeeded by 10:00." in log and "Nothing to report." in log
+    # one run list (this workflow, main, since the day before yesterday began, in site time), then each run's jobs
+    # (every attempt)
+    assert calls[0][:4] == ["api", "-X", "GET", "repos/o/r/actions/workflows/daily-update.yml/runs"]
+    assert "branch=main" in calls[0] and "created=>=2026-11-26T06:00:00Z" in calls[0] and "per_page=100" in calls[0]
+    assert [c[3] for c in calls[1:]] == ["repos/o/r/actions/runs/1/jobs", "repos/o/r/actions/runs/2/jobs"]
+    assert all("filter=all" in c for c in calls[1:])
+
+
+def test_note_missed_never_reads_its_own_run(tmp_path):
+    code, calls, _, _ = _note_missed(tmp_path, "2026-11-28 03:10", QUIET_RUNS, QUIET_JOBS, run_id="2")
+    assert code == 0 and [c[3] for c in calls[1:]] == ["repos/o/r/actions/runs/1/jobs"]
+
+
+@pytest.mark.parametrize("jobs", [
+    {"1": [_nm_job(conclusion="failure")]},
+    {"1": [_nm_job(conclusion="cancelled")]},
+    {"1": [_nm_job(conclusion="skipped", completed=None)]},
+    {"1": [_nm_job(name="note-failed")]},                                   # another job's success is not the note
+    {"1": [_nm_job(completed="2026-11-27T05:59:00Z")]},                     # Nov 26 23:59 CST: not on Nov 27
+    {"1": [_nm_job(completed="2026-11-27T16:16:00Z")]},                     # 10:16 CST: past latest_send + 15 min
+    {},
+])
+@pytest.mark.parametrize("open_issue", [None, "12"])
+def test_note_missed_reports_a_day_with_no_successful_note_job(tmp_path, jobs, open_issue):
+    issues = {"12": {"state": "OPEN", "body": "Site day 2026-11-20: no morning note."}} if open_issue else {}
+    code, calls, bodies, log = _note_missed(tmp_path, "2026-11-28 03:10", QUIET_RUNS, jobs, issues)
+    assert code == 0, log
+    assert _issue_calls(calls) == [["issue", "comment"] if open_issue else ["issue", "create"]]
+    made = [c for c in calls if c[:2] in (["issue", "create"], ["issue", "comment"])][0]
+    assert (made[2] == "12") if open_issue else (made[made.index("--title") + 1] == MISSED_TITLE)
+    assert len(bodies) == 1 and bodies[0].startswith("- Site day 2026-11-27: no morning note.\n")
+    assert "actions/runs/999" in bodies[0] and "morning-note.md" in bodies[0] and "2026-11-28" not in bodies[0]
+    lst = [c for c in calls if c[:2] == ["issue", "list"]][0]
+    assert lst[lst.index("--app") + 1] == "github-actions" and lst[lst.index("--state") + 1] == "all"
+
+
+def test_a_note_finished_in_the_grace_after_latest_send_counts(tmp_path):
+    """A deliver that started by 10:00 may finish a few minutes after it (up to the note job's 15-minute timeout)."""
+    jobs = {"1": [_nm_job(completed="2026-11-27T16:14:00Z")]}                # 10:14 CST
+    code, calls, bodies, _ = _note_missed(tmp_path, "2026-11-28 03:10", QUIET_RUNS, jobs)
+    assert code == 0 and bodies == []
+
+
+@pytest.mark.parametrize("now,checks_today", [("2026-11-28 10:10", False), ("2026-11-28 10:15", True),
+                                             ("2026-11-28 23:59", True), ("2026-11-28 00:00", False)])
+def test_note_missed_checks_today_only_after_latest_send(tmp_path, now, checks_today):
+    code, calls, bodies, log = _note_missed(tmp_path, now, QUIET_RUNS, QUIET_JOBS)
+    assert code == 0, log
+    if checks_today:
+        assert len(bodies) == 1 and bodies[0].startswith("- Site day 2026-11-28: no morning note.\n\nFound by"), log
+    else:
+        assert bodies == [], log
+
+
+def test_today_is_quiet_once_its_note_went_out(tmp_path):
+    jobs = {**QUIET_JOBS, "2": [_nm_job(completed="2026-11-28T12:57:00Z")]}
+    code, _, bodies, log = _note_missed(tmp_path, "2026-11-28 14:00", QUIET_RUNS, jobs)
+    assert code == 0 and bodies == [] and "Site day 2026-11-28: a note job succeeded" in log
+
+
+@pytest.mark.parametrize("issue,reported", [
+    ({"state": "OPEN", "body": "- Site day 2026-11-27: no morning note.\n\nFound by ..."}, False),
+    ({"state": "CLOSED", "body": "- Site day 2026-11-27: no morning note.\n\nFound by ..."}, False),
+    ({"state": "OPEN", "body": "x", "comments": [{"user": {"login": "github-actions[bot]", "type": "Bot"},
+                                                  "body": "- Site day 2026-11-27: no morning note."}]}, False),
+    # a person's comment never silences a day (this repository is public)
+    ({"state": "OPEN", "body": "x", "comments": [{"user": {"login": "mallory", "type": "User"},
+                                                  "body": "- Site day 2026-11-27: no morning note."}]}, True),
+    ({"state": "OPEN", "body": "x", "comments": [{"user": {"login": "github-actions[bot]", "type": "User"},
+                                                  "body": "- Site day 2026-11-27: no morning note."}]}, True),
+    # another title (the list's search is fuzzy): not this alarm's issue
+    ({"state": "OPEN", "title": "Daily update: no morning note!", "body": "Site day 2026-11-27: no morning note."},
+     True),
+    ({"state": "OPEN", "body": "- Site day 2026-11-26: no morning note."}, True),
+])
+def test_note_missed_reports_each_day_once(tmp_path, issue, reported):
+    code, calls, bodies, log = _note_missed(tmp_path, "2026-11-28 03:10", QUIET_RUNS, {}, {"5": issue})
+    assert code == 0, log
+    assert (len(bodies) == 1) is reported, log
+    if not reported:
+        assert "Already reported: Site day 2026-11-27: no morning note." in log and not _issue_calls(calls)
+
+
+@pytest.mark.parametrize("runs,silent", [
+    ([_nm_run(1, "2026-11-27T08:00:00Z"), _nm_run(2, "2026-11-28T07:00:00Z", "workflow_dispatch")], True),
+    ([_nm_run(1, "2026-11-27T07:09:00Z"), _nm_run(2, "2026-11-28T09:07:00Z", "workflow_dispatch")], True),  # 27 h
+    ([_nm_run(1, "2026-11-27T09:11:00Z"), _nm_run(2, "2026-11-28T09:07:00Z", "workflow_dispatch")], False),  # 25 h
+    ([_nm_run(2, "2026-11-28T09:07:00Z", "workflow_dispatch")], True),
+])
+def test_note_missed_reports_a_silent_schedule(tmp_path, runs, silent):
+    """ADR 0015 decision 6: no scheduled run created in the last 26 h (now 2026-11-28 04:10 CST = 10:10Z)."""
+    jobs = {"1": [_nm_job(completed="2026-11-27T12:58:00Z")], "2": [_nm_job(completed="2026-11-27T12:59:00Z")]}
+    code, calls, bodies, log = _note_missed(tmp_path, "2026-11-28 04:10", runs, jobs, run_id="2")
+    assert code == 0, log
+    if silent:
+        assert len(bodies) == 1
+        assert "- Site day 2026-11-28: no scheduled run was created in the last 26 hours.\n" in bodies[0]
+    else:
+        assert bodies == [] and "Scheduled runs created in the last 26 h: 1." in log
+
+
+def test_a_silent_schedule_is_reported_once_a_day(tmp_path):
+    issue = {"state": "OPEN", "body": "- Site day 2026-11-28: no scheduled run was created in the last 26 hours."}
+    runs = [_nm_run(1, "2026-11-27T07:00:00Z"), _nm_run(2, "2026-11-28T09:07:00Z", "workflow_dispatch")]
+    code, calls, bodies, _ = _note_missed(tmp_path, "2026-11-28 04:10", runs,
+                                          {"1": [_nm_job(completed="2026-11-27T12:59:00Z")]}, {"3": issue}, run_id="2")
+    assert code == 0 and bodies == [] and not _issue_calls(calls)
+
+
+def test_note_missed_reads_site_days_across_a_dst_change(tmp_path):
+    """Nov 1 2026 (fall back): its window is 00:00 CDT (05:00Z) to 10:00 CST (16:00Z) plus the grace."""
+    runs = [_nm_run(1, "2026-11-01T08:40:00Z"), _nm_run(2, "2026-11-02T07:00:00Z")]
+    ok = {"1": [_nm_job(completed="2026-11-01T16:10:00Z")]}
+    code, calls, bodies, _ = _note_missed(tmp_path, "2026-11-02 03:00", runs, ok)
+    assert code == 0 and bodies == [] and "created=>=2026-10-31T05:00:00Z" in calls[0]
+    early = {"1": [_nm_job(completed="2026-11-01T04:59:00Z")]}              # Oct 31 23:59 CDT
+    code, _, bodies, _ = _note_missed(tmp_path, "2026-11-02 03:00", runs, early)
+    assert code == 0 and bodies[0].startswith("- Site day 2026-11-01: no morning note.")
+
+
+@pytest.mark.parametrize("over,why", [
+    ({"bad": "runs"}, "could not"),
+    ({"bad": "jobs"}, "could not read run 1's jobs"),
+    ({"total": 101}, "could not count this workflow's runs"),
+    ({"total": 5}, "could not count this workflow's runs"),       # fewer runs read than GitHub counted
+])
+def test_note_missed_fails_loudly_when_it_cannot_count(tmp_path, over, why):
+    code, calls, bodies, log = _note_missed(tmp_path, "2026-11-28 03:10", QUIET_RUNS, QUIET_JOBS, **over)
+    assert code == 1 and why in log and "::error::" in log, log
+    assert bodies == [] and not [c for c in calls if c[0] == "issue"]
+
+
+@pytest.mark.parametrize("send", ["", "false", "TRUE", "True"])
+def test_note_missed_checks_nothing_with_the_variable_off(tmp_path, send):
+    code, calls, _, log = _note_missed(tmp_path, "2026-11-28 12:00", send=send)
+    assert code == 0 and calls == [] and "nothing checked" in log
+
+
+def _nm_lint(run: str) -> list:
+    """_commands over the step with its arithmetic ($((...))) and appends (x+=) read as plain values and assignments,
+    which the lint would otherwise take for command words."""
+    run = re.sub(r"\$\(\([^()]*\)\)", "0", run)
+    return _commands(re.sub(r"\b([A-Za-z_]\w*)\+=", r"\1=", run))
+
+
+def test_note_missed_is_least_privilege_on_main_and_runs_no_repo_code():
+    """ADR 0015 decision 6: every run on main (scheduled or dispatched) with the variable on; actions: read and
+    issues: write only; no checkout, no action, no secret; only gh, date, grep and printf (and its helpers)."""
+    assert "clock-missed" not in WF["jobs"]
+    job = WF["jobs"]["note-missed"]
+    assert job["if"] == "github.ref == 'refs/heads/main' && vars.MORNING_NOTE_SEND == 'true'"
+    for event in ("schedule", "workflow_dispatch"):
+        assert _gh(job["if"], {"github.ref": "refs/heads/main", "vars.MORNING_NOTE_SEND": "true",
+                               "github.event_name": event}) is True
+    assert _gh(job["if"], {"github.ref": "refs/heads/x", "vars.MORNING_NOTE_SEND": "true"}) is False
+    assert _gh(job["if"], {"github.ref": "refs/heads/main", "vars.MORNING_NOTE_SEND": "false"}) is False
+    assert job["permissions"] == {"actions": "read", "issues": "write"}
+    assert not {"needs", "environment", "uses", "concurrency"} & set(job) and job["timeout-minutes"] <= 5
+    assert len(job["steps"]) == 1 and "uses" not in job["steps"][0]
+    step = _nm_step()
+    assert step["env"] == {"GH_TOKEN": "${{ github.token }}", "SEND": "${{ vars.MORNING_NOTE_SEND }}",
+                           "MISSED_TITLE": MISSED_TITLE, "SITE_TZ": SITE_TZ, "LATEST_SEND": "10:00",
+                           "NOTE_GRACE_MIN": "15"}
+    run = step["run"]
+    assert "${{" not in run and run.count("--app github-actions") == 1
+    assert not set(_nm_lint(run)) - _SHELL - {"gh", "date", "grep", "printf", "fail", "at", "utc"}, \
+        set(_nm_lint(run)) - _SHELL
+    # every gh call reads, except the one create and the one comment on the fixed title
+    gh_calls = re.findall(r"\bgh (\w+ \w+|api)", run)
+    assert sorted(set(gh_calls)) == ["api", "issue comment", "issue create", "issue list"], gh_calls
+    assert "-X POST" not in run and "-X PATCH" not in run and "-X DELETE" not in run and "--method" not in run
+    # the pins: the site zone and latest_send from config/site.yml, the grace is the note job's timeout
+    assert step["env"]["SITE_TZ"] == SITE_CFG["site_timezone"]
+    assert step["env"]["LATEST_SEND"] == SITE_CFG["morning_note"]["sender"]["latest_send"]
+    assert int(step["env"]["NOTE_GRACE_MIN"]) == WF["jobs"]["note"]["timeout-minutes"]
 
 
 def _git(cwd, *args):
@@ -2871,7 +3214,7 @@ def test_the_gate_is_first_read_only_and_feeds_every_job():
     assert jobs["push"]["needs"] == ["gate", "update"]
     assert jobs["deploy"]["needs"] == ["gate", "update", "push"]
     assert "needs.gate.result == 'success'" in _deploy_if()
-    assert jobs["note"]["needs"] == ["gate", "update", "deploy"]
+    assert jobs["note"]["needs"] == ["gate", "update", "deploy", "arm"]          # ADR 0015: arm needs nothing
     assert "needs.gate.outputs.verified == 'true'" in " ".join(jobs["note"]["if"].split())
     assert _note_steps()["Check out this run's commit"]["with"]["ref"] == "${{ needs.gate.outputs.sha }}"
     # one copy of the history check: the gate's; the note job has no token and no PR check
