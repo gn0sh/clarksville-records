@@ -23,11 +23,15 @@ and 5).
   uploads it as the `morning-send` artifact (2 days). `continue-on-error`: a plan failure never fails the daily
   job, the data commit or the deploy.
 - `note` job: runs only when **all** of these hold, otherwise it is skipped:
-  1. the run is the morning clock's (ADR 0014, `docs/ops/morning-clock.md`): a "Run workflow" (`workflow_dispatch`)
-     with `send_note` and `collect` both true, dispatched **and** triggered by `gn0sh` (Brian or a team session;
-     a `gn0sh` re-run of someone else's dispatch keeps their actor and never sends). Such a run is named
-     **"Daily update (morning note)"**. The daily schedule never sends (it arrives hours late and is only the data
-     backstop), and an ordinary "Run workflow" never sends (`send_note` defaults to false);
+  1. the run is on one of two send routes (ADR 0015 decision 4), and **armed**: the `arm` job (first job, no
+     checkout, `date` only) says `send=true` only when the run started between 00:00 and 08:00 site time. The
+     routes are (a) a first-attempt scheduled run (`schedule`, `run_attempt` 1; the five lines in "The clock"
+     below), or (b) the optional PC clock or a recovery by hand: a "Run workflow" (`workflow_dispatch`) with
+     `send_note` and `collect` both true, dispatched **and** triggered by `gn0sh` (named **"Daily update (morning
+     note)"**; a `gn0sh` re-run of someone else's dispatch keeps their actor and never sends). Any number of
+     armed runs may send on one night: the first sends, the rest end "claimed". A run that starts before 00:00 or
+     at 08:00 or later only collects and deploys. An ordinary "Run workflow" never sends (`send_note` defaults to
+     false);
   2. the run is on `main`;
   3. the repository variable `MORNING_NOTE_SEND` is exactly `true`;
   4. the `update` and `deploy` jobs both succeeded (so it never runs while the deploy is locked, and an email never
@@ -42,16 +46,19 @@ and 5).
   `sys.path` and its staged `site.yml` as `--config`, so no file in the checkout can shadow a module or change the
   settings (docs/architecture/main-protect-invariant.md). `--live` is passed only when
   `MORNING_NOTE_SEND` is `true`, and then only after the step checks again, exactly, that the run is a
-  `workflow_dispatch` with `send_note` true and `gn0sh` as both actors (otherwise it stops: nothing sent, the
-  "morning note failed" issue opens). `permissions: contents: read` only, and no step uses the job's `GITHUB_TOKEN`
+  scheduled first attempt, or a `workflow_dispatch` with `send_note` true and `gn0sh` as both actors, and that the
+  arm job said `true` (otherwise it stops: nothing sent, the "morning note failed" issue opens). `permissions: contents: read` only, and no step uses the job's `GITHUB_TOKEN`
   (the history check is the gate's). `BUTTONDOWN_API_KEY` is given to that last step only.
 - `note-failed` job: when the `note` job failed or was cancelled, opens one issue titled **"Daily update: morning note failed"**, or
   comments on it if it is open. A note failure never opens "Daily update failed" and never touches the site.
-- `clock-missed` job (ADR 0014): on the scheduled run only, on `main`, with `MORNING_NOTE_SEND` exactly `true`.
-  If it is past 05:00 site time and no "Daily update (morning note)" run dispatched and triggered by `gn0sh` was
-  created since 00:00 site time (a cancelled one does not count), it opens one issue titled **"Daily update: the
-  morning clock did not fire"**, or comments on it if it is open. `actions: read` and `issues: write` only; no
-  checkout, no repository code. See "The clock" below.
+- `note-missed` job (ADR 0015 decision 6; it replaces `clock-missed`): on every run on `main` (scheduled or
+  dispatched) with `MORNING_NOTE_SEND` exactly `true`. It checks yesterday, and today once it is past 10:15 site
+  time (`latest_send` plus a 15-minute grace), and asks whether a `note` job ended `success` with its completion
+  time inside that day, up to 10:15. If none did, it opens one issue titled **"Daily update: no morning note"**, or
+  comments on it if it is open. It reports each site day once, by reading the last 10 issues with that title
+  opened by GitHub Actions. It also reports when no scheduled run was created in the last 26 hours (the schedule
+  went silent: dropped lines, a disabled workflow, or 60 days with no repository activity). `actions: read` and
+  `issues: write` only; no checkout, no repository code. See "The clock" below.
 - Three switches must all be on before anything is sent: `morning_note.sender.enabled: true` in `config/site.yml`
   (a reviewed PR, after T4.8), the variable `MORNING_NOTE_SEND`, and the `BUTTONDOWN_API_KEY` secret. With
   `sender.enabled` false, `--live` is a dry run that says so.
@@ -525,7 +532,7 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
      ruleset R1' (pull request required, code-owner review outside `data/`, squash only, stale approvals
      dismissed, admin bypass for pull requests only), the gate (every code change a reviewed PR a person merged, after
      `MAIN_PR_BASELINE`), the note job's stale-run check, code review of every PR, and `max_recipients` / `max_editions`. Why OFF: ON means Brian
-     approves a deployment every morning between 03:07 and about 07:00 CT; a missed approval skips that day, and a
+     approves a deployment every morning between 00:00 and about 07:00 CT (the first armed run); a missed approval skips that day, and a
      run left waiting blocks the next day's data and deploy. If ON: the steps are below.
    - **B. Custom sending domain (SPF, DKIM): NO (recommended) or YES.** The free plan sends from Buttondown's own
      address; a custom domain costs money (a domain and, per Buttondown's pricing page, a paid plan: hard stop 3,
@@ -534,9 +541,9 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
    Steps for the required reviewer, only if Brian answers A with ON:
    1. Open https://github.com/gn0sh/clarksville-records/settings/environments > **morning-note**.
    2. Under **Deployment protection rules**, tick **Required reviewers**, type your own GitHub username in the box
-      and pick it. Leave **Prevent self-review** unticked (the morning clock's run is dispatched as `gn0sh`, so it
-      counts as yours, and you could not approve it). **Save protection rules**.
-   3. Each morning after the clock's run starts at 03:07 site time (ADR 0014): the email "Deployment review
+      and pick it. Leave **Prevent self-review** unticked (the PC clock's run is dispatched as `gn0sh`, so it
+      counts as yours, and you could not approve it; a scheduled run is attributed to `gn0sh` too). **Save protection rules**.
+   3. Each morning after the first armed run starts (ADR 0015): the email "Deployment review
       requested" (or Actions > **Daily update** > today's "Daily update (morning note)" run) > **Review
       deployments** > tick **morning-note** > **Approve and deploy**. Approve
       before 7:00 site time to get that day's note (stamp mode schedules it for 7:00; after 10:00, `latest_send`,
@@ -550,15 +557,15 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 1. **Brian**, only after section 4 is done (6a V1'' PASS and 7 checked last), and after he approved the
    sample note: https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository
    variable** > name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
-2. The next morning clock run (03:07 site time, "Daily update (morning note)"; `docs/ops/morning-clock.md`)
+2. The next armed run (a schedule line, or the optional PC clock at 03:07; "The clock" below)
    schedules the day's emails for 7:00 (site time zone) to every confirmed
    subscriber whose lists have something new; nothing on a quiet or backfill day.
-3. **The first clock run after the ADR 0014 PR merges** (`note-route/boolean-input-unverified`: the tests model
-   GitHub's typed `inputs.send_note == true`, but no run has shown it yet): a team member checks that the run is
-   titled **"Daily update (morning note)"** and that its `note` job ran (green or red, **not skipped**). If it is
-   titled "Daily update" or the note job is skipped while `update` and `deploy` are green, the input check did not
-   match: tell the architect the same morning; nothing was sent, and the next scheduled run opens the "morning
-   clock did not fire" issue only if the title is wrong.
+3. **The first morning after the ADR 0015 PR merges**: a team member checks Actions > **Daily update**. Scheduled
+   runs are named "Daily update (schedule <cron>)". At least one armed run's `arm` job log says `send=true` and its
+   `note` job ran (green or red, **not skipped** while `update` and `deploy` are green). If the `note` job was
+   skipped on a day with an armed run, the route check did not match: tell the architect the same morning. Nothing
+   is sent in that case, and "Daily update: no morning note" opens the next day. `scripts/clock-report.py` prints
+   the day (`docs/ops/morning-clock.md` "Read the report").
    The first mornings (until one clean week), a team member checks: the run's `note` job is green, its log shows
    totals only (no address, no id), the team's own addresses got exactly the editions their lists and seats call
    for (nothing on a quiet day), the links open live pages, the unsubscribe link works, and the Buttondown
@@ -581,39 +588,46 @@ Results and corrections to the probe file's manual answers: `docs/platform-facts
 - **Don't merge changes to `sender/`, `config/site.yml` or `.github/workflows/daily-update.yml` while a Daily update
   run is in progress.** The note job's stale check compares exactly those with `main` and would stop, and no note
   would be sent that day. Other `.github/` files are not compared (they still need a pull request: step 2.0).
-- **Don't start a run between 02:45 and 05:00 site time** (CT). The morning clock dispatches at 03:07, and a run
-  already in progress then makes the clock's run wait.
-- **Before you click Run workflow, open Actions. If a "Daily update (morning note)" run is Queued, don't start one.**
-  All runs share one concurrency group with one pending slot: a run queued then replaces the pending clock run, and
-  only the clock's run sends the note, so that day gets no email (the replaced run shows as cancelled; the
-  `clock-missed` job then opens its issue).
-- **`send_note = true` by hand only to recover, and only before 08:30 site time:** "When the note job fails" below.
+- **Between 00:00 and 08:00 site time, start only a run with `send_note` and `collect` ticked, and never while one
+  is queued.** Any run that starts then is armed, and all runs share one concurrency group with one pending slot.
+  A plain "Run workflow" started in that window (no `send_note`) takes that slot and replaces a queued run that
+  could have sent: that day may get no email (the replaced run shows as cancelled, and `note-missed` opens its
+  issue the next day). Before you click, open Actions: if any Daily update run is Queued, don't start one. Outside
+  00:00 to 08:00, start runs as usual.
+- **`send_note = true` by hand only to recover, and only before 08:00 site time (the arm window):** "When the note job fails" below.
   An ordinary "Run workflow" leaves `send_note` unticked and never sends.
 - **Every manual Buttondown send must be filtered to its intended tag.** An unfiltered send goes to every subscriber,
   including people who only requested a Daylight Digest government (`national/unfiltered-send`).
 
 ## The clock
-The morning clock (ADR 0014) is a claude.ai scheduled cloud task that runs one command at 03:07 America/Chicago:
-`gh workflow run daily-update.yml --repo gn0sh/clarksville-records --ref main -f collect=true -f send_note=true`.
-Its prompt, how to check that it fired, how to pause it and the PC fallback (`scripts/register-morning-clock.ps1`)
-are in `docs/ops/morning-clock.md`.
-- **Check:** Actions > **Daily update**: each morning one "Daily update (morning note)" run created a few minutes
-  after 03:07 site time, by `gn0sh` (the `gh api` line in `morning-clock.md` "Check it" shows both actors).
-- **Pause:** pause the scheduled task in claude.ai (`morning-clock.md` "Pause it"). The site and data keep
-  updating from the scheduled run (the data backstop); no note is sent, and with `MORNING_NOTE_SEND` on the
-  "morning clock did not fire" issue opens on the next scheduled run.
-- **The alarm fired** ("Daily update: the morning clock did not fire"): open the clock's last run in claude.ai and
-  read its one line of output; if the PC fallback is on, run `scripts\register-morning-clock.ps1 -Check`. No note
-  went out that day. Close the issue once a morning's clock run shows up again.
+The clock is GitHub's own schedule (ADR 0015), plus an optional PC clock. No account, secret or AI session is
+involved.
+- **Schedule lines** (UTC, in `.github/workflows/daily-update.yml`): `37 20`, `37 23`, `37 2`, `37 6` (send lines) and
+  `7 13` (the data backstop). Every line collects and deploys. GitHub creates scheduled runs hours late (5.3 to 12.1
+  h measured; `docs/platform-facts.md` "GitHub Actions scheduler") and may drop one, so four lines cover the
+  night. The site time when the run starts decides whether it sends (the `arm` job, 00:00 to 08:00), not the line.
+  The first armed run sends; later ones end "claimed".
+- **PC clock (optional):** `scripts/register-morning-clock.ps1` still starts a "Daily update (morning note)" run at
+  03:07 on Brian's PC. It is an extra, on-time path while the PC is on. It is not required
+  (`docs/ops/morning-clock.md`).
+- **Check:** `python scripts/clock-report.py` prints each site day: each run's line, lateness, armed yes or no,
+  the note job's result and whether the note was on time (`morning-clock.md` "Read the report").
+- **Edit the schedule only after 10:00 site time**, ideally with the PC clock on: a schedule edit drops that
+  day's pending scheduled runs.
+- **The alarm fired** ("Daily update: no morning note"): open that day's runs. If a `note` job failed, see "When the
+  note job fails". If no run was armed in time, the lines were late or dropped: no note went out for that day. Close
+  the issue once the day is understood. An issue about "no scheduled run in the last 26 hours" means the schedule
+  went silent: check that the workflow is enabled (Actions > Daily update) and push a trivial reviewed change if
+  GitHub disabled it for inactivity.
 
 ## Rollback and stopping
 - **Stop all sending (one step, Brian or anyone with admin):**
   https://github.com/gn0sh/clarksville-records/settings/variables/actions > `MORNING_NOTE_SEND` > **Delete** (or
   set it to `false`). The next run skips the `note` job. Nothing else changes; the site and data keep updating.
-- **Stop the clock:** pause the scheduled task in claude.ai (and, if it is on, run
-  `scripts\register-morning-clock.ps1 -Remove` on the PC): "The clock" above. The scheduled run still collects and
-  deploys every day; nothing is sent.
-- **Stop today's email before 7:00 (stamp mode):** delete the variable `MORNING_NOTE_SEND` first (above), then
+- **Stop the clock:** the schedule can't be paused without editing the workflow (a reviewed PR) or disabling it in
+  Actions; the usual stop is the step above (delete `MORNING_NOTE_SEND`). To stop the optional PC clock run
+  `scripts\register-morning-clock.ps1 -Remove`. Runs still collect and deploy every day; nothing is sent.
+- **Stop today's email (stamp mode; from 00:00 site time, when the first run may already have scheduled it):** delete the variable `MORNING_NOTE_SEND` first (above), then
   delete the scheduled emails: in Buttondown, Emails > Scheduled > open today's emails (their metadata `note_date`
   is today) > **Delete**. Deleting the variable first means no later run can recreate them.
 - **In code:** a PR setting `morning_note.sender.enabled: false` makes every `--live` a dry run.
@@ -621,19 +635,20 @@ are in `docs/ops/morning-clock.md`.
   cutover's reviewed head or a clean `origin/main` (`git status` shows nothing). R1' is read from `main`, but the
   script itself and the scripts it calls come from the checkout (trust roots residual X1).
 - **Key leak or rotation:** Brian deletes the key in Buttondown (Settings > API), then replaces the
-  `BUTTONDOWN_API_KEY` environment secret. Never rotate between a day's first run and 7:00 (the scheduled stamp
-  emails would match nobody).
+  `BUTTONDOWN_API_KEY` environment secret. Never rotate between 00:00 and 07:00 site time (a run may have scheduled that
+  day's stamp emails already, and they would match nobody).
 
 ## When the note job fails
 The issue "Daily update: morning note failed" opens (or gets a comment). The site, the data commit and the deploy
 are not affected. Open the run's `note` job log: the deliver stage prints a fixed reason and its exit code
 (2: a check failed, nothing sent; 3: "missed", past `latest_send`, nothing sent). A note is never sent the next day:
 the records are on the site and in the feeds. Do not re-run the job after 10:00 site time, and never re-run a run from an earlier day.
-**Recovery, before 08:30 site time only** (a run takes about 90 minutes and `deliver` refuses after 10:00): once the
+**Recovery, before 08:00 site time only** (the arm window; a run takes about 90 minutes and `deliver` refuses after
+10:00): a later schedule line may retry on its own if it starts before 08:00, so look at Actions first. Once the
 cause is fixed, `gn0sh` starts one run, and only if no Daily update run is in progress or queued:
 `gh workflow run daily-update.yml --repo gn0sh/clarksville-records --ref main -f collect=true -f send_note=true`
 (or Actions > **Daily update** > **Run workflow**, branch `main`, tick both **collect** and **send_note**). The day
-claim means a note that already went out is never sent twice. After 08:30, don't: the note is skipped that day. A
+claim means a note that already went out is never sent twice. After 08:00, don't: the run is not armed and the note is skipped that day. Close the "morning note failed" issue once that day's note went out (the `note` job of a later run was green). A
 cancelled `note` job opens the same issue. A failure in "Download the morning note plan", "Validate the plan files"
 or "Check the plan" means the plan from the update job was missing or did not pass the checks: look at that run's
 "Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
