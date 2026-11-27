@@ -344,18 +344,33 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   `environments/` and `pages`), so whether `gh-pages` is still allowed was unverified from the session (Brian's PC read on 2026-11-18 is under "Main protection" below: `main` only). Removing `gh-pages` from that
   list leaves `main`'s deploy unchanged; removing `main` would stop it. Brian's step: runbook 2.0.5.
 
-## GitHub Actions scheduler (verified 2026-11-24 from the run list, health check "Scheduler"; ADR 0014)
-- `daily-update.yml`'s `cron: "7 9 * * *"` (09:07 UTC): all **11 scheduled runs from Nov 13 to 23 were created 6.6
-  to 12.1 h late, median 8.6 h**, none within 6 h. Measured on each run's `created_at` (when GitHub queued it), so
-  this is GitHub's scheduler, not our concurrency group. GitHub documents no upper bound on schedule delay.
-- Consequence (ADR 0014): the schedule can't deliver a 07:00 note, so it no longer sends. The note's run is
-  dispatched by a 03:07 America/Chicago clock (`docs/ops/morning-clock.md`); the cron stays as a data backstop,
-  moved to `7 13 * * *` (13:07 UTC) off the clock's window. The lateness above was measured on the 09:07 cron.
-- **Unverified (ADR 0014 V1):** the claude.ai scheduled task's timing (PASS: each run created within 15 min of 03:07
-  site time, on 3 mornings) and that its network proxy allows `POST .../actions/workflows/.../dispatches`. Record the
-  V1 result here.
+## GitHub Actions scheduler (verified 2026-11-24 and 2026-11-27 from the run lists; ADR 0014, ADR 0015)
+- **Lateness, 26 samples (verified 2026-11-27, `created_at`):** `daily-update.yml`'s `cron: "7 9 * * *"` (09:07 UTC):
+  13 scheduled runs Nov 13 to 25, created **6.6 to 12.1 h late, median 8.6 h**, none within 6 h (the cron moved to
+  13:07 UTC only on Nov 26, PR #94). `national-update.yml` (same repository, not edited in the period): its 04:23
+  UTC line, 7 runs Nov 21 to 27, **8.3 to 10.5 h** late; its 16:23 UTC line, 6 runs, **5.3 to 10.6 h** late,
+  arriving 21:43 to 02:57 UTC. Together 5.3 to 12.1 h at three different hours of the UTC day, so the delay is a lag
+  after the cron time, not a fixed afternoon band. It holds for this repository in late November only. This is
+  GitHub's queue, not our concurrency group (measured on `created_at`). GitHub documents no upper bound on delay.
+- **One dropped run, Nov 26 (inferred cause):** no scheduled `daily-update` run exists for Nov 26. Its 09:07 run was
+  not yet created (expected about 15:40 to 21:10 UTC) when PR #94 changed the cron at 18:21 UTC. Inference: editing
+  a workflow's schedule discards its pending run. GitHub documents that scheduled runs "can be delayed during
+  periods of high loads" and that "some queued jobs may be dropped", with no bound. Nov 27's 13:07 run was still not
+  created at 19:33 UTC (at least 6.4 h).
+- **The schedule's actor is not an identity.** Every scheduled run lists `actor` and `triggering_actor` `gn0sh`.
+  GitHub's docs: for `schedule`, the actor is whoever last edited the cron (or changed the default branch). A
+  schedule event is created only by GitHub's scheduler, only on the default branch, from the latest commit on it,
+  with no inputs; `github.event.schedule` says which line fired. No lock tests the actor on this route.
+- **Nov 27: the claude.ai cloud clock was refused.** Its AI safety check refused the dispatch ("Unsanctioned
+  Communication"), and the run list shows no dispatched run that day. The cloud task is retired (ADR 0015); Brian's
+  PC clock (03:07) covers until the schedule lines are measured.
+- Consequence (ADR 0015): the schedule sends. Four lines (`37 20`, `37 23`, `37 2`, `37 6`) plus the backstop `7 13`;
+  the `arm` job lets a run send only if it starts 00:00 to 08:00 site time. Superseded: ADR 0014's "the schedule can't
+  send".
+- **To measure (14 days, `scripts/clock-report.py`):** per-line lateness, S1 to S3 (`docs/ops/morning-clock.md`).
+  Record the result here.
 - The team's session acts on GitHub as `gn0sh` with admin rights (`gh api user`, 2026-11-24): a dispatch from it has
-  `github.actor` and `github.triggering_actor` `gn0sh`, the same as Brian's own (expected; V1 checks it on the clock's runs).
+  `github.actor` and `github.triggering_actor` `gn0sh`, the same as Brian's own.
 
 ## Main protection (V1 probe, T4.10.1)
 - **V1'' probe: PASS, 2026-11-21 6:02 PM CT (~2026-11-22 00:05 UTC)** (Brian's PC, try 4 of `scripts/v1pp-probe.ps1`): `main` ee4af9f, gh 2.104.0; 2 `pages-api` checks NOT-REACHABLE by design (U-pages). Results file on Brian's PC: `Documents\v1pp-probe-results-20261121-1802.txt` (summary: `v1pp/try4-results-20261121-1802.md` in the project files). Earlier try 3 was INCONCLUSIVE (job log unreadable: gh 2.104 refuses logs with escape sequences, fixed by PR #82). The one-run unlock is back to `none` in both scripts.

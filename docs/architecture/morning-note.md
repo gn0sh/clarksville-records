@@ -23,14 +23,13 @@ off by default, so going live is a config change after the CEO picks a provider.
 | Config | `config/site.yml` `morning_note:` | Lists, window, retention, provider seam (`enabled: false`) |
 
 ## "New today": the window rule
-A digest for date D (in `site_timezone`) holds every document whose **`first_fetched_at`** falls in `[D-1 cutoff, D cutoff)`, cutoff `morning_note.cutoff` = `"07:00"`. `first_fetched_at` never changes on
+A digest for date D (in `site_timezone`) holds every document whose **`first_fetched_at`** falls in `[D-1 at its cut, D at its cut)` (ADR 0015 decision 5). A day's cut is `morning_note.cutoff` (`"00:00"`) from the switch day `morning_note.cutoff_from` (`2026-11-30`) on, and the legacy 07:00 before it. So days before the switch day keep `[D-1 07:00, D 07:00)`, the switch day is `[Nov 29 07:00, Nov 30 00:00)`, and every later day is `[D-1 00:00, D 00:00)`: everything first found yesterday. Each window starts where the one before ends (no gap, no overlap), and past digest pages do not change. The build refuses a bad `cutoff_from`, and any `cutoff` other than 07:00 without one (`sitegen/morning.py` `window()`, `note_day()`). `first_fetched_at` never changes on
 re-fetch, so an item never alerts twice. It is read, by source URL, from each collector's own manifest:
 `data/manifest.json` (county minutes, finance), `data/county-agendas/manifest.json`,
 `data/localities/clarksville-tn/manifest.json`, `data/localities/cmc-rpc/manifest.json` (checked: every current
-source URL in facts/finance/RPC resolves to one of these). The note's run is started by the morning clock at 03:07 site
-time (ADR 0014; GitHub's schedule arrives hours late, so it moved to 13:07 UTC and now only collects again as a data
-backstop), before the cutoff, so the 7:00 note covers that morning's collection; a backstop run is after the cutoff
-even when on time, so its new items fall in the next day's window. A document maps to entries:
+source URL in facts/finance/RPC resolves to one of these). The note's run is any armed run between 00:00 and 08:00 site time (GitHub's schedule lines, or the optional PC clock at
+03:07; ADR 0015). The cut is midnight and no armed run starts before it, so every run that may send D collects only
+into D+1's window: all send runs on D build the same plan, and the day claim makes extra runs harmless. A document maps to entries:
 - an agenda (county, county agenda-only, council, RPC): one `agenda_item` entry per item / case printed on it;
 - minutes: one `vote` entry per motion recorded on it (outcome and tally only as printed and confirmed; an unconfirmed
   motion says "Recorded in the minutes; not confirmed" with no values, per `config.SHOW_UNCONFIRMED_VALUES`);
@@ -592,13 +591,14 @@ morning_note:
   on the site origin or an https source), run the sender's `deliver --plan ... --live` (as built: `python -I -S -c` on a digest-checked copy of `sender/*.py`
   and `config/site.yml` staged from git objects; docs/architecture/main-protect-invariant.md). The key is passed as
   `env:` on that one step only. On failure, the same one-issue step as the other jobs, with a fixed text.
-- ~~A manual run (`workflow_dispatch`) never sends.~~ Superseded by ADR 0014 (2026-11-24): the schedule never sends;
-  the one send route is a `workflow_dispatch` with the new boolean input `send_note` (default false) and `collect`
-  both true, with `github.actor` and `github.triggering_actor` both `gn0sh`, on `main`, `MORNING_NOTE_SEND` exactly
-  `true`, gate verified (the 03:07 clock, `docs/ops/morning-clock.md`). The Deliver step re-checks the event,
-  `send_note` and both actors in bash before `--live`. An ordinary manual run still never sends. New job
-  `clock-missed` (scheduled runs only; `actions: read`, `issues: write`, no checkout) opens one issue when no
-  "Daily update (morning note)" run started that day.
+- ~~A manual run (`workflow_dispatch`) never sends.~~ Superseded by ADR 0014 (2026-11-24), and in part by ADR 0015
+  (2026-11-27): the note job has two send routes, both needing the `arm` job's `send=true` (run started 00:00 to
+  08:00 site time), `MORNING_NOTE_SEND` exactly `true`, `main`, and a verified gate: a first-attempt `schedule` run,
+  or a `workflow_dispatch` with the boolean input `send_note` (default false) and `collect` both true and
+  `github.actor` and `github.triggering_actor` both `gn0sh` (the optional PC clock, `docs/ops/morning-clock.md`).
+  The Deliver step re-checks all of it in bash before `--live`. An ordinary manual run still never sends. New job
+  `note-missed` (every run on `main`; `actions: read`, `issues: write`, no checkout) opens one issue for each site
+  day with no successful note job, and when no scheduled run was created in 26 hours.
 
 ### Privacy (no personal data in the repo or the logs)
 - The repository is public, so its Actions logs and artifacts are public. The `note` job uploads no artifact.
