@@ -6,8 +6,12 @@ what select() returns for each group of subscribers. Every list key, label and c
 (config/site.yml `morning_note:`); nothing here names a place.
 
 Window rule: the note for day D holds every document whose `first_fetched_at` (the collectors' own manifests, by
-source URL) falls in [D-1 at `cutoff`, D at `cutoff`) in site_timezone. first_fetched_at never changes on a re-fetch,
-so a document is new on one day only. Every document the note reads must have a manifest row, else the build fails.
+source URL) falls in [D-1 at cut(D-1), D at cut(D)) in site_timezone, where cut(D) is `cutoff` from the switch day
+`cutoff_from` (T) on and the legacy 07:00 before it (ADR 0015 decision 5): [D-1 07:00, D 07:00) for D < T,
+[T-1 07:00, T 00:00) for T, [D-1 00:00, D 00:00) for D > T. Each window starts where the one before ends, so the
+windows tile time (no gap, no overlap) and past days' notes do not change. first_fetched_at never changes on a
+re-fetch, so a document is new on one day only. Every document the note reads must have a manifest row, else the
+build fails.
 
 A document becomes entries:
 - an agenda: one `agenda_item` per item or case printed on it (none read: one `document` entry for the agenda);
@@ -55,6 +59,10 @@ PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_h
              "vote_on_label": ()}
 FORM_FIELD_KEYS = ("email", "lists", "district", "ward")
 TAG_FIELD = "tag"           # sender.common.TAG_FIELD (a test keeps them equal): the form posts lists and seats as tags
+# The cutoff every day before morning_note.cutoff_from had (ADR 0015 decision 5): a cutoff other than this needs a
+# cutoff_from, so the days already sent keep their windows.
+LEGACY_CUTOFF = "07:00"
+_HHMM = r"(?:[01]\d|2[0-3]):[0-5]\d"
 _HTTPS = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\s\"'<>`\\]*)?")
 
 
@@ -92,8 +100,9 @@ def problems(cfg: dict) -> list[str]:
             out.append("morning_note.lists has a key twice")
         out += [f"morning_note.lists {x.get('key')!r} needs a label" for x in lists
                 if isinstance(x, dict) and not (isinstance(x.get("label"), str) and x["label"].strip())]
-    if not (isinstance(mn.get("cutoff"), str) and re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", mn["cutoff"])):
+    if not (isinstance(mn.get("cutoff"), str) and re.fullmatch(_HHMM, mn["cutoff"])):
         out.append(f"morning_note.cutoff must be HH:MM, got {mn.get('cutoff')!r}")
+    out += _cutoff_from_problems(mn)
     kd = mn.get("keep_days")
     if not isinstance(kd, int) or isinstance(kd, bool) or not 1 <= kd <= 31:
         out.append(f"morning_note.keep_days must be a whole number from 1 to 31, got {kd!r}")
@@ -420,19 +429,51 @@ def past_record_urls(cfg: dict | None = None) -> frozenset[str]:
     return frozenset(out)
 
 
-def window(day: date, cutoff: str, tz: str) -> tuple[datetime, datetime]:
-    """[day before at cutoff, day at cutoff) in the site's zone."""
-    zone = ZoneInfo(tz)
+def _cutoff_from_problems(mn: dict) -> list[str]:
+    """morning_note.cutoff_from: a real date, quoted ("YYYY-MM-DD"), and required while `cutoff` is not the legacy
+    07:00 (without it a new cutoff would move every past day's window)."""
+    cf = mn.get("cutoff_from")
+    if cf is None:
+        if isinstance(mn.get("cutoff"), str) and mn["cutoff"] != LEGACY_CUTOFF:
+            return [f"morning_note.cutoff_from must be set (a quoted date \"YYYY-MM-DD\") while cutoff is not the "
+                    f"legacy {LEGACY_CUTOFF}, got cutoff {mn['cutoff']!r}"]
+        return []
+    if isinstance(cf, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", cf):
+        try:
+            date.fromisoformat(cf)
+            return []
+        except ValueError:
+            pass
+    return [f"morning_note.cutoff_from must be a quoted date \"YYYY-MM-DD\", got {cf!r}"]
+
+
+def _cut(day: date, cutoff: str, cutoff_from) -> time:
+    """The cutoff that ends day's window: `cutoff` from the switch day on, the legacy 07:00 before it. No switch day
+    (None): `cutoff` on every day."""
+    if cutoff_from is not None:
+        switch = cutoff_from if isinstance(cutoff_from, date) else date.fromisoformat(cutoff_from)
+        if day < switch:
+            cutoff = LEGACY_CUTOFF
     hh, mm = (int(x) for x in cutoff.split(":"))
-    end = datetime.combine(day, time(hh, mm), zone)
-    start = datetime.combine(day - timedelta(days=1), time(hh, mm), zone)
+    return time(hh, mm)
+
+
+def window(day: date, cutoff: str, tz: str, cutoff_from=None) -> tuple[datetime, datetime]:
+    """[day before at its cut, day at its cut) in the site's zone (ADR 0015 decision 5). A day's cut is `cutoff` from
+    the switch day `cutoff_from` (T: a date or "YYYY-MM-DD"; None: no switch, `cutoff` on every day) on, and the
+    legacy 07:00 before it. A window starts at the day before's cut, so the windows tile time. With cutoff "00:00":
+    [D-1 07:00, D 07:00) for D < T, [T-1 07:00, T 00:00) for T, [D-1 00:00, D 00:00) for D > T."""
+    zone = ZoneInfo(tz)
+    before = day - timedelta(days=1)
+    end = datetime.combine(day, _cut(day, cutoff, cutoff_from), zone)
+    start = datetime.combine(before, _cut(before, cutoff, cutoff_from), zone)
     return start, end
 
 
-def note_day(when: datetime, cutoff: str, tz: str) -> date:
+def note_day(when: datetime, cutoff: str, tz: str, cutoff_from=None) -> date:
     """The note a document first fetched at `when` belongs to: the day whose window() holds it (one rule)."""
     d = when.astimezone(ZoneInfo(tz)).date()
-    start, end = (x.astimezone(timezone.utc) for x in window(d, cutoff, tz))   # compare instants, not wall clocks
+    start, end = (x.astimezone(timezone.utc) for x in window(d, cutoff, tz, cutoff_from))   # instants, not wall clocks
     at = when.astimezone(timezone.utc)
     return d + timedelta(days=1) if at >= end else d - timedelta(days=1) if at < start else d
 
@@ -699,7 +740,8 @@ def _rpc_documents(rpx, txt: dict, zoning: _Zoning) -> list[dict]:
     return docs
 
 
-def _finance_documents(fx, bg, cfg: dict, txt: dict, first: dict[str, datetime], cutoff: str, tz: str) -> list[dict]:
+def _finance_documents(fx, bg, cfg: dict, txt: dict, first: dict[str, datetime], cutoff: str, tz: str,
+                       cutoff_from=None) -> list[dict]:
     """Budget books, and each solicitation: its entry on the day its first document is first fetched, then one
     `document` entry per document first fetched on a later day."""
     fin = fx.fin
@@ -724,12 +766,12 @@ def _finance_documents(fx, bg, cfg: dict, txt: dict, first: dict[str, datetime],
         if len(known) != len(urls):     # resolve() reports the missing rows; nothing is guessed here
             docs += [{"url": u, "entries": []} for u in urls]
             continue
-        first_day = note_day(min(known), cutoff, tz)
+        first_day = note_day(min(known), cutoff, tz, cutoff_from)
         href = f"contracts/{sol['slug']}.html"
         common = dict(body="contracts", body_name=name, meeting_date=None, lists=["contracts"], href=href)
         opened = False
         for d, u in sorted(zip(ds, urls), key=lambda x: (first[x[1]], x[0]["id"])):
-            if note_day(first[u], cutoff, tz) == first_day:
+            if note_day(first[u], cutoff, tz, cutoff_from) == first_day:
                 entries = [] if opened else [_entry(
                     id=f"contracts/solicitation/{sol['id']}", kind="solicitation", title=sol["title"],
                     recorded=txt["solicitation"], source={"url": u, "page": None}, **common)]
@@ -757,7 +799,8 @@ def documents(ix, councils=(), rpx=None, ax=None, fx=None, bg=None, first=None, 
     if rpx is not None:
         docs += _rpc_documents(rpx, txt, zoning)
     if fx is not None:
-        docs += _finance_documents(fx, bg, cfg, txt, first or {}, mn["cutoff"], cfg["site_timezone"])
+        docs += _finance_documents(fx, bg, cfg, txt, first or {}, mn["cutoff"], cfg["site_timezone"],
+                                   mn.get("cutoff_from"))
     _add_watch(docs, ix, councils, cfg)
     return docs
 
@@ -850,7 +893,7 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
     cfg = config.SITE if cfg is None else cfg
     mn = settings(cfg)
     resolve(docs, first)
-    start, end = window(d, mn["cutoff"], cfg["site_timezone"])
+    start, end = window(d, mn["cutoff"], cfg["site_timezone"], mn.get("cutoff_from"))
     entries, ids, from_bulk = [], set(), False
     for doc in docs:
         if start <= first[doc["url"]] < end:

@@ -9,10 +9,11 @@ import json
 import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, note_off, rpc_config_unheld
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, note_off, rpc_config_unheld, shipped_with
 from sitegen import config, fin_views, morning, views
 from sender import render
 from sitegen.build import BuildError, build, site_url_problems
@@ -181,6 +182,170 @@ def test_window_across_a_dst_change(d, hours, start, end, inside):
     assert morning.note_day(b - timedelta(minutes=1), "07:00", tz) == d
     for at in map(datetime.fromisoformat, inside):
         assert a <= at < b and morning.note_day(at, "07:00", tz) == d
+
+
+# ------------------------------------------------------------------ the midnight cutoff from a switch day (ADR 0015 decision 5)
+T = date(2026, 11, 30)                     # config/site.yml morning_note.cutoff_from as shipped by the switch PR
+CHI = "America/Chicago"
+
+
+def legacy_config() -> dict:
+    """The shipped config as it was before the switch: cutoff 07:00 on every day, no cutoff_from."""
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"]["cutoff"] = "07:00"
+    cfg["morning_note"].pop("cutoff_from", None)
+    return cfg
+
+
+def assert_windows_tile(first: date, last: date, cutoff: str, cutoff_from, tz: str = CHI) -> None:
+    """Consecutive windows meet exactly (no gap, no overlap), and every minute from first's start to last's end lies
+    in exactly one window, the one note_day() names."""
+    days = [first + timedelta(days=k) for k in range((last - first).days + 1)]
+    wins = {d: tuple(x.astimezone(timezone.utc) for x in morning.window(d, cutoff, tz, cutoff_from)) for d in days}
+    for d in days:
+        assert wins[d][0] < wins[d][1], d
+        if d != last:
+            assert wins[d][1] == wins[d + timedelta(days=1)][0], d
+    at, end = wins[first][0], wins[last][1]
+    while at < end:
+        holders = [d for d in days if wins[d][0] <= at < wins[d][1]]
+        assert holders == [morning.note_day(at, cutoff, tz, cutoff_from)], at
+        at += timedelta(minutes=1)
+
+
+def test_shipped_cutoff_is_midnight_from_the_switch_day():
+    mn = config.SITE["morning_note"]
+    assert mn["cutoff"] == "00:00" and date.fromisoformat(mn["cutoff_from"]) == T
+    assert morning.LEGACY_CUTOFF == "07:00"
+
+
+def test_window_before_on_and_after_the_switch_day():
+    stamps = {d: tuple(morning._stamp(x) for x in morning.window(d, "00:00", CHI, T))
+              for d in (T - timedelta(days=1), T, T + timedelta(days=1))}
+    assert stamps == {date(2026, 11, 29): ("2026-11-28T07:00-06:00", "2026-11-29T07:00-06:00"),
+                      date(2026, 11, 30): ("2026-11-29T07:00-06:00", "2026-11-30T00:00-06:00"),
+                      date(2026, 12, 1): ("2026-11-30T00:00-06:00", "2026-12-01T00:00-06:00")}
+    # a string switch day (as config/site.yml gives it) and a date are the same rule
+    assert morning.window(T, "00:00", CHI, T.isoformat()) == morning.window(T, "00:00", CHI, T)
+    # no switch day: the cutoff on every day (the rule before ADR 0015, with 07:00)
+    assert morning.window(T, "07:00", CHI) == morning.window(T, "07:00", CHI, T)
+
+
+def test_every_instant_is_in_exactly_one_window_across_the_switch_day():
+    assert_windows_tile(T - timedelta(days=3), T + timedelta(days=3), "00:00", T)
+
+
+@pytest.mark.parametrize("switch, first, last", [
+    (date(2026, 11, 1), date(2026, 10, 30), date(2026, 11, 3)),     # the switch day is the fall-back day (25 h)
+    (date(2027, 3, 14), date(2027, 3, 12), date(2027, 3, 16)),      # the switch day is the spring-forward day
+    (T, date(2027, 3, 12), date(2027, 3, 16)),                      # midnight windows across spring forward
+    (date(2026, 10, 1), date(2026, 10, 30), date(2026, 11, 3)),     # midnight windows across fall back
+])
+def test_the_switch_and_midnight_windows_tile_on_dst_change_days(switch, first, last):
+    assert_windows_tile(first, last, "00:00", switch)
+
+
+@pytest.mark.parametrize("switch, d, hours, start, end", [
+    # midnight windows: Nov 2's holds the repeated 01:00-02:00 of Nov 1; Mar 15's lacks the skipped 02:00-03:00
+    (date(2026, 10, 1), date(2026, 11, 2), 25, "2026-11-01T00:00-05:00", "2026-11-02T00:00-06:00"),
+    (T, date(2027, 3, 15), 23, "2027-03-14T00:00-06:00", "2027-03-15T00:00-05:00"),
+    # the switch day on a DST change day: its window ends at midnight, before the change at 02:00
+    (date(2026, 11, 1), date(2026, 11, 1), 17, "2026-10-31T07:00-05:00", "2026-11-01T00:00-05:00"),
+    (date(2027, 3, 14), date(2027, 3, 14), 17, "2027-03-13T07:00-06:00", "2027-03-14T00:00-06:00"),
+])
+def test_midnight_window_lengths_on_dst_change_days(switch, d, hours, start, end):
+    a, b = morning.window(d, "00:00", CHI, switch)
+    assert b.astimezone(timezone.utc) - a.astimezone(timezone.utc) == timedelta(hours=hours)
+    assert (morning._stamp(a), morning._stamp(b)) == (start, end)
+
+
+def test_cutoff_from_validation():
+    assert seam(cutoff="00:00", cutoff_from="2026-11-30") == []
+    assert seam(cutoff="07:00", cutoff_from="2026-11-30") == []          # a switch to the same cutoff changes nothing
+    cfg = note_off(config.SITE)
+    cfg["morning_note"].pop("cutoff_from")
+    assert any("cutoff_from must be set" in p for p in morning.problems(cfg))       # a new cutoff with no switch day
+    cfg["morning_note"]["cutoff"] = "07:00"
+    assert morning.problems(cfg) == []                                   # the legacy cutoff needs none
+    for bad in ("2026-13-01", "2026-02-30", "30-11-2026", "2026-11-30T00:00", "", date(2026, 11, 30), 20261130):
+        assert any("cutoff_from must be a quoted date" in p for p in seam(cutoff="00:00", cutoff_from=bad)), bad
+
+
+def test_digest_pages_before_the_switch_day_are_byte_identical(inputs, site, tmp_path, monkeypatch):
+    """The fixture site (notes for Nov 6 to 12, all before T) built with the shipped midnight cutoff and with the
+    legacy config gives the same morning/ files, byte for byte."""
+    monkeypatch.setattr(config, "SITE", legacy_config())
+    make(inputs, tmp_path / "site")
+    new, old = site["out"] / "morning", tmp_path / "site" / "morning"
+    names = sorted(p.name for p in new.iterdir())
+    assert names == sorted(p.name for p in old.iterdir()) and len(names) > 2
+    assert all((new / n).read_bytes() == (old / n).read_bytes() for n in names)
+
+
+# records first fetched at these site times on each day from T-2 to T+1: each side of 07:00 and of midnight
+CLOCK_TIMES = ("00:00", "06:59", "07:00", "23:59")
+
+
+def clock_records(cfg: dict) -> tuple[list[dict], dict[str, datetime]]:
+    """One made-up budget book per (day, time), on a shipped link host so the plan's body check passes."""
+    txt, docs, first = cfg["morning_note"]["text"], [], {}
+    for k in range(-2, 2):
+        d = T + timedelta(days=k)
+        for hhmm in CLOCK_TIMES:
+            url = f"https://montgomerytn.gov/fixture/clock-{d.isoformat()}-{hhmm.replace(':', '')}.pdf"
+            docs.append({"url": url, "entries": [morning._entry(
+                id=f"finance/book/clock-{d.isoformat()}-{hhmm}", kind="document", body="finance",
+                body_name=cfg["county_name"], title=f"FIXTURE Budget Book {d.isoformat()} {hhmm}", lists=["budget"],
+                recorded=txt["budget_book"], href=None, source={"url": url, "page": None})]})
+            first[url] = datetime.combine(d, datetime.strptime(hhmm, "%H:%M").time(), ZoneInfo(CHI))
+    return docs, first
+
+
+def test_digest_written_after_the_switch_keeps_the_days_before_it(tmp_path):
+    """morning.write on T+1 with the shipped config and with the legacy one: the files for days before T are the
+    same bytes; T and T+1 are the new windows."""
+    out = {}
+    for name, cfg in (("new", copy.deepcopy(config.SITE)), ("old", legacy_config())):
+        docs, first = clock_records(cfg)
+        morning.write(tmp_path / name, T + timedelta(days=1), docs, first, cfg, data_as_of="2026-12-01")
+        out[name] = tmp_path / name / morning.FOLDER
+    for back in range(config.SITE["morning_note"]["keep_days"]):
+        d = T + timedelta(days=1 - back)
+        a, b = ((out[x] / f"{d.isoformat()}.json").read_bytes() for x in ("new", "old"))
+        assert (a == b) is (d < T), d
+
+
+def test_sender_rehearsal_lists_each_record_once_across_the_switch_day(tmp_path, monkeypatch):
+    """`python -m sender plan --rehearse --date` for T-1, T and T+1 on notes holding records at 00:00, 06:59, 07:00
+    and 23:59 of T-2 to T+1: every record of those three windows is in exactly one day's plan, and no other record
+    is in any of them (invariant I-note-day part 3)."""
+    from sender.__main__ import main
+    off = shipped_with(tmp_path, enabled=False)
+    monkeypatch.setattr(config, "SITE", note_off(config.SITE))
+    monkeypatch.setattr(config, "SITE_CONFIG_PATH", off)
+    docs, first = clock_records(config.SITE)
+    site_dir = tmp_path / "site"
+    morning.write(site_dir, T + timedelta(days=1), docs, first, config.SITE, data_as_of="2026-12-01")
+    seen: dict[str, list[date]] = {}
+    for d in (T - timedelta(days=1), T, T + timedelta(days=1)):
+        assert main(["plan", "--date", d.isoformat(), "--site", str(site_dir), "--out", str(tmp_path / "o"),
+                     "--rehearse"]) == 0
+        plan = json.loads((tmp_path / "o" / d.isoformat() / "plan.json").read_text(encoding="utf-8"))
+        assert plan["editions"], d
+        for i in {i for ed in plan["editions"] for i in ed["entry_ids"]}:
+            seen.setdefault(i, []).append(d)
+
+    def rec(k, hhmm):
+        return f"finance/book/clock-{(T + timedelta(days=k)).isoformat()}-{hhmm}"
+    want = {rec(-2, "07:00"): T - timedelta(days=1), rec(-2, "23:59"): T - timedelta(days=1),
+            rec(-1, "00:00"): T - timedelta(days=1), rec(-1, "06:59"): T - timedelta(days=1),
+            rec(-1, "07:00"): T, rec(-1, "23:59"): T,
+            rec(0, "00:00"): T + timedelta(days=1), rec(0, "06:59"): T + timedelta(days=1),
+            rec(0, "07:00"): T + timedelta(days=1), rec(0, "23:59"): T + timedelta(days=1)}
+    assert seen == {i: [d] for i, d in want.items()}
+    # the rest fall in T-2's window (00:00, 06:59 of T-2) or T+2's (all of T+1): in none of these three plans
+    assert all(morning.note_day(first[doc["url"]], "00:00", CHI, T) not in (T - timedelta(days=1), T, T + timedelta(days=1))
+               for doc in docs if doc["entries"][0]["id"] not in want)
 
 
 def test_refetched_document_does_not_reappear(site, tmp_path, inputs):
