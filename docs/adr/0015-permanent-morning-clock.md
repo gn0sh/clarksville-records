@@ -65,9 +65,10 @@ fixes are in "Review of PR #98".
    starts, a run that waited in the queue is judged by when it actually runs.
 4. **The note job's `if` (two routes, one set of locks):**
    ```
-   ( (github.event_name == 'schedule' && github.run_attempt == '1')
-     || (github.event_name == 'workflow_dispatch' && inputs.send_note == true && inputs.collect == true
-         && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh') )
+   github.run_attempt == '1'
+   && ( github.event_name == 'schedule'
+        || (github.event_name == 'workflow_dispatch' && inputs.send_note == true && inputs.collect == true
+            && github.actor == 'gn0sh' && github.triggering_actor == 'gn0sh') )
    && needs.arm.outputs.send == 'true' && vars.MORNING_NOTE_SEND == 'true'
    && github.ref == 'refs/heads/main' && needs.gate.outputs.verified == 'true'
    ```
@@ -113,7 +114,7 @@ Definitions, for a site date D (site time is `site_timezone`, wall clock):
   the config of the commit that builds plan D. It is `morning_note.cutoff` for `D >= cutoff_from` (T) and the legacy
   07:00 for `D < T`. `window(D) = [cut(D-1) on D-1, cut(D) on D)`.
 - `A(D)` is the **earliest instant at which any run that may send D can collect**: the instant the `arm` job of such
-  a run opens for D (a run collects only after its `arm` job ran, and runs are serial).
+  a run opens for D (runs are serial, and records first fetched before cut(D) are stored before any armed run builds plan D, so the invariant holds without `update` needing `arm`).
 
 For each site date D:
 1. **Who may send.** Emails for note D are created only by a `note` job of a first-attempt run on a send route (a
@@ -241,7 +242,7 @@ Other risks:
 - **Do nothing** (the PC clock only). Zero work, but a missed note on every PC-off night, and Brian has asked for this
   to be fixed.
 
-## Success signal and how we measure it (first 14 site days after T2 merges)
+## Success signal and how we measure it (first 14 site days after T (`cutoff_from`))
 `scripts/clock-report.py` daily, summarized at day 14 by `data-analyst` into `docs/platform-facts.md`:
 - **S1 (the promise):** on at least 13 of 14 days a `note` job succeeded and its deliver ran by 06:55 site time
   (emails at 07:00).

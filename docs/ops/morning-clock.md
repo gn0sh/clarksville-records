@@ -38,7 +38,7 @@ Brian, in PowerShell, in the repository folder:
   run, last run and last result (0 is success).
 - **Remove:** `powershell -NoProfile -File scripts\register-morning-clock.ps1 -Remove` prints `REMOVED`.
 
-The PC clock stays on through the first 14 days of measurement. After that Brian may remove it or keep it.
+The PC clock stays on through the first 14 days of measurement (counted from the switch day T, `cutoff_from`, not from the merge). After that Brian may remove it or keep it.
 
 ## Read the report
 `scripts/clock-report.py` reads the run list through your own `gh` sign-in (read-only; it handles no token). Run it

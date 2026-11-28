@@ -110,7 +110,7 @@ Run the T1 transition on real `records-data` (each record in exactly one day's p
 PASS, or bugs filed back to T1 or T2 with problem keys.
 
 ## T7 Merge and measure (manager; data-analyst at day 14, sonnet/medium)
-Merge T1 and T2 after 10:00 site time, the PC clock on. Run `clock-report.py` each morning and log anything odd in
+Merge T1 and T2 after 10:00 site time, the PC clock on. The 14 days count from T (`cutoff_from`), not from the merge. Run `clock-report.py` each morning and log anything odd in
 `docs/status.md`. At day 14, `data-analyst` writes the S1, S2 and S3 counts and the per-line lateness to
 `docs/platform-facts.md`. The manager then applies ADR 0015's decision rule: S2 at least 12 makes A permanent and the
 PC optional (tell Brian with an FYI line); S2 at 9 to 11 means re-tune the lines (a T2-sized PR) and measure 14 more
@@ -133,6 +133,8 @@ the human per the loop limit if this re-plan's fix also fails twice.
 | FX3 Docs | technical-writer (sonnet/medium) | `docs/ops/morning-note.md` (l.59, l.404, the 13:07 wording, Nov 29/30), `docs/ops/morning-clock.md` (l.63, before-T behaviour of the PC clock), `docs/architecture/morning-note.md` (l.26), `docs/architecture/main-protect-invariant.md` (J4: attempt 1 on both routes) | ADR 0015 text | with FX1, FX2 |
 | FX4 Outside watcher (follow-up, does not block PR #98) | devops-engineer (sonnet/medium) | `gn0sh/gnosh-uptime`: a freshness check for `https://daylight.gnoshcodes.com/build-info.json` | PR #98 merged | after merge |
 | FX5 Merge-day check | manager | none (a command at merge) | FX1 to FX3 reviewed | at merge |
+| FX7 Backend fixes | backend-engineer (sonnet/medium) | stamp guard after 07:00, `scripts/clock-report.py` AttributeError, config comment, workflow comments | none | with FX8 |
+| FX8 Docs (review findings) | technical-writer (sonnet/medium) | arm-window wording (cut in force, not 00:00), ADR 0015 lock code block and decision 8, `docs/ops/morning-note.md` silent check, 14 days counted from T | none | with FX7 |
 | FX6 Reviews and QA | code-reviewer and security-engineer (opus/high, **fresh** reviews: the fix touches CI and the send path), then qa-engineer | the fix commit SHA | FX1 to FX3 | after them |
 
 ### FX1 (devops-engineer)
@@ -208,3 +210,6 @@ open keys `clock/cutoff-le-arm-from`, `clock/cutoff-switch-day`, `clock/arm-day-
 `security/arm-stale-on-rerun`, `clock/report-s3-same-plan-sent`, `clock-alarm/silent-schedule-unwatched`,
 `clock/alarm-green-not-sent`, `security/clock-report-robustness`. Ask both to attack the invariant as restated
 (parts 3 and 4) and the consumer table. Then T6 (QA) as written, plus the T-1 arm cases.
+
+## Follow-up for V1 (protect-main)
+- `protect-main` should check that `BUTTONDOWN_API_KEY` and `MORNING_NOTE_CANARY_IDS` are not repository-level secrets (they belong to the protected environment only). Owner: devops-engineer.
