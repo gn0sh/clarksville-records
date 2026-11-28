@@ -14,8 +14,10 @@ Order of work, each check stopping before the first write:
  3. the plan's date is not today in the site's zone, or now is past `latest_send` ("missed", exit 3): nothing.
  4. day claim, read from the provider's own emails since yesterday (`metadata.note_date`, `note_sha256`,
     `note_plan`: the note's digest and the plan's, sender/claim-plan-identity): a day claimed by another plan, even
-    one from the same note, sends nothing; the same plan continues with the editions not yet created; a listing
-    that fails sends nothing and fails the run (fail closed).
+    one from the same note, sends nothing; the same plan continues with the editions not yet created, but in
+    `stamp` mode only before `send_at` (after it, "published": the day's emails have gone out, and a stamp the form
+    overwrote since can no longer show who got one); a listing that fails sends nothing and fails the run (fail
+    closed).
  5. recipients: confirmed (`type == "regular"`) subscribers only, each reduced at once to Recipient (id, and the
     lists and seats its "note-" tags name); the address, every other tag and the metadata stop there. Confirmed
     subscribers of whom none carries a "note-" tag end the run non-zero ("no-tags", sender/tags-silent-zero): the
@@ -164,7 +166,8 @@ class Recipient:
 @dataclass(frozen=True)
 class Outcome:
     code: int               # the process exit code
-    status: str             # dry-run | disabled | no-send | wrong-date | missed | claimed | no-tags | sent | failed | ...
+    # dry-run | disabled | no-send | wrong-date | missed | claimed | published | no-tags | sent | failed | ...
+    status: str
     editions: int = 0       # emails created by this run
     recipients: int = 0     # recipients of those emails, in total
 
@@ -664,6 +667,12 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         state, done = _claim(_call(sleep, provider.emails, (the_day - timedelta(days=1)).isoformat()), plan, digest)
         if state == "other":
             return end(0, "claimed", why="the day belongs to an earlier, different plan")
+        # security/stamp-cleared-after-publish: once send_at has passed, this plan's emails of the day have gone out
+        # and the provider's filter has been applied. A form post can overwrite a recipient's stamp after that, and
+        # then nothing shows they were mailed, so a new edition (a shape that had no email yet) could mail them a
+        # second time. With several armed runs a day, a run of the same plan after send_at creates nothing.
+        if state == "ours" and settings.mode == "stamp" and clock() >= at(settings.send_at):
+            return end(0, "published", why="the day's emails are already published")
         step = "subscriber listing"
         raw = _call(sleep, provider.subscribers)
         if not isinstance(raw, (list, tuple)):

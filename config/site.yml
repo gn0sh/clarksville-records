@@ -114,8 +114,8 @@ alerts:
 
 # The morning note (Daylight M3, sitegen/morning.py, docs/architecture/morning-note.md). Each build writes the last
 # `keep_days` days' "what's new" as morning/YYYY-MM-DD.json plus morning/latest.json: every document whose
-# first_fetched_at (in the collectors' own manifests, fetch_manifests above) falls in [day before at `cutoff`, day at `cutoff`) in
-# site_timezone (pages target only; the preview build writes none). The sender (below) mails it; the build
+# first_fetched_at (in the collectors' own manifests, fetch_manifests above) falls in [day before at its cut, day at its cut)
+# in site_timezone (pages target only; the preview build writes none). The sender (below) mails it; the build
 # refuses `enabled: true` without an https form_action and privacy_url, and any form_action while enabled is false.
 # Leave the whole block out to write no note.
 morning_note:
@@ -124,7 +124,16 @@ morning_note:
     - {key: seats, label: My two seats}
     - {key: budget, label: Budget}
     - {key: contracts, label: Contracts}
-  cutoff: "07:00"
+  # A day's cut is `cutoff` from `cutoff_from` (T) on and the legacy 07:00 before it (ADR 0015 decision 5): days
+  # before T keep [D-1 07:00, D 07:00), T is [T-1 07:00, T 00:00), and later days are [D-1 00:00, D 00:00),
+  # "everything first found yesterday". The workflow's `arm` job env CUTOFF, CUTOFF_FROM and LEGACY_CUTOFF must
+  # equal these keys (and sitegen.morning.LEGACY_CUTOFF); a test pins them, so a move of T in one place fails
+  # until the other follows. T is the day after the switch PR merges; if the merge slips, move T so it stays in the
+  # future. Never change cutoff_from after it has passed: past days' cuts would move. A second change of the cut
+  # needs a list of switches (each with its own from-date), not a new cutoff_from. The build refuses a bad date,
+  # and any cutoff other than 07:00 without a cutoff_from.
+  cutoff: "00:00"
+  cutoff_from: "2026-11-30"
   keep_days: 7
   zoning_prefixes: [Z, ZO, CZ, CZO, HZ]   # rpc.yml City/County/Historic zoning case types
   # note-titles (2026-11-22): what each record is about, for the email's subject and each card's kicker

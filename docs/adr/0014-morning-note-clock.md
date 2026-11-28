@@ -1,6 +1,6 @@
 # ADR 0014: A reliable 03:07 clock dispatches the morning-note run; GitHub's cron stays as a data backstop
 
-Status: **accepted pending Brian's yes** (software-architect draft 2026-11-24; built on branch `claude/note-clock-build`).
+Status: **superseded in part by ADR 0015 (decisions 1, 3, 4, 5)**; was **accepted pending Brian's yes** (software-architect draft 2026-11-24; built on branch `claude/note-clock-build`).
 Number 0012 is taken by the city-only site ADR on its unmerged branch (`d47c4b01`), so this is 0014.
 Builds on ADR 0004 (sender), 0009/0011 (gate, data off `main`); runbook `docs/ops/morning-note.md`.
 

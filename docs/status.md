@@ -13,6 +13,11 @@
 ## Waiting on the CEO
 - None open (Nov 19 9:30 PM CT; cutover merged). Next ask: MORNING_NOTE_SEND (Brian sets it himself, hard stop), V1'' probe PASSED Nov 21 6:02 PM CT (main ee4af9f).
 
+## Permanent morning clock (ADR 0015, PR #98), 2026-11-27
+- Stage: reviewed (code approve, security OK, QA pass with minor). Merge via merge-reviewed.ps1 on Sun Nov 29 after 10:00 CT, before cutoff_from 2026-11-30 (FX5), PC clock on. 14-day measurement counts from 2026-11-30.
+- clock/ family: 4 hits (cutoff-le-arm-from at 4th; architect re-plan e36e14c).
+- Follow-ups (not blocking): FX4 outside watcher (gnosh-uptime build-info age); FX9 partial-send visibility (runbook + clock-report flag; report skips unfinished today); V1 protect-main repo-level secrets check; full-repo ruff 131 errors pre-existing.
+
 ## Problem keys (Nov 16-18)
 - Nov 21: v1pp-probe/job-log-unreadable CLOSED (root cause: gh 2.104 refuses job logs containing escape sequences; fix v1pp-probe/log-read-escape-flag, PR #82; try 4 PASS).
 - Nov 19: ps51-stdin-bom family, SECOND hit (first: v1-probe/ps51-stdin-bom, PR #48; manager merged the families on the reviewers' call). data-off-main/ps-stdin-bom (PowerShell 5.1 only): .NET Framework's Process.Start writes [Console]::InputEncoding's BOM into git's stdin on a UTF-8 console; update-index refused the seed. Fixed in GitRun (preamble-free swap around Start), text-pinned. Review + security L1 ps51-stdin-bom-swap-fail-open: a failed swap now refuses before git starts. Architect invariant: docs/architecture/ps51-stdin-invariant.md (every consumer listed; cross-script no-pipe pin added; --input encoding pin is a follow-up). A third hit escalates per the loop rule.
@@ -26,6 +31,23 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-27 | software-architect | opus/high | ADR 0015 permanent clock + tasks | done (d539474) |
+| 2026-11-27 | backend-engineer | opus/high | T1 midnight cutoff | done (005bf4e) |
+| 2026-11-27 | devops-engineer | opus/high | T2 workflow + T4 clock-report | done (8c921b2) |
+| 2026-11-27 | technical-writer | sonnet/medium | T3 docs | done (5892a27) |
+| 2026-11-27 | code-reviewer | opus/high | PR #98 at cc59aa8 | request changes: clock/cutoff-le-arm-from (4th clock/ hit) |
+| 2026-11-27 | security-engineer | opus/high | PR #98 at cc59aa8 | OK with follow-ups (same switch-day finding) |
+| 2026-11-27 | software-architect | opus/high | clock/ 4th-hit re-plan: invariant + consumers, FX1-FX6 | done (e36e14c) |
+| 2026-11-27 | devops-engineer | opus/high | FX1 arm at cut(D), attempt/ARM_DAY locks | done (04410ae) |
+| 2026-11-27 | devops-engineer | sonnet/medium | FX2 clock-report | done (a38ad4d) |
+| 2026-11-27 | technical-writer | sonnet/medium | FX3 docs | done (cef9460) |
+| 2026-11-27 | devops-engineer | sonnet/medium | integration fixups | done (6d6fee0) |
+| 2026-11-27 | code-reviewer | opus/high | fresh review at 6d6fee0 | approve (3 should-fix docs/comments) |
+| 2026-11-27 | security-engineer | opus/high | fresh review at 6d6fee0 | OK with follow-ups (L1 low) |
+| 2026-11-27 | backend-engineer | opus/high | FX7 published guard, report shapes, comments | done (d81a5a8) |
+| 2026-11-27 | technical-writer | sonnet/medium | FX8 docs | done (2043435) |
+| 2026-11-27 | security-engineer | opus/high | delta re-review at db18816 | OK, L1/N1 closed |
+| 2026-11-27 | qa-engineer | opus/high | QA PR #98 at db18816 | pass with minor (partial-send visibility -> FX9) |
 | 2026-11-21 | manager | n/a | V1'' probe try 4 | PASS (6:02 PM CT; main ee4af9f; 2 pages-api NOT-REACHABLE by design) |
 | 2026-11-21 | manager | n/a | PR #82 merge | merged ee4af9f (rule suite 5282920166 bypass) |
 | 2026-11-21 | manager | n/a | manual daily run 44955655903 | green, deployed |
