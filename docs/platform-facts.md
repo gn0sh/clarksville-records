@@ -365,7 +365,7 @@ no address or id in it) plus Brian's inbox checks. Brian is on the free plan and
   Communication"), and the run list shows no dispatched run that day. The cloud task is retired (ADR 0015); Brian's
   PC clock (03:07) covers until the schedule lines are measured.
 - Consequence (ADR 0015): the schedule sends. Four lines (`37 20`, `37 23`, `37 2`, `37 6`) plus the backstop `7 13`;
-  the `arm` job lets a run send only if it starts 00:00 to 08:00 site time. Superseded: ADR 0014's "the schedule can't
+  the `arm` job lets a run send only if it starts inside the arm window (from the cut in force for the day, 07:00 before `cutoff_from` and 00:00 from it, to 08:00 site time). Superseded: ADR 0014's "the schedule can't
   send".
 - **To measure (14 days, `scripts/clock-report.py`):** per-line lateness, S1 to S3 (`docs/ops/morning-clock.md`).
   Record the result here.

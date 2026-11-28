@@ -28,7 +28,7 @@ re-fetch, so an item never alerts twice. It is read, by source URL, from each co
 `data/manifest.json` (county minutes, finance), `data/county-agendas/manifest.json`,
 `data/localities/clarksville-tn/manifest.json`, `data/localities/cmc-rpc/manifest.json` (checked: every current
 source URL in facts/finance/RPC resolves to one of these). The note's run is any armed run inside the arm window (the cut in force for the day to 08:00 site time) (GitHub's schedule lines, or the optional PC clock at
-03:07; ADR 0015). The cut is midnight and no armed run starts before it, so every run that may send D collects only
+03:07; ADR 0015). The arm opens at cut(D) (midnight from `cutoff_from`) and no armed run starts before it, so every run that may send D collects only
 into D+1's window: all send runs on D build the same plan, and the day claim makes extra runs harmless. A document maps to entries:
 - an agenda (county, county agenda-only, council, RPC): one `agenda_item` entry per item / case printed on it;
 - minutes: one `vote` entry per motion recorded on it (outcome and tally only as printed and confirmed; an unconfirmed
@@ -592,7 +592,7 @@ morning_note:
   and `config/site.yml` staged from git objects; docs/architecture/main-protect-invariant.md). The key is passed as
   `env:` on that one step only. On failure, the same one-issue step as the other jobs, with a fixed text.
 - ~~A manual run (`workflow_dispatch`) never sends.~~ Superseded by ADR 0014 (2026-11-24), and in part by ADR 0015
-  (2026-11-27): the note job has two send routes, both needing the `arm` job's `send=true` (run started 00:00 to
+  (2026-11-27): the note job has two send routes, both needing the `arm` job's `send=true` (run started from the cut in force for the day, 07:00 before `cutoff_from` and 00:00 from it, to
   08:00 site time), `MORNING_NOTE_SEND` exactly `true`, `main`, and a verified gate: a first-attempt `schedule` run,
   or a `workflow_dispatch` with the boolean input `send_note` (default false) and `collect` both true and
   `github.actor` and `github.triggering_actor` both `gn0sh` (the optional PC clock, `docs/ops/morning-clock.md`).

@@ -404,10 +404,10 @@ Verdict: **turning Actions off is not needed**; with R2 off nothing below a writ
   him; installation tokens, `<app>[bot]`, other users and a `gn0sh` re-run of someone else's dispatch fail the actor
   checks). It is the optional PC clock and a recovery by hand. Both routes must also be armed, with
   `MORNING_NOTE_SEND` exactly `true`, `github.ref == refs/heads/main` and `verified`; the Deliver step re-checks the
-  event, `run_attempt`, `ARM`, `send_note`, `collect` and both actors in bash (the expression's `==` ignores case).
+  event, `run_attempt`, `ARM`, `ARM_DAY` (equal to today and the plan date), `send_note`, `collect` and both actors in bash (the expression's `==` ignores case).
   Neither route can change content or audience (the plan comes from the gate-verified commit), send twice (day
   claim), send before 07:00 (stamp mode) or after 10:00 (`latest_send`), or run from a branch. Several armed runs on
-  one night are safe because the cutoff is midnight and the arm window starts at 00:00 (ADR 0015 decision 5): every
+  one night are safe because the arm opens at cut(D), the cut in force for the day (07:00 before `morning_note.cutoff_from`, 00:00 from it), and closes at 08:00 (ADR 0015 decision 5): every
   send run on D builds the same plan. **Removed:** ADR 0014's residual of an unattended AI session holding `gn0sh`'s
   credential and the project's connectors (the cloud task is retired), and its "early dispatch claims the day with
   older data" case. Judgment: small next to "a gn0sh credential can already merge code" (L3; confidence medium). Reopen if a `gn0sh` token is stored anywhere new, or if the note ever sends without the day claim.

@@ -58,8 +58,8 @@ and 5).
   time inside that day, up to 10:15. If none did, it opens one issue titled **"Daily update: no morning note"**, or
   comments on it if it is open. It reports each site day once, by reading the last 10 issues with that title
   opened by GitHub Actions. It also reports when no scheduled run was created in the last 26 hours (the schedule
-  went silent: dropped lines or 60 days with no repository activity). This check cannot see a disabled workflow: a
-  disabled workflow runs nothing, so no job exists to report it. An outside watcher is a follow-up (FX4: gnosh-uptime
+  went silent: dropped lines). This check cannot see a disabled workflow (including GitHub's 60-day stop for repositories with no activity): a
+  disabled workflow runs nothing, so no job exists to report it; only the outside watcher can. An outside watcher is a follow-up (FX4: gnosh-uptime
   alarms when the live `build-info.json` is more than 26 h old). `actions: read` and
   `issues: write` only; no checkout, no repository code. See "The clock" below.
 - Three switches must all be on before anything is sent: `morning_note.sender.enabled: true` in `config/site.yml`
