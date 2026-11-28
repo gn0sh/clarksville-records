@@ -20,7 +20,8 @@ For each site day (America/Chicago, config/site.yml site_timezone) and each run 
 - how many runs collected (the update job's "Collect (polite fetch, parse, verify)" step ran).
 
 A delivery is a send only when its deliver line says "sent" with "emails created N" and N > 0 ("sent; emails created
-0" on a second run of the same plan is not one).
+0" on a second run of the same plan is not one, nor "published": a run of the same plan after send_at, which
+creates nothing because the day's emails have gone out; neither is a safety problem).
 
 --summary N (ADR 0015 "Success signal"): S1 days with a real send whose Deliver step ended by 06:55 (days whose only
 outcome is "no-send" leave the count and are reported on their own line; disabled, no-canary and wrong-date days
@@ -267,11 +268,13 @@ def collect(source: Source, tz: ZoneInfo, now: datetime, days: int) -> list[Day]
     since = datetime.combine(first - timedelta(days=1), time(0, 0), tz).astimezone(timezone.utc)
     by_day: dict[date, list[Run]] = {first + timedelta(days=i): [] for i in range(days)}
     for raw in source.runs(since):
+        if not isinstance(raw, dict):
+            raise BadData(f"a run that is not an object ({type(raw).__name__})")
         if raw.get("head_branch", "main") != "main" or not raw.get("created_at"):
             continue
         try:
             run = read_run(raw, source, tz)
-        except (ValueError, KeyError, TypeError) as exc:
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:    # AttributeError: a job or step not an object
             raise BadData(f"run {raw.get('id', '?')}: unreadable run or job data ({type(exc).__name__}: {exc})")
         d = run.started.astimezone(tz).date()
         if d in by_day:
@@ -353,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         days = collect(Source(args.repo, saved), tz, now, n)
-    except (BadData, ValueError, KeyError, TypeError) as exc:
+    except (BadData, ValueError, KeyError, TypeError, AttributeError) as exc:
         print(f"clock-report: {' '.join(str(exc).split()) or type(exc).__name__}", file=sys.stderr)
         return 2
     except RuntimeError as exc:

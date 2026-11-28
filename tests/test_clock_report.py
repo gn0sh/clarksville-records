@@ -85,8 +85,8 @@ def _fixture():
     # Dec 4, none: the only run came at 09:00, not armed
     fx["runs"].append(_run(5, "schedule", _line(37, 23), "2026-12-04T15:00:00Z"))
     _jobs(fx, 5, arm="false")
-    # Dec 5, two send runs: the first sends, the second (same plan) says "sent; emails created 0"; plus the 20:37 line the evening before
-    # (Dec 4 22:00 CST: not armed, a collect-and-deploy run on Dec 4)
+    # Dec 5, two send runs: the first sends, the second (same plan) says "sent; emails created 0"; plus the 20:37 line
+    # the evening before (Dec 4 22:00 CST: not armed, a collect-and-deploy run on Dec 4)
     fx["runs"].append(_run(6, "schedule", _line(37, 20), "2026-12-05T04:00:00Z"))
     _jobs(fx, 6, arm="false")
     fx["runs"].append(_run(7, "schedule", _line(37, 23), "2026-12-05T07:00:00Z", "2026-12-05T07:01:00Z"))
@@ -303,6 +303,16 @@ def test_a_claim_by_a_different_plan_is_possible_lost_records():
     assert (d.verdict, d.s1) == ("none", False)          # a claim is not a send
 
 
+def test_a_published_run_after_a_send_is_neither_a_send_nor_a_problem():
+    """security/stamp-cleared-after-publish: a same-plan run after send_at says "published" and creates nothing."""
+    d = _day(("success", _sent("2026-12-05"), "2026-12-05T12:50:00Z"),
+             ("success", "2026-12-05T13:20:00Z morning note 2026-12-05: published (the day's emails are already "
+                         "published); emails created 0; recipients in total 0\n", "2026-12-05T13:20:00Z"))
+    assert (d.verdict, d.s1, d.problems) == ("on time", True, [])
+    assert [n.status for r in d.runs for n in r.notes] == ["sent", "published"]
+    assert sum(n.sent for r in d.runs for n in r.notes) == 1
+
+
 @pytest.mark.parametrize("status", ["disabled", "no-canary", "wrong-date"])
 def test_disabled_no_canary_and_wrong_date_never_count_as_on_time(status):
     d = _day(("success", f"2026-12-05T12:50:00Z morning note 2026-12-05: {status}\n", "2026-12-05T12:50:00Z"))
@@ -356,6 +366,10 @@ def test_unreadable_run_data_exits_2_with_one_line(tmp_path, capsys):
     lambda fx: fx["runs"][0].pop("id"),                                   # KeyError
     lambda fx: fx["runs"][0].update(created_at=12345),                    # TypeError
     lambda fx: fx["jobs"]["1"][-1].update(completed_at="yesterday"),      # ValueError from a job
+    lambda fx: fx.update(runs=["x"]),                                     # a run that is not an object
+    lambda fx: fx["jobs"]["1"][-1].update(steps=["x"]),                   # a step that is not an object
+    lambda fx: fx["jobs"].update({"1": {"name": "arm"}}),                 # a run's jobs as an object, not a list
+    lambda fx: fx.update(jobs=[]),                                        # the jobs map as a list
 ])
 def test_other_bad_shapes_exit_2_too(tmp_path, capsys, damage):
     fx = _fixture()

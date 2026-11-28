@@ -62,8 +62,9 @@ on:
     # creates scheduled runs late (5.3 to 12.1 h measured, Nov 13-27, platform-facts) and may drop one. A send run
     # that starts by 05:00 site time ends by about 07:00, so a line must start between 06:00 and 10:00 UTC (CST and
     # CDT both): 20:37 covers 9.4 to 13.4 h of lateness, 23:37 covers 6.4 to 10.4 h, 02:37 covers 3.4 to 7.4 h and
-    # 06:37 covers 0 to 3.4 h; together 0 to 13.4 h. 13:07 is the data backstop. A line that starts before midnight
-    # site time, or after 08:00, is an ordinary collect-and-deploy run. The lines are tuned from the first 14 days'
+    # 06:37 covers 0 to 3.4 h; together 0 to 13.4 h. 13:07 is one more line like the others: it sends too when it
+    # starts in the arm window. A line that starts before the day's cut, or after 08:00, is an ordinary
+    # collect-and-deploy run. The lines are tuned from the first 14 days'
     # scripts/clock-report.py output. Edit them only after 10:00 site time with the PC clock on: a schedule edit
     # drops that day's pending runs (Nov 26, ADR 0015 Risk).
     - cron: "37 20 * * *"
@@ -84,10 +85,11 @@ on:
         type: boolean
         default: false
       # ADR 0014, ADR 0015 decision 4: the dispatch send route. The note job runs on a dispatch only with send_note
-      # and collect both true, dispatched and triggered by gn0sh, on main, and armed (started 00:00 to 08:00 site
-      # time); the default keeps an ordinary "Run workflow" from ever sending.
+      # and collect both true, dispatched and triggered by gn0sh, on main, and armed (started from the cut in force
+      # for the day, 07:00 before cutoff_from and 00:00 from it, to 08:00 site time); the default keeps an ordinary
+      # "Run workflow" from ever sending.
       send_note:
-        description: "Send today's morning note (the PC clock; by hand only to recover between 00:00 and 08:00 site time)"
+        description: "Send today's morning note (the PC clock; by hand only to recover, from the cut in force for the day (07:00 before cutoff_from, 00:00 from it) to 08:00 site time)"
         type: boolean
         default: false
 
@@ -2039,8 +2041,10 @@ jobs:
   #   minutes after it). A note job can only succeed live inside that window (deliver refuses after latest_send), so
   #   a success anywhere in it means the day's note was handled. A run on X+1 catches a missed X, so a very late or
   #   missing backstop line no longer blinds the alarm (clock-alarm/very-late-backstop);
-  # - "the schedule went silent": no scheduled run created in the last 26 h (dropped lines, a disabled workflow, or
-  #   GitHub's 60-day inactivity stop). A scheduled run counts itself, so only a dispatched run can report it.
+  # - "the schedule went silent": no scheduled run created in the last 26 h (dropped schedule lines). A scheduled run
+  #   counts itself, so only a dispatched run can report it. It does not see a disabled workflow or GitHub's 60-day
+  #   inactivity stop: a disabled workflow runs nothing, so no job exists to report it; the outside watcher (FX4,
+  #   gnosh-uptime) covers that.
   # Once per day: a day is skipped when an issue with this title opened by GitHub Actions (open or closed, the last
   # 10) already names it in its body or in a comment by github-actions[bot]; a person's comment never counts. It
   # runs at the start of the run (no needs), so the run's own note is never judged (it is excluded by run id). It

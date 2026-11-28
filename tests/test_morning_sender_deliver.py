@@ -775,7 +775,7 @@ def test_a_rerun_after_a_stamped_subscriber_changed_lists_is_not_a_stray(plan, n
     """audience/stamp-rerun-false-stray and the invariant "one stamp, one email a day": run 1 stamped sub 1 for the
     budget edition A and created A; sub 1 then changed lists. Run 2 of the same plan neither stops at "stray-stamp"
     nor puts sub 1 in another edition, even one not created yet: they keep A's stamp and get A only. After 07:00 (A
-    already sent) the same holds: no second email that day."""
+    already sent) the same holds: no second email that day (the run creates nothing at all: "published")."""
     fake = Fake(people(plan))
     assert go(plan, fake)[0].editions == 3
     a = stamp(key_for(plan, ["budget"]))
@@ -794,7 +794,8 @@ def test_a_rerun_after_a_stamped_subscriber_changed_lists_is_not_a_stray(plan, n
         now = datetime(2026, 11, 11, 7, 30, tzinfo=TZ)
     writes = fake.calls.count("set_metadata")
     res, text = go(plan, fake, now=now)
-    assert (res.code, res.status, res.editions) == (0, "sent", 0), text
+    want = "published" if when.startswith("after") else "sent"
+    assert (res.code, res.status, res.editions) == (0, want, 0), text
     assert fake.calls.count("set_metadata") == writes                  # sub 1 is never stamped again
     assert fake.subs["sub-0001-secret"]["metadata"] == {"note_edition": a}
     editions = [p["metadata"]["note_edition"] for p in fake.created]
@@ -817,6 +818,32 @@ def test_a_holder_of_a_created_edition_is_left_out_of_a_new_one_with_other_peopl
     res, _ = go(plan, fake)
     assert (res.status, res.editions, res.recipients) == ("sent", 1, 1)
     assert fake.audience(fake.created[-1]) == {"sub-0010-secret"}
+
+
+@pytest.mark.parametrize("held", [{"note_edition": "something the form wrote"}, {}])
+def test_a_same_plan_run_after_send_at_creates_nothing_when_a_stamp_was_overwritten(plan, held):
+    """security/stamp-cleared-after-publish: run 1 (05:00) created the day's editions and stamped their people; at
+    07:00 they were published. A form post then overwrote sub 1's stamp and moved them to a shape with no email yet.
+    Run 2 of the same plan at 07:20 can no longer see that sub 1 got one, so it creates no edition at all
+    ("published", exit 0): no second email, no stamp written, not even the subscriber listing read."""
+    fake = Fake(people(plan))
+    assert go(plan, fake)[0].editions == 3
+    for row in fake.email_rows:
+        row["status"] = "sent"
+    done = {p["metadata"]["note_edition"] for p in fake.created}
+    sig = next(g for g, k in sorted(plan["signatures"].items()) if stamp(k) not in done)
+    lists, d, w = sig.split("|")
+    shape = (lists.split(","), None if d == "-" else int(d), None if w == "-" else int(w))
+    fake.subs["sub-0001-secret"]["tags"] = sub(1, *shape)["tags"]
+    fake.subs["sub-0001-secret"]["metadata"] = dict(held)
+    calls, created = len(fake.calls), len(fake.created)
+    res, text = go(plan, fake, now=datetime(2026, 11, 11, 7, 20, tzinfo=TZ))
+    assert (res.code, res.status, res.editions, res.recipients) == (0, "published", 0, 0), text
+    assert "already published" in text
+    assert len(fake.created) == created and fake.calls[calls:] == ["emails"]
+    assert fake.subs["sub-0001-secret"]["metadata"] == held                 # never stamped again
+    # the same state before send_at (a rerun of a run cut short) still goes on to the editions not yet created
+    assert go(plan, fake, now=datetime(2026, 11, 11, 6, 59, tzinfo=TZ))[0].status == "sent"
 
 
 def test_the_stamp_idempotency_key_carries_the_stamp_held_now(plan):

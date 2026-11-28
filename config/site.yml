@@ -129,7 +129,9 @@ morning_note:
   # "everything first found yesterday". The workflow's `arm` job env CUTOFF, CUTOFF_FROM and LEGACY_CUTOFF must
   # equal these keys (and sitegen.morning.LEGACY_CUTOFF); a test pins them, so a move of T in one place fails
   # until the other follows. T is the day after the switch PR merges; if the merge slips, move T so it stays in the
-  # future. The build refuses a bad date, and any cutoff other than 07:00 without a cutoff_from.
+  # future. Never change cutoff_from after it has passed: past days' cuts would move. A second change of the cut
+  # needs a list of switches (each with its own from-date), not a new cutoff_from. The build refuses a bad date,
+  # and any cutoff other than 07:00 without a cutoff_from.
   cutoff: "00:00"
   cutoff_from: "2026-11-30"
   keep_days: 7
